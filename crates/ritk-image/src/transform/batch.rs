@@ -260,8 +260,10 @@ where
         let src = indices.as_slice();
         let mut out = vec![<T as coeus_core::NumericElement>::ZERO; n * D];
         for (idx, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
-            let (radius, angle) =
-                geometry.polar_from_index(<T as coeus_core::NumericElement>::to_f64(idx[0]), <T as coeus_core::NumericElement>::to_f64(idx[1]));
+            let (radius, angle) = geometry.polar_from_index(
+                <T as coeus_core::NumericElement>::to_f64(idx[0]),
+                <T as coeus_core::NumericElement>::to_f64(idx[1]),
+            );
             o[D - 1] = <T as coeus_core::Scalar>::from_f64(radius * angle.sin());
             o[D - 2] = <T as coeus_core::Scalar>::from_f64(radius * angle.cos());
             for c in 0..D - 2 {
@@ -413,11 +415,13 @@ where
         let mut out = vec![<T as coeus_core::NumericElement>::ZERO; n * D];
         for (p, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
             // probe_point = Direction^-1 · (world - origin)
-            let mut probe = [0.0f64; 3];
+            let mut probe: [f64; 3] = [0.0; 3];
             for r in 0..D {
-                let mut acc = 0.0f64;
+                let mut acc: f64 = 0.0;
                 for c in 0..D {
-                    acc += inv_dir[(r, c)] * (<T as coeus_core::NumericElement>::to_f64(p[c]) - <T as coeus_core::NumericElement>::to_f64(origin_t[c]));
+                    acc += inv_dir[(r, c)]
+                        * (<T as coeus_core::NumericElement>::to_f64(p[c])
+                            - <T as coeus_core::NumericElement>::to_f64(origin_t[c]));
                 }
                 probe[r] = acc;
             }
@@ -557,4 +561,3 @@ where
         self.index_to_world_native_on(indices, &B::default())
     }
 }
-

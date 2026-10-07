@@ -2,7 +2,7 @@
 
 use super::error::DicomWriteError;
 use anyhow::Result;
-use dicom::core::value::PrimitiveValue;
+use dicom::core::value::{DicomValueType, PrimitiveValue};
 use dicom::core::{Tag, VR};
 use dicom::object::InMemDicomObject;
 
@@ -20,6 +20,24 @@ const PIXEL_REPRESENTATION: Tag = Tag(0x0028, 0x0103);
 
 // PS3.5 A.2 caps Explicit VR Little Endian value fields at 2^32 - 2 bytes.
 const MAX_NATIVE_PIXEL_VALUE_LENGTH: usize = 0xFFFF_FFFE;
+
+/// Whether the three Image Pixel Module bit attributes describe a valid layout.
+///
+/// DICOM PS3.3 C.7.6.3 requires BitsAllocated to be 1 or a multiple of 8,
+/// BitsStored to lie in `1..=BitsAllocated`, and HighBit to equal
+/// `BitsStored - 1`. Both the source-metadata preflight and the object
+/// preflight enforce this rule, so it has a single definition here.
+#[must_use]
+pub(crate) fn pixel_bit_description_is_valid(
+    bits_allocated: u16,
+    bits_stored: u16,
+    high_bit: u16,
+) -> bool {
+    (bits_allocated == 1 || bits_allocated.is_multiple_of(8))
+        && bits_stored != 0
+        && bits_stored <= bits_allocated
+        && high_bit.checked_add(1) == Some(bits_stored)
+}
 
 /// Validate a native Pixel Data value against its Image Pixel Module.
 ///
@@ -48,7 +66,8 @@ pub(crate) fn preflight_native_pixel_data(object: &InMemDicomObject) -> Result<(
     let bits_allocated = required_tag_unsigned(object, BITS_ALLOCATED, "BitsAllocated")?;
     let bits_stored = required_tag_unsigned(object, BITS_STORED, "BitsStored")?;
     let high_bit = required_tag_unsigned(object, HIGH_BIT, "HighBit")?;
-    let pixel_representation = required_tag_unsigned(object, PIXEL_REPRESENTATION, "PixelRepresentation")?;
+    let pixel_representation =
+        required_tag_unsigned(object, PIXEL_REPRESENTATION, "PixelRepresentation")?;
     let frames = match object.get(NUMBER_OF_FRAMES) {
         Some(element) => required_number_of_frames(element)?,
         None => 1,
@@ -70,11 +89,7 @@ pub(crate) fn preflight_native_pixel_data(object: &InMemDicomObject) -> Result<(
     if samples_per_pixel == 0 {
         return Err(malformed_pixel_attribute("SamplesPerPixel", "zero samples".to_owned()).into());
     }
-    if !(bits_allocated == 1 || bits_allocated.is_multiple_of(8))
-        || bits_stored == 0
-        || bits_stored > bits_allocated
-        || high_bit.checked_add(1) != Some(bits_stored)
-    {
+    if !pixel_bit_description_is_valid(bits_allocated, bits_stored, high_bit) {
         return Err(DicomWriteError::InvalidPixelDescription {
             bits_allocated,
             bits_stored,
@@ -158,7 +173,7 @@ pub(crate) fn preflight_native_pixel_data(object: &InMemDicomObject) -> Result<(
     let pixel_vr = pixel_data.vr();
     if !matches!(pixel_vr, VR::OB | VR::OW) || (bits_allocated > 8 && pixel_vr != VR::OW) {
         return Err(DicomWriteError::InvalidPixelDataVr {
-            vr: pixel_vr.to_string(),
+            vr: format!("{pixel_vr}"),
             bits_allocated,
         }
         .into());
@@ -229,7 +244,11 @@ pub(crate) fn preflight_native_pixel_data(object: &InMemDicomObject) -> Result<(
     Ok(())
 }
 
-fn required_tag_unsigned(object: &InMemDicomObject, tag: Tag, attribute: &'static str) -> Result<u16> {
+fn required_tag_unsigned(
+    object: &InMemDicomObject,
+    tag: Tag,
+    attribute: &'static str,
+) -> Result<u16> {
     let element = object
         .get(tag)
         .ok_or(DicomWriteError::MissingPixelAttribute { attribute })?;
@@ -438,6 +457,3 @@ fn last_explicit_vr_le_byte(value: &PrimitiveValue) -> Option<u8> {
 #[cfg(test)]
 #[path = "pixel_preflight_tests.rs"]
 mod tests;
-
-
-

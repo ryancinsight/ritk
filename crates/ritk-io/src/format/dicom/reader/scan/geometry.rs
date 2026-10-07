@@ -163,9 +163,12 @@ pub(super) fn compute_spacing_z(
     }
 }
 
-/// Assemble the 3×3 direction cosine matrix (row-major `[f64; 9]`).
+/// Assemble the 3×3 direction cosine matrix as column-major `[f64; 9]`.
 ///
-/// Convention: col 0 = NÌ‚, col 1 = F_c, col 2 = F_r.
+/// Convention: col 0 = N̂ (slice normal), col 1 = F_c (row axis), col 2 = F_r
+/// (column axis). This is the RITK `[depth, row, col]` axis order, matching
+/// every other RITK codec and the series-module loader; it is consumed by
+/// `Direction::from_column_major`.
 pub(super) fn assemble_direction(slices: &[DicomSliceMetadata]) -> [f64; 9] {
     if let Some(ori) = slices.first().and_then(|s| s.image_orientation_patient) {
         let r = [ori[0], ori[1], ori[2]];

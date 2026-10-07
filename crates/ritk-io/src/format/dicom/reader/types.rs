@@ -181,11 +181,17 @@ pub struct DicomReadMetadata {
     pub series_date: Option<ArrayString<8>>,
     pub series_time: Option<ArrayString<16>>,
     /// Image dimensions `\[rows, cols, slices\]`.
+    ///
+    /// This is **not** the RITK tensor shape order (`[depth, row, col]`); it is
+    /// this metadata field's own long-standing order, and every consumer
+    /// (`reader/loader.rs`, `color/mod.rs`) reads it as `[rows, cols, depth]`.
     pub dimensions: [usize; 3],
-    /// Physical spacing `\[Δz, ΔRow, ΔCol\]`.
+    /// Physical spacing in RITK tensor-axis order `\[Δdepth, Δrow, Δcol\]`.
     pub spacing: [f64; 3],
     pub origin: [f64; 3],
-    /// Direction cosines in row-major 3×3 order.
+    /// Direction cosines stored column-major in `[depth, row, col]` order
+    /// (column 0 = slice normal, column 1 = row-axis, column 2 = column-axis);
+    /// consumed by `Direction::from_column_major`.
     pub direction: [f64; 9],
     pub bits_allocated: Option<u16>,
     pub bits_stored: Option<u16>,
@@ -250,11 +256,13 @@ pub(super) struct SeriesGeometry {
     pub rows: usize,
     /// Number of pixel columns per slice.
     pub cols: usize,
-    /// Voxel spacing \[mm\]: (row, col, slice).
+    /// Voxel spacing \[mm\] in RITK tensor-axis order `[depth, row, col]`.
     pub spacing: [f64; 3],
     /// Image position of the first slice in patient coordinates \[mm\].
     pub origin: [f64; 3],
-    /// 3×3 row-major direction cosine matrix (col 0 = normal, col 1 = F_c, col 2 = F_r).
+    /// 3×3 direction cosines stored column-major in `[depth, row, col]` order
+    /// (column 0 = slice normal, column 1 = row-axis direction, column 2 =
+    /// column-axis direction); consumed by `Direction::from_column_major`.
     pub direction: [f64; 9],
 }
 

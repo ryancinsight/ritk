@@ -139,7 +139,7 @@ fn metadata_preflight_rejects_invalid_pixel_descriptions_before_output_changes()
             .expect_err("invalid source pixel description");
         assert_eq!(
             error.downcast_ref::<DicomWriteError>(),
-            Some(&DicomWriteError::InvalidSourcePixelDescription {
+            Some(&DicomWriteError::InvalidPixelDescription {
                 bits_allocated: allocated,
                 bits_stored: stored,
                 high_bit: high,

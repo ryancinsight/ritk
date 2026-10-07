@@ -42,7 +42,11 @@ fn test_write_series_load_series_intensity_roundtrip() {
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
+        // Canonical RITK axis-aligned orientation for `[depth, row, col] =
+        // [z, y, x]`. `Direction::identity()` is a transposed orientation whose
+        // DICOM normal is `-depth`, so a normal-sorting reader would return the
+        // volume with the depth index reversed.
+        Direction::from_row_major([0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]),
     )
     .expect("invariant: fixture tensor has the declared rank");
 
@@ -101,7 +105,7 @@ fn native_dicom_loader_matches_legacy_loader() {
         tensor,
         Point::new([3.0, -2.0, 11.0]),
         Spacing::new([1.25, 0.8, 0.6]),
-        Direction::identity(),
+        Direction::from_row_major([0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]),
     )
     .expect("invariant: fixture tensor has the declared rank");
 

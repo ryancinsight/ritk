@@ -301,4 +301,3 @@ mod tests {
 
 // No compat helpers remain; use `make_image` and friends above for
 // Coeus-backed test images.
-

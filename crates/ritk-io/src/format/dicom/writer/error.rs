@@ -2,10 +2,12 @@
 
 /// An invalid image or metadata value prevented a DICOM image write.
 ///
-/// Pixel-data attributes follow DICOM PS3.5 section 8.1.1: the allocated width,
-/// stored width, high bit, signedness, and serialized sample representation must
-/// describe the same pixel bytes. Writer APIs retain their `anyhow::Result`
-/// signatures; callers can recover this cause with `downcast_ref`.
+/// Image Pixel Module attributes follow DICOM PS3.3 C.7.6.3: the allocated
+/// width, stored width, high bit, signedness, sample count, photometric
+/// interpretation, and serialized sample representation must describe the same
+/// pixel bytes. Native encoding follows DICOM PS3.5 sections 8.1.1 and 8.2.
+/// Writer APIs retain their `anyhow::Result` signatures; callers can recover
+/// this cause with `downcast_ref`.
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 #[non_exhaustive]
 pub enum DicomWriteError {
@@ -85,16 +87,19 @@ pub enum DicomWriteError {
     /// Only some source BitsAllocated, BitsStored, and HighBit values were set.
     #[error("source DICOM pixel description must provide all three bit attributes or none")]
     IncompleteSourcePixelDescription,
-    /// Source pixel bit attributes do not satisfy the DICOM pixel-module rules.
+    /// Pixel bit attributes do not satisfy the DICOM pixel-module rules.
+    ///
+    /// Raised for both source metadata and the object under write: the rule is
+    /// the same Image Pixel Module constraint, so the failure is one variant.
     #[error(
-        "invalid source pixel description: BitsAllocated={bits_allocated}, BitsStored={bits_stored}, HighBit={high_bit}"
+        "invalid DICOM pixel description: BitsAllocated={bits_allocated}, BitsStored={bits_stored}, HighBit={high_bit}"
     )]
-    InvalidSourcePixelDescription {
-        /// Source BitsAllocated value.
+    InvalidPixelDescription {
+        /// Declared BitsAllocated value.
         bits_allocated: u16,
-        /// Source BitsStored value.
+        /// Declared BitsStored value.
         bits_stored: u16,
-        /// Source HighBit value.
+        /// Declared HighBit value.
         high_bit: u16,
     },
     /// The scalar writer cannot preserve the source photometric interpretation.
@@ -111,4 +116,46 @@ pub enum DicomWriteError {
     /// A finite value has no legal decimal-string representation within 16 bytes.
     #[error("DICOM Decimal String value cannot fit the 16-byte component limit")]
     DecimalStringValueOutOfRange,
+    /// The object omitted one of its required Image Pixel Module attributes.
+    #[error("DICOM PixelData requires {attribute}")]
+    MissingPixelAttribute {
+        /// Name of the missing attribute.
+        attribute: &'static str,
+    },
+    /// A required Image Pixel Module attribute has an invalid encoded value.
+    #[error("DICOM {attribute} has invalid value {value}")]
+    MalformedPixelAttribute {
+        /// Name of the malformed attribute.
+        attribute: &'static str,
+        /// Exact value supplied by the object.
+        value: String,
+    },
+    /// Native pixel bytes do not match the declared sample width and shape.
+    #[error("DICOM PixelData has {actual} bytes; expected {expected}")]
+    PixelPayloadLengthMismatch {
+        /// Required byte count.
+        expected: usize,
+        /// Serialized byte count.
+        actual: usize,
+    },
+    /// PixelData uses a value representation other than OB or OW.
+    #[error("DICOM PixelData VR must be OB or OW, got {vr}")]
+    InvalidPixelDataVr {
+        /// Exact value representation supplied by the object.
+        vr: String,
+        /// Declared BitsAllocated value.
+        bits_allocated: u16,
+    },
+    /// The PixelData value has no native integer sample representation.
+    #[error("DICOM PixelData has unsupported primitive value {value_type}")]
+    UnsupportedPixelPayloadValue {
+        /// Debug rendering of the offending value type.
+        value_type: String,
+    },
+    /// The Explicit VR Little Endian padding byte is not zero.
+    #[error("DICOM PixelData padding byte must be zero, got {value}")]
+    InvalidPixelDataPadding {
+        /// Offending trailing padding byte.
+        value: u8,
+    },
 }

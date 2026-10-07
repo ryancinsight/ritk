@@ -464,4 +464,3 @@ fn elastic_volumetric<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>
 #[cfg(test)]
 #[path = "tests_dispatch.rs"]
 mod tests;
-

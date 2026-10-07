@@ -37,6 +37,18 @@ pub(crate) struct NiftiSformRows {
 pub(crate) fn metadata_from_nifti_ras_affine(
     affine: [[f32; 4]; 4],
 ) -> Result<InternalSpatialMetadata> {
+    metadata_from_nifti_ras_affine_f64(affine.map(|row| row.map(f64::from)))
+}
+
+/// Convert a NIfTI RAS affine, retained at `f64`, into RITK LPS metadata.
+///
+/// NIfTI-2 stores its spatial transform as `f64`; reading through this entry
+/// point keeps wide geometry exact instead of narrowing it to `f32`. This is
+/// the single conversion core; [`metadata_from_nifti_ras_affine`] widens its
+/// `f32` input and delegates here.
+pub(crate) fn metadata_from_nifti_ras_affine_f64(
+    affine: [[f64; 4]; 4],
+) -> Result<InternalSpatialMetadata> {
     ensure_finite_affine(affine)?;
 
     let lps_file = ras_affine_to_lps_file_axes(affine);
@@ -115,30 +127,15 @@ pub(crate) fn sform_from_internal_lps_metadata(
     }
 }
 
-fn ras_affine_to_lps_file_axes(affine: [[f32; 4]; 4]) -> [[f64; 4]; 3] {
+fn ras_affine_to_lps_file_axes(affine: [[f64; 4]; 4]) -> [[f64; 4]; 3] {
     [
-        [
-            -(affine[0][0] as f64),
-            -(affine[0][1] as f64),
-            -(affine[0][2] as f64),
-            -(affine[0][3] as f64),
-        ],
-        [
-            -(affine[1][0] as f64),
-            -(affine[1][1] as f64),
-            -(affine[1][2] as f64),
-            -(affine[1][3] as f64),
-        ],
-        [
-            affine[2][0] as f64,
-            affine[2][1] as f64,
-            affine[2][2] as f64,
-            affine[2][3] as f64,
-        ],
+        [-affine[0][0], -affine[0][1], -affine[0][2], -affine[0][3]],
+        [-affine[1][0], -affine[1][1], -affine[1][2], -affine[1][3]],
+        [affine[2][0], affine[2][1], affine[2][2], affine[2][3]],
     ]
 }
 
-fn ensure_finite_affine(affine: [[f32; 4]; 4]) -> Result<()> {
+fn ensure_finite_affine(affine: [[f64; 4]; 4]) -> Result<()> {
     for (row_idx, row) in affine.iter().enumerate() {
         for (col_idx, &value) in row.iter().enumerate() {
             if !value.is_finite() {
