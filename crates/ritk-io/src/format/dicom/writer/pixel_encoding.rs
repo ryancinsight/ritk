@@ -1,3 +1,4 @@
+use crate::format::dicom::geometry_validation::direction_cosines_are_orthonormal;
 use crate::format::dicom::writer::elements::PutValue;
 use anyhow::Result;
 use dicom::core::{Tag, VR};
@@ -265,47 +266,15 @@ pub(crate) fn validate_spatial_metadata(
         .all(|value| value.is_finite() && *value > 0.0);
     let origin_is_valid = origin.iter().all(|value| value.is_finite());
     let direction_is_valid = direction.iter().all(|value| value.is_finite());
-    if spacing_is_valid && origin_is_valid && direction_is_valid && orthonormal_axes(direction) {
+    if spacing_is_valid
+        && origin_is_valid
+        && direction_is_valid
+        && direction_cosines_are_orthonormal(direction)
+    {
         Ok(())
     } else {
         Err(DicomWriteError::InvalidSpatialMetadata.into())
     }
-}
-
-// PS3.3 C.7.6.2.1.1 requires unit, orthogonal direction cosines:
-// https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.6.2.html
-// Admit directions rounded once to f32, then widened without further loss.
-// For component errors <= u, a three-term squared norm or orthogonal dot
-// changes by <= 6u + 3u². Five f64 operations add at most
-// 3 * gamma(5) * (1+u)². This is an input accuracy contract, not a fitted epsilon.
-const DIRECTION_UNIT_ROUNDOFF: f64 = 1.0 / 16_777_216.0; // 2^-24
-const DOT_UNIT_ROUNDOFF: f64 = f64::EPSILON / 2.0;
-const DOT_GAMMA: f64 = 5.0 * DOT_UNIT_ROUNDOFF / (1.0 - 5.0 * DOT_UNIT_ROUNDOFF);
-const DIRECTION_DOT_BOUND: f64 = 6.0 * DIRECTION_UNIT_ROUNDOFF
-    + 3.0 * DIRECTION_UNIT_ROUNDOFF * DIRECTION_UNIT_ROUNDOFF
-    + 3.0 * DOT_GAMMA * (1.0 + DIRECTION_UNIT_ROUNDOFF) * (1.0 + DIRECTION_UNIT_ROUNDOFF);
-
-fn orthonormal_axes(direction: &[f64]) -> bool {
-    if direction.is_empty() {
-        return true;
-    }
-    if direction.len() != 6 && direction.len() != 9 {
-        return false;
-    }
-    let axes = direction.chunks_exact(3);
-    for (index, axis) in axes.clone().enumerate() {
-        let norm_squared = axis.iter().map(|value| value * value).sum::<f64>();
-        if (norm_squared - 1.0).abs() > DIRECTION_DOT_BOUND {
-            return false;
-        }
-        for other in axes.clone().skip(index + 1) {
-            let dot = axis.iter().zip(other).map(|(a, b)| a * b).sum::<f64>();
-            if dot.abs() > DIRECTION_DOT_BOUND {
-                return false;
-            }
-        }
-    }
-    true
 }
 
 /// Emit the four DICOM tags that define unsigned pixel format.

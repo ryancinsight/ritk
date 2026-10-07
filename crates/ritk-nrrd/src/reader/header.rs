@@ -263,21 +263,35 @@ pub(super) fn parse_nrrd_header_from_reader<R: BufRead>(
             }
             continue;
         }
-        if let Some((key, value)) = text.split_once(":=") {
-            if format_version < 2 {
-                return Err(NrrdHeaderError::KeyValueBeforeVersionTwo { line_number });
-            }
-            insert_key_value(&mut header, key, value, line_number)?;
-        } else if let Some((field, value)) = text.split_once(": ") {
+        let field_separator = text.find(": ");
+        let key_value_separator = text.find(":=");
+        let (separator, is_field) = match (field_separator, key_value_separator) {
+            (Some(field), Some(_)) if is_standard_field_name(&text[..field]) => (field, true),
+            (Some(_), Some(key_value)) => (key_value, false),
+            (Some(field), None) => (field, true),
+            (None, Some(key_value)) => (key_value, false),
+            (None, None) => return Err(NrrdHeaderError::MalformedLine { line_number }),
+        };
+        let (key, remainder) = text.split_at(separator);
+        if is_field {
+            let value = remainder
+                .strip_prefix(": ")
+                .ok_or(NrrdHeaderError::MalformedLine { line_number })?;
             insert_field(
                 &mut header,
-                field,
+                key,
                 value.trim_end(),
                 line_number,
                 format_version,
             )?;
         } else {
-            return Err(NrrdHeaderError::MalformedLine { line_number });
+            let value = remainder
+                .strip_prefix(":=")
+                .ok_or(NrrdHeaderError::MalformedLine { line_number })?;
+            if format_version < 2 {
+                return Err(NrrdHeaderError::KeyValueBeforeVersionTwo { line_number });
+            }
+            insert_key_value(&mut header, key, value, line_number)?;
         }
     }
 }
@@ -400,6 +414,15 @@ fn canonical_field_name(field: &str) -> &str {
     } else {
         field
     }
+}
+
+const STANDARD_FIELD_NAMES: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame|content|labels|data file|line skip|byte skip|spacings|thicknesses|axis mins|axis maxs|centers|block size|old min|old max|sample units|space dimension";
+
+pub(crate) fn is_standard_field_name(field: &str) -> bool {
+    let canonical = canonical_field_name(field);
+    STANDARD_FIELD_NAMES
+        .split('|')
+        .any(|name| name.eq_ignore_ascii_case(canonical))
 }
 
 fn minimum_field_version(field: &str) -> Option<u8> {

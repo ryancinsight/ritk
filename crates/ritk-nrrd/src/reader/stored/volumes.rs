@@ -31,6 +31,7 @@ pub(super) fn decode_stored_volumes(
         spacing,
         direction,
         coordinate_map,
+        intensity_unit,
     } = parsed;
     let stored_type =
         sample_type(&element_type).map_err(|_| NrrdStoredReadError::UnsupportedElementType {
@@ -99,6 +100,10 @@ pub(super) fn decode_stored_volumes(
             IntensityCalibration::Identity,
         )
         .map_err(|source| NrrdStoredReadError::StoredVolume { source })?;
+        let volume = match intensity_unit.as_ref() {
+            Some(unit) => volume.with_intensity_unit(unit.clone()),
+            None => volume,
+        };
         decoded.push(volume);
     }
     Ok(decoded)

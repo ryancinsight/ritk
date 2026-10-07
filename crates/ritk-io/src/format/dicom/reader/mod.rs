@@ -24,6 +24,7 @@ mod parse;
 pub(super) mod pixel;
 mod preservation;
 pub(super) mod scan;
+mod stored;
 pub(crate) mod types;
 
 #[cfg(test)]
@@ -38,6 +39,10 @@ pub use scan::{
     scan_dicom_directory_with_budget, scan_dicom_files, scan_dicom_files_with_budget,
     scan_dicom_instances, scan_dicom_instances_with_budget, scan_dicom_part10_bytes,
     scan_dicom_part10_bytes_with_budget, scan_dicom_path, scan_dicom_path_with_budget,
+};
+pub use stored::{
+    load_dicom_stored_series, load_dicom_stored_series_with_budget, read_dicom_stored_series,
+    read_dicom_stored_series_with_budget, StoredDicomError,
 };
 // scan::scan_dicom_directory is accessed directly via `reader::scan::scan_dicom_directory`
 // by sibling modules (color.rs). No re-export needed.

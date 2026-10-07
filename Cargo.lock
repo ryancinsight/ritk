@@ -6201,6 +6201,7 @@ dependencies = [
  "ritk-dicom",
  "ritk-filter",
  "ritk-image",
+ "ritk-image-io",
  "ritk-jpeg",
  "ritk-metaimage",
  "ritk-mgh",

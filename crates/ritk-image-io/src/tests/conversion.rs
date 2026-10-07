@@ -7,7 +7,7 @@ use crate::{
     prepare_conversion, report_conversion_capabilities, ConversionAdapter,
     ConversionCapabilityReport, ConversionFeature, ConversionLocation, ConversionLoss,
     ConversionPrepareError, ConversionRejection, ConversionTarget, FormatMetadataLoss,
-    IntensityCalibration, LinearCalibration, SeriesAxis, StoredSeries, StoredVolume,
+    IntensityCalibration, IntensityUnit, LinearCalibration, SeriesAxis, StoredSeries, StoredVolume,
 };
 use thiserror::Error;
 
@@ -21,6 +21,7 @@ impl ConversionTarget for FullTarget {
         ConversionFeature::CartesianCoordinates,
         ConversionFeature::IdentityCalibration,
         ConversionFeature::LinearCalibration,
+        ConversionFeature::IntensityUnit,
         ConversionFeature::ListAxis,
     ];
 }
@@ -109,7 +110,8 @@ fn unsupported_feature_report_identifies_each_volume_and_series_axis() {
         CoordinateMap::Cartesian,
         IntensityCalibration::Identity,
     )
-    .expect("one-frame volume");
+    .expect("one-frame volume")
+    .with_intensity_unit(IntensityUnit::new("HU").expect("nonempty unit label"));
     let phased = PhasedArray3D::try_new(1.0, 0.0, 0.1, 0.1, 0.0, 0.0)
         .expect("finite three-dimensional steering geometry");
     let second = StoredVolume::new(
@@ -140,6 +142,7 @@ fn unsupported_feature_report_identifies_each_volume_and_series_axis() {
             volume_loss(0, ConversionFeature::PhysicalGeometry),
             volume_loss(0, ConversionFeature::CartesianCoordinates),
             volume_loss(0, ConversionFeature::IdentityCalibration),
+            volume_loss(0, ConversionFeature::IntensityUnit),
             volume_loss(1, ConversionFeature::PhysicalGeometry),
             volume_loss(1, ConversionFeature::PhasedArray3DCoordinates),
             volume_loss(1, ConversionFeature::IdentityCalibration),

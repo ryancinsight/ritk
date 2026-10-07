@@ -1,7 +1,7 @@
 use crate::reader::{NrrdHeader, NrrdHeaderError, NrrdReadPlan, NrrdReadSession};
 use crate::writer::{
-    write_nrrd_header_with_metadata, write_nrrd_series_header_with_metadata, HeaderBuffer,
-    SeriesLayout,
+    validate_intensity_semantics, validate_series_intensity_unit, write_nrrd_header_with_metadata,
+    write_nrrd_series_header_with_metadata, HeaderBuffer, SeriesLayout,
 };
 use crate::{NrrdStoredReadError, NrrdStoredWriteError};
 use ritk_image_io::{validate_physical_geometry, ImageReadBudget, SeriesAxis, StoredSeries};
@@ -36,7 +36,8 @@ pub enum NrrdDocumentError {
 impl NrrdDocument {
     /// Constructs a document without an intermediate file.
     ///
-    /// Unsupported standard fields, generated records, and parser-dropped comment forms return a typed error.
+    /// Unsupported standard fields, ambiguous record keys, generated records,
+    /// and parser-dropped comment forms return a typed error.
     pub fn new(
         series: StoredSeries,
         comments: Vec<String>,
@@ -70,26 +71,20 @@ impl NrrdDocument {
             &self.records,
             matches!(self.series.axis(), SeriesAxis::Diffusion(_)),
         )?;
-        let header = build_document_header(
-            first.shape(),
-            self.series.volumes().len(),
-            first.metadata().spacing(),
-            first.metadata().origin(),
-            first.metadata().direction(),
-            crate::writer::nrrd_type_name(first.samples().sample_type())?,
-            first.coordinate_map(),
-            self.series.axis(),
-            &self.comments,
-            &self.records,
-        )?;
         crate::writer::validate_series_axis(self.series.axis())?;
-        crate::writer::validate_calibration(first)?;
+        crate::writer::validate_series_header_entries(
+            self.series.axis(),
+            first.coordinate_map(),
+            first.intensity_unit().is_some(),
+        )?;
+        validate_intensity_semantics(first)?;
         validate_physical_geometry(first.metadata())
             .map_err(|source| NrrdStoredWriteError::PhysicalGeometry { source })?;
         let sample_type = first.samples().sample_type();
         for (offset, volume) in self.series.volumes().iter().skip(1).enumerate() {
             let index = offset + 1;
-            crate::writer::validate_calibration(volume)?;
+            validate_intensity_semantics(volume)?;
+            validate_series_intensity_unit(first.intensity_unit(), volume.intensity_unit(), index)?;
             if volume.shape() != first.shape() {
                 return Err(NrrdStoredWriteError::ShapeMismatch {
                     index,
@@ -108,6 +103,21 @@ impl NrrdDocument {
                 return Err(NrrdStoredWriteError::SampleTypeMismatch { index }.into());
             }
         }
+        let header = build_document_header(
+            first.shape(),
+            self.series.volumes().len(),
+            first.metadata().spacing(),
+            first.metadata().origin(),
+            first.metadata().direction(),
+            crate::writer::nrrd_type_name(first.samples().sample_type())?,
+            first.coordinate_map(),
+            self.series.axis(),
+            first
+                .intensity_unit()
+                .map(ritk_image_io::IntensityUnit::as_str),
+            &self.comments,
+            &self.records,
+        )?;
         Ok(header)
     }
     fn write_to<P: AsRef<Path>>(&self, path: P) -> Result<(), NrrdDocumentError> {
@@ -132,6 +142,7 @@ fn build_document_header(
     element_type: &str,
     coordinate_map: &ritk_spatial::CoordinateMap,
     axis: &SeriesAxis,
+    sample_units: Option<&str>,
     comments: &[String],
     records: &[(String, String)],
 ) -> Result<HeaderBuffer, NrrdDocumentError> {
@@ -145,6 +156,7 @@ fn build_document_header(
             direction,
             element_type,
             coordinate_map,
+            sample_units,
             comments,
             records,
         )
@@ -160,6 +172,7 @@ fn build_document_header(
             coordinate_map,
             SeriesLayout::AcquisitionSlowest,
             axis,
+            sample_units,
             comments,
             records,
         )
@@ -231,6 +244,9 @@ fn validate_document_header_limits(
         crate::writer::nrrd_type_name(plan.sample_type)?,
         &plan.coordinate_map,
         axis,
+        plan.intensity_unit
+            .as_ref()
+            .map(ritk_image_io::IntensityUnit::as_str),
         &metadata.comments,
         &metadata.records,
     )?;
@@ -368,6 +384,9 @@ fn validate_document_metadata(
             || !key.is_ascii()
             || key.starts_with('#')
             || key.contains(":=")
+            || key
+                .split_once(": ")
+                .is_some_and(|(field, _)| crate::reader::is_standard_field_name(field))
             || key.contains(['\r', '\n'])
             || !value.is_ascii()
             || value.contains(['\r', '\n'])
@@ -394,8 +413,7 @@ fn validate_document_metadata(
     Ok(())
 }
 const GENERATED_COMMENT: &str = "# Complete NRRD file written by ritk";
-const STANDARD_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame|content|labels|data file|line skip|byte skip|spacings|thicknesses|axis mins|axis maxs|centers|block size|old min|old max|sample units|space dimension";
-const GENERATED_STANDARD_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
+const GENERATED_STANDARD_FIELDS: &str = "type|dimension|sample units|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
 
 fn generated_metadata_name(name: &str, value: &str) -> bool {
     name.eq_ignore_ascii_case("ritk_coordinate_map")
@@ -404,7 +422,7 @@ fn generated_metadata_name(name: &str, value: &str) -> bool {
         || (name == "modality" && value == "DWMRI")
 }
 fn standard_metadata_name(name: &str) -> bool {
-    STANDARD_FIELDS.split('|').any(|field| field == name)
+    crate::reader::is_standard_field_name(name)
 }
 fn generated_standard_field(name: &str) -> bool {
     GENERATED_STANDARD_FIELDS

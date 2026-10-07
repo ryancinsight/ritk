@@ -119,20 +119,9 @@
 - acceptance: every exposed DICOM conversion preserves its declared pixel, geometry, calibration, and acquisition semantics or returns typed loss before output; separate series remain independently selectable and export is labeled secondary capture when source semantics are not retained.
 - status: todo
 - priority: architecture
-- needs: RITK-DICOM-PIXEL-ENCODING-001, RITK-DICOM-STORED-IMPORT-001
+- needs: RITK-DICOM-PIXEL-ENCODING-001
 - scope: crates/ritk-dicom/, crates/ritk-io/, crates/ritk-snap/, DICOM tests and user manual
-- next: implement stored-pixel import and selected-series flow, then expose only conversions with verified DICOM pixel encoding.
-- basis: 2c277e2d5b1e2c3b60b2c8afb587ab72d68f690a
-
-<a id="RITK-DICOM-STORED-IMPORT-001"></a>
-## RITK-DICOM-STORED-IMPORT-001: Retain DICOM stored pixel values
-- outcome: decode DICOM PixelData into its declared fixed-width sample type without applying display rescale in the stored value.
-- acceptance: signedness, allocated/stored bits, exact sample values, geometry, and modality calibration round-trip in typed RITK values; color pixels remain a separate color model; unsupported tags return typed errors before conversion.
-- status: todo
-- priority: correctness
-- needs: none
-- scope: crates/ritk-dicom/, crates/ritk-io/src/format/dicom/reader/, crates/ritk-image-io/, stored-pixel tests and DICOM guide
-- next: map supported DICOM pixel encodings and rescale tags to the current stored and calibration types.
+- next: expose selected-series conversions only after the target representation passes semantic-loss preflight.
 - basis: 2c277e2d5b1e2c3b60b2c8afb587ab72d68f690a
 
 <a id="RITK-METAIMAGE-CONVERSION-001"></a>
