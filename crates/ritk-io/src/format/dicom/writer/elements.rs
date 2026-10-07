@@ -25,7 +25,7 @@ pub(crate) fn node_to_element(node: &DicomObjectNode) -> DataElement<InMemDicomO
         DicomValue::Text(s) => DataElement::new(tag, vr, PrimitiveValue::from(s.as_str())),
         DicomValue::Bytes(b) => DataElement::new(
             tag,
-            VR::OB,
+            vr,
             PrimitiveValue::U8(SmallVec::from_vec(b.clone())),
         ),
         DicomValue::U16(v) => DataElement::new(tag, vr, PrimitiveValue::from(*v)),

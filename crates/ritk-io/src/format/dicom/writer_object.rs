@@ -5,15 +5,16 @@
 //!
 //! # Invariants
 //! - Every node in the model appears exactly once in the output.
-//! - Byte nodes use OB VR unconditionally.
+//! - Byte nodes preserve their declared OB or OW VR.
 //! - Sequence nodes produce SQ elements with undefined length.
 
 use super::object_model::{DicomObjectModel, DicomTag};
 use super::transfer_syntax::EXPLICIT_VR_LE;
 use super::writer::elements::node_to_element;
+use super::writer::output::write_file;
 use super::writer::pixel_encoding::DICOM_SOP_CLASS_SECONDARY_CAPTURE;
 use anyhow::Result;
-use dicom::object::{meta::FileMetaTableBuilder, InMemDicomObject};
+use dicom::object::{InMemDicomObject, meta::FileMetaTableBuilder};
 use std::path::Path;
 
 /// Convert a `DicomObjectModel` to an `InMemDicomObject`.
@@ -44,10 +45,7 @@ pub fn write_object(model: &DicomObjectModel, path: &Path) -> Result<()> {
                 .transfer_syntax(EXPLICIT_VR_LE),
         )
         .map_err(|e| anyhow::anyhow!("DICOM meta build failed: {e}"))?;
-    file_obj
-        .write_to_file(path)
-        .map_err(|e| anyhow::anyhow!("write_to_file {:?} failed: {e}", path))?;
-    Ok(())
+    write_file(path, &file_obj)
 }
 
 #[cfg(test)]
@@ -56,7 +54,7 @@ mod tests {
         DicomObjectModel, DicomObjectNode, DicomSequenceItem, DicomTag,
     };
     use super::*;
-    use dicom::core::Tag;
+    use dicom::core::{Tag, VR};
     use dicom::object::open_file;
 
     #[test]
@@ -97,14 +95,37 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("bytes.dcm");
         let mut model = DicomObjectModel::new();
+        for (tag, value) in [
+            (DicomTag::new(0x0028, 0x0002), 1u16),
+            (DicomTag::new(0x0028, 0x0010), 2u16),
+            (DicomTag::new(0x0028, 0x0011), 2u16),
+            (DicomTag::new(0x0028, 0x0100), 8u16),
+            (DicomTag::new(0x0028, 0x0101), 8u16),
+            (DicomTag::new(0x0028, 0x0102), 7u16),
+            (DicomTag::new(0x0028, 0x0103), 0u16),
+        ] {
+            model.insert(DicomObjectNode::with_value(tag, "US", value));
+        }
+        model.insert(DicomObjectNode::text(
+            DicomTag::new(0x0028, 0x0004),
+            "CS",
+            "MONOCHROME2",
+        ));
+        let pixels = vec![1u8, 2, 3, 4];
         model.insert(DicomObjectNode::bytes(
             DicomTag::new(0x7FE0, 0x0010),
             "OB",
-            vec![0u8; 20],
+            pixels.clone(),
         ));
         write_object(&model, &path).expect("write_object");
-        let len = std::fs::metadata(&path).expect("metadata").len();
-        assert!(len > 128, "file must exceed preamble size, got {len}");
+        let obj = open_file(&path).expect("open_file");
+        let pixel_data = obj.element(Tag(0x7FE0, 0x0010)).expect("PixelData");
+        assert_eq!(pixel_data.vr(), VR::OB, "PixelData VR");
+        assert_eq!(
+            pixel_data.to_bytes().expect("pixel bytes").as_ref(),
+            pixels.as_slice(),
+            "decoded pixel values",
+        );
     }
 
     #[test]
