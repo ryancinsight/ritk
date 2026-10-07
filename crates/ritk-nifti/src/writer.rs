@@ -415,9 +415,9 @@ fn header_from_spatial_with_volumes(
         datatype,
         HeaderSpatial {
             pixdim,
-            srow_x: sform.x.map(f64::from),
-            srow_y: sform.y.map(f64::from),
-            srow_z: sform.z.map(f64::from),
+            srow_x: sform.x,
+            srow_y: sform.y,
+            srow_z: sform.z,
         },
     )
 }
