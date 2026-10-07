@@ -2,6 +2,7 @@
 
 use crate::header::{checked_spatial_pixdim, qfac_from_pixdim, HeaderVersion, NiftiHeader};
 use crate::reader::GZIP_MAGIC;
+use crate::spatial::{sform_handedness, SpatialHandedness};
 use crate::writer::is_gzip_path;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
@@ -13,7 +14,7 @@ use std::io::{self, Read, Write};
 use std::ops::Range;
 use std::path::Path;
 
-const MAX_DOCUMENT_BYTES: u64 = 1 << 30;
+pub(crate) const MAX_DOCUMENT_BYTES: u64 = 1 << 30;
 
 /// NIfTI header version carried by a [`NiftiDocument`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -62,6 +63,10 @@ pub struct NiftiDocumentHeader {
     pub sform_code: i32,
     /// Packed spatial and temporal unit codes.
     pub xyzt_units: i32,
+    /// Multiplicative intensity scale; zero means that scaling is disabled.
+    pub scl_slope: f64,
+    /// Additive intensity offset used when `scl_slope` is nonzero.
+    pub scl_inter: f64,
     /// Relationship between active spatial transforms.
     pub spatial_forms: SpatialFormRelation,
 }
@@ -133,8 +138,14 @@ impl NiftiDocument {
         let bytes = if encoded.starts_with(&GZIP_MAGIC) {
             decode_gzip(encoded)?
         } else {
+            ensure_document_size(encoded.len())?;
             encoded.to_vec()
         };
+        Self::from_owned_bytes(bytes)
+    }
+
+    pub(crate) fn from_owned_bytes(bytes: Vec<u8>) -> Result<Self, NiftiDocumentError> {
+        ensure_document_size(bytes.len())?;
         let parsed = NiftiHeader::parse(&bytes).map_err(NiftiDocumentError::Header)?;
         let samples = parsed
             .volume_byte_range(bytes.len())
@@ -156,6 +167,8 @@ impl NiftiDocument {
             qform_code: parsed.qform_code,
             sform_code: parsed.sform_code,
             xyzt_units: parsed.xyzt_units,
+            scl_slope: parsed.scl_slope,
+            scl_inter: parsed.scl_inter,
             spatial_forms,
         };
         Ok(Self {
@@ -205,6 +218,14 @@ impl NiftiDocument {
     }
 }
 
+fn ensure_document_size(length: usize) -> Result<(), NiftiDocumentError> {
+    let length = u64::try_from(length).expect("invariant: usize length fits u64");
+    if length > MAX_DOCUMENT_BYTES {
+        return Err(NiftiDocumentError::DecodedSizeLimit(MAX_DOCUMENT_BYTES));
+    }
+    Ok(())
+}
+
 /// Validate and transcode a single-file NIfTI document between `.nii` and
 /// `.nii.gz` framing.
 pub fn transcode_nifti_document(
@@ -215,6 +236,15 @@ pub fn transcode_nifti_document(
 }
 
 fn classify_forms(header: &NiftiHeader) -> Result<SpatialFormRelation, NiftiDocumentError> {
+    let sform_handedness = if header.sform_code > 0 {
+        Some(
+            sform_handedness([header.srow_x, header.srow_y, header.srow_z])
+                .ok_or(NiftiDocumentError::DegenerateSform)?,
+        )
+    } else {
+        None
+    };
+
     match (header.qform_code > 0, header.sform_code > 0) {
         (false, false) => Ok(SpatialFormRelation::None),
         (true, false) => Ok(SpatialFormRelation::QformOnly),
@@ -223,15 +253,15 @@ fn classify_forms(header: &NiftiHeader) -> Result<SpatialFormRelation, NiftiDocu
             checked_spatial_pixdim(header.pixdim)
                 .and_then(|_| qfac_from_pixdim(header.pixdim[0]))
                 .map_err(NiftiDocumentError::SpatialForms)?;
-            let [a, b, c] = [header.srow_x, header.srow_y, header.srow_z];
-            let determinant = a[0] * (b[1] * c[2] - b[2] * c[1])
-                - a[1] * (b[0] * c[2] - b[2] * c[0])
-                + a[2] * (b[0] * c[1] - b[1] * c[0]);
-            if !determinant.is_finite() || determinant == 0.0 {
+            let Some(sform_handedness) = sform_handedness else {
                 return Err(NiftiDocumentError::DegenerateSform);
-            }
-            let qform_is_left_handed = header.pixdim[0] == -1.0;
-            if qform_is_left_handed == determinant.is_sign_negative() {
+            };
+            let qform_handedness = if header.pixdim[0] == -1.0 {
+                SpatialHandedness::Left
+            } else {
+                SpatialHandedness::Right
+            };
+            if qform_handedness == sform_handedness {
                 Ok(SpatialFormRelation::CompatibleHandedness)
             } else {
                 Ok(SpatialFormRelation::HandednessConflict)
@@ -339,6 +369,21 @@ mod tests {
             document.header().spatial_forms,
             SpatialFormRelation::HandednessConflict
         );
+    }
+
+    #[test]
+    fn singular_sform_only_document_is_rejected() {
+        let mut bytes = document_bytes(1.0);
+        let mut header = NiftiHeader::parse(&bytes).expect("initial document header parses");
+        header.qform_code = 0;
+        header.srow_y = header.srow_x;
+        let encoded_header = header.encode();
+        bytes[..encoded_header.len()].copy_from_slice(&encoded_header);
+
+        assert!(matches!(
+            NiftiDocument::from_bytes(&bytes),
+            Err(NiftiDocumentError::DegenerateSform)
+        ));
     }
 
     #[test]
