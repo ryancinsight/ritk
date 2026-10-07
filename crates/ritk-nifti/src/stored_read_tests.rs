@@ -92,7 +92,7 @@ fn scalar_payloads() -> Vec<(SampleType, Vec<u8>)> {
     ]
 }
 
-fn put_i16(bytes: &mut [u8], offset: usize, value: i16, big_endian: bool) {
+fn put_signed_short(bytes: &mut [u8], offset: usize, value: i16, big_endian: bool) {
     let raw = if big_endian {
         value.to_be_bytes()
     } else {
@@ -101,7 +101,7 @@ fn put_i16(bytes: &mut [u8], offset: usize, value: i16, big_endian: bool) {
     bytes[offset..offset + 2].copy_from_slice(&raw);
 }
 
-fn put_i32(bytes: &mut [u8], offset: usize, value: i32, big_endian: bool) {
+fn put_signed_int(bytes: &mut [u8], offset: usize, value: i32, big_endian: bool) {
     let raw = if big_endian {
         value.to_be_bytes()
     } else {
@@ -110,7 +110,7 @@ fn put_i32(bytes: &mut [u8], offset: usize, value: i32, big_endian: bool) {
     bytes[offset..offset + 4].copy_from_slice(&raw);
 }
 
-fn put_f32(bytes: &mut [u8], offset: usize, value: f32, big_endian: bool) {
+fn put_float(bytes: &mut [u8], offset: usize, value: f32, big_endian: bool) {
     let raw = if big_endian {
         value.to_be_bytes()
     } else {
@@ -124,22 +124,22 @@ fn put_f32(bytes: &mut [u8], offset: usize, value: f32, big_endian: bool) {
 /// `scl_slope` is left at zero so the read path must treat scaling as disabled.
 fn raw_nifti1_document(big_endian: bool, spatial_units: u8) -> Vec<u8> {
     let mut bytes = vec![0_u8; 354];
-    put_i32(&mut bytes, 0, 348, big_endian); // sizeof_hdr
+    put_signed_int(&mut bytes, 0, 348, big_endian); // sizeof_hdr
     for (index, value) in [3_i16, 2, 1, 1, 1, 1, 1, 1].into_iter().enumerate() {
-        put_i16(&mut bytes, 40 + index * 2, value, big_endian); // dim
+        put_signed_short(&mut bytes, 40 + index * 2, value, big_endian); // dim
     }
-    put_i16(&mut bytes, 70, 2, big_endian); // datatype = u8
-    put_i16(&mut bytes, 72, 8, big_endian); // bitpix
-    put_f32(&mut bytes, 76, 0.0, big_endian); // pixdim[0] = qfac
+    put_signed_short(&mut bytes, 70, 2, big_endian); // datatype = u8
+    put_signed_short(&mut bytes, 72, 8, big_endian); // bitpix
+    put_float(&mut bytes, 76, 0.0, big_endian); // pixdim[0] = qfac
     for (index, value) in [1.0_f32, 1.0, 1.0].into_iter().enumerate() {
-        put_f32(&mut bytes, 80 + index * 4, value, big_endian); // pixdim[1..3]
+        put_float(&mut bytes, 80 + index * 4, value, big_endian); // pixdim[1..3]
     }
-    put_f32(&mut bytes, 108, 352.0, big_endian); // vox_offset
-    put_f32(&mut bytes, 112, 0.0, big_endian); // scl_slope = 0 (disabled)
-    put_f32(&mut bytes, 116, 0.0, big_endian); // scl_inter
+    put_float(&mut bytes, 108, 352.0, big_endian); // vox_offset
+    put_float(&mut bytes, 112, 0.0, big_endian); // scl_slope = 0 (disabled)
+    put_float(&mut bytes, 116, 0.0, big_endian); // scl_inter
     bytes[123] = spatial_units; // xyzt_units (u8, order independent)
-    put_i16(&mut bytes, 252, 0, big_endian); // qform_code
-    put_i16(&mut bytes, 254, 0, big_endian); // sform_code
+    put_signed_short(&mut bytes, 252, 0, big_endian); // qform_code
+    put_signed_short(&mut bytes, 254, 0, big_endian); // sform_code
     bytes[344..348].copy_from_slice(b"n+1\0"); // single-file magic
     bytes[352..354].copy_from_slice(&[9, 8]); // two u8 voxels
     bytes
