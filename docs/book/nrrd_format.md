@@ -160,6 +160,22 @@ or flushing, can leave partial output.
 
 ## Stored samples and format conversion
 
+`NrrdDocument` combines a validated `StoredSeries` with retained comments and
+custom records without an intermediate file. Writing derives structural fields
+from the samples, validates first, and leaves an existing destination
+unchanged on rejection.
+
+The document boundary retains only the generated structural fields and the
+custom records it can emit unchanged. It rejects standard fields such as
+`content`, `labels`, `data file`, and `spacings`, detached payload references,
+and malformed generated records rather than dropping them. It also rejects
+empty `#` and `##` comments, non-ASCII comments, and the writer's generated
+banner. The header parser retains non-empty forms such as `# note` and
+`##note`; the document boundary preserves those values unchanged.
+The document constructor runs the same header, series, geometry, calibration,
+and entry-limit checks as its writer, so construction cannot produce a value
+that serialization would reject.
+
 Use `read_nrrd_stored` when NRRD is an input to a format conversion. It
 returns `ritk_image_io::StoredVolume`, retaining the element type, each stored
 value, the spatial metadata, the coordinate map, and the calibration state.
