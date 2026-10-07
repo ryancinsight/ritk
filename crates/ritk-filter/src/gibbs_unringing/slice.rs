@@ -5,7 +5,7 @@
 use super::line::LineUnringer;
 use super::TvWindow;
 use apollo_fft::application::execution::kernel::{fft_forward, fft_inverse, FftPrecision};
-use eunomia::{Complex, FloatElement, NumericElement, RealField};
+use eunomia::{Complex, NumericElement, RealField};
 
 /// Reusable buffers for slices of one fixed `rows × cols` shape, row-major
 /// (`cols` contiguous). Rows run along the first in-plane axis.

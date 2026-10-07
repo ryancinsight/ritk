@@ -3,7 +3,6 @@
 
 use super::threshold::{marchenko_pastur_boundary, NoiseBoundary};
 use super::{MpEstimator, MpPcaError, PatchExtent};
-use eunomia::FloatElement;
 use leto::Array2;
 use leto_ops::{RealScalar, SymmetricEigenWorkspace};
 
