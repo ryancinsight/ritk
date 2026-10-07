@@ -216,7 +216,7 @@ fn fwd_diff<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
     if local + 1 < extent {
         data[offset + stride] - data[offset]
     } else {
-        <T as coeus_core::NumericElement>::ZERO
+        <T as eunomia::NumericElement>::ZERO
     }
 }
 
@@ -233,7 +233,7 @@ fn laplacian_squared_mean_planar<
     w: usize,
 ) -> T {
     let four = <T as eunomia::FloatElement>::from_f64(4.0);
-    let mut acc = <T as coeus_core::NumericElement>::ZERO;
+    let mut acc = <T as eunomia::NumericElement>::ZERO;
     for plane in 0..bc {
         let base = plane * h * w;
         for i in 1..h.saturating_sub(1) {
@@ -254,7 +254,7 @@ fn gradient_squared_mean_planar<T: eunomia::FloatElement + Scalar + eunomia::Flo
     h: usize,
     w: usize,
 ) -> T {
-    let mut acc = <T as coeus_core::NumericElement>::ZERO;
+    let mut acc = <T as eunomia::NumericElement>::ZERO;
     for plane in 0..bc {
         let base = plane * h * w;
         for i in 0..h {
@@ -276,7 +276,7 @@ fn gradient_magnitude_mean_planar<T: eunomia::FloatElement + Scalar + eunomia::F
     h: usize,
     w: usize,
 ) -> T {
-    let mut acc = <T as coeus_core::NumericElement>::ZERO;
+    let mut acc = <T as eunomia::NumericElement>::ZERO;
     for plane in 0..bc {
         let base = plane * h * w;
         for i in 0..h {
@@ -312,7 +312,7 @@ fn elastic_planar<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
     );
     let membrane_mean = gradient_squared_mean_planar(data, b * c, h, w);
 
-    let mut div_acc = <T as coeus_core::NumericElement>::ZERO;
+    let mut div_acc = <T as eunomia::NumericElement>::ZERO;
     let plane = h * w;
     for bb in 0..b {
         let ch0 = (bb * c) * plane;
@@ -345,7 +345,7 @@ fn laplacian_squared_mean_volumetric<
     let six = <T as eunomia::FloatElement>::from_f64(6.0);
     let hw = h * w;
     let dhw = d * hw;
-    let mut acc = <T as coeus_core::NumericElement>::ZERO;
+    let mut acc = <T as eunomia::NumericElement>::ZERO;
     for vol in 0..bc {
         let base = vol * dhw;
         for k in 1..d.saturating_sub(1) {
@@ -376,7 +376,7 @@ fn gradient_squared_mean_volumetric<T: eunomia::FloatElement + Scalar + eunomia:
 ) -> T {
     let hw = h * w;
     let dhw = d * hw;
-    let mut acc = <T as coeus_core::NumericElement>::ZERO;
+    let mut acc = <T as eunomia::NumericElement>::ZERO;
     for vol in 0..bc {
         let base = vol * dhw;
         for k in 0..d {
@@ -403,7 +403,7 @@ fn gradient_magnitude_mean_volumetric<T: eunomia::FloatElement + Scalar + eunomi
 ) -> T {
     let hw = h * w;
     let dhw = d * hw;
-    let mut acc = <T as coeus_core::NumericElement>::ZERO;
+    let mut acc = <T as eunomia::NumericElement>::ZERO;
     for vol in 0..bc {
         let base = vol * dhw;
         for k in 0..d {
@@ -439,7 +439,7 @@ fn elastic_volumetric<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>
 
     let hw = h * w;
     let dhw = d * hw;
-    let mut div_acc = <T as coeus_core::NumericElement>::ZERO;
+    let mut div_acc = <T as eunomia::NumericElement>::ZERO;
     for bb in 0..b {
         let ch0 = (bb * c) * dhw;
         let ch1 = (bb * c + 1) * dhw;
