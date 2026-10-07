@@ -195,7 +195,7 @@ where
     B: ComputeBackend + Default,
 {
     make_image_with(
-        vec![<T as coeus_core::NumericElement>::ZERO],
+        vec![<T as eunomia::NumericElement>::ZERO],
         [1; D],
         Some(origin),
         Some(spacing),

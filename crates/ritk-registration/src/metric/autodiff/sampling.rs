@@ -71,14 +71,14 @@ where
     let mut idx0 = Vec::with_capacity(n);
     let mut idx1 = Vec::with_capacity(n);
     for &c in coord_vals {
-        let floor = <T as coeus_core::NumericElement>::to_f64(c).floor();
+        let floor = <T as eunomia::NumericElement>::to_f64(c).floor();
         floor_vals.push(<T as coeus_core::Scalar>::from_f64(floor));
         idx0.push(clamp_index(floor, max_index));
         idx1.push(clamp_index(floor + 1.0, max_index));
     }
 
     let floor_const = Var::new(Tensor::from_slice_on([n], &floor_vals, backend), false);
-    let ones = Var::new(Tensor::full_on([n], <T as coeus_core::NumericElement>::ONE, backend), false);
+    let ones = Var::new(Tensor::full_on([n], <T as eunomia::NumericElement>::ONE, backend), false);
     let w1 = sub(coords, &floor_const);
     let w0 = sub(&ones, &w1);
 
