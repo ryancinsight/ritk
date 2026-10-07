@@ -14,6 +14,10 @@
 use anyhow::{anyhow, bail, Result};
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 
+mod handedness;
+
+pub(crate) use handedness::{sform_handedness, SpatialHandedness};
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct InternalSpatialMetadata {
     pub(crate) origin: Point<3>,
@@ -268,5 +272,34 @@ mod tests {
         assert_eq!(rows.x, [-spacing[2], -0.0, -0.0, -origin[0]]);
         assert_eq!(rows.y, [-0.0, -spacing[1], -0.0, -origin[1]]);
         assert_eq!(rows.z, [0.0, 0.0, spacing[0], origin[2]]);
+    }
+
+    #[test]
+    fn sform_handedness_survives_extreme_column_scales() {
+        for scale in [1.0e-110, 1.0e110] {
+            let rows = [
+                [-scale, 0.0, 0.0, 0.0],
+                [0.0, -scale, 0.0, 0.0],
+                [0.0, 0.0, scale, 0.0],
+            ];
+            assert_eq!(
+                sform_handedness(rows),
+                Some(SpatialHandedness::Right),
+                "scale {scale}"
+            );
+        }
+    }
+
+    #[test]
+    fn sform_handedness_rejects_zero_or_singular_linear_parts() {
+        assert_eq!(sform_handedness([[0.0; 4]; 3]), None);
+        assert_eq!(
+            sform_handedness([
+                [1.0, 2.0, 3.0, 0.0],
+                [2.0, 4.0, 6.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+            ]),
+            None
+        );
     }
 }

@@ -43,6 +43,47 @@ RITK. It validates and, for gzip output, finishes compression before opening
 the destination, so format or compression errors leave an existing output
 unchanged.
 
+## Converting a stored series
+
+Format adapters that produce `ritk-image-io::StoredSeries` can construct a
+NIfTI document without decoding samples into `f32` or creating an intermediate
+file. The conversion boundary checks the target's declared capabilities and
+cross-volume constraints before returning the document:
+
+```rust,ignore
+let document = NiftiDocument::from_stored_series(
+    "nrrd",
+    &stored_series,
+    NiftiVersion::Two,
+    source_metadata_losses,
+)?;
+document.write("converted.nii.gz")?;
+```
+
+The source identifier names the adapter that produced the series. Pass every
+format-specific metadata field that the adapter cannot preserve in the shared
+model as a scoped `FormatMetadataLoss`; unresolved losses prevent document
+construction. This input describes source-side loss only. The NIfTI target
+also rejects unsupported coordinate maps, sample types, axes, calibration,
+and incompatible grids before a destination exists.
+
+The ten fixed-width scalar sample representations retain their bit patterns;
+payload bytes are normalized to NIfTI's little-endian order. Linear
+calibration is represented by NIfTI's global slope and intercept without
+changing stored samples. Per-frame calibration is accepted only when every
+frame in each volume uses the same transform, and every volume must share that
+transform. NIfTI-1 writes spatial and scaling fields as 32-bit floats and
+rejects an affine that becomes singular after narrowing; NIfTI-2 writes them
+as 64-bit floats. Both write physical geometry in RAS millimeters with the
+RITK `[depth,row,col]` to NIfTI `[x,y,z]` axis mapping.
+
+A `SingleVolume` series is rank 3. `List` and `Unspecified` acquisition axes
+are rank 4 even when they contain one volume, so the axis meaning survives
+conversion. Diffusion axes are rejected because NIfTI's scalar fourth axis
+cannot preserve their gradient metadata through this adapter. DICOM/NIfTI
+adapter integration is a separate conversion step: the source reader must
+first create the shared stored series and report source metadata losses.
+
 ## Spatial Contract
 
 NIfTI file-axis RAS maps to RITK `[depth, row, col]` through the format

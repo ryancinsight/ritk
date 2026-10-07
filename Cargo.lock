@@ -6338,8 +6338,10 @@ dependencies = [
  "flate2",
  "ritk-codecs",
  "ritk-image",
+ "ritk-image-io",
  "ritk-spatial",
  "tempfile",
+ "thiserror 2.0.21",
  "tracing",
 ]
 
