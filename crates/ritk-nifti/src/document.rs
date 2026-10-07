@@ -356,3 +356,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "document_scalar_tests.rs"]
+mod scalar_tests;
