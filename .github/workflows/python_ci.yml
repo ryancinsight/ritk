@@ -31,6 +31,7 @@ on:
   pull_request:
     branches:
       - main
+    types: [opened, synchronize, reopened, ready_for_review]
   # The full Python-version x OS matrix runs here, never per pull request
   # (engineering_gates: workflow hygiene).
   schedule:
@@ -99,6 +100,7 @@ jobs:
     name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     needs: changes
+    if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && (needs.changes.outputs.python == 'true' || needs.changes.outputs.scripts_tests == 'true'))
     # Windows is the binding matrix path at about 15 minutes; retain one full
     # observed runtime for dependency and runner variance.
     timeout-minutes: 30
@@ -253,7 +255,7 @@ jobs:
     name: CPython 3.15t free-threaded contract
     runs-on: ubuntu-latest
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
+    if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && needs.changes.outputs.python == 'true')
     timeout-minutes: 30
     defaults:
       run:
@@ -296,3 +298,28 @@ jobs:
 
       - name: Run free-threaded binding contract
         run: pytest crates/ritk-python/tests/test_free_threaded.py -v --tb=short
+
+  aggregate:
+    name: RITK Required Python Gate
+    if: always()
+    needs: [changes, build-and-smoke-test, free-threaded-contract]
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Enforce required job outcomes
+        shell: bash
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+        run: |
+          set -euo pipefail
+          if [[ "$PR_DRAFT" == "true" ]]; then
+            echo "Draft pull requests do not satisfy the required Python gate."
+            exit 1
+          fi
+          failures="$(jq -r 'to_entries[] | select(.value.result == "failure" or .value.result == "cancelled") | .key' <<< "$NEEDS_JSON")"
+          if [[ -n "$failures" ]]; then
+            echo "Required jobs failed or were cancelled:"
+            printf '%s\n' "$failures"
+            exit 1
+          fi

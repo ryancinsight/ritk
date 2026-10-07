@@ -84,6 +84,7 @@ jobs:
   # review. The blocking comparison runs on release.
   # Atlas ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28.
   semver:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: SemVer gate
     uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@50802ef4c975bdb1e668b94a700d8310f0348e9c
     with:
@@ -95,6 +96,7 @@ jobs:
   # Guards the one artifact whose correctness cannot be checked from inside the
   # overlay environment that produces it. Calls the shared Atlas workflow.
   lockfile:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Lockfile integrity
     uses: ryancinsight/atlas/.github/workflows/lockfile-guard.yml@886d85b0e4bea20c8e5ec4b4239e6ba9cdbcf74d
     permissions:
@@ -103,7 +105,7 @@ jobs:
   fmt:
     name: Rustfmt
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.rust == 'true'
+    if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && needs.changes.outputs.rust == 'true')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -130,7 +132,7 @@ jobs:
   clippy:
     name: Clippy
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.rust == 'true'
+    if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && needs.changes.outputs.rust == 'true')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -170,7 +172,7 @@ jobs:
   rustdoc:
     name: Rustdoc
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.rust == 'true'
+    if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && needs.changes.outputs.rust == 'true')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -202,7 +204,7 @@ jobs:
   dependency-alignment:
     name: Workspace Dependency Alignment
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.rust == 'true'
+    if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && needs.changes.outputs.rust == 'true')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -237,7 +239,7 @@ jobs:
         working-directory: ritk
     timeout-minutes: ${{ matrix.timeout_minutes }}
     needs: [dependency-alignment, changes]
-    if: ${{ !cancelled() && needs.changes.result == 'success' }}
+    if: ${{ !cancelled() && needs.changes.result == 'success' && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
     strategy:
       # Keep the selected matrix cell present as a required check; its steps
       # skip when `run` is false. The full matrix runs on schedule and dispatch.
@@ -317,7 +319,7 @@ jobs:
     name: Python Wheel (smoke test)
     runs-on: ubuntu-latest
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
+    if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && needs.changes.outputs.python == 'true')
     # The full installed-wheel suite is a performance gate, not a long-running
     # validation lane; setup and tests must complete within the native CI bound.
     timeout-minutes: 30
@@ -371,3 +373,28 @@ jobs:
           python -m pytest crates/ritk-python/tests \
             --deselect "tests/test_simpleitk_cmake_data.py::test_cmake_patch_based_denoising_structural" \
             -n 2 --dist loadscope -vv --durations=25
+
+  aggregate:
+    name: RITK Required CI Gate
+    if: always()
+    needs: [changes, semver, lockfile, fmt, clippy, rustdoc, dependency-alignment, test, python-wheel]
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Enforce required job outcomes
+        shell: bash
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+        run: |
+          set -euo pipefail
+          if [[ "$PR_DRAFT" == "true" ]]; then
+            echo "Draft pull requests do not satisfy the required CI gate."
+            exit 1
+          fi
+          failures="$(jq -r 'to_entries[] | select(.value.result == "failure" or .value.result == "cancelled") | .key' <<< "$NEEDS_JSON")"
+          if [[ -n "$failures" ]]; then
+            echo "Required jobs failed or were cancelled:"
+            printf '%s\n' "$failures"
+            exit 1
+          fi
