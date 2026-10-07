@@ -77,7 +77,7 @@ impl<T: RealField> TranslationMetric<T> for MeanSquaredDifference {
     }
 
     fn finish(state: Self::State, count: usize) -> Option<T> {
-        (count != 0).then(|| state / T::from_f64(count as f64))
+        (count != 0).then(|| state / T::from_count(count))
     }
 
     fn better(candidate: T, best: T) -> bool {
@@ -110,7 +110,7 @@ impl<T: RealField> TranslationMetric<T> for NormalizedCrossCorrelation {
         if count == 0 {
             return None;
         }
-        let count = T::from_f64(count as f64);
+        let count = T::from_count(count);
         let fixed_variance = state[2] - state[0] * state[0] / count;
         let moving_variance = state[3] - state[1] * state[1] / count;
         let variance_product = fixed_variance * moving_variance;

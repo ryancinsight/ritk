@@ -203,7 +203,7 @@ where
     let mut kernel = Vec::with_capacity(len);
     let mut sum = zero;
     for i in 0..len {
-        let d = T::from_f64(i as f64) - T::from_f64(r as f64);
+        let d = T::from_integer(i as i64 - r as i64);
         let w = (-d * d / two_sigma2).exp();
         kernel.push(w);
         sum += w;

@@ -70,7 +70,7 @@ where
     let s_mm = sum_axis(&square(&m), 1);
     let s_fm = sum_axis(&mul(&f, &m), 1);
 
-    let inv_n = <T as coeus_core::Scalar>::from_f64(n as f64);
+    let inv_n = T::from_count(n);
     // num = S_FM − S_F·S_M / N ; d_X = S_XX − S_X² / N.
     let num = sub(&s_fm, &scalar_div(&mul(&s_f, &s_m), inv_n));
     let d_f = sub(&s_ff, &scalar_div(&square(&s_f), inv_n));
@@ -202,7 +202,7 @@ where
 
     // Joint histogram Wá¶ áµ€·Wᵐ (`[bins, bins]`), normalized to a probability.
     let joint = matmul(&permute(&w_f, &[1, 0]), &w_m);
-    let joint_p = scalar_div(&joint, <T as coeus_core::Scalar>::from_f64(n as f64));
+    let joint_p = scalar_div(&joint, T::from_count(n));
 
     // Marginals broadcast back to `[bins, bins]`.
     let p_f = broadcast_to(
