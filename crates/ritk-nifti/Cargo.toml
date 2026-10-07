@@ -2,6 +2,7 @@
 name = "ritk-nifti"
 version = "0.2.0"
 description = "NIfTI medical image I/O for RITK"
+readme = "README.md"
 keywords.workspace = true
 categories.workspace = true
 homepage.workspace = true
@@ -19,6 +20,7 @@ consus-core = { workspace = true }
 tracing = { workspace = true }
 flate2 = { workspace = true }
 coeus-core = { workspace = true }
+ritk-codecs = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
