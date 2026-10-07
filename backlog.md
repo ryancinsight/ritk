@@ -64,20 +64,20 @@
 - acceptance: DICOM, NIfTI, NRRD, MetaImage, MINC, MIF, MGH/MGZ, Analyze, VTK, PNG, TIFF, JPEG, GIFTI, mesh, and tractogram paths declare their readable and writable models; each exposed conversion preserves represented samples, geometry, calibration, and acquisition metadata or returns typed loss before destination mutation. Scalar volumes, color rasters, surfaces, meshes, and tractograms retain distinct models. Métis consumes RITK and contains no format parser or converter.
 - status: todo
 - priority: architecture
-- needs: RITK-IO-FORMAT-CAPABILITIES-001, RITK-NIFTI-SCALAR-SAMPLES-001, RITK-NIFTI-STORED-SERIES-001, RITK-NIFTI-STORED-READ-001, RITK-NRRD-NIFTI-001, RITK-DICOM-CONVERSION-001, RITK-METAIMAGE-CONVERSION-001, RITK-MINC-CONVERSION-001, RITK-MIF-CONVERSION-001, RITK-MGH-CONVERSION-001, RITK-ANALYZE-CONVERSION-001, RITK-VTK-VOLUME-CONVERSION-001, RITK-JPEG-LOSSY-ORACLE-001, RITK-RASTER-CONVERSION-001, RITK-GIFTI-SURFACE-001, RITK-MESH-CONVERSION-001, RITK-TRACTOGRAM-CONVERSION-001
+- needs: RITK-IO-FORMAT-CAPABILITIES-001, RITK-NIFTI-SCALAR-ROUNDTRIP-001, RITK-NIFTI-STORED-SERIES-001, RITK-NIFTI-STORED-READ-001, RITK-NRRD-NIFTI-001, RITK-DICOM-CONVERSION-001, RITK-METAIMAGE-CONVERSION-001, RITK-MINC-CONVERSION-001, RITK-MIF-CONVERSION-001, RITK-MGH-CONVERSION-001, RITK-ANALYZE-CONVERSION-001, RITK-VTK-VOLUME-CONVERSION-001, RITK-JPEG-LOSSY-ORACLE-001, RITK-RASTER-CONVERSION-001, RITK-GIFTI-SURFACE-001, RITK-MESH-CONVERSION-001, RITK-TRACTOGRAM-CONVERSION-001
 - scope: crates/ritk-image-io/, crates/ritk-io/, all listed format crates, conversion tests, and the RITK user manual
-- next: finish NIfTI scalar, stored-series, and stored-reader support, then complete NRRD/NIfTI and the remaining formats in dependency order.
+- next: verify NIfTI document round-trips for all stored scalar types, then implement stored-series construction and typed reads before NRRD/NIfTI.
 - basis: 1ec26f82e536e524da083d3260b561e518d121a7
 
-<a id="RITK-NIFTI-SCALAR-SAMPLES-001"></a>
-## RITK-NIFTI-SCALAR-SAMPLES-001: Preserve NIfTI scalar sample types
-- outcome: map RITK's fixed-width stored samples to NIfTI-1 and NIfTI-2 scalar representations.
-- acceptance: all ten `SampleType` variants map to the standard datatype code, `bitpix`, and payload width; stored writes preserve integer values and float bits without conversion through `f32`; unsupported codes, inconsistent `bitpix`, and invalid payload lengths fail before output changes.
+<a id="RITK-NIFTI-SCALAR-ROUNDTRIP-001"></a>
+## RITK-NIFTI-SCALAR-ROUNDTRIP-001: Verify exact NIfTI scalar transport
+- outcome: preserve stored sample bytes through NIfTI-1/2 document parsing and `.nii`/`.nii.gz` writes.
+- acceptance: all ten scalar payloads round-trip byte for byte; unsupported codes, mismatched `bitpix`, and truncated payloads fail before an existing destination changes.
 - status: todo
 - priority: correctness
 - needs: none
-- scope: `crates/ritk-nifti/src/header/`, writer, tests, NIfTI guide
-- next: map all ten scalar types to NIfTI codes and add exact payload tests.
+- scope: `crates/ritk-nifti/src/document.rs`, document tests, NIfTI guide
+- next: add exact payload round-trips for NIfTI-1 and NIfTI-2 and invalid-input destination-preservation tests.
 - basis: 1ec26f82e536e524da083d3260b561e518d121a7
 
 <a id="RITK-NIFTI-STORED-SERIES-001"></a>
@@ -86,7 +86,7 @@
 - acceptance: supported NIfTI-1 and NIfTI-2 documents preserve exact samples, spatial mapping, calibration, and acquisition metadata; unrepresentable semantics return typed loss before destination creation.
 - status: blocked
 - priority: correctness
-- needs: RITK-NIFTI-SCALAR-SAMPLES-001
+- needs: RITK-NIFTI-SCALAR-ROUNDTRIP-001
 - scope: crates/ritk-nifti/, NIfTI guide, document tests
 - next: after scalar support merges, reopen PR #794 and split its stored-series construction into bounded increments.
 - basis: 1ec26f82e536e524da083d3260b561e518d121a7
@@ -97,7 +97,7 @@
 - acceptance: NIfTI-1 and NIfTI-2 reads preserve all ten sample representations, spatial mapping, calibration, and representable ordered-volume axes; unmodeled semantics return typed loss before a partial series is exposed.
 - status: todo
 - priority: correctness
-- needs: RITK-NIFTI-SCALAR-SAMPLES-001
+- needs: RITK-NIFTI-SCALAR-ROUNDTRIP-001
 - scope: `crates/ritk-nifti/`, `crates/ritk-image-io/`, conversion tests, NIfTI guide
 - next: implement typed document decoding from NIfTI payload bytes into `StoredSeries`.
 - basis: 1ec26f82e536e524da083d3260b561e518d121a7

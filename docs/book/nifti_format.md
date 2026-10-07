@@ -10,7 +10,7 @@ gzip-wrapped `.nii.gz` input, and writes either header version explicitly.
 is a facade re-export. Analyze 7.5 `.hdr`/`.img` pairs belong to
 `ritk-analyze`; they are not interpreted as NIfTI by this crate.
 
-The native codec supports:
+The image convenience APIs support:
 
 - three-dimensional `f32` scalar images;
 - four-dimensional `f32` acquisition series;
@@ -22,6 +22,14 @@ The native codec supports:
 stream, including unprojected header fields, the extension indicator and blocks, and exact sample bits.
 Writing to `.nii` reproduces those bytes; writing to `.nii.gz` changes only the gzip
 framing. The gzip reader drains the stream through its checksum trailer before acceptance.
+
+`NiftiDocument` also parses all ten fixed-width `ritk-codecs::SampleType`
+representations. It validates each standard datatype code against `bitpix` and
+the declared payload length, then retains the sample bytes exactly, including
+wide integers, signed zero, and NaN payloads. Transcoding between `.nii` and
+`.nii.gz` changes the compression framing only. The `f32` image and `u32`
+label convenience readers retain their narrower conversion contracts; use
+`NiftiDocument` for byte-preserving transport.
 
 The typed header view exposes both transform codes and classifies the active forms as qform-only,
 sform-only, compatible in handedness, or conflicting in handedness. Both forms remain in the document

@@ -356,6 +356,16 @@ impl NiftiHeader {
             NiftiDatatype::Int32 => self.read_lane::<i32, 4>(checked_lane::<4>(raw)?) as f32,
             NiftiDatatype::Float32 => self.read_lane::<f32, 4>(checked_lane::<4>(raw)?),
             NiftiDatatype::Uint32 => self.read_lane::<u32, 4>(checked_lane::<4>(raw)?) as f32,
+            NiftiDatatype::Int8
+            | NiftiDatatype::Uint16
+            | NiftiDatatype::Uint64
+            | NiftiDatatype::Int64
+            | NiftiDatatype::Float64 => {
+                bail!(
+                    "NIfTI image convenience reader does not support stored datatype {:?}",
+                    self.datatype
+                )
+            }
         })
     }
 
@@ -379,6 +389,16 @@ impl NiftiHeader {
                 .max(0.0)
                 .round() as u32,
             NiftiDatatype::Uint32 => self.read_lane::<u32, 4>(checked_lane::<4>(raw)?),
+            NiftiDatatype::Int8
+            | NiftiDatatype::Uint16
+            | NiftiDatatype::Uint64
+            | NiftiDatatype::Int64
+            | NiftiDatatype::Float64 => {
+                bail!(
+                    "NIfTI label convenience reader does not support stored datatype {:?}",
+                    self.datatype
+                )
+            }
         })
     }
 

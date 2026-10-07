@@ -77,3 +77,61 @@ fn nifti1_rejects_dimensions_above_u16() {
         "error must name NIfTI-1 dimension bound: {err}"
     );
 }
+
+#[test]
+fn newly_mapped_sample_types_reject_image_and_label_conversion() {
+    let spatial = HeaderSpatial {
+        pixdim: [1.0; 8],
+        srow_x: [1.0, 0.0, 0.0, 0.0],
+        srow_y: [0.0, 1.0, 0.0, 0.0],
+        srow_z: [0.0, 0.0, 1.0, 0.0],
+    };
+    let datatypes = [
+        NiftiDatatype::Int8,
+        NiftiDatatype::Uint16,
+        NiftiDatatype::Uint64,
+        NiftiDatatype::Int64,
+        NiftiDatatype::Float64,
+    ];
+
+    for version in [HeaderVersion::One, HeaderVersion::Two] {
+        for datatype in datatypes {
+            let header = NiftiHeader::new_with_version(
+                version,
+                HeaderDims {
+                    nx: 1,
+                    ny: 1,
+                    nz: 1,
+                },
+                1,
+                datatype,
+                spatial,
+            )
+            .expect("one-voxel header is valid");
+            let parsed = NiftiHeader::parse(&header.encode()).expect("encoded header parses");
+            let sample = vec![0x5a; datatype.byte_width()];
+
+            let image_error = parsed
+                .read_f32_voxel(&sample)
+                .expect_err("unsupported stored type must not be converted to f32")
+                .to_string();
+            assert_eq!(
+                image_error,
+                format!(
+                    "NIfTI image convenience reader does not support stored datatype {datatype:?}"
+                )
+            );
+
+            let label_error = parsed
+                .read_label_voxel(&sample)
+                .expect_err("unsupported stored type must not be converted to u32")
+                .to_string();
+            assert_eq!(
+                label_error,
+                format!(
+                    "NIfTI label convenience reader does not support stored datatype {datatype:?}"
+                )
+            );
+        }
+    }
+}

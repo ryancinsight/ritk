@@ -2,6 +2,11 @@
 
 - Status: Accepted
 
+- Revision 2026-10-06: `ritk-nifti` maps the ten fixed-width `SampleType`
+  values to their standard scalar codes, bit widths, and payload widths.
+  `NiftiDocument` validates and preserves their raw bytes; image and label
+  conversions remain explicit convenience boundaries (PR #804).
+
 This decision is retroactive. The sealed `SampleBuffer` core landed in
 [PR #735](https://github.com/ryancinsight/ritk/pull/735), and streamed sample
 writing landed in [PR #756](https://github.com/ryancinsight/ritk/pull/756).
