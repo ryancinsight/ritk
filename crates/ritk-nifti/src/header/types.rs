@@ -1,5 +1,5 @@
 use super::convert::checked_f64_to_f32;
-use super::convert::{f64_affine_to_f32, f64_to_f32, f64x4_to_f32x4};
+use super::convert::{f64_affine_to_f32, f64_to_f32};
 use super::raw::{
     read_array, read_f32x4_as_f64, read_f64x4, read_field, write_f32x4, write_f64x4, write_field,
 };
@@ -520,14 +520,21 @@ impl NiftiHeader {
         })
     }
 
-    pub(crate) fn affine(&self) -> Result<[[f32; 4]; 4]> {
+    /// Byte order declared by the file's `sizeof_hdr` field.
+    ///
+    /// The stored payload and every multi-byte header field share this order.
+    pub(crate) const fn byte_order(&self) -> ByteOrder {
+        self.endian
+    }
+
+    /// NIfTI RAS affine at full `f64` precision.
+    ///
+    /// An active `sform` returns its rows exactly; an active `qform` is
+    /// reconstructed in `f64`; with neither form the diagonal `pixdim` grid is
+    /// used. Callers that must not narrow wide geometry read this directly.
+    pub(crate) fn affine_precise(&self) -> Result<[[f64; 4]; 4]> {
         if self.sform_code > 0 {
-            Ok([
-                f64x4_to_f32x4(self.srow_x, "srow_x")?,
-                f64x4_to_f32x4(self.srow_y, "srow_y")?,
-                f64x4_to_f32x4(self.srow_z, "srow_z")?,
-                [0.0, 0.0, 0.0, 1.0],
-            ])
+            Ok([self.srow_x, self.srow_y, self.srow_z, [0.0, 0.0, 0.0, 1.0]])
         } else if self.qform_code > 0 {
             let b = self.quatern_b;
             let c = self.quatern_c;
@@ -547,22 +554,30 @@ impl NiftiHeader {
             let r32 = 2.0 * c * d + 2.0 * a * b;
             let r33 = a * a + d * d - c * c - b * b;
 
-            let affine = [
+            Ok([
                 [r11 * dx, r12 * dy, r13 * dz, self.quatern_x],
                 [r21 * dx, r22 * dy, r23 * dz, self.quatern_y],
                 [r31 * dx, r32 * dy, r33 * dz, self.quatern_z],
                 [0.0, 0.0, 0.0, 1.0],
-            ];
-            f64_affine_to_f32(affine)
+            ])
         } else {
             let [dx, dy, dz] = checked_spatial_pixdim(self.pixdim)?;
             Ok([
-                [f64_to_f32(dx, "pixdim[1]"), 0.0, 0.0, 0.0],
-                [0.0, f64_to_f32(dy, "pixdim[2]"), 0.0, 0.0],
-                [0.0, 0.0, f64_to_f32(dz, "pixdim[3]"), 0.0],
+                [dx, 0.0, 0.0, 0.0],
+                [0.0, dy, 0.0, 0.0],
+                [0.0, 0.0, dz, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ])
         }
+    }
+
+    /// NIfTI RAS affine narrowed to `f32`.
+    ///
+    /// Convenience reader contract: the compute-image path works in `f32`, so
+    /// this narrows [`NiftiHeader::affine_precise`]. The stored path uses the `f64`
+    /// form to avoid losing NIfTI-2 geometry.
+    pub(crate) fn affine(&self) -> Result<[[f32; 4]; 4]> {
+        f64_affine_to_f32(self.affine_precise()?)
     }
 
     /// Volumes this header declares on its spatial grid.

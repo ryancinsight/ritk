@@ -6,6 +6,7 @@ use super::pixel_encoding::{
     validate_image_shape, validate_spatial_metadata, DICOM_SOP_CLASS_SECONDARY_CAPTURE,
     MONOCHROME2,
 };
+use super::pixel_preflight::preflight_native_pixel_data;
 use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{Context, Result};
 use coeus_core::MoiraiBackend;
@@ -24,14 +25,19 @@ use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 
 /// Spatial geometry inputs for the substrate-free series encode core.
 ///
-/// Field conventions mirror [`crate::format::dicom::series`]' `decode_series`
-/// exactly so a written series round-trips through the native/Coeus series
-/// readers to the same voxels and geometry:
-/// - `spacing` is image-axis spacing `[Δx(col), Δy(row), Δz(slice)]`, matching
-///   the reader's `Spacing::new([dx, dy, dz])`.
-/// - `direction_columns` are the direction-cosine columns `[dir_x, dir_y,
-///   dir_z]` (image row-axis, column-axis, slice-axis), matching the reader's
-///   `Direction::from_columns([dir_x, dir_y, dir_z])`.
+/// `spacing` follows the canonical RITK tensor-axis order
+/// `[Δdepth, Δrow, Δcol]` (shape `[depth, row, col]`, axis 0 slowest-varying —
+/// `docs/architecture.md`), matching `Spacing<3>` on every other RITK codec, so
+/// a written series round-trips through the series readers to the same voxels
+/// and geometry.
+///
+/// `direction_columns` are the columns returned by
+/// `Direction::axis_directions_array()`: column 0 is the depth (slice) axis,
+/// column 1 the row axis, column 2 the column axis. The encode core emits
+/// columns 2 and 1 as `ImageOrientationPatient` (`[col, row]`) and advances
+/// `ImagePositionPatient` along column 0; the series readers invert exactly that
+/// mapping. This is the same convention as `writer::metadata` and
+/// `reader::assemble_direction`.
 struct SeriesGeometry {
     origin: [f64; 3],
     spacing: [f64; 3],
@@ -85,20 +91,32 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(
 /// ## Geometry conventions (round-trip contract with the series reader)
 /// - Slice ordering: slice `z` is written to `slice_{z:04}.dcm` with
 ///   InstanceNumber (0020,0013) = `z + 1`.
-/// - ImagePositionPatient (0020,0032) of slice `z` = `origin + z · Δz · dir_z`,
-///   where `Δz = spacing[2]` and `dir_z` is the slice-axis direction column.
-///   Because `Δz > 0` and `dir_z` is a unit vector, the per-slice position
-///   projected onto `dir_z` increases monotonically with `z`, so the reader's
-///   projection sort recovers the original slice order.
-/// - ImageOrientationPatient (0020,0037) = `[dir_x, dir_y]` (row-axis then
-///   column-axis direction cosines).
-/// - PixelSpacing (0028,0030) = `[Δy(row), Δx(col)]` = `[spacing[1],
-///   spacing[0]]`.
-/// - SliceThickness (0018,0050) = `Δz = spacing[2]` (also the single-slice
-///   spacing fallback the reader uses when `depth == 1`).
+/// - ImagePositionPatient (0020,0032) of slice `z` = `origin + z · Δdepth ·
+///   dir_depth`, where `Δdepth = spacing[0]` and `dir_depth` is column 0 of the
+///   image direction. Because `Δdepth > 0` and `dir_depth` is a unit vector,
+///   the per-slice position projected onto the slice normal increases
+///   monotonically with `z` for the canonical (det = −1) orientation, so the
+///   readers' projection sort recovers the original slice order.
+/// - ImageOrientationPatient (0020,0037) = direction columns 2 and 1
+///   (`[col, row]`), matching `writer::metadata` and `reader::assemble_direction`.
+/// - PixelSpacing (0028,0030) = `[Δrow, Δcol]` = `[spacing[1], spacing[2]]`.
+/// - SliceThickness (0018,0050) = `Δdepth = spacing[0]` (also the single-slice
+///   spacing fallback the readers use when `depth == 1`).
 /// - Pixel representation: unsigned 16-bit MONOCHROME2; a single per-slice
 ///   linear rescale (slope/intercept) maps the slice's f32 range onto
 ///   `[0, 65535]`.
+///
+/// ## Chirality contract
+/// DICOM defines the slice normal as `IOP[0..3] × IOP[3..6] = col × row`, while
+/// RITK's `[depth, row, col]` column order makes `dir_depth = col × row` exactly
+/// when `det(direction) = −1` — which is the orientation every RITK codec
+/// produces (`docs/architecture.md` §7–§9) and the canonical axis-aligned
+/// orientation. For those directions the series round-trips index-preservingly.
+/// A right-handed direction (`det = +1`, e.g. [`Direction::identity`]) is still
+/// emitted with correct in-plane geometry and slice positions, but its slices
+/// then advance *against* the DICOM normal, so a normal-sorting reader returns
+/// the same physical volume with the depth index reversed. Callers that require
+/// index-preserving round-trips must supply a `det = −1` direction.
 pub fn write_dicom_series_native<P: AsRef<Path>>(
     path: P,
     image: &NativeImage<f32, MoiraiBackend, 3>,
@@ -135,11 +153,18 @@ fn write_series_flat(
     let study_uid = series_uid.clone();
     let series_instance_uid = format!("{}.1", series_uid);
 
-    let [dir_x, dir_y, dir_z] = geom.direction_columns;
-    // Reader convention: PixelSpacing = [row spacing, col spacing] = [Δy, Δx].
-    let pixel_spacing = [geom.spacing[1], geom.spacing[0]];
-    let slice_spacing = geom.spacing[2];
-    let orientation = [dir_x[0], dir_x[1], dir_x[2], dir_y[0], dir_y[1], dir_y[2]];
+    let [dir_depth, dir_row, dir_col] = geom.direction_columns;
+    // DICOM PixelSpacing = [row spacing, col spacing] = [Δrow, Δcol]; the depth
+    // axis (spacing[0], canonical RITK order) carries the slice spacing.
+    let pixel_spacing = [geom.spacing[1], geom.spacing[2]];
+    let slice_spacing = geom.spacing[0];
+    // PS3.3 C.7.6.2: ImageOrientationPatient = [first-row direction cosine,
+    // first-column direction cosine] = [increasing-column-index direction,
+    // increasing-row-index direction] = [col-axis, row-axis]. Matches
+    // `writer::metadata` and the readers' `assemble_direction`.
+    let orientation = [
+        dir_col[0], dir_col[1], dir_col[2], dir_row[0], dir_row[1], dir_row[2],
+    ];
 
     for z in 0..dimensions.depth {
         let slice_offset = z
@@ -168,9 +193,9 @@ fn write_series_flat(
         let sop_instance_uid = generate_instance_uid(&series_uid, z);
         let zf = f64::from_count(z);
         let image_position = [
-            geom.origin[0] + zf * slice_spacing * dir_z[0],
-            geom.origin[1] + zf * slice_spacing * dir_z[1],
-            geom.origin[2] + zf * slice_spacing * dir_z[2],
+            geom.origin[0] + zf * slice_spacing * dir_depth[0],
+            geom.origin[1] + zf * slice_spacing * dir_depth[1],
+            geom.origin[2] + zf * slice_spacing * dir_depth[2],
         ];
         let mut obj = InMemDicomObject::new_empty();
         obj.put_value(
@@ -222,6 +247,7 @@ fn write_series_flat(
             VR::OW,
             PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
         );
+        preflight_native_pixel_data(&obj)?;
         let file_obj = obj
             .with_meta(
                 FileMetaTableBuilder::new()
@@ -251,14 +277,14 @@ fn validate_series_geometry(geom: &SeriesGeometry) -> Result<()> {
 }
 
 fn validate_series_positions(geom: &SeriesGeometry, depth: usize) -> Result<()> {
-    let dir_z = geom.direction_columns[2];
-    let slice_spacing = geom.spacing[2];
+    let dir_depth = geom.direction_columns[0];
+    let slice_spacing = geom.spacing[0];
     for z in 0..depth {
         let zf = f64::from_count(z);
         let position = [
-            geom.origin[0] + zf * slice_spacing * dir_z[0],
-            geom.origin[1] + zf * slice_spacing * dir_z[1],
-            geom.origin[2] + zf * slice_spacing * dir_z[2],
+            geom.origin[0] + zf * slice_spacing * dir_depth[0],
+            geom.origin[1] + zf * slice_spacing * dir_depth[1],
+            geom.origin[2] + zf * slice_spacing * dir_depth[2],
         ];
         if position.iter().any(|coordinate| !coordinate.is_finite()) {
             return Err(DicomWriteError::InvalidSpatialMetadata.into());

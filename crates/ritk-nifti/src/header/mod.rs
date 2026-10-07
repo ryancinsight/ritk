@@ -17,4 +17,4 @@ mod tests;
 pub(crate) use datatype::NiftiDatatype;
 pub(crate) use lane::NiftiLane;
 pub(crate) use types::*;
-pub(crate) use validate::{checked_spatial_pixdim, qfac_from_pixdim};
+pub(crate) use validate::{checked_spatial_pixdim, qfac_from_pixdim, RANK_SERIES};

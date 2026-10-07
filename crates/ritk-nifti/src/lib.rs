@@ -5,6 +5,7 @@ mod header;
 mod reader;
 mod shape;
 mod spatial;
+mod stored_read;
 mod stored_series;
 mod typed;
 mod writer;
@@ -17,6 +18,7 @@ pub use reader::{
     read_nifti, read_nifti_from_bytes, read_nifti_labels, read_nifti_series,
     read_nifti_series_from_bytes,
 };
+pub use stored_read::NiftiStoredReadError;
 pub use stored_series::{NiftiStoredSeriesError, NiftiStoredSeriesRejection};
 pub use typed::{NiftiReader, NiftiWriter};
 pub use writer::{

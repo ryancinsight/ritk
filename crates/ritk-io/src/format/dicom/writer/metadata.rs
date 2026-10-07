@@ -7,6 +7,7 @@ use super::pixel_encoding::{
     validate_image_shape, validate_spatial_metadata, writer_exclusion_tags,
     DICOM_SOP_CLASS_SECONDARY_CAPTURE,
 };
+use super::pixel_preflight::{pixel_bit_description_is_valid, preflight_native_pixel_data};
 use super::preservation::emit_preservation_nodes;
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 use crate::format::dicom::writer::elements::PutValue;
@@ -231,6 +232,7 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
             VR::OW,
             PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
         );
+        preflight_native_pixel_data(&obj)?;
 
         let file_obj = obj
             .with_meta(
@@ -256,15 +258,10 @@ fn validate_source_pixel_description(metadata: Option<&DicomReadMetadata>) -> Re
     ) {
         (None, None, None) => Ok(()),
         (Some(bits_allocated), Some(bits_stored), Some(high_bit)) => {
-            let allocated_is_valid = bits_allocated == 1 || bits_allocated.is_multiple_of(8);
-            let stored_is_valid = bits_stored > 0 && bits_stored <= bits_allocated;
-            let high_bit_is_valid = bits_stored
-                .checked_sub(1)
-                .is_some_and(|expected_high_bit| high_bit == expected_high_bit);
-            if allocated_is_valid && stored_is_valid && high_bit_is_valid {
+            if pixel_bit_description_is_valid(bits_allocated, bits_stored, high_bit) {
                 Ok(())
             } else {
-                Err(DicomWriteError::InvalidSourcePixelDescription {
+                Err(DicomWriteError::InvalidPixelDescription {
                     bits_allocated,
                     bits_stored,
                     high_bit,

@@ -15,7 +15,7 @@
 //! error message strings.
 //!
 //! This module is the **single authoritative implementation**. Leaf filters must
-//! `use ritk_tensor_ops::{extract_vec, rebuild}` and delete their local copies.
+//! add `use ritk_tensor_ops::{extract_vec, rebuild};` and delete their local copies.
 //!
 //! # Genericity
 //!
@@ -32,7 +32,7 @@
 //! so read-only kernels can avoid a copy.
 
 use coeus_core::Backend;
-use eunomia::FloatElement;
+use eunomia::{FloatElement, NumericElement};
 use ritk_image::Image;
 use std::ops::{AddAssign, Neg};
 
@@ -203,7 +203,7 @@ where
     let mut kernel = Vec::with_capacity(len);
     let mut sum = zero;
     for i in 0..len {
-        let d = T::from_f64(i as f64) - T::from_f64(r as f64);
+        let d = T::from_integer(i as i64 - r as i64);
         let w = (-d * d / two_sigma2).exp();
         kernel.push(w);
         sum += w;

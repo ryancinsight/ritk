@@ -90,19 +90,24 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
         );
     }
 
-    let dir_x = Vector::new([orientation[0], orientation[1], orientation[2]]);
-    let dir_y = Vector::new([orientation[3], orientation[4], orientation[5]]);
+    // PS3.3 C.7.6.2: IOP = [first-row direction cosine, first-column direction
+    // cosine] = [increasing-column-index direction, increasing-row-index
+    // direction]. RITK tensor axes are `[depth, row, col]`, so column 0 is the
+    // slice normal (`col_dir × row_dir`), column 1 is the row axis, column 2 is
+    // the column axis — the same mapping `reader::assemble_direction` uses.
+    let col_dir = Vector::new([orientation[0], orientation[1], orientation[2]]);
+    let row_dir = Vector::new([orientation[3], orientation[4], orientation[5]]);
 
     // Normalize to ensure valid direction cosines
-    let dir_x = dir_x
+    let col_dir = col_dir
         .normalized()
         .context("Invalid zero-length ImageOrientationPatient row direction")?;
-    let dir_y = dir_y
+    let row_dir = row_dir
         .normalized()
         .context("Invalid zero-length ImageOrientationPatient column direction")?;
 
-    let dir_z = dir_x
-        .cross(&dir_y)
+    let slice_dir = col_dir
+        .cross(&row_dir)
         .normalized()
         .context("Invalid parallel ImageOrientationPatient directions")?;
 
@@ -111,8 +116,8 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
         let pos_a = get_position(&a.1).unwrap_or(Point::origin());
         let pos_b = get_position(&b.1).unwrap_or(Point::origin());
 
-        let dist_a = Vector::new(pos_a.to_array()).dot(&dir_z);
-        let dist_b = Vector::new(pos_b.to_array()).dot(&dir_z);
+        let dist_a = Vector::new(pos_a.to_array()).dot(&slice_dir);
+        let dist_b = Vector::new(pos_b.to_array()).dot(&slice_dir);
 
         dist_a
             .partial_cmp(&dist_b)
@@ -125,8 +130,8 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
     let cols = element_as_u32(first_obj, tags::COLUMNS).context("Missing Columns")?;
     let pixel_spacing =
         get_scalar_vec(first_obj, tags::PIXEL_SPACING).context("Missing PixelSpacing")?;
-    let dy = pixel_spacing[0]; // Row spacing (between rows) -> Y spacing
-    let dx = pixel_spacing[1]; // Col spacing (between cols) -> X spacing
+    let d_row = pixel_spacing[0]; // PixelSpacing[0] = spacing between rows
+    let d_col = pixel_spacing[1]; // PixelSpacing[1] = spacing between columns
 
     let origin_pos = get_position(first_obj).context("Missing ImagePositionPatient")?;
 
@@ -142,7 +147,7 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
             let p2 = get_position(&slices[i + 1].1)
                 .expect("slice ImagePositionPatient must be present after spatial sort validation");
             let diff = p2 - p1;
-            let spacing = diff.dot(&dir_z).abs(); // Projected distance
+            let spacing = diff.dot(&slice_dir).abs(); // Projected distance
 
             sum_spacing += spacing;
             if spacing < min_spacing {
@@ -162,7 +167,7 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
                 let cy = Vector::new([current_orient[3], current_orient[4], current_orient[5]])
                     .normalized()
                     .context("Invalid zero-length ImageOrientationPatient column direction")?;
-                if (cx - dir_x).norm() > 1e-3 || (cy - dir_y).norm() > 1e-3 {
+                if (cx - col_dir).norm() > 1e-3 || (cy - row_dir).norm() > 1e-3 {
                     bail!("Inconsistent ImageOrientationPatient in series");
                 }
             }
@@ -186,9 +191,15 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
     };
 
     // 5. Build Spatial Metadata
-    let spacing = Spacing::new([dx, dy, dz]);
+    //
+    // RITK tensor data is `[depth, row, col]` with axis 0 slowest-varying, so
+    // `Spacing<3>` is ordered `[Δdepth, Δrow, Δcol]` (`docs/architecture.md`)
+    // and the direction columns are `[slice_normal, row, col]` — matching every
+    // other RITK codec and `reader::assemble_direction`. The depth axis carries
+    // the slice spacing and `PixelSpacing` is `[Δrow, Δcol]`.
+    let spacing = Spacing::new([dz, d_row, d_col]);
     let origin = Point::new(origin_pos.to_array());
-    let direction = Direction::from_columns([dir_x, dir_y, dir_z]);
+    let direction = Direction::from_columns([slice_dir, row_dir, col_dir]);
 
     // 6. Load Pixel Data in Parallel
     let slice_pixels: Vec<Vec<f32>> =
@@ -381,7 +392,7 @@ impl<B: Backend> ImageReader<Image<f32, B, 3>> for DicomReader<B> {
 #[cfg(test)]
 mod tests {
     #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
-    use super::{load_dicom_series, load_native_dicom_series};
+    use super::load_native_dicom_series;
     use coeus_core::SequentialBackend;
     use ritk_core::image::Image;
     use ritk_image::tensor::Tensor;
@@ -448,9 +459,14 @@ mod tests {
             .pop()
             .expect("one series");
 
-        let legacy = load_dicom_series::<B>(&series, &device).expect("legacy load");
+        // Two *independent* read paths over the same files: the `series`-module
+        // loader here, and the `reader`-module loader (which assembles the
+        // direction canonically). Comparing them is a real parity check.
         let native =
             load_native_dicom_series(&series, &SequentialBackend).expect("native series load");
+        let (legacy, _meta) =
+            crate::format::dicom::load_dicom_series_with_metadata::<B, _>(&series_path, &device)
+                .expect("reader-module load");
 
         assert_eq!(native.shape(), legacy.shape());
         let legacy_values = legacy
@@ -459,7 +475,7 @@ mod tests {
         assert_eq!(
             native.data_slice().expect("native contiguous data"),
             legacy_values,
-            "native series facade must use the same decoded voxels"
+            "the two DICOM series read paths must use the same decoded voxels"
         );
         assert_eq!(native.origin().to_array(), legacy.origin().to_array());
         assert_eq!(native.spacing().to_array(), legacy.spacing().to_array());

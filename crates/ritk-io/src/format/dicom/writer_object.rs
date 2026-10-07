@@ -264,7 +264,8 @@ mod tests {
         assert_rejected(
             invalid_vr,
             DicomWriteError::InvalidPixelDataVr {
-                value: "UN".to_owned(),
+                vr: "UN".to_owned(),
+                bits_allocated: 8,
             },
         );
     }

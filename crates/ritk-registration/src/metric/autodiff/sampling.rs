@@ -31,6 +31,7 @@ use coeus_autograd::{add, gather, mul, sub, Var};
 use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
+use eunomia::FloatElement;
 
 /// Per-axis linear-interpolation decomposition: the two differentiable corner
 /// weights `w0 = 1 − f`, `w1 = f` (as `Var`s on the coordinate tape) and the
@@ -78,7 +79,10 @@ where
     }
 
     let floor_const = Var::new(Tensor::from_slice_on([n], &floor_vals, backend), false);
-    let ones = Var::new(Tensor::full_on([n], <T as eunomia::NumericElement>::ONE, backend), false);
+    let ones = Var::new(
+        Tensor::full_on([n], <T as eunomia::NumericElement>::ONE, backend),
+        false,
+    );
     let w1 = sub(coords, &floor_const);
     let w0 = sub(&ones, &w1);
 
@@ -91,10 +95,7 @@ where
     T: Scalar + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
 {
-    let vals: Vec<T> = indices
-        .iter()
-        .map(|&i| <T as coeus_core::Scalar>::from_f64(i as f64))
-        .collect();
+    let vals: Vec<T> = indices.iter().map(|&i| T::from_count(i)).collect();
     Var::new(
         Tensor::from_slice_on([indices.len()], &vals, backend),
         false,
@@ -241,4 +242,3 @@ fn clamp_index(floor: f64, max_index: usize) -> usize {
 #[cfg(test)]
 #[path = "tests_sampling.rs"]
 mod tests;
-

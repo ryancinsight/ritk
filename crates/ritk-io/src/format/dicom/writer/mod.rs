@@ -12,6 +12,7 @@ mod error;
 mod metadata;
 pub(crate) mod output;
 pub(crate) mod pixel_encoding;
+pub(crate) mod pixel_preflight;
 mod preservation;
 mod series;
 

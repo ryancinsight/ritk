@@ -16,15 +16,6 @@ pub(super) fn f64_to_f32(value: f64, field: &str) -> f32 {
     value as f32
 }
 
-pub(super) fn f64x4_to_f32x4(values: [f64; 4], field: &str) -> Result<[f32; 4]> {
-    Ok([
-        checked_f64_to_f32(values[0], field)?,
-        checked_f64_to_f32(values[1], field)?,
-        checked_f64_to_f32(values[2], field)?,
-        checked_f64_to_f32(values[3], field)?,
-    ])
-}
-
 pub(super) fn f64_affine_to_f32(values: [[f64; 4]; 4]) -> Result<[[f32; 4]; 4]> {
     let mut out = [[0.0_f32; 4]; 4];
     for row in 0..4 {

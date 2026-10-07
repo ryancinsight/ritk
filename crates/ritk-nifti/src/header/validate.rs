@@ -60,7 +60,7 @@ pub(super) fn qform_quaternion_scalar(b: f64, c: f64, d: f64) -> Result<f64> {
 pub(super) const RANK_VOLUME: usize = 3;
 
 /// NIfTI rank of a series carrying one acquisition axis in `dim[4]`.
-pub(super) const RANK_SERIES: usize = 4;
+pub(crate) const RANK_SERIES: usize = 4;
 
 /// Build the `dim` array for `volumes` values on a shared spatial grid.
 ///

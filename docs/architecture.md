@@ -358,6 +358,138 @@ For every public metric function `f` moved from the flat module, the new module 
 **Proof obligation**:
 For `poly_to_indexed_mesh(indexed_mesh_to_poly(M))`, vertex count ≤ M.vertex_count() because narrowing f64→f32 cannot introduce new distinct vertex positions, and welding can only merge. Face count is invariant because each triangle is mapped to exactly one face.
 
+### 20. Stored-Volume Conversion Contract Boundary
+
+> **Theorem 20.1 (Conversion Contract Ownership)**: Exactly one crate owns the stored-volume conversion contract; format crates implement it and never redefine it.
+
+The decision record is [ADR 0054](adr/0054-stored-volume-contract.md). This section specifies the interfaces, behaviors, and edge cases the contract imposes on every format route.
+
+**Boundary surface**:
+- `ritk-image-io` owns `StoredVolume`, `StoredSeries`, `SeriesAxis`, `IntensityCalibration`, `ConversionTarget`, `ConversionAdapter`, `ConversionRejection`, `ConversionPrepareError`, `ConversionCapabilityReport`, `ConversionLoss`, `ConversionFeature`, `ConversionLocation`, `FormatMetadataLoss`, `PreparedConversion`, `report_conversion_capabilities`, and `prepare_conversion`. These are the SSOT names for the contract.
+- `ritk-image-io` depends inward on `ritk-codecs` (`SampleBuffer`, `SampleType`), `ritk-image` (`ImageMetadata<3>`), and `ritk-spatial` (`CoordinateMap`). It must not depend on any format crate (DIP: conversion policy depends on the `ConversionAdapter` abstraction, which the format crates implement).
+- Each format crate owns its header parse/serialize and implements `ConversionTarget` + `ConversionAdapter`; `ritk-io` exposes only facade re-exports and trait adapters (Theorem 14.1).
+
+**Interface contract**:
+```
+ConversionTarget {
+    const FORMAT: &'static str;
+    const FEATURES: &'static [ConversionFeature];
+}
+ConversionAdapter: ConversionTarget {
+    type Plan;
+    type Rejection: ConversionRejection;          // fn location(&self) -> ConversionLocation
+    fn prepare(&self, series: &StoredSeries) -> Result<Self::Plan, Self::Rejection>;
+}
+prepare_conversion(target, source_format, series, metadata_losses)
+    -> Result<PreparedConversion, ConversionPrepareError<Rejection>>
+```
+
+**Behavioral invariants**:
+1. **Preflight before output.** `prepare_conversion` accepts no destination, so a rejected conversion cannot create or alter an output. Every writer entry point consumes a `PreparedConversion` and opens its destination only after the plan exists.
+2. **Capability first, target second.** `report_conversion_capabilities` compares declared feature categories per volume and per series axis; a non-empty loss set rejects before the adapter runs. The adapter then checks the input-dependent values and cross-volume constraints a category report cannot express.
+3. **Exact scope.** Every rejection returns the `ConversionLocation` (Series, Volume, or Frame) that violates the target contract.
+4. **No silent rescale.** Stored reads retain the source sample representation and calibration; compute-ready values require an explicit calibration operation, never an implicit conversion during a stored read.
+5. **Value semantics over presence.** A supported round trip preserves exact stored sample bits, LPS-millimetre geometry, calibration, and axis semantics, or reports typed loss; an adapter never reports success over dropped semantics.
+
+**Edge cases**:
+- A series is non-empty by construction; an empty series is unrepresentable rather than a runtime rejection.
+- `FEATURES` is a `&'static [ConversionFeature]` resolved at compile time; a new category is a single edit in `ritk-image-io`, and a zero-sized or tag-only adapter keeps `prepare` monomorphized with no dynamic dispatch.
+- `metadata_losses` is the caller's channel for source-format fields the shared model cannot carry; a format adapter that cannot retain a field reports it here instead of dropping it.
+- A zero multiplicative scale that a target treats as "scaling disabled" (for example NIfTI `scl_slope == 0`) is a rejection, never an encoded no-op.
+
+### 21. NIfTI Stored Conversion Boundary
+
+> **Theorem 21.1 (NIfTI Stored Round-Trip Fidelity)**: A NIfTI document built from a stored series and read back preserves exact sample bits, LPS-millimetre geometry, calibration, and the acquisition axis, or reports scoped typed loss.
+
+**Boundary surface**:
+- `ritk-nifti::NiftiDocument` owns single-file transport: `from_bytes`, `read`, `write`, `sample_bytes`, `uncompressed_bytes`, `header`.
+- `ritk-nifti::NiftiDocument::from_stored_series` owns the write path through `NiftiStoredSeriesTarget` (`ConversionTarget` + `ConversionAdapter`).
+- `ritk-nifti::NiftiDocument::to_stored_series` owns the read path (document → `StoredSeries`).
+- `ritk-nifti::spatial` owns RAS↔LPS row conversion and `[x,y,z]`↔`[depth,row,col]` column mapping; read and write share it (SSOT).
+
+**Reader interface** (`to_stored_series`):
+- Input a validated `NiftiDocument`; output a `StoredSeries` with one `StoredVolume` per declared volume, or a scoped typed error.
+- Shape `dim[1..=3] = [nx, ny, nz]` becomes internal shape `[nz, ny, nx]`.
+- `datatype_code` maps through `NiftiDatatype` to `SampleType`; the payload is decoded in the header's byte order, retaining exact bits.
+- The active affine (`sform` when `sform_code > 0`, else `qform` when `qform_code > 0`, else the `pixdim` diagonal) converts through `metadata_from_nifti_ras_affine` to LPS origin, spacing, and direction.
+- `scl_slope == 0` is `IntensityCalibration::Identity`; otherwise `Linear(LinearCalibration::new(scl_slope, scl_inter))`.
+- Rank 3 is `SeriesAxis::SingleVolume`; rank 4 is `SeriesAxis::List`.
+
+**Writer interface** (`from_stored_series`): rejects before allocating on per-volume shape, sample-type, geometry, or calibration mismatch; unsupported sample type; unsupported axis; non-constant or empty per-frame calibration; zero-slope calibration; modality-lookup calibration; a volume count outside the version's `dim[4]` range; and a document above `MAX_DOCUMENT_BYTES`.
+
+**Edge cases**:
+- `scl_slope` is a stored zero but a nonzero physical scale (NIfTI reads `scl_slope == 0` as "scaling disabled"): reject, never silently drop.
+- Both `qform` and `sform` active with opposite handedness: `sform` is authoritative; the reader must not average or prefer `qform`.
+- Spatial `xyzt_units` other than millimetres (metre = 1, micron = 3) require conversion or typed loss; the stored model is LPS-millimetre.
+- NIfTI-1 stores `pixdim`, `scl_*`, and `srow_*` as `f32`; a value that underflows to zero after narrowing is rejected by `validate_for_encoding`.
+- `vox_offset` beyond the header leaves an extension gap; payload slicing starts at `vox_offset`, not at the header end.
+- Rank-4 with `dim[4] == 1` is distinct from rank-3 and is read as a one-volume `List`.
+- `u64`/`i64`/`f64` payloads round-trip without narrowing; this is the reason the stored path exists.
+
+### 22. NRRD Stored Conversion Boundary
+
+> **Theorem 22.1 (NRRD Stored Round-Trip Fidelity)**: An NRRD document written from a stored series and read back preserves exact sample bits, LPS-millimetre geometry, the acquisition axis, and any per-slice coordinate map, or reports scoped typed loss.
+
+**Boundary surface**:
+- `ritk-nrrd::NrrdDocument` owns in-memory samples plus validated metadata (`new`, `series`, `comments`, `records`); `read_nrrd_document` / `write_nrrd_document` own file transport.
+- `ritk-nrrd::reader::stored` owns `read_nrrd_stored` / `read_nrrd_stored_series`; `ritk-nrrd::writer::stored` owns `write_nrrd_stored` / `write_nrrd_stored_series`.
+- `ritk-nrrd::spatial` and `ritk-nrrd::coordinate_map` own `[x,y,z]`↔`[depth,row,col]` mapping and the per-slice / fixed-parameter coordinate-map extension.
+
+**Reader behaviors**: all ten fixed-width sample types and standard type aliases; both binary payload byte orders (an explicit `endian` is required for multi-byte binary samples); `raw`, `ascii` (`text`, `txt`), and `gzip` (`gz`) encodings; line skip before byte skip; `byte skip: -1` for raw payloads only; detached data limited to one relative filename (no absolute paths or parent traversal); `space`, `space directions`, and `space origin` normalized to LPS-millimetre; `kinds: list/domain/dwmri`; NRRD0005 measurement frame for nonzero DWI gradients; encoded-byte, decoded-byte, and volume-count ceilings enforced before allocation.
+
+**Writer behaviors**: a trailing contiguous acquisition axis keeps each volume contiguous; little-endian payload; NRRD0004 for non-DWI series and NRRD0005 with an identity measurement frame for DWI; exact samples streamed through a buffered writer; non-identity calibration rejected before the output opens.
+
+**Edge cases**:
+- Per-axis `units` without a directions or spacings source are rejected; units alone do not define a grid.
+- Unknown `space`, anonymous `space dimension` frames, and units without a known millimetre conversion are rejected.
+- `axismins`, `axismaxs`, and `centerings` aliases are canonicalized before conflict checks.
+- A measurement frame without DWMRI acquisition metadata, axis support bounds, or cell/node centering is rejected before the payload is read.
+- Non-identity calibration is rejected by the stored writer (NRRD has no standard modality-calibration field).
+- ASCII payloads do not carry binary float bits; a float sample written as ASCII is a lossy path and must be reported.
+
+**Convergence step**: `ritk-nrrd` currently validates inside `NrrdDocument::new` / `write_to` and does not expose `ConversionTarget` + `ConversionAdapter`. Wrapping that validation as `NrrdStoredSeriesTarget` and routing it through `prepare_conversion` gives NRRD and NIfTI one shared preflight entry point (RITK-IMAGE-CONVERSION-ADAPTERS-001).
+
+### 23. Analyze Stored Conversion Boundary
+
+> **Theorem 23.1 (Analyze Pair Atomicity)**: An Analyze write produces a consistent `.hdr`/`.img` pair or leaves both destinations unchanged.
+
+**Boundary surface**:
+- `ritk-analyze::reader` owns the 348-byte header parse and `.img` streaming decode; `ritk-analyze::writer` owns header encode and payload emission; `ritk-analyze::codec` owns the `DT_*` constants and little-endian primitives (SSOT for the pair's byte layout).
+
+**Reader behaviors**: little-endian only; big-endian and paired NIfTI-1 (`ni1\0`) rejected; `dim[0] ∈ {3,4}` with `dim[4] == 1`; datatype `2/4/8/16/64`; `bitpix` must match the datatype; `pixdim[1..=3] ≤ 0` falls back to unit spacing; `funused1` (`0 → 1`) is the scale; `vox_offset` must be a whole byte count; origin reconstructed from the `originator` voxel coordinates times spacing; the `.img` length must equal `vox_offset + voxel_count × width`.
+
+**Writer behaviors**: `f32` only (`DT_FLOAT`); dimensions at most `i16::MAX`; positive finite `f32` spacing; origin rounded to an `i16` voxel coordinate; identity direction implied; the header is published only after the full payload is written.
+
+**Edge cases**:
+- Analyze has no direction field: any non-identity direction is unrepresentable and must be rejected on write rather than silently dropped.
+- The `originator` field is unreliable across writers and rounds the origin to voxel coordinates; a non-integer-representable origin is rejected or reported as loss.
+- Pair atomicity: a failure after the `.img` is written but before the `.hdr` leaves an orphan `.img`; the writer stages both or documents the recovery.
+- Datatype `2/4/8/16/64` only; `u16`, `u32`, `i64`, and `u64` are unrepresentable.
+- The current reader decodes to `f32` and applies `funused1`, discarding the stored type and separating values from calibration. Completing the capability requires a stored read that returns the source `SampleType` and carries `funused1` as `LinearCalibration`.
+
+**Gap**: no stored read/write and no adapter yet (RITK-ANALYZE-CONVERSION-001, RITK-ANALYZE-CONVERSION-INVENTORY-001).
+
+### 24. DICOM Stored Conversion Boundary
+
+> **Theorem 24.1 (DICOM Stored Import Fidelity)**: Supported DICOM instances import into stored samples without scaling or narrowing voxels.
+
+**Boundary surface**:
+- `ritk-io::format::dicom::reader` owns series assembly and slice pixel decode; `ritk-dicom` owns Part 10 parsing (`DicomParseBackend`), transfer-syntax dispatch (`NativeCodecBackend`), and pixel-layout interpretation (`PixelLayout`).
+- `ritk-codecs` owns the encapsulated fragment decoders (JPEG, JPEG-LS, JPEG 2000, RLE, PackBits) and native pixel primitives.
+- Geometry derives from `ImagePositionPatient`, `ImageOrientationPatient`, `PixelSpacing`, and slice spacing; calibration derives from `RescaleSlope` / `RescaleIntercept`.
+
+**Reader behaviors (initial path)**: monochrome uncompressed instances with identity calibration; validate geometry and pixel layout; preserve the source metadata inventory; return exact samples; unsupported encoding or calibration fails before a series escapes (RITK-DICOM-STORED-IMPORT-001).
+
+**Edge cases**:
+- `BitsAllocated`, `BitsStored`, `HighBit`, and `PixelRepresentation` determine the stored integer interpretation; `BitsAllocated=8, PixelRepresentation=1` maps through `i8`.
+- `SamplesPerPixel ≠ 1` (color) cannot enter a scalar `StoredVolume`; reject or route to a color path (Theorem 6.4).
+- Mixed slice geometry in a series (inconsistent spacing, orientation, or frame of reference) is rejected, not averaged.
+- `RescaleSlope` / `RescaleIntercept` belong in `IntensityCalibration`, never baked into samples.
+- Gantry tilt and non-orthogonal slice ordering require a per-slice coordinate map (`CoordinateMap::SliceSeries`), not a single affine.
+- Encapsulated transfer syntaxes decode through `ritk-codecs`; the initial import path is uncompressed-only, with encapsulated decode a later increment.
+
+**Gap**: no stored import and no adapter yet; blocked on the DICOM metadata inventory and object-pixel preflight items.
+
 ### Transform Theory
 
 #### Theorem T.1 (Transform Composition)
