@@ -113,8 +113,7 @@ pub(crate) fn write_grayscale_presentation(
     let path = root.join(&filename);
     ritk_io::write_dicom_object(&model, &path)
         .context("write synthetic grayscale presentation object")?;
-    let mut bytes =
-        std::fs::read(&path).context("read synthetic grayscale presentation object")?;
+    let mut bytes = std::fs::read(&path).context("read synthetic grayscale presentation object")?;
     if photometric != "MONOCHROME2" {
         // The writer now rejects unsupported photometric interpretations, so
         // a requested odd presentation is patched into the serialized CS value
@@ -135,8 +134,7 @@ pub(crate) fn write_grayscale_presentation(
             "PhotometricInterpretation value must be unique in the fixture"
         );
         bytes[at..at + needle.len()].copy_from_slice(photometric.as_bytes());
-        std::fs::write(&path, &bytes)
-            .context("patch synthetic grayscale presentation object")?;
+        std::fs::write(&path, &bytes).context("patch synthetic grayscale presentation object")?;
     }
     Ok((filename, bytes))
 }
