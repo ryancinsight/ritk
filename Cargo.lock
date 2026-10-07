@@ -6136,6 +6136,7 @@ dependencies = [
  "coeus-ops",
  "coeus-optim",
  "coeus-tensor",
+ "eunomia",
  "rand 0.9.5",
  "ritk-spatial",
  "ritk-wgpu-compat",

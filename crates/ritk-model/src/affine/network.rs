@@ -45,8 +45,8 @@ const SEED_STEP: u64 = 0x9E37_79B9_7F4A_7C15;
 #[inline]
 fn identity_affine<T: Float>() -> [T; AFFINE_PARAMS] {
     let (o, z) = (
-        <T as coeus_core::NumericElement>::ONE,
-        <T as coeus_core::NumericElement>::ZERO,
+        <T as eunomia::NumericElement>::ONE,
+        <T as eunomia::NumericElement>::ZERO,
     );
     [o, z, z, z, z, o, z, z, z, z, o, z]
 }

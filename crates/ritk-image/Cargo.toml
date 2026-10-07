@@ -17,6 +17,7 @@ ritk-spatial = { path = "../ritk-spatial", version = "0.3.0" }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat", version = "0.2.0" }
 anyhow = { workspace = true }
 coeus-core = { workspace = true }
+eunomia = { workspace = true }
 coeus-tensor = { workspace = true }
 coeus-ops = { workspace = true }
 coeus-autograd = { workspace = true }
