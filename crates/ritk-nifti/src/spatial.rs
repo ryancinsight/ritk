@@ -23,9 +23,9 @@ pub(crate) struct InternalSpatialMetadata {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct NiftiSformRows {
-    pub(crate) x: [f32; 4],
-    pub(crate) y: [f32; 4],
-    pub(crate) z: [f32; 4],
+    pub(crate) x: [f64; 4],
+    pub(crate) y: [f64; 4],
+    pub(crate) z: [f64; 4],
 }
 
 /// Convert a NIfTI RAS affine into RITK LPS metadata for internal `[z,y,x]`
@@ -91,22 +91,22 @@ pub(crate) fn sform_from_internal_lps_metadata(
 
     NiftiSformRows {
         x: [
-            -(file_columns[0][0] as f32),
-            -(file_columns[1][0] as f32),
-            -(file_columns[2][0] as f32),
-            -(origin[0] as f32),
+            -file_columns[0][0],
+            -file_columns[1][0],
+            -file_columns[2][0],
+            -origin[0],
         ],
         y: [
-            -(file_columns[0][1] as f32),
-            -(file_columns[1][1] as f32),
-            -(file_columns[2][1] as f32),
-            -(origin[1] as f32),
+            -file_columns[0][1],
+            -file_columns[1][1],
+            -file_columns[2][1],
+            -origin[1],
         ],
         z: [
-            file_columns[0][2] as f32,
-            file_columns[1][2] as f32,
-            file_columns[2][2] as f32,
-            origin[2] as f32,
+            file_columns[0][2],
+            file_columns[1][2],
+            file_columns[2][2],
+            origin[2],
         ],
     }
 }
@@ -249,5 +249,24 @@ mod tests {
         assert_eq!(rows.x, [-4.0, -0.0, -0.0, -10.0]);
         assert_eq!(rows.y, [-0.0, -3.0, -0.0, -20.0]);
         assert_eq!(rows.z, [0.0, 0.0, 2.0, 30.0]);
+    }
+
+    #[test]
+    fn sform_keeps_internal_f64_values_until_header_version_is_selected() {
+        let origin = [123_456.789_012_345, -0.234_567_890_123_45, 9.0];
+        let spacing = [
+            0.345_678_901_234_5,
+            1.234_567_890_123_45,
+            2.345_678_901_234_5,
+        ];
+        let rows = sform_from_internal_lps_metadata(
+            origin,
+            spacing,
+            [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+        );
+
+        assert_eq!(rows.x, [-spacing[2], -0.0, -0.0, -origin[0]]);
+        assert_eq!(rows.y, [-0.0, -spacing[1], -0.0, -origin[1]]);
+        assert_eq!(rows.z, [0.0, 0.0, spacing[0], origin[2]]);
     }
 }
