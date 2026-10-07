@@ -12,6 +12,7 @@ on:
       - '.github/agents/**'
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   # The OS/target matrix and the wheel smoke run in full here, never per
   # pull request (engineering_gates: workflow hygiene).
   schedule:
