@@ -23,11 +23,9 @@ pub(crate) fn node_to_element(node: &DicomObjectNode) -> DataElement<InMemDicomO
     let vr = node.vr.as_deref().map(str_to_vr).unwrap_or(VR::UN);
     match &node.value {
         DicomValue::Text(s) => DataElement::new(tag, vr, PrimitiveValue::from(s.as_str())),
-        DicomValue::Bytes(b) => DataElement::new(
-            tag,
-            vr,
-            PrimitiveValue::U8(SmallVec::from_vec(b.clone())),
-        ),
+        DicomValue::Bytes(b) => {
+            DataElement::new(tag, vr, PrimitiveValue::U8(SmallVec::from_vec(b.clone())))
+        }
         DicomValue::U16(v) => DataElement::new(tag, vr, PrimitiveValue::from(*v)),
         DicomValue::I32(v) => {
             DataElement::new(tag, vr, PrimitiveValue::from(format!("{v}").as_str()))

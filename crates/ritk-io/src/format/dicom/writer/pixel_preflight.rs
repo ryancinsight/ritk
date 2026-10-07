@@ -48,7 +48,8 @@ pub(crate) fn preflight_native_pixel_data(object: &InMemDicomObject) -> Result<(
     let bits_allocated = required_tag_unsigned(object, BITS_ALLOCATED, "BitsAllocated")?;
     let bits_stored = required_tag_unsigned(object, BITS_STORED, "BitsStored")?;
     let high_bit = required_tag_unsigned(object, HIGH_BIT, "HighBit")?;
-    let pixel_representation = required_tag_unsigned(object, PIXEL_REPRESENTATION, "PixelRepresentation")?;
+    let pixel_representation =
+        required_tag_unsigned(object, PIXEL_REPRESENTATION, "PixelRepresentation")?;
     let frames = match object.get(NUMBER_OF_FRAMES) {
         Some(element) => required_number_of_frames(element)?,
         None => 1,
@@ -229,7 +230,11 @@ pub(crate) fn preflight_native_pixel_data(object: &InMemDicomObject) -> Result<(
     Ok(())
 }
 
-fn required_tag_unsigned(object: &InMemDicomObject, tag: Tag, attribute: &'static str) -> Result<u16> {
+fn required_tag_unsigned(
+    object: &InMemDicomObject,
+    tag: Tag,
+    attribute: &'static str,
+) -> Result<u16> {
     let element = object
         .get(tag)
         .ok_or(DicomWriteError::MissingPixelAttribute { attribute })?;
@@ -438,6 +443,3 @@ fn last_explicit_vr_le_byte(value: &PrimitiveValue) -> Option<u8> {
 #[cfg(test)]
 #[path = "pixel_preflight_tests.rs"]
 mod tests;
-
-
-

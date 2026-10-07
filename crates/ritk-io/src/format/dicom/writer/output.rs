@@ -1,7 +1,7 @@
 //! Validate and persist native Explicit VR Little Endian DICOM objects.
 
 use crate::format::dicom::writer::error::DicomWriteError;
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use dicom::core::value::Value;
 use dicom::core::{Tag, VR};
 use std::path::Path;
@@ -165,13 +165,13 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
     let vr = pixel_data.vr();
     if !matches!(vr, VR::OB | VR::OW) {
         return Err(DicomWriteError::InvalidPixelDataVr {
-            value: vr.to_string().to_owned(),
+            value: vr.to_string(),
         }
         .into());
     }
     if bits_allocated > 8 && !matches!(vr, VR::OW) {
         return Err(DicomWriteError::PixelDataVrMismatch {
-            value: vr.to_string().to_owned(),
+            value: vr.to_string(),
             bits_allocated,
         }
         .into());
