@@ -5,7 +5,7 @@ use ritk_image::ImageMetadata;
 use ritk_spatial::{CoordinateMap, InvalidCoordinateMap};
 use thiserror::Error;
 
-use crate::calibration::{CalibrationShapeError, IntensityCalibration};
+use crate::calibration::{CalibrationShapeError, IntensityCalibration, IntensityUnit};
 
 /// A volume whose samples retain their fixed-width on-disk representation.
 ///
@@ -25,6 +25,7 @@ pub struct StoredVolume {
     metadata: ImageMetadata<3>,
     coordinate_map: CoordinateMap,
     calibration: IntensityCalibration,
+    intensity_unit: Option<IntensityUnit>,
 }
 
 impl StoredVolume {
@@ -68,7 +69,18 @@ impl StoredVolume {
             metadata,
             coordinate_map,
             calibration,
+            intensity_unit: None,
         })
+    }
+
+    /// Attaches an uninterpreted label for the calibrated intensity values.
+    ///
+    /// The label remains unchanged. Format adapters report a typed loss when
+    /// a target cannot preserve it.
+    #[must_use]
+    pub fn with_intensity_unit(mut self, unit: IntensityUnit) -> Self {
+        self.intensity_unit = Some(unit);
+        self
     }
 
     /// Returns the volume shape in depth, row, column order.
@@ -99,6 +111,12 @@ impl StoredVolume {
     #[must_use]
     pub const fn calibration(&self) -> &IntensityCalibration {
         &self.calibration
+    }
+
+    /// Returns the source-provided label for calibrated intensity values.
+    #[must_use]
+    pub fn intensity_unit(&self) -> Option<&IntensityUnit> {
+        self.intensity_unit.as_ref()
     }
 }
 

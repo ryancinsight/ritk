@@ -10,5 +10,6 @@ mod scan_instances;
 mod scan_metadata;
 mod scan_policy;
 mod selection;
+mod stored;
 mod support;
 mod write_roundtrip;

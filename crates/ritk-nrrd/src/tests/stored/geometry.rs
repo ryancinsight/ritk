@@ -159,20 +159,37 @@ fn stored_reader_rejects_unrepresented_centering_before_payload_read() -> Result
 }
 
 #[test]
-fn stored_reader_rejects_sample_units_before_payload_read() -> Result<()> {
+fn stored_reader_preserves_sample_units() -> Result<()> {
     let directory = tempdir()?;
     let path = directory.path().join("sample-units.nrrd");
     let fields = [
         "type: unsigned char",
         "dimension: 3",
         "sizes: 1 1 1",
-        "sample units: \"HU\"",
+        "sample units: HU",
     ];
-    write_header(&path, &fields, &[])?;
-
+    write_header(&path, &fields, &[207])?;
+    let volume = read_nrrd_stored(&path)?;
+    assert_eq!(
+        volume.intensity_unit().map(|unit| unit.as_str()),
+        Some("HU")
+    );
+    assert_eq!(
+        volume
+            .samples()
+            .encode(ByteOrder::LeastSignificantByteFirst)?,
+        [207]
+    );
+    let budget = ImageReadBudget::new(1024, 1, 1)?;
     assert!(matches!(
-        read_nrrd_stored(&path),
-        Err(NrrdStoredReadError::UnsupportedSampleUnits { .. })
+        read_nrrd_stored_with_budget(&path, budget),
+        Err(NrrdStoredReadError::ReadBudget {
+            source: ritk_image_io::ImageReadBudgetError::Exceeded {
+                resource: ritk_image_io::ImageReadResource::DecodedBytes,
+                actual,
+                maximum: 1,
+            }
+        }) if actual > 1
     ));
     Ok(())
 }

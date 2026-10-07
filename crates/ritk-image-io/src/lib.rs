@@ -15,8 +15,8 @@ mod series;
 mod volume;
 
 pub use calibration::{
-    CalibrationError, CalibrationShapeError, IntensityCalibration, LinearCalibration,
-    LutOutputBits, ModalityLookupTable,
+    CalibrationError, CalibrationShapeError, IntensityCalibration, IntensityUnit,
+    LinearCalibration, LutOutputBits, ModalityLookupTable,
 };
 pub use conversion::{
     prepare_conversion, report_conversion_capabilities, ConversionAdapter,

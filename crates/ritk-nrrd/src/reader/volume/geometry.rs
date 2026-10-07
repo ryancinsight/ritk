@@ -42,12 +42,6 @@ pub(super) fn parse_spatial_metadata(
     acquisition: AcquisitionAxis,
     direction_flags: Option<&[bool]>,
 ) -> Result<NrrdSpatialMetadata, NrrdStoredReadError> {
-    if headers.contains_key("sample units") {
-        return Err(NrrdStoredReadError::UnsupportedSampleUnits {
-            units: headers["sample units"].clone(),
-        });
-    }
-
     // A 2-D array declaring a 2-D world without a named space needs no
     // basis mapping: the world is already planar and the promotion below
     // appends the through-plane axis. Any other `space dimension` value

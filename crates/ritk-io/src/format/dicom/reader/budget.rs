@@ -9,8 +9,9 @@ const DEFAULT_MAX_DECODED_BYTES: usize = 1024 * 1024 * 1024;
 /// Resource ceilings for one DICOM read workflow.
 ///
 /// The parser budget limits each encoded input and its structural traversal.
-/// The retained and decoded ceilings cover the two longer-lived allocations
-/// owned by the reader and loader. Keeping these ceilings separate lets a
+/// The retained ceiling bounds encoded study bytes. The decoded ceiling bounds
+/// the reader's planned sample, frame, geometry, and calibration workspace;
+/// it is not a process-RSS measurement. Keeping these ceilings separate lets a
 /// caller admit a large study made of small instances without allowing one
 /// malformed instance to request the study's whole storage allowance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

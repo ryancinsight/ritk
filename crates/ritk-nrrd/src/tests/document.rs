@@ -1,11 +1,13 @@
 use crate::document::read_nrrd_document_from_session;
 use crate::reader::{NrrdHeaderError, NrrdReadSession, MAX_HEADER_ENTRIES};
-use crate::{read_nrrd_document, write_nrrd_document, NrrdDocument, NrrdDocumentError};
+use crate::{
+    read_nrrd_document, write_nrrd_document, NrrdDocument, NrrdDocumentError, NrrdStoredWriteError,
+};
 use anyhow::Result;
 use ritk_codecs::{ByteOrder, SampleBuffer};
 use ritk_image::ImageMetadata;
 use ritk_image_io::{
-    ImageReadBudget, IntensityCalibration, SeriesAxis, StoredSeries, StoredVolume,
+    ImageReadBudget, IntensityCalibration, IntensityUnit, SeriesAxis, StoredSeries, StoredVolume,
 };
 use ritk_spatial::{CoordinateMap, Direction, Point, Spacing};
 use std::fs;
@@ -43,6 +45,7 @@ fn document() -> NrrdDocument {
                 "source:raw_path".to_owned(),
                 "line-continuation-test".to_owned(),
             ),
+            ("note: label".to_owned(), "retained text".to_owned()),
         ],
     )
     .expect("valid document metadata")
@@ -122,6 +125,13 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
         Err(NrrdDocumentError::ConflictingMetadata { .. })
     ));
     assert_eq!(fs::read(&path)?, b"sentinel");
+    let mut invalid = document();
+    invalid.records = vec![("sample units: counts".into(), "retained text".into())];
+    assert!(matches!(
+        write_nrrd_document(&path, &invalid),
+        Err(NrrdDocumentError::UnsupportedField { .. })
+    ));
+    assert_eq!(fs::read(&path)?, b"sentinel");
     for key in ["dwmri_NEX", "DWMRI_B-matrix_0", "MoDaLiTy"] {
         let mut invalid = document();
         invalid.records = vec![(key.to_owned(), "1".to_owned())];
@@ -162,6 +172,17 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
         ),
         Err(NrrdDocumentError::UnsupportedField { .. })
     ));
+    for key in ["sample units: counts"] {
+        let invalid = NrrdDocument::new(
+            series(),
+            Vec::new(),
+            vec![(key.into(), "retained text".into())],
+        );
+        assert!(matches!(
+            invalid,
+            Err(NrrdDocumentError::UnsupportedField { .. })
+        ));
+    }
     let input_path = directory.path().join("unsupported-content.nrrd");
     let source_path = directory.path().join("source.nrrd");
     write_nrrd_document(&source_path, &document())?;
@@ -234,6 +255,60 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
             Err(NrrdDocumentError::UnsupportedField { .. })
         ));
     }
+    Ok(())
+}
+
+#[test]
+fn document_preserves_intensity_units_through_the_standard_field() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("sample-units-document.nrrd");
+    let volume = StoredVolume::new(
+        [1, 1, 1],
+        SampleBuffer::from_samples(vec![11_u16]),
+        ImageMetadata::default(),
+        CoordinateMap::Cartesian,
+        IntensityCalibration::Identity,
+    )
+    .expect("one-sample volume")
+    .with_intensity_unit(IntensityUnit::new("HU").expect("nonempty unit label"));
+    let series =
+        StoredSeries::new(vec![volume], SeriesAxis::SingleVolume).expect("single-volume series");
+    let source = NrrdDocument::new(series, Vec::new(), Vec::new())?;
+    write_nrrd_document(&path, &source)?;
+    let decoded = read_nrrd_document(&path, ImageReadBudget::DEFAULT)?;
+    assert_eq!(
+        decoded.series().volumes()[0]
+            .intensity_unit()
+            .map(|unit| unit.as_str()),
+        Some("HU")
+    );
+
+    let first = StoredVolume::new(
+        [1, 1, 1],
+        SampleBuffer::from_samples(vec![11_u16]),
+        ImageMetadata::default(),
+        CoordinateMap::Cartesian,
+        IntensityCalibration::Identity,
+    )
+    .expect("one-sample volume")
+    .with_intensity_unit(IntensityUnit::new("HU").expect("nonempty unit"));
+    let second = StoredVolume::new(
+        [1, 1, 1],
+        SampleBuffer::from_samples(vec![13_u16]),
+        ImageMetadata::default(),
+        CoordinateMap::Cartesian,
+        IntensityCalibration::Identity,
+    )
+    .expect("one-sample volume")
+    .with_intensity_unit(IntensityUnit::new("counts").expect("nonempty unit"));
+    let mixed_units = StoredSeries::new(vec![first, second], SeriesAxis::List)
+        .expect("matching stored series shape");
+    assert!(matches!(
+        NrrdDocument::new(mixed_units, Vec::new(), Vec::new()),
+        Err(NrrdDocumentError::Write(
+            NrrdStoredWriteError::IntensityUnitMismatch { index: 1 }
+        ))
+    ));
     Ok(())
 }
 

@@ -2,6 +2,12 @@
 
 - Status: Accepted
 
+- Revision 2026-10-07: Store source intensity-unit labels on `StoredVolume` and
+  report them as a conversion capability; targets without a representation
+  reject before output mutation (PR #806).
+- Revision 2026-10-07: Preserve representable intensity labels in NRRD's
+  standard `sample units` field on stored reads, writes, and documents. This
+  field is defined for scalar values by [Teem NRRD, section 5](https://teem.sourceforge.net/nrrd/format.html).
 - Revision 2026-10-06: Added source-bound preparation after capability
   reporting (PR #777, following PR #785).
 - Revision 2026-10-04: nonzero NRRD DWI gradients require an explicit
@@ -33,17 +39,29 @@ multiplication, exact buffer length, finite origin and spacing, an invertible
 direction matrix, finite nonzero direction-times-spacing components,
 coordinate-map rank, and per-frame calibration depth. Small positive spacings
 retain their direction; only zero or non-finite lengths use an axis fallback.
+An optional `IntensityUnit` preserves an uninterpreted source label exactly;
+the shared model does not normalize labels or infer conversions between them.
 
 Format adapters own header parsing and serialization and exchange
-`StoredVolume` values for lossless reads and writes. `ritk-image-io` reports
+`StoredVolume` values for lossless reads and writes. NRRD's `sample units`
+field retains a printable ASCII scalar-value label without edge whitespace;
+its writer rejects labels that its header parser cannot preserve exactly. The
+reader recognizes known standard-field names before a later `:=` record
+delimiter, preserving `:=` in a standard field value. A custom record whose
+key begins with a standard field name followed by `: ` is rejected because the
+header would parse that prefix as the field. Other custom keys may contain
+colons and spaces. A series uses one shared label because the field applies to
+the complete array. `ritk-image-io` reports
 feature categories and scoped metadata losses. `prepare_conversion` rejects
 those losses before calling a target `ConversionAdapter`; the target validates
 input values and cross-volume constraints and returns a target-owned plan tied
 to the exact immutable series. Preparation takes no destination, so a rejected
 conversion cannot create or change output. Callers supply metadata losses for
-source fields the shared model cannot retain. Callers that want compute-ready
-values use the existing image API or an explicit calibration operation; stored
-reads do not silently rescale samples.
+source fields the shared model cannot retain. A present `IntensityUnit` is a
+separate capability category, so targets must declare support before a
+conversion plan can be prepared. Callers that want compute-ready values use the
+existing image API or an explicit calibration operation; stored reads do not
+silently rescale samples.
 
 NRRD maps all ten fixed-width codec sample types and the standard type aliases
 to its declared element type, reads both binary payload byte orders, writes
@@ -54,7 +72,9 @@ acquisition axis so each volume remains contiguous. Its coordinate-map
 extension preserves per-slice transforms as well as fixed-parameter
 acquisition maps.
 Since NRRD has no standard modality-calibration field, its stored writer
-rejects non-identity calibration before opening the output file. The NRRD
+rejects non-identity calibration before opening the output file. Stored reads
+and writes preserve `sample units`; compute-ready `f32` reads reject the field
+because `Image<f32>` has no sample-unit member. The NRRD
 type names and payload rules follow the [Teem NRRD format specification,
 type and data sections](https://teem.sourceforge.net/nrrd/format.html). Its RAS,
 LAS, and LPS basis and physical-unit fields are normalized at the adapter
@@ -116,6 +136,9 @@ unsupported calibration without changing an existing output. A public-reader
 test checks the typed decoded-byte budget error, including gzip byte skips.
 Conversion tests check scoped reports, exact source-bound plans, later-volume
 rejection, and rejection before a plan is returned when declared loss remains.
+Intensity-unit tests check exact text retention and a typed capability loss;
+the NRRD writer rejects an unsupported label before creating or changing its
+destination.
 Header tests cover standard alias canonicalization, geometry tests reject
 per-axis units without a spacing source, and diffusion writer tests assert the
 NRRD0005 measurement frame. Revise this decision if a

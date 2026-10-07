@@ -55,6 +55,13 @@ Presentation hosts, including browser or desktop shells, call this public
 byte-batch API and receive an RITK `Image` plus `DicomReadMetadata`; they do not
 own a second DICOM decoder or volume model.
 
+`read_dicom_stored_series` and `load_dicom_stored_series` preserve exact stored
+integer samples, raw per-slice patient geometry, modality calibration, and its
+unit label in `StoredSeries`. The stored-scalar reader currently accepts native
+little-endian single-frame monochrome instances. Color, multi-frame, and
+encapsulated pixel data return typed errors rather than entering a scalar
+volume.
+
 Native directory callers that already have the acquisition UID use
 `read_native_dicom_series_with_uid`; it scans the directory, matches the exact
 UID, and only then decodes the selected series. Omitting an explicit selection

@@ -60,7 +60,8 @@ impl ImageReadBudget {
         self.encoded_bytes
     }
 
-    /// Returns the maximum accepted decoded sample storage.
+    /// Returns the maximum accepted decoded output storage, including samples
+    /// and retained metadata represented in the output.
     #[must_use]
     pub const fn max_decoded_bytes(self) -> u64 {
         self.decoded_bytes
@@ -104,7 +105,7 @@ impl ImageReadBudget {
 pub enum ImageReadResource {
     /// Bytes read from the encoded payload source.
     EncodedBytes,
-    /// Bytes retained for decoded samples.
+    /// Bytes retained for decoded output, including samples and represented metadata.
     DecodedBytes,
     /// Number of images in an acquisition series.
     SeriesVolumes,
@@ -114,7 +115,7 @@ impl std::fmt::Display for ImageReadResource {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::EncodedBytes => formatter.write_str("encoded payload bytes"),
-            Self::DecodedBytes => formatter.write_str("decoded sample bytes"),
+            Self::DecodedBytes => formatter.write_str("decoded output bytes"),
             Self::SeriesVolumes => formatter.write_str("series volumes"),
         }
     }
