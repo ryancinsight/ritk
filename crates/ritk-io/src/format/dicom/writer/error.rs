@@ -158,4 +158,53 @@ pub enum DicomWriteError {
         /// Offending trailing padding byte.
         value: u8,
     },
+
+    /// A required image-pixel dimension or multiplicity is zero.
+    #[error("DICOM {attribute} must be positive, got {value}")]
+    ZeroPixelAttribute {
+        /// Name of the zero-valued attribute.
+        attribute: &'static str,
+        /// Exact numeric value supplied by the object.
+        value: usize,
+    },
+    /// Native Explicit VR Little Endian requires OW above eight allocated bits.
+    #[error("DICOM PixelData VR {value} is invalid for BitsAllocated={bits_allocated}")]
+    PixelDataVrMismatch {
+        /// Exact value representation supplied by the object.
+        value: String,
+        /// Declared allocated sample width.
+        bits_allocated: u16,
+    },
+    /// PhotometricInterpretation is unsupported or malformed for this writer.
+    #[error("DICOM PhotometricInterpretation has unsupported value {value}")]
+    UnsupportedPhotometricInterpretationValue {
+        /// Exact photometric interpretation.
+        value: String,
+    },
+    /// Multicomponent data omitted or misdeclared PlanarConfiguration.
+    #[error("DICOM PlanarConfiguration has invalid value {value}")]
+    InvalidPlanarConfiguration {
+        /// Exact planar configuration value.
+        value: String,
+    },
+    /// YBR_FULL_422 payload does not use the required 4 bytes per two pixels.
+    #[error("DICOM YBR_FULL_422 PixelData has {actual} bytes; expected {expected}")]
+    YbrFull422PayloadLengthMismatch {
+        /// Required encoded byte count.
+        expected: usize,
+        /// Serialized byte count.
+        actual: usize,
+    },
+    /// Source pixel bit attributes do not satisfy the DICOM pixel-module rules.
+    #[error(
+        "invalid source pixel description: BitsAllocated={bits_allocated}, BitsStored={bits_stored}, HighBit={high_bit}"
+    )]
+    InvalidSourcePixelDescription {
+        /// Source BitsAllocated value.
+        bits_allocated: u16,
+        /// Source BitsStored value.
+        bits_stored: u16,
+        /// Source HighBit value.
+        high_bit: u16,
+    },
 }

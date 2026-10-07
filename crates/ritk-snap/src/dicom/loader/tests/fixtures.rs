@@ -63,7 +63,7 @@ pub(crate) fn write_grayscale_presentation(
         (0x0020, 0x000E, "UI", "2.25.20260905005"),
         (0x0020, 0x0032, "DS", "0\\0\\0"),
         (0x0020, 0x0037, "DS", "1\\0\\0\\0\\1\\0"),
-        (0x0028, 0x0004, "CS", photometric),
+        (0x0028, 0x0004, "CS", "MONOCHROME2"),
         (0x0028, 0x0030, "DS", "1\\1"),
         (0x0018, 0x0050, "DS", "1"),
         (0x0028, 0x1052, "DS", "-10"),
@@ -113,10 +113,30 @@ pub(crate) fn write_grayscale_presentation(
     let path = root.join(&filename);
     ritk_io::write_dicom_object(&model, &path)
         .context("write synthetic grayscale presentation object")?;
-    Ok((
-        filename,
-        std::fs::read(path).context("read synthetic grayscale presentation object")?,
-    ))
+    let mut bytes = std::fs::read(&path).context("read synthetic grayscale presentation object")?;
+    if photometric != "MONOCHROME2" {
+        // The writer now rejects unsupported photometric interpretations, so
+        // a requested odd presentation is patched into the serialized CS value
+        // to keep producing deliberately undecodable fixtures.
+        assert_eq!(
+            photometric.len(),
+            "MONOCHROME2".len(),
+            "patch value must keep the CS element length"
+        );
+        let needle = b"MONOCHROME2";
+        let at = bytes
+            .windows(needle.len())
+            .position(|window| window == needle)
+            .expect("serialized PhotometricInterpretation value");
+        assert_eq!(
+            bytes.windows(needle.len()).filter(|w| *w == needle).count(),
+            1,
+            "PhotometricInterpretation value must be unique in the fixture"
+        );
+        bytes[at..at + needle.len()].copy_from_slice(photometric.as_bytes());
+        std::fs::write(&path, &bytes).context("patch synthetic grayscale presentation object")?;
+    }
+    Ok((filename, bytes))
 }
 
 /// Write one scalar Part 10 multi-frame object and return its name and bytes.
