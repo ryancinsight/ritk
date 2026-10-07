@@ -165,13 +165,13 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
     let vr = pixel_data.vr();
     if !matches!(vr, VR::OB | VR::OW) {
         return Err(DicomWriteError::InvalidPixelDataVr {
-            value: vr.to_string(),
+            value: vr.to_string().to_owned(),
         }
         .into());
     }
     if bits_allocated > 8 && !matches!(vr, VR::OW) {
         return Err(DicomWriteError::PixelDataVrMismatch {
-            value: vr.to_string(),
+            value: vr.to_string().to_owned(),
             bits_allocated,
         }
         .into());

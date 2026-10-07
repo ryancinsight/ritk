@@ -58,14 +58,6 @@ mod tests {
     use dicom::core::{Tag, VR};
     use dicom::object::open_file;
 
-    fn insert_u16(model: &mut DicomObjectModel, element: u16, value: u16) {
-        model.insert(DicomObjectNode::with_value(
-            DicomTag::new(0x0028, element),
-            "US",
-            value,
-        ));
-    }
-
     fn pixel_model(
         rows: Option<u16>,
         columns: Option<u16>,
