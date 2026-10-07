@@ -15,7 +15,7 @@
 //! error message strings.
 //!
 //! This module is the **single authoritative implementation**. Leaf filters must
-//! `use ritk_tensor_ops::{extract_vec, rebuild}` and delete their local copies.
+//! add `use ritk_tensor_ops::{extract_vec, rebuild};` and delete their local copies.
 //!
 //! # Genericity
 //!
@@ -32,7 +32,7 @@
 //! so read-only kernels can avoid a copy.
 
 use coeus_core::Backend;
-use eunomia::FloatElement;
+use eunomia::{FloatElement, NumericElement};
 use ritk_image::Image;
 use std::ops::{AddAssign, Neg};
 

@@ -1,5 +1,6 @@
 //! The Marchenko-Pastur noise-signal boundary (Veraart et al. 2016, Eq. 10–12).
 
+use eunomia::FloatElement;
 use leto_ops::RealScalar;
 
 /// The Marchenko-Pastur aspect ratio `γ_p` assigned to the trailing `m − p`

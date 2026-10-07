@@ -3,7 +3,7 @@
 
 use super::TvWindow;
 use apollo_fft::application::execution::kernel::{fft_forward, fft_inverse, FftPrecision};
-use eunomia::{Complex, RealField};
+use eunomia::{Complex, FloatElement, RealField};
 
 /// Reusable buffers for unringing lines of one fixed length.
 ///
