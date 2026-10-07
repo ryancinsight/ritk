@@ -1,7 +1,5 @@
 //! Six-neighbour self-similarity context descriptor construction and packing.
 
-use eunomia::CastFrom;
-
 use super::config::DescriptorGeometry;
 use super::MindSscError;
 
@@ -92,7 +90,7 @@ pub(super) fn pack_distances(distances: [f32; DESCRIPTOR_COMPONENTS]) -> Result<
     let mut packed = 0_u64;
     for (component, distance) in distances.into_iter().enumerate() {
         let response = (-(distance - minimum) / variance).exp().clamp(0.0, 1.0);
-        let level = u32::cast_from((response * 5.0).round());
+        let level = (response * 5.0).round() as u32;
         let unary = (1_u64 << level) - 1;
         packed |= unary << (component * BITS_PER_COMPONENT);
     }

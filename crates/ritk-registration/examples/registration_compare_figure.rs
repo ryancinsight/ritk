@@ -18,7 +18,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
 use coeus_core::SequentialBackend;
-use eunomia::{CastFrom, FloatElement};
+use eunomia::FloatElement;
 use image::{Rgb, RgbImage};
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_image::Image;
@@ -112,7 +112,7 @@ fn slice_norm(volume: &[f32], shape: [usize; 3], z0: usize) -> Result<Vec<f32>> 
 }
 
 fn normalized_to_u8(value: f32) -> u8 {
-    u8::cast_from(value.clamp(0.0, 1.0) * 255.0)
+    (value.clamp(0.0, 1.0) * 255.0) as u8
 }
 
 fn ncc(fixed: &[f32], moving: &[f32]) -> Result<f64> {
