@@ -36,6 +36,13 @@
 //! origin = c_ras − Mdc · D · h
 //! ```
 //!
+//! The header orders spacing and `Mdc` by the x, y, z voxel axes, so both are
+//! reversed on the way into RITK `[depth, row, col] = [z, y, x]` order: RITK
+//! `spacing[0]` is `spacing_z`, and RITK direction column 0 is `Mdc[:, 2]`.
+//! That reversal is the same one NIfTI, NRRD, and MetaImage apply
+//! (`docs/architecture.md` §7–§9), and it lives only in this crate's `spatial`
+//! module.
+//!
 //! When the flag is unset, default spatial metadata is used (identity
 //! direction, unit spacing, zero origin).
 //!

@@ -93,6 +93,14 @@ Writing applies the inverse relation:
 c_ras = origin + Mdc · D · h
 ```
 
+The header orders `spacing` and `Mdc` by the x, y, z voxel axes, while RITK
+orders image axes `[depth, row, col] = [z, y, x]`. The reader therefore
+reverses both: RITK `spacing[0]` is the header's `d_z`, and RITK direction
+column 0 is the header's `Mdc[:, 2]`. This is the same file-axis to
+internal-axis reversal NIfTI, NRRD, and MetaImage apply
+(`docs/architecture.md` §7–§9), and it is what makes an MGH volume and the
+same volume read from NIfTI agree on physical space.
+
 When the RAS flag is absent, the reader uses zero origin, unit spacing, and
 identity direction. Applications that require scanner-space agreement should
 inspect geometry before combining volumes; equal array dimensions alone do

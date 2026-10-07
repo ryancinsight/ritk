@@ -4,7 +4,7 @@
 //! in `.mgz` or `.mgh.gz` are gzip-compressed. The series writer emits one
 //! frame per volume with a shared spatial grid.
 
-use crate::spatial::ras_center_from_geometry;
+use crate::spatial::ras_block_from_geometry;
 use crate::{
     is_gzip_path, DOF_UNSET, GOOD_RAS_VALID, MRI_FLOAT, PADDING_LEN, SINGLE_FRAME, VERSION,
 };
@@ -85,22 +85,7 @@ fn write_mgh_flat<W: Write>(
     write_to(writer, SINGLE_FRAME, ByteOrder::BigEndian)?;
     write_to(writer, MRI_FLOAT, ByteOrder::BigEndian)?;
     write_to(writer, DOF_UNSET, ByteOrder::BigEndian)?;
-    write_to(writer, GOOD_RAS_VALID, ByteOrder::BigEndian)?;
-
-    for axis in 0..3 {
-        write_to(writer, spacing[axis] as f32, ByteOrder::BigEndian)?;
-    }
-
-    for col in 0..3 {
-        for row in 0..3 {
-            write_to(writer, direction[(row, col)] as f32, ByteOrder::BigEndian)?;
-        }
-    }
-
-    let c_ras = ras_center_from_geometry(origin, spacing, direction, [nz, ny, nx]);
-    write_to(writer, c_ras[0] as f32, ByteOrder::BigEndian)?;
-    write_to(writer, c_ras[1] as f32, ByteOrder::BigEndian)?;
-    write_to(writer, c_ras[2] as f32, ByteOrder::BigEndian)?;
+    write_ras_block(writer, [nz, ny, nx], origin, spacing, direction)?;
 
     writer
         .write_all(&[0u8; PADDING_LEN])
@@ -125,6 +110,37 @@ fn write_mgh_flat<W: Write>(
         writer
             .write_all(&value.to_be_bytes())
             .context("Failed to write MGH voxel data")?;
+    }
+
+    Ok(())
+}
+
+/// Emit the header's RAS block — `goodRASFlag`, voxel spacing, direction
+/// cosines, and the `c_ras` volume center — for `shape_zyx` geometry.
+///
+/// [`ras_block_from_geometry`] owns the RITK `[depth, row, col]` to header
+/// `[x, y, z]` reversal; this function only serializes the result in header
+/// field order.
+fn write_ras_block<W: Write>(
+    writer: &mut W,
+    shape_zyx: [usize; 3],
+    origin: Point<3>,
+    spacing: Spacing<3>,
+    direction: Direction<3>,
+) -> Result<()> {
+    write_to(writer, GOOD_RAS_VALID, ByteOrder::BigEndian)?;
+
+    let ras = ras_block_from_geometry(shape_zyx, origin, spacing, direction);
+    for component in ras.spacing_xyz() {
+        write_to(writer, component, ByteOrder::BigEndian)?;
+    }
+    for column in ras.mdc_columns_xyz() {
+        for component in column {
+            write_to(writer, component, ByteOrder::BigEndian)?;
+        }
+    }
+    for component in ras.c_ras() {
+        write_to(writer, component, ByteOrder::BigEndian)?;
     }
 
     Ok(())
@@ -236,22 +252,7 @@ where
     write_to(writer, nframes_i32, ByteOrder::BigEndian)?;
     write_to(writer, MRI_FLOAT, ByteOrder::BigEndian)?;
     write_to(writer, DOF_UNSET, ByteOrder::BigEndian)?;
-    write_to(writer, GOOD_RAS_VALID, ByteOrder::BigEndian)?;
-
-    for axis in 0..3 {
-        write_to(writer, spacing[axis] as f32, ByteOrder::BigEndian)?;
-    }
-
-    for col in 0..3 {
-        for row in 0..3 {
-            write_to(writer, direction[(row, col)] as f32, ByteOrder::BigEndian)?;
-        }
-    }
-
-    let c_ras = ras_center_from_geometry(origin, spacing, direction, [nz, ny, nx]);
-    write_to(writer, c_ras[0] as f32, ByteOrder::BigEndian)?;
-    write_to(writer, c_ras[1] as f32, ByteOrder::BigEndian)?;
-    write_to(writer, c_ras[2] as f32, ByteOrder::BigEndian)?;
+    write_ras_block(writer, [nz, ny, nx], origin, spacing, direction)?;
 
     writer
         .write_all(&[0u8; PADDING_LEN])

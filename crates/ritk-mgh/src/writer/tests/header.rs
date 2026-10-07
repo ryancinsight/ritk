@@ -28,25 +28,34 @@ fn test_header_binary_layout() -> Result<()> {
     assert_eq!(i32::from_be_bytes(raw[20..24].try_into().unwrap()), 3);
     assert_eq!(i32::from_be_bytes(raw[24..28].try_into().unwrap()), 0);
     assert_eq!(i16::from_be_bytes(raw[28..30].try_into().unwrap()), 1);
-    assert_eq!(f32::from_be_bytes(raw[30..34].try_into().unwrap()), 0.5);
+    // Voxel spacing is stored in header `[x, y, z]` order. The fixture's RITK
+    // spacing is `[Δdepth, Δrow, Δcol] = [0.5, 1.0, 2.0]`, so the header holds
+    // `[Δx, Δy, Δz] = [Δcol, Δrow, Δdepth] = [2.0, 1.0, 0.5]`
+    // (`docs/book/mgh_format.md`; `docs/architecture.md` §7–§9).
+    assert_eq!(f32::from_be_bytes(raw[30..34].try_into().unwrap()), 2.0);
     assert_eq!(f32::from_be_bytes(raw[34..38].try_into().unwrap()), 1.0);
-    assert_eq!(f32::from_be_bytes(raw[38..42].try_into().unwrap()), 2.0);
-    assert_eq!(f32::from_be_bytes(raw[42..46].try_into().unwrap()), 1.0);
+    assert_eq!(f32::from_be_bytes(raw[38..42].try_into().unwrap()), 0.5);
+    // `Mdc` columns are stored in header `[x, y, z]` order, so the RITK
+    // identity direction's `[depth, row, col]` columns appear reversed: z, y, x.
+    assert_eq!(f32::from_be_bytes(raw[42..46].try_into().unwrap()), 0.0);
     assert_eq!(f32::from_be_bytes(raw[46..50].try_into().unwrap()), 0.0);
-    assert_eq!(f32::from_be_bytes(raw[50..54].try_into().unwrap()), 0.0);
+    assert_eq!(f32::from_be_bytes(raw[50..54].try_into().unwrap()), 1.0);
     assert_eq!(f32::from_be_bytes(raw[54..58].try_into().unwrap()), 0.0);
     assert_eq!(f32::from_be_bytes(raw[58..62].try_into().unwrap()), 1.0);
     assert_eq!(f32::from_be_bytes(raw[62..66].try_into().unwrap()), 0.0);
-    assert_eq!(f32::from_be_bytes(raw[66..70].try_into().unwrap()), 0.0);
+    assert_eq!(f32::from_be_bytes(raw[66..70].try_into().unwrap()), 1.0);
     assert_eq!(f32::from_be_bytes(raw[70..74].try_into().unwrap()), 0.0);
-    assert_eq!(f32::from_be_bytes(raw[74..78].try_into().unwrap()), 1.0);
+    assert_eq!(f32::from_be_bytes(raw[74..78].try_into().unwrap()), 0.0);
 
+    // `c_ras = origin + Mdc·D·h` in header order, with
+    // `h = [(5−1)/2, (3−1)/2, (2−1)/2] = [2.0, 1.0, 0.5]`,
+    // `D·h = [4.0, 1.0, 0.25]`, and `Mdc·D·h = (0.25, 1.0, 4.0)`.
     let c_r = f32::from_be_bytes(raw[78..82].try_into().unwrap());
     let c_a = f32::from_be_bytes(raw[82..86].try_into().unwrap());
     let c_s = f32::from_be_bytes(raw[86..90].try_into().unwrap());
-    assert!((c_r - 1.0).abs() < 1e-6, "c_r={c_r}");
+    assert!((c_r - 0.25).abs() < 1e-6, "c_r={c_r}");
     assert!((c_a - 1.0).abs() < 1e-6, "c_a={c_a}");
-    assert!((c_s - 1.0).abs() < 1e-6, "c_s={c_s}");
+    assert!((c_s - 4.0).abs() < 1e-6, "c_s={c_s}");
 
     for (i, &byte) in raw[90..HEADER_SIZE].iter().enumerate() {
         assert_eq!(byte, 0, "Padding byte {} is non-zero: {byte}", 90 + i);

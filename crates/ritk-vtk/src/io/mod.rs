@@ -39,6 +39,21 @@ pub(crate) mod read_helpers;
 pub(crate) mod xml_helpers;
 pub mod xml_write_attr;
 
+/// Reverse a three-component spatial vector between RITK `[depth, row, col]`
+/// and VTK's `[X, Y, Z]` file order.
+///
+/// VTK legacy names the X extent first in `DIMENSIONS`, and `encode_vtk_flat`
+/// takes that extent from `shape[2]`, so the file's X size is `spacing[2]` —
+/// the *column* spacing. RITK's `Spacing<3>` is `[Δdepth, Δrow, Δcol]`, so the
+/// two orders are reverses of one another and index-for-index transfer
+/// transposes the metadata against the very axis the dimensions line names.
+///
+/// The map is its own inverse, so the reader and writer share it. `ORIGIN` is
+/// a scanner-space position with no per-axis metadata and is never reversed.
+pub(crate) const fn reverse_spatial_axes(vector: [f64; 3]) -> [f64; 3] {
+    [vector[2], vector[1], vector[0]]
+}
+
 pub mod reader;
 pub mod writer;
 
@@ -147,6 +162,89 @@ mod tests {
         assert_eq!(*loaded.origin(), origin);
         assert_eq!(*loaded.spacing(), spacing);
         assert_eq!(*loaded.direction(), Direction::identity());
+    }
+
+    /// A hand-built VTK file's `SPACING` lands in RITK `[depth, row, col]` order.
+    ///
+    /// The oracle is a file this crate did not write, so the writer cannot make
+    /// the reader look correct. `DIMENSIONS 4 3 2` names the X extent first, so
+    /// the X size 0.5 is the *column* spacing and must arrive in `spacing[2]`.
+    /// Reading the triple index-for-index puts it in `spacing[0]` — the depth
+    /// slot — which no round trip can expose, because the writer and reader
+    /// would transpose in the same direction.
+    #[test]
+    fn a_hand_built_vtk_spacing_lands_in_ritk_axis_order() {
+        let backend = SequentialBackend;
+        // 4 x 3 x 2 voxels = 24 big-endian f32, matching the declared type.
+        let mut bytes = b"# vtk DataFile Version 3.0\nhand-built\nBINARY\n\
+                          DATASET STRUCTURED_POINTS\nDIMENSIONS 4 3 2\n\
+                          ORIGIN 0 0 0\nSPACING 0.5 0.75 1.25\n\
+                          POINT_DATA 24\nSCALARS scalars float 1\n\
+                          LOOKUP_TABLE default\n"
+            .to_vec();
+        for _ in 0..24 {
+            bytes.extend_from_slice(&0.0f32.to_be_bytes());
+        }
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("hand-built.vtk");
+        std::fs::write(&path, &bytes).expect("write hand-built VTK");
+
+        let loaded = VtkReader::new(backend).read(&path).expect("read VTK");
+
+        assert_eq!(loaded.shape(), [2, 3, 4], "shape is [depth, row, col]");
+        let spacing = loaded.spacing();
+        assert!(
+            (spacing[0] - 1.25).abs() < 1e-9,
+            "spacing[0] is Δdepth and must be the file Z size 1.25, got {}",
+            spacing[0]
+        );
+        assert!(
+            (spacing[1] - 0.75).abs() < 1e-9,
+            "spacing[1] is Δrow and must be the file Y size 0.75, got {}",
+            spacing[1]
+        );
+        assert!(
+            (spacing[2] - 0.5).abs() < 1e-9,
+            "spacing[2] is Δcol and must be the file X size 0.5, got {}",
+            spacing[2]
+        );
+    }
+
+    /// The emitted `SPACING` line describes the same axis as `DIMENSIONS`.
+    ///
+    /// RITK shape `[2, 3, 4]` is emitted as `DIMENSIONS 4 3 2`, so X is the
+    /// column axis and the X size must be the column spacing 0.5 — not the
+    /// depth spacing 1.25. Emitting both index-for-index makes the file
+    /// contradict itself: its dimensions name the column axis while its spacing
+    /// gives that axis the depth pitch.
+    #[test]
+    fn the_emitted_spacing_line_names_the_same_axis_as_dimensions() {
+        let backend = SequentialBackend;
+        let image = Image::from_flat_on(
+            vec![0.0f32; 24],
+            [2, 3, 4],
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.25, 0.75, 0.5]),
+            Direction::identity(),
+            &backend,
+        )
+        .expect("native image");
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("axes.vtk");
+
+        VtkWriter::new(backend)
+            .write(&path, &image)
+            .expect("write VTK");
+
+        let text = String::from_utf8_lossy(&std::fs::read(&path).expect("read back")).into_owned();
+        assert!(
+            text.contains("DIMENSIONS 4 3 2"),
+            "shape [2, 3, 4] emits the column extent first, got:\n{text}"
+        );
+        assert!(
+            text.contains("SPACING 0.5 0.75 1.25"),
+            "the X size must be the column spacing 0.5, not the depth spacing 1.25, got:\n{text}"
+        );
     }
 
     #[test]

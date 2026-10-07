@@ -67,3 +67,9 @@
 <a id="RITK-SNAP-MULTI-SERIES-001"></a>- [RITK-SNAP-MULTI-SERIES-001](backlog/RITK-SNAP-MULTI-SERIES-001.md) — Load and compare multiple DICOM series — blocked
 <a id="RITK-SNAP-RADIANT-UI-001"></a>- [RITK-SNAP-RADIANT-UI-001](backlog/RITK-SNAP-RADIANT-UI-001.md) — Organize a multi-series DICOM viewer workspace — blocked
 <a id="RITK-SNAP-OBLIQUE-ROUTING-001"></a>- [RITK-SNAP-OBLIQUE-ROUTING-001](backlog/RITK-SNAP-OBLIQUE-ROUTING-001.md) — Route native oblique input — blocked
+<a id="RITK-DICOM-SERIES-AXIS-CONVENTION-001"></a>- [RITK-DICOM-SERIES-AXIS-CONVENTION-001](backlog/RITK-DICOM-SERIES-AXIS-CONVENTION-001.md) — Align DICOM series reader/writer with the canonical RITK axis order — done
+<a id="RITK-FORMAT-SPATIAL-CONTRACT-COVERAGE-001"></a>- [RITK-FORMAT-SPATIAL-CONTRACT-COVERAGE-001](backlog/RITK-FORMAT-SPATIAL-CONTRACT-COVERAGE-001.md) — Assert spatial metadata in the native writer/reader contract tests — done
+<a id="RITK-MGH-SPATIAL-AXIS-CONVENTION-001"></a>- [RITK-MGH-SPATIAL-AXIS-CONVENTION-001](backlog/RITK-MGH-SPATIAL-AXIS-CONVENTION-001.md) — Align MGH reader/writer with the canonical RITK axis order — done
+<a id="RITK-MIF-SPATIAL-AXIS-CONVENTION-001"></a>- [RITK-MIF-SPATIAL-AXIS-CONVENTION-001](backlog/RITK-MIF-SPATIAL-AXIS-CONVENTION-001.md) — Reverse `.mif` `vox:` sizes on the transform-less read path — done
+<a id="RITK-PYTHON-SPACING-ORDER-001"></a>- [RITK-PYTHON-SPACING-ORDER-001](backlog/RITK-PYTHON-SPACING-ORDER-001.md) — State each Python spacing/origin parameter's axis order and make generator metadata match its output — done
+<a id="RITK-VTK-SPATIAL-AXIS-CONVENTION-001"></a>- [RITK-VTK-SPATIAL-AXIS-CONVENTION-001](backlog/RITK-VTK-SPATIAL-AXIS-CONVENTION-001.md) — Align the VTK legacy reader/writer with the canonical RITK axis order — done

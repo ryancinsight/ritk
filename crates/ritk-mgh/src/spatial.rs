@@ -1,6 +1,13 @@
 //! Spatial metadata transforms between MGH RAS header fields and RITK images.
+//!
+//! This module is the single owner of the axis-order reconciliation between the
+//! MGH header and RITK. FreeSurfer orders the header's `spacing` and `Mdc`
+//! fields by the x, y, z voxel axes, while RITK orders image axes
+//! `[depth, row, col] = [z, y, x]` (`docs/architecture.md` §7–§9). Keeping the
+//! reversal in one place is what stops the reader, the writer, and their tests
+//! from disagreeing about it.
 
-use ritk_spatial::{Direction, Point, Spacing, Vector};
+use ritk_spatial::{Direction, InvalidSpacing, Point, Spacing, Vector};
 
 /// Whether the RAS (Right-Anterior-Superior) spatial metadata in the MGH
 /// header is valid and should be used to derive image geometry.
@@ -12,68 +19,167 @@ pub(crate) enum RasValidity {
     Synthetic,
 }
 
-pub(crate) fn derive_image_geometry(
-    ras_validity: RasValidity,
-    dims: [usize; 3],
+/// The MGH header's RAS block, in header axis order `[x, y, z]`.
+///
+/// The header stores `D = diag(d_x, d_y, d_z)` and `Mdc = [x_ras, y_ras, z_ras]`
+/// (`docs/book/mgh_format.md`; crate module docs). RITK stores the same
+/// geometry in `[depth, row, col] = [z, y, x]` axis order, the file-axis to
+/// internal-axis reversal NIfTI, NRRD, and MetaImage also apply. Every field
+/// here is in header order; conversion to and from RITK order happens in
+/// [`MghRasBlock::into_image_geometry`] and [`ras_block_from_geometry`].
+pub(crate) struct MghRasBlock {
+    /// Voxel spacing in header order `[Δx, Δy, Δz]`.
     spacing_xyz: [f32; 3],
-    direction_columns: [[f32; 3]; 3],
+    /// Direction-cosine columns in header order `[x_ras, y_ras, z_ras]`.
+    mdc_columns_xyz: [[f32; 3]; 3],
+    /// RAS coordinate of the volume center.
     c_ras: [f32; 3],
-) -> (Spacing<3>, Direction<3>, Point<3>) {
-    if ras_validity == RasValidity::Synthetic {
-        return (
-            Spacing::new([1.0, 1.0, 1.0]),
-            Direction::identity(),
-            Point::new([0.0, 0.0, 0.0]),
-        );
-    }
-
-    let spacing = Spacing::new([
-        spacing_xyz[0] as f64,
-        spacing_xyz[1] as f64,
-        spacing_xyz[2] as f64,
-    ]);
-    let direction = direction_matrix_from_columns(direction_columns);
-    let origin_vec = Vector::new([c_ras[0] as f64, c_ras[1] as f64, c_ras[2] as f64])
-        - centered_half_offset(direction, spacing, dims);
-
-    (
-        spacing,
-        direction,
-        Point::new([origin_vec[0], origin_vec[1], origin_vec[2]]),
-    )
 }
 
-pub(crate) fn ras_center_from_geometry(
+/// Image geometry in RITK `[depth, row, col]` axis order.
+pub(crate) struct ImageGeometry {
+    /// Voxel spacing in RITK axis order `[Δdepth, Δrow, Δcol]`.
+    pub(crate) spacing: Spacing<3>,
+    /// Direction-cosine columns in RITK axis order `[depth, row, col]`.
+    pub(crate) direction: Direction<3>,
+    /// Physical coordinate of voxel index zero.
+    pub(crate) origin: Point<3>,
+}
+
+impl MghRasBlock {
+    /// Assemble a block from header fields already in header order.
+    pub(crate) const fn new(
+        spacing_xyz: [f32; 3],
+        mdc_columns_xyz: [[f32; 3]; 3],
+        c_ras: [f32; 3],
+    ) -> Self {
+        Self {
+            spacing_xyz,
+            mdc_columns_xyz,
+            c_ras,
+        }
+    }
+
+    /// Voxel spacing in header order, ready to serialize.
+    pub(crate) const fn spacing_xyz(&self) -> [f32; 3] {
+        self.spacing_xyz
+    }
+
+    /// Direction-cosine columns in header order, ready to serialize.
+    pub(crate) const fn mdc_columns_xyz(&self) -> [[f32; 3]; 3] {
+        self.mdc_columns_xyz
+    }
+
+    /// RAS coordinate of the volume center, ready to serialize.
+    pub(crate) const fn c_ras(&self) -> [f32; 3] {
+        self.c_ras
+    }
+
+    /// Derive RITK `[depth, row, col]` geometry from this header block.
+    ///
+    /// `dims_xyz` is the header's `[width, height, depth]`. With
+    /// [`RasValidity::Synthetic`] the block is ignored and the result is unit
+    /// spacing, identity direction, and a zero origin.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidSpacing`] when a header spacing component is not
+    /// strictly positive and finite. A malformed file is a recoverable error
+    /// rather than a panic.
+    pub(crate) fn into_image_geometry(
+        self,
+        ras_validity: RasValidity,
+        dims_xyz: [usize; 3],
+    ) -> Result<ImageGeometry, InvalidSpacing> {
+        if ras_validity == RasValidity::Synthetic {
+            return Ok(ImageGeometry {
+                spacing: Spacing::new([1.0, 1.0, 1.0]),
+                direction: Direction::identity(),
+                origin: Point::new([0.0, 0.0, 0.0]),
+            });
+        }
+
+        let spacing_xyz = Spacing::try_new(f64_array(self.spacing_xyz))?;
+        let direction_xyz = direction_from_columns(self.mdc_columns_xyz);
+        let origin = Vector::new(f64_array(self.c_ras))
+            - centered_half_offset(direction_xyz, spacing_xyz, dims_xyz);
+
+        Ok(ImageGeometry {
+            // RITK axis order [depth, row, col] is the header order reversed.
+            spacing: reverse_axes(spacing_xyz),
+            direction: reverse_columns(direction_xyz),
+            origin: Point::new(origin.to_array()),
+        })
+    }
+}
+
+/// Project RITK `[depth, row, col]` geometry onto the MGH header RAS block.
+///
+/// `shape_zyx` is the RITK image shape `[depth, row, col]`. The returned block
+/// carries the header's `[x, y, z]` order, including the `c_ras` volume center
+/// that `origin` implies.
+pub(crate) fn ras_block_from_geometry(
+    shape_zyx: [usize; 3],
     origin: Point<3>,
     spacing: Spacing<3>,
     direction: Direction<3>,
-    shape_zyx: [usize; 3],
-) -> Vector<3> {
+) -> MghRasBlock {
+    // The header axis order is the RITK axis order reversed.
     let dims_xyz = [shape_zyx[2], shape_zyx[1], shape_zyx[0]];
-    Vector::new([origin[0], origin[1], origin[2]])
-        + centered_half_offset(direction, spacing, dims_xyz)
+    let spacing_xyz = reverse_axes(spacing);
+    let direction_xyz = reverse_columns(direction);
+    let c_ras =
+        Vector::new(origin.to_array()) + centered_half_offset(direction_xyz, spacing_xyz, dims_xyz);
+
+    MghRasBlock {
+        spacing_xyz: f32_array(spacing_xyz),
+        mdc_columns_xyz: columns_to_f32(direction_xyz),
+        c_ras: c_ras.to_array().map(|v| v as f32),
+    }
 }
 
-fn direction_matrix_from_columns(columns: [[f32; 3]; 3]) -> Direction<3> {
-    Direction::from_columns([
-        Vector::new([
-            columns[0][0] as f64,
-            columns[0][1] as f64,
-            columns[0][2] as f64,
-        ]),
-        Vector::new([
-            columns[1][0] as f64,
-            columns[1][1] as f64,
-            columns[1][2] as f64,
-        ]),
-        Vector::new([
-            columns[2][0] as f64,
-            columns[2][1] as f64,
-            columns[2][2] as f64,
-        ]),
-    ])
+/// Widen a header `[f32; 3]` triple to `[f64; 3]` (lossless).
+fn f64_array(v: [f32; 3]) -> [f64; 3] {
+    v.map(f64::from)
 }
 
+/// Narrow RITK spacing to the header's `[f32; 3]`.
+fn f32_array(spacing: Spacing<3>) -> [f32; 3] {
+    spacing.to_array().map(|v| v as f32)
+}
+
+/// Build RITK `Direction` from header-order direction-cosine columns.
+fn direction_from_columns(columns: [[f32; 3]; 3]) -> Direction<3> {
+    Direction::from_columns(columns.map(|column| Vector::new(f64_array(column))))
+}
+
+/// Reverse a spacing triple between header `[x, y, z]` and RITK
+/// `[depth, row, col]`.
+///
+/// The input is already validated strictly positive, so reversing components
+/// preserves the [`Spacing`] invariant.
+fn reverse_axes(spacing: Spacing<3>) -> Spacing<3> {
+    let [x, y, z] = spacing.to_array();
+    Spacing::new([z, y, x])
+}
+
+/// Reverse direction columns between header `[x, y, z]` and RITK
+/// `[depth, row, col]`.
+fn reverse_columns(direction: Direction<3>) -> Direction<3> {
+    let [x, y, z] = direction.axis_directions_array();
+    Direction::from_columns([z, y, x])
+}
+
+/// Extract header-order direction-cosine columns from RITK `Direction`.
+fn columns_to_f32(direction: Direction<3>) -> [[f32; 3]; 3] {
+    direction
+        .axis_directions_array()
+        .map(|column| column.to_array().map(|v| v as f32))
+}
+
+/// Half-offset from voxel zero to the volume center, in header `[x, y, z]` order.
+///
+/// `Mdc · D · h` with `h = [(nx−1)/2, (ny−1)/2, (nz−1)/2]ᵀ`.
 fn centered_half_offset(
     direction: Direction<3>,
     spacing: Spacing<3>,

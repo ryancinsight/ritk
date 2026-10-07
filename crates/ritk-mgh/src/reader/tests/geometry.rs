@@ -1,5 +1,8 @@
 use super::*;
 
+/// A hand-built header is the external oracle for the header↔RITK axis
+/// contract: the header's `[x, y, z]` spacing and `Mdc` columns must reach
+/// RITK as `[depth, row, col] = [z, y, x]` (`docs/architecture.md` §7–§9).
 #[test]
 fn test_read_nondefault_spatial() -> Result<()> {
     let dir = tempdir()?;
@@ -25,17 +28,26 @@ fn test_read_nondefault_spatial() -> Result<()> {
 
     let image = read_mgh::<TestBackend, _>(&path, &backend)?;
     assert_eq!(image.shape(), [2, 3, 4]);
+    // The header stores spacing in `[x, y, z]` order; RITK spacing is
+    // `[Δdepth, Δrow, Δcol] = [Δz, Δy, Δx]`, its reverse
+    // (`docs/architecture.md` §7–§9; `docs/book/mgh_format.md`).
     let sp = image.spacing();
-    assert!((sp[0] - 0.5).abs() < 1e-6, "spacing[0]={}", sp[0]);
+    assert!((sp[0] - 1.25).abs() < 1e-6, "spacing[0]={}", sp[0]);
     assert!((sp[1] - 0.75).abs() < 1e-6, "spacing[1]={}", sp[1]);
-    assert!((sp[2] - 1.25).abs() < 1e-6, "spacing[2]={}", sp[2]);
+    assert!((sp[2] - 0.5).abs() < 1e-6, "spacing[2]={}", sp[2]);
 
+    // Header `Mdc` columns `[x_ras, y_ras, z_ras]` become RITK columns
+    // `[depth, row, col] = [z, y, x]`, so the columns appear reversed.
     let direction = image.direction();
     assert!((direction[(0, 0)] - 0.0).abs() < 1e-6);
-    assert!((direction[(1, 0)] - 1.0).abs() < 1e-6);
+    assert!((direction[(1, 0)] - 0.0).abs() < 1e-6);
+    assert!((direction[(2, 0)] - 1.0).abs() < 1e-6);
     assert!((direction[(0, 1)] - (-1.0)).abs() < 1e-6);
     assert!((direction[(1, 1)] - 0.0).abs() < 1e-6);
-    assert!((direction[(2, 2)] - 1.0).abs() < 1e-6);
+    assert!((direction[(2, 1)] - 0.0).abs() < 1e-6);
+    assert!((direction[(0, 2)] - 0.0).abs() < 1e-6);
+    assert!((direction[(1, 2)] - 1.0).abs() < 1e-6);
+    assert!((direction[(2, 2)] - 0.0).abs() < 1e-6);
 
     let origin = image.origin();
     assert!((origin[0] - 10.75).abs() < 1e-6, "origin[0]={}", origin[0]);

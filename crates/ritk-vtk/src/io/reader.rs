@@ -7,10 +7,11 @@
 //! ## Coordinate Convention
 //!
 //! VTK header fields `DIMENSIONS`, `ORIGIN`, `SPACING` are in **[X, Y, Z]**
-//! order. RITK spatial metadata (`Point`, `Spacing`) also uses **[X, Y, Z]**
-//! order, so values transfer directly without permutation.
+//! order. RITK tensor shape is `[depth, row, col] = [nz, ny, nx]`, so the
+//! file's X axis is RITK's *column* axis. `ORIGIN` is a scanner-space position
+//! and transfers directly; `SPACING` is per-axis metadata and is reversed into
+//! RITK `[Δdepth, Δrow, Δcol]` by [`reverse_spatial_axes`].
 //!
-//! RITK tensor shape is **[nz, ny, nx]** (Z varies slowest, X varies fastest).
 //! VTK stores scalar data with X varying fastest, matching RITK's memory
 //! layout. No data permutation is required.
 //!
@@ -19,6 +20,7 @@
 //! `float`, `double`, `unsigned_char`, `short`, `unsigned_short`, `int`,
 //! `unsigned_int`. All are converted to `f32` for the output tensor.
 
+use super::reverse_spatial_axes;
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
 use ritk_image::Image;
@@ -181,7 +183,11 @@ pub fn read_vtk<B: ComputeBackend, P: AsRef<Path>>(
     let (data_f32, [nx, ny, nz], origin_arr, spacing_arr) = read_vtk_flat(path)?;
 
     let origin = Point::new(origin_arr);
-    let spacing = Spacing::new(spacing_arr);
+    // `read_vtk_flat` returns the raw `SPACING` triple in file [X, Y, Z] order.
+    // The file's X size is the *column* spacing, so reverse it into RITK
+    // `[Δdepth, Δrow, Δcol]`; reading it index-for-index transposes the spacing
+    // against the `DIMENSIONS` line, which the same file decodes as [nz, ny, nx].
+    let spacing = Spacing::new(reverse_spatial_axes(spacing_arr));
     let direction = Direction::identity();
 
     tracing::debug!(
