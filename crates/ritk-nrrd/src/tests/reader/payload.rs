@@ -161,6 +161,32 @@ fn ascii_encoding_decodes_values_for_compute_images() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn compute_image_reader_rejects_sample_units_it_cannot_retain() -> Result<()> {
+    use std::io::Write;
+
+    let directory = tempdir()?;
+    let path = directory.path().join("sample-units.nrrd");
+    let mut file = std::fs::File::create(&path)?;
+    writeln!(file, "NRRD0004")?;
+    writeln!(file, "type: unsigned char")?;
+    writeln!(file, "dimension: 3")?;
+    writeln!(file, "sizes: 1 1 1")?;
+    writeln!(file, "sample units: HU:=CT")?;
+    writeln!(file, "encoding: raw")?;
+    writeln!(file)?;
+    file.write_all(&[207])?;
+
+    let error = crate::read_nrrd(&path, &SequentialBackend)
+        .expect_err("compute-image output cannot retain the sample-unit label");
+    assert!(matches!(
+        error.downcast_ref::<crate::NrrdStoredReadError>(),
+        Some(crate::NrrdStoredReadError::UnsupportedSampleUnits { units })
+            if units == "HU:=CT"
+    ));
+    Ok(())
+}
+
 /// Missing `dimension` field must return an error.
 #[test]
 fn test_missing_dimension_field_returns_error() -> Result<()> {

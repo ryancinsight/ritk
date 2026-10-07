@@ -44,6 +44,33 @@ right-justified sample layout used by native decoding.
 `decode_stored_pixel_frame` returns typed stored integers before modality rescale;
 display decoding remains a separate rescaled `f32` path.
 
+## Stored-series import
+
+`read_dicom_stored_series` reads one scanned image series into a
+`StoredSeries`. `load_dicom_stored_series` accepts a scanner-produced series
+descriptor and requires its retained Part 10 bytes, so pixel decoding uses the
+same validated input that supplied the metadata. The result keeps signed or
+unsigned stored integer values and the physical position of each slice in a
+`SliceSeries` coordinate map; it does not resample the source geometry.
+
+Native implicit-VR and explicit-VR little-endian, single-frame monochrome
+instances are supported. Pixel encoding must agree across slices. Linear
+modality slope and intercept remain per-slice calibration, while a single-item
+Modality LUT remains a typed lookup calibration. When the Modality LUT Module
+is present, DICOM permits the LUT or slope/intercept form, not both, and defines
+the LUT descriptor, output precision, and value-unit type in the [Modality LUT
+Module, PS3.3 C.11.1](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.11.html)
+and [Little Endian transfer syntax, PS3.5 A.2](https://dicom.nema.org/medical/dicom/current/output/chtml/part05/sect_A.2.html).
+The source `RescaleType` or sequence-item `ModalityLUTType` is retained as an
+uninterpreted intensity-unit label on the shared `StoredVolume`; the original
+DICOM elements also remain available through per-slice preservation metadata.
+Odd-length native pixel values may carry one zero padding byte; truncated data
+and nonzero padding fail preflight.
+
+Encapsulated or big-endian transfer syntaxes, color pixels, and multi-frame
+instances return typed errors before a volume is built. This API imports one
+selected series; combining multiple study series remains a separate operation.
+
 ## Pixel output
 
 Series writers encode unsigned 16-bit samples. Multi-frame output uses

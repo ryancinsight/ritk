@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
 use ritk_codecs::{ByteOrder, SampleType};
 use ritk_image::Image;
-use ritk_image_io::{ImageReadBudget, SeriesAxis};
+use ritk_image_io::{ImageReadBudget, IntensityUnit, SeriesAxis};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 
@@ -60,6 +60,7 @@ pub(super) struct RawNrrd {
     pub(super) spacing: Spacing<3>,
     pub(super) direction: Direction<3>,
     pub(super) coordinate_map: ritk_spatial::CoordinateMap,
+    pub(super) intensity_unit: Option<IntensityUnit>,
 }
 
 impl DecodedNrrd {
@@ -204,6 +205,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         spacing,
         direction,
         coordinate_map,
+        intensity_unit: _,
     } = parse_nrrd_raw(path, ImageReadBudget::DEFAULT, NrrdReadPurpose::ComputeF32)?;
     let total_voxels = voxels_per_volume
         .checked_mul(volumes)

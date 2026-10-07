@@ -13,14 +13,19 @@ standard fields, comments, and custom key/value records. Repeated custom keys
 count as separate records. Oversized headers return a typed error before
 payload allocation.
 Stored readers also accept `ImageReadBudget`, which limits encoded bytes,
-decoded sample bytes, and series volume count before allocating sample data.
+decoded output bytes, and series volume count before allocating output data.
 The default byte ceilings are 1 GiB and the default series limit is 65,536.
 
 Readers support `raw`, `ascii` (`text`, `txt`), and `gzip` (`gz`) encodings.
 ASCII tokens are whitespace-delimited and limited to 128 bytes per sample.
 Detached data uses one relative file name; absolute paths and parent traversal
 are rejected. `read_nrrd_stored` preserves stored samples, while `read_nrrd`
-provides compute-ready `f32` images.
+provides compute-ready `f32` images. Stored reads and writes retain scalar-value
+units through NRRD's standard `sample units` field. Series files carry one such
+field, so all volumes must declare the same unit. The compute-ready `f32` API
+rejects the field because its image type has no unit metadata. The stored
+writer accepts printable ASCII labels without leading or trailing whitespace,
+which the NRRD header parser would otherwise trim.
 
 The native image API remains convenient for processing. Use
 `read_nrrd_stored` and `read_nrrd_stored_series` when a format conversion must
@@ -78,8 +83,11 @@ banner so successive writes do not accumulate it.
 
 `read_nrrd_document` and the constructor return
 `NrrdDocumentError::UnsupportedField` for metadata the document cannot retain,
-including standard `content` and `labels` fields. Caller-supplied structural
-or reserved generated records are rejected. Use `read_nrrd_header` to inspect
+including standard `content` and `labels` fields. A custom key whose `": "`
+prefix is a standard field name is also rejected because the header would parse
+it as that field; other custom keys may contain colons and spaces. Caller-
+supplied structural or reserved generated records are rejected. Use
+`read_nrrd_header` to inspect
 unsupported header fields; document conversion does not silently discard them.
 `write_nrrd_document` completes validation before creating or truncating the
 destination. Validation errors leave an existing destination unchanged; an I/O

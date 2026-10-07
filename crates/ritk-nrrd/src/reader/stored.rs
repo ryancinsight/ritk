@@ -151,11 +151,20 @@ pub enum NrrdStoredReadError {
     /// Both NRRD spatial direction and scalar-spacing representations are present.
     #[error("NRRD header contains both `space directions` and `spacings`")]
     ConflictingSpatialFields,
-    /// Sample-value units are not represented by the stored-volume contract.
-    #[error("NRRD sample units {units:?} are not represented by StoredVolume")]
+    /// Sample-value units cannot be retained by the compute-image reader.
+    #[error("NRRD compute-image output cannot retain sample units {units:?}")]
     UnsupportedSampleUnits {
-        /// Declared units for each stored scalar value.
+        /// Declared units for the scalar values.
         units: String,
+    },
+    /// The declared sample-unit text is empty under the shared label contract.
+    #[error("NRRD sample units {units:?} are invalid: {source}")]
+    InvalidSampleUnits {
+        /// Declared units for the scalar values.
+        units: String,
+        /// Shared intensity-unit validation failure.
+        #[source]
+        source: ritk_image_io::CalibrationError,
     },
     /// A measurement frame is not represented outside a diffusion scheme.
     #[error("NRRD measurement frame {measurement_frame:?} is not represented by the stored-volume contract")]
@@ -187,6 +196,22 @@ pub enum NrrdStoredReadError {
         voxel_count: usize,
         /// Width of one output sample.
         sample_width: usize,
+    },
+    /// The retained sample-unit metadata size overflows `usize`.
+    #[error("NRRD sample-unit metadata size overflows for {volume_count} volumes at {bytes_per_volume} bytes each")]
+    DecodedMetadataByteCountOverflow {
+        /// Number of volumes receiving the unit label.
+        volume_count: usize,
+        /// Label and per-volume unit storage size.
+        bytes_per_volume: usize,
+    },
+    /// The combined decoded samples and retained unit metadata overflow `usize`.
+    #[error("NRRD decoded output size overflows for {sample_bytes} sample bytes and {metadata_bytes} metadata bytes")]
+    DecodedOutputByteCountOverflow {
+        /// Decoded sample bytes.
+        sample_bytes: usize,
+        /// Retained unit metadata bytes.
+        metadata_bytes: usize,
     },
     /// The decoded byte count cannot be compared with the shared u64 budget.
     #[error("NRRD decoded byte count {decoded_bytes} cannot be represented by the reader budget")]
@@ -413,7 +438,7 @@ impl std::fmt::Display for NrrdSpatialMetadataField {
 /// Returns a [`NrrdStoredReadError`] that identifies an invalid header field,
 /// unsupported encoding or geometry, truncated payload, sample decoding
 /// failure, allocation failure, or a violation of the shared stored-volume
-/// contract. `budget` bounds encoded payload bytes, decoded sample bytes,
+/// contract. `budget` bounds encoded payload bytes, decoded output bytes,
 /// gzip-expanded payload bytes (including a declared byte skip), and series
 /// volume count before payload allocation. A multi-volume acquisition returns
 /// [`NrrdStoredReadError::AcquisitionAxisRequiresSeries`].
@@ -434,15 +459,15 @@ pub fn read_nrrd_stored<P: AsRef<Path>>(
 /// acquisition axis are preserved in acquisition order. The returned series
 /// carries its declared `list` or diffusion meaning; an undeclared axis is
 /// marked unspecified. Unsupported axis kinds fail rather than becoming lists.
-/// `budget` bounds encoded and decoded payload bytes and the returned volume
-/// count before sample storage is allocated.
+/// `budget` bounds encoded payload bytes, decoded output bytes, and the
+/// returned volume count before sample storage is allocated.
 ///
 /// # Errors
 ///
 /// Returns a [`NrrdStoredReadError`] that identifies an invalid header field,
 /// unsupported encoding or geometry, truncated payload, sample decoding
 /// failure, allocation failure, or a violation of the shared stored-volume
-/// contract. `budget` bounds encoded bytes, decoded samples, gzip-expanded
+/// contract. `budget` bounds encoded bytes, decoded output, gzip-expanded
 /// bytes (including a declared byte skip), and series volume count before
 /// payload allocation.
 pub fn read_nrrd_stored_series<P: AsRef<Path>>(

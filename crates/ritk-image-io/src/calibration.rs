@@ -2,6 +2,35 @@
 
 use thiserror::Error;
 
+/// An uninterpreted label for stored-sample intensity values.
+///
+/// The label is preserved byte-for-byte as UTF-8. RITK does not normalize its
+/// spelling or infer a conversion between labels.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IntensityUnit(Box<str>);
+
+impl IntensityUnit {
+    /// Creates a nonempty intensity-unit label.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CalibrationError::EmptyIntensityUnit`] when the label is
+    /// empty or contains only whitespace.
+    pub fn new(value: impl Into<Box<str>>) -> Result<Self, CalibrationError> {
+        let value = value.into();
+        if value.trim().is_empty() {
+            return Err(CalibrationError::EmptyIntensityUnit);
+        }
+        Ok(Self(value))
+    }
+
+    /// Returns the original unit label without normalization.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 /// The precision of values emitted by a modality lookup table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LutOutputBits {
@@ -203,6 +232,9 @@ impl IntensityCalibration {
 /// A calibration coefficient or table violates its declared representation.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum CalibrationError {
+    /// An intensity-unit label contains no non-whitespace characters.
+    #[error("intensity unit label must not be empty")]
+    EmptyIntensityUnit,
     /// The linear slope is not finite.
     #[error("calibration slope must be finite")]
     NonFiniteSlope,
@@ -245,9 +277,19 @@ pub enum CalibrationShapeError {
 #[cfg(test)]
 mod tests {
     use super::{
-        CalibrationError, CalibrationShapeError, IntensityCalibration, LinearCalibration,
-        LutOutputBits, ModalityLookupTable,
+        CalibrationError, CalibrationShapeError, IntensityCalibration, IntensityUnit,
+        LinearCalibration, LutOutputBits, ModalityLookupTable,
     };
+
+    #[test]
+    fn intensity_unit_preserves_nonempty_source_text() {
+        let unit = IntensityUnit::new("HU ").expect("nonempty intensity unit");
+        assert_eq!(unit.as_str(), "HU ");
+        assert_eq!(
+            IntensityUnit::new(" \t"),
+            Err(CalibrationError::EmptyIntensityUnit)
+        );
+    }
 
     #[test]
     fn linear_coefficients_reject_nonfinite_values() {

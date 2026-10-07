@@ -8,6 +8,9 @@ adapter converts its source basis and units at the file boundary.
 Stored-volume construction preserves every finite positive spacing and rejects
 direction-times-spacing components that overflow or underflow to zero, keeping
 format writers from emitting unrepresentable physical axes.
+`IntensityUnit` carries the source label for calibrated values as uninterpreted
+text. Conversion targets declare whether they can retain this label; a target
+without that representation receives a typed loss before its writer runs.
 
 `ImageReadBudget` provides encoded-byte, decoded-byte, and series-volume
 ceilings to format readers. Its default is 1 GiB for encoded and decoded

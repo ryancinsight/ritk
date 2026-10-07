@@ -10,7 +10,8 @@ use crate::spatial::file_space_directions_from_internal;
 
 mod stored;
 pub(crate) use stored::{
-    nrrd_type_name, validate_calibration, validate_series_axis, write_sample_payload,
+    nrrd_type_name, validate_intensity_semantics, validate_series_axis,
+    validate_series_header_entries, validate_series_intensity_unit, write_sample_payload,
 };
 pub use stored::{write_nrrd_stored, write_nrrd_stored_series, NrrdStoredWriteError};
 
@@ -157,6 +158,7 @@ pub(super) fn write_nrrd_header(
         direction,
         element_type,
         coordinate_map,
+        None,
         &[],
         &[],
     )
@@ -170,6 +172,7 @@ pub(super) fn write_nrrd_header_with_metadata(
     direction: &Direction<3>,
     element_type: &str,
     coordinate_map: &CoordinateMap,
+    sample_units: Option<&str>,
     comments: &[String],
     records: &[(String, String)],
 ) -> std::io::Result<()> {
@@ -181,6 +184,9 @@ pub(super) fn write_nrrd_header_with_metadata(
     writeln!(writer, "NRRD0004")?;
     writeln!(writer, "# Complete NRRD file written by ritk")?;
     writeln!(writer, "type: {element_type}")?;
+    if let Some(sample_units) = sample_units {
+        writeln!(writer, "sample units: {sample_units}")?;
+    }
     writeln!(writer, "dimension: 3")?;
     // RITK and ITK NRRDs use LPS physical coordinates; declaring RAS would
     // invert the first two physical axes when ITK-compatible readers load it.
@@ -245,6 +251,7 @@ pub(super) fn write_nrrd_series_header(
         coordinate_map,
         layout,
         axis,
+        None,
         &[],
         &[],
     )
@@ -261,6 +268,7 @@ pub(super) fn write_nrrd_series_header_with_metadata(
     coordinate_map: &CoordinateMap,
     layout: SeriesLayout,
     axis: &SeriesAxis,
+    sample_units: Option<&str>,
     comments: &[String],
     records: &[(String, String)],
 ) -> std::io::Result<()> {
@@ -277,6 +285,9 @@ pub(super) fn write_nrrd_series_header_with_metadata(
     writeln!(writer, "{format_version}")?;
     writeln!(writer, "# Complete NRRD file written by ritk")?;
     writeln!(writer, "type: {element_type}")?;
+    if let Some(sample_units) = sample_units {
+        writeln!(writer, "sample units: {sample_units}")?;
+    }
     writeln!(writer, "dimension: 4")?;
     writeln!(writer, "space: left-posterior-superior")?;
     writeln!(writer, "space units: \"mm\" \"mm\" \"mm\"")?;

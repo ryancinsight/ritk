@@ -11,7 +11,10 @@ use std::io::{BufWriter, Write};
 use std::path::Path;
 use thiserror::Error;
 
-use super::{write_nrrd_header, write_nrrd_series_header, HeaderBuffer, SeriesLayout};
+use super::{
+    write_nrrd_header_with_metadata, write_nrrd_series_header_with_metadata, HeaderBuffer,
+    SeriesLayout,
+};
 
 /// A stored volume cannot be represented as a valid NRRD output.
 #[derive(Debug, Error)]
@@ -19,6 +22,9 @@ pub enum NrrdStoredWriteError {
     /// NRRD has no field for the volume's stored-to-real intensity transform.
     #[error("NRRD cannot represent non-identity intensity calibration")]
     UnsupportedCalibration,
+    /// The stored intensity-unit label cannot be represented in NRRD's ASCII header.
+    #[error("NRRD cannot represent the stored intensity-unit label")]
+    UnsupportedIntensityUnit,
     /// A stored sample representation has no NRRD type spelling.
     #[error("NRRD cannot represent stored sample type {sample_type:?}")]
     UnsupportedSampleType {
@@ -78,6 +84,12 @@ pub enum NrrdStoredWriteError {
         /// Volume index in acquisition order.
         index: usize,
     },
+    /// A volume uses a different scalar-value unit from the series field.
+    #[error("NRRD series volume {index} has a different intensity unit")]
+    IntensityUnitMismatch {
+        /// Volume index in acquisition order.
+        index: usize,
+    },
     /// The serialized header exceeds the reader's bounded header size.
     #[error("NRRD output header exceeds {maximum_bytes} bytes (at least {header_bytes} bytes)")]
     HeaderTooLarge {
@@ -111,26 +123,27 @@ pub enum NrrdStoredWriteError {
 /// Write a stored volume without changing its sample type, values, or bits.
 ///
 /// The writer emits raw little-endian payloads and preserves spatial metadata
-/// and the coordinate map. Calibration must be identity because NRRD has no
-/// standard field for the transforms represented by `IntensityCalibration`.
+/// and the coordinate map. The optional intensity-unit label uses NRRD's
+/// standard `sample units` field. Calibration must be identity.
 ///
 /// # Errors
 ///
-/// Returns [`NrrdStoredWriteError::UnsupportedCalibration`] or
+/// Returns [`NrrdStoredWriteError::UnsupportedCalibration`],
+/// [`NrrdStoredWriteError::UnsupportedIntensityUnit`], or
 /// [`NrrdStoredWriteError::UnsupportedSampleType`] before creating the output
 /// file. Other variants describe sample encoding and filesystem failures.
 pub fn write_nrrd_stored<P: AsRef<Path>>(
     path: P,
     volume: &StoredVolume,
 ) -> Result<(), NrrdStoredWriteError> {
-    validate_calibration(volume)?;
+    validate_intensity_semantics(volume)?;
     validate_physical_geometry(volume.metadata())
         .map_err(|source| NrrdStoredWriteError::PhysicalGeometry { source })?;
     let element_type = nrrd_type_name(volume.samples().sample_type())?;
     validate_coordinate_map(volume.coordinate_map(), volume.shape())
         .map_err(|source| NrrdStoredWriteError::PhysicalGeometry { source })?;
     let mut header = HeaderBuffer::new();
-    let header_result = write_nrrd_header(
+    let header_result = write_nrrd_header_with_metadata(
         &mut header,
         volume.shape(),
         volume.metadata().spacing(),
@@ -138,6 +151,11 @@ pub fn write_nrrd_stored<P: AsRef<Path>>(
         volume.metadata().direction(),
         element_type,
         volume.coordinate_map(),
+        volume
+            .intensity_unit()
+            .map(ritk_image_io::IntensityUnit::as_str),
+        &[],
+        &[],
     );
     ensure_header_result(&header, header_result)?;
     let file = File::create(path)?;
@@ -158,9 +176,9 @@ pub fn write_nrrd_stored<P: AsRef<Path>>(
 ///
 /// # Errors
 ///
-/// Returns a semantic error before creating the output file when the series is
-/// a volume differs from the first, calibration is non-identity, or the axis
-/// metadata cannot be represented.
+/// Returns a semantic error before creating the output file when a volume
+/// differs from the first, calibration or intensity-unit metadata cannot be
+/// represented, or the axis metadata cannot be represented.
 pub fn write_nrrd_stored_series<P: AsRef<Path>>(
     path: P,
     series: &StoredSeries,
@@ -170,15 +188,20 @@ pub fn write_nrrd_stored_series<P: AsRef<Path>>(
         return Err(NrrdStoredWriteError::EmptySeries);
     };
     validate_series_axis(series.axis())?;
-    validate_series_header_entries(series.axis(), first.coordinate_map())?;
-    validate_calibration(first)?;
+    validate_series_header_entries(
+        series.axis(),
+        first.coordinate_map(),
+        first.intensity_unit().is_some(),
+    )?;
+    validate_intensity_semantics(first)?;
     validate_physical_geometry(first.metadata())
         .map_err(|source| NrrdStoredWriteError::PhysicalGeometry { source })?;
     let sample_type = first.samples().sample_type();
     let element_type = nrrd_type_name(sample_type)?;
     for (offset, volume) in rest.iter().enumerate() {
         let index = offset + 1;
-        validate_calibration(volume)?;
+        validate_intensity_semantics(volume)?;
+        validate_series_intensity_unit(first.intensity_unit(), volume.intensity_unit(), index)?;
         if volume.shape() != first.shape() {
             return Err(NrrdStoredWriteError::ShapeMismatch {
                 index,
@@ -202,7 +225,7 @@ pub fn write_nrrd_stored_series<P: AsRef<Path>>(
     }
 
     let mut header = HeaderBuffer::new();
-    let header_result = write_nrrd_series_header(
+    let header_result = write_nrrd_series_header_with_metadata(
         &mut header,
         first.shape(),
         volumes.len(),
@@ -213,6 +236,11 @@ pub fn write_nrrd_stored_series<P: AsRef<Path>>(
         first.coordinate_map(),
         SeriesLayout::AcquisitionSlowest,
         series.axis(),
+        first
+            .intensity_unit()
+            .map(ritk_image_io::IntensityUnit::as_str),
+        &[],
+        &[],
     );
     ensure_header_result(&header, header_result)?;
     let file = File::create(path)?;
@@ -264,6 +292,7 @@ pub(crate) fn validate_series_axis(axis: &SeriesAxis) -> Result<(), NrrdStoredWr
 pub(crate) fn validate_series_header_entries(
     axis: &SeriesAxis,
     coordinate_map: &ritk_spatial::CoordinateMap,
+    has_sample_units: bool,
 ) -> Result<(), NrrdStoredWriteError> {
     let diffusion_entries = match axis {
         SeriesAxis::Diffusion(scheme) => {
@@ -286,7 +315,8 @@ pub(crate) fn validate_series_header_entries(
         1
     };
     let entries = 10_usize
-        .checked_add(coordinate_map_entry)
+        .checked_add(usize::from(has_sample_units))
+        .and_then(|entries| entries.checked_add(coordinate_map_entry))
         .and_then(|entries| entries.checked_add(diffusion_entries))
         .ok_or(NrrdStoredWriteError::HeaderTooManyEntries {
             entries: usize::MAX,
@@ -302,9 +332,32 @@ pub(crate) fn validate_series_header_entries(
     Ok(())
 }
 
-pub(crate) fn validate_calibration(volume: &StoredVolume) -> Result<(), NrrdStoredWriteError> {
+pub(crate) fn validate_intensity_semantics(
+    volume: &StoredVolume,
+) -> Result<(), NrrdStoredWriteError> {
+    if let Some(unit) = volume.intensity_unit() {
+        let value = unit.as_str();
+        if value.trim() != value
+            || !value
+                .bytes()
+                .all(|byte| byte.is_ascii_graphic() || byte == b' ')
+        {
+            return Err(NrrdStoredWriteError::UnsupportedIntensityUnit);
+        }
+    }
     if !volume.calibration().is_identity() {
         return Err(NrrdStoredWriteError::UnsupportedCalibration);
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_series_intensity_unit(
+    first: Option<&ritk_image_io::IntensityUnit>,
+    volume: Option<&ritk_image_io::IntensityUnit>,
+    index: usize,
+) -> Result<(), NrrdStoredWriteError> {
+    if first != volume {
+        return Err(NrrdStoredWriteError::IntensityUnitMismatch { index });
     }
     Ok(())
 }

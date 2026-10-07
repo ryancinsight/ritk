@@ -29,6 +29,8 @@ pub enum ConversionFeature {
     PerFrameLinearCalibration,
     /// The target can preserve a nonlinear modality lookup-table category.
     ModalityLookupCalibration,
+    /// The target can preserve an intensity-unit label.
+    IntensityUnit,
     /// The target can preserve a single-volume axis.
     SingleVolumeAxis,
     /// The target can preserve an ordered list axis.
@@ -160,6 +162,14 @@ pub fn report_conversion_capabilities<T: ConversionTarget>(
             if !T::FEATURES.contains(&feature) {
                 losses.push(ConversionLoss::UnsupportedFeature { location, feature });
             }
+        }
+        if volume.intensity_unit().is_some()
+            && !T::FEATURES.contains(&ConversionFeature::IntensityUnit)
+        {
+            losses.push(ConversionLoss::UnsupportedFeature {
+                location,
+                feature: ConversionFeature::IntensityUnit,
+            });
         }
     }
     let axis = axis_feature(series.axis());
