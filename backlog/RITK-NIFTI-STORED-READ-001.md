@@ -5,7 +5,7 @@
 - acceptance: NIfTI-1/2 preserve supported samples, spatial forms, units, calibration, and ordered axes; unsupported semantics return scoped typed loss before a partial series escapes.
 - scope: crates/ritk-nifti/, crates/ritk-image-io/, NIfTI tests, and the guide
 - next: Implement document-to-StoredSeries decoding and test each scalar representation and malformed input.
-- basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
+- basis: 4ebc650d6e25a7a6775910ba23bc35c8c7cb78e4
 - status: todo
 - needs: none
 - priority: correctness
