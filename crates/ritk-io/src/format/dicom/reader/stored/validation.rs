@@ -7,8 +7,8 @@ use ritk_image_io::{LinearCalibration, ModalityLookupTable};
 
 use super::lut::modality_lookup_table;
 use super::parse::{
-    optional_decimal, optional_text, required_decimal_values, required_long_text, required_text,
-    required_u16, required_usize,
+    optional_decimal, optional_text, required_decimal_values, required_long_text,
+    required_pixel_metadata, required_text, required_usize,
 };
 use super::StoredDicomError;
 
@@ -67,15 +67,17 @@ pub(super) fn validate_instance(
     if frames != 1 {
         return Err(StoredDicomError::UnsupportedFrames { frames });
     }
-    let bits_allocated = required_u16(object, Tag(0x0028, 0x0100), "BitsAllocated (0028,0100)")?;
-    let bits_stored = required_u16(object, Tag(0x0028, 0x0101), "BitsStored (0028,0101)")?;
-    let high_bit = required_u16(object, Tag(0x0028, 0x0102), "HighBit (0028,0102)")?;
+    let bits_allocated =
+        required_pixel_metadata(object, Tag(0x0028, 0x0100), "BitsAllocated (0028,0100)")?;
+    let bits_stored =
+        required_pixel_metadata(object, Tag(0x0028, 0x0101), "BitsStored (0028,0101)")?;
+    let high_bit = required_pixel_metadata(object, Tag(0x0028, 0x0102), "HighBit (0028,0102)")?;
     if bits_stored.checked_sub(1) != Some(high_bit) {
         return Err(StoredDicomError::InvalidTag {
             tag: "HighBit (0028,0102)",
         });
     }
-    let representation = required_u16(
+    let representation = required_pixel_metadata(
         object,
         Tag(0x0028, 0x0103),
         "PixelRepresentation (0028,0103)",

@@ -19,6 +19,7 @@ use crate::axes::{locate_acquisition_axis, AcquisitionAxis};
 
 mod ascii;
 mod input;
+mod sample_units;
 mod source;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -120,16 +121,7 @@ pub(crate) fn parse_nrrd_read_plan(
     read_purpose: NrrdReadPurpose,
 ) -> Result<NrrdReadPlan, NrrdStoredReadError> {
     let headers = &header.fields;
-    let sample_units = headers
-        .get("sample units")
-        .filter(|units| !units.is_empty());
-    if let Some(units) = sample_units
-        && matches!(read_purpose, NrrdReadPurpose::ComputeF32)
-    {
-        return Err(NrrdStoredReadError::UnsupportedSampleUnits {
-            units: units.clone(),
-        });
-    }
+    let unit_text = sample_units::value(headers.get("sample units"), &read_purpose)?;
     let header_data_start = reader
         .stream_position()
         .map_err(|source| NrrdStoredReadError::PayloadIo { source })?;
@@ -286,22 +278,7 @@ pub(crate) fn parse_nrrd_read_plan(
             sample_width: output_sample_width,
         },
     )?;
-    let unit_storage_bytes = if let Some(units) = sample_units {
-        let bytes_per_volume = std::mem::size_of::<Option<IntensityUnit>>()
-            .checked_add(units.len())
-            .ok_or(NrrdStoredReadError::DecodedMetadataByteCountOverflow {
-                volume_count: 1,
-                bytes_per_volume: usize::MAX,
-            })?;
-        bytes_per_volume.checked_mul(volumes).ok_or(
-            NrrdStoredReadError::DecodedMetadataByteCountOverflow {
-                volume_count: volumes,
-                bytes_per_volume,
-            },
-        )?
-    } else {
-        0
-    };
+    let unit_storage_bytes = sample_units::storage_bytes(unit_text, volumes)?;
     let decoded_bytes = decoded_sample_bytes.checked_add(unit_storage_bytes).ok_or(
         NrrdStoredReadError::DecodedOutputByteCountOverflow {
             sample_bytes: decoded_sample_bytes,
@@ -360,16 +337,7 @@ pub(crate) fn parse_nrrd_read_plan(
         )?),
         NrrdReadPurpose::ComputeF32 => None,
     };
-    let intensity_unit = sample_units
-        .map(|units| {
-            IntensityUnit::new(units.clone()).map_err(|source| {
-                NrrdStoredReadError::InvalidSampleUnits {
-                    units: units.clone(),
-                    source,
-                }
-            })
-        })
-        .transpose()?;
+    let intensity_unit = sample_units::retain(unit_text)?;
     Ok(NrrdReadPlan {
         series_axis,
         volumes,

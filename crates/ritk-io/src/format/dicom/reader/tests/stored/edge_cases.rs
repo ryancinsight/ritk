@@ -468,9 +468,11 @@ fn stored_reader_rejects_missing_raw_orientation_even_if_scan_synthesizes_it() {
     );
     let scanned =
         scan_dicom_path(directory.path()).expect("scanner synthesizes a scan orientation");
-    assert!(scanned.metadata.slices[0]
-        .image_orientation_patient
-        .is_some());
+    let angle = 20.0_f64.to_radians();
+    assert_eq!(
+        scanned.metadata.slices[0].image_orientation_patient,
+        Some([1.0, 0.0, 0.0, 0.0, angle.cos(), -angle.sin()])
+    );
 
     assert!(matches!(
         load_dicom_stored_series(scanned),

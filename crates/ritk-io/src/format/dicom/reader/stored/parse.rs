@@ -88,7 +88,7 @@ pub(super) fn trim_pixel_padding(
     Ok(())
 }
 
-pub(super) fn required_u16(
+pub(super) fn required_pixel_metadata(
     object: &DefaultDicomObject,
     tag: Tag,
     name: &'static str,

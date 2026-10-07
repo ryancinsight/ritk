@@ -5,4 +5,5 @@ mod reader;
 mod series;
 mod stored;
 mod stored_writer;
+mod stored_writer_units;
 mod writer;
