@@ -126,7 +126,7 @@ where
         // c (axis = D-1-c): t[r][c] = inv_dir[(axis, r)] / spacing[axis]. The
         // division is performed in f64 then narrowed to T, matching the Coeus
         // matrix build's `as f32`.
-        let mut t = [[T::zero(); D]; D];
+        let mut t = [[<T as coeus_core::NumericElement>::ZERO; D]; D];
         for (r, row) in t.iter_mut().enumerate() {
             for (c, cell) in row.iter_mut().enumerate() {
                 let axis = D - 1 - c;
@@ -137,10 +137,10 @@ where
         let origin_t = self.origin_narrowed();
 
         let src = points.as_slice();
-        let mut out = vec![T::zero(); n * D];
+        let mut out = vec![<T as coeus_core::NumericElement>::ZERO; n * D];
         for (p, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
             for (c, oc) in o.iter_mut().enumerate() {
-                let mut acc = T::zero();
+                let mut acc = <T as coeus_core::NumericElement>::ZERO;
                 for r in 0..D {
                     acc += (p[r] - origin_t[r]) * t[r][c];
                 }
@@ -201,7 +201,7 @@ where
         // m[r][c] maps innermost-first index column r (axis = D-1-r) to axis-major
         // output column c: m[r][c] = spacing[axis] * direction[(c, axis)]. Product
         // in f64 then narrowed to T, matching the Coeus matrix build's `as f32`.
-        let mut m = [[T::zero(); D]; D];
+        let mut m = [[<T as coeus_core::NumericElement>::ZERO; D]; D];
         for (r, row) in m.iter_mut().enumerate() {
             let axis = D - 1 - r;
             for (c, cell) in row.iter_mut().enumerate() {
@@ -213,10 +213,10 @@ where
         let origin_t = self.origin_narrowed();
 
         let src = indices.as_slice();
-        let mut out = vec![T::zero(); n * D];
+        let mut out = vec![<T as coeus_core::NumericElement>::ZERO; n * D];
         for (idx, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
             for (c, oc) in o.iter_mut().enumerate() {
-                let mut acc = T::zero();
+                let mut acc = <T as coeus_core::NumericElement>::ZERO;
                 for r in 0..D {
                     acc += idx[r] * m[r][c];
                 }
@@ -246,7 +246,7 @@ where
         backend: &B,
     ) -> Tensor<T, B> {
         // Affine rows for the outer axes, hoisted exactly as the Cartesian arm.
-        let mut m = [[T::zero(); D]; D];
+        let mut m = [[<T as coeus_core::NumericElement>::ZERO; D]; D];
         for (r, row) in m.iter_mut().enumerate() {
             let axis = D - 1 - r;
             for (c, cell) in row.iter_mut().enumerate() {
@@ -258,14 +258,14 @@ where
         let origin_t = self.origin_narrowed();
 
         let src = indices.as_slice();
-        let mut out = vec![T::zero(); n * D];
+        let mut out = vec![<T as coeus_core::NumericElement>::ZERO; n * D];
         for (idx, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
             let (radius, angle) =
-                geometry.polar_from_index(Scalar::to_f64(idx[0]), Scalar::to_f64(idx[1]));
+                geometry.polar_from_index(<T as coeus_core::NumericElement>::to_f64(idx[0]), <T as coeus_core::NumericElement>::to_f64(idx[1]));
             o[D - 1] = <T as coeus_core::Scalar>::from_f64(radius * angle.sin());
             o[D - 2] = <T as coeus_core::Scalar>::from_f64(radius * angle.cos());
             for c in 0..D - 2 {
-                let mut acc = T::zero();
+                let mut acc = <T as coeus_core::NumericElement>::ZERO;
                 for r in 0..D {
                     acc += idx[r] * m[r][c];
                 }
@@ -296,7 +296,7 @@ where
             .direction()
             .try_inverse()
             .expect("invariant: direction matrix must be invertible");
-        let mut t = [[T::zero(); D]; D];
+        let mut t = [[<T as coeus_core::NumericElement>::ZERO; D]; D];
         for (r, row) in t.iter_mut().enumerate() {
             for (c, cell) in row.iter_mut().enumerate() {
                 let axis = D - 1 - c;
@@ -307,10 +307,10 @@ where
         let origin_t = self.origin_narrowed();
 
         let src = points.as_slice();
-        let mut out = vec![T::zero(); n * D];
+        let mut out = vec![<T as coeus_core::NumericElement>::ZERO; n * D];
         for (p, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
-            let lateral = Scalar::to_f64(p[D - 1]);
-            let axial = Scalar::to_f64(p[D - 2]);
+            let lateral = <T as coeus_core::NumericElement>::to_f64(p[D - 1]);
+            let axial = <T as coeus_core::NumericElement>::to_f64(p[D - 2]);
             match geometry.index_from_cartesian(lateral, axial) {
                 Some((sample, beam)) => {
                     o[0] = <T as coeus_core::Scalar>::from_f64(sample);
@@ -322,7 +322,7 @@ where
                 }
             }
             for c in 2..D {
-                let mut acc = T::zero();
+                let mut acc = <T as coeus_core::NumericElement>::ZERO;
                 for r in 0..D {
                     acc += (p[r] - origin_t[r]) * t[r][c];
                 }
@@ -358,12 +358,12 @@ where
         let dir = self.direction();
         let origin_t = self.origin_narrowed();
         let src = indices.as_slice();
-        let mut out = vec![T::zero(); n * D];
+        let mut out = vec![<T as coeus_core::NumericElement>::ZERO; n * D];
         for (idx, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
             match geometry.cartesian_from_index(
-                Scalar::to_f64(idx[0]),
-                Scalar::to_f64(idx[1]),
-                Scalar::to_f64(idx[2]),
+                <T as coeus_core::NumericElement>::to_f64(idx[0]),
+                <T as coeus_core::NumericElement>::to_f64(idx[1]),
+                <T as coeus_core::NumericElement>::to_f64(idx[2]),
             ) {
                 Some((azimuth_axis, elevation_axis, depth)) => {
                     // probe_point in image axis order: axis 2=azimuth, 1=elevation, 0=depth
@@ -410,14 +410,14 @@ where
             .expect("invariant: direction matrix must be invertible");
         let origin_t = self.origin_narrowed();
         let src = points.as_slice();
-        let mut out = vec![T::zero(); n * D];
+        let mut out = vec![<T as coeus_core::NumericElement>::ZERO; n * D];
         for (p, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
             // probe_point = Direction^-1 · (world - origin)
             let mut probe = [0.0f64; 3];
             for r in 0..D {
                 let mut acc = 0.0f64;
                 for c in 0..D {
-                    acc += inv_dir[(r, c)] * (Scalar::to_f64(p[c]) - Scalar::to_f64(origin_t[c]));
+                    acc += inv_dir[(r, c)] * (<T as coeus_core::NumericElement>::to_f64(p[c]) - <T as coeus_core::NumericElement>::to_f64(origin_t[c]));
                 }
                 probe[r] = acc;
             }
@@ -453,11 +453,11 @@ where
         backend: &B,
     ) -> Tensor<T, B> {
         let src = indices.as_slice();
-        let mut out = vec![T::zero(); n * D];
+        let mut out = vec![<T as coeus_core::NumericElement>::ZERO; n * D];
         for (idx, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
-            let j_x = Scalar::to_f64(idx[0]);
-            let j_y = Scalar::to_f64(idx[1]);
-            let slice_f = Scalar::to_f64(idx[2]);
+            let j_x = <T as coeus_core::NumericElement>::to_f64(idx[0]);
+            let j_y = <T as coeus_core::NumericElement>::to_f64(idx[1]);
+            let slice_f = <T as coeus_core::NumericElement>::to_f64(idx[2]);
             let world = sweep.world_from_index(j_x, j_y, slice_f);
             // Write axis-major: column c = spatial axis c.
             o[D - 1] = <T as coeus_core::Scalar>::from_f64(world[0]);
@@ -480,13 +480,13 @@ where
         backend: &B,
     ) -> Tensor<T, B> {
         let src = points.as_slice();
-        let mut out = vec![T::zero(); n * D];
+        let mut out = vec![<T as coeus_core::NumericElement>::ZERO; n * D];
         for (p, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
             // Input is axis-major: column a = spatial axis a.
             let world = [
-                Scalar::to_f64(p[D - 1]),
-                Scalar::to_f64(p[D - 2]),
-                Scalar::to_f64(p[D - 3]),
+                <T as coeus_core::NumericElement>::to_f64(p[D - 1]),
+                <T as coeus_core::NumericElement>::to_f64(p[D - 2]),
+                <T as coeus_core::NumericElement>::to_f64(p[D - 3]),
             ];
             match sweep.index_from_world(world) {
                 Some(idx) => {
@@ -506,7 +506,7 @@ where
 
     /// Narrow the `f64` origin into `T` once (mirrors the Coeus path's `as f32`).
     fn origin_narrowed(&self) -> [T; D] {
-        let mut origin_t = [T::zero(); D];
+        let mut origin_t = [<T as coeus_core::NumericElement>::ZERO; D];
         for (i, o) in origin_t.iter_mut().enumerate() {
             *o = <T as coeus_core::Scalar>::from_f64(self.origin()[i]);
         }
@@ -557,3 +557,4 @@ where
         self.index_to_world_native_on(indices, &B::default())
     }
 }
+

@@ -195,7 +195,7 @@ where
     B: ComputeBackend + Default,
 {
     make_image_with(
-        vec![T::zero()],
+        vec![<T as coeus_core::NumericElement>::ZERO],
         [1; D],
         Some(origin),
         Some(spacing),
@@ -301,3 +301,4 @@ mod tests {
 
 // No compat helpers remain; use `make_image` and friends above for
 // Coeus-backed test images.
+
