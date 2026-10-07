@@ -32,7 +32,7 @@
 //! so read-only kernels can avoid a copy.
 
 use coeus_core::Backend;
-use eunomia::{FloatElement, NumericElement};
+use eunomia::FloatElement;
 use ritk_image::Image;
 use std::ops::{AddAssign, Neg};
 
