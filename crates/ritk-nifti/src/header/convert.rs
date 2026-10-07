@@ -36,7 +36,7 @@ pub(super) fn f64_affine_to_f32(values: [[f64; 4]; 4]) -> Result<[[f32; 4]; 4]> 
 }
 
 /// Narrow a `f64` to `f32`, returning an error if non-finite or out of range.
-fn checked_f64_to_f32(value: f64, field: &str) -> Result<f32> {
+pub(super) fn checked_f64_to_f32(value: f64, field: &str) -> Result<f32> {
     if !value.is_finite() || value < f64::from(f32::MIN) || value > f64::from(f32::MAX) {
         bail!("NIfTI {field} value must be finite and f32-representable, got {value}");
     }
