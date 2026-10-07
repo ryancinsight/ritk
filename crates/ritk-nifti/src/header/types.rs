@@ -532,7 +532,7 @@ impl NiftiHeader {
     /// An active `sform` returns its rows exactly; an active `qform` is
     /// reconstructed in `f64`; with neither form the diagonal `pixdim` grid is
     /// used. Callers that must not narrow wide geometry read this directly.
-    pub(crate) fn affine_f64(&self) -> Result<[[f64; 4]; 4]> {
+    pub(crate) fn affine_precise(&self) -> Result<[[f64; 4]; 4]> {
         if self.sform_code > 0 {
             Ok([self.srow_x, self.srow_y, self.srow_z, [0.0, 0.0, 0.0, 1.0]])
         } else if self.qform_code > 0 {
@@ -574,10 +574,10 @@ impl NiftiHeader {
     /// NIfTI RAS affine narrowed to `f32`.
     ///
     /// Convenience reader contract: the compute-image path works in `f32`, so
-    /// this narrows [`NiftiHeader::affine_f64`]. The stored path uses the `f64`
+    /// this narrows [`NiftiHeader::affine_precise`]. The stored path uses the `f64`
     /// form to avoid losing NIfTI-2 geometry.
     pub(crate) fn affine(&self) -> Result<[[f32; 4]; 4]> {
-        f64_affine_to_f32(self.affine_f64()?)
+        f64_affine_to_f32(self.affine_precise()?)
     }
 
     /// Volumes this header declares on its spatial grid.

@@ -37,7 +37,7 @@ pub(crate) struct NiftiSformRows {
 pub(crate) fn metadata_from_nifti_ras_affine(
     affine: [[f32; 4]; 4],
 ) -> Result<InternalSpatialMetadata> {
-    metadata_from_nifti_ras_affine_f64(affine.map(|row| row.map(f64::from)))
+    metadata_from_nifti_ras_affine_precise(affine.map(|row| row.map(f64::from)))
 }
 
 /// Convert a NIfTI RAS affine, retained at `f64`, into RITK LPS metadata.
@@ -46,7 +46,7 @@ pub(crate) fn metadata_from_nifti_ras_affine(
 /// point keeps wide geometry exact instead of narrowing it to `f32`. This is
 /// the single conversion core; [`metadata_from_nifti_ras_affine`] widens its
 /// `f32` input and delegates here.
-pub(crate) fn metadata_from_nifti_ras_affine_f64(
+pub(crate) fn metadata_from_nifti_ras_affine_precise(
     affine: [[f64; 4]; 4],
 ) -> Result<InternalSpatialMetadata> {
     ensure_finite_affine(affine)?;
