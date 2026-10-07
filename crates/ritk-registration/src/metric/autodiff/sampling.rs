@@ -31,7 +31,6 @@ use coeus_autograd::{add, gather, mul, sub, Var};
 use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
-use eunomia::FloatElement;
 
 /// Per-axis linear-interpolation decomposition: the two differentiable corner
 /// weights `w0 = 1 − f`, `w1 = f` (as `Var`s on the coordinate tape) and the
