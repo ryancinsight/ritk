@@ -3,7 +3,7 @@
 //! Each predicate names the violated invariant and the offending value in its
 //! error, per the project error-handling discipline.
 
-use super::{HeaderDims, HeaderVersion, NiftiDatatype};
+use super::{HeaderAxis, HeaderDims, HeaderVersion, NiftiDatatype};
 use anyhow::{anyhow, bail, Context, Result};
 
 pub(super) fn checked_lane<const N: usize>(raw: &[u8]) -> Result<[u8; N]> {
@@ -62,26 +62,29 @@ pub(super) const RANK_VOLUME: usize = 3;
 /// NIfTI rank of a series carrying one acquisition axis in `dim[4]`.
 pub(super) const RANK_SERIES: usize = 4;
 
-/// Build the `dim` array for `volumes` volumes on a shared spatial grid.
+/// Build the `dim` array for `volumes` values on a shared spatial grid.
 ///
-/// A single volume is emitted at [`RANK_VOLUME`] with `dim[4] = 1`, which is
-/// the canonical on-disk form and what every existing 3-D writer path produces.
-/// More than one volume raises the rank to [`RANK_SERIES`] and records the count
-/// in `dim[4]`, the axis NIfTI reserves for time or acquisition.
+/// [`HeaderAxis::Volume`] is rank 3. [`HeaderAxis::Acquisition`] is rank 4 even
+/// when it contains one value, preserving the distinction between a volume and
+/// a singleton acquisition axis.
 pub(super) fn dims_for_version(
     version: HeaderVersion,
     dims: HeaderDims,
     volumes: usize,
+    axis: HeaderAxis,
 ) -> Result<[usize; 8]> {
     if volumes == 0 {
         bail!("NIfTI series requires at least one volume");
     }
+    if axis == HeaderAxis::Volume && volumes != 1 {
+        bail!("NIfTI volume dimension requires exactly one volume, got {volumes}");
+    }
 
     if matches!(version, HeaderVersion::One) {
-        u16::try_from(dims.nx).context("NIfTI-1 nx exceeds u16 header capacity")?;
-        u16::try_from(dims.ny).context("NIfTI-1 ny exceeds u16 header capacity")?;
-        u16::try_from(dims.nz).context("NIfTI-1 nz exceeds u16 header capacity")?;
-        u16::try_from(volumes).context("NIfTI-1 volume count exceeds u16 header capacity")?;
+        i16::try_from(dims.nx).context("NIfTI-1 nx exceeds i16 header capacity")?;
+        i16::try_from(dims.ny).context("NIfTI-1 ny exceeds i16 header capacity")?;
+        i16::try_from(dims.nz).context("NIfTI-1 nz exceeds i16 header capacity")?;
+        i16::try_from(volumes).context("NIfTI-1 volume count exceeds i16 header capacity")?;
     } else {
         i64::try_from(dims.nx).context("NIfTI-2 nx exceeds i64 header capacity")?;
         i64::try_from(dims.ny).context("NIfTI-2 ny exceeds i64 header capacity")?;
@@ -89,10 +92,9 @@ pub(super) fn dims_for_version(
         i64::try_from(volumes).context("NIfTI-2 volume count exceeds i64 header capacity")?;
     }
 
-    let rank = if volumes == 1 {
-        RANK_VOLUME
-    } else {
-        RANK_SERIES
+    let rank = match axis {
+        HeaderAxis::Volume => RANK_VOLUME,
+        HeaderAxis::Acquisition => RANK_SERIES,
     };
     Ok([rank, dims.nx, dims.ny, dims.nz, volumes, 1, 1, 1])
 }

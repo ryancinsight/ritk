@@ -1,5 +1,7 @@
 use super::*;
-use crate::header::{HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader};
+use crate::header::{
+    HeaderAxis, HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader,
+};
 use anyhow::Result;
 use ritk_codecs::SampleType;
 use std::fs;
@@ -73,6 +75,7 @@ fn scalar_document_bytes(
             nz: 1,
         },
         1,
+        HeaderAxis::Volume,
         NiftiDatatype::try_from(sample_type)?,
         HeaderSpatial {
             pixdim: [1.0; 8],

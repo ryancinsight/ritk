@@ -7,7 +7,9 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-use crate::header::{HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader};
+use crate::header::{
+    HeaderAxis, HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader,
+};
 use crate::shape::checked_voxel_count;
 use crate::spatial::sform_from_internal_lps_metadata;
 
@@ -251,10 +253,16 @@ where
         }
     }
 
+    let header_axis = if payloads.len() == 1 {
+        HeaderAxis::Volume
+    } else {
+        HeaderAxis::Acquisition
+    };
     let header = header_from_spatial_with_volumes(
         version,
         HeaderDims { nx, ny, nz },
         payloads.len(),
+        header_axis,
         NiftiDatatype::Float32,
         [origin[0], origin[1], origin[2]],
         [spacing[0], spacing[1], spacing[2]],
@@ -372,13 +380,23 @@ fn header_from_spatial(
     spacing: [f64; 3],
     direction: [f64; 9],
 ) -> Result<NiftiHeader> {
-    header_from_spatial_with_volumes(version, dims, 1, datatype, origin, spacing, direction)
+    header_from_spatial_with_volumes(
+        version,
+        dims,
+        1,
+        HeaderAxis::Volume,
+        datatype,
+        origin,
+        spacing,
+        direction,
+    )
 }
 
 fn header_from_spatial_with_volumes(
     version: HeaderVersion,
     dims: HeaderDims,
     volumes: usize,
+    axis: HeaderAxis,
     datatype: NiftiDatatype,
     origin: [f64; 3],
     spacing: [f64; 3],
@@ -393,6 +411,7 @@ fn header_from_spatial_with_volumes(
         version,
         dims,
         volumes,
+        axis,
         datatype,
         HeaderSpatial {
             pixdim,
@@ -408,6 +427,7 @@ where
     P: AsRef<Path>,
     F: FnOnce(&mut dyn Write) -> Result<()>,
 {
+    header.validate_for_encoding()?;
     let path = path.as_ref();
     if is_gzip_path(path) {
         let file = File::create(path)?;
@@ -436,3 +456,7 @@ pub(crate) fn is_gzip_path(path: &Path) -> bool {
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| ext.eq_ignore_ascii_case("gz"))
 }
+
+#[cfg(test)]
+#[path = "writer_tests.rs"]
+mod tests;

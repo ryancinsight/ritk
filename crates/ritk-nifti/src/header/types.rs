@@ -1,3 +1,4 @@
+use super::convert::checked_f64_to_f32;
 use super::convert::{f64_affine_to_f32, f64_to_f32, f64x4_to_f32x4};
 use super::raw::{
     read_array, read_f32x4_as_f64, read_f64x4, read_field, write_f32x4, write_f64x4, write_field,
@@ -22,6 +23,12 @@ const NIFTI2_MAGIC_SINGLE_FILE: [u8; 8] = *b"n+2\0\r\n\x1a\n";
 pub(crate) enum HeaderVersion {
     One,
     Two,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum HeaderAxis {
+    Volume,
+    Acquisition,
 }
 
 impl HeaderVersion {
@@ -51,6 +58,8 @@ pub(crate) struct NiftiHeader {
     pub(crate) srow_x: [f64; 4],
     pub(crate) srow_y: [f64; 4],
     pub(crate) srow_z: [f64; 4],
+    pub(crate) scl_slope: f64,
+    pub(crate) scl_inter: f64,
     pub(crate) xyzt_units: i32,
     endian: ByteOrder,
 }
@@ -78,21 +87,29 @@ impl NiftiHeader {
         datatype: NiftiDatatype,
         spatial: HeaderSpatial,
     ) -> Result<Self> {
-        Self::new_with_version(HeaderVersion::One, dims, 1, datatype, spatial)
+        Self::new_with_version(
+            HeaderVersion::One,
+            dims,
+            1,
+            HeaderAxis::Volume,
+            datatype,
+            spatial,
+        )
     }
 
-    /// Build a header for `volumes` volumes sharing the `dims` spatial grid.
+    /// Build a header for `volumes` values sharing the `dims` spatial grid.
     ///
-    /// One volume produces a rank-3 header; more produce a rank-4 header with
-    /// the count in `dim[4]`.
+    /// `axis` selects rank 3 or rank 4 independently of volume count, allowing
+    /// a one-entry acquisition axis to remain rank 4.
     pub(crate) fn new_with_version(
         version: HeaderVersion,
         dims: HeaderDims,
         volumes: usize,
+        axis: HeaderAxis,
         datatype: NiftiDatatype,
         spatial: HeaderSpatial,
     ) -> Result<Self> {
-        let dim = dims_for_version(version, dims, volumes)?;
+        let dim = dims_for_version(version, dims, volumes, axis)?;
 
         Ok(Self {
             version,
@@ -111,6 +128,8 @@ impl NiftiHeader {
             srow_x: spatial.srow_x,
             srow_y: spatial.srow_y,
             srow_z: spatial.srow_z,
+            scl_slope: 1.0,
+            scl_inter: 0.0,
             xyzt_units: 2,
             endian: ByteOrder::LittleEndian,
         })
@@ -150,7 +169,9 @@ impl NiftiHeader {
 
         let mut dim = [0_usize; 8];
         for (index, slot) in dim.iter_mut().enumerate() {
-            *slot = usize::from(read_field::<u16>(bytes, 40 + index * 2, endian)?);
+            let raw = read_field::<i16>(bytes, 40 + index * 2, endian)?;
+            *slot = usize::try_from(raw)
+                .with_context(|| format!("NIfTI-1 dim[{index}] must be non-negative, got {raw}"))?;
         }
         validate_dims(dim)?;
 
@@ -182,6 +203,8 @@ impl NiftiHeader {
             srow_x: read_f32x4_as_f64(bytes, 280, endian)?,
             srow_y: read_f32x4_as_f64(bytes, 296, endian)?,
             srow_z: read_f32x4_as_f64(bytes, 312, endian)?,
+            scl_slope: f64::from(read_field::<f32>(bytes, 112, endian)?),
+            scl_inter: f64::from(read_field::<f32>(bytes, 116, endian)?),
             xyzt_units: i32::from(bytes[123]),
             endian,
         })
@@ -237,9 +260,100 @@ impl NiftiHeader {
             srow_x: read_f64x4(bytes, 400, endian)?,
             srow_y: read_f64x4(bytes, 432, endian)?,
             srow_z: read_f64x4(bytes, 464, endian)?,
+            scl_slope: read_field::<f64>(bytes, 176, endian)?,
+            scl_inter: read_field::<f64>(bytes, 184, endian)?,
             xyzt_units: read_field::<i32>(bytes, 500, endian)?,
             endian,
         })
+    }
+
+    pub(crate) fn validate_for_encoding(&self) -> Result<()> {
+        match self.version {
+            HeaderVersion::One => {
+                for (index, value) in self.dim.iter().copied().enumerate() {
+                    i16::try_from(value)
+                        .with_context(|| format!("NIfTI-1 dim[{index}] exceeds i16 capacity"))?;
+                }
+                i16::try_from(self.qform_code).context("NIfTI-1 qform_code exceeds i16")?;
+                i16::try_from(self.sform_code).context("NIfTI-1 sform_code exceeds i16")?;
+                u8::try_from(self.xyzt_units).context("NIfTI-1 xyzt_units exceeds u8")?;
+
+                let offset =
+                    u32::try_from(self.vox_offset).context("NIfTI-1 vox_offset exceeds u32")?;
+                let encoded_offset = checked_f64_to_f32(f64::from(offset), "vox_offset")?;
+                if f64::from(encoded_offset) != f64::from(offset) {
+                    bail!("NIfTI-1 vox_offset cannot be represented as an exact f32 integer");
+                }
+
+                for (index, value) in self.pixdim.iter().copied().enumerate() {
+                    let narrowed = checked_f64_to_f32(value, "pixdim")?;
+                    if (1..=3).contains(&index) && narrowed <= 0.0 {
+                        bail!("NIfTI-1 pixdim[{index}] is not positive after f32 encoding");
+                    }
+                }
+                for value in [
+                    self.quatern_b,
+                    self.quatern_c,
+                    self.quatern_d,
+                    self.quatern_x,
+                    self.quatern_y,
+                    self.quatern_z,
+                    self.scl_slope,
+                    self.scl_inter,
+                ] {
+                    checked_f64_to_f32(value, "header field")?;
+                }
+                for row in [self.srow_x, self.srow_y, self.srow_z] {
+                    for value in row {
+                        checked_f64_to_f32(value, "srow")?;
+                    }
+                }
+                if self.scl_slope != 0.0 && checked_f64_to_f32(self.scl_slope, "scl_slope")? == 0.0
+                {
+                    bail!("NIfTI-1 scl_slope underflows to zero and disables scaling");
+                }
+            }
+            HeaderVersion::Two => {
+                for (index, value) in self.dim.iter().copied().enumerate() {
+                    i64::try_from(value)
+                        .with_context(|| format!("NIfTI-2 dim[{index}] exceeds i64 capacity"))?;
+                }
+                i64::try_from(self.vox_offset).context("NIfTI-2 vox_offset exceeds i64")?;
+                for (field, value) in self.float_fields() {
+                    if !value.is_finite() {
+                        bail!("NIfTI-2 {field} must be finite, got {value}");
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn float_fields(&self) -> impl Iterator<Item = (&'static str, f64)> + '_ {
+        self.pixdim
+            .iter()
+            .copied()
+            .map(|value| ("pixdim", value))
+            .chain(
+                [
+                    self.quatern_b,
+                    self.quatern_c,
+                    self.quatern_d,
+                    self.quatern_x,
+                    self.quatern_y,
+                    self.quatern_z,
+                    self.scl_slope,
+                    self.scl_inter,
+                ]
+                .into_iter()
+                .map(|value| ("header field", value)),
+            )
+            .chain(
+                [self.srow_x, self.srow_y, self.srow_z]
+                    .into_iter()
+                    .flatten()
+                    .map(|value| ("srow", value)),
+            )
     }
 
     pub(crate) fn encode(&self) -> Vec<u8> {
@@ -253,10 +367,10 @@ impl NiftiHeader {
         let mut out = [0_u8; NIFTI1_HEADER_LEN];
         write_field::<i32>(&mut out, 0, 348);
         for (index, value) in self.dim.iter().copied().enumerate() {
-            write_field::<u16>(
+            write_field::<i16>(
                 &mut out,
                 40 + index * 2,
-                u16::try_from(value)
+                i16::try_from(value)
                     .expect("invariant: NIfTI-1 header dims are validated at construction"),
             );
         }
@@ -265,12 +379,15 @@ impl NiftiHeader {
         for (index, value) in self.pixdim.iter().copied().enumerate() {
             write_field::<f32>(&mut out, 76 + index * 4, f64_to_f32(value, "pixdim"));
         }
+        let vox_offset = u32::try_from(self.vox_offset)
+            .expect("invariant: NIfTI-1 vox_offset fits u32 after validation");
         write_field::<f32>(
             &mut out,
             108,
-            f64_to_f32(self.vox_offset as f64, "vox_offset"),
+            f64_to_f32(f64::from(vox_offset), "vox_offset"),
         );
-        write_field::<f32>(&mut out, 112, 1.0);
+        write_field::<f32>(&mut out, 112, f64_to_f32(self.scl_slope, "scl_slope"));
+        write_field::<f32>(&mut out, 116, f64_to_f32(self.scl_inter, "scl_inter"));
         out[123] = u8::try_from(self.xyzt_units)
             .expect("invariant: NIfTI-1 xyzt_units is set to a u8-compatible value");
         write_field::<i16>(
@@ -318,7 +435,8 @@ impl NiftiHeader {
             168,
             i64::try_from(self.vox_offset).expect("invariant: vox_offset fits i64"),
         );
-        write_field::<f64>(&mut out, 176, 1.0);
+        write_field::<f64>(&mut out, 176, self.scl_slope);
+        write_field::<f64>(&mut out, 184, self.scl_inter);
         write_field::<i32>(&mut out, 344, self.qform_code);
         write_field::<i32>(&mut out, 348, self.sform_code);
         write_field::<f64>(&mut out, 352, self.quatern_b);

@@ -1,4 +1,4 @@
-use super::{HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader};
+use super::{HeaderAxis, HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader};
 
 #[test]
 fn header_round_trip_preserves_nifti1_core_fields() {
@@ -36,6 +36,7 @@ fn header_round_trip_preserves_nifti2_core_fields() {
             nz: 2,
         },
         1,
+        HeaderAxis::Volume,
         NiftiDatatype::Uint32,
         HeaderSpatial {
             pixdim: [1.0, 0.75, 1.5, 2.0, 1.0, 1.0, 1.0, 1.0],
@@ -55,7 +56,82 @@ fn header_round_trip_preserves_nifti2_core_fields() {
 }
 
 #[test]
-fn nifti1_rejects_dimensions_above_u16() {
+fn acquisition_axis_remains_rank_four_with_one_value() {
+    let spatial = HeaderSpatial {
+        pixdim: [1.0; 8],
+        srow_x: [1.0, 0.0, 0.0, 0.0],
+        srow_y: [0.0, 1.0, 0.0, 0.0],
+        srow_z: [0.0, 0.0, 1.0, 0.0],
+    };
+
+    for version in [HeaderVersion::One, HeaderVersion::Two] {
+        let header = NiftiHeader::new_with_version(
+            version,
+            HeaderDims {
+                nx: 1,
+                ny: 1,
+                nz: 1,
+            },
+            1,
+            HeaderAxis::Acquisition,
+            NiftiDatatype::Uint8,
+            spatial,
+        )
+        .expect("one-entry acquisition axis is valid");
+
+        assert_eq!(header.dim[0], 4, "acquisition axes remain rank four");
+        assert_eq!(header.dim[4], 1, "singleton acquisition count is retained");
+    }
+}
+
+#[test]
+fn header_round_trip_preserves_versioned_precision_and_scaling() {
+    let srow_x = [0.123_456_789_012_345, 0.0, 0.0, 123_456.789_012_345];
+    let spatial = HeaderSpatial {
+        pixdim: [1.0, 0.123_456_789_012_345, 1.5, 2.0, 1.0, 1.0, 1.0, 1.0],
+        srow_x,
+        srow_y: [0.0, -1.5, 0.0, 7.5],
+        srow_z: [0.0, 0.0, 2.0, 3.25],
+    };
+
+    for version in [HeaderVersion::One, HeaderVersion::Two] {
+        let mut header = NiftiHeader::new_with_version(
+            version,
+            HeaderDims {
+                nx: 1,
+                ny: 1,
+                nz: 1,
+            },
+            1,
+            HeaderAxis::Volume,
+            NiftiDatatype::Uint8,
+            spatial,
+        )
+        .expect("one-voxel header is valid");
+        header.scl_slope = 2.5;
+        header.scl_inter = -17.25;
+
+        let parsed = NiftiHeader::parse(&header.encode()).expect("encoded header parses");
+
+        assert_eq!(parsed.scl_slope, 2.5);
+        assert_eq!(parsed.scl_inter, -17.25);
+        match version {
+            HeaderVersion::One => {
+                assert_eq!(
+                    parsed.srow_x[0],
+                    f64::from(
+                        super::convert::checked_f64_to_f32(srow_x[0], "srow")
+                            .expect("test value fits NIfTI-1")
+                    )
+                );
+            }
+            HeaderVersion::Two => assert_eq!(parsed.srow_x, srow_x),
+        }
+    }
+}
+
+#[test]
+fn nifti1_rejects_dimensions_above_signed_i16() {
     let err = NiftiHeader::new_volume(
         HeaderDims {
             nx: 70_000,
@@ -70,12 +146,72 @@ fn nifti1_rejects_dimensions_above_u16() {
             srow_z: [0.0, 0.0, 1.0, 0.0],
         },
     )
-    .expect_err("NIfTI-1 dimensions above u16 must be rejected");
+    .expect_err("NIfTI-1 dimensions above signed i16 must be rejected");
 
     assert!(
-        err.to_string().contains("u16"),
-        "error must name NIfTI-1 dimension bound: {err}"
+        err.to_string().contains("i16"),
+        "error must name NIfTI-1 signed dimension bound: {err}"
     );
+}
+
+#[test]
+fn nifti1_dimension_boundary_matches_signed_i16() {
+    let spatial = HeaderSpatial {
+        pixdim: [1.0; 8],
+        srow_x: [1.0, 0.0, 0.0, 0.0],
+        srow_y: [0.0, 1.0, 0.0, 0.0],
+        srow_z: [0.0, 0.0, 1.0, 0.0],
+    };
+    let maximum = NiftiHeader::new_volume(
+        HeaderDims {
+            nx: 32_767,
+            ny: 1,
+            nz: 1,
+        },
+        NiftiDatatype::Uint8,
+        spatial,
+    )
+    .expect("the positive signed-i16 boundary is representable");
+    assert_eq!(maximum.dim[1], 32_767);
+
+    let error = NiftiHeader::new_volume(
+        HeaderDims {
+            nx: 32_768,
+            ny: 1,
+            nz: 1,
+        },
+        NiftiDatatype::Uint8,
+        spatial,
+    )
+    .expect_err("one above signed-i16 maximum is not representable");
+    assert!(error.to_string().contains("i16"));
+}
+
+#[test]
+fn nifti1_rejects_negative_header_dimensions() {
+    let header = NiftiHeader::new_volume(
+        HeaderDims {
+            nx: 1,
+            ny: 1,
+            nz: 1,
+        },
+        NiftiDatatype::Float32,
+        HeaderSpatial {
+            pixdim: [1.0; 8],
+            srow_x: [1.0, 0.0, 0.0, 0.0],
+            srow_y: [0.0, 1.0, 0.0, 0.0],
+            srow_z: [0.0, 0.0, 1.0, 0.0],
+        },
+    )
+    .expect("valid one-voxel header");
+    let mut bytes = header.encode();
+    bytes[42..44].copy_from_slice(&(-1_i16).to_le_bytes());
+
+    let error = NiftiHeader::parse(&bytes).expect_err("negative NIfTI-1 dimension is invalid");
+
+    assert!(error
+        .to_string()
+        .contains("dim[1] must be non-negative, got -1"));
 }
 
 #[test]
@@ -104,6 +240,7 @@ fn newly_mapped_sample_types_reject_image_and_label_conversion() {
                     nz: 1,
                 },
                 1,
+                HeaderAxis::Volume,
                 datatype,
                 spatial,
             )
