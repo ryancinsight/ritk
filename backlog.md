@@ -10,7 +10,7 @@
 
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — blocked
 <a id="RITK-SNAP-METIS-SHARED-TEXT-001"></a>- [RITK-SNAP-METIS-SHARED-TEXT-001](backlog/RITK-SNAP-METIS-SHARED-TEXT-001.md) — Build display text from shared strings — todo
-<a id="RITK-NIFTI-STORED-READ-001"></a>- [RITK-NIFTI-STORED-READ-001](backlog/RITK-NIFTI-STORED-READ-001.md) — Read NIfTI into stored series — todo
+<a id="RITK-NIFTI-STORED-READ-001"></a>- [RITK-NIFTI-STORED-READ-001](backlog/RITK-NIFTI-STORED-READ-001.md) — Read NIfTI into stored series — done
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
 <a id="RITK-GAP-2026-08-20-09"></a>- [RITK-GAP-2026-08-20-09](backlog/RITK-GAP-2026-08-20-09.md) — Derive mutual-information subsample stride — todo
 <a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Python images cannot be written to legacy VTK — todo
@@ -41,7 +41,7 @@
 <a id="RITK-GAP-2026-08-20-01"></a>- [RITK-GAP-2026-08-20-01](backlog/RITK-GAP-2026-08-20-01.md) — Retire duplicate X and X_native APIs — todo
 <a id="RITK-RASTER-CONVERSION-001"></a>- [RITK-RASTER-CONVERSION-001](backlog/RITK-RASTER-CONVERSION-001.md) — Convert PNG TIFF and JPEG rasters — blocked
 <a id="RITK-SNAP-OBLIQUE-SESSION-MODULES-001"></a>- [RITK-SNAP-OBLIQUE-SESSION-MODULES-001](backlog/RITK-SNAP-OBLIQUE-SESSION-MODULES-001.md) — Separate native oblique session concerns — blocked
-<a id="RITK-IMAGE-CONVERSION-ADAPTERS-001"></a>- [RITK-IMAGE-CONVERSION-ADAPTERS-001](backlog/RITK-IMAGE-CONVERSION-ADAPTERS-001.md) — Implement production stored-volume adapters — blocked
+<a id="RITK-IMAGE-CONVERSION-ADAPTERS-001"></a>- [RITK-IMAGE-CONVERSION-ADAPTERS-001](backlog/RITK-IMAGE-CONVERSION-ADAPTERS-001.md) — Implement production stored-volume adapters — todo
 <a id="RITK-DICOM-CONVERSION-001"></a>- [RITK-DICOM-CONVERSION-001](backlog/RITK-DICOM-CONVERSION-001.md) — Convert DICOM series through RITK — blocked
 <a id="RITK-FORMAT-CONVERSION-001"></a>- [RITK-FORMAT-CONVERSION-001](backlog/RITK-FORMAT-CONVERSION-001.md) — Convert supported formats through RITK — blocked
 <a id="RITK-SNAP-OBLIQUE-NATIVE-001"></a>- [RITK-SNAP-OBLIQUE-NATIVE-001](backlog/RITK-SNAP-OBLIQUE-NATIVE-001.md) — Native oblique MPR — blocked
