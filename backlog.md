@@ -8,7 +8,7 @@
 > wording unless touched by the current slice. Domain medical-atlas terms are
 > preserved.
 
-<a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — todo
+<a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — blocked
 <a id="RITK-SNAP-METIS-SHARED-TEXT-001"></a>- [RITK-SNAP-METIS-SHARED-TEXT-001](backlog/RITK-SNAP-METIS-SHARED-TEXT-001.md) — Build display text from shared strings — todo
 <a id="RITK-NIFTI-STORED-READ-001"></a>- [RITK-NIFTI-STORED-READ-001](backlog/RITK-NIFTI-STORED-READ-001.md) — Read NIfTI into stored series — todo
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
