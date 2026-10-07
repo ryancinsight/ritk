@@ -8,5 +8,5 @@
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
 - status: blocked
 - blocker: Prerequisite items must merge before this item is ready.
-- needs: RITK-IO-FORMAT-CAPABILITIES-001, RITK-NIFTI-STORED-SERIES-001, RITK-NIFTI-STORED-READ-001
+- needs: RITK-IO-FORMAT-CAPABILITIES-001, RITK-NIFTI-STORED-READ-001
 - priority: architecture
