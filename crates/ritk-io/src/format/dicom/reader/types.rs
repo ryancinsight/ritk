@@ -386,7 +386,7 @@ pub(super) fn assemble_metadata(
             object: series_object,
             preserved: Vec::new(),
             // Per-slice retention losses stay on their own slice so each one
-            // keeps an exact frame scope; see `inventory::dicom_read_losses`.
+            // keeps an exact frame scope; see `inventory::dicom_metadata_losses`.
             losses: Vec::new(),
         },
         patient_weight_kg: first.patient_weight_kg,
