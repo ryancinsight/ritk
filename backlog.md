@@ -15,13 +15,13 @@
 <a id="RITK-GAP-2026-08-20-09"></a>- [RITK-GAP-2026-08-20-09](backlog/RITK-GAP-2026-08-20-09.md) — Derive mutual-information subsample stride — todo
 <a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Python images cannot be written to legacy VTK — todo
 <a id="RITK-ANALYZE-CONVERSION-INVENTORY-001"></a>- [RITK-ANALYZE-CONVERSION-INVENTORY-001](backlog/RITK-ANALYZE-CONVERSION-INVENTORY-001.md) — Map Analyze pair semantics — done
-<a id="RITK-DICOM-METADATA-INVENTORY-001"></a>- [RITK-DICOM-METADATA-INVENTORY-001](backlog/RITK-DICOM-METADATA-INVENTORY-001.md) — Account for DICOM metadata before discard — todo
-<a id="RITK-DICOM-OBJECT-PIXEL-PREFLIGHT-001"></a>- [RITK-DICOM-OBJECT-PIXEL-PREFLIGHT-001](backlog/RITK-DICOM-OBJECT-PIXEL-PREFLIGHT-001.md) — Validate DICOM pixels before writing — todo
+<a id="RITK-DICOM-METADATA-INVENTORY-001"></a>- [RITK-DICOM-METADATA-INVENTORY-001](backlog/RITK-DICOM-METADATA-INVENTORY-001.md) — Account for DICOM metadata before discard — done
+<a id="RITK-DICOM-OBJECT-PIXEL-PREFLIGHT-001"></a>- [RITK-DICOM-OBJECT-PIXEL-PREFLIGHT-001](backlog/RITK-DICOM-OBJECT-PIXEL-PREFLIGHT-001.md) — Validate DICOM pixels before writing — done
 <a id="RITK-METAIMAGE-CONVERSION-INVENTORY-001"></a>- [RITK-METAIMAGE-CONVERSION-INVENTORY-001](backlog/RITK-METAIMAGE-CONVERSION-INVENTORY-001.md) — Map MetaImage volume semantics — todo
 <a id="RITK-MGH-CONVERSION-INVENTORY-001"></a>- [RITK-MGH-CONVERSION-INVENTORY-001](backlog/RITK-MGH-CONVERSION-INVENTORY-001.md) — Map MGH volume semantics — todo
 <a id="RITK-VTK-IMAGE-CONTRACT-001"></a>- [RITK-VTK-IMAGE-CONTRACT-001](backlog/RITK-VTK-IMAGE-CONTRACT-001.md) — Separate VTK image semantics — todo
 <a id="SEC-446-05"></a>- [SEC-446-05](backlog/SEC-446-05.md) — Bound format parser allocations by input — todo
-<a id="RITK-DICOM-STORED-IMPORT-001"></a>- [RITK-DICOM-STORED-IMPORT-001](backlog/RITK-DICOM-STORED-IMPORT-001.md) — Retain DICOM stored pixel values — blocked
+<a id="RITK-DICOM-STORED-IMPORT-001"></a>- [RITK-DICOM-STORED-IMPORT-001](backlog/RITK-DICOM-STORED-IMPORT-001.md) — Retain DICOM stored pixel values — todo
 <a id="RITK-NRRD-NIFTI-001"></a>- [RITK-NRRD-NIFTI-001](backlog/RITK-NRRD-NIFTI-001.md) — Convert NRRD and NIfTI volumes — blocked
 <a id="RITK-METAIMAGE-CONVERSION-001"></a>- [RITK-METAIMAGE-CONVERSION-001](backlog/RITK-METAIMAGE-CONVERSION-001.md) — Preserve MetaImage volume semantics — blocked
 <a id="RITK-MINC-CONVERSION-001"></a>- [RITK-MINC-CONVERSION-001](backlog/RITK-MINC-CONVERSION-001.md) — Preserve MINC volume semantics — blocked

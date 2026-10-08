@@ -63,3 +63,4 @@
 | [0052](0052-native-oblique-mpr.md) | Native oblique MPR presentation | Accepted |
 | [0053](0053-typed-sample-io.md) | Typed stored-sample I/O | Accepted |
 | [0054](0054-stored-volume-contract.md) | Shared typed stored-volume contract | Accepted |
+| [0055](0055-dicom-metadata-retention-inventory.md) | DICOM metadata retention inventory | Accepted |
