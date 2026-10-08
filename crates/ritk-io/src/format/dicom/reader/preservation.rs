@@ -7,11 +7,13 @@ use std::collections::HashSet;
 use std::sync::LazyLock;
 
 use dicom::core::VR;
+use dicom::object::DefaultDicomObject;
 use dicom_core::header::Header;
 
 use crate::format::dicom::object_model::{
-    is_private_tag, DicomElementClass, DicomObjectNode, DicomRetentionLoss, DicomRetentionReason,
-    DicomSequenceItem, DicomTag, DicomValue,
+    is_private_tag, DicomElementClass, DicomObjectNode, DicomPreservationSet,
+    DicomPreservedElement, DicomRetentionLoss, DicomRetentionReason, DicomSequenceItem, DicomTag,
+    DicomValue,
 };
 use arrayvec::ArrayString;
 
@@ -196,6 +198,116 @@ pub(super) fn parse_sequence_item(
         }
     }
     seq_item
+}
+
+/// Capture every non-handled element of `obj` into `preservation`.
+///
+/// Every element is interpreted, retained opaquely, or recorded as a scoped
+/// loss; nothing is discarded without a record. The walker lives beside the
+/// sequence walker rather than in `parse` so the retention rules stay in one
+/// module.
+pub(super) fn preserve_unhandled_elements(
+    obj: &DefaultDicomObject,
+    preservation: &mut DicomPreservationSet,
+) {
+    let handled = known_handled_tags();
+    let mut losses: Vec<DicomRetentionLoss> = Vec::new();
+    for element in obj {
+        let tag = element.tag();
+        let key = tag_key(tag.group(), tag.element());
+        if handled.contains(&key) {
+            continue;
+        }
+        let dicom_tag = DicomTag::new(tag.group(), tag.element());
+        let vr_str = element.vr().to_string();
+        let element_class = if is_private_tag(dicom_tag) {
+            DicomElementClass::Private
+        } else {
+            DicomElementClass::Standard
+        };
+        if element.vr() == VR::SQ {
+            match element.value().items() {
+                Some(sub_items) => {
+                    let parsed: Vec<_> = sub_items
+                        .iter()
+                        .map(|i| parse_sequence_item(i, 0, &mut losses))
+                        .collect();
+                    preservation.object.insert(DicomObjectNode {
+                        tag: dicom_tag,
+                        vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
+                        value: DicomValue::Sequence(parsed),
+                        element_class,
+                        source: None,
+                    });
+                }
+                // An SQ element with no item view is retained opaquely when
+                // it can be re-encoded, and recorded as a loss otherwise.
+                None => match element.to_bytes() {
+                    Ok(bytes) => {
+                        preservation.object.insert(DicomObjectNode {
+                            tag: dicom_tag,
+                            vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
+                            value: DicomValue::Bytes(bytes.to_vec()),
+                            element_class,
+                            source: None,
+                        });
+                    }
+                    Err(_) => losses.push(DicomRetentionLoss::new(
+                        dicom_tag,
+                        DicomRetentionReason::SequenceItemsUnavailable,
+                    )),
+                },
+            }
+        } else {
+            // Binary VRs bypass to_str(): dicom-rs 0.8 decimal-formats them
+            // silently instead of erroring, which corrupts raw payloads.
+            let is_binary_vr = matches!(
+                element.vr(),
+                VR::OB | VR::OW | VR::OD | VR::OF | VR::OL | VR::UN
+            );
+            if is_binary_vr {
+                match element.to_bytes() {
+                    Ok(bytes) => {
+                        preservation.preserve(DicomPreservedElement::new(
+                            dicom_tag,
+                            Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
+                            bytes.to_vec(),
+                        ));
+                    }
+                    Err(_) => losses.push(DicomRetentionLoss::new(
+                        dicom_tag,
+                        DicomRetentionReason::ValueBytesUnavailable,
+                    )),
+                }
+            } else {
+                match element.to_str() {
+                    Ok(s) => {
+                        preservation.object.insert(DicomObjectNode {
+                            tag: dicom_tag,
+                            vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
+                            value: DicomValue::Text(s.to_string()),
+                            element_class,
+                            source: None,
+                        });
+                    }
+                    _ => match element.to_bytes() {
+                        Ok(bytes) => {
+                            preservation.preserve(DicomPreservedElement::new(
+                                dicom_tag,
+                                Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
+                                bytes.to_vec(),
+                            ));
+                        }
+                        Err(_) => losses.push(DicomRetentionLoss::new(
+                            dicom_tag,
+                            DicomRetentionReason::ValueBytesUnavailable,
+                        )),
+                    },
+                }
+            }
+        }
+    }
+    preservation.losses.extend(losses);
 }
 
 #[cfg(test)]

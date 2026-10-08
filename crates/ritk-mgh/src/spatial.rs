@@ -99,9 +99,9 @@ impl MghRasBlock {
             });
         }
 
-        let spacing_xyz = Spacing::try_new(f64_array(self.spacing_xyz))?;
+        let spacing_xyz = Spacing::try_new(widen_components(self.spacing_xyz))?;
         let direction_xyz = direction_from_columns(self.mdc_columns_xyz);
-        let origin = Vector::new(f64_array(self.c_ras))
+        let origin = Vector::new(widen_components(self.c_ras))
             - centered_half_offset(direction_xyz, spacing_xyz, dims_xyz);
 
         Ok(ImageGeometry {
@@ -132,25 +132,25 @@ pub(crate) fn ras_block_from_geometry(
         Vector::new(origin.to_array()) + centered_half_offset(direction_xyz, spacing_xyz, dims_xyz);
 
     MghRasBlock {
-        spacing_xyz: f32_array(spacing_xyz),
-        mdc_columns_xyz: columns_to_f32(direction_xyz),
+        spacing_xyz: narrow_spacing(spacing_xyz),
+        mdc_columns_xyz: header_columns(direction_xyz),
         c_ras: c_ras.to_array().map(|v| v as f32),
     }
 }
 
 /// Widen a header `[f32; 3]` triple to `[f64; 3]` (lossless).
-fn f64_array(v: [f32; 3]) -> [f64; 3] {
+fn widen_components(v: [f32; 3]) -> [f64; 3] {
     v.map(f64::from)
 }
 
 /// Narrow RITK spacing to the header's `[f32; 3]`.
-fn f32_array(spacing: Spacing<3>) -> [f32; 3] {
+fn narrow_spacing(spacing: Spacing<3>) -> [f32; 3] {
     spacing.to_array().map(|v| v as f32)
 }
 
 /// Build RITK `Direction` from header-order direction-cosine columns.
 fn direction_from_columns(columns: [[f32; 3]; 3]) -> Direction<3> {
-    Direction::from_columns(columns.map(|column| Vector::new(f64_array(column))))
+    Direction::from_columns(columns.map(|column| Vector::new(widen_components(column))))
 }
 
 /// Reverse a spacing triple between header `[x, y, z]` and RITK
@@ -171,7 +171,7 @@ fn reverse_columns(direction: Direction<3>) -> Direction<3> {
 }
 
 /// Extract header-order direction-cosine columns from RITK `Direction`.
-fn columns_to_f32(direction: Direction<3>) -> [[f32; 3]; 3] {
+fn header_columns(direction: Direction<3>) -> [[f32; 3]; 3] {
     direction
         .axis_directions_array()
         .map(|column| column.to_array().map(|v| v as f32))
