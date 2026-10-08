@@ -14,7 +14,7 @@
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
 <a id="RITK-GAP-2026-08-20-09"></a>- [RITK-GAP-2026-08-20-09](backlog/RITK-GAP-2026-08-20-09.md) — Derive mutual-information subsample stride — todo
 <a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Python images cannot be written to legacy VTK — todo
-<a id="RITK-ANALYZE-CONVERSION-INVENTORY-001"></a>- [RITK-ANALYZE-CONVERSION-INVENTORY-001](backlog/RITK-ANALYZE-CONVERSION-INVENTORY-001.md) — Map Analyze pair semantics — todo
+<a id="RITK-ANALYZE-CONVERSION-INVENTORY-001"></a>- [RITK-ANALYZE-CONVERSION-INVENTORY-001](backlog/RITK-ANALYZE-CONVERSION-INVENTORY-001.md) — Map Analyze pair semantics — done
 <a id="RITK-DICOM-METADATA-INVENTORY-001"></a>- [RITK-DICOM-METADATA-INVENTORY-001](backlog/RITK-DICOM-METADATA-INVENTORY-001.md) — Account for DICOM metadata before discard — todo
 <a id="RITK-DICOM-OBJECT-PIXEL-PREFLIGHT-001"></a>- [RITK-DICOM-OBJECT-PIXEL-PREFLIGHT-001](backlog/RITK-DICOM-OBJECT-PIXEL-PREFLIGHT-001.md) — Validate DICOM pixels before writing — todo
 <a id="RITK-METAIMAGE-CONVERSION-INVENTORY-001"></a>- [RITK-METAIMAGE-CONVERSION-INVENTORY-001](backlog/RITK-METAIMAGE-CONVERSION-INVENTORY-001.md) — Map MetaImage volume semantics — todo
@@ -27,7 +27,7 @@
 <a id="RITK-MINC-CONVERSION-001"></a>- [RITK-MINC-CONVERSION-001](backlog/RITK-MINC-CONVERSION-001.md) — Preserve MINC volume semantics — blocked
 <a id="RITK-MIF-CONVERSION-001"></a>- [RITK-MIF-CONVERSION-001](backlog/RITK-MIF-CONVERSION-001.md) — Preserve MRtrix image semantics — blocked
 <a id="RITK-MGH-CONVERSION-001"></a>- [RITK-MGH-CONVERSION-001](backlog/RITK-MGH-CONVERSION-001.md) — Preserve MGH and MGZ volume semantics — blocked
-<a id="RITK-ANALYZE-CONVERSION-001"></a>- [RITK-ANALYZE-CONVERSION-001](backlog/RITK-ANALYZE-CONVERSION-001.md) — Preserve Analyze volume semantics — blocked
+<a id="RITK-ANALYZE-CONVERSION-001"></a>- [RITK-ANALYZE-CONVERSION-001](backlog/RITK-ANALYZE-CONVERSION-001.md) — Preserve Analyze volume semantics — todo
 <a id="RITK-VTK-VOLUME-CONVERSION-001"></a>- [RITK-VTK-VOLUME-CONVERSION-001](backlog/RITK-VTK-VOLUME-CONVERSION-001.md) — Preserve VTK image-volume semantics — blocked
 <a id="RITK-SNAP-OBLIQUE-SESSION-WIRING-001"></a>- [RITK-SNAP-OBLIQUE-SESSION-WIRING-001](backlog/RITK-SNAP-OBLIQUE-SESSION-WIRING-001.md) — Wire the oblique session pane — blocked
 <a id="RITK-DICOM-CALIBRATION-UNITS-001"></a>- [RITK-DICOM-CALIBRATION-UNITS-001](backlog/RITK-DICOM-CALIBRATION-UNITS-001.md) — Preserve DICOM values and units — blocked
