@@ -389,3 +389,107 @@ fn analyze_reader_preserves_values_across_decode_chunk_boundaries() -> Result<()
 
     Ok(())
 }
+
+#[test]
+fn analyze_reader_falls_back_to_unit_spacing_for_non_positive_pixdim() -> Result<()> {
+    // Analyze 7.5 files produced by older converters carry `pixdim <= 0` when
+    // the physical voxel size is unknown. The reader substitutes unit spacing
+    // rather than propagating a degenerate or negative geometry, and the
+    // `originator` voxel coordinates are then scaled by that unit spacing.
+    let directory = tempdir()?;
+    let path = directory.path().join("degenerate-pixdim.hdr");
+    let mut header = analyze_header(DT_FLOAT, 32, [2, 1, 1]);
+    write_le::<f32>(&mut header, 80, 0.0);
+    write_le::<f32>(&mut header, 84, -2.0);
+    write_le::<f32>(&mut header, 88, -3.0);
+    let payload: Vec<u8> = [1.0_f32, 2.0]
+        .into_iter()
+        .flat_map(f32::to_le_bytes)
+        .collect();
+    write_analyze_fixture(&path, &header, &payload)?;
+
+    let image = read_analyze(&path, &SequentialBackend)?;
+    assert_eq!(*image.spacing(), Spacing::new([1.0, 1.0, 1.0]));
+    assert_eq!(*image.origin(), Point::new([0.0, 0.0, 0.0]));
+    assert_eq!(image.data_slice()?, &[1.0, 2.0]);
+
+    Ok(())
+}
+
+#[test]
+fn analyze_writer_overwrites_an_existing_pair() -> Result<()> {
+    // A second write to the same base name must replace both files. The `.img`
+    // payload in particular must be truncated to the new volume rather than
+    // appended to, so the smaller volume's length and values are observable.
+    let dir = tempdir()?;
+    let path = dir.path().join("overwrite.hdr");
+    let backend = SequentialBackend;
+
+    let first = make_image(
+        vec![1.0, 2.0, 3.0, 4.0],
+        [1, 1, 4],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        &backend,
+    )?;
+    write_analyze(&path, &first, &backend)?;
+    assert_eq!(
+        std::fs::metadata(path.with_extension("img"))?.len(),
+        16,
+        "four f32 voxels"
+    );
+
+    let second = make_image(
+        vec![9.0],
+        [1, 1, 1],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        &backend,
+    )?;
+    write_analyze(&path, &second, &backend)?;
+
+    assert_eq!(
+        std::fs::metadata(path.with_extension("img"))?.len(),
+        4,
+        "the payload must be truncated to the new volume, not appended to"
+    );
+    let loaded = read_analyze(&path, &backend)?;
+    assert_eq!(loaded.shape(), [1, 1, 1]);
+    assert_eq!(loaded.data_slice()?, &[9.0]);
+
+    Ok(())
+}
+
+#[test]
+fn analyze_writer_publishes_the_header_only_after_the_payload() -> Result<()> {
+    // The `.hdr` is the commit marker: it is written only after the `.img`
+    // payload is fully flushed. A directory occupying the header path forces
+    // the final header publication to fail, so the surviving state is exactly
+    // the documented intermediate one — an inert orphan payload with no header,
+    // never a header describing a payload that was not written.
+    let dir = tempdir()?;
+    let path = dir.path().join("commit.hdr");
+    std::fs::create_dir(&path)?;
+    let backend = SequentialBackend;
+    let image = make_image(
+        vec![1.0],
+        [1, 1, 1],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        &backend,
+    )?;
+
+    let error = write_analyze(&path, &image, &backend)
+        .expect_err("publishing the header onto a directory must fail");
+    assert!(
+        error.to_string().contains("header"),
+        "unexpected error: {error:#}"
+    );
+    assert!(
+        path.with_extension("img").is_file(),
+        "the payload is written before the header, so the orphan must exist"
+    );
+    assert!(path.is_dir(), "no header file may be published");
+
+    Ok(())
+}

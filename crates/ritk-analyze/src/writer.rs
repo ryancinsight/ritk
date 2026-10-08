@@ -38,7 +38,7 @@
 
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_spatial::{Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 
 use crate::codec::{write_le, DT_FLOAT, EXTENTS, HDR_SIZE};
 use std::fs::File;
@@ -53,9 +53,23 @@ use std::path::Path;
 /// sibling file is derived by replacing the extension with `.img`.  An existing
 /// `.img` file at the derived path is overwritten.
 ///
+/// # Pair atomicity
+///
+/// The `.img` payload is written and flushed before the `.hdr` is published, so
+/// the header is the commit marker: a dataset is readable only once both files
+/// exist, and a crash between the two writes leaves an `.img` with no matching
+/// header rather than a header describing a payload that was never written.
+/// The orphan is inert — the next successful write replaces it — and the
+/// recovery is to re-run the write.  The two files are not staged through
+/// temporary names, so a write that fails partway still leaves the partial
+/// `.img`; it is never paired with a stale `.hdr`, because the header is only
+/// written after the payload succeeds.
+///
 /// # Errors
 /// Returns an error if:
 /// - `path`'s parent directory does not exist.
+/// - The image has a non-identity `direction`: Analyze 7.5 has no direction
+///   field, so writing one would silently drop it.
 /// - Any dimension is zero or exceeds `i16::MAX` (32 767).
 /// - The image storage length does not match its shape.
 /// - Spacing cannot be represented as a positive finite header `f32`, or any
@@ -68,6 +82,14 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     P: AsRef<Path>,
 {
+    // Analyze 7.5 has no direction field, so a non-identity direction is
+    // unrepresentable. Reject before touching the file system rather than
+    // writing a dataset whose geometry silently disagrees with the source.
+    anyhow::ensure!(
+        image.direction() == &Direction::identity(),
+        "Analyze 7.5 has no direction field; the image's non-identity direction \
+         is unrepresentable and cannot be written without silently dropping it"
+    );
     let vals = image.data_cow_on(backend);
     write_analyze_flat(
         path.as_ref(),
@@ -244,7 +266,7 @@ fn vox_coord(axis: &str, origin_mm: f64, spacing_mm: f64) -> Result<i16> {
 mod tests {
     use super::write_analyze_flat;
     use anyhow::Result;
-    use ritk_spatial::{Point, Spacing};
+    use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
     #[test]
@@ -326,6 +348,45 @@ mod tests {
         );
         assert!(!path.exists());
         assert!(!path.with_extension("img").exists());
+
+        Ok(())
+    }
+
+    /// A non-identity direction is rejected before either file is created.
+    ///
+    /// Analyze 7.5 has no direction field. Writing such an image would produce a
+    /// dataset whose geometry silently disagrees with the source, so the writer
+    /// refuses instead. This is the case the shared round-trip harness cannot
+    /// reach: it writes an identity direction for every `SpacingAndOrigin`
+    /// codec, so only a direct test can pin the rejection.
+    #[test]
+    fn writer_rejects_a_non_identity_direction_before_creating_files() -> Result<()> {
+        use coeus_core::SequentialBackend;
+        use ritk_image::Image;
+
+        let directory = tempdir()?;
+        let path = directory.path().join("oblique.hdr");
+        let image = Image::from_flat_on(
+            vec![1.0_f32; 2],
+            [1, 1, 2],
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]),
+            &SequentialBackend,
+        )
+        .expect("fixture image");
+
+        let error = super::write_analyze(&path, &image, &SequentialBackend)
+            .expect_err("a non-identity direction is unrepresentable in Analyze 7.5");
+        assert!(
+            error.to_string().contains("no direction field"),
+            "unexpected error: {error:#}"
+        );
+        assert!(!path.exists(), "the header must not be created");
+        assert!(
+            !path.with_extension("img").exists(),
+            "the payload must not be created"
+        );
 
         Ok(())
     }
