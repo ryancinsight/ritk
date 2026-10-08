@@ -44,17 +44,29 @@ retention is impossible:
   retention, so this reason is recorded only when that also fails.
 - `ValueBytesUnavailable` — the value could not be re-encoded to raw bytes, so
   neither a typed node nor an opaque record could be produced.
-- `NestingDepthExceeded` — recursion reached `MAX_SEQUENCE_DEPTH` (8). The
-  sequence element whose child would exceed the limit is recorded, so the
+- `NestingDepthExceeded` — recursion reached `MAX_RETAINED_SEQUENCE_DEPTH` (8).
+  The sequence element whose child would exceed the limit is recorded, so the
   truncated subtree is visible instead of absent.
 
-The nesting boundary is unchanged from the previous guard: levels 0 through 8
-are walked. The change is that truncation at the boundary is now recorded.
+The recursion bound is unchanged from the previous guard: levels 0 through 8
+are walked. Two things change at the boundary. The boundary element is now
+recorded as a loss; previously the walker returned an empty item, which the
+parent inserted as an *empty sequence* — a node that asserted the sequence had
+no items. The boundary element is therefore no longer retained as a node: it
+is a recorded loss with no `DicomObjectNode`, which is why the loss record is
+the only evidence the element existed.
 
-`DicomPreservationSet::losses` carries the records and travels on the reader's
-own metadata (`DicomReadMetadata::preservation`). The inventory is
+`DicomPreservationSet::losses` carries the records. The inventory is
 source-owned: it is produced by the reader and never derived from a
 destination.
+
+Losses are recorded **per slice**, on `DicomSliceMetadata::preservation`,
+because a dropped element belongs to one instance and only the slice can scope
+it to an exact frame. The series-level `DicomReadMetadata::preservation`
+carries series-scope losses and is empty today: every element the reader
+records is recorded while parsing one instance. A preflight must therefore
+read the slices, not the series set alone — `dicom_series_metadata_losses`
+does exactly that and is the series-level entry point.
 
 `dicom_metadata_losses(preservation, location)` is the single projection from
 the inventory into the shared `FormatMetadataLoss` vocabulary, so
@@ -110,9 +122,10 @@ metadata is dropped without a record.
 `ritk-io` tests assert that an opaquely retained element projects to no loss;
 that each `DicomRetentionReason` projects to a scoped
 `FormatMetadataLoss::UnknownSemantics` carrying the `(GGGG,EEEE)` tag and the
-reason text; and that a sequence nested past `MAX_SEQUENCE_DEPTH` records
-`NestingDepthExceeded` at the boundary element while the walkable levels are
-unchanged. Round-trip preservation tests confirm that private creator scopes,
+reason text; that a sequence nested past `MAX_RETAINED_SEQUENCE_DEPTH` records
+`NestingDepthExceeded` at the boundary element; and that
+`dicom_series_metadata_losses` scopes each slice's losses to that slice's
+frame. Round-trip preservation tests confirm that private creator scopes,
 private text, and private bytes still survive a write/read cycle.
 
 Revise this decision if a DICOM element can be parsed but neither interpreted,

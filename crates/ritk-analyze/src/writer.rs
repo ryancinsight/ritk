@@ -56,14 +56,19 @@ use std::path::Path;
 /// # Pair atomicity
 ///
 /// The `.img` payload is written and flushed before the `.hdr` is published, so
-/// the header is the commit marker: a dataset is readable only once both files
-/// exist, and a crash between the two writes leaves an `.img` with no matching
+/// the header is the commit marker: within one process the write order is
+/// fixed, so a failure between the two writes leaves an `.img` with no matching
 /// header rather than a header describing a payload that was never written.
 /// The orphan is inert — the next successful write replaces it — and the
 /// recovery is to re-run the write.  The two files are not staged through
 /// temporary names, so a write that fails partway still leaves the partial
 /// `.img`; it is never paired with a stale `.hdr`, because the header is only
 /// written after the payload succeeds.
+///
+/// This is **process-crash** ordering, not durability: neither file is
+/// `fsync`ed, so a power loss or kernel panic can reorder the two at the
+/// storage layer and leave a header whose payload did not survive.  A caller
+/// that needs the pair to outlive power loss must `fsync` both paths itself.
 ///
 /// # Errors
 /// Returns an error if:

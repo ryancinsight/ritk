@@ -94,6 +94,14 @@ calibration from the filename.
 Analyze `pixdim[1..3]` carries voxel spacing. Non-finite values are rejected;
 legacy zero or negative spacing is normalized to unit spacing for compatibility.
 
+That normalization deliberately differs from the NIfTI reader, which reports a
+non-positive `pixdim` as a scoped spatial loss. NIfTI has `sform`/`qform`
+alternatives and can still describe the volume when `pixdim` is unusable;
+Analyze has no other spatial field, so a loss would leave the volume with no
+geometry at all. Normalizing is the only outcome that returns an image, so the
+divergence is a property of the formats rather than an inconsistency between
+the readers.
+
 The original header defines `originator` as ten history bytes, not a complete
 world-space transform. RITK's writer uses the common five-`i16` convention and
 stores rounded voxel coordinates. A physical origin therefore round-trips only

@@ -98,8 +98,15 @@ orders image axes `[depth, row, col] = [z, y, x]`. The reader therefore
 reverses both: RITK `spacing[0]` is the header's `d_z`, and RITK direction
 column 0 is the header's `Mdc[:, 2]`. This is the same file-axis to
 internal-axis reversal NIfTI, NRRD, and MetaImage apply
-(`docs/architecture.md` §7–§9), and it is what makes an MGH volume and the
-same volume read from NIfTI agree on physical space.
+(`docs/architecture.md` §7–§9).
+
+The reversal aligns **axis order** only; it does not reconcile handedness.
+`c_ras` and `Mdc` are RAS and are used directly, whereas `ritk-nifti` converts
+its RAS affine to LPS (`docs/architecture.md` §21). An MGH volume and the same
+volume read from NIfTI therefore agree on which axis is which, but disagree in
+the sign of the x and y components of both the origin and the direction
+columns. Do not treat MGH and NIfTI geometry as interchangeable;
+`RITK-MGH-LPS-CONVENTION-001` tracks the conversion.
 
 When the RAS flag is absent, the reader uses zero origin, unit spacing, and
 identity direction. Applications that require scanner-space agreement should
