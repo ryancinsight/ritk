@@ -10,6 +10,7 @@ mod color_multiframe;
 #[cfg(any(test, feature = "test-util"))]
 pub mod file_set_index_fixture;
 mod identity;
+pub mod inventory;
 mod multiframe;
 pub mod networking;
 mod object_model;
@@ -35,6 +36,7 @@ pub use color_multiframe::{
     load_atlas_color_multiframe, load_color_multiframe_flat, load_color_multiframe_flat_from_bytes,
     load_color_multiframe_flat_from_bytes_with_budget, ColorMultiFrameVolume,
 };
+pub use inventory::dicom_metadata_losses;
 pub use multiframe::{
     load_dicom_multiframe, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
     load_dicom_multiframe_flat_from_bytes_with_budget, load_dicom_multiframe_native,
@@ -56,7 +58,7 @@ pub use networking::{
 };
 pub use object_model::{
     is_private_tag, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
-    DicomSequenceItem, DicomTag, DicomValue,
+    DicomRetentionLoss, DicomRetentionReason, DicomSequenceItem, DicomTag, DicomValue,
 };
 pub use reader::{
     literal_arraystring, load_dicom_from_series, load_dicom_from_series_with_budget,

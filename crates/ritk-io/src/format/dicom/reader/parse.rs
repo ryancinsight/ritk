@@ -17,7 +17,7 @@ use super::types::{
 use crate::format::dicom::color_common::read_required_unsigned;
 use crate::format::dicom::object_model::{
     is_private_tag, DicomElementClass, DicomObjectNode, DicomPreservationSet,
-    DicomPreservedElement, DicomTag, DicomValue,
+    DicomPreservedElement, DicomRetentionLoss, DicomRetentionReason, DicomTag, DicomValue,
 };
 use arrayvec::ArrayString;
 
@@ -358,8 +358,11 @@ pub(super) fn extract_dicom_metadata(
 
     // --- Full element preservation ---
     // Capture all non-handled elements into the slice preservation model.
+    // Every element is interpreted, retained opaquely, or recorded as a scoped
+    // loss; the loop never discards parser data without a record.
     {
         let handled = known_handled_tags();
+        let mut losses: Vec<DicomRetentionLoss> = Vec::new();
         for element in obj {
             let tag = element.tag();
             let key = tag_key(tag.group(), tag.element());
@@ -374,18 +377,37 @@ pub(super) fn extract_dicom_metadata(
                 DicomElementClass::Standard
             };
             if element.vr() == VR::SQ {
-                if let Some(sub_items) = element.value().items() {
-                    let parsed: Vec<_> = sub_items
-                        .iter()
-                        .map(|i| parse_sequence_item(i, 0))
-                        .collect();
-                    slice_meta.preservation.object.insert(DicomObjectNode {
-                        tag: dicom_tag,
-                        vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
-                        value: DicomValue::Sequence(parsed),
-                        element_class,
-                        source: None,
-                    });
+                match element.value().items() {
+                    Some(sub_items) => {
+                        let parsed: Vec<_> = sub_items
+                            .iter()
+                            .map(|i| parse_sequence_item(i, 0, &mut losses))
+                            .collect();
+                        slice_meta.preservation.object.insert(DicomObjectNode {
+                            tag: dicom_tag,
+                            vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
+                            value: DicomValue::Sequence(parsed),
+                            element_class,
+                            source: None,
+                        });
+                    }
+                    // An SQ element with no item view is retained opaquely when
+                    // it can be re-encoded, and recorded as a loss otherwise.
+                    None => match element.to_bytes() {
+                        Ok(bytes) => {
+                            slice_meta.preservation.object.insert(DicomObjectNode {
+                                tag: dicom_tag,
+                                vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
+                                value: DicomValue::Bytes(bytes.to_vec()),
+                                element_class,
+                                source: None,
+                            });
+                        }
+                        Err(_) => losses.push(DicomRetentionLoss::new(
+                            dicom_tag,
+                            DicomRetentionReason::SequenceItemsUnavailable,
+                        )),
+                    },
                 }
             } else {
                 // Binary VRs bypass to_str(): dicom-rs 0.8 decimal-formats them
@@ -395,12 +417,18 @@ pub(super) fn extract_dicom_metadata(
                     VR::OB | VR::OW | VR::OD | VR::OF | VR::OL | VR::UN
                 );
                 if is_binary_vr {
-                    if let Ok(bytes) = element.to_bytes() {
-                        slice_meta.preservation.preserve(DicomPreservedElement::new(
+                    match element.to_bytes() {
+                        Ok(bytes) => {
+                            slice_meta.preservation.preserve(DicomPreservedElement::new(
+                                dicom_tag,
+                                Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
+                                bytes.to_vec(),
+                            ));
+                        }
+                        Err(_) => losses.push(DicomRetentionLoss::new(
                             dicom_tag,
-                            Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
-                            bytes.to_vec(),
-                        ));
+                            DicomRetentionReason::ValueBytesUnavailable,
+                        )),
                     }
                 } else {
                     match element.to_str() {
@@ -413,19 +441,24 @@ pub(super) fn extract_dicom_metadata(
                                 source: None,
                             });
                         }
-                        _ => {
-                            if let Ok(bytes) = element.to_bytes() {
+                        _ => match element.to_bytes() {
+                            Ok(bytes) => {
                                 slice_meta.preservation.preserve(DicomPreservedElement::new(
                                     dicom_tag,
                                     Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
                                     bytes.to_vec(),
                                 ));
                             }
-                        }
+                            Err(_) => losses.push(DicomRetentionLoss::new(
+                                dicom_tag,
+                                DicomRetentionReason::ValueBytesUnavailable,
+                            )),
+                        },
                     }
                 }
             }
         }
+        slice_meta.preservation.losses.extend(losses);
     }
 
     Ok((slice_meta, file_dim))

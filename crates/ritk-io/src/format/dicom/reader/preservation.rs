@@ -10,7 +10,8 @@ use dicom::core::VR;
 use dicom_core::header::Header;
 
 use crate::format::dicom::object_model::{
-    is_private_tag, DicomElementClass, DicomObjectNode, DicomSequenceItem, DicomTag, DicomValue,
+    is_private_tag, DicomElementClass, DicomObjectNode, DicomRetentionLoss, DicomRetentionReason,
+    DicomSequenceItem, DicomTag, DicomValue,
 };
 use arrayvec::ArrayString;
 
@@ -78,38 +79,76 @@ pub(super) fn known_handled_tags() -> &'static HashSet<u32> {
     &KNOWN
 }
 
+/// Maximum sequence nesting depth that is walked and retained.
+///
+/// A deeper subtree is not silently dropped: the sequence element whose child
+/// would exceed this limit is recorded as a
+/// [`DicomRetentionReason::NestingDepthExceeded`] loss so a conversion
+/// preflight can reject the source instead of importing a truncated tree.
+///
+/// This bounds retention, not anonymization traversal
+/// (`anonymize::MAX_SEQUENCE_DEPTH`), so the two are deliberately separate.
+pub(super) const MAX_RETAINED_SEQUENCE_DEPTH: usize = 8;
+
 /// Recursively parse a DICOM sequence item into a [`DicomSequenceItem`].
 ///
-/// `depth` limits recursion to 8 levels to guard against malformed input.
+/// `depth` limits recursion to [`MAX_RETAINED_SEQUENCE_DEPTH`] levels to guard
+/// against malformed input. Every element that cannot be interpreted or
+/// retained is appended to `losses`; nothing is discarded without a record.
 pub(super) fn parse_sequence_item(
     item: &dicom::object::InMemDicomObject,
     depth: usize,
+    losses: &mut Vec<DicomRetentionLoss>,
 ) -> DicomSequenceItem {
     let mut seq_item = DicomSequenceItem::new();
-    if depth > 8 {
-        return seq_item;
-    }
     for element in item.iter() {
         let tag = element.tag();
         let dicom_tag = DicomTag::new(tag.group(), tag.element());
         let vr_str = element.vr().to_string();
+        let element_class = if is_private_tag(dicom_tag) {
+            DicomElementClass::Private
+        } else {
+            DicomElementClass::Standard
+        };
         if element.vr() == VR::SQ {
-            if let Some(sub_items) = element.value().items() {
-                let parsed: Vec<_> = sub_items
-                    .iter()
-                    .map(|i| parse_sequence_item(i, depth + 1))
-                    .collect();
-                seq_item.insert(DicomObjectNode {
-                    tag: dicom_tag,
-                    vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
-                    value: DicomValue::Sequence(parsed),
-                    element_class: if is_private_tag(dicom_tag) {
-                        DicomElementClass::Private
-                    } else {
-                        DicomElementClass::Standard
-                    },
-                    source: None,
-                });
+            if depth + 1 > MAX_RETAINED_SEQUENCE_DEPTH {
+                losses.push(DicomRetentionLoss::new(
+                    dicom_tag,
+                    DicomRetentionReason::NestingDepthExceeded,
+                ));
+                continue;
+            }
+            match element.value().items() {
+                Some(sub_items) => {
+                    let parsed: Vec<_> = sub_items
+                        .iter()
+                        .map(|i| parse_sequence_item(i, depth + 1, losses))
+                        .collect();
+                    seq_item.insert(DicomObjectNode {
+                        tag: dicom_tag,
+                        vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
+                        value: DicomValue::Sequence(parsed),
+                        element_class,
+                        source: None,
+                    });
+                }
+                // An SQ element with no item view is retained opaquely when it
+                // can be re-encoded, and recorded as a loss otherwise.
+                None => match element.to_bytes() {
+                    Ok(bytes) => {
+                        seq_item.insert(DicomObjectNode {
+                            tag: dicom_tag,
+                            vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
+                            value: DicomValue::Bytes(bytes.to_vec()),
+                            element_class,
+                            source: None,
+                        });
+                    }
+                    Err(_) => losses.push(DicomRetentionLoss::new(
+                        dicom_tag,
+                        DicomRetentionReason::SequenceItemsUnavailable,
+                    )),
+                },
             }
         } else {
             let is_binary_vr = matches!(
@@ -117,42 +156,145 @@ pub(super) fn parse_sequence_item(
                 VR::OB | VR::OW | VR::OD | VR::OF | VR::OL | VR::UN
             );
             if is_binary_vr {
-                if let Ok(bytes) = element.to_bytes() {
-                    seq_item.insert(DicomObjectNode {
-                        tag: dicom_tag,
-                        vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
-                        value: DicomValue::Bytes(bytes.to_vec()),
-                        element_class: if is_private_tag(dicom_tag) {
-                            DicomElementClass::Private
-                        } else {
-                            DicomElementClass::Standard
-                        },
-                        source: None,
-                    });
+                match element.to_bytes() {
+                    Ok(bytes) => {
+                        seq_item.insert(DicomObjectNode {
+                            tag: dicom_tag,
+                            vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
+                            value: DicomValue::Bytes(bytes.to_vec()),
+                            element_class,
+                            source: None,
+                        });
+                    }
+                    Err(_) => losses.push(DicomRetentionLoss::new(
+                        dicom_tag,
+                        DicomRetentionReason::ValueBytesUnavailable,
+                    )),
                 }
             } else {
                 match element.to_str() {
                     Ok(s) => {
                         seq_item.insert(DicomObjectNode::text(dicom_tag, vr_str, s.to_string()));
                     }
-                    _ => {
-                        if let Ok(bytes) = element.to_bytes() {
+                    _ => match element.to_bytes() {
+                        Ok(bytes) => {
                             seq_item.insert(DicomObjectNode {
                                 tag: dicom_tag,
                                 vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
                                 value: DicomValue::Bytes(bytes.to_vec()),
-                                element_class: if is_private_tag(dicom_tag) {
-                                    DicomElementClass::Private
-                                } else {
-                                    DicomElementClass::Standard
-                                },
+                                element_class,
                                 source: None,
                             });
                         }
-                    }
+                        Err(_) => losses.push(DicomRetentionLoss::new(
+                            dicom_tag,
+                            DicomRetentionReason::ValueBytesUnavailable,
+                        )),
+                    },
                 }
             }
         }
     }
     seq_item
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dicom::core::value::{DataSetSequence, PrimitiveValue, Value};
+    use dicom::core::{DataElement, Tag, VR};
+    use dicom::object::InMemDicomObject;
+
+    const NESTED_SEQUENCE: Tag = Tag(0x0040, 0xA730);
+    const LEAF: Tag = Tag(0x0008, 0x0080);
+
+    /// The retention-side tag for [`NESTED_SEQUENCE`].
+    fn nested_tag() -> DicomTag {
+        DicomTag::new(NESTED_SEQUENCE.group(), NESTED_SEQUENCE.element())
+    }
+
+    /// One sequence element holding exactly one item.
+    fn wrap(inner: InMemDicomObject) -> InMemDicomObject {
+        let mut parent = InMemDicomObject::new_empty();
+        parent.put(DataElement::new(
+            NESTED_SEQUENCE,
+            VR::SQ,
+            Value::Sequence(DataSetSequence::from(vec![inner])),
+        ));
+        parent
+    }
+
+    /// An object with `levels` nested sequence elements above a text leaf.
+    fn nested(levels: usize) -> InMemDicomObject {
+        let mut current = InMemDicomObject::new_empty();
+        current.put(DataElement::new(LEAF, VR::LO, PrimitiveValue::from("leaf")));
+        for _ in 0..levels {
+            current = wrap(current);
+        }
+        current
+    }
+
+    /// The nesting limit is a retention bound, not a silent truncation: the
+    /// element whose child would exceed it is recorded, so the unwalked subtree
+    /// is visible to a conversion preflight.
+    #[test]
+    fn nesting_past_the_retention_bound_records_a_scoped_loss() {
+        let object = nested(MAX_RETAINED_SEQUENCE_DEPTH + 1);
+        let mut losses = Vec::new();
+        let item = parse_sequence_item(&object, 0, &mut losses);
+
+        assert_eq!(
+            losses.len(),
+            1,
+            "exactly one truncation point exists, got {losses:?}"
+        );
+        assert_eq!(losses[0].tag, nested_tag());
+        assert_eq!(losses[0].reason, DicomRetentionReason::NestingDepthExceeded);
+        assert!(
+            item.get(nested_tag()).is_some(),
+            "the walkable part of the tree is still retained"
+        );
+    }
+
+    /// The deepest fully walkable tree records no loss, so the bound above is
+    /// the only thing that produces one.
+    #[test]
+    fn nesting_at_the_retention_bound_records_no_loss() {
+        let object = nested(MAX_RETAINED_SEQUENCE_DEPTH);
+        let mut losses = Vec::new();
+        let _ = parse_sequence_item(&object, 0, &mut losses);
+
+        assert!(
+            losses.is_empty(),
+            "a tree within the bound must be fully retained, got {losses:?}"
+        );
+    }
+
+    /// Binary payloads are retained opaquely rather than dropped, and a private
+    /// group is classified as private at depth.
+    #[test]
+    fn a_nested_binary_private_element_is_retained_opaquely() {
+        const PRIVATE_BINARY: Tag = Tag(0x0009, 0x1001);
+        let private_tag = DicomTag::new(PRIVATE_BINARY.group(), PRIVATE_BINARY.element());
+        let mut leaf = InMemDicomObject::new_empty();
+        leaf.put(DataElement::new(
+            PRIVATE_BINARY,
+            VR::OB,
+            PrimitiveValue::from(vec![0xAB_u8, 0xCD, 0xEF, 0x01]),
+        ));
+
+        let mut losses = Vec::new();
+        let item = parse_sequence_item(&wrap(leaf), 0, &mut losses);
+        assert!(losses.is_empty(), "an OB payload is retainable: {losses:?}");
+
+        let sequence = item.get(nested_tag()).expect("the sequence is retained");
+        let DicomValue::Sequence(inner) = &sequence.value else {
+            panic!("the sequence keeps its typed node");
+        };
+        let node = inner[0]
+            .get(private_tag)
+            .expect("the private binary element is retained");
+        assert_eq!(node.element_class, DicomElementClass::Private);
+        assert_eq!(node.value, DicomValue::Bytes(vec![0xAB, 0xCD, 0xEF, 0x01]));
+    }
 }

@@ -480,12 +480,16 @@ prepare_conversion(target, source_format, series, metadata_losses)
 
 > **Theorem 24.1 (DICOM Stored Import Fidelity)**: Supported DICOM instances import into stored samples without scaling or narrowing voxels.
 
+> **Theorem 24.2 (DICOM Metadata Accounting)**: Every parsed DICOM element is interpreted, retained opaquely, or recorded as a scoped loss; none is discarded without a record.
+
 **Boundary surface**:
 - `ritk-io::format::dicom::reader` owns series assembly and slice pixel decode; `ritk-dicom` owns Part 10 parsing (`DicomParseBackend`), transfer-syntax dispatch (`NativeCodecBackend`), and pixel-layout interpretation (`PixelLayout`).
 - `ritk-codecs` owns the encapsulated fragment decoders (JPEG, JPEG-LS, JPEG 2000, RLE, PackBits) and native pixel primitives.
 - Geometry derives from `ImagePositionPatient`, `ImageOrientationPatient`, `PixelSpacing`, and slice spacing; calibration derives from `RescaleSlope` / `RescaleIntercept`.
 
 **Reader behaviors (initial path)**: monochrome uncompressed instances with identity calibration; validate geometry and pixel layout; preserve the source metadata inventory; return exact samples; unsupported encoding or calibration fails before a series escapes (RITK-DICOM-STORED-IMPORT-001).
+
+**Metadata inventory (ADR 0055)**: `ritk-io::format::dicom` owns the source-owned retention inventory. `DicomPreservationSet` carries interpreted nodes, opaquely retained elements, and `DicomRetentionLoss { tag, reason }` records; `DicomRetentionReason` is `#[non_exhaustive]` and names the three cases where retention is impossible — `SequenceItemsUnavailable` (an SQ element exposed no items and could not be re-encoded), `ValueBytesUnavailable` (the value could not be re-encoded to bytes), and `NestingDepthExceeded` (recorded at the boundary element when recursion would pass `MAX_RETAINED_SEQUENCE_DEPTH`). The inventory travels on the reader's own metadata (`DicomReadMetadata::preservation`, `DicomSliceMetadata::preservation`) and is never derived from a destination. `inventory::dicom_metadata_losses` is the single projection into the shared `FormatMetadataLoss` vocabulary that `prepare_conversion` consumes, so a conversion preflight rejects a source whose metadata was not fully retained. Losses are scoped per slice, so each one carries its exact `ConversionLocation::Frame`.
 
 **Edge cases**:
 - `BitsAllocated`, `BitsStored`, `HighBit`, and `PixelRepresentation` determine the stored integer interpretation; `BitsAllocated=8, PixelRepresentation=1` maps through `i8`.
@@ -494,8 +498,9 @@ prepare_conversion(target, source_format, series, metadata_losses)
 - `RescaleSlope` / `RescaleIntercept` belong in `IntensityCalibration`, never baked into samples.
 - Gantry tilt and non-orthogonal slice ordering require a per-slice coordinate map (`CoordinateMap::SliceSeries`), not a single affine.
 - Encapsulated transfer syntaxes decode through `ritk-codecs`; the initial import path is uncompressed-only, with encapsulated decode a later increment.
+- Nesting past the retention bound is a recorded loss, not a silent truncation; a sequence that cannot be walked is first attempted as opaque bytes (Theorem 24.2).
 
-**Gap**: no stored import and no adapter yet; blocked on the DICOM metadata inventory and object-pixel preflight items.
+**Gap**: no stored import and no adapter yet. The metadata inventory (RITK-DICOM-METADATA-INVENTORY-001) and the object-pixel preflight (RITK-DICOM-OBJECT-PIXEL-PREFLIGHT-001) are complete, so only the stored read/write, its `ConversionTarget`/`ConversionAdapter`, and its calibration/unit mapping remain.
 
 ### Transform Theory
 
