@@ -70,25 +70,28 @@ fn classify_other_file_has_no_dicom_root() {
 }
 
 #[test]
-fn classify_single_dicom_file_by_extension_uses_parent_as_dicom_root() {
+fn classify_each_registered_dicom_extension_uses_parent_as_dicom_root() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let file = dir.path().join("slice_0001.dcm");
-    std::fs::write(&file, b"not-a-real-dicom").expect("create .dcm file");
+    for extension in ["dcm", "dicom", "ima"] {
+        let file = dir.path().join(format!("slice_0001.{extension}"));
+        std::fs::write(&file, b"not-a-real-dicom").expect("create DICOM extension fixture");
 
-    let classified = classify_dicom_input_path(&file);
+        let classified = classify_dicom_input_path(&file);
 
-    assert_eq!(
-        classified,
-        DicomInputPath::SingleDicomFile {
-            file: file.clone(),
-            root: dir.path().to_path_buf()
-        }
-    );
-    assert_eq!(
-        classified.dicom_root(),
-        Some(dir.path()),
-        "single .dcm file input must load from parent directory"
-    );
+        assert_eq!(
+            classified,
+            DicomInputPath::SingleDicomFile {
+                file: file.clone(),
+                root: dir.path().to_path_buf()
+            },
+            "registered extension .{extension} remains a DICOM instance"
+        );
+        assert_eq!(
+            classified.dicom_root(),
+            Some(dir.path()),
+            "single .{extension} input must use its parent as the DICOM root"
+        );
+    }
 }
 
 #[test]
@@ -113,5 +116,24 @@ fn classify_single_dicom_file_by_preamble_uses_parent_as_dicom_root() {
         classified.dicom_root(),
         Some(dir.path()),
         "DICM-preamble file input must load from parent directory"
+    );
+}
+
+#[test]
+fn registered_non_dicom_format_takes_precedence_over_dicom_preamble() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let file = dir.path().join("study.vtk");
+    let version_line = b"# vtk DataFile Version 3.0\n";
+    let mut bytes = version_line.to_vec();
+    bytes.extend(std::iter::repeat_n(b'x', 128 - version_line.len()));
+    bytes.extend_from_slice(b"DICM\nASCII\nDATASET STRUCTURED_POINTS\n");
+    std::fs::write(&file, bytes).expect("create VTK header with a DICOM-like marker");
+
+    let classified = classify_dicom_input_path(&file);
+
+    assert_eq!(
+        classified,
+        DicomInputPath::OtherFile(file),
+        "registered VTK input must not be classified by the DICOM preamble heuristic"
     );
 }

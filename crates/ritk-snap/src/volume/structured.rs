@@ -8,29 +8,11 @@ impl TryFrom<&LoadedVolume> for VtkImageVolume {
     type Error = ritk_vtk::VtkImageVolumeError;
 
     fn try_from(volume: &LoadedVolume) -> Result<Self, Self::Error> {
-        let [depth, rows, columns] = volume.shape;
-        let [depth_spacing, row_spacing, column_spacing] = volume.spacing;
-        let direction = volume.direction;
-
-        // LoadedVolume uses [depth, row, column] axes; VTK uses [x, y, z]
-        // = [column, row, depth]. Reordering columns here preserves the same
-        // patient-space basis without teaching the VTK crate clinical terms.
-        let vtk_direction = [
-            direction[2],
-            direction[1],
-            direction[0],
-            direction[5],
-            direction[4],
-            direction[3],
-            direction[8],
-            direction[7],
-            direction[6],
-        ];
-        VtkImageVolume::from_parts(
-            [columns, rows, depth],
+        VtkImageVolume::from_tensor_parts(
+            volume.shape,
             volume.origin,
-            [column_spacing, row_spacing, depth_spacing],
-            vtk_direction,
+            volume.spacing,
+            volume.direction,
             usize::from(volume.channels),
             Arc::clone(&volume.data),
         )
