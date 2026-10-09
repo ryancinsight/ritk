@@ -12,7 +12,7 @@
 <a id="RITK-SNAP-METIS-SHARED-TEXT-001"></a>- [RITK-SNAP-METIS-SHARED-TEXT-001](backlog/RITK-SNAP-METIS-SHARED-TEXT-001.md) — Build display text from shared strings — todo
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
 <a id="RITK-GAP-2026-08-20-09"></a>- [RITK-GAP-2026-08-20-09](backlog/RITK-GAP-2026-08-20-09.md) — Derive mutual-information subsample stride — todo
-<a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Python images cannot be written to legacy VTK — todo
+<a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Python images cannot be written to a no-direction format (legacy VTK, Analyze 7.5) — todo
 <a id="RITK-METAIMAGE-CONVERSION-INVENTORY-001"></a>- [RITK-METAIMAGE-CONVERSION-INVENTORY-001](backlog/RITK-METAIMAGE-CONVERSION-INVENTORY-001.md) — Map MetaImage volume semantics — todo
 <a id="RITK-MGH-CONVERSION-INVENTORY-001"></a>- [RITK-MGH-CONVERSION-INVENTORY-001](backlog/RITK-MGH-CONVERSION-INVENTORY-001.md) — Map MGH volume semantics — todo
 <a id="RITK-VTK-IMAGE-CONTRACT-001"></a>- [RITK-VTK-IMAGE-CONTRACT-001](backlog/RITK-VTK-IMAGE-CONTRACT-001.md) — Separate VTK image semantics — todo
