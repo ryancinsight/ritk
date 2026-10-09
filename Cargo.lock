@@ -5919,10 +5919,13 @@ dependencies = [
  "coeus-core",
  "consus-core",
  "image 0.24.9",
+ "ritk-codecs",
  "ritk-core",
  "ritk-image",
+ "ritk-image-io",
  "ritk-spatial",
  "tempfile",
+ "thiserror 2.0.21",
  "tracing",
 ]
 

@@ -40,10 +40,14 @@ use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_spatial::{Direction, Point, Spacing};
 
-use crate::codec::{write_le, DT_FLOAT, EXTENTS, HDR_SIZE};
+use crate::header::{self, AnalyzeDatatype, AnalyzeHeaderFields};
 use std::fs::File;
 use std::io::{BufWriter, Write};
+use std::mem::size_of;
 use std::path::Path;
+
+/// Provenance string the native `f32` writer records in `descrip`.
+const NATIVE_DESCRIPTION: &[u8] = b"RITK";
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -119,29 +123,23 @@ fn write_analyze_flat(
     let hdr_path = path.with_extension("hdr");
     let img_path = path.with_extension("img");
 
-    // Spatial metadata.  RITK shape = [nz, ny, nx]; spacing/origin in XYZ order.
+    // RITK shape is [nz, ny, nx]; spacing and origin are already in the
+    // tensor-axis and world-space orders the header encoder expects.
     let [nz, ny, nx] = shape;
-    let sp = spacing; // tensor-axis order [sz, sy, sx]
-    let orig = origin; // world-space [ox, oy, oz]
-                       // File-axis spacing [sx, sy, sz] is the reverse of core [sz, sy, sx].
-    let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
-
-    // Validate the complete logical input before creating either file.
-    for &(name, &val) in [("nx", &nx), ("ny", &ny), ("nz", &nz)].iter() {
-        if val == 0 {
-            anyhow::bail!("Analyze: dimension {name} must be positive");
-        }
-        if val > i16::MAX as usize {
-            anyhow::bail!(
-                "Analyze: dimension {name}={val} exceeds i16::MAX ({})",
-                i16::MAX
-            );
-        }
-    }
     let voxel_count = nx
         .checked_mul(ny)
         .and_then(|plane| plane.checked_mul(nz))
         .context("Analyze voxel count overflows usize")?;
+
+    // The complete logical input is validated here, before either file exists.
+    let hdr = header::encode(&AnalyzeHeaderFields {
+        shape,
+        spacing,
+        origin,
+        datatype: AnalyzeDatatype::Float,
+        scale: 1.0,
+        description: NATIVE_DESCRIPTION,
+    })?;
     if vals.len() != voxel_count {
         anyhow::bail!(
             "Analyze: image storage length {} does not match shape {:?} ({voxel_count} voxels)",
@@ -152,53 +150,6 @@ fn write_analyze_flat(
     voxel_count
         .checked_mul(size_of::<f32>())
         .context("Analyze payload byte count overflows usize")?;
-    let sx_header = header_spacing("x", sx)?;
-    let sy_header = header_spacing("y", sy)?;
-    let sz_header = header_spacing("z", sz)?;
-    for (axis, value) in [("x", orig[0]), ("y", orig[1]), ("z", orig[2])] {
-        if !value.is_finite() {
-            anyhow::bail!("Analyze: origin[{axis}] must be finite, found {value}");
-        }
-    }
-
-    // ── Build 348-byte header ─────────────────────────────────────────────────
-    let mut hdr = [0u8; HDR_SIZE];
-
-    write_le::<i32>(&mut hdr, 0, HDR_SIZE as i32); // sizeof_hdr
-    write_le::<i32>(&mut hdr, 32, EXTENTS); // extents
-    hdr[38] = b'r'; // regular
-
-    // image_dimension — dim[8] at offset 40
-    write_le::<i16>(&mut hdr, 40, 4); // dim[0] = num dimensions
-    write_le::<i16>(&mut hdr, 42, nx as i16); // dim[1] = X
-    write_le::<i16>(&mut hdr, 44, ny as i16); // dim[2] = Y
-    write_le::<i16>(&mut hdr, 46, nz as i16); // dim[3] = Z
-    write_le::<i16>(&mut hdr, 48, 1); // dim[4] = time (1 volume)
-
-    write_le::<i16>(&mut hdr, 70, DT_FLOAT); // datatype = DT_FLOAT (16)
-    write_le::<i16>(&mut hdr, 72, 32); // bitpix   = 32 bits
-
-    // pixdim[8] at offset 76
-    write_le::<f32>(&mut hdr, 76, 4.0_f32); // pixdim[0] = number of dims
-    write_le::<f32>(&mut hdr, 80, sx_header); // pixdim[1] = sx
-    write_le::<f32>(&mut hdr, 84, sy_header); // pixdim[2] = sy
-    write_le::<f32>(&mut hdr, 88, sz_header); // pixdim[3] = sz
-    write_le::<f32>(&mut hdr, 92, 1.0_f32); // pixdim[4] = TR (unused)
-
-    write_le::<f32>(&mut hdr, 108, 0.0_f32); // vox_offset
-    write_le::<f32>(&mut hdr, 112, 1.0_f32); // funused1 = scale factor (1 = no scaling)
-
-    // data_history — descrip[80] at offset 148
-    let descrip = b"RITK";
-    hdr[148..148 + descrip.len()].copy_from_slice(descrip);
-
-    // originator[10] at offset 253 — voxel-space origin (5 × i16)
-    let ox_vox = vox_coord("x", orig[0], f64::from(sx_header))?;
-    let oy_vox = vox_coord("y", orig[1], f64::from(sy_header))?;
-    let oz_vox = vox_coord("z", orig[2], f64::from(sz_header))?;
-    write_le::<i16>(&mut hdr, 253, ox_vox); // originator[0] = x voxel
-    write_le::<i16>(&mut hdr, 255, oy_vox); // originator[1] = y voxel
-    write_le::<i16>(&mut hdr, 257, oz_vox); // originator[2] = z voxel
 
     // ── Write .img (raw f32 little-endian, same memory order as RITK) ─────────
     // RITK layout: flat[iz*ny*nx + iy*nx + ix] — identical to Analyze X-fastest.
@@ -243,28 +194,6 @@ impl<B: ComputeBackend> AnalyzeWriter<B> {
     {
         write_analyze(path, image, &self.backend)
     }
-}
-
-fn header_spacing(axis: &str, spacing_mm: f64) -> Result<f32> {
-    let encoded = spacing_mm as f32;
-    if !encoded.is_finite() || encoded <= 0.0 {
-        anyhow::bail!(
-            "Analyze: spacing[{axis}]={spacing_mm} is not representable as a positive finite f32 header value"
-        );
-    }
-    Ok(encoded)
-}
-
-/// Convert a physical origin coordinate to the format's rounded voxel index.
-#[inline]
-fn vox_coord(axis: &str, origin_mm: f64, spacing_mm: f64) -> Result<i16> {
-    let voxel = (origin_mm / spacing_mm).round();
-    if !voxel.is_finite() || voxel < f64::from(i16::MIN) || voxel > f64::from(i16::MAX) {
-        anyhow::bail!(
-            "Analyze: origin[{axis}]={origin_mm} maps to voxel coordinate {voxel}, outside the i16 header range"
-        );
-    }
-    Ok(voxel as i16)
 }
 
 #[cfg(test)]
