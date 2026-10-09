@@ -11,7 +11,7 @@
 //! (`DicomReadMetadata::preservation`) and is never derived from the
 //! destination. Keeping the projection here — rather than in the object model —
 //! keeps [`DicomPreservationSet`] a pure data model with no conversion
-//! dependency (SRP). Tag rendering uses [`DicomTag`]'s own `Display`, so the
+//! dependency (SRP). Tag rendering uses `DicomTag`'s own `Display`, so the
 //! `(GGGG,EEEE)` form has one definition.
 
 use ritk_image_io::{ConversionLocation, FormatMetadataLoss};

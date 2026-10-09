@@ -13,7 +13,7 @@
 //! `ORIGIN` is a scanner-space position, matching RITK's `Point` directly.
 //! `SPACING` is per-axis metadata in **[X, Y, Z]** order, so the file's X size
 //! is RITK `spacing[2]` (the column spacing); the triple is reversed by
-//! [`reverse_spatial_axes`] before it reaches this encoder.
+//! `reverse_spatial_axes` before it reaches this encoder.
 //!
 //! VTK stores scalar data with X varying fastest, matching RITK's memory
 //! layout. No data permutation is required.
@@ -44,7 +44,7 @@ use std::path::Path;
 ///   emitted `DIMENSIONS` header field is permuted to VTK **[X, Y, Z]** order.
 /// - `origin` / `spacing` are `[ox, oy, oz]` / `[sx, sy, sz]` in VTK **[X, Y, Z]**
 ///   order, matching the `ORIGIN` / `SPACING` fields directly. This is file
-///   order, not RITK order; callers convert with [`reverse_spatial_axes`].
+///   order, not RITK order; callers convert with `reverse_spatial_axes`.
 ///
 /// The header is always ASCII (VTK's `BINARY` declaration governs only the data
 /// section). The writer is flushed before return.

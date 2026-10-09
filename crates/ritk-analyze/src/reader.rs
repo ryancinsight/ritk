@@ -15,7 +15,7 @@
 //!
 //! # Header Layout
 //!
-//! The 348-byte field map is declared once in [`crate::header`], which this
+//! The 348-byte field map is declared once in `crate::header`, which this
 //! reader, the writer, and the stored-sample conversion all share.
 //!
 //! # Axis Convention

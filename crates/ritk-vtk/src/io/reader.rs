@@ -10,7 +10,7 @@
 //! order. RITK tensor shape is `[depth, row, col] = [nz, ny, nx]`, so the
 //! file's X axis is RITK's *column* axis. `ORIGIN` is a scanner-space position
 //! and transfers directly; `SPACING` is per-axis metadata and is reversed into
-//! RITK `[Δdepth, Δrow, Δcol]` by [`reverse_spatial_axes`].
+//! RITK `[Δdepth, Δrow, Δcol]` by `reverse_spatial_axes`.
 //!
 //! VTK stores scalar data with X varying fastest, matching RITK's memory
 //! layout. No data permutation is required.
