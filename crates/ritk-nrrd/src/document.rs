@@ -1,10 +1,9 @@
 use crate::reader::{NrrdHeader, NrrdHeaderError, NrrdReadPlan, NrrdReadSession};
-use crate::writer::{
-    write_nrrd_header_with_metadata, write_nrrd_series_header_with_metadata, HeaderBuffer,
-    SeriesLayout,
+use crate::stored_series::{
+    build_series_header, prepare_document_header, NrrdStoredSeriesError, NrrdStoredSeriesRejection,
 };
 use crate::{NrrdStoredReadError, NrrdStoredWriteError};
-use ritk_image_io::{validate_physical_geometry, ImageReadBudget, SeriesAxis, StoredSeries};
+use ritk_image_io::{ConversionPrepareError, ImageReadBudget, SeriesAxis, StoredSeries};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -30,6 +29,10 @@ pub enum NrrdDocumentError {
     UnsupportedField { field: String },
     #[error(transparent)]
     Write(#[from] NrrdStoredWriteError),
+    #[error("NRRD stored-series preflight failed: {0}")]
+    StoredSeries(#[source] NrrdStoredSeriesError),
+    #[error("NRRD output header cannot be built: {0}")]
+    HeaderRejection(#[source] NrrdStoredSeriesRejection),
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
@@ -42,15 +45,30 @@ impl NrrdDocument {
         comments: Vec<String>,
         records: Vec<(String, String)>,
     ) -> Result<Self, NrrdDocumentError> {
-        let document = Self {
+        Self::from_stored_series(
+            crate::stored_series::NRRD_DOCUMENT_SOURCE,
             series,
             comments,
             records,
-        };
-        document
-            .validate_for_write()
-            .map_err(map_conflicting_metadata)?;
-        Ok(document)
+            std::iter::empty(),
+        )
+        .map_err(|error| match error {
+            NrrdStoredSeriesError::Document(inner) => map_conflicting_metadata(*inner),
+            other => NrrdDocumentError::StoredSeries(other),
+        })
+    }
+
+    /// Wraps a series and metadata the stored-series adapter already validated.
+    pub(crate) fn from_validated(
+        series: StoredSeries,
+        comments: Vec<String>,
+        records: Vec<(String, String)>,
+    ) -> Self {
+        Self {
+            series,
+            comments,
+            records,
+        }
     }
     pub fn series(&self) -> &StoredSeries {
         &self.series
@@ -61,60 +79,26 @@ impl NrrdDocument {
     pub fn records(&self) -> &[(String, String)] {
         &self.records
     }
-    fn validate_for_write(&self) -> Result<HeaderBuffer, NrrdDocumentError> {
-        let Some(first) = self.series.volumes().first() else {
-            return Err(NrrdStoredWriteError::EmptySeries.into());
-        };
+    /// Re-checks the document through the stored-series adapter before writing.
+    ///
+    /// `NrrdDocument`'s fields are reachable from inside the crate, so a
+    /// document can be mutated after construction. Validating here — and only
+    /// handing back a header once every constraint holds — is what keeps a
+    /// rejected write from truncating an existing destination.
+    fn validate_for_write(&self) -> Result<Vec<u8>, NrrdDocumentError> {
         validate_document_metadata(
             &self.comments,
             &self.records,
             matches!(self.series.axis(), SeriesAxis::Diffusion(_)),
         )?;
-        let header = build_document_header(
-            first.shape(),
-            self.series.volumes().len(),
-            first.metadata().spacing(),
-            first.metadata().origin(),
-            first.metadata().direction(),
-            crate::writer::nrrd_type_name(first.samples().sample_type())?,
-            first.coordinate_map(),
-            self.series.axis(),
-            &self.comments,
-            &self.records,
-        )?;
-        crate::writer::validate_series_axis(self.series.axis())?;
-        crate::writer::validate_calibration(first)?;
-        validate_physical_geometry(first.metadata())
-            .map_err(|source| NrrdStoredWriteError::PhysicalGeometry { source })?;
-        let sample_type = first.samples().sample_type();
-        for (offset, volume) in self.series.volumes().iter().skip(1).enumerate() {
-            let index = offset + 1;
-            crate::writer::validate_calibration(volume)?;
-            if volume.shape() != first.shape() {
-                return Err(NrrdStoredWriteError::ShapeMismatch {
-                    index,
-                    expected: first.shape(),
-                    actual: volume.shape(),
-                }
-                .into());
-            }
-            if volume.metadata() != first.metadata() {
-                return Err(NrrdStoredWriteError::GeometryMismatch { index }.into());
-            }
-            if volume.coordinate_map() != first.coordinate_map() {
-                return Err(NrrdStoredWriteError::CoordinateMapMismatch { index }.into());
-            }
-            if volume.samples().sample_type() != sample_type {
-                return Err(NrrdStoredWriteError::SampleTypeMismatch { index }.into());
-            }
-        }
-        Ok(header)
+        prepare_document_header(&self.series, &self.comments, &self.records)
+            .map_err(map_stored_series_error)
     }
     fn write_to<P: AsRef<Path>>(&self, path: P) -> Result<(), NrrdDocumentError> {
         let header = self.validate_for_write()?;
         let file = File::create(path)?;
         let mut output = BufWriter::new(file);
-        output.write_all(header.bytes())?;
+        output.write_all(&header)?;
         for volume in self.series.volumes() {
             crate::writer::write_sample_payload(volume, &mut output)?;
         }
@@ -134,57 +118,47 @@ fn build_document_header(
     axis: &SeriesAxis,
     comments: &[String],
     records: &[(String, String)],
-) -> Result<HeaderBuffer, NrrdDocumentError> {
-    let mut header = HeaderBuffer::new();
-    let result = if matches!(axis, SeriesAxis::SingleVolume) {
-        write_nrrd_header_with_metadata(
-            &mut header,
-            shape,
-            spacing,
-            origin,
-            direction,
-            element_type,
-            coordinate_map,
-            comments,
-            records,
-        )
-    } else {
-        write_nrrd_series_header_with_metadata(
-            &mut header,
-            shape,
-            volume_count,
-            spacing,
-            origin,
-            direction,
-            element_type,
-            coordinate_map,
-            SeriesLayout::AcquisitionSlowest,
-            axis,
-            comments,
-            records,
-        )
-    };
-    if header.exceeded_limit() {
-        return Err(NrrdDocumentError::Write(
-            NrrdStoredWriteError::HeaderTooLarge {
-                header_bytes: crate::reader::MAX_HEADER_BYTES.saturating_add(1),
-                maximum_bytes: crate::reader::MAX_HEADER_BYTES,
-            },
-        ));
+) -> Result<Vec<u8>, NrrdDocumentError> {
+    build_series_header(
+        shape,
+        volume_count,
+        spacing,
+        origin,
+        direction,
+        element_type,
+        coordinate_map,
+        axis,
+        comments,
+        records,
+    )
+    .map_err(map_stored_series_rejection)
+}
+
+/// Reports a stored-series rejection in this document's error vocabulary.
+///
+/// The adapter owns every check; the document keeps the variants its callers
+/// already match on. A header that would exceed the reader's entry bound is the
+/// one rejection the document can name directly, because the reader has an
+/// error for exactly that condition. Any other rejection is reported as the
+/// adapter's own typed value.
+fn map_stored_series_rejection(rejection: NrrdStoredSeriesRejection) -> NrrdDocumentError {
+    match rejection {
+        NrrdStoredSeriesRejection::HeaderTooManyEntries {
+            maximum_entries, ..
+        } => NrrdDocumentError::Header(NrrdHeaderError::TooManyEntries { maximum_entries }),
+        other => NrrdDocumentError::HeaderRejection(other),
     }
-    result?;
-    let entries = header
-        .bytes()
-        .split(|byte| *byte == b'\n')
-        .skip(1)
-        .take_while(|line| !line.is_empty())
-        .count();
-    if entries > crate::reader::MAX_HEADER_ENTRIES {
-        return Err(NrrdDocumentError::Header(NrrdHeaderError::TooManyEntries {
-            maximum_entries: crate::reader::MAX_HEADER_ENTRIES,
-        }));
+}
+
+/// Unwraps a preflight target rejection so it reaches the same document-level
+/// error a direct header build would produce.
+fn map_stored_series_error(error: NrrdStoredSeriesError) -> NrrdDocumentError {
+    match error {
+        NrrdStoredSeriesError::Preparation(ConversionPrepareError::Target { source, .. }) => {
+            map_stored_series_rejection(source)
+        }
+        other => NrrdDocumentError::StoredSeries(other),
     }
-    Ok(header)
 }
 
 /// Reads a document and rejects metadata the typed model cannot retain.
@@ -351,7 +325,7 @@ fn map_conflicting_metadata(error: NrrdDocumentError) -> NrrdDocumentError {
     }
 }
 
-fn validate_document_metadata(
+pub(crate) fn validate_document_metadata(
     comments: &[String],
     records: &[(String, String)],
     is_diffusion: bool,
