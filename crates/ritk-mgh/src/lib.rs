@@ -30,18 +30,29 @@
 //! them to RITK's `origin` / `spacing` / `direction` representation via:
 //!
 //! ```text
-//! Mdc    = [x_ras, y_ras, z_ras]          (3×3 direction cosine matrix)
-//! D      = diag(spacing_x, spacing_y, spacing_z)
-//! h      = [(width−1)/2, (height−1)/2, (depth−1)/2]^T
-//! origin = c_ras − Mdc · D · h
+//! Mdc       = [x_ras, y_ras, z_ras]       (3×3 direction cosine matrix)
+//! D         = diag(spacing_x, spacing_y, spacing_z)
+//! h         = [(width−1)/2, (height−1)/2, (depth−1)/2]^T
+//! origin_ras = c_ras − Mdc · D · h
+//! origin_lps = [−origin_ras.x, −origin_ras.y, origin_ras.z]
 //! ```
 //!
 //! The header orders spacing and `Mdc` by the x, y, z voxel axes, so both are
 //! reversed on the way into RITK `[depth, row, col] = [z, y, x]` order: RITK
 //! `spacing[0]` is `spacing_z`, and RITK direction column 0 is `Mdc[:, 2]`.
 //! That reversal is the same one NIfTI, NRRD, and MetaImage apply
-//! (`docs/architecture.md` §7–§9), and it lives only in this crate's `spatial`
-//! module.
+//! (`docs/architecture.md` §7–§9).
+//!
+//! The header states `c_ras` and `Mdc` in RAS, while RITK's stored model is
+//! LPS-millimetre (`docs/architecture.md` §5), so both lose the sign of their x
+//! and y components. `ritk-nifti` negates the same two rows of its RAS affine,
+//! which is what makes one physical point read the same through either reader
+//! (`docs/architecture.md` §21). Both reconciliations live only in this crate's
+//! `spatial` module.
+//!
+//! `Mdc` is stored transposed — FreeSurfer's header descriptor names the field
+//! the transpose of the direction-cosine matrix — so its three consecutive
+//! triples are the columns used above.
 //!
 //! When the flag is unset, default spatial metadata is used (identity
 //! direction, unit spacing, zero origin).

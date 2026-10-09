@@ -1,8 +1,13 @@
 use super::*;
 
-/// A hand-built header is the external oracle for the header↔RITK axis
-/// contract: the header's `[x, y, z]` spacing and `Mdc` columns must reach
-/// RITK as `[depth, row, col] = [z, y, x]` (`docs/architecture.md` §7–§9).
+/// A hand-built header is the external oracle for the header↔RITK spatial
+/// contract. Two reconciliations must hold, and this fixture states both
+/// without calling the reader's own helpers:
+///
+/// 1. the header's `[x, y, z]` spacing and `Mdc` columns reach RITK as
+///    `[depth, row, col] = [z, y, x]` (`docs/architecture.md` §7–§9);
+/// 2. the header's RAS center and direction cosines reach RITK's LPS stored
+///    model, i.e. their x and y components change sign (§5).
 #[test]
 fn test_read_nondefault_spatial() -> Result<()> {
     let dir = tempdir()?;
@@ -36,22 +41,38 @@ fn test_read_nondefault_spatial() -> Result<()> {
     assert!((sp[1] - 0.75).abs() < 1e-6, "spacing[1]={}", sp[1]);
     assert!((sp[2] - 0.5).abs() < 1e-6, "spacing[2]={}", sp[2]);
 
-    // Header `Mdc` columns `[x_ras, y_ras, z_ras]` become RITK columns
-    // `[depth, row, col] = [z, y, x]`, so the columns appear reversed.
+    // Header `Mdc` columns `[x_ras, y_ras, z_ras]` are `[0,1,0]`, `[-1,0,0]`,
+    // `[0,0,1]`. Converting to LPS negates the x and y component of each, and
+    // RITK then orders the columns `[depth, row, col] = [z, y, x]`:
+    //   depth = z_ras flipped   = [0, 0, 1]
+    //   row   = y_ras flipped   = [1, 0, 0]
+    //   col   = x_ras flipped   = [0, -1, 0]
     let direction = image.direction();
     assert!((direction[(0, 0)] - 0.0).abs() < 1e-6);
     assert!((direction[(1, 0)] - 0.0).abs() < 1e-6);
     assert!((direction[(2, 0)] - 1.0).abs() < 1e-6);
-    assert!((direction[(0, 1)] - (-1.0)).abs() < 1e-6);
+    assert!((direction[(0, 1)] - 1.0).abs() < 1e-6);
     assert!((direction[(1, 1)] - 0.0).abs() < 1e-6);
     assert!((direction[(2, 1)] - 0.0).abs() < 1e-6);
     assert!((direction[(0, 2)] - 0.0).abs() < 1e-6);
-    assert!((direction[(1, 2)] - 1.0).abs() < 1e-6);
+    assert!((direction[(1, 2)] - (-1.0)).abs() < 1e-6);
     assert!((direction[(2, 2)] - 0.0).abs() < 1e-6);
 
+    // The header's center is RAS `[10, 20, 30]`; the RAS-to-LPS flip negates
+    // its x and y, giving `[-10, -20, 30]`. Subtracting `Mdc · D · h` with
+    // `h = [1.5, 1.0, 0.5]` (dims `[4, 3, 2]`) gives the RAS corner
+    // `[10.75, 19.25, 29.375]`, whose LPS form is the stored origin.
     let origin = image.origin();
-    assert!((origin[0] - 10.75).abs() < 1e-6, "origin[0]={}", origin[0]);
-    assert!((origin[1] - 19.25).abs() < 1e-6, "origin[1]={}", origin[1]);
+    assert!(
+        (origin[0] - (-10.75)).abs() < 1e-6,
+        "origin[0]={}",
+        origin[0]
+    );
+    assert!(
+        (origin[1] - (-19.25)).abs() < 1e-6,
+        "origin[1]={}",
+        origin[1]
+    );
     assert!((origin[2] - 29.375).abs() < 1e-6, "origin[2]={}", origin[2]);
     Ok(())
 }

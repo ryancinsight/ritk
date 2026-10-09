@@ -1,11 +1,19 @@
 //! Spatial metadata transforms between MGH RAS header fields and RITK images.
 //!
-//! This module is the single owner of the axis-order reconciliation between the
-//! MGH header and RITK. FreeSurfer orders the header's `spacing` and `Mdc`
-//! fields by the x, y, z voxel axes, while RITK orders image axes
-//! `[depth, row, col] = [z, y, x]` (`docs/architecture.md` §7–§9). Keeping the
-//! reversal in one place is what stops the reader, the writer, and their tests
-//! from disagreeing about it.
+//! This module is the single owner of two reconciliations between the MGH
+//! header and RITK. FreeSurfer orders the header's `spacing` and `Mdc` fields
+//! by the x, y, z voxel axes, while RITK orders image axes
+//! `[depth, row, col] = [z, y, x]` (`docs/architecture.md` §7–§9); and the
+//! header states its volume center and direction cosines in RAS, while the
+//! stored model is LPS-millimetre (`docs/architecture.md` §5). Keeping both
+//! reconciliations here is what stops the reader, the writer, and their tests
+//! from disagreeing about them.
+//!
+//! The `Mdc` field is stored **transposed** — FreeSurfer's own header
+//! descriptor names it the transpose of the direction-cosine matrix and its
+//! consumers build `MdcD = Mdcᵀ · D` — so the field's three consecutive
+//! triples are the direction-cosine **columns**. No transpose is owed; only
+//! the frame changes.
 
 use ritk_spatial::{Direction, InvalidSpacing, Point, Spacing, Vector};
 
@@ -100,15 +108,18 @@ impl MghRasBlock {
         }
 
         let spacing_xyz = Spacing::try_new(widen_components(self.spacing_xyz))?;
-        let direction_xyz = direction_from_columns(self.mdc_columns_xyz);
-        let origin = Vector::new(widen_components(self.c_ras))
-            - centered_half_offset(direction_xyz, spacing_xyz, dims_xyz);
+        let direction_ras = direction_from_columns(self.mdc_columns_xyz);
+        let origin_ras = Vector::new(widen_components(self.c_ras))
+            - centered_half_offset(direction_ras, spacing_xyz, dims_xyz);
+        // The center and every direction column are RAS; the stored model is
+        // LPS, so both lose the sign of their x and y components.
+        let direction_lps = flip_ras_to_lps_columns(direction_ras);
 
         Ok(ImageGeometry {
             // RITK axis order [depth, row, col] is the header order reversed.
             spacing: reverse_axes(spacing_xyz),
-            direction: reverse_columns(direction_xyz),
-            origin: Point::new(origin.to_array()),
+            direction: reverse_columns(direction_lps),
+            origin: Point::new(flip_ras_to_lps_components(origin_ras.to_array())),
         })
     }
 }
@@ -127,14 +138,17 @@ pub(crate) fn ras_block_from_geometry(
     // The header axis order is the RITK axis order reversed.
     let dims_xyz = [shape_zyx[2], shape_zyx[1], shape_zyx[0]];
     let spacing_xyz = reverse_axes(spacing);
-    let direction_xyz = reverse_columns(direction);
-    let c_ras =
-        Vector::new(origin.to_array()) + centered_half_offset(direction_xyz, spacing_xyz, dims_xyz);
+    let direction_lps = reverse_columns(direction);
+    let c_ras_lps =
+        Vector::new(origin.to_array()) + centered_half_offset(direction_lps, spacing_xyz, dims_xyz);
+    // The frame flip is its own inverse, so the same negation that the reader
+    // applies returns the stored model's LPS center and columns to RAS.
+    let direction_ras = flip_ras_to_lps_columns(direction_lps);
 
     MghRasBlock {
         spacing_xyz: narrow_spacing(spacing_xyz),
-        mdc_columns_xyz: header_columns(direction_xyz),
-        c_ras: c_ras.to_array().map(|v| v as f32),
+        mdc_columns_xyz: header_columns(direction_ras),
+        c_ras: flip_ras_to_lps_components(c_ras_lps.to_array()).map(|v| v as f32),
     }
 }
 
@@ -168,6 +182,30 @@ fn reverse_axes(spacing: Spacing<3>) -> Spacing<3> {
 fn reverse_columns(direction: Direction<3>) -> Direction<3> {
     let [x, y, z] = direction.axis_directions_array();
     Direction::from_columns([z, y, x])
+}
+
+/// Move a component triple between the header's RAS frame and the stored
+/// model's LPS frame.
+///
+/// RAS and LPS share the superior axis and differ in the sign of the right/left
+/// and anterior/posterior axes, so this is the negation `diag(-1, -1, 1)` and
+/// is its own inverse. `ritk-nifti::spatial` negates the same two rows of a
+/// NIfTI sform (`docs/architecture.md` §5, §21).
+fn flip_ras_to_lps_components(components: [f64; 3]) -> [f64; 3] {
+    [-components[0], -components[1], components[2]]
+}
+
+/// Apply [`flip_ras_to_lps_components`] to every direction-cosine column.
+///
+/// Negating two rows of an orthonormal matrix leaves it orthonormal, so the
+/// result is still a valid [`Direction`]; it reverses the handedness of the
+/// basis, which is exactly the RAS-to-LPS relation.
+fn flip_ras_to_lps_columns(direction: Direction<3>) -> Direction<3> {
+    Direction::from_columns(
+        direction
+            .axis_directions_array()
+            .map(|column| Vector::new(flip_ras_to_lps_components(column.to_array()))),
+    )
 }
 
 /// Extract header-order direction-cosine columns from RITK `Direction`.

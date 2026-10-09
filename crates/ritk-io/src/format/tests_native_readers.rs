@@ -60,6 +60,28 @@ fn assert_geometry_close(actual: [f64; 3], expected: [f64; 3], label: &str) {
     }
 }
 
+/// Map a voxel index to its physical coordinate under an image's geometry.
+///
+/// `origin` is the physical coordinate of index zero and each `direction`
+/// column is the unit vector the matching `[depth, row, col]` axis advances
+/// along, so the physical point is `origin + Σ_axis column · spacing · index`.
+fn physical_point(
+    origin: Point<3>,
+    spacing: Spacing<3>,
+    direction: Direction<3>,
+    index: [f64; 3],
+) -> [f64; 3] {
+    let columns = direction.axis_directions_array();
+    let mut point = origin.to_array();
+    for axis in 0..3 {
+        let column = columns[axis].to_array();
+        for row in 0..3 {
+            point[row] += column[row] * spacing[axis] * index[axis];
+        }
+    }
+    point
+}
+
 /// Round-trip a native volume through the unified [`crate::domain::ImageWriter`]
 /// then [`crate::domain::ImageReader`] adapters; assert voxel, shape, and the
 /// spatial metadata that `fidelity` says the format preserves.
@@ -164,6 +186,101 @@ fn native_mgh_writer_reader_contract_round_trips() {
         &super::mgh::native::MghReader::new(SequentialBackend),
         SpatialFidelity::Full,
     );
+}
+
+/// One physical point must land at the same LPS coordinate whether it was
+/// carried by an MGH file or a NIfTI file.
+///
+/// MGH states its volume center and direction cosines in RAS
+/// (`docs/book/mgh_format.md`), and a NIfTI `sform` is RAS, while RITK's
+/// stored model is LPS-millimetre (`docs/architecture.md` §5). Both readers
+/// therefore owe the *same* RAS→LPS reconciliation. A writer→reader round trip
+/// through a single format cannot detect a missing conversion, because a
+/// self-consistent frame error cancels; writing one image to both formats and
+/// reading each back does, because it pins two independent conversions against
+/// one another. The NIfTI side is the established reference
+/// (`ritk_nifti::spatial::ras_affine_to_lps_file_axes`), so agreement transfers
+/// that oracle to `ritk-mgh`.
+#[test]
+fn mgh_and_nifti_readers_agree_on_a_physical_point() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let n = DIMS[0] * DIMS[1] * DIMS[2];
+    let voxels: Vec<f32> = (0..n).map(|i| i as f32 * 0.5 - 4.0).collect();
+    let image = NativeImage::from_flat_on(
+        voxels,
+        DIMS,
+        Point::new(ORIGIN),
+        Spacing::new(SPACING),
+        full_fidelity_direction(),
+        &SequentialBackend,
+    )
+    .expect("native image");
+
+    let mgh_path = dir.path().join("point.mgh");
+    let nifti_path = dir.path().join("point.nii");
+    ImageWriter::write(
+        &super::mgh::native::MghWriter::new(SequentialBackend),
+        &mgh_path,
+        &image,
+    )
+    .expect("mgh write");
+    ImageWriter::write(
+        &super::nifti::native::NiftiWriter::new(SequentialBackend),
+        &nifti_path,
+        &image,
+    )
+    .expect("nifti write");
+
+    let through_mgh: NativeImage<f32, SequentialBackend, 3> = ImageReader::read(
+        &super::mgh::native::MghReader::new(SequentialBackend),
+        &mgh_path,
+    )
+    .expect("mgh read");
+    let through_nifti: NativeImage<f32, SequentialBackend, 3> = ImageReader::read(
+        &super::nifti::native::NiftiReader::new(SequentialBackend),
+        &nifti_path,
+    )
+    .expect("nifti read");
+
+    // The whole geometry must agree before the point below can: a sharper
+    // diagnostic than the point alone when a single column or sign diverges.
+    assert_geometry_close(
+        through_mgh.origin().to_array(),
+        through_nifti.origin().to_array(),
+        "origin",
+    );
+    assert_geometry_close(
+        through_mgh.spacing().to_array(),
+        through_nifti.spacing().to_array(),
+        "spacing",
+    );
+    for row in 0..3 {
+        for col in 0..3 {
+            let from_mgh = through_mgh.direction()[(row, col)];
+            let from_nifti = through_nifti.direction()[(row, col)];
+            assert!(
+                (from_mgh - from_nifti).abs() < 1e-6,
+                "direction[{row},{col}]: mgh {from_mgh}, nifti {from_nifti}"
+            );
+        }
+    }
+
+    // A non-trivial interior voxel, so an axis permutation or a sign flip on
+    // any single column moves the point.
+    let index = [1.0, 1.0, 2.0];
+    let mgh_point = physical_point(
+        *through_mgh.origin(),
+        *through_mgh.spacing(),
+        *through_mgh.direction(),
+        index,
+    );
+    let nifti_point = physical_point(
+        *through_nifti.origin(),
+        *through_nifti.spacing(),
+        *through_nifti.direction(),
+        index,
+    );
+    assert_geometry_close(mgh_point, nifti_point, "physical point");
 }
 
 #[test]

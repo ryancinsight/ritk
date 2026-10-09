@@ -254,7 +254,7 @@ Implementation tests live with the owning format crate. `ritk-io` tests only fac
 - `ritk-mgh::writer` owns path handling, gzip emission, header encode, f32 voxel byte emission, and `MghWriter` delegation.
 - `ritk-mgh::binary` owns big-endian primitive I/O.
 - `ritk-mgh::types` owns MGH scalar type byte-width validation.
-- `ritk-mgh::spatial` owns the inverse RAS transforms `origin = c_ras - Mdc*D*h` and `c_ras = origin + Mdc*D*h`.
+- `ritk-mgh::spatial` owns both reconciliations between the header and the stored model: the RAS-to-LPS frame flip — negate the x and y components of the volume center and of every direction column — and the `[x,y,z]`/`[depth,row,col]` axis reversal. Read applies `origin_lps = flip(c_ras - Mdc*D*h)`; write applies `c_ras = flip(origin + Mdc*D*h)`. The flip is `diag(-1,-1,1)` and is its own inverse, so MGH and NIfTI geometry agree on one physical point.
 - Reader/writer tests are partitioned by contract family; crafted binary fixtures and image construction live in crate-local `test_support`.
 
 **MIF structural invariant**:
