@@ -59,4 +59,3 @@
 <a id="RITK-SNAP-MULTI-SERIES-001"></a>- [RITK-SNAP-MULTI-SERIES-001](backlog/RITK-SNAP-MULTI-SERIES-001.md) — Load and compare multiple DICOM series — blocked
 <a id="RITK-SNAP-RADIANT-UI-001"></a>- [RITK-SNAP-RADIANT-UI-001](backlog/RITK-SNAP-RADIANT-UI-001.md) — Organize a multi-series DICOM viewer workspace — blocked
 <a id="RITK-SNAP-OBLIQUE-ROUTING-001"></a>- [RITK-SNAP-OBLIQUE-ROUTING-001](backlog/RITK-SNAP-OBLIQUE-ROUTING-001.md) — Route native oblique input — blocked
-<a id="RITK-MGH-LPS-CONVENTION-001"></a>- [RITK-MGH-LPS-CONVENTION-001](backlog/RITK-MGH-LPS-CONVENTION-001.md) — Reconcile MGH RAS geometry with the LPS stored model — todo
