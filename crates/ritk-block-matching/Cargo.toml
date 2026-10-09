@@ -20,5 +20,6 @@ license.workspace = true
 # crate.
 [dependencies]
 anyhow = { workspace = true }
+thiserror = { workspace = true }
 apollo-fft = { workspace = true }
 eunomia = { workspace = true }
