@@ -160,3 +160,34 @@ fn test_read_hostile_dims_does_not_oom() {
     let result = read_mgh::<TestBackend, _>(&path, &backend);
     assert_rejects(result, "Failed to parse MGH file");
 }
+
+#[test]
+fn test_read_non_positive_spacing_is_rejected_not_panicked() {
+    // A header may declare zero, negative, or non-finite spacing. `Spacing`
+    // requires strictly positive finite components, so an untrusted file must
+    // yield an error rather than a panic in the read path.
+    let dir = tempdir().unwrap();
+    let backend = TestBackend::default();
+
+    for (name, spacing) in [
+        ("zero", [0.0f32, 1.0, 1.0]),
+        ("negative", [1.0, -1.0, 1.0]),
+        ("nan", [1.0, 1.0, f32::NAN]),
+    ] {
+        let path = dir.path().join(format!("bad_spacing_{name}.mgh"));
+        let mgh = build_mgh_bytes(
+            1,
+            [2, 2, 2],
+            SINGLE_FRAME,
+            MRI_FLOAT,
+            spacing,
+            IDENTITY_DIR,
+            [0.0, 0.0, 0.0],
+            &[0u8; 2 * 2 * 2 * 4],
+        );
+        std::fs::write(&path, &mgh).unwrap();
+
+        let result = read_mgh::<TestBackend, _>(&path, &backend);
+        assert_rejects(result, "Invalid MGH RAS voxel spacing");
+    }
+}

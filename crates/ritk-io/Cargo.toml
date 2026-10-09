@@ -27,10 +27,12 @@ ritk-annotation = { path = "../ritk-annotation", version = "0.2.0" }
 ritk-filter = { path = "../ritk-filter", version = "0.4.0" }
 ritk-dicom = { workspace = true }
 ritk-codecs = { workspace = true }
+ritk-image-io = { workspace = true }
 ritk-nifti = { workspace = true }
 ritk-nrrd = { workspace = true }
 ritk-metaimage = { workspace = true }
 ritk-mgh = { workspace = true }
+ritk-mif = { workspace = true }
 ritk-analyze = { workspace = true }
 ritk-vtk = { workspace = true }
 ritk-jpeg = { workspace = true }

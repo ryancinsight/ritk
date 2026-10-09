@@ -21,6 +21,8 @@ pub enum ImageFormat {
     Vtk,
     Jpeg,
     Analyze,
+    Minc,
+    Mif,
 }
 
 impl ImageFormat {
@@ -52,6 +54,8 @@ impl ImageFormat {
             "vtk" => Some(Self::Vtk),
             "jpg" | "jpeg" => Some(Self::Jpeg),
             "hdr" | "img" => Some(Self::Analyze),
+            "mnc" => Some(Self::Minc),
+            "mif" => Some(Self::Mif),
             _ => None,
         }
     }
@@ -72,6 +76,8 @@ impl ImageFormat {
             Self::Vtk => "vtk",
             Self::Jpeg => "jpeg",
             Self::Analyze => "analyze",
+            Self::Minc => "minc",
+            Self::Mif => "mif",
         }
     }
 
@@ -91,6 +97,8 @@ impl ImageFormat {
             "vtk" => Some(Self::Vtk),
             "jpeg" => Some(Self::Jpeg),
             "analyze" => Some(Self::Analyze),
+            "minc" => Some(Self::Minc),
+            "mif" => Some(Self::Mif),
             _ => None,
         }
     }
@@ -126,13 +134,18 @@ pub fn is_native_read_capable(fmt: ImageFormat) -> bool {
             | ImageFormat::Vtk
             | ImageFormat::Jpeg
             | ImageFormat::Analyze
+            | ImageFormat::Minc
+            | ImageFormat::Mif
     )
 }
 
 /// True when `fmt` has a native writer in the unified `ritk-io` contract.
 ///
-/// PNG has no image writer and DICOM writes still target the legacy series
-/// writer.
+/// Every format with a reader has a writer here except DICOM, whose writes
+/// still target the legacy series writer ([`crate::write_dicom_series`])
+/// because a series is a directory of instances rather than one file. PNG
+/// writes a single `[1, rows, cols]` slice; a volume-shaped image is rejected
+/// by the codec, not silently truncated.
 #[must_use]
 pub fn is_native_write_capable(fmt: ImageFormat) -> bool {
     matches!(
@@ -140,11 +153,14 @@ pub fn is_native_write_capable(fmt: ImageFormat) -> bool {
         ImageFormat::NIfTI
             | ImageFormat::MetaImage
             | ImageFormat::Nrrd
+            | ImageFormat::Png
             | ImageFormat::Mgh
             | ImageFormat::Tiff
             | ImageFormat::Vtk
             | ImageFormat::Jpeg
             | ImageFormat::Analyze
+            | ImageFormat::Minc
+            | ImageFormat::Mif
     )
 }
 
@@ -212,6 +228,14 @@ pub fn read_image_native<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<N
             &format::analyze::AnalyzeReader::new(NativeBackend::default()),
             path,
         ),
+        ImageFormat::Minc => crate::ImageReader::read(
+            &format::minc::native::MincReader::new(NativeBackend::default()),
+            path,
+        ),
+        ImageFormat::Mif => crate::ImageReader::read(
+            &format::mif::native::MifReader::new(NativeBackend::default()),
+            path,
+        ),
         ImageFormat::Vtk => crate::ImageReader::read(
             &format::vtk::native::VtkReader::new(NativeBackend::default()),
             path,
@@ -274,11 +298,20 @@ pub fn write_image_native<P: AsRef<std::path::Path>>(
             path,
             image,
         ),
-        ImageFormat::Png => Err(std::io::Error::other(
-            "PNG image writing is not implemented on the native substrate",
-        )),
+        ImageFormat::Minc => crate::ImageWriter::write(
+            &format::minc::native::MincWriter::new(NativeBackend::default()),
+            path,
+            image,
+        ),
+        ImageFormat::Mif => crate::ImageWriter::write(
+            &format::mif::native::MifWriter::new(NativeBackend::default()),
+            path,
+            image,
+        ),
+        ImageFormat::Png => crate::ImageWriter::write(&format::png::native::PngWriter, path, image),
         ImageFormat::Dicom => Err(std::io::Error::other(
-            "DICOM image writing is not implemented on the native substrate",
+            "DICOM image writing is not implemented on the native substrate; \
+             a series is a directory of instances, so use write_dicom_series",
         )),
         ImageFormat::Vtk => crate::ImageWriter::write(
             &format::vtk::native::VtkWriter::new(NativeBackend::default()),
@@ -369,71 +402,4 @@ pub fn read_image_series_native<P: AsRef<std::path::Path>>(
 }
 
 #[cfg(test)]
-mod native_dispatch_tests {
-    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
-    use super::*;
-    use ritk_spatial::{Direction, Point, Spacing};
-
-    fn native_volume() -> NativeImage {
-        let dims = [2usize, 2, 3];
-        let values: Vec<f32> = (0..12).map(|i| i as f32 * 0.5 - 1.0).collect();
-        NativeImage::from_flat(
-            values,
-            dims,
-            Point::new([1.0, 2.0, 3.0]),
-            Spacing::new([0.5, 0.75, 1.25]),
-            Direction::identity(),
-        )
-        .expect("test image")
-    }
-
-    #[test]
-    fn native_capability_matrix_matches_dispatch() {
-        for fmt in [
-            ImageFormat::NIfTI,
-            ImageFormat::MetaImage,
-            ImageFormat::Nrrd,
-            ImageFormat::Mgh,
-            ImageFormat::Tiff,
-            ImageFormat::Vtk,
-            ImageFormat::Jpeg,
-            ImageFormat::Analyze,
-        ] {
-            assert!(is_native_read_capable(fmt), "{fmt:?} must read natively");
-            assert!(is_native_write_capable(fmt), "{fmt:?} must write natively");
-        }
-        assert!(is_native_read_capable(ImageFormat::Png));
-        assert!(is_native_read_capable(ImageFormat::Dicom));
-        assert!(!is_native_write_capable(ImageFormat::Png));
-        assert!(!is_native_write_capable(ImageFormat::Dicom));
-    }
-
-    #[test]
-    fn native_dispatch_round_trips_nrrd_values() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let path = dir.path().join("native.nrrd");
-        let image = native_volume();
-
-        write_image_native(&path, &image).expect("native write");
-        let loaded = read_image_native(&path).expect("native read");
-
-        assert_eq!(loaded.shape(), image.shape());
-        assert_eq!(loaded.data_slice().unwrap(), image.data_slice().unwrap());
-        assert_eq!(loaded.origin(), image.origin());
-        assert_eq!(loaded.spacing(), image.spacing());
-    }
-
-    #[test]
-    fn native_dispatch_round_trips_vtk_values() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let path = dir.path().join("native.vtk");
-        let image = native_volume();
-
-        write_image_native(&path, &image).expect("native VTK write");
-        let loaded = read_image_native(&path).expect("native VTK read");
-        assert_eq!(loaded.shape(), image.shape());
-        assert_eq!(loaded.data_slice().unwrap(), image.data_slice().unwrap());
-        assert_eq!(loaded.origin(), image.origin());
-        assert_eq!(loaded.spacing(), image.spacing());
-    }
-}
+mod tests;

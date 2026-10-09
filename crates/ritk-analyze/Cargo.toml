@@ -13,11 +13,14 @@ license.workspace = true
 
 [dependencies]
 ritk-core = { workspace = true }
+ritk-codecs = { workspace = true }
 ritk-image = { path = "../ritk-image", version = "0.4.0" }
+ritk-image-io = { workspace = true }
 ritk-spatial = { path = "../ritk-spatial", version = "0.3.0" }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }
 consus-core = { workspace = true }
+thiserror = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]

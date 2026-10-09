@@ -190,11 +190,13 @@ MetaImage parser/writer dependency changes stay behind `ritk-metaimage`; callers
 **Boundary surface**:
 - `ritk-png` owns `read_png_to_image`, `read_png_series`, `PngReader<B>`, and `PngSeriesReader<B>`.
 - `ritk-png` owns `read_png_color_to_volume`, `read_png_color_series`, `PngColorReader<B>`, and `PngColorSeriesReader<B>`.
+- `ritk-png` owns `write_png`, `write_png_volume`, `encode_png_slice`, and `PngWriter<B>`.
 - Reader invariant: grayscale pixels decode into `Image<B, 3>` with tensor shape `[1, height, width]` for a single PNG and `[slice_count, height, width]` for a series.
 - RGB reader invariant: decoded `Rgb8` pixels decode into `RgbVolume<B>` with tensor shape `[1, height, width, 3]` for a single PNG and `[slice_count, height, width, 3]` for a series.
+- Writer invariant: input `Image<B, 3>` must have `nz == 1` and is windowed from its own `[min, max]` onto 8-bit grayscale; the file therefore records rank order and shape, not the source scale. A volume-shaped input is rejected rather than truncated to its first slice.
 - Metadata invariant: PNG carries no physical-space metadata, so origin is `[0,0,0]`, spacing is `[1,1,1]`, and direction is identity.
 - Series invariant: directory slices are ordered by deterministic natural filename order and dimension mismatches are rejected before tensor construction.
-- `ritk-io::format::png` is a facade re-export plus local `ImageReader` adapters only.
+- `ritk-io::format::png` is a facade re-export plus local `ImageReader` / `ImageWriter` adapters only.
 
 ### 11. JPEG Format Boundary
 
@@ -239,7 +241,7 @@ MetaImage parser/writer dependency changes stay behind `ritk-metaimage`; callers
 > **Theorem 14.1 (Single Implementation Ownership)**: A format with a dedicated crate has exactly one parser/writer implementation body; `ritk-io` may expose only static re-exports and trait adapters.
 
 **Boundary surface**:
-- `ritk-analyze`, `ritk-jpeg`, `ritk-metaimage`, `ritk-mgh`, `ritk-minc`, `ritk-nifti`, `ritk-nrrd`, `ritk-png`, `ritk-tiff`, and `ritk-vtk` own their format parsers and writers.
+- `ritk-analyze`, `ritk-jpeg`, `ritk-metaimage`, `ritk-mgh`, `ritk-mif`, `ritk-minc`, `ritk-nifti`, `ritk-nrrd`, `ritk-png`, `ritk-tiff`, and `ritk-vtk` own their format parsers and writers.
 - `ritk-io::format::*` modules for those crates are facade boundaries. They re-export the authoritative functions and define only local `ImageReader` / `ImageWriter` adapters when orphan rules require those impls to live in `ritk-io`.
 - Adapter types remain generic over `B: Backend`; calls monomorphize per backend and do not use dynamic dispatch in throughput paths.
 - Copied reader/writer files under `ritk-io` for dedicated-crate formats are prohibited.
@@ -252,8 +254,13 @@ Implementation tests live with the owning format crate. `ritk-io` tests only fac
 - `ritk-mgh::writer` owns path handling, gzip emission, header encode, f32 voxel byte emission, and `MghWriter` delegation.
 - `ritk-mgh::binary` owns big-endian primitive I/O.
 - `ritk-mgh::types` owns MGH scalar type byte-width validation.
-- `ritk-mgh::spatial` owns the inverse RAS transforms `origin = c_ras - Mdc*D*h` and `c_ras = origin + Mdc*D*h`.
+- `ritk-mgh::spatial` owns both reconciliations between the header and the stored model: the RAS-to-LPS frame flip — negate the x and y components of the volume center and of every direction column — and the `[x,y,z]`/`[depth,row,col]` axis reversal. Read applies `origin_lps = flip(c_ras - Mdc*D*h)`; write applies `c_ras = flip(origin + Mdc*D*h)`. The flip is `diag(-1,-1,1)` and is its own inverse, so MGH and NIfTI geometry agree on one physical point.
 - Reader/writer tests are partitioned by contract family; crafted binary fixtures and image construction live in crate-local `test_support`.
+
+**MIF structural invariant**:
+- `ritk-mif::header` and `ritk-mif::decode` own text-header parsing and the `.mif.dat` detached-payload resolution; `ritk-mif::reader` owns `read_mif` / `read_mif_series` / `MifReader`, and `ritk-mif::writer` owns `write_mif` / `write_mif_series` / `MifWriter`.
+- Spatial invariant: the `transform` 4×4 affine maps voxel `[x,y,z]` to scanner millimetres. The reader decomposes it into RITK origin, spacing, and direction; the writer reorders columns from internal `[depth, row, col]` to file `[x, y, z]`. A header with no `transform` is axis-aligned identity and its `vox:` triple — file `[x, y, z]` — must be reversed into `[Δdepth, Δrow, Δcol]`.
+- `ritk-io::format::mif` is a facade re-export plus local `ImageReader` / `ImageWriter` adapters only.
 
 ### 15. PET/CT Fusion Display Boundary
 
@@ -473,12 +480,16 @@ prepare_conversion(target, source_format, series, metadata_losses)
 
 > **Theorem 24.1 (DICOM Stored Import Fidelity)**: Supported DICOM instances import into stored samples without scaling or narrowing voxels.
 
+> **Theorem 24.2 (DICOM Metadata Accounting)**: Every parsed DICOM element is interpreted, retained opaquely, or recorded as a scoped loss; none is discarded without a record.
+
 **Boundary surface**:
 - `ritk-io::format::dicom::reader` owns series assembly and slice pixel decode; `ritk-dicom` owns Part 10 parsing (`DicomParseBackend`), transfer-syntax dispatch (`NativeCodecBackend`), and pixel-layout interpretation (`PixelLayout`).
 - `ritk-codecs` owns the encapsulated fragment decoders (JPEG, JPEG-LS, JPEG 2000, RLE, PackBits) and native pixel primitives.
 - Geometry derives from `ImagePositionPatient`, `ImageOrientationPatient`, `PixelSpacing`, and slice spacing; calibration derives from `RescaleSlope` / `RescaleIntercept`.
 
 **Reader behaviors (initial path)**: monochrome uncompressed instances with identity calibration; validate geometry and pixel layout; preserve the source metadata inventory; return exact samples; unsupported encoding or calibration fails before a series escapes (RITK-DICOM-STORED-IMPORT-001).
+
+**Metadata inventory (ADR 0055)**: `ritk-io::format::dicom` owns the source-owned retention inventory. `DicomPreservationSet` carries interpreted nodes, opaquely retained elements, and `DicomRetentionLoss { tag, reason }` records; `DicomRetentionReason` is `#[non_exhaustive]` and names the three cases where retention is impossible — `SequenceItemsUnavailable` (an SQ element exposed no items and could not be re-encoded), `ValueBytesUnavailable` (the value could not be re-encoded to bytes), and `NestingDepthExceeded` (recorded at the boundary element when recursion would pass `MAX_RETAINED_SEQUENCE_DEPTH`). The inventory travels on the reader's own metadata and is never derived from a destination. Losses are recorded **per slice** on `DicomSliceMetadata::preservation`, because a dropped element belongs to one instance and only the slice can scope it to an exact frame; the series-level `DicomReadMetadata::preservation` carries series-scope losses and is empty today. `inventory::dicom_metadata_losses` projects one set into the shared `FormatMetadataLoss` vocabulary that `prepare_conversion` consumes, and `inventory::dicom_series_metadata_losses` is the series-level entry point that walks every slice and scopes each loss to its own `ConversionLocation::Frame`, so a conversion preflight rejects a source whose metadata was not fully retained. Reading the series-level set alone reports a fully retained source for a series that dropped metadata — that is the case the series projection exists for.
 
 **Edge cases**:
 - `BitsAllocated`, `BitsStored`, `HighBit`, and `PixelRepresentation` determine the stored integer interpretation; `BitsAllocated=8, PixelRepresentation=1` maps through `i8`.
@@ -487,8 +498,9 @@ prepare_conversion(target, source_format, series, metadata_losses)
 - `RescaleSlope` / `RescaleIntercept` belong in `IntensityCalibration`, never baked into samples.
 - Gantry tilt and non-orthogonal slice ordering require a per-slice coordinate map (`CoordinateMap::SliceSeries`), not a single affine.
 - Encapsulated transfer syntaxes decode through `ritk-codecs`; the initial import path is uncompressed-only, with encapsulated decode a later increment.
+- Nesting past the retention bound is a recorded loss, not a silent truncation; a sequence that cannot be walked is first attempted as opaque bytes (Theorem 24.2).
 
-**Gap**: no stored import and no adapter yet; blocked on the DICOM metadata inventory and object-pixel preflight items.
+**Gap**: no stored import and no adapter yet. The metadata inventory (RITK-DICOM-METADATA-INVENTORY-001) and the object-pixel preflight (RITK-DICOM-OBJECT-PIXEL-PREFLIGHT-001) are complete, so only the stored read/write, its `ConversionTarget`/`ConversionAdapter`, and its calibration/unit mapping remain.
 
 ### Transform Theory
 

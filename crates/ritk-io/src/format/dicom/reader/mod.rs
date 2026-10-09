@@ -5,6 +5,7 @@
 //! - `parse`: per-file DICOM metadata extraction and preservation capture.
 //! - `pixel`: per-slice scalar pixel decode through the `ritk-dicom` backend.
 //! - `loader`: conversion from scanned series metadata to `Image<f32, B, 3>`.
+//! - `stored`: exact stored-sample import into a shared `StoredSeries`.
 //!
 //! # Invariants
 //!
@@ -24,6 +25,7 @@ mod parse;
 pub(super) mod pixel;
 mod preservation;
 pub(super) mod scan;
+pub(super) mod stored;
 pub(crate) mod types;
 
 #[cfg(test)]
@@ -38,6 +40,10 @@ pub use scan::{
     scan_dicom_directory_with_budget, scan_dicom_files, scan_dicom_files_with_budget,
     scan_dicom_instances, scan_dicom_instances_with_budget, scan_dicom_part10_bytes,
     scan_dicom_part10_bytes_with_budget, scan_dicom_path, scan_dicom_path_with_budget,
+};
+pub use stored::{
+    load_dicom_series_stored, read_dicom_series_stored, DicomStoredImportError, DicomStoredSeries,
+    DICOM_STORED_SOURCE,
 };
 // scan::scan_dicom_directory is accessed directly via `reader::scan::scan_dicom_directory`
 // by sibling modules (color.rs). No re-export needed.

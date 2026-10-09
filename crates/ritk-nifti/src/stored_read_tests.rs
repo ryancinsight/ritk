@@ -326,3 +326,169 @@ fn unknown_spatial_units_keep_the_millimeter_interpretation() {
         .expect("an absent unit field keeps LPS millimetres");
     assert_eq!(restored.volumes().len(), 1);
 }
+
+/// A NIfTI-1 document whose spatial forms the caller activates.
+///
+/// The sform carries a diagonal `(2, 3, 4)` mm grid at RAS origin
+/// `(10, 20, 30)`; the qform carries an identity rotation at RAS origin
+/// `(100, 200, 300)`. The two disagree, so a reader that consults the wrong
+/// form is *caught* rather than merely unobserved. `pixdim_xyz` is the
+/// fallback grid used only when neither form is active, and `declared_voxels`
+/// may exceed `voxel_bytes.len()` to build a short payload.
+fn raw_nifti1_spatial_document(
+    qform_code: i16,
+    sform_code: i16,
+    pixdim_xyz: [f32; 3],
+    voxel_bytes: &[u8],
+    declared_voxels: i16,
+) -> Vec<u8> {
+    let mut bytes = vec![0_u8; 352 + voxel_bytes.len()];
+    put_signed_int(&mut bytes, 0, 348, false); // sizeof_hdr
+    for (index, value) in [3_i16, declared_voxels, 1, 1, 1, 1, 1, 1]
+        .into_iter()
+        .enumerate()
+    {
+        put_signed_short(&mut bytes, 40 + index * 2, value, false); // dim
+    }
+    put_signed_short(&mut bytes, 70, 2, false); // datatype = u8
+    put_signed_short(&mut bytes, 72, 8, false); // bitpix
+    put_float(&mut bytes, 76, 1.0, false); // pixdim[0] = qfac
+    for (index, value) in pixdim_xyz.into_iter().enumerate() {
+        put_float(&mut bytes, 80 + index * 4, value, false); // pixdim[1..3]
+    }
+    put_float(&mut bytes, 108, 352.0, false); // vox_offset
+    bytes[123] = 2; // xyzt_units = millimetres
+    put_signed_short(&mut bytes, 252, qform_code, false);
+    put_signed_short(&mut bytes, 254, sform_code, false);
+    // qform: identity rotation (quatern_b/c/d stay zero), RAS origin (100, 200, 300).
+    for (index, value) in [100.0_f32, 200.0, 300.0].into_iter().enumerate() {
+        put_float(&mut bytes, 268 + index * 4, value, false); // qoffset_x/y/z
+    }
+    // sform: diagonal (2, 3, 4) mm grid at RAS origin (10, 20, 30).
+    for (index, value) in [2.0_f32, 0.0, 0.0, 10.0].into_iter().enumerate() {
+        put_float(&mut bytes, 280 + index * 4, value, false); // srow_x
+    }
+    for (index, value) in [0.0_f32, 3.0, 0.0, 20.0].into_iter().enumerate() {
+        put_float(&mut bytes, 296 + index * 4, value, false); // srow_y
+    }
+    for (index, value) in [0.0_f32, 0.0, 4.0, 30.0].into_iter().enumerate() {
+        put_float(&mut bytes, 312 + index * 4, value, false); // srow_z
+    }
+    bytes[344..348].copy_from_slice(b"n+1\0"); // single-file magic
+    bytes[352..].copy_from_slice(voxel_bytes);
+    bytes
+}
+
+/// Parse and decode a hand-built document into its stored series.
+fn decode_stored_series(bytes: &[u8]) -> StoredSeries {
+    NiftiDocument::from_bytes(bytes)
+        .expect("fixture parses")
+        .to_stored_series()
+        .expect("fixture decodes")
+}
+
+/// An active `sform` wins over an active `qform`.
+///
+/// The oracle is self-referential: the same fixture is read three ways —
+/// sform-only, qform-only, and both active — and the both-active read must
+/// equal the sform-only read. The `assert_ne!` proves the fixture actually
+/// distinguishes the forms, so a passing equality cannot be vacuous.
+#[test]
+fn an_active_sform_takes_precedence_over_an_active_qform() {
+    let voxels = [9_u8, 8];
+    let pixdim = [1.0_f32, 1.0, 1.0];
+    let sform_only = decode_stored_series(&raw_nifti1_spatial_document(0, 1, pixdim, &voxels, 2));
+    let qform_only = decode_stored_series(&raw_nifti1_spatial_document(1, 0, pixdim, &voxels, 2));
+    let both = decode_stored_series(&raw_nifti1_spatial_document(1, 1, pixdim, &voxels, 2));
+
+    let (sform_volume, qform_volume, both_volume) = (
+        &sform_only.volumes()[0],
+        &qform_only.volumes()[0],
+        &both.volumes()[0],
+    );
+
+    assert_ne!(
+        sform_volume.metadata().origin().as_slice(),
+        qform_volume.metadata().origin().as_slice(),
+        "the fixture must distinguish the two forms, or precedence is untested"
+    );
+
+    assert_eq!(
+        both_volume.metadata().origin().as_slice(),
+        sform_volume.metadata().origin().as_slice(),
+        "an active sform is authoritative for the origin"
+    );
+    assert_eq!(
+        both_volume.metadata().spacing().to_array(),
+        sform_volume.metadata().spacing().to_array(),
+        "an active sform is authoritative for the spacing"
+    );
+    // Pinned, so a *shared* regression in the spatial mapping is still caught.
+    // The sform's RAS rows are diag(2, 3, 4) at (10, 20, 30); RAS→LPS negates
+    // the x and y rows, and the internal order is [depth, row, col] = [z, y, x].
+    assert_eq!(both_volume.metadata().spacing().to_array(), [4.0, 3.0, 2.0]);
+    assert_eq!(
+        both_volume.metadata().origin().as_slice(),
+        &[-10.0, -20.0, 30.0]
+    );
+}
+
+/// With neither form active, geometry is the `pixdim` diagonal.
+#[test]
+fn absent_spatial_forms_fall_back_to_the_pixdim_diagonal() {
+    let series = decode_stored_series(&raw_nifti1_spatial_document(
+        0,
+        0,
+        [2.0, 3.0, 4.0],
+        &[9, 8],
+        2,
+    ));
+    let volume = &series.volumes()[0];
+
+    assert_eq!(
+        volume.metadata().spacing().to_array(),
+        [4.0, 3.0, 2.0],
+        "pixdim (2, 3, 4) reverses into [Δdepth, Δrow, Δcol]"
+    );
+    assert_eq!(volume.metadata().origin().as_slice(), &[0.0, 0.0, 0.0]);
+}
+
+/// A payload shorter than the declared volume is rejected before a series escapes.
+///
+/// The header declares two voxels and the file supplies one. `NiftiDocument`
+/// validates the payload span when it parses, so the rejection is a document
+/// error and `to_stored_series` is never reached — no partial series escapes.
+/// `NiftiStoredReadError::TruncatedPayload` is the decode loop's defensive
+/// counterpart to that check, not the primary rejection.
+#[test]
+fn a_payload_shorter_than_the_declared_volume_is_rejected_before_a_series_escapes() {
+    let bytes = raw_nifti1_spatial_document(0, 0, [1.0, 1.0, 1.0], &[9], 2);
+    let error = NiftiDocument::from_bytes(&bytes)
+        .expect_err("a one-byte payload cannot satisfy two declared voxels");
+
+    assert!(
+        format!("{error}").to_lowercase().contains("payload"),
+        "the rejection must name the payload, got: {error}"
+    );
+}
+
+/// A non-positive `pixdim` is not a grid, so the fallback form rejects it.
+#[test]
+fn a_non_positive_pixdim_is_reported_as_typed_loss() {
+    let document = NiftiDocument::from_bytes(&raw_nifti1_spatial_document(
+        0,
+        0,
+        [0.0, 1.0, 1.0],
+        &[9, 8],
+        2,
+    ))
+    .expect("the header itself is well formed");
+    let error = document
+        .to_stored_series()
+        .expect_err("a zero pixdim is not a physical grid");
+
+    assert!(
+        matches!(error, NiftiStoredReadError::Spatial(_)),
+        "an unrepresentable fallback grid is spatial typed loss, got: {error}"
+    );
+}

@@ -7,14 +7,18 @@
 //!
 //! RITK tensor shape is **[nz, ny, nx]** (Z varies slowest, X varies fastest).
 //! VTK `DIMENSIONS` expects **[nx, ny, nz]** order, so the first and last
-//! tensor dimensions are swapped when emitting the header.
+//! tensor dimensions are swapped when emitting the header. The file's X axis
+//! is therefore RITK's *column* axis.
 //!
-//! RITK spatial metadata (`Point`, `Spacing`) uses **[X, Y, Z]** order,
-//! matching VTK's `ORIGIN` and `SPACING` fields directly.
+//! `ORIGIN` is a scanner-space position, matching RITK's `Point` directly.
+//! `SPACING` is per-axis metadata in **[X, Y, Z]** order, so the file's X size
+//! is RITK `spacing[2]` (the column spacing); the triple is reversed by
+//! `reverse_spatial_axes` before it reaches this encoder.
 //!
 //! VTK stores scalar data with X varying fastest, matching RITK's memory
 //! layout. No data permutation is required.
 
+use super::reverse_spatial_axes;
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::Image;
@@ -39,7 +43,8 @@ use std::path::Path;
 /// - `dims` is `[nz, ny, nx]` — RITK tensor order (Z slowest, X fastest); the
 ///   emitted `DIMENSIONS` header field is permuted to VTK **[X, Y, Z]** order.
 /// - `origin` / `spacing` are `[ox, oy, oz]` / `[sx, sy, sz]` in VTK **[X, Y, Z]**
-///   order, matching the `ORIGIN` / `SPACING` fields directly.
+///   order, matching the `ORIGIN` / `SPACING` fields directly. This is file
+///   order, not RITK order; callers convert with `reverse_spatial_axes`.
 ///
 /// The header is always ASCII (VTK's `BINARY` declaration governs only the data
 /// section). The writer is flushed before return.
@@ -176,10 +181,13 @@ where
     let mut writer = BufWriter::new(file);
 
     let dims = image.shape(); // [nz, ny, nx]
-    let origin = image.origin(); // [X, Y, Z] order
-    let spacing = image.spacing(); // [X, Y, Z] order
+    let origin = image.origin();
+    let spacing = image.spacing(); // RITK [Δdepth, Δrow, Δcol]
     let origin_arr = [origin[0], origin[1], origin[2]];
-    let spacing_arr = [spacing[0], spacing[1], spacing[2]];
+    // `encode_vtk_flat` writes the X extent from `dims[2]`, so the file's X
+    // size must be the *column* spacing. Reversing here keeps `DIMENSIONS` and
+    // `SPACING` describing the same axis.
+    let spacing_arr = reverse_spatial_axes([spacing[0], spacing[1], spacing[2]]);
 
     let f32_vec = image.data_cow_on(backend);
 

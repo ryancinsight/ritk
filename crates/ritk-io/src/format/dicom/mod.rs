@@ -10,6 +10,7 @@ mod color_multiframe;
 #[cfg(any(test, feature = "test-util"))]
 pub mod file_set_index_fixture;
 mod identity;
+pub mod inventory;
 mod multiframe;
 pub mod networking;
 mod object_model;
@@ -35,6 +36,7 @@ pub use color_multiframe::{
     load_atlas_color_multiframe, load_color_multiframe_flat, load_color_multiframe_flat_from_bytes,
     load_color_multiframe_flat_from_bytes_with_budget, ColorMultiFrameVolume,
 };
+pub use inventory::dicom_metadata_losses;
 pub use multiframe::{
     load_dicom_multiframe, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
     load_dicom_multiframe_flat_from_bytes_with_budget, load_dicom_multiframe_native,
@@ -56,16 +58,18 @@ pub use networking::{
 };
 pub use object_model::{
     is_private_tag, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
-    DicomSequenceItem, DicomTag, DicomValue,
+    DicomRetentionLoss, DicomRetentionReason, DicomSequenceItem, DicomTag, DicomValue,
 };
 pub use reader::{
     literal_arraystring, load_dicom_from_series, load_dicom_from_series_with_budget,
-    load_dicom_series_with_metadata, load_dicom_series_with_metadata_with_budget,
+    load_dicom_series_stored, load_dicom_series_with_metadata,
+    load_dicom_series_with_metadata_with_budget, read_dicom_series_stored,
     read_dicom_series_with_metadata, read_dicom_series_with_metadata_with_budget,
     scan_dicom_directory_with_budget, scan_dicom_files, scan_dicom_files_with_budget,
     scan_dicom_instances, scan_dicom_instances_with_budget, scan_dicom_part10_bytes,
     scan_dicom_part10_bytes_with_budget, scan_dicom_path, scan_dicom_path_with_budget,
-    DicomReadBudget, DicomReadMetadata, DicomSliceMetadata, PatientPosition, ScannedDicomSeries,
+    DicomReadBudget, DicomReadMetadata, DicomSliceMetadata, DicomStoredImportError,
+    DicomStoredSeries, PatientPosition, ScannedDicomSeries, DICOM_STORED_SOURCE,
 };
 pub use rt_dose::{
     read_rt_dose, write_rt_dose, RtDoseGrid, RtDoseSummationType, RtDoseType, RT_DOSE_SOP_CLASS_UID,

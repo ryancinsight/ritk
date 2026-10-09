@@ -110,6 +110,15 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<f32, Backend, 3>> {
                     format!("Failed to read Analyze file (native): {}", path.display())
                 })
         }
+        ImageFormat::Minc => ImageReader::read(
+            &ritk_io::format::minc::native::MincReader::new(backend),
+            path,
+        )
+        .with_context(|| format!("Failed to read MINC file (native): {}", path.display())),
+        ImageFormat::Mif => {
+            ImageReader::read(&ritk_io::format::mif::native::MifReader::new(backend), path)
+                .with_context(|| format!("Failed to read MIF file (native): {}", path.display()))
+        }
     }
 }
 
@@ -118,12 +127,14 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<f32, Backend, 3>> {
 /// Write `image` to `path` using the explicitly supplied `format`.
 ///
 /// Accepted formats: `NIfTI`, `MetaImage`, `Nrrd`, `Mgh`, `Tiff`, `Vtk`,
-/// `Jpeg`, `Analyze`.
-/// `Png` is recognised but unsupported (returns a descriptive `Err`).
-/// `Dicom` write is supported via [`ritk_io::write_dicom_series`].
+/// `Jpeg`, `Analyze`, `Minc`, `Mif`, and `Png`.  `Png` writes a single
+/// `[1, rows, cols]` slice and rejects a volume.  `Dicom` is routed to
+/// [`ritk_io::write_dicom_series`] because a series is a directory of
+/// instances rather than one file.
 ///
 /// # Errors
-/// Returns an error when the format is unsupported or the writer fails.
+/// Returns an error when the writer fails, including when the format cannot
+/// represent the image's shape.
 pub(crate) fn write_image(
     path: &Path,
     image: &Image<f32, Backend, 3>,
@@ -156,14 +167,26 @@ pub(crate) fn write_image(
             image,
         )
         .with_context(|| format!("Failed to write VTK file: {}", path.display())),
-        ImageFormat::Png => Err(anyhow!(
-            "PNG output is not supported: ritk-io has no write_png implementation. \
-             Convert to NIfTI, MetaImage, or NRRD instead."
-        )),
+        ImageFormat::Png => {
+            ImageWriter::write(&ritk_io::format::png::native::PngWriter, path, image)
+                .with_context(|| format!("Failed to write PNG file: {}", path.display()))
+        }
         ImageFormat::Dicom => ritk_io::write_dicom_series::<Backend, _>(path, image)
             .with_context(|| format!("Failed to write DICOM series to: {}", path.display())),
         ImageFormat::Analyze => ritk_io::write_analyze::<Backend, _>(path, image)
             .with_context(|| format!("Failed to write Analyze file: {}", path.display())),
+        ImageFormat::Minc => ImageWriter::write(
+            &ritk_io::format::minc::native::MincWriter::new(Backend::default()),
+            path,
+            image,
+        )
+        .with_context(|| format!("Failed to write MINC file: {}", path.display())),
+        ImageFormat::Mif => ImageWriter::write(
+            &ritk_io::format::mif::native::MifWriter::new(Backend::default()),
+            path,
+            image,
+        )
+        .with_context(|| format!("Failed to write MIF file: {}", path.display())),
     }
 }
 
@@ -181,38 +204,24 @@ pub(crate) fn write_image_inferred(path: &Path, image: &Image<f32, Backend, 3>) 
 
 // ── Capability helpers ────────────────────────────────────────────────────────────
 
-/// True when `fmt` has an Atlas-native reader (ADR 0003 Phase A coverage).
+/// True when `fmt` has a reader the CLI can drive.
+///
+/// Delegates to [`ritk_io::is_native_read_capable`], the shared authority for
+/// which codecs the native dispatch can reach. One list means a format cannot
+/// be "capable" here and unreachable in `ritk-io`, or the reverse.
 pub(crate) fn is_read_capable(fmt: ImageFormat) -> bool {
-    matches!(
-        fmt,
-        ImageFormat::NIfTI
-            | ImageFormat::Nrrd
-            | ImageFormat::Analyze
-            | ImageFormat::Mgh
-            | ImageFormat::MetaImage
-            | ImageFormat::Tiff
-            | ImageFormat::Jpeg
-            | ImageFormat::Vtk
-            | ImageFormat::Png
-            | ImageFormat::Dicom
-    )
+    ritk_io::is_native_read_capable(fmt)
 }
 
-/// True when `fmt` has an Atlas-native writer (ADR 0003 Phase A coverage).
+/// True when `fmt` has a single-file writer the CLI can drive.
 ///
-/// Narrower than [`is_read_capable`]: PNG has no native writer.
+/// Delegates to [`ritk_io::is_native_write_capable`], which is deliberately
+/// narrower than [`write_image`]: DICOM output is a series *directory* handled
+/// by [`ritk_io::write_dicom_series`], not the one-file `ImageWriter` contract
+/// that `convert` and `segment` gate their output on. A format is write-capable
+/// here exactly when writing one path to it produces one file.
 pub(crate) fn is_write_capable(fmt: ImageFormat) -> bool {
-    matches!(
-        fmt,
-        ImageFormat::NIfTI
-            | ImageFormat::Nrrd
-            | ImageFormat::Analyze
-            | ImageFormat::Mgh
-            | ImageFormat::MetaImage
-            | ImageFormat::Tiff
-            | ImageFormat::Jpeg
-            | ImageFormat::Vtk
-    )
+    ritk_io::is_native_write_capable(fmt)
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
