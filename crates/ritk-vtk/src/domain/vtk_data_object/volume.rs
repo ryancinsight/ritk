@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use ritk_spatial::Direction;
 use thiserror::Error;
 
 use super::{AttributeArray, VtkImageData};
@@ -58,6 +59,56 @@ pub struct VtkImageVolume {
 }
 
 impl VtkImageVolume {
+    /// Construct a VTK volume from RITK tensor-ordered image metadata.
+    ///
+    /// `dimensions` and `spacing` use RITK's `[z, y, x]` tensor order, and
+    /// `direction` is row-major with columns in that same axis order. The
+    /// constructor maps those axes to VTK `[x, y, z]` while sharing the
+    /// x-fastest scalar payload without reordering it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use ritk_vtk::VtkImageVolume;
+    ///
+    /// let volume = VtkImageVolume::from_tensor_parts(
+    ///     [1, 2, 3],
+    ///     [10.0, 20.0, 30.0],
+    ///     [4.0, 2.0, 1.0],
+    ///     [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+    ///     1,
+    ///     Arc::new(vec![0.0_f32; 6]),
+    /// )
+    /// .expect("valid tensor geometry and payload");
+    ///
+    /// assert_eq!(volume.dimensions(), [3, 2, 1]);
+    /// assert_eq!(volume.spacing(), [1.0, 2.0, 4.0]);
+    /// ```
+    ///
+    /// # Errors
+    /// Returns a typed error when geometry or payload invariants are invalid.
+    pub fn from_tensor_parts(
+        dimensions: [usize; 3],
+        origin: [f64; 3],
+        spacing: [f64; 3],
+        direction: [f64; 9],
+        channels: usize,
+        scalars: Arc<Vec<f32>>,
+    ) -> Result<Self, VtkImageVolumeError> {
+        let tensor_direction = Direction::from_row_major(direction);
+        let vtk_direction = crate::domain::axis_order::tensor_to_vtk_direction(tensor_direction);
+
+        Self::from_parts(
+            crate::domain::axis_order::reverse_axes(dimensions),
+            origin,
+            crate::domain::axis_order::reverse_axes(spacing),
+            vtk_direction.to_row_major(),
+            channels,
+            scalars,
+        )
+    }
+
     /// Construct a direction-aware VTK volume without copying its payload.
     ///
     /// `dimensions` and `spacing` are ordered `[x, y, z]`. `scalars` must

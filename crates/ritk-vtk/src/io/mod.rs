@@ -36,6 +36,7 @@ pub use mesh_indexed::{
 
 pub(crate) mod legacy_write_attribute;
 pub(crate) mod read_helpers;
+mod structured_points;
 pub(crate) mod xml_helpers;
 pub mod xml_write_attr;
 
@@ -98,6 +99,22 @@ mod tests {
     use ritk_spatial::{CoordinateMap, CurvilinearArray, Direction, Point, Spacing};
     use tempfile::tempdir;
 
+    const MAX_GENERATED_FILE_BYTES: usize = 4 * 1024;
+
+    fn scalar_header(
+        dimensions: [usize; 3],
+        point_data_count: usize,
+        encoding: &str,
+        scalar_type: &str,
+        component_count: Option<&str>,
+    ) -> String {
+        let component_field = component_count.map_or(String::new(), |count| format!(" {count}"));
+        format!(
+            "# vtk DataFile Version 3.0\nfixture\n{encoding}\nDATASET STRUCTURED_POINTS\nDIMENSIONS {} {} {}\nORIGIN 0 0 0\nSPACING 1 1 1\nPOINT_DATA {point_data_count}\nSCALARS scalars {scalar_type}{component_field}\nLOOKUP_TABLE default\n",
+            dimensions[0], dimensions[1], dimensions[2]
+        )
+    }
+
     fn native_image(
         direction: Direction<3>,
         coordinate_map: CoordinateMap,
@@ -125,15 +142,10 @@ mod tests {
             .collect();
         let origin = Point::new([1.0, -2.0, 3.5]);
         let spacing = Spacing::new([0.5, 0.75, 1.25]);
-        let image = Image::from_flat_on(
-            values.clone(),
-            shape,
-            origin,
-            spacing,
-            Direction::identity(),
-            &backend,
-        )
-        .expect("native image");
+        let direction = crate::domain::axis_order::vtk_image_direction();
+        let image =
+            Image::from_flat_on(values.clone(), shape, origin, spacing, direction, &backend)
+                .expect("native image");
         let directory = tempdir().expect("temporary directory");
         let path = directory.path().join("roundtrip.vtk");
 
@@ -146,11 +158,16 @@ mod tests {
         assert_eq!(loaded.data_slice().expect("contiguous image"), values);
         assert_eq!(*loaded.origin(), origin);
         assert_eq!(*loaded.spacing(), spacing);
-        assert_eq!(*loaded.direction(), Direction::identity());
+        let (_, file_dims, file_origin, file_spacing) =
+            read_vtk_flat(&path).expect("read VTK fields");
+        assert_eq!(file_dims, [shape[2], shape[1], shape[0]]);
+        assert_eq!(file_origin, [origin[0], origin[1], origin[2]]);
+        assert_eq!(file_spacing, [1.25, 0.75, 0.5]);
+        assert_eq!(*loaded.direction(), direction);
     }
 
     #[test]
-    fn legacy_writer_rejects_non_identity_direction_before_creating_output() {
+    fn legacy_writer_rejects_unrepresentable_direction_before_creating_output() {
         let direction = Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);
         let image = native_image(direction, CoordinateMap::Cartesian);
         let directory = tempdir().expect("temporary directory");
@@ -158,11 +175,11 @@ mod tests {
 
         let error = VtkWriter::new(SequentialBackend)
             .write(&path, &image)
-            .expect_err("legacy structured points cannot encode image direction");
+            .expect_err("legacy structured points cannot encode this direction");
 
         assert_eq!(
             error.to_string(),
-            "legacy VTK structured points cannot preserve a non-identity direction matrix"
+            "legacy VTK structured points cannot preserve a direction matrix outside the VTK-aligned ZYX-to-XYZ axis order"
         );
         assert!(!path.exists(), "rejection must happen before file creation");
     }
@@ -193,5 +210,262 @@ mod tests {
             original,
             "rejection must happen before truncating the destination"
         );
+    }
+
+    #[test]
+    fn legacy_writer_rejects_invalid_spacing_before_touching_output() {
+        let mut spacing = Spacing::new([0.5, 0.75, 1.25]);
+        spacing[1] = 0.0;
+        let image = Image::from_flat_on(
+            vec![1.25, -4.5],
+            [1, 1, 2],
+            Point::new([1.0, -2.0, 3.5]),
+            spacing,
+            crate::domain::axis_order::vtk_image_direction(),
+            &SequentialBackend,
+        )
+        .expect("image data may carry malformed spacing for writer validation");
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("invalid-spacing.vtk");
+        let original = b"preserve existing output";
+        std::fs::write(&path, original).expect("create prior output");
+
+        let error = VtkWriter::new(SequentialBackend)
+            .write(&path, &image)
+            .expect_err("legacy VTK spacing must be finite and positive");
+
+        assert_eq!(
+            error.to_string(),
+            "legacy VTK structured points requires finite, positive SPACING at axis 1; got 0"
+        );
+        assert_eq!(
+            std::fs::read(&path).expect("read prior output"),
+            original,
+            "rejection must happen before truncating the destination"
+        );
+
+        let absent = directory.path().join("invalid-spacing-new.vtk");
+        let error = VtkWriter::new(SequentialBackend)
+            .write(&absent, &image)
+            .expect_err("invalid spacing must fail for a new destination");
+        assert_eq!(
+            error.to_string(),
+            "legacy VTK structured points requires finite, positive SPACING at axis 1; got 0"
+        );
+        assert!(
+            !absent.exists(),
+            "rejection must happen before file creation"
+        );
+    }
+
+    #[test]
+    fn legacy_writer_rejects_zero_dimensions_before_touching_output() {
+        let image = Image::from_flat_on(
+            Vec::new(),
+            [0, 1, 1],
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            crate::domain::axis_order::vtk_image_direction(),
+            &SequentialBackend,
+        )
+        .expect("empty tensors can represent zero-sized image dimensions");
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("zero-dimensions.vtk");
+        let original = b"preserve existing output";
+        std::fs::write(&path, original).expect("create prior output");
+
+        let error = VtkWriter::new(SequentialBackend)
+            .write(&path, &image)
+            .expect_err("legacy structured points dimensions must be positive");
+
+        assert_eq!(
+            error.to_string(),
+            "legacy VTK structured points dimensions must be positive, got [1, 1, 0]"
+        );
+        assert_eq!(
+            std::fs::read(&path).expect("read prior output"),
+            original,
+            "rejection must happen before truncating the destination"
+        );
+
+        let absent = directory.path().join("zero-dimensions-new.vtk");
+        let error = VtkWriter::new(SequentialBackend)
+            .write(&absent, &image)
+            .expect_err("zero-sized dimensions must fail for new destinations");
+        assert_eq!(
+            error.to_string(),
+            "legacy VTK structured points dimensions must be positive, got [1, 1, 0]"
+        );
+        assert!(
+            !absent.exists(),
+            "rejection must happen before file creation"
+        );
+    }
+
+    #[test]
+    fn legacy_reader_returns_an_error_for_nonpositive_spacing() {
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("invalid-spacing.vtk");
+        let header = b"# vtk DataFile Version 3.0\nfixture\nBINARY\nDATASET STRUCTURED_POINTS\nDIMENSIONS 1 1 1\nORIGIN 0 0 0\nSPACING 1 0 1\nPOINT_DATA 1\nSCALARS scalars float 1\nLOOKUP_TABLE default\n";
+        std::fs::write(&path, header).expect("write malformed-spacing header");
+
+        let flat_error = read_vtk_flat(&path)
+            .expect_err("flat reader validates spacing before reading a payload");
+        assert!(
+            format!("{flat_error:#}")
+                .contains("legacy VTK structured points requires finite, positive SPACING"),
+            "unexpected flat reader error: {flat_error:#}"
+        );
+
+        let error = VtkReader::new(SequentialBackend)
+            .read(&path)
+            .expect_err("nonpositive spacing is malformed geometry");
+
+        assert!(
+            format!("{error:#}")
+                .contains("VTK SPACING components must be finite and strictly positive"),
+            "unexpected parser error: {error:#}"
+        );
+    }
+
+    #[test]
+    fn legacy_reader_rejects_zero_dimensions_before_reading_payload() {
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("zero-dimensions.vtk");
+        let header = b"# vtk DataFile Version 3.0\nfixture\nBINARY\nDATASET STRUCTURED_POINTS\nDIMENSIONS 0 1 1\nORIGIN 0 0 0\nSPACING 1 1 1\nPOINT_DATA 0\nSCALARS scalars float 1\nLOOKUP_TABLE default\n";
+        std::fs::write(&path, header).expect("write zero-dimension header");
+
+        let error =
+            read_vtk_flat(&path).expect_err("zero dimensions are invalid before payload decoding");
+
+        assert!(
+            format!("{error:#}")
+                .contains("legacy VTK structured points dimensions must be positive"),
+            "unexpected reader error: {error:#}"
+        );
+    }
+
+    #[test]
+    fn legacy_reader_rejects_unrepresentable_f32_count_before_payload_read() {
+        let maximum = usize::try_from(isize::MAX).expect("positive pointer maximum fits usize");
+        let count = maximum
+            .checked_div(std::mem::size_of::<f32>())
+            .expect("f32 has a nonzero size")
+            .checked_add(1)
+            .expect("one value beyond the allocation limit fits usize");
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("unrepresentable-sample-count.vtk");
+        let header = scalar_header([count, 1, 1], count, "ASCII", "float", Some("1"));
+        std::fs::write(&path, header).expect("write unrepresentable sample-count header");
+
+        let error = read_vtk_flat(&path).expect_err("unrepresentable Vec layout must be rejected");
+
+        assert!(
+            format!("{error:#}").contains("cannot fit a Vec<f32> allocation"),
+            "unexpected parser error: {error:#}"
+        );
+    }
+
+    #[test]
+    fn legacy_reader_rejects_unrepresentable_binary_payload_before_read() {
+        let maximum = usize::try_from(isize::MAX).expect("positive pointer maximum fits usize");
+        let count = maximum
+            .checked_div(std::mem::size_of::<f64>())
+            .expect("f64 has a nonzero size")
+            .checked_add(1)
+            .expect("one value beyond the allocation limit fits usize");
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("unrepresentable-binary-payload.vtk");
+        let header = scalar_header([count, 1, 1], count, "BINARY", "double", Some("1"));
+        std::fs::write(&path, header).expect("write unrepresentable binary header");
+
+        let error =
+            read_vtk_flat(&path).expect_err("unrepresentable payload layout must be rejected");
+
+        assert!(
+            format!("{error:#}").contains("cannot fit a Vec<u8> allocation"),
+            "unexpected parser error: {error:#}"
+        );
+    }
+
+    #[test]
+    fn legacy_reader_rejects_invalid_or_multicomponent_scalars() {
+        for (component_count, expected_error) in [
+            ("0", "unsupported VTK SCALARS component count"),
+            ("2", "unsupported VTK SCALARS component count"),
+            ("many", "bad SCALARS component count"),
+        ] {
+            let directory = tempdir().expect("temporary directory");
+            let path = directory.path().join("invalid-scalar-components.vtk");
+            let mut contents = scalar_header([2, 1, 1], 2, "ASCII", "float", Some(component_count));
+            contents.push_str("10 11 20 21\n");
+            std::fs::write(&path, contents).expect("write scalar component-count fixture");
+
+            let error = read_vtk_flat(&path)
+                .expect_err("unsupported scalar components must not be truncated");
+
+            assert!(
+                format!("{error:#}").contains(expected_error),
+                "unexpected parser error for component count {component_count}: {error:#}"
+            );
+        }
+    }
+
+    #[test]
+    fn legacy_reader_rejects_scalar_keywords_with_trailing_text() {
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("invalid-scalar-keyword.vtk");
+        let contents = scalar_header([2, 1, 1], 2, "ASCII", "float", Some("1"))
+            .replace("SCALARS scalars", "SCALARS_BROKEN scalars")
+            + "10 20\n";
+        std::fs::write(&path, contents).expect("write invalid scalar keyword fixture");
+
+        let error =
+            read_vtk_flat(&path).expect_err("a prefixed keyword must not be accepted as SCALARS");
+
+        assert!(
+            format!("{error:#}").contains("VTK header missing SCALARS"),
+            "unexpected parser error: {error:#}"
+        );
+    }
+
+    #[test]
+    fn legacy_reader_defaults_omitted_scalar_component_count_to_one() {
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("implicit-scalar-component.vtk");
+        let mut contents = scalar_header([2, 1, 1], 2, "ASCII", "float", None);
+        contents.push_str("10 20\n");
+        std::fs::write(&path, contents).expect("write single-component fixture");
+
+        let (values, dimensions, origin, spacing) =
+            read_vtk_flat(&path).expect("omitted component count defaults to one");
+
+        assert_eq!(values, [10.0, 20.0]);
+        assert_eq!(dimensions, [2, 1, 1]);
+        assert_eq!(origin, [0.0; 3]);
+        assert_eq!(spacing, [1.0; 3]);
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn legacy_reader_handles_bounded_arbitrary_bytes_without_panicking(
+            bytes in proptest::collection::vec(
+                proptest::prelude::any::<u8>(),
+                0..=MAX_GENERATED_FILE_BYTES
+            )
+        ) {
+            let directory = tempdir().expect("temporary directory");
+            let path = directory.path().join("arbitrary.vtk");
+            std::fs::write(&path, bytes).expect("write generated parser input");
+
+            if let Ok((values, dimensions, _origin, spacing)) = read_vtk_flat(&path) {
+                let sample_count = dimensions
+                    .iter()
+                    .try_fold(1_usize, |count, dimension| count.checked_mul(*dimension));
+                assert!(dimensions.iter().all(|dimension| *dimension > 0));
+                assert_eq!(sample_count, Some(values.len()));
+                assert!(spacing.iter().all(|value| value.is_finite() && *value > 0.0));
+            }
+        }
     }
 }

@@ -81,13 +81,11 @@ fn is_single_dicom_file(path: &Path) -> bool {
         return false;
     }
 
-    let has_dicom_ext = path
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| ext.eq_ignore_ascii_case("dcm") || ext.eq_ignore_ascii_case("dicom"))
-        .unwrap_or(false);
-
-    has_dicom_ext || has_dicom_preamble(path)
+    match ritk_io::ImageFormat::from_path(path) {
+        Some(ritk_io::ImageFormat::Dicom) => true,
+        Some(_) => false,
+        None => has_dicom_preamble(path),
+    }
 }
 
 fn has_dicom_preamble(path: &Path) -> bool {

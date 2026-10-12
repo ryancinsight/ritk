@@ -14,6 +14,8 @@ use anyhow::Result;
 /// - `origin`: `[f64; 3]` — physical coordinate of the first voxel.
 /// - `direction`: `[f64; 9]` — row-major 3×3 direction cosine matrix.
 ///
+/// The format reader expresses this geometry in the returned image's axis order.
+///
 /// # Contract
 /// The `image` must be 3-dimensional. The direction matrix must be 3×3
 /// (9 elements), which is guaranteed by `Direction<3>`.
@@ -34,8 +36,8 @@ pub(super) fn extract_spatial_metadata(
 /// Convert a native 3-D image (with no DICOM metadata) into a
 /// [`LoadedVolume`], recording `source_path` as the origin.
 ///
-/// This function is also used by `mod.rs` for MetaImage, NRRD, and MGH
-/// format loading paths, which produce an `Image` without DICOM metadata.
+/// The path dispatcher uses this for every RITK image format that produces an
+/// `Image` without DICOM metadata.
 pub(super) fn volume_from_image_no_meta(
     image: ritk_image::Image<f32, coeus_core::SequentialBackend, 3>,
     source_path: PathBuf,

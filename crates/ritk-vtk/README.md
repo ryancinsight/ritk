@@ -16,9 +16,18 @@ count and shared scalar samples. `to_vtk_image_data` is an explicit copy
 boundary for legacy serializers and filters whose attribute arrays own a
 `Vec<f32>`.
 
-The legacy structured-points writer represents only Cartesian images with an
-identity direction matrix. It rejects other coordinate maps and directions
-before creating or truncating the output path.
+The legacy structured-points reader maps VTK XYZ dimensions and spacing to
+RITK's ZYX tensor axes while preserving physical origin in XYZ order. This
+axis mapping lives in `ritk-vtk`: `VtkImageVolume::from_tensor_parts` accepts
+RITK-order metadata and constructs the VTK-order handoff. Consumer crates pass
+the metadata without format-specific reordering. The legacy writer accepts
+Cartesian images with the corresponding VTK-aligned direction matrix
+`[[0, 0, 1], [0, 1, 0], [1, 0, 0]]` and finite, positive spacing; it rejects
+unrepresentable geometry before creating or truncating the output path.
+These dimension and spacing requirements follow the
+[VTK legacy dataset specification](https://docs.vtk.org/en/v9.6.1/vtk_file_formats/vtk_legacy_file_format.html#dataset-format).
+The scalar image path accepts one component per point and rejects
+multi-component declarations rather than discarding samples.
 
 ## Usage
 

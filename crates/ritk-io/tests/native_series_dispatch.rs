@@ -5,7 +5,7 @@ use ritk_io::{
 };
 use ritk_spatial::{Direction, Point, Spacing};
 
-fn native_volume() -> NativeImage {
+fn native_volume(direction: Direction<3>) -> NativeImage {
     let dims = [2usize, 2, 3];
     let values: Vec<f32> = (0..12).map(|index| index as f32 * 0.5 - 1.0).collect();
     NativeImage::from_flat(
@@ -13,7 +13,7 @@ fn native_volume() -> NativeImage {
         dims,
         Point::new([1.0, 2.0, 3.0]),
         Spacing::new([0.5, 0.75, 1.25]),
-        Direction::identity(),
+        direction,
     )
     .expect("test image")
 }
@@ -120,7 +120,7 @@ fn native_dispatch_reads_mgh_and_mgz_series() {
 fn native_dispatch_reads_compound_mgh_gzip_suffix() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("volume.mgh.gz");
-    let expected = native_volume();
+    let expected = native_volume(Direction::identity());
     write_image_native(&path, &expected).expect("write compressed MGH");
     let actual = read_image_native(&path).expect("read compressed MGH through dispatch");
     assert_eq!(actual.shape(), expected.shape());
@@ -278,7 +278,9 @@ fn cross_codec_series_differential_nifti_nrrd_mgh() {
 fn native_dispatch_rejects_unsupported_series_format() {
     let dir = tempfile::tempdir().expect("tempdir");
     let vtk_path = dir.path().join("image.vtk");
-    write_image_native(&vtk_path, &native_volume()).expect("write VTK image");
+
+    let direction = Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]);
+    write_image_native(&vtk_path, &native_volume(direction)).expect("write VTK image");
     let error = read_image_series_native(&vtk_path).expect_err("VTK has no series reader");
     assert!(format!("{error:#}").contains("not yet supported"));
 }

@@ -157,11 +157,15 @@ mod tests {
 
     use crate::commands::Backend;
 
+    fn vtk_direction() -> Direction<3> {
+        Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])
+    }
+
     /// Build a small deterministic 3-D image for testing.
     ///
     /// Shape is [3, 4, 5] (nz=3, ny=4, nx=5).  Voxel value at flat index i is
     /// `i as f32`.  Origin and spacing are identity.
-    fn make_test_image() -> Image<f32, Backend, 3> {
+    fn make_test_image(direction: Direction<3>) -> Image<f32, Backend, 3> {
         let n = 3 * 4 * 5;
         let values: Vec<f32> = (0..n).map(|i| i as f32).collect();
         Image::from_flat_on(
@@ -169,7 +173,7 @@ mod tests {
             [3, 4, 5],
             Point::new([0.0; 3]),
             Spacing::new([1.0, 1.5, 2.0]),
-            Direction::identity(),
+            direction,
             &Backend::default(),
         )
         .expect("invariant: image data matches shape")
@@ -185,7 +189,7 @@ mod tests {
         let input = dir.path().join("input.nii");
         let output = dir.path().join("output.nii");
 
-        let image = make_test_image();
+        let image = make_test_image(Direction::identity());
         write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
@@ -214,7 +218,7 @@ mod tests {
         let input = dir.path().join("input.nii");
         let output = dir.path().join("output.mha");
 
-        let image = make_test_image();
+        let image = make_test_image(Direction::identity());
         write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
@@ -239,7 +243,7 @@ mod tests {
         let input = dir.path().join("input.nii");
         let output = dir.path().join("output.nrrd");
 
-        let image = make_test_image();
+        let image = make_test_image(Direction::identity());
         write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
@@ -265,7 +269,7 @@ mod tests {
         // Deliberately give the output a non-NIfTI extension.
         let output = dir.path().join("output.nii");
 
-        let image = make_test_image();
+        let image = make_test_image(Direction::identity());
         write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
@@ -288,7 +292,7 @@ mod tests {
         let input = dir.path().join("input.nii");
         let output = dir.path().join("output.xyz");
 
-        let image = make_test_image();
+        let image = make_test_image(Direction::identity());
         write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         let result = run(ConvertArgs {
@@ -331,7 +335,7 @@ mod tests {
         let input = dir.path().join("input.mha");
         let output = dir.path().join("output.nii");
 
-        let image = make_test_image();
+        let image = make_test_image(Direction::identity());
         write_image(&input, &image, ImageFormat::MetaImage).unwrap();
 
         run(ConvertArgs {
@@ -396,7 +400,7 @@ mod tests {
         let native_output = dir.path().join("via_convert.nii");
         let direct_output = dir.path().join("via_native_direct.nii");
 
-        let image = make_test_image();
+        let image = make_test_image(Direction::identity());
         write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
@@ -421,7 +425,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let input = dir.path().join("input.vtk");
         let output = dir.path().join("output.nii");
-        let image = make_test_image();
+        let image = make_test_image(vtk_direction());
         write_image(&input, &image, ImageFormat::Vtk).unwrap();
 
         run(ConvertArgs {
@@ -433,6 +437,9 @@ mod tests {
         let recovered = read_image(&output).unwrap();
         assert_eq!(recovered.shape(), image.shape());
         assert_eq!(recovered.data_slice().unwrap(), image.data_slice().unwrap());
+        assert_eq!(recovered.origin(), image.origin());
+        assert_eq!(recovered.spacing(), image.spacing());
+        assert_eq!(recovered.direction(), image.direction());
     }
 
     /// VTK output is encoded through the native writer.
@@ -442,7 +449,7 @@ mod tests {
         let input = dir.path().join("input.nii");
         let output = dir.path().join("output.vtk");
 
-        let image = make_test_image();
+        let image = make_test_image(vtk_direction());
         write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
@@ -454,5 +461,8 @@ mod tests {
         let recovered = read_image(&output).unwrap();
         assert_eq!(recovered.shape(), image.shape());
         assert_eq!(recovered.data_slice().unwrap(), image.data_slice().unwrap());
+        assert_eq!(recovered.origin(), image.origin());
+        assert_eq!(recovered.spacing(), image.spacing());
+        assert_eq!(recovered.direction(), image.direction());
     }
 }
