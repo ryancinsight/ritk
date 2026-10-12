@@ -13,23 +13,23 @@ name = "ritk"
 path = "src/main.rs"
 
 [dependencies]
-ritk-core = { path = "../ritk-core", version = "0.10.0" }
-ritk-image = { path = "../ritk-image", version = "0.4.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.3.0" }
-ritk-statistics = { path = "../ritk-statistics", version = "0.4.0" }
-ritk-interpolation = { path = "../ritk-interpolation", version = "0.5.0" }
+ritk-core = { path = "../ritk-core", version = "0.11.0" }
+ritk-image = { path = "../ritk-image", version = "0.5.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.4.0" }
+ritk-statistics = { path = "../ritk-statistics", version = "0.5.0" }
+ritk-interpolation = { path = "../ritk-interpolation", version = "0.6.0" }
 serde_json = { workspace = true }
-ritk-transform = { path = "../ritk-transform", version = "0.2.0" }
+ritk-transform = { path = "../ritk-transform", version = "0.3.0" }
 ritk-filter = { path = "../ritk-filter", version = "0.4.0" }
-ritk-segmentation = { path = "../ritk-segmentation", version = "0.3.0" }
-ritk-io = { path = "../ritk-io", version = "0.3.0" }
-ritk-registration = { path = "../ritk-registration", version = "0.54.0" }
+ritk-segmentation = { path = "../ritk-segmentation", version = "0.4.0" }
+ritk-io = { path = "../ritk-io", version = "0.4.0" }
+ritk-registration = { path = "../ritk-registration", version = "0.55.0" }
 ritk-diffusion = { path = "../ritk-diffusion", version = "0.1.0" }
-ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.2.0" }
+ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.3.0" }
 ritk-tractography = { path = "../ritk-tractography", version = "0.1.0" }
 ritk-connectome = { path = "../ritk-connectome", version = "0.1.0" }
 ritk-parcellation = { path = "../ritk-parcellation", version = "0.1.0" }
-ritk-nifti = { path = "../ritk-nifti", version = "0.2.0" }
+ritk-nifti = { path = "../ritk-nifti", version = "0.3.0" }
 ritk-tck = { path = "../ritk-tck", version = "0.1.0" }
 ritk-trk = { path = "../ritk-trk", version = "0.1.0" }
 ritk-trx = { path = "../ritk-trx", version = "0.1.0" }
@@ -45,8 +45,8 @@ mnemosyne = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-ritk-core = { path = "../ritk-core", features = ["test-helpers"], version = "0.10.0" }
-ritk-nifti = { path = "../ritk-nifti", version = "0.2.0" }
+ritk-core = { path = "../ritk-core", features = ["test-helpers"], version = "0.11.0" }
+ritk-nifti = { path = "../ritk-nifti", version = "0.3.0" }
 
 [lints]
 workspace = true
