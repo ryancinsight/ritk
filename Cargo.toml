@@ -176,12 +176,12 @@ dicom-core = "0.10"
 dicom-ul = "0.10"
 dicom-pixeldata = { version = "0.10", default-features = false }
 dicom-transfer-syntax-registry = { version = "0.10", default-features = false }
-consus-hdf5 = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
-consus-core = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
-consus-compression = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "deflate"] }
-consus-io = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
-consus-onnx = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
-consus-raster = { version = "0.1", git = "https://github.com/ryancinsight/consus.git" }
+consus-hdf5 = { version = "0.2.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
+consus-core = { version = "0.2.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
+consus-compression = { version = "0.2.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "deflate"] }
+consus-io = { version = "0.2.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
+consus-onnx = { version = "0.2.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
+consus-raster = { version = "0.2", git = "https://github.com/ryancinsight/consus.git" }
 
 arrayvec = "0.7"
 
