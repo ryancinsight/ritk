@@ -109,8 +109,8 @@ ritk-trx = { path = "crates/ritk-trx", version = "0.1.0" }
 # `[lib] name`, so no source changes.
 gaia = { package = "gaia-mesh", version = "0.5.2", git = "https://github.com/ryancinsight/gaia", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
-coeus-nn = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
-coeus-optim = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
+coeus-nn = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git", rev = "393a464d16b8a401baade9df127e740fb24d65f9" }
+coeus-optim = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git", rev = "393a464d16b8a401baade9df127e740fb24d65f9" }
 pyo3 = { version = "0.29.2", default-features = false }
 numpy = { version = "0.29.0", git = "https://github.com/PyO3/rust-numpy", rev = "9df402373716a60f0e7825b6043568abe4e63b46" }
 dicom = { version = "0.10.0", default-features = false }
