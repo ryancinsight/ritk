@@ -8,6 +8,47 @@
 This document tracks performance characteristics, known bottlenecks, and
 optimization opportunities across the RITK codebase.
 
+## SEC-446-05 — Parser allocation bounding audit (no code change required)
+
+Audit of every first-party image parser's count-driven allocation — the sample
+buffers whose size a header field names (`dim`, `DimSize`, NRRD `dimension`, MGH
+`width × height × depth`, DICOM frame count, …). A header naming a
+multi-gigabyte payload on a tiny file must fail typed after a bounded
+allocation, never abort the process. Conclusion: **all audited parsers already
+bound their speculative allocation**, and the adversarial fixtures that pin the
+property pass. The item is retired on this evidence, not on new code.
+
+| Parser | Bound mechanism | Evidence |
+| --- | --- | --- |
+| NRRD | `dimension` is validated `2..=4` *before* `parse_quoted_strings` reserves `dimension` strings; raw declared length is checked before payload storage is allocated | `crates/ritk-nrrd/src/reader/volume/payload.rs:141`, `crates/ritk-nrrd/src/spatial.rs:110`, `crates/ritk-nrrd/src/tests/stored/payload.rs:417` |
+| NIfTI | `volume_byte_range(byte_len)` rejects a payload shorter than the declared volume before any `vec![…; voxel_count]` | `crates/ritk-nifti/src/header/types.rs:596`, `:609` |
+| MetaImage | decompressed output is capped by `DimSize`-derived limit over a `read_to_end` buffer, then the final length must equal `expected_payload_bytes` exactly | `crates/ritk-metaimage/src/reader.rs:234`, `:253` |
+| MGH | streamed in 16 KiB input chunks; output grows only from `reserve_from_confirmed_input`; MGZ inflation is capped by `MAX_MGZ_UNCOMPRESSED_BYTES` | `crates/ritk-mgh/src/reader/voxel_decode.rs:12`, `:51`, `:121` |
+| Analyze | `.img` length must equal `vox_offset + voxel_count × width` exactly before `decode_payload` reserves | `crates/ritk-analyze/src/reader.rs:202`, `:223` |
+| VTK / PLY | payload reads go through `read_exact_bounded`; ASCII and binary count fields reject hostile counts | `crates/ritk-vtk/src/io/reader.rs:372` |
+| TIFF | `validate_page_length` compares the decoded page against the expected sample count before reservation | `crates/ritk-tiff/src/reader.rs:240` |
+| DICOM | element values read through `read_bounded` against the remaining input; multiframe volumes reserve `bounded_capacity` | `crates/ritk-dicom/src/backend/parse_budget.rs:88`, `crates/ritk-io/src/format/dicom/multiframe/reader/volume.rs:188` |
+| GIFTI | per-array capacity is capped at 2¹⁶ elements and grows from parsed input | `crates/ritk-gifti/src/decode.rs:133` |
+| JPEG | encoded-byte ceiling `MAX_FILE_ENCODED_BYTES` (256 MiB) is enforced before the buffer reservation and re-checked while reading | `crates/ritk-jpeg/src/decode.rs:13`, `:26` |
+
+**Evidence** (nextest, `--locked`, at the merged tip `5622a84b1`): 20 adversarial
+fixtures across 12 crates pass — MGH, MetaImage, NRRD (raw length, header limit,
+axis bounds, detached-file budget), NIfTI (short payload, byte order), TIFF
+(hostile RGB geometry), VTK (ASCII, binary, PLY vertex counts), DICOM (parse
+budget, color multiframe, catalog bounds, directory cycles).
+
+**Out of scope:** PNG decoding delegates to the external `image` crate, so its
+allocation policy is not first-party and is not covered here.
+
+**Residual risk, and the next increment:** the bound above caps *speculative*
+allocation, not the true output size — a header that agrees with a genuinely huge
+file still allocates the full volume. The remaining wins are constant-factor and
+memory-footprint: NIfTI's `read_f32_voxel`-per-voxel loop
+(`crates/ritk-nifti/src/reader.rs:182`) re-derives each voxel's offset
+arithmetically and decodes one lane at a time, while MGH's chunked
+`decode_stream` already converts whole chunks; batching NIfTI's conversion the
+same way is the identified optimization, not a correctness fix.
+
 ## Sprint 392 — Grayscale morphology: O(N·(2r+1)³) → O(N) (separable sliding window)
 
 Flat-box grayscale erosion/dilation (`erode_3d`/`dilate_3d`, and the
