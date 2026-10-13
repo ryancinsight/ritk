@@ -114,8 +114,8 @@ coeus-optim = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus
 pyo3 = { version = "0.29.2", default-features = false }
 numpy = { version = "0.29.0", git = "https://github.com/PyO3/rust-numpy", rev = "9df402373716a60f0e7825b6043568abe4e63b46" }
 dicom = { version = "0.10.0", default-features = false }
-moirai = { package = "moirai-runtime", version = "0.7.1", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
-moirai-pal = { package = "moirai-pal", version = "0.7.1", git = "https://github.com/ryancinsight/Moirai.git", default-features = false }
+moirai = { package = "moirai-runtime", version = "0.7.1", git = "https://github.com/ryancinsight/Moirai.git", rev = "6c769e71b0ddaafa73db615e78983f0d7473a841", features = ["melinoe"] }
+moirai-pal = { package = "moirai-pal", version = "0.7.1", git = "https://github.com/ryancinsight/Moirai.git", rev = "6c769e71b0ddaafa73db615e78983f0d7473a841", default-features = false }
 metis-platform = { package = "metis-platform", version = "0.1.0", git = "https://github.com/ryancinsight/metis.git" }
 metis-web = { package = "metis-web", version = "0.1.0", git = "https://github.com/ryancinsight/metis.git" }
 metis-ui-lang = { package = "metis-ui-lang", version = "0.1.0", git = "https://github.com/ryancinsight/metis.git" }
