@@ -4,22 +4,17 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use dicom::core::{Tag, VR};
+use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
-use dicom_core::header::Header;
 use ritk_dicom::PixelSignedness;
 
-use super::preservation::{known_handled_tags, parse_sequence_item, tag_key};
+use super::preservation::preserve_unhandled_elements;
 use super::types::{
     cs_to_arraystring, da_to_arraystring, parse_patient_position, tm_to_arraystring,
     uid_to_arraystring, DicomSliceMetadata, SeriesFirstSeen,
 };
 use crate::format::dicom::color_common::read_required_unsigned;
-use crate::format::dicom::object_model::{
-    is_private_tag, DicomElementClass, DicomObjectNode, DicomPreservationSet,
-    DicomPreservedElement, DicomTag, DicomValue,
-};
-use arrayvec::ArrayString;
+use crate::format::dicom::object_model::DicomPreservationSet;
 
 /// Reject a PixelSpacing pair that cannot describe a physical grid.
 ///
@@ -356,78 +351,7 @@ pub(super) fn extract_dicom_metadata(
         }
     }
 
-    // --- Full element preservation ---
-    // Capture all non-handled elements into the slice preservation model.
-    {
-        let handled = known_handled_tags();
-        for element in obj {
-            let tag = element.tag();
-            let key = tag_key(tag.group(), tag.element());
-            if handled.contains(&key) {
-                continue;
-            }
-            let dicom_tag = DicomTag::new(tag.group(), tag.element());
-            let vr_str = element.vr().to_string();
-            let element_class = if is_private_tag(dicom_tag) {
-                DicomElementClass::Private
-            } else {
-                DicomElementClass::Standard
-            };
-            if element.vr() == VR::SQ {
-                if let Some(sub_items) = element.value().items() {
-                    let parsed: Vec<_> = sub_items
-                        .iter()
-                        .map(|i| parse_sequence_item(i, 0))
-                        .collect();
-                    slice_meta.preservation.object.insert(DicomObjectNode {
-                        tag: dicom_tag,
-                        vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
-                        value: DicomValue::Sequence(parsed),
-                        element_class,
-                        source: None,
-                    });
-                }
-            } else {
-                // Binary VRs bypass to_str(): dicom-rs 0.8 decimal-formats them
-                // silently instead of erroring, which corrupts raw payloads.
-                let is_binary_vr = matches!(
-                    element.vr(),
-                    VR::OB | VR::OW | VR::OD | VR::OF | VR::OL | VR::UN
-                );
-                if is_binary_vr {
-                    if let Ok(bytes) = element.to_bytes() {
-                        slice_meta.preservation.preserve(DicomPreservedElement::new(
-                            dicom_tag,
-                            Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
-                            bytes.to_vec(),
-                        ));
-                    }
-                } else {
-                    match element.to_str() {
-                        Ok(s) => {
-                            slice_meta.preservation.object.insert(DicomObjectNode {
-                                tag: dicom_tag,
-                                vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
-                                value: DicomValue::Text(s.to_string()),
-                                element_class,
-                                source: None,
-                            });
-                        }
-                        _ => {
-                            if let Ok(bytes) = element.to_bytes() {
-                                slice_meta.preservation.preserve(DicomPreservedElement::new(
-                                    dicom_tag,
-                                    Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
-                                    bytes.to_vec(),
-                                ));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
+    preserve_unhandled_elements(obj, &mut slice_meta.preservation);
     Ok((slice_meta, file_dim))
 }
 

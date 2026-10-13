@@ -16,6 +16,7 @@
   - [Example: MGH and MGZ Round Trip](examples/mgh_roundtrip.md)
 - [MINC2 Format Boundary](minc_format.md)
   - [Example: MINC2 Round Trip](examples/minc_roundtrip.md)
+- [MRtrix `.mif` Format Boundary](mif_format.md)
 - [TIFF and BigTIFF Format Boundary](tiff_format.md)
   - [Example: Multi-page TIFF Round Trip](examples/tiff_roundtrip.md)
 - [PNG Format Boundary](png_format.md)

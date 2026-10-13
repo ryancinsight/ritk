@@ -13,23 +13,10 @@
 //! rejects that variant explicitly instead of interpreting NIfTI spatial fields
 //! as Analyze history fields.
 //!
-//! # Header Layout (key fields)
+//! # Header Layout
 //!
-//! | Offset | Type  | Field             | Meaning                                  |
-//! |--------|-------|-------------------|------------------------------------------|
-//! |      0 | i32   | `sizeof_hdr`      | Must equal 348                           |
-//! |     40 | i16   | `dim[0]`          | Number of dimensions (typically 4)       |
-//! |     42 | i16   | `dim[1]`          | X size (nx)                              |
-//! |     44 | i16   | `dim[2]`          | Y size (ny)                              |
-//! |     46 | i16   | `dim[3]`          | Z size (nz)                              |
-//! |     70 | i16   | `datatype`        | 2=u8, 4=i16, 8=i32, 16=f32, 64=f64      |
-//! |     72 | i16   | `bitpix`          | Bits per voxel                           |
-//! |     80 | f32   | `pixdim[1]`       | X spacing (mm)                           |
-//! |     84 | f32   | `pixdim[2]`       | Y spacing (mm)                           |
-//! |     88 | f32   | `pixdim[3]`       | Z spacing (mm)                           |
-//! |    108 | f32   | `vox_offset`      | Byte offset to data in `.img` (0 = start)|
-//! |    112 | f32   | `funused1`        | Intensity scale factor (0 or 1 = no-op)  |
-//! |    253 | i16×5 | `originator`      | Voxel-space origin (x, y, z, 0, 0)       |
+//! The 348-byte field map is declared once in `crate::header`, which this
+//! reader, the writer, and the stored-sample conversion all share.
 //!
 //! # Axis Convention
 //!
@@ -60,15 +47,14 @@
 
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
-use consus_core::{read_integer, ByteOrder};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::mem::size_of;
 use std::path::Path;
 
-use crate::codec::{read_le, HDR_SIZE};
 pub use crate::codec::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_UNSIGNED_CHAR};
+use crate::header::{self, AnalyzeDatatype, AnalyzeHeader};
 
 const DECODE_CHUNK_BYTES: usize = 8 * 1024;
 
@@ -119,50 +105,6 @@ impl AnalyzeVoxel for f64 {
                 .try_into()
                 .expect("invariant: f64 Analyze chunks contain eight bytes"),
         ) as f32
-    }
-}
-
-#[derive(Clone, Copy)]
-enum AnalyzeDatatype {
-    UnsignedChar,
-    SignedShort,
-    SignedInt,
-    Float,
-    Double,
-}
-
-impl AnalyzeDatatype {
-    fn parse(code: i16) -> Result<Self> {
-        match code {
-            DT_UNSIGNED_CHAR => Ok(Self::UnsignedChar),
-            DT_SIGNED_SHORT => Ok(Self::SignedShort),
-            DT_SIGNED_INT => Ok(Self::SignedInt),
-            DT_FLOAT => Ok(Self::Float),
-            DT_DOUBLE => Ok(Self::Double),
-            other => Err(anyhow!(
-                "Unsupported Analyze datatype {other}. Supported codes: 2 (u8), 4 (i16), 8 (i32), 16 (f32), 64 (f64)."
-            )),
-        }
-    }
-
-    fn width(self) -> usize {
-        match self {
-            Self::UnsignedChar => size_of::<u8>(),
-            Self::SignedShort => size_of::<i16>(),
-            Self::SignedInt => size_of::<i32>(),
-            Self::Float => size_of::<f32>(),
-            Self::Double => size_of::<f64>(),
-        }
-    }
-
-    fn decode(self, reader: &mut File, voxel_count: usize, scale: f32) -> Result<Vec<f32>> {
-        match self {
-            Self::UnsignedChar => decode_payload::<u8>(reader, voxel_count, scale),
-            Self::SignedShort => decode_payload::<i16>(reader, voxel_count, scale),
-            Self::SignedInt => decode_payload::<i32>(reader, voxel_count, scale),
-            Self::Float => decode_payload::<f32>(reader, voxel_count, scale),
-            Self::Double => decode_payload::<f64>(reader, voxel_count, scale),
-        }
     }
 }
 
@@ -219,150 +161,20 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     let path = path.as_ref();
 
     // Derive sibling paths regardless of which file the caller passed.
-    let hdr_path = path.with_extension("hdr");
-    let img_path = path.with_extension("img");
-
-    // ── Read and validate the 348-byte header ─────────────────────────────────
-    let mut hdr_file = File::open(&hdr_path).context("Cannot open Analyze header")?;
-    let header_len = hdr_file
-        .metadata()
-        .context("Cannot inspect Analyze header")?
-        .len();
-    if header_len < HDR_SIZE as u64 {
-        return Err(anyhow!(
-            "Invalid Analyze header length: expected {HDR_SIZE} bytes, found {header_len}"
-        ));
-    }
-    let mut hdr = [0u8; HDR_SIZE];
-    hdr_file
-        .read_exact(&mut hdr)
-        .with_context(|| "Cannot read 348-byte header".to_string())?;
-    if hdr[344..348] == *b"ni1\0" {
-        return Err(anyhow!(
-            "Unsupported paired NIfTI-1 header (ni1 magic); use the NIfTI reader with a single-file .nii dataset"
-        ));
-    }
-    if header_len != HDR_SIZE as u64 {
-        return Err(anyhow!(
-            "Invalid Analyze header length: expected {HDR_SIZE} bytes, found {header_len}"
-        ));
-    }
-
-    // sizeof_hdr must be exactly 348. Identify the unsupported byte order so a
-    // big-endian file is not reported as arbitrary header corruption.
-    let sizeof_hdr = read_le::<i32>(&hdr, 0);
-    if sizeof_hdr != HDR_SIZE as i32 {
-        if read_integer::<i32>(&hdr, ByteOrder::BigEndian) == Some(HDR_SIZE as i32) {
-            return Err(anyhow!(
-                "Unsupported big-endian Analyze file; RITK currently accepts little-endian Analyze 7.5 only"
-            ));
-        }
-        return Err(anyhow!(
-            "Invalid Analyze file: sizeof_hdr={} (expected 348)",
-            sizeof_hdr
-        ));
-    }
-
-    // ── Parse image dimensions ────────────────────────────────────────────────
-    let dimension_count = read_le::<i16>(&hdr, 40);
-    if !(3..=4).contains(&dimension_count) {
-        return Err(anyhow!(
-            "Unsupported Analyze dimension count {dimension_count}; the RITK reader accepts one 3-D volume"
-        ));
-    }
-    let nx = positive_dimension(read_le::<i16>(&hdr, 42), "nx")?;
-    let ny = positive_dimension(read_le::<i16>(&hdr, 44), "ny")?;
-    let nz = positive_dimension(read_le::<i16>(&hdr, 46), "nz")?;
-    if dimension_count == 4 {
-        let volume_count = read_le::<i16>(&hdr, 48);
-        if volume_count != 1 {
-            return Err(anyhow!(
-                "Unsupported Analyze volume count {volume_count}; the RITK reader accepts exactly one 3-D volume"
-            ));
-        }
-    }
-
+    let header = header::parse(&path.with_extension("hdr"))?;
+    let [nz, ny, nx] = header.shape;
     let voxel_count = nx
         .checked_mul(ny)
         .and_then(|plane| plane.checked_mul(nz))
         .context("Analyze voxel count overflows usize")?;
-
-    // ── Parse voxel type ──────────────────────────────────────────────────────
-    let datatype_code = read_le::<i16>(&hdr, 70);
-    let datatype = AnalyzeDatatype::parse(datatype_code)?;
-    let bytes_per_voxel = datatype.width();
-    let bitpix = read_le::<i16>(&hdr, 72);
-    let expected_bitpix = i16::try_from(bytes_per_voxel * 8)
-        .expect("invariant: supported Analyze voxel widths fit in i16 bits");
-    if bitpix != expected_bitpix {
-        return Err(anyhow!(
-            "Analyze bitpix {bitpix} does not match datatype {datatype_code}; expected {expected_bitpix}"
-        ));
-    }
-
-    // ── Parse physical spacing (pixdim[1..3]) ─────────────────────────────────
-    let sx_raw = f64::from(finite_header_value(read_le::<f32>(&hdr, 80), "pixdim[1]")?);
-    let sy_raw = f64::from(finite_header_value(read_le::<f32>(&hdr, 84), "pixdim[2]")?);
-    let sz_raw = f64::from(finite_header_value(read_le::<f32>(&hdr, 88), "pixdim[3]")?);
-    // Fall back to unit spacing when stored value is zero or negative.
-    let sx = if sx_raw > 0.0 { sx_raw } else { 1.0 };
-    let sy = if sy_raw > 0.0 { sy_raw } else { 1.0 };
-    let sz = if sz_raw > 0.0 { sz_raw } else { 1.0 };
-
-    // ── Parse scale factor (funused1 at offset 112) ───────────────────────────
-    let scale_raw = finite_header_value(read_le::<f32>(&hdr, 112), "funused1 scale")?;
-    let scale = if scale_raw == 0.0 { 1.0_f32 } else { scale_raw };
-
-    // ── Parse vox_offset (offset 108) ────────────────────────────────────────
-    let vox_offset_raw = f64::from(finite_header_value(
-        read_le::<f32>(&hdr, 108),
-        "vox_offset",
-    )?);
-    if vox_offset_raw < 0.0 || vox_offset_raw.fract() != 0.0 || vox_offset_raw > u64::MAX as f64 {
-        return Err(anyhow!(
-            "Unsupported Analyze vox_offset {vox_offset_raw}; expected a non-negative whole-byte offset"
-        ));
-    }
-    let vox_offset = vox_offset_raw as u64;
-
-    // ── Parse origin from originator[10] (5 × i16 at offset 253) ─────────────
-    let ox_vox = read_le::<i16>(&hdr, 253) as f64;
-    let oy_vox = read_le::<i16>(&hdr, 255) as f64;
-    let oz_vox = read_le::<i16>(&hdr, 257) as f64;
-    let ox = ox_vox * sx;
-    let oy = oy_vox * sy;
-    let oz = oz_vox * sz;
-
-    // ── Validate and stream .img data ────────────────────────────────────────
-    let expected_bytes = voxel_count
-        .checked_mul(bytes_per_voxel)
-        .context("Analyze payload byte count overflows usize")?;
-    let expected_bytes_u64 =
-        u64::try_from(expected_bytes).context("Analyze payload byte count exceeds u64")?;
-    let expected_file_len = vox_offset
-        .checked_add(expected_bytes_u64)
-        .context("Analyze payload end offset overflows u64")?;
-    let mut img_file = File::open(&img_path).context("Cannot open Analyze data file")?;
-    let actual_file_len = img_file
-        .metadata()
-        .context("Cannot inspect Analyze data file")?
-        .len();
-    if actual_file_len != expected_file_len {
-        return Err(anyhow!(
-            "Analyze .img length mismatch: expected {expected_file_len} bytes ({vox_offset} offset + {expected_bytes} payload), found {actual_file_len}"
-        ));
-    }
-    img_file
-        .seek(SeekFrom::Start(vox_offset))
-        .context("Cannot seek to Analyze voxel payload")?;
-
-    let vals = datatype.decode(&mut img_file, voxel_count, scale)?;
+    let mut img_file = open_payload(&path.with_extension("img"), &header, voxel_count)?;
+    let vals = decode_voxels(header.datatype, &mut img_file, voxel_count, header.scale)?;
 
     tracing::debug!(
         nx,
         ny,
         nz,
-        datatype = datatype_code,
+        datatype = header.datatype.code(),
         "decode_analyze: complete"
     );
 
@@ -370,34 +182,67 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     // `[sz, sy, sx]`; origin stays a world-space `[x, y, z]` point.
     Ok(DecodedAnalyze {
         data: vals,
-        dims: [nz, ny, nx],
-        origin: Point::new([ox, oy, oz]),
-        spacing: Spacing::new([sz, sy, sx]),
+        dims: header.shape,
+        origin: header.origin,
+        spacing: header.spacing,
         direction: Direction::identity(),
     })
 }
 
-fn positive_dimension(raw: i16, name: &str) -> Result<usize> {
-    usize::try_from(raw)
-        .map_err(|_| anyhow!("Invalid Analyze dimension {name}={raw}; expected a positive value"))
-        .and_then(|value| {
-            if value == 0 {
-                Err(anyhow!(
-                    "Invalid Analyze dimension {name}=0; expected a positive value"
-                ))
-            } else {
-                Ok(value)
-            }
-        })
+/// Opens the `.img` payload and validates it against the parsed header.
+///
+/// The declared length is `vox_offset` plus the exact voxel bytes, so a file
+/// that is short, long, or offset differently is rejected before any voxel is
+/// read. The returned handle is positioned at the first payload byte.
+///
+/// # Errors
+///
+/// Returns an error when the payload cannot be opened or inspected, or when its
+/// length differs from the header's declared `vox_offset` plus payload size.
+pub(crate) fn open_payload(
+    img_path: &Path,
+    header: &AnalyzeHeader,
+    voxel_count: usize,
+) -> Result<File> {
+    let expected_bytes = voxel_count
+        .checked_mul(header.datatype.width())
+        .context("Analyze payload byte count overflows usize")?;
+    let expected_bytes_u64 =
+        u64::try_from(expected_bytes).context("Analyze payload byte count exceeds u64")?;
+    let expected_file_len = header
+        .vox_offset
+        .checked_add(expected_bytes_u64)
+        .context("Analyze payload end offset overflows u64")?;
+    let mut img_file = File::open(img_path).context("Cannot open Analyze data file")?;
+    let actual_file_len = img_file
+        .metadata()
+        .context("Cannot inspect Analyze data file")?
+        .len();
+    if actual_file_len != expected_file_len {
+        return Err(anyhow!(
+            "Analyze .img length mismatch: expected {expected_file_len} bytes ({} offset + {expected_bytes} payload), found {actual_file_len}",
+            header.vox_offset
+        ));
+    }
+    img_file
+        .seek(SeekFrom::Start(header.vox_offset))
+        .context("Cannot seek to Analyze voxel payload")?;
+    Ok(img_file)
 }
 
-fn finite_header_value(raw: f32, field: &str) -> Result<f32> {
-    if raw.is_finite() {
-        Ok(raw)
-    } else {
-        Err(anyhow!(
-            "Invalid Analyze {field}: expected a finite value, found {raw}"
-        ))
+/// Decodes stored voxels into `f32`, applying the header's intensity scale.
+fn decode_voxels(
+    datatype: AnalyzeDatatype,
+    reader: &mut File,
+    voxel_count: usize,
+    scale: f32,
+) -> Result<Vec<f32>> {
+    match datatype {
+        AnalyzeDatatype::UnsignedChar => decode_payload::<u8>(reader, voxel_count, scale),
+        AnalyzeDatatype::SignedShort => decode_payload::<i16>(reader, voxel_count, scale),
+        AnalyzeDatatype::SignedInt => decode_payload::<i32>(reader, voxel_count, scale),
+        AnalyzeDatatype::Float => decode_payload::<f32>(reader, voxel_count, scale),
+        AnalyzeDatatype::Double => decode_payload::<f64>(reader, voxel_count, scale),
     }
 }
 

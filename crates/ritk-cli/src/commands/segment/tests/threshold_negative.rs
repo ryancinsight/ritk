@@ -42,13 +42,15 @@ fn automatic_threshold_rejects_unknown_input_format_before_io() {
 #[test]
 fn automatic_threshold_rejects_known_nonnative_output_before_io() {
     let dir = tempdir().unwrap();
-    let output = dir.path().join("output.png");
+    // DICOM is the one format with a reader but no single-file writer: its
+    // output is a series directory, so it cannot be a `segment` destination.
+    let output = dir.path().join("output.dcm");
     let error = run(default_args(
         dir.path().join("input.nii"),
         output.clone(),
         SegmentMethod::Otsu,
     ))
-    .expect_err("PNG output lacks native threshold support");
+    .expect_err("DICOM output is a series directory, not a native segment destination");
     assert_eq!(
         error.to_string(),
         "automatic thresholding requires native input/output formats"

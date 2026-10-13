@@ -83,3 +83,31 @@ fn preservation_set_tracks_object_and_raw_elements() {
     assert_eq!(set.preserved.len(), 1);
     assert_eq!(set.preserved[0].bytes, vec![1, 2, 3, 4]);
 }
+
+/// A set that retains nothing but records a loss is not empty: the loss is the
+/// whole point, and callers use `is_empty` to decide whether the source was
+/// fully accounted for.
+#[test]
+fn preservation_set_counts_recorded_losses_as_content() {
+    let mut set = DicomPreservationSet::new();
+    assert!(set.is_empty());
+    assert!(!set.has_losses());
+
+    set.record_loss(
+        DicomTag::new(0x0040, 0xA730),
+        DicomRetentionReason::NestingDepthExceeded,
+    );
+
+    assert!(!set.is_empty(), "a recorded loss is content");
+    assert!(set.has_losses());
+    assert_eq!(set.losses.len(), 1);
+    assert_eq!(set.losses[0].tag, DicomTag::new(0x0040, 0xA730));
+    assert_eq!(
+        set.losses[0].reason,
+        DicomRetentionReason::NestingDepthExceeded
+    );
+    assert_eq!(
+        DicomRetentionReason::NestingDepthExceeded.describe(),
+        "sequence nesting exceeded the retention limit"
+    );
+}

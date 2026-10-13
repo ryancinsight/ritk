@@ -8,7 +8,9 @@
 
 use crate::array_utils::copy_array4_to_vec;
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_to_vec, into_py_image, numpy_array_direction, vec_to_image, PyImage};
+use crate::image::{
+    image_to_vec, into_py_image, numpy_array_direction, source_geometry, vec_to_image, PyImage,
+};
 use coeus_core::MoiraiBackend;
 use numpy::{PyArray1, PyArray4, PyArrayMethods, PyReadonlyArray4, PyUntypedArrayMethods};
 use pyo3::prelude::*;
@@ -154,12 +156,13 @@ pub fn physical_point_image_source(
             [spacing.0, spacing.1, spacing.2],
         )
     });
+    let (origin, spacing, direction) = source_geometry(origin, spacing);
     let vol = ColorVolume::<f32, MoiraiBackend, 3>::from_component_buffers(
         &[cx, cy, cz],
         dims,
-        Point::new([origin.2, origin.1, origin.0]),
-        Spacing::new([spacing.2, spacing.1, spacing.0]),
-        numpy_array_direction(),
+        origin,
+        spacing,
+        direction,
         &MoiraiBackend,
     )
     .map_err(|e| RitkPyError::runtime(e.to_string()))?;

@@ -14,11 +14,24 @@
 //! Both produce the same flat byte sequence, so no in-memory permutation
 //! is required.
 
+//! # Stored samples
+//!
+//! [`reader`] and [`writer`] carry a volume as `f32` and apply the header's
+//! intensity scale. [`stored_series`] is the exact counterpart: it keeps each
+//! voxel in its declared representation and carries the scale as an
+//! intensity-calibration value.
+
 pub(crate) mod codec;
+pub(crate) mod header;
 pub mod reader;
+pub mod stored_series;
 pub mod writer;
 
 pub use reader::{read_analyze, AnalyzeReader};
+pub use stored_series::{
+    read_analyze_stored, write_analyze_stored, AnalyzeStoredReadError, AnalyzeStoredSeries,
+    AnalyzeStoredSeriesError, AnalyzeStoredSeriesRejection, ANALYZE_STORED_SOURCE,
+};
 pub use writer::{write_analyze, AnalyzeWriter};
 
 // Re-export datatype codes for documentation and test helpers.

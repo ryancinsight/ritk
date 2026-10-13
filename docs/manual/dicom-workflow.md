@@ -447,6 +447,30 @@ without keeping a second encoded copy for the viewer lifetime. Irregular
 spacing still uses the bounded frame set required by its interpolation
 contract.
 
+## Exact stored-sample ingress
+
+The compute loaders above return `Image<f32, B, 3>` and apply the modality
+transform, which rounds wide integers and discards the source's own sample
+representation. `read_dicom_series_stored` and `load_dicom_series_stored` are
+the stored counterpart: they return a `DicomStoredSeries` whose single
+`StoredVolume` keeps the source pixels at their exact fixed width beside the
+same `DicomReadMetadata` inventory. The initial path accepts monochrome,
+uncompressed, little-endian instances with identity rescale and uniform slice
+spacing. A compressed syntax, a big-endian syntax, a non-monochrome photometry,
+a non-identity rescale, a `HighBit` other than `BitsStored − 1`, an unsupported
+`BitsAllocated`, or slice positions that would need resampling each returns a
+typed `DicomStoredImportError` before any `StoredSeries` escapes. Interpolating
+a stored payload would fabricate samples the source never recorded, so an
+irregular series is refused rather than resampled.
+
+`DicomStoredSeries::metadata_losses` projects the instance inventory into the
+shared `FormatMetadataLoss` vocabulary, and
+`DicomStoredSeries::prepare_conversion` runs the shared preflight with those
+losses before any destination exists, so a series that dropped a field the
+stored model cannot retain is rejected instead of written with missing
+metadata. The target-format adapter itself is delivered by
+[RITK-DICOM-CONVERSION-001](../../backlog.md#RITK-DICOM-CONVERSION-001).
+
 The Windows lifecycle measurement below reruns the saved public CT through the
 same Métis command three times at a 100 ms sampling interval. It compares the
 old collected-frame path with the bounded destination-write path; the metric is

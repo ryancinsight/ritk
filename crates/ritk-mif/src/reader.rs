@@ -171,9 +171,17 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
         decompose_transform_affine(&matrix, &vox_sizes)
     } else {
         // No transform: axis-aligned identity direction, zero origin.
+        //
+        // The `vox:` field is X, Y, Z (MRtrix3), so it arrives as
+        // `[Δcol, Δrow, Δdepth]` and must be reversed into RITK
+        // `[Δdepth, Δrow, Δcol]` — the same order `decompose_transform_affine`
+        // derives from a transform block. Reading the three components through
+        // index-for-index transposes the spacing, and the round-trip suite
+        // cannot see it: `write_mif` always emits a `transform:`, so this
+        // branch is reached only by files this crate did not write.
         (
             Point::new([0.0, 0.0, 0.0]),
-            Spacing::new([vox_sizes[0], vox_sizes[1], vox_sizes[2]]),
+            Spacing::new([vox_sizes[2], vox_sizes[1], vox_sizes[0]]),
             Direction::identity(),
         )
     };

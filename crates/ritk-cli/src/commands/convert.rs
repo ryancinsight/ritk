@@ -9,8 +9,10 @@
 //! `.nhdr`), PNG (`.png`), DICOM (`.dcm`).
 //!
 //! # Supported output formats
-//! NIfTI, MetaImage, NRRD.  PNG and DICOM output are not supported because
-//! `ritk-io` does not export write implementations for those formats.
+//! Every format with a single-file native writer: NIfTI, MetaImage, NRRD, MGH,
+//! TIFF, VTK, JPEG, Analyze, MINC, MIF, and PNG.  PNG writes one
+//! `[1, rows, cols]` slice and rejects a volume.  DICOM output is not offered
+//! here because a series is a directory of instances, not one file.
 #![expect(
     clippy::print_stdout,
     reason = "RITK-LINT-1: ritk-cli is the application output layer"
@@ -40,6 +42,9 @@ pub enum OutputFormat {
     Vtk,
     Jpeg,
     Analyze,
+    Minc,
+    Mif,
+    Png,
 }
 
 /// Arguments for the `convert` subcommand.
@@ -97,11 +102,14 @@ pub fn run(args: ConvertArgs) -> Result<()> {
             OutputFormat::Vtk => ImageFormat::Vtk,
             OutputFormat::Jpeg => ImageFormat::Jpeg,
             OutputFormat::Analyze => ImageFormat::Analyze,
+            OutputFormat::Minc => ImageFormat::Minc,
+            OutputFormat::Mif => ImageFormat::Mif,
+            OutputFormat::Png => ImageFormat::Png,
         },
         None => infer_format(&args.output).ok_or_else(|| {
             anyhow!(
                 "Cannot infer output format from path '{}'. \
-                     Specify --format nifti|metaimage|nrrd.",
+                     Specify --format nifti|metaimage|nrrd|mgh|tiff|vtk|jpeg|analyze|minc|mif|png.",
                 args.output.display()
             )
         })?,
@@ -348,43 +356,63 @@ mod tests {
 
     // ── ADR 0003 Phase A: native-dispatch coverage ────────────────────────────
 
-    /// `is_read_capable`/`is_write_capable` must agree exactly
-    /// with the native format matrix: VTK is now read and written through its
-    /// native adapter, while PNG and DICOM remain read-only. A drift here would silently misroute a
-    /// command onto the wrong substrate without any other test catching it.
+    /// The CLI's capability predicates are the `ritk-io` dispatch's, not a
+    /// second copy that can drift.
+    ///
+    /// Enumerates every [`ImageFormat`] variant and asserts the CLI predicate
+    /// equals the shared authority, so a format added to `ritk-io` is
+    /// automatically visible here and a local re-narrowing is caught. The
+    /// pinned expectations below exist because the two lists agreeing is not
+    /// evidence they are right — a *shared* regression would satisfy the loop.
     #[test]
-    fn test_native_capability_predicates_match_adr_0003_matrix() {
+    fn test_capability_predicates_delegate_to_ritk_io_dispatch() {
         use super::super::{is_read_capable, is_write_capable};
+        use ritk_io::{is_native_read_capable, is_native_write_capable};
 
-        let read_and_write = [
+        let all = [
             ImageFormat::NIfTI,
-            ImageFormat::Nrrd,
-            ImageFormat::Analyze,
-            ImageFormat::Mgh,
             ImageFormat::MetaImage,
+            ImageFormat::Nrrd,
+            ImageFormat::Png,
+            ImageFormat::Dicom,
+            ImageFormat::Mgh,
             ImageFormat::Tiff,
-            ImageFormat::Jpeg,
             ImageFormat::Vtk,
+            ImageFormat::Jpeg,
+            ImageFormat::Analyze,
+            ImageFormat::Minc,
+            ImageFormat::Mif,
         ];
-        for fmt in read_and_write {
-            assert!(is_read_capable(fmt), "{fmt:?} must read natively");
-            assert!(is_write_capable(fmt), "{fmt:?} must write natively");
+        for fmt in all {
+            assert_eq!(
+                is_read_capable(fmt),
+                is_native_read_capable(fmt),
+                "{fmt:?}: CLI read capability must be the ritk-io authority"
+            );
+            assert_eq!(
+                is_write_capable(fmt),
+                is_native_write_capable(fmt),
+                "{fmt:?}: CLI write capability must be the ritk-io authority"
+            );
         }
 
-        assert!(is_read_capable(ImageFormat::Png), "PNG reads natively");
         assert!(
-            !is_write_capable(ImageFormat::Png),
-            "PNG has no native writer"
+            is_read_capable(ImageFormat::Png) && is_write_capable(ImageFormat::Png),
+            "PNG now reads and writes natively"
         );
-
+        assert!(
+            is_read_capable(ImageFormat::Minc) && is_write_capable(ImageFormat::Minc),
+            "MINC now routes through ritk-io in both directions"
+        );
+        assert!(
+            is_read_capable(ImageFormat::Mif) && is_write_capable(ImageFormat::Mif),
+            "MIF now routes through ritk-io in both directions"
+        );
         assert!(is_read_capable(ImageFormat::Dicom), "DICOM reads natively");
         assert!(
             !is_write_capable(ImageFormat::Dicom),
-            "DICOM has no native writer yet"
+            "DICOM output is a series directory, not a single file"
         );
-
-        assert!(is_read_capable(ImageFormat::Vtk), "VTK reads natively");
-        assert!(is_write_capable(ImageFormat::Vtk), "VTK writes natively");
     }
 
     /// Conversion preserves native NIfTI serialization bytes when no format

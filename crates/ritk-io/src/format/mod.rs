@@ -9,6 +9,7 @@ pub mod dicomweb;
 pub mod jpeg;
 pub mod metaimage;
 pub mod mgh;
+pub mod mif;
 pub mod minc;
 pub mod nifti;
 pub mod nrrd;

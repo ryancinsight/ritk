@@ -85,6 +85,14 @@ unsupported header fields; document conversion does not silently discard them.
 destination. Validation errors leave an existing destination unchanged; an I/O
 failure after opening the file can leave partial output.
 
+Both construction and the write guard run the shared stored-series preflight.
+`NrrdStoredSeriesTarget` implements `ritk_image_io::ConversionAdapter`, and
+`NrrdDocument::from_stored_series` runs it before a document exists. A source
+whose sample type, geometry, calibration, axis, or coordinate map NRRD cannot
+represent is reported as a typed `NrrdStoredSeriesRejection` scoped to the
+series or to the exact volume, or as a `ConversionCapabilityReport` when the
+gap is a declared feature category rather than an input-dependent value.
+
 The [NRRD format manual](https://ryancinsight.github.io/ritk/nrrd_format.html)
 documents axis ordering, spatial metadata, acquisition series, payload rules,
 and the stored-sample writer's calibration limits.

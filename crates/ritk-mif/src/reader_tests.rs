@@ -129,6 +129,53 @@ fn single_volume_round_trip_preserves_spatial_metadata() {
     }
 }
 
+/// A transform-less `.mif` reverses its `vox:` sizes into RITK axis order.
+///
+/// `vox:` is X, Y, Z (MRtrix3), and the writer emits it as
+/// `[Δcol, Δrow, Δdepth]` because file X is the column axis. A header with no
+/// `transform:` block — legal, and what most third-party writers produce —
+/// must therefore land those sizes in RITK `[Δdepth, Δrow, Δcol]`, the order
+/// `decompose_transform_affine` derives from a transform block. Reading them
+/// index-for-index transposes the spacing, and the round-trip suite cannot see
+/// it: `write_mif` always emits a `transform:`, so this branch is reached only
+/// by files this crate did not write.
+#[test]
+fn a_transform_less_header_reverses_vox_sizes_into_ritk_axis_order() {
+    let backend = SequentialBackend;
+    // File X = 0.5, Y = 0.75, Z = 1.25: non-isotropic and not palindromic, so
+    // a transposition cannot cancel itself out.
+    let body = "mrtrix image\ndim: 4 3 2\nvox: 0.5 0.75 1.25\nlayout: +0,+1,+2\n\
+                datatype: Float32LE\nfile: . 0\nEND\n";
+    let payload = vec![0u8; 4 * 3 * 2 * 4];
+    let path = write_raw_mif(body, &payload);
+
+    let image: Image<f32, SequentialBackend, 3> = read_mif(&path, &backend).expect("read .mif");
+    let _ = std::fs::remove_file(&path);
+
+    assert_eq!(
+        image.shape(),
+        [2, 3, 4],
+        "the file's 4 x 3 x 2 extent is [depth, row, col] = [2, 3, 4]"
+    );
+
+    let spacing = image.spacing();
+    assert!(
+        (spacing[0] - 1.25).abs() < 1e-6,
+        "spacing[0] is Δdepth and must be the file Z size 1.25, got {}",
+        spacing[0]
+    );
+    assert!(
+        (spacing[1] - 0.75).abs() < 1e-6,
+        "spacing[1] is Δrow and must be the file Y size 0.75, got {}",
+        spacing[1]
+    );
+    assert!(
+        (spacing[2] - 0.5).abs() < 1e-6,
+        "spacing[2] is Δcol and must be the file X size 0.5, got {}",
+        spacing[2]
+    );
+}
+
 // ── Series round-trip ────────────────────────────────────────────────────
 
 #[test]

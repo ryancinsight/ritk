@@ -367,41 +367,46 @@ def test_io_metadata_axis_order_matches_sitk(ext, tmp_path):
     assert tuple(round(o, 5) for o in sb.GetOrigin()) == tuple(origin_xyz)
 
 
-def test_analyze_spacing_and_pixels_match_sitk(tmp_path):
-    """RITK Analyze output preserves pixels and spacing through SimpleITK.
+def test_write_image_analyze_rejects_non_identity_direction(tmp_path):
+    """Analyze 7.5 cannot encode direction: rejection precedes file creation.
 
-    Regression: the Analyze reader/writer read/wrote pixdim in core tensor-axis
-    [z,y,x] order instead of the file's [x,y,z] order, so a non-cube spacing
-    (2,3,4) loaded as (4,3,2) vs sitk.
+    Every Python image carries `numpy_array_direction()` (a permutation), and
+    `ritk-analyze`'s writer deliberately rejects a non-identity direction
+    rather than publishing a pair whose geometry silently disagrees with the
+    source (`docs/architecture.md` §23). Expecting a successful Python write is
+    therefore incorrect by decision, not by defect — this mirrors the
+    legacy-VTK gate in `test_coverage_gaps.py` and the Rust-side
+    `writer_rejects_a_non_identity_direction_before_creating_files`.
 
-    Origin is deliberately NOT asserted for parity: Analyze 7.5 is deprecated
-    (sitk emits a deprecation warning) and has no reliable physical-origin
-    field — sitk does not round-trip a world-space origin through the integer
-    `originator` field, so cross-writer origin parity is unachievable. ritk's
-    own write→read preserves a spacing-commensurate origin (covered in the Rust
-    crate's round-trip test); foreign-origin parity is a format limitation.
+    The pixdim-order regression this test once exercised through a Python write
+    is covered on the Rust side, because the Python write is now fail-closed:
+    `ritk-analyze`'s `analyze_writer_emits_pixdim_in_file_axis_order` and
+    `analyze_roundtrip_preserves_shape_spacing_origin_and_values`.
     """
     nz, ny, nx = 4, 5, 6
     vol = np.arange(nz * ny * nx, dtype=np.float32).reshape(nz, ny, nx)
     spacing_xyz = [2.0, 3.0, 4.0]
 
     ri = ritk.Image(np.ascontiguousarray(vol), spacing=spacing_xyz[::-1])
-    analyze_path = str(tmp_path / "r.img")
-    ritk.io.write_image(ri, analyze_path)
+    analyze_path = tmp_path / "r.img"
+    with pytest.raises(OSError, match="no direction field"):
+        ritk.io.write_image(ri, str(analyze_path))
+    # Fail-closed: neither half of the `.hdr`/`.img` pair may appear.
+    assert not analyze_path.exists()
+    assert not (tmp_path / "r.hdr").exists()
 
-    # RITK read and SimpleITK foreign read agree on the RITK-written Analyze pair.
-    rb = ritk.io.read_image(analyze_path)
-    assert np.array_equal(np.asarray(rb.to_numpy()), vol)
-    assert tuple(round(s, 5) for s in rb.spacing) == tuple(spacing_xyz[::-1])
-    sb = sitk.ReadImage(analyze_path)
-    assert np.array_equal(
-        sitk.GetArrayFromImage(sb).astype(np.float32), vol
-    )
-    assert tuple(round(s, 5) for s in sb.GetSpacing()) == tuple(spacing_xyz)
 
-    # Standard SimpleITK builds select NiftiImageIO for `.img` writes. The
-    # resulting 352-byte `ni1` pair is NIfTI-1, not Analyze 7.5, and must not be
-    # silently decoded through Analyze's incompatible spatial metadata fields.
+def test_analyze_reader_rejects_a_paired_nifti_file(tmp_path):
+    """A `.img`/`.hdr` pair that is really NIfTI-1 is not decoded as Analyze.
+
+    Standard SimpleITK builds select NiftiImageIO for `.img` writes, so the
+    resulting 352-byte `ni1` pair must not be silently decoded through
+    Analyze's incompatible spatial metadata fields.
+    """
+    nz, ny, nx = 4, 5, 6
+    vol = np.arange(nz * ny * nx, dtype=np.float32).reshape(nz, ny, nx)
+    spacing_xyz = [2.0, 3.0, 4.0]
+
     si = sitk.GetImageFromArray(np.ascontiguousarray(vol))
     si.SetSpacing(spacing_xyz)
     nifti_pair_path = tmp_path / "s.img"

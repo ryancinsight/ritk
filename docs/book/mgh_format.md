@@ -81,17 +81,35 @@ RITK stores the physical coordinate of voxel index zero. For dimensions
 h = [(width - 1)/2, (height - 1)/2, (depth - 1)/2]ᵀ
 ```
 
-Then the conversion is
+Then the header's RAS corner is
 
 ```text
-origin = c_ras - Mdc · D · h
+origin_ras = c_ras - Mdc · D · h
 ```
 
-Writing applies the inverse relation:
+The reader moves that point into the stored model's LPS frame by negating its x
+and y components, and negates the same two components of every direction
+column. Writing applies both inverses; the flip is its own inverse:
 
 ```text
-c_ras = origin + Mdc · D · h
+c_ras = flip(origin + Mdc · D · h),   flip(v) = [-v_x, -v_y, v_z]
 ```
+
+The header orders `spacing` and `Mdc` by the x, y, z voxel axes, while RITK
+orders image axes `[depth, row, col] = [z, y, x]`. The reader therefore
+reverses both: RITK `spacing[0]` is the header's `d_z`, and RITK direction
+column 0 is the header's `Mdc[:, 2]`. This is the same file-axis to
+internal-axis reversal NIfTI, NRRD, and MetaImage apply
+(`docs/architecture.md` §7–§9).
+
+The frame conversion matches `ritk-nifti`, which negates the same two rows of
+its RAS affine (`docs/architecture.md` §21). An MGH volume and the same volume
+read from NIfTI therefore agree on both axis order and handedness: one physical
+point has one coordinate through either reader.
+
+`Mdc` is stored **transposed** — FreeSurfer's header descriptor names the field
+the transpose of the direction-cosine matrix — so its three consecutive triples
+are the columns consumed above. No transpose is applied on read or write.
 
 When the RAS flag is absent, the reader uses zero origin, unit spacing, and
 identity direction. Applications that require scanner-space agreement should

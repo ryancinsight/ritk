@@ -26,6 +26,33 @@ pub(crate) const fn numpy_array_direction() -> Direction<3> {
     Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])
 }
 
+/// RITK geometry for a procedural source whose parameters are sitk `(x, y, z)`.
+///
+/// The core generators evaluate `p_d = origin_d + index_d·spacing_d` on the
+/// sitk axes and return a `[z, y, x]` buffer, so the metadata must describe
+/// *that* mapping:
+///
+/// - [`Point`] is a physical `(x, y, z)` position, so the origin transfers
+///   unchanged. Reversing it claims the first voxel sits at
+///   `(origin_z, origin_y, origin_x)`, contradicting the generated data.
+/// - [`Spacing`] is axis-aligned `[Δdepth, Δrow, Δcol]`, so it is the reverse
+///   of the sitk triple.
+/// - The direction is NumPy's `[Z, Y, X]` permutation, making tensor axis 0
+///   advance physical Z and axis 2 advance physical X — the same metadata
+///   [`PyImage::new_from_numpy`] builds for a `[Z, Y, X]` array. An identity
+///   direction instead makes physical X advance with the *depth* index, which
+///   no choice of spacing or origin can repair.
+pub(crate) fn source_geometry(
+    origin_xyz: (f64, f64, f64),
+    spacing_xyz: (f64, f64, f64),
+) -> (Point<3>, Spacing<3>, Direction<3>) {
+    (
+        Point::new([origin_xyz.0, origin_xyz.1, origin_xyz.2]),
+        Spacing::new([spacing_xyz.2, spacing_xyz.1, spacing_xyz.0]),
+        numpy_array_direction(),
+    )
+}
+
 /// Medical image with physical-space metadata.
 #[pyclass(name = "Image")]
 pub struct PyImage {
@@ -274,5 +301,49 @@ mod tests {
             image.continuous_index_to_physical_point(&Point::new([0.0, 0.0, 1.0])),
             Point::new([1.0, 0.0, 0.0])
         );
+    }
+
+    /// A source's metadata must reproduce the map its core generator used.
+    ///
+    /// The cores evaluate `p_d = origin_d + index_d·spacing_d` on the sitk axes
+    /// and return a `[z, y, x]` buffer, so with sitk `origin = (1, 2, 3)` and
+    /// `spacing = (0.5, 0.7, 0.9)` voxel `(kz, ky, kx)` sits at physical
+    /// `(1 + 0.5·kx, 2 + 0.7·ky, 3 + 0.9·kz)`. Three defects break this and none
+    /// is visible from the voxel values alone: an identity direction advances
+    /// physical X with the *depth* index, a reversed origin puts the first
+    /// voxel at `(3, 2, 1)`, and an unreversed spacing gives X the depth pitch.
+    #[test]
+    fn source_geometry_reproduces_the_core_index_to_physical_map() {
+        let (origin, spacing, direction) = source_geometry((1.0, 2.0, 3.0), (0.5, 0.7, 0.9));
+        let image = vec_to_image(vec![0.0; 2 * 3 * 4], [2, 3, 4], origin, spacing, direction);
+
+        for kz in 0..2_usize {
+            for ky in 0..3_usize {
+                for kx in 0..4_usize {
+                    let physical = image.continuous_index_to_physical_point(&Point::new([
+                        kz as f64, ky as f64, kx as f64,
+                    ]));
+                    let label = format!("(kz={kz}, ky={ky}, kx={kx})");
+                    assert!(
+                        (physical[0] - (1.0 + 0.5 * kx as f64)).abs() < 1e-12,
+                        "physical X at {label} is {}, expected {}",
+                        physical[0],
+                        1.0 + 0.5 * kx as f64
+                    );
+                    assert!(
+                        (physical[1] - (2.0 + 0.7 * ky as f64)).abs() < 1e-12,
+                        "physical Y at {label} is {}, expected {}",
+                        physical[1],
+                        2.0 + 0.7 * ky as f64
+                    );
+                    assert!(
+                        (physical[2] - (3.0 + 0.9 * kz as f64)).abs() < 1e-12,
+                        "physical Z at {label} is {}, expected {}",
+                        physical[2],
+                        3.0 + 0.9 * kz as f64
+                    );
+                }
+            }
+        }
     }
 }

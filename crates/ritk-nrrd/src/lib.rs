@@ -64,6 +64,7 @@ mod dip;
 pub mod document;
 pub mod reader;
 mod spatial;
+mod stored_series;
 pub mod writer;
 
 pub use dip::{NrrdDipReader, NrrdDipWriter};
@@ -73,6 +74,7 @@ pub use reader::{
     read_nrrd_stored, read_nrrd_stored_series, NrrdHeader, NrrdHeaderError, NrrdKeyValueRecord,
     NrrdReader, NrrdSpatialMetadataField, NrrdStoredReadError,
 };
+pub use stored_series::{NrrdStoredSeriesError, NrrdStoredSeriesRejection};
 pub use writer::{
     write_nrrd, write_nrrd_series, write_nrrd_stored, write_nrrd_stored_series,
     write_nrrd_with_data, NrrdStoredWriteError, NrrdWriter,

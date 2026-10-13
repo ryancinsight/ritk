@@ -8,8 +8,8 @@ pub use ritk_png::{
 /// module itself disambiguates from the Coeus types during coexistence and
 /// folds away when the Coeus path is deleted (ADR 0002).
 pub mod native {
-    use crate::domain::{to_io_err, ImageReader};
-    use coeus_core::ComputeBackend;
+    use crate::domain::{to_io_err, ImageReader, ImageWriter};
+    use coeus_core::{ComputeBackend, CpuAddressableStorage};
     use ritk_image::Image;
     use std::path::Path;
 
@@ -46,6 +46,30 @@ pub mod native {
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for PngSeriesReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
             ritk_png::read_png_series(path, &self.backend).map_err(to_io_err)
+        }
+    }
+
+    /// Atlas-native PNG writer.
+    ///
+    /// PNG encoding is host-side: `ritk-png` extracts host-contiguous voxels
+    /// and maps `[min, max]` onto 8-bit grayscale without consulting a device
+    /// runtime. The adapter therefore carries no backend state and is a
+    /// zero-sized type, unlike the readers above which must *construct* the
+    /// image on a backend. It exists so PNG has the same
+    /// `native::{PngReader, PngWriter}` shape as every other codec route.
+    ///
+    /// Writing is grayscale and lossy: the file records the image's rank
+    /// ordering and shape, not its original scale. Callers who need the source
+    /// values preserved must pre-window the image.
+    pub struct PngWriter;
+
+    impl<B> ImageWriter<Image<f32, B, 3>> for PngWriter
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
+            ritk_png::write_png(image, path).map_err(to_io_err)
         }
     }
 

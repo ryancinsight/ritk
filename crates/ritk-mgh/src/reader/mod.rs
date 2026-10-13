@@ -6,7 +6,7 @@
 //! of `nx * ny * nz` voxels; the `nframes` header field counts consecutive
 //! volumes of identical geometry.
 
-use crate::spatial::{derive_image_geometry, RasValidity};
+use crate::spatial::{ImageGeometry, MghRasBlock, RasValidity};
 use crate::types::VoxelType;
 use crate::{is_gzip_path, GOOD_RAS_VALID, PADDING_LEN, VERSION};
 use anyhow::{bail, Context, Result};
@@ -216,17 +216,20 @@ fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader> {
     let nx = width as usize;
     let ny = height as usize;
     let nz = depth as usize;
-    let (spacing, direction, origin) = derive_image_geometry(
-        if good_ras_flag == GOOD_RAS_VALID {
-            RasValidity::Valid
-        } else {
-            RasValidity::Synthetic
-        },
-        [nx, ny, nz],
-        spacing_xyz,
-        direction_columns,
-        c_ras,
-    );
+    let ImageGeometry {
+        spacing,
+        direction,
+        origin,
+    } = MghRasBlock::new(spacing_xyz, direction_columns, c_ras)
+        .into_image_geometry(
+            if good_ras_flag == GOOD_RAS_VALID {
+                RasValidity::Valid
+            } else {
+                RasValidity::Synthetic
+            },
+            [nx, ny, nz],
+        )
+        .context("Invalid MGH RAS voxel spacing")?;
 
     let nframes = nframes as usize;
     let n_voxels = nx

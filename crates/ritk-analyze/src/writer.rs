@@ -38,12 +38,16 @@
 
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_spatial::{Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 
-use crate::codec::{write_le, DT_FLOAT, EXTENTS, HDR_SIZE};
+use crate::header::{self, AnalyzeDatatype, AnalyzeHeaderFields};
 use std::fs::File;
 use std::io::{BufWriter, Write};
+use std::mem::size_of;
 use std::path::Path;
+
+/// Provenance string the native `f32` writer records in `descrip`.
+const NATIVE_DESCRIPTION: &[u8] = b"RITK";
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -53,9 +57,28 @@ use std::path::Path;
 /// sibling file is derived by replacing the extension with `.img`.  An existing
 /// `.img` file at the derived path is overwritten.
 ///
+/// # Pair atomicity
+///
+/// The `.img` payload is written and flushed before the `.hdr` is published, so
+/// the header is the commit marker: within one process the write order is
+/// fixed, so a failure between the two writes leaves an `.img` with no matching
+/// header rather than a header describing a payload that was never written.
+/// The orphan is inert — the next successful write replaces it — and the
+/// recovery is to re-run the write.  The two files are not staged through
+/// temporary names, so a write that fails partway still leaves the partial
+/// `.img`; it is never paired with a stale `.hdr`, because the header is only
+/// written after the payload succeeds.
+///
+/// This is **process-crash** ordering, not durability: neither file is
+/// `fsync`ed, so a power loss or kernel panic can reorder the two at the
+/// storage layer and leave a header whose payload did not survive.  A caller
+/// that needs the pair to outlive power loss must `fsync` both paths itself.
+///
 /// # Errors
 /// Returns an error if:
 /// - `path`'s parent directory does not exist.
+/// - The image has a non-identity `direction`: Analyze 7.5 has no direction
+///   field, so writing one would silently drop it.
 /// - Any dimension is zero or exceeds `i16::MAX` (32 767).
 /// - The image storage length does not match its shape.
 /// - Spacing cannot be represented as a positive finite header `f32`, or any
@@ -68,6 +91,14 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     P: AsRef<Path>,
 {
+    // Analyze 7.5 has no direction field, so a non-identity direction is
+    // unrepresentable. Reject before touching the file system rather than
+    // writing a dataset whose geometry silently disagrees with the source.
+    anyhow::ensure!(
+        image.direction() == &Direction::identity(),
+        "Analyze 7.5 has no direction field; the image's non-identity direction \
+         is unrepresentable and cannot be written without silently dropping it"
+    );
     let vals = image.data_cow_on(backend);
     write_analyze_flat(
         path.as_ref(),
@@ -92,29 +123,23 @@ fn write_analyze_flat(
     let hdr_path = path.with_extension("hdr");
     let img_path = path.with_extension("img");
 
-    // Spatial metadata.  RITK shape = [nz, ny, nx]; spacing/origin in XYZ order.
+    // RITK shape is [nz, ny, nx]; spacing and origin are already in the
+    // tensor-axis and world-space orders the header encoder expects.
     let [nz, ny, nx] = shape;
-    let sp = spacing; // tensor-axis order [sz, sy, sx]
-    let orig = origin; // world-space [ox, oy, oz]
-                       // File-axis spacing [sx, sy, sz] is the reverse of core [sz, sy, sx].
-    let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
-
-    // Validate the complete logical input before creating either file.
-    for &(name, &val) in [("nx", &nx), ("ny", &ny), ("nz", &nz)].iter() {
-        if val == 0 {
-            anyhow::bail!("Analyze: dimension {name} must be positive");
-        }
-        if val > i16::MAX as usize {
-            anyhow::bail!(
-                "Analyze: dimension {name}={val} exceeds i16::MAX ({})",
-                i16::MAX
-            );
-        }
-    }
     let voxel_count = nx
         .checked_mul(ny)
         .and_then(|plane| plane.checked_mul(nz))
         .context("Analyze voxel count overflows usize")?;
+
+    // The complete logical input is validated here, before either file exists.
+    let hdr = header::encode(&AnalyzeHeaderFields {
+        shape,
+        spacing,
+        origin,
+        datatype: AnalyzeDatatype::Float,
+        scale: 1.0,
+        description: NATIVE_DESCRIPTION,
+    })?;
     if vals.len() != voxel_count {
         anyhow::bail!(
             "Analyze: image storage length {} does not match shape {:?} ({voxel_count} voxels)",
@@ -125,53 +150,6 @@ fn write_analyze_flat(
     voxel_count
         .checked_mul(size_of::<f32>())
         .context("Analyze payload byte count overflows usize")?;
-    let sx_header = header_spacing("x", sx)?;
-    let sy_header = header_spacing("y", sy)?;
-    let sz_header = header_spacing("z", sz)?;
-    for (axis, value) in [("x", orig[0]), ("y", orig[1]), ("z", orig[2])] {
-        if !value.is_finite() {
-            anyhow::bail!("Analyze: origin[{axis}] must be finite, found {value}");
-        }
-    }
-
-    // ── Build 348-byte header ─────────────────────────────────────────────────
-    let mut hdr = [0u8; HDR_SIZE];
-
-    write_le::<i32>(&mut hdr, 0, HDR_SIZE as i32); // sizeof_hdr
-    write_le::<i32>(&mut hdr, 32, EXTENTS); // extents
-    hdr[38] = b'r'; // regular
-
-    // image_dimension — dim[8] at offset 40
-    write_le::<i16>(&mut hdr, 40, 4); // dim[0] = num dimensions
-    write_le::<i16>(&mut hdr, 42, nx as i16); // dim[1] = X
-    write_le::<i16>(&mut hdr, 44, ny as i16); // dim[2] = Y
-    write_le::<i16>(&mut hdr, 46, nz as i16); // dim[3] = Z
-    write_le::<i16>(&mut hdr, 48, 1); // dim[4] = time (1 volume)
-
-    write_le::<i16>(&mut hdr, 70, DT_FLOAT); // datatype = DT_FLOAT (16)
-    write_le::<i16>(&mut hdr, 72, 32); // bitpix   = 32 bits
-
-    // pixdim[8] at offset 76
-    write_le::<f32>(&mut hdr, 76, 4.0_f32); // pixdim[0] = number of dims
-    write_le::<f32>(&mut hdr, 80, sx_header); // pixdim[1] = sx
-    write_le::<f32>(&mut hdr, 84, sy_header); // pixdim[2] = sy
-    write_le::<f32>(&mut hdr, 88, sz_header); // pixdim[3] = sz
-    write_le::<f32>(&mut hdr, 92, 1.0_f32); // pixdim[4] = TR (unused)
-
-    write_le::<f32>(&mut hdr, 108, 0.0_f32); // vox_offset
-    write_le::<f32>(&mut hdr, 112, 1.0_f32); // funused1 = scale factor (1 = no scaling)
-
-    // data_history — descrip[80] at offset 148
-    let descrip = b"RITK";
-    hdr[148..148 + descrip.len()].copy_from_slice(descrip);
-
-    // originator[10] at offset 253 — voxel-space origin (5 × i16)
-    let ox_vox = vox_coord("x", orig[0], f64::from(sx_header))?;
-    let oy_vox = vox_coord("y", orig[1], f64::from(sy_header))?;
-    let oz_vox = vox_coord("z", orig[2], f64::from(sz_header))?;
-    write_le::<i16>(&mut hdr, 253, ox_vox); // originator[0] = x voxel
-    write_le::<i16>(&mut hdr, 255, oy_vox); // originator[1] = y voxel
-    write_le::<i16>(&mut hdr, 257, oz_vox); // originator[2] = z voxel
 
     // ── Write .img (raw f32 little-endian, same memory order as RITK) ─────────
     // RITK layout: flat[iz*ny*nx + iy*nx + ix] — identical to Analyze X-fastest.
@@ -218,33 +196,11 @@ impl<B: ComputeBackend> AnalyzeWriter<B> {
     }
 }
 
-fn header_spacing(axis: &str, spacing_mm: f64) -> Result<f32> {
-    let encoded = spacing_mm as f32;
-    if !encoded.is_finite() || encoded <= 0.0 {
-        anyhow::bail!(
-            "Analyze: spacing[{axis}]={spacing_mm} is not representable as a positive finite f32 header value"
-        );
-    }
-    Ok(encoded)
-}
-
-/// Convert a physical origin coordinate to the format's rounded voxel index.
-#[inline]
-fn vox_coord(axis: &str, origin_mm: f64, spacing_mm: f64) -> Result<i16> {
-    let voxel = (origin_mm / spacing_mm).round();
-    if !voxel.is_finite() || voxel < f64::from(i16::MIN) || voxel > f64::from(i16::MAX) {
-        anyhow::bail!(
-            "Analyze: origin[{axis}]={origin_mm} maps to voxel coordinate {voxel}, outside the i16 header range"
-        );
-    }
-    Ok(voxel as i16)
-}
-
 #[cfg(test)]
 mod tests {
     use super::write_analyze_flat;
     use anyhow::Result;
-    use ritk_spatial::{Point, Spacing};
+    use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
     #[test]
@@ -326,6 +282,45 @@ mod tests {
         );
         assert!(!path.exists());
         assert!(!path.with_extension("img").exists());
+
+        Ok(())
+    }
+
+    /// A non-identity direction is rejected before either file is created.
+    ///
+    /// Analyze 7.5 has no direction field. Writing such an image would produce a
+    /// dataset whose geometry silently disagrees with the source, so the writer
+    /// refuses instead. This is the case the shared round-trip harness cannot
+    /// reach: it writes an identity direction for every `SpacingAndOrigin`
+    /// codec, so only a direct test can pin the rejection.
+    #[test]
+    fn writer_rejects_a_non_identity_direction_before_creating_files() -> Result<()> {
+        use coeus_core::SequentialBackend;
+        use ritk_image::Image;
+
+        let directory = tempdir()?;
+        let path = directory.path().join("oblique.hdr");
+        let image = Image::from_flat_on(
+            vec![1.0_f32; 2],
+            [1, 1, 2],
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]),
+            &SequentialBackend,
+        )
+        .expect("fixture image");
+
+        let error = super::write_analyze(&path, &image, &SequentialBackend)
+            .expect_err("a non-identity direction is unrepresentable in Analyze 7.5");
+        assert!(
+            error.to_string().contains("no direction field"),
+            "unexpected error: {error:#}"
+        );
+        assert!(!path.exists(), "the header must not be created");
+        assert!(
+            !path.with_extension("img").exists(),
+            "the payload must not be created"
+        );
 
         Ok(())
     }
