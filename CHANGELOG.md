@@ -10,6 +10,14 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+### Fixed
+
+- [patch] Regenerate PR #827's canonical Git dependency lock while preserving
+  its seven dependency-manifest commits. Consus 0.2, Moirai 0.8.2, Coeus 0.12
+  and the separate Metis 0.3.2 correction resolve under locked all-feature
+  metadata. Coeus's fallible image/model API migration still blocks compilation
+  and release; no runtime compatibility or complete CI pass is claimed.
+
 ### Added
 
 - [major] `ritk_annotation::LabelTable::add_label` reports a repeated ID as
