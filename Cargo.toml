@@ -116,9 +116,9 @@ numpy = { version = "0.29.0", git = "https://github.com/PyO3/rust-numpy", rev = 
 dicom = { version = "0.10.0", default-features = false }
 moirai = { package = "moirai-runtime", version = "0.7.1", git = "https://github.com/ryancinsight/Moirai.git", rev = "6c769e71b0ddaafa73db615e78983f0d7473a841", features = ["melinoe"] }
 moirai-pal = { package = "moirai-pal", version = "0.7.1", git = "https://github.com/ryancinsight/Moirai.git", rev = "6c769e71b0ddaafa73db615e78983f0d7473a841", default-features = false }
-metis-platform = { package = "metis-platform", version = "0.1.0", git = "https://github.com/ryancinsight/metis.git" }
-metis-web = { package = "metis-web", version = "0.1.0", git = "https://github.com/ryancinsight/metis.git" }
-metis-ui-lang = { package = "metis-ui-lang", version = "0.1.0", git = "https://github.com/ryancinsight/metis.git" }
+metis-platform = { package = "metis-platform", version = "0.3.0", git = "https://github.com/ryancinsight/metis.git" }
+metis-web = { package = "metis-web", version = "0.3.0", git = "https://github.com/ryancinsight/metis.git" }
+metis-ui-lang = { package = "metis-ui-lang", version = "0.3.0", git = "https://github.com/ryancinsight/metis.git" }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { package = "mnemosyne-memory", version = "0.9.0", git = "https://github.com/ryancinsight/Mnemosyne.git", default-features = false, features = ["std_tls", "eunomia"] }
 eunomia = { version = "0.9.1", git = "https://github.com/ryancinsight/eunomia", default-features = false }
