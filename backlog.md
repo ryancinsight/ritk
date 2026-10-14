@@ -28,7 +28,8 @@
 <a id="RITK-DICOM-CALIBRATION-UNITS-001"></a>- [RITK-DICOM-CALIBRATION-UNITS-001](backlog/RITK-DICOM-CALIBRATION-UNITS-001.md) — Preserve DICOM values and units — blocked
 <a id="RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001"></a>- [RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001](backlog/RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001.md) — Present patient-space lengths — blocked
 <a id="RITK-CI-MERGE-GATE-001"></a>- [RITK-CI-MERGE-GATE-001](backlog/RITK-CI-MERGE-GATE-001.md) — Gate pull requests through one CI check — todo
-<a id="RITK-CASTFROM-MIGRATE"></a>- [RITK-CASTFROM-MIGRATE](backlog/RITK-CASTFROM-MIGRATE.md) — Retire `CastFrom` from ritk — todo
+<a id="RITK-MIND-HALF-TIE-001"></a>- [RITK-MIND-HALF-TIE-001](backlog/RITK-MIND-HALF-TIE-001.md) — Preserve descriptor half-away rounding [patch] — in review
+<a id="RITK-CASTFROM-MIGRATE"></a>- [RITK-CASTFROM-MIGRATE](backlog/RITK-CASTFROM-MIGRATE.md) — Retire `CastFrom` while preserving rounding [patch] — in review
 <a id="RITK-GIFTI-SURFACE-001"></a>- [RITK-GIFTI-SURFACE-001](backlog/RITK-GIFTI-SURFACE-001.md) — Preserve complete GIFTI surface documents — todo
 <a id="RITK-MESH-CONVERSION-001"></a>- [RITK-MESH-CONVERSION-001](backlog/RITK-MESH-CONVERSION-001.md) — Convert supported mesh formats — todo
 <a id="RITK-TRACTOGRAM-CONVERSION-001"></a>- [RITK-TRACTOGRAM-CONVERSION-001](backlog/RITK-TRACTOGRAM-CONVERSION-001.md) — Convert supported tractogram formats — todo

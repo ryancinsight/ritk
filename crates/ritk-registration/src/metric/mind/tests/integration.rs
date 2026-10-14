@@ -1,9 +1,49 @@
-use super::descriptor::linear_field_values;
+use super::descriptor::{half_response_patch_values, linear_field_values};
 use super::{identity_image, synthetic_values, translation};
 use crate::metric::mind::sampling::linear_index;
 use crate::metric::mind::{mind_ssc_value, MindSscConfig, MindSscFixedPrep, MindSscSampling};
 use crate::types::AffineTransform;
 use anyhow::Result;
+
+#[test]
+fn half_response_patches_preserve_prepared_and_one_shot_similarity() -> Result<()> {
+    let shape = [9; 3];
+    let fixed = identity_image(half_response_patch_values()?, shape)?;
+    let moving = identity_image(vec![0.0; shape.into_iter().product()], shape)?;
+    let center_index = linear_index([4; 3], shape)?;
+    let config = MindSscConfig::try_new(
+        [1; 3],
+        [3; 3],
+        MindSscSampling::try_indices([center_index])?,
+    )?;
+    let prepared = MindSscFixedPrep::try_new(&fixed, config.clone(), None, None)?;
+    // The constant moving descriptor has twelve level-five components. The
+    // fixture has four level-five, four near-half-response and four level-zero
+    // components, so its loss is 40 - 4*level (28 at an exact half response).
+    let level = if (-std::f32::consts::LN_2).exp() * 5.0 < 2.5 {
+        2.0
+    } else {
+        3.0
+    };
+    let expected = 1.0 - (40.0 - 4.0 * level) / 60.0;
+    assert_eq!(prepared.selected_indices(), &[center_index]);
+    assert_eq!(
+        prepared.eval(&moving, &AffineTransform::IDENTITY)?,
+        expected
+    );
+    assert_eq!(
+        mind_ssc_value(
+            &fixed,
+            &moving,
+            &AffineTransform::IDENTITY,
+            config,
+            None,
+            None
+        )?,
+        expected
+    );
+    Ok(())
+}
 
 #[test]
 fn constant_image_has_maximum_self_similarity() -> Result<()> {
