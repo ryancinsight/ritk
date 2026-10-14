@@ -76,6 +76,10 @@ class ProjectionGalleryTests(unittest.TestCase):
                 ),
                 evidence["projection"],
             )
+            self.assertEqual(
+                (pathlib.Path(directory) / "projection" / "projection.json").read_bytes(),
+                (json.dumps(evidence["projection"], indent=2, sort_keys=True) + "\n").encode("utf-8"),
+            )
 
     def test_consumer_callback_accepts_four_canvas_projection_mode(self):
         class Client:

@@ -541,6 +541,19 @@ cargo nextest run -p ritk-registration
 cargo nextest run -p ritk-model
 ```
 
+The Python script suite supports the Python 3.9–3.13 binding matrix. Use the
+lock-pinned Métis checkout as a sibling, create its `output` directory, and
+install the script requirements before running the suite:
+
+```bash
+python -m pip install -r scripts/requirements-test.txt
+PYTHONPATH=../metis/scripts python -m unittest discover -s scripts/tests
+```
+
+The lock parser uses `tomllib` on Python 3.11+ and the declared Tomli
+dependency on older supported interpreters. Gallery JSON writers retain UTF-8
+and LF output on every supported version.
+
 ## Future Work
 
 - [ ] Sinc interpolation

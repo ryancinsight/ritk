@@ -10,6 +10,13 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+### Fixed
+
+- [patch] Python script validation runs on supported Python 3.9/3.10 using a
+  declared TOML 1.0 parser dependency and portable UTF-8/LF gallery writes.
+  Revision, malformed-input, interpreter-selection and raw-byte regressions
+  preserve the complete matrix and required gates.
+
 ### Added
 
 - [major] `ritk_annotation::LabelTable::add_label` reports a repeated ID as

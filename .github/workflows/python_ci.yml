@@ -179,6 +179,10 @@ jobs:
         if: github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true'
         run: python -c "from pathlib import Path; Path('../metis/output').mkdir(parents=True, exist_ok=True)"
 
+      - name: Install Python script test tooling
+        if: github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true'
+        run: python -m pip install -r scripts/requirements-test.txt
+
       - name: Run Python script tests
         if: github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true'
         env:

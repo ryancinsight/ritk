@@ -1,6 +1,7 @@
 """Execute the SNAP workflow's lock-derived provider selection."""
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import re
@@ -41,8 +42,9 @@ class BrowserWorkflowRevisionTests(unittest.TestCase):
         cls.bash = shutil.which("bash")
         if cls.bash is None:
             raise AssertionError("the workflow shell is required")
+        cls.environment = dict(os.environ)
 
-    def resolve(self, revisions, override="", sources=None):
+    def resolve(self, revisions, override="", sources=None, lock_text=None):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             (root / "ritk").mkdir()
@@ -51,26 +53,80 @@ class BrowserWorkflowRevisionTests(unittest.TestCase):
                     f"git+https://github.com/ryancinsight/metis.git#{revision}"
                     for revision in revisions
                 ]
-            (root / "ritk/Cargo.lock").write_text(
-                "\n".join(
+            if lock_text is None:
+                lock_text = "\n".join(
                     f'[[package]]\nname = "metis-fixture-{index}"\n'
                     f'version = "0.1.0"\n'
                     f'source = "{source}"\n'
                     for index, source in enumerate(sources)
-                ),
-                encoding="utf-8",
-            )
+                )
+            (root / "ritk/Cargo.lock").write_text(lock_text, encoding="utf-8")
             output = root / "output"
             output.touch()
-            environment = dict(os.environ)
+            environment = dict(self.environment)
             environment.update(
                 GITHUB_OUTPUT=str(output), METIS_REVISION_OVERRIDE=override,
-                PATH=str(pathlib.Path(self.bash).parent) + os.pathsep + environment["PATH"],
             )
             result = run(
                 [self.bash, "-c", self.script], cwd=root, env=environment, timeout=10
             )
             return result, output.read_text(encoding="utf-8")
+
+    def test_workflow_python_uses_selected_matrix_interpreter(self):
+        result = run(
+            [self.bash, "-c", 'python -c "import json, sys; print(json.dumps([list(sys.version_info[:3]), sys.prefix]))"'],
+            env=self.environment, timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout), [list(sys.version_info[:3]), sys.prefix]
+        )
+
+    def test_quoted_toml_and_provider_comments_resolve_one_revision(self):
+        revision = "a" * 40
+        lock = (
+            "[[package]]\nname = 'metis-fixture'\nversion = '0.1.0'\n"
+            f"source = 'git+https://github.com/ryancinsight/metis.git#{revision}'\n"
+            "# git+https://github.com/ryancinsight/metis.git#" + "b" * 40 + "\n"
+        )
+        result, output = self.resolve([], lock_text=lock)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(output, f"revision={revision}\n")
+
+    def test_invalid_toml_fails_before_revision_output(self):
+        valid = (
+            "[[package]]\nname = 'metis-fixture'\nversion = '0.1.0'\n"
+            "source = 'git+https://github.com/ryancinsight/metis.git#" + "a" * 40 + "'\n"
+        )
+        for invalid in (
+            "[metadata]\nvalue = 'first'\nvalue = 'duplicate'\n",
+            # Multiline/trailing-comma inline tables are not TOML 1.0.
+            "[metadata]\nvalue = {\n  enabled = true,\n}\n",
+        ):
+            with self.subTest(invalid=invalid):
+                result, output = self.resolve([], lock_text=valid + invalid)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(output, "")
+                self.assertIn("TOMLDecodeError", result.stderr)
+
+    def test_script_dependency_setup_precedes_script_tests(self):
+        workflow = (_root / ".github/workflows/python_ci.yml").read_text(encoding="utf-8")
+        setup = re.search(
+            r"(?ms)^      - name: Install Python script test tooling\n(?P<step>.*?)^      - name:",
+            workflow,
+        )
+        tests = re.search(
+            r"(?ms)^      - name: Run Python script tests\n(?P<step>.*?)^      - name:",
+            workflow,
+        )
+        self.assertIsNotNone(setup, "script dependencies must be declared and installed")
+        self.assertIsNotNone(tests)
+        self.assertLess(setup.start(), tests.start())
+        self.assertIn("python -m pip install -r scripts/requirements-test.txt", setup.group("step"))
+        self.assertEqual(
+            re.search(r"(?m)^        if: (.*)$", setup.group("step")).group(1),
+            re.search(r"(?m)^        if: (.*)$", tests.group("step")).group(1),
+        )
 
     def test_lock_advance_alone_changes_selected_revision(self):
         for revision in ("1" * 40, "2" * 40):

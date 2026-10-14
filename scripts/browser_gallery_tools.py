@@ -379,7 +379,8 @@ def capture_tool_gallery(client: WebDriverClient, output_directory: pathlib.Path
         encoded = json.dumps(evidence, indent=2, sort_keys=True) + "\n"
         if len(encoded.encode("utf-8")) > 512 * 1024:
             raise BrowserRuntimeError("tool evidence exceeds the 512 KiB trace bound")
-        evidence_path.write_text(encoded, encoding="utf-8", newline="\n")
+        with evidence_path.open("w", encoding="utf-8", newline="\n") as stream:
+            stream.write(encoded)
         return evidence
     finally:
         primary_error = sys.exc_info()[1]

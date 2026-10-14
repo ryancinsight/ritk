@@ -138,5 +138,6 @@ def capture_projection_gallery(
     if not isinstance(evidence["rgba_sha256"], str) or len(evidence["rgba_sha256"]) != 64:
         raise BrowserRuntimeError("projection pixel evidence omitted its SHA-256 digest")
     path = _safe_path(directory / "projection.json", directory=directory)
-    path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+    with path.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(json.dumps(evidence, indent=2, sort_keys=True) + "\n")
     return {"projection": evidence, "artifact": path.relative_to(ROOT).as_posix()}
