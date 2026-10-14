@@ -9,6 +9,7 @@
 > preserved.
 
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — blocked
+<a id="RITK-DEPS-MOIRAI-09-COEVOLUTION-001"></a>- [RITK-DEPS-MOIRAI-09-COEVOLUTION-001](backlog/RITK-DEPS-MOIRAI-09-COEVOLUTION-001.md) — Advance ritk past the moirai 0.9 / metis 0.4 provider bumps — blocked
 <a id="RITK-SNAP-METIS-SHARED-TEXT-001"></a>- [RITK-SNAP-METIS-SHARED-TEXT-001](backlog/RITK-SNAP-METIS-SHARED-TEXT-001.md) — Build display text from shared strings — todo
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
 <a id="RITK-GAP-2026-08-20-09"></a>- [RITK-GAP-2026-08-20-09](backlog/RITK-GAP-2026-08-20-09.md) — Derive mutual-information subsample stride — todo
