@@ -2,6 +2,7 @@
 
 use super::config::DescriptorGeometry;
 use super::MindSscError;
+use eunomia::convert::IntegerTarget;
 
 pub(super) const DESCRIPTOR_COMPONENTS: usize = 12;
 pub(super) const BITS_PER_COMPONENT: usize = 5;
@@ -90,7 +91,7 @@ pub(super) fn pack_distances(distances: [f32; DESCRIPTOR_COMPONENTS]) -> Result<
     let mut packed = 0_u64;
     for (component, distance) in distances.into_iter().enumerate() {
         let response = (-(distance - minimum) / variance).exp().clamp(0.0, 1.0);
-        let level = (response * 5.0).round() as u32;
+        let level = u32::from_rounded(response * 5.0);
         let unary = (1_u64 << level) - 1;
         packed |= unary << (component * BITS_PER_COMPONENT);
     }
