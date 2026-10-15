@@ -132,6 +132,10 @@ class SliceGalleryTests(unittest.TestCase):
                 )
                 evidence_path = pathlib.Path(directory) / "gallery-slices.json"
                 self.assertEqual(json.loads(evidence_path.read_text(encoding="utf-8")), evidence)
+                self.assertEqual(
+                    evidence_path.read_bytes(),
+                    (json.dumps(evidence, indent=2, sort_keys=True) + "\n").encode("utf-8"),
+                )
 
         self.assertEqual(client.release_count, 1)
         self.assertEqual(len(settle_calls), len(browser_gallery.AXES) * 2)
@@ -455,6 +459,10 @@ class SliceGalleryTests(unittest.TestCase):
             self.assertEqual(completed["stopped"]["rate_value"], "12")
             self.assertEqual(
                 json.loads(artifact.read_text(encoding="utf-8")), completed
+            )
+            self.assertEqual(
+                artifact.read_bytes(),
+                (json.dumps(completed, indent=2, sort_keys=True) + "\n").encode("utf-8"),
             )
 
 

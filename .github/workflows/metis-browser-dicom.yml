@@ -50,8 +50,13 @@ jobs:
           python - <<'PY'
           import os
           import re
-          import tomllib
+          import sys
           from pathlib import Path
+
+          if sys.version_info >= (3, 11):
+              import tomllib
+          else:
+              import tomli as tomllib
 
           provider = r"git\+https://github\.com/ryancinsight/metis(?:\.git)?"
           lock = tomllib.loads(Path("ritk/Cargo.lock").read_text(encoding="utf-8"))
