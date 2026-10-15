@@ -1,5 +1,19 @@
 # RITK Gap Audit
 
+<a id="RITK-REGISTRY-PUBLICATION-001"></a>
+## RITK-REGISTRY-PUBLICATION-001: Git validation does not establish registry publication [patch]
+- risk: a corrected Git revision passes native checks while the registry resolves older incompatible dependencies or lacks required packages.
+- evidence: main's release package verification fails in registry Leto 0.42.0; an isolated Coeus 0.11 probe compiles but its registry plan holds registration on unpublished Consus and missing Coeus component versions.
+- next: preserve active provider owners, validate the complete required registry graph, and complete approved first publications before claiming a released registration version.
+- review: [RITK-REGISTRY-PUBLICATION-001](backlog/RITK-REGISTRY-PUBLICATION-001.md) records exact failure, ownership and credential boundaries.
+
+<a id="RITK-MIND-HALF-TIE-001"></a>
+## RITK-MIND-HALF-TIE-001: Descriptor rounding migration changes similarity [patch]
+- risk: exact response ties change production packed descriptors and registration objectives.
+- evidence: main `8af30a9a` with locked Eunomia `ee7c6911`; three failing regression tests on Rust 1.97.0 / aarch64-apple-darwin. A reachable dyadic image changes constant-image Hamming loss 28→32 and public similarity `0.5333333`→`0.46666664`.
+- correction: restore binary32 half-away rounding before exact integer conversion; all 20 MIND tests pass. ADR0024 now records the tie policy. Review and full validation are tracked in [the backlog item](backlog/RITK-MIND-HALF-TIE-001.md).
+- reopen: a quantizer, descriptor, or prepared/one-shot regression fails; platform-specific exponential precision must not dictate the tie policy.
+
 <a id="RITK-PYTHON-CI-CACHE-SAVE-001"></a>
 ## RITK-PYTHON-CI-CACHE-SAVE-001: Branch cache archives consume the validation budget [patch]
 - risk: all required test stages pass but optional gigabyte cache creation cancels the Windows Python 3.10 job and fails its aggregate gate.

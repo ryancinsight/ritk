@@ -30,7 +30,9 @@
 <a id="RITK-CI-MERGE-GATE-001"></a>- [RITK-CI-MERGE-GATE-001](backlog/RITK-CI-MERGE-GATE-001.md) — Gate pull requests through one CI check — todo
 <a id="RITK-PYTHON-SCRIPT-RUNTIME-001"></a>- [RITK-PYTHON-SCRIPT-RUNTIME-001](backlog/RITK-PYTHON-SCRIPT-RUNTIME-001.md) — Support older Python in script validation [patch] — in review
 <a id="RITK-PYTHON-CI-CACHE-SAVE-001"></a>- [RITK-PYTHON-CI-CACHE-SAVE-001](backlog/RITK-PYTHON-CI-CACHE-SAVE-001.md) — Avoid branch cache archives in Python CI [patch] — in review
-<a id="RITK-CASTFROM-MIGRATE"></a>- [RITK-CASTFROM-MIGRATE](backlog/RITK-CASTFROM-MIGRATE.md) — Retire `CastFrom` from ritk — todo
+<a id="RITK-REGISTRY-PUBLICATION-001"></a>- [RITK-REGISTRY-PUBLICATION-001](backlog/RITK-REGISTRY-PUBLICATION-001.md) — Publish the required registry dependency graph — blocked
+<a id="RITK-MIND-HALF-TIE-001"></a>- [RITK-MIND-HALF-TIE-001](backlog/RITK-MIND-HALF-TIE-001.md) — Preserve descriptor half-away rounding [patch] — in review
+<a id="RITK-CASTFROM-MIGRATE"></a>- [RITK-CASTFROM-MIGRATE](backlog/RITK-CASTFROM-MIGRATE.md) — Retire `CastFrom` while preserving rounding [patch] — in review
 <a id="RITK-GIFTI-SURFACE-001"></a>- [RITK-GIFTI-SURFACE-001](backlog/RITK-GIFTI-SURFACE-001.md) — Preserve complete GIFTI surface documents — todo
 <a id="RITK-MESH-CONVERSION-001"></a>- [RITK-MESH-CONVERSION-001](backlog/RITK-MESH-CONVERSION-001.md) — Convert supported mesh formats — todo
 <a id="RITK-TRACTOGRAM-CONVERSION-001"></a>- [RITK-TRACTOGRAM-CONVERSION-001](backlog/RITK-TRACTOGRAM-CONVERSION-001.md) — Convert supported tractogram formats — todo

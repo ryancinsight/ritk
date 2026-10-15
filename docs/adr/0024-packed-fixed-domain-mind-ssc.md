@@ -52,8 +52,11 @@ With \(V(x)=\frac1{12}\sum_jD_j(x)\) and
 S_j(x)=\exp\left(-\frac{D_j(x)-D_{\min}(x)}{V(x)}\right).
 \]
 
-When \(V=0\), all responses are one. Otherwise each response is rounded to an
-integer level in 0–5 and encoded as five unary bits. Twelve components occupy
+When \(V=0\), all responses are one. Otherwise `5*S_j` is rounded in binary32
+to the nearest integer, with half ties away from zero (for example, 2.5 maps
+to 3), and the level in 0–5 is encoded as five unary bits. The conversion to
+the integer level preserves this rounding policy; Eunomia's ties-to-even
+`from_rounded` is not equivalent. Twelve components occupy
 the low 60 bits of one `u64`; XOR plus population count is exactly the L1
 distance between quantized component levels. The similarity is
 
@@ -125,7 +128,12 @@ after center selection.
 ## Verification and limits
 
 Hand-derived fixtures pin the complete packed descriptor word, normalization,
-and quantization independently of the implementation. Property tests cover
+and quantization independently of the implementation. Exact half-response
+quantizer tests cover all five ties without relying on platform-specific
+`exp` precision. A dyadic-valued image fixture reaches the half-response
+boundary through disjoint physical patches and checks descriptor levels,
+Hamming distance, and prepared/one-shot similarity. Its expected boundary
+level accounts for the platform's actual exponential result. Property tests cover
 positive affine-intensity invariance. Value tests cover constant images,
 one-shot/prepared parity, fixed denominators under field-of-view loss, malformed
 inputs, deterministic repeats, stratum coverage, and dense parity when all

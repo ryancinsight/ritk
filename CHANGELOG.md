@@ -8,6 +8,16 @@
 
 # CHANGELOG
 
+## ritk-registration 0.55.1
+
+### Fixed
+
+- [patch] Preserve MIND-SSC descriptor half-away rounding at exact scaled
+  response ties after the Eunomia conversion migration. A response of 0.5
+  again quantizes to level 3, preserving unary Hamming distance and public
+  prepared/one-shot similarity. Exact quantizer boundaries and a reachable
+  dyadic image fixture cover the regression.
+
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
 ### Fixed

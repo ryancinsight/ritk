@@ -1,6 +1,6 @@
 [package]
 name = "ritk-registration"
-version = "0.55.0"
+version = "0.55.1"
 description = "Medical image registration algorithms for RITK"
 keywords.workspace = true
 categories.workspace = true
