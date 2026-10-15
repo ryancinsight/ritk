@@ -42,6 +42,30 @@ pub enum TrkError {
         count: i32,
     },
 
+    /// The header declares more per-point scalars than the format can name.
+    ///
+    /// `n_scalars` indexes the fixed `scalar_name[10][20]` table, so a value
+    /// outside `0..=10` describes names the format has no room to store. Left
+    /// unchecked it also sets the per-point stride, which turned a 1 KiB header
+    /// into a multi-gigabyte reservation.
+    #[error(
+        "invalid per-point scalar count {count}; the TrackVis scalar-name table holds at most 10"
+    )]
+    InvalidScalarCount {
+        /// The `n_scalars` value read from the header.
+        count: i16,
+    },
+
+    /// The header declares more per-streamline properties than the format can name.
+    ///
+    /// Mirrors [`TrkError::InvalidScalarCount`] for the `property_name[10][20]`
+    /// table and the per-streamline property stride.
+    #[error("invalid per-streamline property count {count}; the TrackVis property-name table holds at most 10")]
+    InvalidPropertyCount {
+        /// The `n_properties` value read from the header.
+        count: i16,
+    },
+
     /// A coordinate component is NaN or infinite.
     #[error("non-finite coordinate in streamline {index}, point {point_index}")]
     NonFiniteCoordinate {

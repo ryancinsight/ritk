@@ -137,3 +137,94 @@ CELL_TYPES 1
         "error must name malformed cell index: {message}"
     );
 }
+
+/// A CELLS header count larger than the file must not drive allocation.
+///
+/// `CELLS <n_cells> <size>` is an ASCII header line, so `n_cells` is fully
+/// caller-controlled. Pre-reserving it let a ~200-byte file demand petabytes
+/// before a single cell line was read — the length-field-driven allocation
+/// class. The count is a claim, so the read must be bounded by the lines that
+/// actually arrive.
+///
+/// The count is chosen so the pre-reservation cannot be satisfied even by an
+/// overcommitting allocator: a smaller value merely succeeds and leaves the
+/// defect invisible, since the loop then ends at the real end of the input for
+/// the same reason an honest read would.
+#[test]
+fn hostile_cells_count_does_not_drive_allocation() {
+    let input = "\
+# vtk DataFile Version 3.0
+hostile cells
+ASCII
+DATASET UNSTRUCTURED_GRID
+POINTS 3 float
+0 0 0
+1 0 0
+0 1 0
+CELLS 1000000000000000 4
+3 0 1 2
+";
+    let mut reader = std::io::Cursor::new(input.as_bytes());
+    let err = parse_unstructured_grid(&mut reader)
+        .expect_err("a cell count the file cannot supply must error");
+
+    let message = err.to_string();
+    assert!(
+        message.contains("EOF CELLS"),
+        "the read must end at the real end of the input, got: {message}"
+    );
+}
+
+/// A CELL_TYPES header count larger than the file must not drive allocation.
+///
+/// Mirrors the `CELLS` case for the `CELL_TYPES <n>` header line.
+#[test]
+fn hostile_cell_types_count_does_not_drive_allocation() {
+    let input = "\
+# vtk DataFile Version 3.0
+hostile cell types
+ASCII
+DATASET UNSTRUCTURED_GRID
+POINTS 3 float
+0 0 0
+1 0 0
+0 1 0
+CELLS 1 4
+3 0 1 2
+CELL_TYPES 1000000000000
+5
+";
+    let mut reader = std::io::Cursor::new(input.as_bytes());
+    let err = parse_unstructured_grid(&mut reader)
+        .expect_err("a cell-type count the file cannot supply must error");
+
+    let message = err.to_string();
+    assert!(
+        message.contains("EOF CELL_TYPES"),
+        "the read must end at the real end of the input, got: {message}"
+    );
+}
+
+/// A POINTS count that overflows `usize` when tripled is rejected, not wrapped.
+///
+/// The coordinate count is `n_points * 3`; a header value near `usize::MAX`
+/// would otherwise overflow before the bounded reader ever saw it.
+#[test]
+fn hostile_points_count_is_rejected_before_overflow() {
+    let input = "\
+# vtk DataFile Version 3.0
+hostile points
+ASCII
+DATASET UNSTRUCTURED_GRID
+POINTS 18446744073709551615 float
+";
+    let mut reader = std::io::Cursor::new(input.as_bytes());
+    let err =
+        parse_unstructured_grid(&mut reader).expect_err("an overflowing point count must error");
+
+    let message = err.to_string();
+    assert!(
+        message.contains("overflows usize"),
+        "the overflow must be reported, not wrapped, got: {message}"
+    );
+}

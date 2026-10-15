@@ -7,8 +7,8 @@ use gaia::Polyline;
 use leto::geometry::Point3;
 
 use crate::parse::{
-    apply_affine, encode_header, invert_affine, parse_header, read_exact, TRK_HEADER_SIZE,
-    TRK_MAGIC,
+    apply_affine, encode_header, invert_affine, parse_header, read_exact, MAX_TRK_FIELD_COUNT,
+    TRK_HEADER_SIZE, TRK_MAGIC,
 };
 use crate::{TrkError, TrkTractogram};
 
@@ -45,6 +45,23 @@ impl TrkTractogram {
             return Err(TrkError::InvalidStreamlineCount { count: n_count });
         }
 
+        // `n_scalars` and `n_properties` index the header's fixed name tables
+        // (`scalar_name[10][20]`, `property_name[10][20]`), so a value outside
+        // that range is malformed rather than merely unusual. Rejecting it also
+        // bounds the per-point stride `3 + n_scalars`: it reaches the decode
+        // buffer size as `n_points * stride`, where `n_points` is already capped
+        // at 100_000. Without the check a crafted 1 KiB header asked for ~13 GB.
+        if !(0..=MAX_TRK_FIELD_COUNT).contains(&header.n_scalars) {
+            return Err(TrkError::InvalidScalarCount {
+                count: header.n_scalars,
+            });
+        }
+        if !(0..=MAX_TRK_FIELD_COUNT).contains(&header.n_properties) {
+            return Err(TrkError::InvalidPropertyCount {
+                count: header.n_properties,
+            });
+        }
+
         // `n_count` is a claim from a 1000-byte header, not a fact about the
         // file, so nothing is reserved from it: `Vec::with_capacity(n_count)`
         // let a short malformed file demand gigabytes before a single record
@@ -56,8 +73,8 @@ impl TrkTractogram {
         let mut scalars = Vec::new();
         let mut properties = Vec::new();
 
-        let n_scalars = header.n_scalars.max(0) as usize;
-        let n_properties = header.n_properties.max(0) as usize;
+        let n_scalars = header.n_scalars as usize;
+        let n_properties = header.n_properties as usize;
         let stride = 3 + n_scalars;
 
         let mut point_buf: Vec<f32> = Vec::new();
@@ -82,16 +99,7 @@ impl TrkTractogram {
                     index,
                     count: n_points as i32,
                 })?;
-            {
-                let byte_len = total_floats * 4;
-                let mut byte_buf = vec![0u8; byte_len];
-                read_exact(reader, &mut byte_buf, &mut offset)?;
-                for chunk in byte_buf.chunks_exact(4) {
-                    point_buf.push(f32::from_le_bytes(
-                        chunk.try_into().expect("fixed-width byte field"),
-                    ));
-                }
-            }
+            read_f32_values(reader, total_floats, &mut point_buf, &mut offset)?;
 
             if n_scalars > 0 {
                 let mut streamline_scalars: Vec<f32> = Vec::with_capacity(n_points * n_scalars);
@@ -119,15 +127,8 @@ impl TrkTractogram {
             }
 
             if n_properties > 0 {
-                let prop_byte_len = n_properties * 4;
-                let mut prop_bytes = vec![0u8; prop_byte_len];
-                read_exact(reader, &mut prop_bytes, &mut offset)?;
                 let mut prop = Vec::with_capacity(n_properties);
-                for chunk in prop_bytes.chunks_exact(4) {
-                    prop.push(f32::from_le_bytes(
-                        chunk.try_into().expect("fixed-width byte field"),
-                    ));
-                }
+                read_f32_values(reader, n_properties, &mut prop, &mut offset)?;
                 properties.push(prop.into_boxed_slice());
             }
 
@@ -154,6 +155,21 @@ impl TrkTractogram {
     ///
     /// Returns [`TrkError`] or an [`std::io::Error`] on write failure.
     pub fn write(&self, writer: &mut impl Write) -> Result<(), TrkError> {
+        // The header's name tables cannot describe more fields than this, so a
+        // value outside the range has no valid on-disk encoding: reject it here
+        // rather than emit a file whose declared stride disagrees with its
+        // names, which the reader above would then refuse.
+        if !(0..=MAX_TRK_FIELD_COUNT).contains(&self.header.n_scalars) {
+            return Err(TrkError::InvalidScalarCount {
+                count: self.header.n_scalars,
+            });
+        }
+        if !(0..=MAX_TRK_FIELD_COUNT).contains(&self.header.n_properties) {
+            return Err(TrkError::InvalidPropertyCount {
+                count: self.header.n_properties,
+            });
+        }
+
         let header_buf = encode_header(&self.header);
         writer
             .write_all(&header_buf)
@@ -161,8 +177,8 @@ impl TrkTractogram {
 
         let inv = invert_affine(&self.header.vox_to_ras);
 
-        let n_scalars = self.header.n_scalars.max(0) as usize;
-        let n_properties = self.header.n_properties.max(0) as usize;
+        let n_scalars = self.header.n_scalars as usize;
+        let n_properties = self.header.n_properties as usize;
         let stride = 3 + n_scalars;
 
         for (index, polyline) in self.streamlines.iter().enumerate() {
@@ -186,22 +202,69 @@ impl TrkTractogram {
                 }
             }
 
-            let byte_buf: Vec<u8> = buf.iter().flat_map(|v| v.to_le_bytes()).collect();
-            writer
-                .write_all(&byte_buf)
-                .map_err(|_| TrkError::UnexpectedEof { offset: 0 })?;
+            write_f32_values(writer, &buf)?;
 
             if n_properties > 0 {
-                let prop_bytes: Vec<u8> = self.properties[index]
-                    .iter()
-                    .flat_map(|v| v.to_le_bytes())
-                    .collect();
-                writer
-                    .write_all(&prop_bytes)
-                    .map_err(|_| TrkError::UnexpectedEof { offset: 0 })?;
+                write_f32_values(writer, &self.properties[index])?;
             }
         }
 
         Ok(())
     }
+}
+
+/// Read `count` little-endian `f32` values from `reader` into `out`.
+///
+/// `out` must already hold room for `count` values — the caller reserves it
+/// from the confirmed payload size. Values pass through a fixed stack buffer,
+/// so the decode holds exactly one payload-sized heap allocation instead of a
+/// second byte copy of the same size; the peak for a streamline's point data is
+/// therefore its own buffer plus 4 KiB, not twice its own buffer.
+fn read_f32_values(
+    reader: &mut impl Read,
+    count: usize,
+    out: &mut Vec<f32>,
+    offset: &mut usize,
+) -> Result<(), TrkError> {
+    /// Stack scratch for one read; a multiple of four so chunks split on values.
+    const CHUNK_BYTES: usize = 4096;
+    let mut buf = [0u8; CHUNK_BYTES];
+    let values_per_chunk = CHUNK_BYTES / 4;
+
+    let mut remaining = count;
+    while remaining > 0 {
+        let chunk_values = remaining.min(values_per_chunk);
+        let chunk_bytes = chunk_values * 4;
+        read_exact(reader, &mut buf[..chunk_bytes], offset)?;
+        for chunk in buf[..chunk_bytes].chunks_exact(4) {
+            out.push(f32::from_le_bytes(
+                chunk.try_into().expect("fixed-width byte field"),
+            ));
+        }
+        remaining -= chunk_values;
+    }
+    Ok(())
+}
+
+/// Write `values` as little-endian `f32` bytes to `writer`.
+///
+/// Serializing through a fixed stack buffer avoids materializing a byte copy of
+/// the whole payload, so writing a streamline holds no second allocation the
+/// size of its point data — the writer streams the same way the reader does.
+fn write_f32_values(writer: &mut impl Write, values: &[f32]) -> Result<(), TrkError> {
+    /// Values serialized per write; bounded so the scratch buffer stays on the stack.
+    const CHUNK_VALUES: usize = 1024;
+    let mut buf = [0u8; CHUNK_VALUES * 4];
+
+    for chunk in values.chunks(CHUNK_VALUES) {
+        let mut len = 0;
+        for value in chunk {
+            buf[len..len + 4].copy_from_slice(&value.to_le_bytes());
+            len += 4;
+        }
+        writer
+            .write_all(&buf[..len])
+            .map_err(|_| TrkError::UnexpectedEof { offset: 0 })?;
+    }
+    Ok(())
 }

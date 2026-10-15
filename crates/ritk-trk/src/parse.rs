@@ -11,6 +11,15 @@ pub(crate) const TRK_MAGIC: &[u8; 6] = b"TRACK\0";
 /// Size of the fixed header in bytes.
 pub(crate) const TRK_HEADER_SIZE: usize = 1000;
 
+/// Largest per-point scalar or per-streamline property count the format can name.
+///
+/// The header carries `scalar_name[10][20]` and `property_name[10][20]`: ten
+/// null-terminated names of twenty bytes each. `n_scalars` and `n_properties`
+/// index those tables, so any larger value describes names with nowhere to
+/// live. The bound is structural, not a policy choice, and it also caps the
+/// per-point stride (`3 + n_scalars`) that sizes the decode buffers.
+pub(crate) const MAX_TRK_FIELD_COUNT: i16 = 10;
+
 pub(crate) fn parse_header(buf: &[u8; 1000]) -> TrkHeader {
     let dim = [
         i16_from_le(buf, 6),

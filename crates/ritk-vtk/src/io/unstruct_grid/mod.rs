@@ -38,6 +38,17 @@ pub fn write_vtk_unstructured_grid<P: AsRef<Path>>(
     write_unstructured_grid(&mut w, grid)
 }
 
+/// Multiply a header-declared element count by a per-element factor.
+///
+/// Every count in the legacy format comes from an ASCII header line, so
+/// `count * factor` is caller-controlled: without the check a crafted `POINTS`
+/// line overflows `usize` before the bounded readers ever see the value.
+fn checked_scaled(count: usize, factor: usize, section: &str) -> Result<usize> {
+    count.checked_mul(factor).with_context(|| {
+        format!("VTK legacy {section} count {count} overflows usize scaled by {factor}")
+    })
+}
+
 fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGrid> {
     let line1 = read_line(reader)?.with_context(|| "EOF before version line")?;
     if !line1.starts_with("# vtk DataFile Version") {
@@ -72,11 +83,11 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
             if !lt.to_ascii_uppercase().starts_with("LOOKUP_TABLE") {
                 bail!("expected LOOKUP_TABLE, got: {}", lt);
             }
-            let n = if ip { pd_n } else { cd_n };
+            let n = checked_scaled(if ip { pd_n } else { cd_n }, nc, "SCALARS")?;
             let vals = if binary {
-                read_binary_be::<f32>(reader, n * nc, "f32")?
+                read_binary_be::<f32>(reader, n, "f32")?
             } else {
-                read_ascii::<f32>(reader, n * nc, "f32")?
+                read_ascii::<f32>(reader, n, "f32")?
             };
             let arr = AttributeArray::Scalars {
                 values: vals,
@@ -91,11 +102,11 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
         }
 
         if let Some((nm, ip)) = pvc.take() {
-            let n = if ip { pd_n } else { cd_n };
+            let n = checked_scaled(if ip { pd_n } else { cd_n }, 3, "VECTORS")?;
             let flat = if binary {
-                read_binary_be::<f32>(reader, n * 3, "f32")?
+                read_binary_be::<f32>(reader, n, "f32")?
             } else {
-                read_ascii::<f32>(reader, n * 3, "f32")?
+                read_ascii::<f32>(reader, n, "f32")?
             };
             let v: Vec<[f32; 3]> = flat.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
             if ip {
@@ -109,11 +120,11 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
         }
 
         if let Some((nm, ip)) = pnc.take() {
-            let n = if ip { pd_n } else { cd_n };
+            let n = checked_scaled(if ip { pd_n } else { cd_n }, 3, "NORMALS")?;
             let flat = if binary {
-                read_binary_be::<f32>(reader, n * 3, "f32")?
+                read_binary_be::<f32>(reader, n, "f32")?
             } else {
-                read_ascii::<f32>(reader, n * 3, "f32")?
+                read_ascii::<f32>(reader, n, "f32")?
             };
             let v: Vec<[f32; 3]> = flat.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
             if ip {
@@ -137,23 +148,27 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
         }
 
         if upper.starts_with("POINTS") {
-            let n: usize = toks[1].parse().with_context(|| "bad POINTS count")?;
+            let n: usize = checked_scaled(
+                toks[1].parse().with_context(|| "bad POINTS count")?,
+                3,
+                "POINTS",
+            )?;
             let dbl = toks
                 .get(2)
                 .map(|s| s.eq_ignore_ascii_case("double"))
                 .unwrap_or(false);
             grid.points = if binary {
                 if dbl {
-                    let r = read_binary_be::<f64>(reader, n * 3, "f64")?;
+                    let r = read_binary_be::<f64>(reader, n, "f64")?;
                     r.chunks_exact(3)
                         .map(|c| [c[0] as f32, c[1] as f32, c[2] as f32])
                         .collect()
                 } else {
-                    let r = read_binary_be::<f32>(reader, n * 3, "f32")?;
+                    let r = read_binary_be::<f32>(reader, n, "f32")?;
                     r.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect()
                 }
             } else {
-                let r = read_ascii::<f32>(reader, n * 3, "f32")?;
+                let r = read_ascii::<f32>(reader, n, "f32")?;
                 r.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect()
             };
         } else if upper.starts_with("CELLS") {
@@ -162,7 +177,13 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
             grid.cells = if binary {
                 parse_cells_from_ints(&read_binary_be::<i32>(reader, sz, "i32")?, nc)?
             } else {
-                let mut cells = Vec::with_capacity(nc);
+                // `nc` is a claim from the header line, not a fact about the
+                // file, so nothing is reserved from it: `with_capacity(nc)` let
+                // a short file demand tens of gigabytes before a single cell was
+                // read. The vector grows as lines genuinely arrive, which bounds
+                // it by the input — each iteration consumes a line, so EOF ends
+                // the loop.
+                let mut cells = Vec::new();
                 for cell_idx in 0..nc {
                     let cl = read_line(reader)?.with_context(|| "EOF CELLS")?;
                     let p: Vec<&str> = cl.split_whitespace().collect();
@@ -200,7 +221,9 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
                     })
                     .collect()
             } else {
-                let mut t = Vec::with_capacity(n);
+                // Same length-field reasoning as `CELLS`: `n` is a header claim,
+                // so the vector grows from the lines that actually arrive.
+                let mut t = Vec::new();
                 for _ in 0..n {
                     let tl = read_line(reader)?.with_context(|| "EOF CELL_TYPES")?;
                     let code: i32 = tl
