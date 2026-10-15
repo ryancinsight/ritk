@@ -1,5 +1,12 @@
 # RITK Gap Audit
 
+<a id="RITK-PYTHON-CI-CACHE-SAVE-001"></a>
+## RITK-PYTHON-CI-CACHE-SAVE-001: Branch cache archives consume the validation budget [patch]
+- risk: all required test stages pass but optional gigabyte cache creation cancels the Windows Python 3.10 job and fails its aggregate gate.
+- evidence: exact-head dispatch `38656789073`, attempt 1, spends at least 65 seconds in `tar`/`zstd` before the unchanged 30-minute bound; other Windows cache post-steps take 74–186 seconds and upload approximately 1.12 GB each.
+- correction: use the pinned action's documented main-only `save-if` input, matching native CI; restores, test coverage, required gates, permissions and limits remain unchanged.
+- review: [RITK-PYTHON-CI-CACHE-SAVE-001](backlog/RITK-PYTHON-CI-CACHE-SAVE-001.md) records measured timing and final-revision validation criteria.
+
 <a id="RITK-PYTHON-SCRIPT-RUNTIME-001"></a>
 ## RITK-PYTHON-SCRIPT-RUNTIME-001: Script tests require newer Python APIs [patch]
 - risk: supported Python 3.9/3.10 cells stop before wheel/parity/Rust validation; shell PATH changes can select a different interpreter and hide version defects.

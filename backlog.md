@@ -29,6 +29,7 @@
 <a id="RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001"></a>- [RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001](backlog/RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001.md) — Present patient-space lengths — blocked
 <a id="RITK-CI-MERGE-GATE-001"></a>- [RITK-CI-MERGE-GATE-001](backlog/RITK-CI-MERGE-GATE-001.md) — Gate pull requests through one CI check — todo
 <a id="RITK-PYTHON-SCRIPT-RUNTIME-001"></a>- [RITK-PYTHON-SCRIPT-RUNTIME-001](backlog/RITK-PYTHON-SCRIPT-RUNTIME-001.md) — Support older Python in script validation [patch] — in review
+<a id="RITK-PYTHON-CI-CACHE-SAVE-001"></a>- [RITK-PYTHON-CI-CACHE-SAVE-001](backlog/RITK-PYTHON-CI-CACHE-SAVE-001.md) — Avoid branch cache archives in Python CI [patch] — in review
 <a id="RITK-CASTFROM-MIGRATE"></a>- [RITK-CASTFROM-MIGRATE](backlog/RITK-CASTFROM-MIGRATE.md) — Retire `CastFrom` from ritk — todo
 <a id="RITK-GIFTI-SURFACE-001"></a>- [RITK-GIFTI-SURFACE-001](backlog/RITK-GIFTI-SURFACE-001.md) — Preserve complete GIFTI surface documents — todo
 <a id="RITK-MESH-CONVERSION-001"></a>- [RITK-MESH-CONVERSION-001](backlog/RITK-MESH-CONVERSION-001.md) — Convert supported mesh formats — todo

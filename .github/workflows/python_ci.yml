@@ -168,6 +168,7 @@ jobs:
         with:
           workspaces: "ritk -> target"
           key: python-${{ matrix.python-version }}-abi3
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Set up Python ${{ matrix.python-version }}
         if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true' || needs.changes.outputs.scripts_tests == 'true'
