@@ -661,8 +661,23 @@ fn block_grid_dense_enumerates_centres() {
         search_radius: [0, 3, 3],
     };
     let grid = BlockGrid::dense(config.block_radius);
-    let centres = grid.centres([1, 32, 32], &config);
-    assert!(!centres.is_empty());
+    let centres = grid
+        .centres([1, 32, 32], &config)
+        .expect("the centre grid fits");
+    assert_eq!(
+        centres,
+        vec![
+            [0, 4, 4],
+            [0, 4, 13],
+            [0, 4, 22],
+            [0, 13, 4],
+            [0, 13, 13],
+            [0, 13, 22],
+            [0, 22, 4],
+            [0, 22, 13],
+            [0, 22, 22],
+        ]
+    );
     // Every centre must be at least block_radius away from each image boundary.
     for &[z, y, x] in &centres {
         assert!(z >= config.block_radius[0]);
@@ -672,6 +687,27 @@ fn block_grid_dense_enumerates_centres() {
         assert!(y + config.block_radius[1] < 32);
         assert!(x + config.block_radius[2] < 32);
     }
+}
+
+#[test]
+fn block_grid_rejects_centre_byte_capacity_overflow() {
+    let axis = isize::MAX as usize / std::mem::size_of::<[usize; 3]>() + 1;
+    let dims = [1, 1, axis];
+    let config = BlockMatchingConfig {
+        block_radius: [0, 0, 0],
+        search_radius: [0, 0, 1],
+    };
+    let error = BlockGrid { stride: [1, 1, 1] }
+        .centres(dims, &config)
+        .expect_err("centre storage exceeds the allocator byte limit");
+    assert_eq!(
+        error.downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::ByteCountOverflow {
+            label: "tracking centres",
+            dims,
+            element_size: std::mem::size_of::<[usize; 3]>(),
+        })
+    );
 }
 
 #[test]
@@ -688,7 +724,16 @@ fn block_grid_validates_stride_and_overflow() {
         block_radius: [usize::MAX, usize::MAX, usize::MAX],
         search_radius: [1, 1, 1],
     };
-    assert!(grid.centres([1, 1, 1], &oversized).is_empty());
+    assert_eq!(
+        grid.centres([1, 1, 1], &oversized)
+            .expect_err("the block extent overflows")
+            .downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::WindowExtentOverflow {
+            label: "block",
+            axis: 0,
+            radius: usize::MAX,
+        })
+    );
 }
 
 #[test]
