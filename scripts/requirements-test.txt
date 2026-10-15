@@ -1,0 +1,2 @@
+# Match Python 3.11-3.13's TOML 1.0 grammar on older supported interpreters.
+tomli>=2.0.1,<2.4; python_version < "3.11"
