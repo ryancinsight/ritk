@@ -99,7 +99,7 @@ impl TrkTractogram {
                     index,
                     count: n_points as i32,
                 })?;
-            read_f32_values(reader, total_floats, &mut point_buf, &mut offset)?;
+            read_float_values(reader, total_floats, &mut point_buf, &mut offset)?;
 
             if n_scalars > 0 {
                 let mut streamline_scalars: Vec<f32> = Vec::with_capacity(n_points * n_scalars);
@@ -128,7 +128,7 @@ impl TrkTractogram {
 
             if n_properties > 0 {
                 let mut prop = Vec::with_capacity(n_properties);
-                read_f32_values(reader, n_properties, &mut prop, &mut offset)?;
+                read_float_values(reader, n_properties, &mut prop, &mut offset)?;
                 properties.push(prop.into_boxed_slice());
             }
 
@@ -202,10 +202,10 @@ impl TrkTractogram {
                 }
             }
 
-            write_f32_values(writer, &buf)?;
+            write_float_values(writer, &buf)?;
 
             if n_properties > 0 {
-                write_f32_values(writer, &self.properties[index])?;
+                write_float_values(writer, &self.properties[index])?;
             }
         }
 
@@ -220,7 +220,7 @@ impl TrkTractogram {
 /// so the decode holds exactly one payload-sized heap allocation instead of a
 /// second byte copy of the same size; the peak for a streamline's point data is
 /// therefore its own buffer plus 4 KiB, not twice its own buffer.
-fn read_f32_values(
+fn read_float_values(
     reader: &mut impl Read,
     count: usize,
     out: &mut Vec<f32>,
@@ -251,7 +251,7 @@ fn read_f32_values(
 /// Serializing through a fixed stack buffer avoids materializing a byte copy of
 /// the whole payload, so writing a streamline holds no second allocation the
 /// size of its point data — the writer streams the same way the reader does.
-fn write_f32_values(writer: &mut impl Write, values: &[f32]) -> Result<(), TrkError> {
+fn write_float_values(writer: &mut impl Write, values: &[f32]) -> Result<(), TrkError> {
     /// Values serialized per write; bounded so the scratch buffer stays on the stack.
     const CHUNK_VALUES: usize = 1024;
     let mut buf = [0u8; CHUNK_VALUES * 4];

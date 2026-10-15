@@ -79,8 +79,8 @@ The first run that reached the installed wheel and free-threaded contract,
 35661207418, failed when `Image` extracted a NumPy array: the registry
 `numpy` 0.29.0 bridge reported `TypeError: 'ndarray' object is not an
 instance of 'ndarray'` under abi3t. The fix is the merged rust-numpy abi3t
-implementation and its extraction-error corrections at revision
-[`9df4023`](https://github.com/PyO3/rust-numpy/commit/9df402373716a60f0e7825b6043568abe4e63b46),
+implementation and its extraction-error corrections at
+[the upstream commit](https://github.com/PyO3/rust-numpy/commit/9df402373716a60f0e7825b6043568abe4e63b46),
 consumed temporarily by the RITK lock. The free-threaded contract pins NumPy
 to `>=2.5,<2.6`, matching that bridge's supported C API surface. Remove the
 Git revision when a crates.io `numpy` release contains the abi3t support and

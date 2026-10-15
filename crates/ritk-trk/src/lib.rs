@@ -27,3 +27,5 @@ pub use types::{TrkHeader, TrkTractogram};
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_allocation;

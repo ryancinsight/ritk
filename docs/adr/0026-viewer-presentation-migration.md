@@ -40,10 +40,10 @@ completes the pinned presentation inventory. The current RITK shell is the
 `eframe::App` implementation in `crates/ritk-snap/src/app/state.rs`, launched
 by `crates/ritk-snap/src/launch.rs` for native and browser targets. Its
 format-aware state, loaders, renderers and DICOM workflows remain in RITK.
-The inspected source snapshots are RITK
-`8e53327c53d14afcec64a92b563e6b48db85eb15` and Métis
-`2711454493747d373e4b09ac4e42e6b828a1e18e`; both provider trees were clean at
-inventory time. The inventory below records the exact replacement seams and
+The inspected source snapshot is RITK
+`8e53327c53d14afcec64a92b563e6b48db85eb15`; the Métis side was its clean
+default-branch checkout at inventory time (a working tree, so no durable
+hash exists for it). The inventory below records the exact replacement seams and
 the host gaps that must close before the shell can be removed.
 
 Revision 2026-09-10 (first presentation increment): RITK now exposes
