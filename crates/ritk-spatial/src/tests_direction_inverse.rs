@@ -45,12 +45,15 @@ fn non_finite_direction_entries_are_rejected_in_every_position() {
 #[test]
 fn finite_arithmetic_overflow_does_not_return_a_corrupt_inverse() {
     trace_tests();
-    // Normalization overflows MAX/0.5. Elimination overflows MAX+MAX;
-    // its real inverse has finite entries, but the unscaled algorithm must
-    // report failure instead of returning the incorrect [[1,0],[0,0]].
+    // Working-matrix normalization overflows MAX/0.5. Working-matrix
+    // elimination overflows MAX+MAX; its real inverse has finite entries,
+    // but the unscaled algorithm must report failure instead of returning
+    // the incorrect [[1,0],[0,0]]. Inverse-only elimination overflows -MAX*2
+    // while every working-matrix entry stays finite.
     for (stage, rows) in [
-        ("normalization", [[0.5, f64::MAX], [0.0, 1.0]]),
-        ("elimination", [[1.0, f64::MAX], [-1.0, f64::MAX]]),
+        ("working normalization", [[0.5, f64::MAX], [0.0, 1.0]]),
+        ("working elimination", [[1.0, f64::MAX], [-1.0, f64::MAX]]),
+        ("inverse elimination", [[1.0, f64::MAX], [0.0, 0.5]]),
     ] {
         let _case = tracing::info_span!("case", stage).entered();
         let direction = tracing::info_span!("arrange").in_scope(|| Direction::from_rows(rows));
