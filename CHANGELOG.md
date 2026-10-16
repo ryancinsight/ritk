@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## ritk-spatial 0.4.1
+
+### Fixed
+
+- [patch] Reject non-finite direction entries and overflowing inversion
+  arithmetic before returning an inverse. Previously NaN directions could
+  construct Cartesian transform pairs, and finite elimination overflow could
+  return an incorrect finite matrix. The existing typed geometry error now
+  describes unavailable finite inversion. Exact shear/pivot and subnormal
+  inverse oracles preserve valid behavior; provider records and the pivot
+  threshold are unchanged.
+
 ## ritk-registration 0.55.1
 
 ### Fixed

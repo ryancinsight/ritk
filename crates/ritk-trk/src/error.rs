@@ -48,7 +48,9 @@ pub enum TrkError {
     /// outside `0..=10` describes names the format has no room to store. Left
     /// unchecked it also sets the per-point stride, which turned a 1 KiB header
     /// into a multi-gigabyte reservation.
-    #[error("invalid per-point scalar count {count}; the TrackVis scalar-name table holds at most 10")]
+    #[error(
+        "invalid per-point scalar count {count}; the TrackVis scalar-name table holds at most 10"
+    )]
     InvalidScalarCount {
         /// The `n_scalars` value read from the header.
         count: i16,
