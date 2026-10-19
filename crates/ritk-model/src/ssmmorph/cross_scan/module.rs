@@ -1,7 +1,7 @@
 //! Directional scan orchestration.
 
 use coeus_autograd::{add, scalar_mul, Var};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, FloatElement};
 use coeus_ops::BackendOps;
 
 use super::super::policy::ScanDimensionality;
@@ -144,5 +144,5 @@ where
     for value in &values[1..] {
         sum = add(&sum, value).map_err(ModelError::backend)?;
     }
-    scalar_mul(&sum, 1.0 / values.len() as f32).map_err(ModelError::backend)
+    scalar_mul(&sum, 1.0 / f32::from_count(values.len())).map_err(ModelError::backend)
 }

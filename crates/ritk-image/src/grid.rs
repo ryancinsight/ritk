@@ -40,7 +40,7 @@ where
 
     for _ in 0..total {
         for d in (0..D).rev() {
-            grid.push(<T as eunomia::FloatElement>::from_f64(indices[d] as f64));
+            grid.push(<T as eunomia::FloatElement>::from_count(indices[d]));
         }
 
         for d in (0..D).rev() {

@@ -1,7 +1,7 @@
 //! Diffusion-family filters: Perona–Malik anisotropic, curvature anisotropic, and coherence-enhancing diffusion.
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
-use coeus_core::MoiraiBackend;
+use coeus_core::{FloatElement, MoiraiBackend};
 use pyo3::prelude::*;
 use ritk_filter::diffusion::{
     CoherenceConfig, ConductanceFunction, CurvatureConfig, DiffusionConfig,
@@ -85,8 +85,8 @@ pub fn anisotropic_diffusion(
         PyConductanceKind::Exponential => {
             GradientAnisotropicDiffusionFilter::new(GradientDiffusionConfig {
                 num_iterations: iterations,
-                time_step: time_step as f32,
-                conductance: conductance as f32,
+                time_step: f32::from_f64(time_step),
+                conductance: f32::from_f64(conductance),
             })
             .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -94,8 +94,8 @@ pub fn anisotropic_diffusion(
         // Crate-specific Perona-Malik with quadratic conductance.
         PyConductanceKind::Quadratic => DiffusionConfig {
             num_iterations: iterations,
-            conductance: conductance as f32,
-            time_step: time_step as f32,
+            conductance: f32::from_f64(conductance),
+            time_step: f32::from_f64(time_step),
             function: ConductanceFunction::Quadratic,
         }
         .apply_native(image.as_ref(), &backend)
@@ -136,8 +136,8 @@ pub fn curvature_anisotropic_diffusion(
     py.detach(|| {
         let filter = CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig {
             num_iterations: iterations,
-            time_step: time_step as f32,
-            conductance: conductance as f32,
+            time_step: f32::from_f64(time_step),
+            conductance: f32::from_f64(conductance),
         });
         filter
             .apply_native(image.as_ref(), &backend)
@@ -161,7 +161,7 @@ pub fn curvature_flow(
     py.detach(|| {
         CurvatureFlowImageFilter::new(CurvatureFlowConfig {
             num_iterations: iterations,
-            time_step: time_step as f32,
+            time_step: f32::from_f64(time_step),
         })
         .apply_native(image.as_ref(), &backend)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -187,7 +187,7 @@ pub fn min_max_curvature_flow(
     py.detach(|| {
         MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig {
             num_iterations: iterations,
-            time_step: time_step as f32,
+            time_step: f32::from_f64(time_step),
             stencil_radius,
         })
         .apply_native(image.as_ref(), &backend)
@@ -214,7 +214,7 @@ pub fn binary_min_max_curvature_flow(
     py.detach(|| {
         BinaryMinMaxCurvatureFlowImageFilter::new(BinaryMinMaxCurvatureFlowConfig {
             num_iterations: iterations,
-            time_step: time_step as f32,
+            time_step: f32::from_f64(time_step),
             stencil_radius,
             threshold,
         })

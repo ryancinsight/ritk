@@ -41,9 +41,11 @@ where
 fn decode_png_single(path: &Path) -> Result<(Vec<f32>, [usize; 3])> {
     let image = open_png(path)?.to_luma8();
     let (width, height) = image.dimensions();
+    let width_usize = usize::try_from(width).context("PNG width fits usize")?;
+    let height_usize = usize::try_from(height).context("PNG height fits usize")?;
     Ok((
         image.into_raw().into_iter().map(f32::from).collect(),
-        [1, height as usize, width as usize],
+        [1, height_usize, width_usize],
     ))
 }
 
@@ -64,7 +66,9 @@ fn decode_png_series(directory: &Path) -> Result<(Vec<f32>, [usize; 3])> {
         }
         append_gray_pixels(&mut pixels, &image)?;
     }
-    Ok((pixels, [files.len(), height as usize, width as usize]))
+    let width_usize = usize::try_from(width).context("PNG width fits usize")?;
+    let height_usize = usize::try_from(height).context("PNG height fits usize")?;
+    Ok((pixels, [files.len(), height_usize, width_usize]))
 }
 
 pub(crate) fn open_png(path: &Path) -> Result<DynamicImage> {

@@ -32,6 +32,7 @@
 //! `Point<3>` `[ox, oy, oz]` without reversal.
 
 use anyhow::{anyhow, Context, Result};
+use coeus_core::FloatElement;
 use consus_core::{read_integer, ByteOrder};
 use ritk_codecs::SampleType;
 use ritk_spatial::{Point, Spacing};
@@ -167,7 +168,8 @@ pub(crate) fn parse(hdr_path: &Path) -> Result<AnalyzeHeader> {
         .metadata()
         .context("Cannot inspect Analyze header")?
         .len();
-    if header_len < HDR_SIZE as u64 {
+    let hdr_size = u64::try_from(HDR_SIZE).expect("Analyze header size fits u64");
+    if header_len < hdr_size {
         return Err(anyhow!(
             "Invalid Analyze header length: expected {HDR_SIZE} bytes, found {header_len}"
         ));
@@ -181,7 +183,7 @@ pub(crate) fn parse(hdr_path: &Path) -> Result<AnalyzeHeader> {
             "Unsupported paired NIfTI-1 header (ni1 magic); use the NIfTI reader with a single-file .nii dataset"
         ));
     }
-    if header_len != HDR_SIZE as u64 {
+    if header_len != hdr_size {
         return Err(anyhow!(
             "Invalid Analyze header length: expected {HDR_SIZE} bytes, found {header_len}"
         ));
@@ -190,8 +192,9 @@ pub(crate) fn parse(hdr_path: &Path) -> Result<AnalyzeHeader> {
     // sizeof_hdr must be exactly 348. Identify the unsupported byte order so a
     // big-endian file is not reported as arbitrary header corruption.
     let sizeof_hdr = read_le::<i32>(&hdr, 0);
-    if sizeof_hdr != HDR_SIZE as i32 {
-        if read_integer::<i32>(&hdr, ByteOrder::BigEndian) == Some(HDR_SIZE as i32) {
+    let hdr_size_i32 = i32::try_from(HDR_SIZE).expect("Analyze header size fits i32");
+    if sizeof_hdr != hdr_size_i32 {
+        if read_integer::<i32>(&hdr, ByteOrder::BigEndian) == Some(hdr_size_i32) {
             return Err(anyhow!(
                 "Unsupported big-endian Analyze file; RITK currently accepts little-endian Analyze 7.5 only"
             ));
@@ -254,9 +257,9 @@ pub(crate) fn parse(hdr_path: &Path) -> Result<AnalyzeHeader> {
     }
     let vox_offset = vox_offset_raw as u64;
 
-    let ox_vox = read_le::<i16>(&hdr, 253) as f64;
-    let oy_vox = read_le::<i16>(&hdr, 255) as f64;
-    let oz_vox = read_le::<i16>(&hdr, 257) as f64;
+    let ox_vox = f64::from_integer(i64::from(read_le::<i16>(&hdr, 253)));
+    let oy_vox = f64::from_integer(i64::from(read_le::<i16>(&hdr, 255)));
+    let oz_vox = f64::from_integer(i64::from(read_le::<i16>(&hdr, 257)));
 
     Ok(AnalyzeHeader {
         shape: [nz, ny, nx],
@@ -335,7 +338,8 @@ pub(crate) fn encode(fields: &AnalyzeHeaderFields<'_>) -> Result<[u8; HDR_SIZE]>
     let scale = header_scale(fields.scale)?;
 
     let mut hdr = [0u8; HDR_SIZE];
-    write_le::<i32>(&mut hdr, 0, HDR_SIZE as i32); // sizeof_hdr
+    let hdr_size_i32 = i32::try_from(HDR_SIZE).context("Analyze header size fits i32")?;
+    write_le::<i32>(&mut hdr, 0, hdr_size_i32); // sizeof_hdr
     write_le::<i32>(&mut hdr, 32, EXTENTS); // extents
     hdr[38] = b'r'; // regular
 

@@ -77,7 +77,7 @@ where
     let fm = mul(&f, &m).expect("ncc_loss: backend multiply failed");
     let s_fm = sum_axis(&fm, 1).expect("ncc_loss: backend sum_axis failed");
 
-    let inv_n = <T as FloatElement>::from_f64(n as f64);
+    let inv_n = <T as FloatElement>::from_count(n);
     // num = S_FM − S_F·S_M / N ; d_X = S_XX − S_X² / N.
     let s_f_s_m = mul(&s_f, &s_m).expect("ncc_loss: backend multiply failed");
     let s_f_s_m_n = scalar_div(&s_f_s_m, inv_n).expect("ncc_loss: backend scalar_div failed");
@@ -207,7 +207,7 @@ where
     // Bin centers over [0, 1] (constant leaf, no gradient), row `[1, num_bins]`.
     let denom = (num_bins as f64 - 1.0).max(1.0);
     let bin_data: Vec<T> = (0..num_bins)
-        .map(|i| <T as FloatElement>::from_f64(i as f64 / denom))
+        .map(|i| <T as FloatElement>::from_f64(eunomia::F64::from_count(i).0 / denom))
         .collect();
     let bins_tensor = Tensor::from_slice_on([1, num_bins], &bin_data, &backend)
         .expect("mi_loss: backend tensor build failed");
@@ -233,7 +233,7 @@ where
     // Joint histogram Wá¶ áµ€·Wᵐ (`[bins, bins]`), normalized to a probability.
     let w_f_t = permute(&w_f, &[1, 0]).expect("mi_loss: backend permute failed");
     let joint = matmul(&w_f_t, &w_m).expect("mi_loss: backend matmul failed");
-    let joint_p = scalar_div(&joint, <T as FloatElement>::from_f64(n as f64))
+    let joint_p = scalar_div(&joint, <T as FloatElement>::from_count(n))
         .expect("mi_loss: backend scalar_div failed");
 
     // Marginals broadcast back to `[bins, bins]`.

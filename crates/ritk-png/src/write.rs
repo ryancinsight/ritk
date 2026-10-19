@@ -81,8 +81,12 @@ where
     let (minimum, maximum) = window(pixels);
     let per_slice = rows * cols;
     for (index, slice) in pixels.chunks_exact(per_slice).enumerate() {
-        let gray = GrayImage::from_fn(cols as u32, rows as u32, |x, y| {
-            let offset = y as usize * cols + x as usize;
+        let cols_u32 = u32::try_from(cols).context("PNG width fits u32")?;
+        let rows_u32 = u32::try_from(rows).context("PNG height fits u32")?;
+        let gray = GrayImage::from_fn(cols_u32, rows_u32, |x, y| {
+            let x_usize = usize::try_from(x).expect("PNG column fits usize");
+            let y_usize = usize::try_from(y).expect("PNG row fits usize");
+            let offset = y_usize * cols + x_usize;
             Luma([scale(slice[offset], minimum, maximum)])
         });
         let path = directory.join(slice_filename(index));
@@ -109,8 +113,12 @@ where
         .context("PNG writing requires contiguous f32 image data")?;
     let (minimum, maximum) = window(pixels);
     let slice = &pixels[index * per_slice..(index + 1) * per_slice];
-    Ok(GrayImage::from_fn(cols as u32, rows as u32, |x, y| {
-        let offset = y as usize * cols + x as usize;
+    let cols_u32 = u32::try_from(cols).context("PNG width fits u32")?;
+    let rows_u32 = u32::try_from(rows).context("PNG height fits u32")?;
+    Ok(GrayImage::from_fn(cols_u32, rows_u32, |x, y| {
+        let x_usize = usize::try_from(x).expect("PNG column fits usize");
+        let y_usize = usize::try_from(y).expect("PNG row fits usize");
+        let offset = y_usize * cols + x_usize;
         Luma([scale(slice[offset], minimum, maximum)])
     }))
 }

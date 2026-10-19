@@ -18,9 +18,11 @@ where
 {
     let image = read_rgb8_png(path.as_ref())?;
     let (width, height) = image.dimensions();
+    let width_usize = usize::try_from(width).context("PNG width fits usize")?;
+    let height_usize = usize::try_from(height).context("PNG height fits usize")?;
     rgb_volume_from_flat_pixels(
         image.into_raw().into_iter().map(f32::from).collect(),
-        [1, height as usize, width as usize],
+        [1, height_usize, width_usize],
         backend,
     )
 }
@@ -47,11 +49,9 @@ where
         }
         append_rgb_pixels(&mut pixels, &image)?;
     }
-    rgb_volume_from_flat_pixels(
-        pixels,
-        [files.len(), height as usize, width as usize],
-        backend,
-    )
+    let width_usize = usize::try_from(width).context("PNG width fits usize")?;
+    let height_usize = usize::try_from(height).context("PNG height fits usize")?;
+    rgb_volume_from_flat_pixels(pixels, [files.len(), height_usize, width_usize], backend)
 }
 
 /// Backend-bound RGB PNG reader.

@@ -6,7 +6,7 @@
 //! contracts live in `tests_transform.rs`.
 
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
-use coeus_core::SequentialBackend;
+use coeus_core::{FloatElement, SequentialBackend};
 use coeus_tensor::Tensor;
 use ritk_spatial::{CoordinateMap, Direction, Point, Spacing};
 
@@ -33,9 +33,11 @@ fn single_point_transform_honours_the_curvilinear_map() {
     let point = img.continuous_index_to_physical_point(&index);
 
     // Batch column c corresponds to axis D-1-c on the index side.
-    let batch_idx =
-        Tensor::<f32, SequentialBackend>::from_slice([1, 2], &[index[1] as f32, index[0] as f32])
-            .unwrap();
+    let batch_idx = Tensor::<f32, SequentialBackend>::from_slice(
+        [1, 2],
+        &[f32::from_f64(index[1]), f32::from_f64(index[0])],
+    )
+    .unwrap();
     let batch = img.index_to_world_native(&batch_idx).unwrap();
 
     for axis in 0..2 {

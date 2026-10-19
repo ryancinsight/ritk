@@ -47,7 +47,8 @@ pub fn encode_code_block(
     }
 
     // Number of bit-planes = floor(log2(max_mag)) + 1.
-    let num_bit_planes = (u32::BITS - max_mag.leading_zeros()) as u8;
+    let num_bit_planes =
+        u8::try_from(u32::BITS - max_mag.leading_zeros()).expect("bit-plane count fits u8");
 
     // Per-sample significance / refinement state (mirrors the decoder's view).
     let mut state = vec![SampleState::default(); n];
@@ -65,7 +66,7 @@ pub fn encode_code_block(
 
     // The first (MSB) plane is cleanup-only (ISO 15444-1 §D.4.1): SPP/MRP are
     // skipped, giving the standard pass count 3P − 2 for P coded bit-planes.
-    for bp in (0..num_bit_planes as u32).rev() {
+    for bp in (0..u32::from(num_bit_planes)).rev() {
         let first_plane = bp + 1 == u32::from(num_bit_planes);
         if !first_plane {
             // ── SPP ──────────────────────────────────────────────────────────────
@@ -147,18 +148,25 @@ pub fn encode_code_block(
                     mq.encode(u32::from(!all_zero), &mut ctxs[CTX_AGG]);
                     if !all_zero {
                         // Find the first non-zero row.
-                        let run_pos = (y..y + 4)
-                            .position(|yy| (samples[yy * width + x].unsigned_abs() >> bp) & 1 == 1)
-                            .unwrap_or(0) as u32;
+                        let run_pos = u32::try_from(
+                            (y..y + 4)
+                                .position(|yy| {
+                                    (samples[yy * width + x].unsigned_abs() >> bp) & 1 == 1
+                                })
+                                .unwrap_or(0),
+                        )
+                        .expect("EBCOT run position fits u32");
                         trace(CTX_UNI, (run_pos >> 1) & 1);
                         mq.encode((run_pos >> 1) & 1, &mut ctxs[CTX_UNI]);
                         trace(CTX_UNI, run_pos & 1);
                         mq.encode(run_pos & 1, &mut ctxs[CTX_UNI]);
 
+                        let run_idx =
+                            usize::try_from(run_pos).expect("EBCOT run position fits usize");
                         for row_off in 0..4usize {
                             let yy = y + row_off;
                             let idx = yy * width + x;
-                            if row_off == run_pos as usize {
+                            if row_off == run_idx {
                                 // Became significant: encode sign.
                                 state[idx].set_significant();
                                 let (kh, kv) = sign_contributions(&state, width, height, x, yy);
@@ -168,7 +176,7 @@ pub fn encode_code_block(
                                     trace(sc_ctx, sb);
                                     mq.encode(sb, &mut ctxs[sc_ctx]);
                                 }
-                            } else if row_off > run_pos as usize && !state[idx].is_significant() {
+                            } else if row_off > run_idx && !state[idx].is_significant() {
                                 let sig_bit = (samples[idx].unsigned_abs() >> bp) & 1;
                                 let (h, v, d) = neighbour_sig_counts(&state, width, height, x, yy);
                                 let ctx = zc_context(orient, h, v, d);

@@ -56,7 +56,7 @@ pub fn decode_code_block(
     if num_passes == 0 {
         return Ok(DecodedBlock {
             samples: vec![0i32; n],
-            lowest_bitplane: num_bit_planes as u32,
+            lowest_bitplane: u32::from(num_bit_planes),
         });
     }
     if num_bit_planes == 0 {
@@ -78,7 +78,7 @@ pub fn decode_code_block(
     let mut mq = MqDecoder::new(data);
     let mut ctxs = initial_contexts();
 
-    let total_bit_planes = num_bit_planes as u32;
+    let total_bit_planes = u32::from(num_bit_planes);
     let mut passes_remaining = num_passes;
     // Lowest bit-plane index touched by an executed pass; starts above the MSB
     // and descends to the plane of the last pass run (0 ⟺ fully decoded).
@@ -203,12 +203,13 @@ pub fn decode_code_block(
                     let pos1 = mq.decode(&mut ctxs[CTX_UNI]);
                     trace(CTX_UNI, pos1);
                     let run_pos = (pos0 << 1) | pos1; // row offset 0..3
+                    let run_idx = usize::try_from(run_pos).expect("EBCOT run position fits usize");
                     for row_off in 0..4usize {
                         let yy = y + row_off;
                         let idx = yy * width + x;
-                        if row_off < run_pos as usize {
+                        if row_off < run_idx {
                             // Non-significant
-                        } else if row_off == run_pos as usize {
+                        } else if row_off == run_idx {
                             // This sample becomes significant.
                             mag[idx] |= 1 << bp;
                             state[idx].set_significant();

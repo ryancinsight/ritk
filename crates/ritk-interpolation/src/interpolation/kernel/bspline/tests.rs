@@ -1,6 +1,6 @@
 #![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 use super::*;
-use coeus_core::MoiraiBackend;
+use coeus_core::{FloatElement, MoiraiBackend};
 use coeus_tensor::Tensor;
 
 type TestBackend = MoiraiBackend;
@@ -395,7 +395,8 @@ fn test_bspline_z1_anisotropic_plane() {
 
     for a1 in 0..d1 {
         for a2 in 0..d2 {
-            let pt = Tensor::<f32, TestBackend>::from_slice([1, 3], &[a2 as f32, a1 as f32, 0.0])
+            let (x, y) = (f32::from_count(a2), f32::from_count(a1));
+            let pt = Tensor::<f32, TestBackend>::from_slice([1, 3], &[x, y, 0.0])
                 .expect("test tensor is valid");
             let v = interp
                 .interpolate(&data, pt)

@@ -112,10 +112,10 @@ impl HuffmanTable {
                 "code length {length} exceeds the maximum"
             );
             bits[usize::from(length) - 1] += 1;
-            values.push(symbol as u8);
+            values.push(u8::try_from(symbol).expect("symbol fits u8"));
         }
         assert!(
-            bits.iter().sum::<u8>() as usize == values.len(),
+            usize::from(bits.iter().sum::<u8>()) == values.len(),
             "BITS and HUFFVAL disagree: {} codes for {} symbols",
             bits.iter().sum::<u8>(),
             values.len()
@@ -193,7 +193,7 @@ impl EntropyWriter {
             "code length {length} exceeds the maximum"
         );
         for index in (0..length).rev() {
-            let bit = ((value >> index) & 1) as u8;
+            let bit = u8::from(((value >> index) & 1) == 1);
             self.current = (self.current << 1) | bit;
             self.filled += 1;
             if self.filled == 8 {
@@ -219,7 +219,8 @@ impl EntropyWriter {
     fn finish(mut self) -> Vec<u8> {
         if self.filled > 0 {
             let pad = 8 - self.filled;
-            self.current = (self.current << pad) | (((1u16 << pad) - 1) as u8);
+            let mask = u8::try_from((1u16 << pad) - 1).expect("pad mask fits u8");
+            self.current = (self.current << pad) | mask;
             self.filled = 8;
             self.flush_byte();
         }
@@ -234,7 +235,7 @@ fn magnitude_category(difference: i32) -> u8 {
         return 0;
     }
     let magnitude = difference.unsigned_abs();
-    (32 - magnitude.leading_zeros()) as u8
+    u8::try_from(32 - magnitude.leading_zeros()).expect("magnitude category fits u8")
 }
 
 fn push_segment_length(out: &mut Vec<u8>, value: u16) {
@@ -242,7 +243,7 @@ fn push_segment_length(out: &mut Vec<u8>, value: u16) {
 }
 
 fn push_dht(out: &mut Vec<u8>, table: &HuffmanTable) {
-    let length = 2 + 1 + MAX_CODE_BITS as usize + table.values.len();
+    let length = 2 + 1 + usize::from(MAX_CODE_BITS) + table.values.len();
     out.push(0xFF);
     out.push(0xC4);
     push_segment_length(out, length as u16);
