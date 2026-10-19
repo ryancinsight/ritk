@@ -312,6 +312,13 @@ jobs:
         env:
           EXAMPLE_SUFFIX: ${{ runner.os == 'Windows' && '.exe' || '' }}
         run: |
+          # T1 (RITK-SNAP-RETURN-001): ritk-snap is excluded from the workspace
+          # until the metis advance lands; skip the viewer capture meanwhile.
+          # T2 restores the unconditional build below.
+          if ! cargo metadata --locked --no-deps --format-version 1 2>/dev/null | grep -q '"name":"ritk-snap"'; then
+            echo "ritk-snap is not a workspace member (Track 1); skipping viewer capture."
+            exit 0
+          fi
           cargo build --locked -p ritk-snap --features eframe-shell --example dicom_workflow
           python scripts/viewer.py "target/debug/examples/dicom_workflow${EXAMPLE_SUFFIX}"
 
