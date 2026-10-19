@@ -44,7 +44,7 @@ RITK provides a comprehensive framework for medical image analysis:
 | Format owners | `ritk-dicom`, `ritk-codecs`, `ritk-nifti`, `ritk-nrrd`, `ritk-metaimage`, `ritk-mgh`, `ritk-analyze`, `ritk-png`, `ritk-jpeg`, `ritk-tiff`, `ritk-minc`, `ritk-vtk`, `ritk-mif`, `ritk-gifti` | Validated byte-level codecs and format-specific image I/O |
 | Tractogram formats | `ritk-tck`, `ritk-trk`, `ritk-trx` | MRtrix3 `.tck`, TrackVis `.trk`, and TRX streamline I/O |
 | Integration | `ritk-io`, `ritk-core`, `ritk-wgpu-compat` | Unified I/O dispatch, public facade contracts, and graphics interop |
-| Deliverables | `ritk-cli`, `ritk-snap`, `ritk-snap-eframe`, `ritk-python` | CLI, native viewer, and thin PyO3 bindings |
+| Deliverables | `ritk-cli`, `ritk-snap`, `ritk-python` | CLI, native viewer, and thin PyO3 bindings |
 
 All 42 workspace crates appear above; `xtask` is the build-automation member and
 is not a library crate.
@@ -74,18 +74,10 @@ a single DICOM file, a `DICOMDIR` file, or a supported medical image file. The v
 I/O in `ritk-io` and presentation logic in `ritk-snap`, with a vertical module
 split for input path normalization, hanging-protocol selection, series
 discovery, metadata row construction, session snapshot persistence, rendering,
-tools, and the eframe compatibility widgets. On Windows the default shell is
-Métis. The default `ritk-snap` graph has no eframe, egui, or rfd dependency;
-the complete legacy shell is packaged as `ritk-snap-eframe`.
-
-Run the compatibility shell with the separately named package:
-
-```console
-cargo run --locked -p ritk-snap-eframe -- path/to/study
-```
-
-The source-level compatibility feature remains available for the existing
-capture harness and tests:
+and tools. On Windows the default shell is Métis. The default `ritk-snap`
+graph has no eframe, egui, or rfd dependency; the legacy eframe shell was
+removed with its `ritk-snap-eframe` package. The source-level compatibility
+feature remains available for the existing capture harness and tests:
 
 ```console
 cargo run --locked -p ritk-snap --features eframe-shell -- \
@@ -507,8 +499,8 @@ verifies the packaged source and uses crates.io trusted publishing to obtain a
 short-lived credential. The matching GitHub Release is the source and artifact
 record for that package version.
 
-Eleven workspace members carry `publish = false` and are not crates.io packages:
-`ritk-cli`, `ritk-snap`, `ritk-snap-eframe`, `ritk-python`, `ritk-diffusion`, `ritk-tractography`,
+Ten workspace members carry `publish = false` and are not crates.io packages:
+`ritk-cli`, `ritk-snap`, `ritk-python`, `ritk-diffusion`, `ritk-tractography`,
 `ritk-connectome`, `ritk-tck`, `ritk-trk`, `ritk-trx`, and `ritk-gifti`. Python wheels use
 the separate `v<version>` maturin release workflow.
 

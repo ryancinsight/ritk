@@ -22,8 +22,9 @@ members = [
   "crates/ritk-registration",
   "crates/ritk-python",
   "crates/ritk-cli",
-  # T2 (RITK-SNAP-RETURN-001): ritk-snap + ritk-snap-eframe rejoin once metis
-  # advances to the new provider cohort (metis #TBD). See backlog item.
+  # T2 (RITK-SNAP-RETURN-001): ritk-snap rejoins once metis advances to the
+  # new provider cohort (metis #TBD). See backlog item. The legacy
+  # ritk-snap-eframe package was deleted instead of excluded.
   "crates/ritk-transform",
   "crates/ritk-interpolation",
   "crates/ritk-spatial",
