@@ -23,6 +23,26 @@ pub enum ModelError {
     /// enum stays non-generic across every model consumer.
     #[error(transparent)]
     Module(Box<dyn std::error::Error + Send + Sync>),
+    /// A Coeus backend operation, tensor constructor, or layer
+    /// initialization failed.
+    ///
+    /// The boxed source is the backend-typed failure (`B::Error` or
+    /// [`coeus_nn::init::InitializationError`]) with its chain intact. A `From`
+    /// impl is impossible here: the backend error is an associated type, so
+    /// a blanket impl would overlap [`ModelError`] conversion above; use
+    /// [`ModelError::backend`] at fallible call sites instead.
+    #[error(transparent)]
+    Backend(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl ModelError {
+    /// Box a backend-typed failure into a [`ModelError::Backend`].
+    pub fn backend<E>(error: E) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        Self::Backend(Box::new(error))
+    }
 }
 
 impl<E> From<coeus_nn::ModuleError<E>> for ModelError

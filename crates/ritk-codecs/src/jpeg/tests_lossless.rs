@@ -68,7 +68,9 @@ fn horizontal_gradient_round_trips_exactly() {
     // exercises the Ra prediction path in non-hierarchical mode.
     let cols = 16usize;
     let rows = 4usize;
-    let samples: Vec<u16> = (0..rows * cols).map(|i| (i % cols) as u16 * 3).collect();
+    let samples: Vec<u16> = (0..rows * cols)
+        .map(|i| u16::try_from(i % cols).expect("test sample fits u16") * 3)
+        .collect();
     let decoded = round_trip(&samples, rows, cols, 16, JpegLosslessPrediction::Left);
     for (index, value) in decoded.iter().enumerate() {
         assert_eq!(*value, f32::from(samples[index]), "sample {index}");
@@ -80,7 +82,9 @@ fn vertical_gradient_round_trips_exactly() {
     // The mirror image: `Rb` differs every sample and `Ra` is constant.
     let cols = 8usize;
     let rows = 5usize;
-    let samples: Vec<u16> = (0..rows * cols).map(|i| (i / cols) as u16 * 7).collect();
+    let samples: Vec<u16> = (0..rows * cols)
+        .map(|i| u16::try_from(i / cols).expect("test sample fits u16") * 7)
+        .collect();
     let decoded = round_trip(&samples, rows, cols, 16, JpegLosslessPrediction::Left);
     for (index, value) in decoded.iter().enumerate() {
         assert_eq!(*value, f32::from(samples[index]), "sample {index}");
@@ -92,7 +96,7 @@ fn both_prediction_modes_agree_on_a_mixed_image() {
     let rows = 6usize;
     let cols = 7usize;
     let samples: Vec<u16> = (0..rows * cols)
-        .map(|i| ((i * 37 + i / cols) % 251) as u16)
+        .map(|i| u16::try_from((i * 37 + i / cols) % 251).expect("test sample fits u16"))
         .collect();
     let decoded = round_trip(&samples, rows, cols, 16, JpegLosslessPrediction::Left);
     for (index, expected) in samples.iter().enumerate() {
@@ -109,7 +113,7 @@ fn non_hierarchical_round_trips_exactly() {
     let rows = 5usize;
     let cols = 7usize;
     let samples: Vec<u16> = (0..rows * cols)
-        .map(|i| ((i * 29 + i / cols) % 4095) as u16)
+        .map(|i| u16::try_from((i * 29 + i / cols) % 4095).expect("test sample fits u16"))
         .collect();
     let decoded = round_trip(&samples, rows, cols, 12, JpegLosslessPrediction::AboveOnly);
     for (index, expected) in samples.iter().enumerate() {
@@ -128,7 +132,9 @@ fn non_hierarchical_and_selector_two_reconstruct_identically() {
     // the `AboveOnly` variant rests on.
     let rows = 4usize;
     let cols = 5usize;
-    let samples: Vec<u16> = (0..rows * cols).map(|i| (i * 11) as u16).collect();
+    let samples: Vec<u16> = (0..rows * cols)
+        .map(|i| u16::try_from(i * 11).expect("test sample fits u16"))
+        .collect();
     let zero = round_trip(&samples, rows, cols, 16, JpegLosslessPrediction::AboveOnly);
     let two = round_trip(&samples, rows, cols, 16, JpegLosslessPrediction::Above);
     assert_eq!(
@@ -164,7 +170,9 @@ fn twelve_bit_samples_round_trip() {
 fn eight_bit_samples_round_trip() {
     let rows = 4usize;
     let cols = 4usize;
-    let samples: Vec<u16> = (0..16).map(|i| (i * 17 % 256) as u16).collect();
+    let samples: Vec<u16> = (0..16)
+        .map(|i| u16::try_from(i * 17 % 256).expect("test sample fits u16"))
+        .collect();
     let decoded = round_trip(&samples, rows, cols, 8, JpegLosslessPrediction::Above);
     for (index, expected) in samples.iter().enumerate() {
         assert_eq!(decoded[index], f32::from(*expected), "8-bit sample {index}");
@@ -189,7 +197,7 @@ fn descending_raster_exercises_negative_differences() {
     let rows = 4usize;
     let cols = 4usize;
     let samples: Vec<u16> = (0..rows * cols)
-        .map(|i| 65535 - (i as u16) * 1000)
+        .map(|i| 65535 - u16::try_from(i).expect("test sample fits u16") * 1000)
         .collect();
     let decoded = round_trip(&samples, rows, cols, 16, JpegLosslessPrediction::Left);
     for (index, expected) in samples.iter().enumerate() {

@@ -65,7 +65,9 @@ where
     let moving_world = transform.transform_points(fixed_points);
 
     // Step 2: world-to-index using the moving image's native method
-    let moving_indices = moving.world_to_index_native(&moving_world);
+    let moving_indices = moving
+        .world_to_index_native(&moving_world)
+        .expect("world-to-index mapping requires host materialization");
 
     // Step 2b: compute OOB mask from indices before interpolation consumes them
     let oob_mask = compute_oob_mask(&moving_indices, &moving.shape());

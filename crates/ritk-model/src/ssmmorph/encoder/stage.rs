@@ -39,10 +39,15 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Initialize an encoder stage.
+    ///
+    /// # Panics
+    /// Panics when a channel count is zero: configs this crate builds carry
+    /// positive dims.
     #[must_use]
     pub fn new(config: EncoderStageConfig) -> Self {
         let mut projection = (config.in_channels != config.out_channels).then(|| {
             Conv3d::with_params(config.in_channels, config.out_channels, 3, 1, 1, 1, false)
+                .expect("invariant: encoder projection dims are positive")
         });
         if let Some(layer) = &mut projection {
             crate::initialization::convolution(layer, config.in_channels, 3, 501);
@@ -52,6 +57,7 @@ where
             .collect();
         let mut downsample = (config.downsample == DownsamplePolicy::Downsample).then(|| {
             Conv3d::with_params(config.out_channels, config.out_channels, 3, 2, 1, 1, false)
+                .expect("invariant: encoder downsample dims are positive")
         });
         if let Some(layer) = &mut downsample {
             crate::initialization::convolution(layer, config.out_channels, 3, 502);

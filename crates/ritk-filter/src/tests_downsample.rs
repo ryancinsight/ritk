@@ -39,7 +39,7 @@ fn downsample_factor_two_halves_shape_and_doubles_spacing() {
     let n = 4 * 6 * 8;
     let data: Vec<f32> = (0..n).map(|i| i as f32).collect();
     let img = Image::<f32, B, 3>::new(
-        Tensor::<f32, B>::from_slice([4usize, 6, 8], &data),
+        Tensor::<f32, B>::from_slice([4usize, 6, 8], &data).expect("test tensor is valid"),
         Point::new([0.0; 3]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
@@ -77,7 +77,8 @@ fn downsample_scalar_factor_broadcast() {
 fn downsample_spacing_updated_proportionally() {
     let n = 6 * 6 * 6;
     let img = Image::<f32, B, 3>::new(
-        Tensor::<f32, B>::from_slice([6usize, 6, 6], &vec![0.0_f32; n]),
+        Tensor::<f32, B>::from_slice([6usize, 6, 6], &vec![0.0_f32; n])
+            .expect("test tensor is valid"),
         Point::new([0.0; 3]),
         Spacing::new([0.5, 1.0, 2.0]),
         Direction::identity(),

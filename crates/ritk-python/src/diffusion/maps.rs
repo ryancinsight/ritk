@@ -1,5 +1,6 @@
 //! Python representation of fitted diffusion maps.
 
+use coeus_core::FloatElement;
 use numpy::{PyArray1, PyArray3, PyArray4, PyArrayMethods};
 use pyo3::prelude::*;
 
@@ -33,11 +34,8 @@ impl PyDiffusionMaps {
         py: Python<'py>,
         values: &[f64],
     ) -> RitkResult<Bound<'py, PyArray3<f32>>> {
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "maps are returned at image precision, matching every other RITK array"
-        )]
-        let narrowed: Vec<f32> = values.iter().map(|value| *value as f32).collect();
+        // Narrowed to image precision, matching every other RITK array.
+        let narrowed: Vec<f32> = values.iter().map(|value| f32::from_f64(*value)).collect();
         PyArray1::<f32>::from_vec(py, narrowed)
             .reshape(self.shape)
             .map_err(|error| RitkPyError::runtime(format!("reshaping a map: {error}")))
@@ -109,15 +107,12 @@ impl PyDiffusionMaps {
     fn principal_eigenvector<'py>(&self, py: Python<'py>) -> RitkResult<Bound<'py, PyArray4<f32>>> {
         let [depth, rows, columns] = self.shape;
 
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "unit-vector components are returned at image precision"
-        )]
+        // Unit-vector components are returned at image precision.
         let flat: Vec<f32> = self
             .maps
             .principal_eigenvector()
             .iter()
-            .flat_map(|vector| vector.iter().map(|value| *value as f32))
+            .flat_map(|vector| vector.iter().map(|value| f32::from_f64(*value)))
             .collect();
 
         PyArray1::<f32>::from_vec(py, flat)

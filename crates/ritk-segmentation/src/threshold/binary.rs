@@ -205,7 +205,8 @@ pub fn binary_threshold<B: Backend, const D: usize>(
     let output: Vec<f32> =
         apply_binary_threshold_to_slice(slice, lower, upper, inside_value, outside_value);
 
-    let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device);
+    let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device)
+        .expect("invariant: segmentation output length matches shape");
 
     Image::new(
         tensor,

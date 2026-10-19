@@ -85,7 +85,7 @@ fn native_transform_matches_legacy_for_three_dimensional_background_ring() {
     );
 }
 fn img(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
-    let t = Tensor::<f32, B>::from_slice(dims, &vals);
+    let t = Tensor::<f32, B>::from_slice(dims, &vals).expect("test tensor is valid");
     Image::new(
         t,
         Point::new([0.0, 0.0, 0.0]),
@@ -144,7 +144,7 @@ fn test_isolated_voxel_detected() {
 fn test_metadata_preserved() {
     let dims = [5, 5, 5];
     let n = dims[0] * dims[1] * dims[2];
-    let t = Tensor::<f32, B>::from_slice(dims, &vec![1.0_f32; n]);
+    let t = Tensor::<f32, B>::from_slice(dims, &vec![1.0_f32; n]).expect("test tensor is valid");
     let o = Point::new([1.0, 2.0, 3.0]);
     let s = Spacing::new([0.5, 0.5, 0.5]);
     let r = HitOrMissTransform::new(0, 0)

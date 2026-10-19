@@ -133,11 +133,19 @@ jobs:
             fi
             revision="$candidate"
           done < <(sed -nE 's/^source = "git\+https:\/\/github\.com\/ryancinsight\/metis\.git#([0-9a-f]{40})"$/\1/p' Cargo.lock)
-          [[ -n "$revision" ]]
+          # T1 (RITK-SNAP-RETURN-001): metis is absent from the lockfile while
+          # ritk-snap is excluded; report absence so the Métis steps skip.
+          # T2 restores the hard requirement below.
+          if [[ -z "$revision" ]]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "revision=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "present=true" >> "$GITHUB_OUTPUT"
           echo "revision=$revision" >> "$GITHUB_OUTPUT"
 
       - name: Check out lock-pinned Métis scripts
-        if: github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true'
+        if: (github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true') && steps.metis-revision.outputs.present != 'false'
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           repository: ryancinsight/metis
@@ -146,7 +154,7 @@ jobs:
           persist-credentials: false
 
       - name: Verify lock-pinned Métis scripts
-        if: github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true'
+        if: (github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true') && steps.metis-revision.outputs.present != 'false'
         shell: bash
         env:
           METIS_REVISION: ${{ steps.metis-revision.outputs.revision }}
@@ -177,15 +185,15 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Prepare Métis script output root
-        if: github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true'
+        if: (github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true') && steps.metis-revision.outputs.present != 'false'
         run: python -c "from pathlib import Path; Path('../metis/output').mkdir(parents=True, exist_ok=True)"
 
       - name: Install Python script test tooling
-        if: github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true'
+        if: (github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true') && steps.metis-revision.outputs.present != 'false'
         run: python -m pip install -r scripts/requirements-test.txt
 
       - name: Run Python script tests
-        if: github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true'
+        if: (github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true') && steps.metis-revision.outputs.present != 'false'
         env:
           PYTHONPATH: ${{ github.workspace }}/metis/scripts
         run: python -m unittest discover -s scripts/tests

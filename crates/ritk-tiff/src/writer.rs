@@ -16,7 +16,7 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     P: AsRef<Path>,
 {
-    let voxels = image.data_cow_on(backend);
+    let voxels = image.data_cow_on(backend)?;
     write_tiff_stream(path.as_ref(), image.shape(), &voxels)
 }
 
@@ -128,8 +128,8 @@ mod tests {
         let output = read_tiff(&path, &SequentialBackend)?;
         assert_eq!(output.shape(), input.shape());
         assert_eq!(
-            output.data_cow_on(&SequentialBackend).as_ref(),
-            input.data_cow_on(&SequentialBackend).as_ref()
+            output.data_cow_on(&SequentialBackend)?.as_ref(),
+            input.data_cow_on(&SequentialBackend)?.as_ref()
         );
         Ok(())
     }
@@ -153,7 +153,7 @@ mod tests {
         write_tiff(&input, &path, &SequentialBackend)?;
         let output = read_tiff(&path, &SequentialBackend)?;
         let actual: Vec<u32> = output
-            .data_cow_on(&SequentialBackend)
+            .data_cow_on(&SequentialBackend)?
             .iter()
             .map(|value| value.to_bits())
             .collect();

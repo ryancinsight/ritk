@@ -18,9 +18,11 @@ where
 {
     let image = read_rgb8_png(path.as_ref())?;
     let (width, height) = image.dimensions();
+    let width_usize = usize::try_from(width).context("PNG width fits usize")?;
+    let height_usize = usize::try_from(height).context("PNG height fits usize")?;
     rgb_volume_from_flat_pixels(
         image.into_raw().into_iter().map(f32::from).collect(),
-        [1, height as usize, width as usize],
+        [1, height_usize, width_usize],
         backend,
     )
 }
@@ -47,11 +49,9 @@ where
         }
         append_rgb_pixels(&mut pixels, &image)?;
     }
-    rgb_volume_from_flat_pixels(
-        pixels,
-        [files.len(), height as usize, width as usize],
-        backend,
-    )
+    let width_usize = usize::try_from(width).context("PNG width fits usize")?;
+    let height_usize = usize::try_from(height).context("PNG height fits usize")?;
+    rgb_volume_from_flat_pixels(pixels, [files.len(), height_usize, width_usize], backend)
 }
 
 /// Backend-bound RGB PNG reader.
@@ -164,7 +164,7 @@ mod tests {
         let volume = read_png_color_to_volume(&path, &SequentialBackend)?;
         assert_eq!(volume.shape(), [1, 1, 2, 3]);
         assert_eq!(
-            volume.data_cow_on(&SequentialBackend).as_ref(),
+            volume.data_cow_on(&SequentialBackend)?.as_ref(),
             &[255.0, 0.0, 0.0, 0.0, 128.0, 255.0]
         );
         Ok(())
@@ -194,7 +194,7 @@ mod tests {
         let volume = read_png_color_series(directory.path(), &SequentialBackend)?;
         assert_eq!(volume.shape(), [3, 1, 1, 3]);
         assert_eq!(
-            volume.data_cow_on(&SequentialBackend).as_ref(),
+            volume.data_cow_on(&SequentialBackend)?.as_ref(),
             &[1.0, 5.0, 9.0, 2.0, 3.0, 4.0, 10.0, 11.0, 12.0]
         );
         Ok(())

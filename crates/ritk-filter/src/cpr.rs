@@ -138,7 +138,7 @@ impl CprImageFilter {
             *image.spacing(),
             *image.direction(),
         )?;
-        let tensor = Tensor::<f32, B>::from_slice(result.shape, &result.values);
+        let tensor = Tensor::<f32, B>::from_slice(result.shape, &result.values)?;
         Image::new(tensor, result.origin, result.spacing, Direction::identity())
     }
 

@@ -17,7 +17,7 @@ fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3>
 }
 
 fn get_slice_1d(image: &Image<f32, TestBackend, 1>) -> Vec<f32> {
-    image.data().to_vec()
+    image.data().to_vec().expect("test tensor is valid")
 }
 
 // ── Positive tests ──────────────────────────────────────────────────────────

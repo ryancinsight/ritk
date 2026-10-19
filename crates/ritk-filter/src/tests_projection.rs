@@ -10,7 +10,7 @@ type B = coeus_core::SequentialBackend;
 // ── Helper ────────────────────────────────────────────────────────────────────
 
 fn make_volume(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
-    let tensor = Tensor::<f32, B>::from_slice(shape, &data);
+    let tensor = Tensor::<f32, B>::from_slice(shape, &data).expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -21,7 +21,7 @@ fn make_volume(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn extract_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data().to_vec()
+    img.data().to_vec().expect("test tensor is valid")
 }
 
 // ── 1. max_projection_z_shape ─────────────────────────────────────────────────
@@ -257,6 +257,7 @@ fn median_projection_total_orders_special_values() {
 #[test]
 fn median_projection_materializes_strided_input_logically() {
     let tensor = Tensor::<f32, B>::from_slice([1, 2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        .expect("test tensor is valid")
         .permute(&[0, 2, 1]);
     assert!(!tensor.is_contiguous());
     let image = Image::new(

@@ -93,7 +93,10 @@ fn identity_samples(image: &Image<f32, B, 3>, points: &[[usize; 3]]) -> Vec<f32>
     }
 
     let input = Image::from_flat_on(
-        image.data_cow_on(&B::default()).into_owned(),
+        image
+            .data_cow_on(&B::default())
+            .expect("test image is host-addressable")
+            .into_owned(),
         [1, 1, depth, height, width],
         Point::origin(),
         Spacing::uniform(1.0),
@@ -113,7 +116,10 @@ fn identity_samples(image: &Image<f32, B, 3>, points: &[[usize; 3]]) -> Vec<f32>
 
     let interpolated = trilinear_interpolation(&input, &coordinates)
         .expect("invariant: native identity interpolation accepts generated grid");
-    interpolated.data_cow_on(&B::default()).into_owned()
+    interpolated
+        .data_cow_on(&B::default())
+        .expect("test image is host-addressable")
+        .into_owned()
 }
 
 #[test]
@@ -190,7 +196,10 @@ fn native_identity_resampling_returns_source_voxels() {
         [depth - 1, height - 1, width - 1],
     ];
     let values = identity_samples(&image, &points);
-    let voxels = image.data_cow_on(&B::default()).into_owned();
+    let voxels = image
+        .data_cow_on(&B::default())
+        .expect("test image is host-addressable")
+        .into_owned();
     let expected: Vec<f32> = points
         .iter()
         .map(|[z, y, x]| voxels[z * height * width + y * width + x])

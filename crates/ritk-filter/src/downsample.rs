@@ -64,7 +64,9 @@ impl<B: Backend> DownsampleFilter<B> {
             spacing[d] *= factor as f64;
         }
 
-        let source = data.to_vec();
+        let source = data
+            .to_vec()
+            .expect("filter requires host-accessible tensors");
         let mut source_strides = [1usize; D];
         let mut output_strides = [1usize; D];
         for axis in (0..D.saturating_sub(1)).rev() {
@@ -91,7 +93,8 @@ impl<B: Backend> DownsampleFilter<B> {
             .collect::<Vec<_>>();
 
         Image::new(
-            Tensor::<f32, B>::from_slice(output_dims, &output),
+            Tensor::<f32, B>::from_slice(output_dims, &output)
+                .expect("filter requires host-accessible tensors"),
             origin,
             spacing,
             direction,

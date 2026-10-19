@@ -30,7 +30,8 @@ pub fn make_bimodal_image() -> Image<f32, Backend, 3> {
     let values: Vec<f32> = (0..64)
         .map(|i| if i < 32 { 20.0_f32 } else { 200.0_f32 })
         .collect();
-    let tensor = Tensor::<f32, Backend>::from_slice_on([4, 4, 4], &values, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([4, 4, 4], &values, &backend)
+        .expect("test fixture tensor build failed");
     Image::new(
         tensor,
         Point::new([0.0; 3]),
@@ -57,7 +58,8 @@ pub fn make_trimodal_image() -> Image<f32, Backend, 3> {
             }
         })
         .collect();
-    let tensor = Tensor::<f32, Backend>::from_slice_on([6, 6, 6], &values, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([6, 6, 6], &values, &backend)
+        .expect("test fixture tensor build failed");
     Image::new(
         tensor,
         Point::new([0.0; 3]),
@@ -87,7 +89,8 @@ pub fn make_sphere_image() -> Image<f32, Backend, 3> {
     for &(z, y, x) in high_indices {
         values[z * ny * nx + y * nx + x] = 200.0;
     }
-    let tensor = Tensor::<f32, Backend>::from_slice_on([nz, ny, nx], &values, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([nz, ny, nx], &values, &backend)
+        .expect("test fixture tensor build failed");
     Image::new(
         tensor,
         Point::new([0.0; 3]),
@@ -115,7 +118,8 @@ pub fn make_binary_sphere_image() -> Image<f32, Backend, 3> {
     for &(z, y, x) in high_indices {
         values[z * ny * nx + y * nx + x] = 1.0;
     }
-    let tensor = Tensor::<f32, Backend>::from_slice_on([nz, ny, nx], &values, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([nz, ny, nx], &values, &backend)
+        .expect("test fixture tensor build failed");
     Image::new(
         tensor,
         Point::new([0.0; 3]),
@@ -132,7 +136,8 @@ pub fn make_binary_image() -> Image<f32, Backend, 3> {
     let values: Vec<f32> = (0..64)
         .map(|i| if i < 32 { 1.0_f32 } else { 0.0_f32 })
         .collect();
-    let tensor = Tensor::<f32, Backend>::from_slice_on([4, 4, 4], &values, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([4, 4, 4], &values, &backend)
+        .expect("test fixture tensor build failed");
     Image::new(
         tensor,
         Point::new([0.0; 3]),
@@ -147,7 +152,8 @@ pub fn make_binary_image() -> Image<f32, Backend, 3> {
 pub fn make_ramp_image() -> Image<f32, Backend, 3> {
     let backend = Backend::default();
     let values: Vec<f32> = (0..64).map(|i| i as f32).collect();
-    let tensor = Tensor::<f32, Backend>::from_slice_on([4, 4, 4], &values, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([4, 4, 4], &values, &backend)
+        .expect("test fixture tensor build failed");
     Image::new(
         tensor,
         Point::new([0.0; 3]),

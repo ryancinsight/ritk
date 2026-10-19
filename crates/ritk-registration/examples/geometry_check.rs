@@ -22,8 +22,13 @@ fn dump(name: &str, path: &Path, img: &Image<f32, B, 3>) {
     println!(" direction {:?}", img.direction());
 
     // The native registration path uses the same grid and index-to-world map.
-    let grid = grid::generate_grid::<f32, B, 3>(shape, &backend);
-    let world = img.index_to_world_native(&grid).as_slice().to_vec();
+    let grid =
+        grid::generate_grid::<f32, B, 3>(shape, &backend).expect("example grid build failed");
+    let world = img
+        .index_to_world_native(&grid)
+        .expect("example index-to-world failed")
+        .as_slice()
+        .to_vec();
     let (ny, nx) = (shape[1], shape[2]);
     for (x, y, z) in [(0usize, 0usize, 0usize), (255, 255, 20), (100, 200, 15)] {
         if z < shape[0] && y < ny && x < nx {

@@ -7,11 +7,12 @@ const ROTATION_BOUND: f32 = 8.0 * f32::EPSILON;
 fn planar_quarter_turn_maps_x_to_y() {
     let backend = SequentialBackend;
     let transform = RigidTransform::<SequentialBackend, 2>::new(
-        Tensor::zeros_on([2], &backend),
-        Tensor::from_slice_on([1], &[std::f32::consts::FRAC_PI_2], &backend),
-        Tensor::zeros_on([2], &backend),
+        Tensor::zeros_on([2], &backend).expect("test tensor is valid"),
+        Tensor::from_slice_on([1], &[std::f32::consts::FRAC_PI_2], &backend)
+            .expect("test tensor is valid"),
+        Tensor::zeros_on([2], &backend).expect("test tensor is valid"),
     );
-    let point = Tensor::from_slice_on([1, 2], &[1.0, 0.0], &backend);
+    let point = Tensor::from_slice_on([1, 2], &[1.0, 0.0], &backend).expect("test tensor is valid");
 
     let transformed = transform.transform_points(point);
 
@@ -24,11 +25,13 @@ fn planar_quarter_turn_maps_x_to_y() {
 fn volume_translation_and_z_rotation_compose() {
     let backend = SequentialBackend;
     let transform = RigidTransform::<SequentialBackend, 3>::new(
-        Tensor::from_slice_on([3], &[1.0, 2.0, 3.0], &backend),
-        Tensor::from_slice_on([3], &[0.0, 0.0, std::f32::consts::FRAC_PI_2], &backend),
-        Tensor::zeros_on([3], &backend),
+        Tensor::from_slice_on([3], &[1.0, 2.0, 3.0], &backend).expect("test tensor is valid"),
+        Tensor::from_slice_on([3], &[0.0, 0.0, std::f32::consts::FRAC_PI_2], &backend)
+            .expect("test tensor is valid"),
+        Tensor::zeros_on([3], &backend).expect("test tensor is valid"),
     );
-    let point = Tensor::from_slice_on([1, 3], &[1.0, 0.0, 0.0], &backend);
+    let point =
+        Tensor::from_slice_on([1, 3], &[1.0, 0.0, 0.0], &backend).expect("test tensor is valid");
 
     let transformed = transform.transform_points(point);
 

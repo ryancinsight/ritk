@@ -24,7 +24,7 @@ fn image_2d(data: Vec<f32>, ny: usize, nx: usize) -> Image<f32, B, 3> {
 
 /// Extract labels as a flat `Vec<f32>` from a label image.
 fn labels(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data().to_vec()
+    img.data().to_vec().expect("test tensor is valid")
 }
 
 // ── Gradient-descent IsolatedWatershed (7×7 two-valley relief) ─────────────────

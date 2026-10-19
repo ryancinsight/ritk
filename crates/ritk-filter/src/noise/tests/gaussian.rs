@@ -12,7 +12,7 @@ fn gaussian_deterministic_seed_42() {
         .with_mean(0.0)
         .with_seed(42);
     let result = filter.apply(&img).unwrap();
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     // Different seed produces different values; just verify shape and that
     // values differ from the original (noise was actually added).
     assert_eq!(vals.len(), 4);
@@ -26,7 +26,7 @@ fn gaussian_zero_std_is_identity() {
     let img = make_image(data.clone(), [2, 2, 2]);
     let filter = AdditiveGaussianNoiseFilter::new(0.0);
     let result = filter.apply(&img).unwrap();
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     for (i, &v) in vals.iter().enumerate() {
         assert!(
             (v - data[i]).abs() < 1e-6,
@@ -43,7 +43,7 @@ fn gaussian_nonzero_mean_shifts() {
         .with_mean(100.0)
         .with_seed(42);
     let result = filter.apply(&img).unwrap();
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     let mean: f64 = vals.iter().map(|&v| v as f64).sum::<f64>() / vals.len() as f64;
     assert!(
         (mean - 100.0).abs() < 2.0,
@@ -58,8 +58,18 @@ fn gaussian_seeds_differ() {
     let img = make_image(data.clone(), [5, 5, 4]);
     let filter1 = AdditiveGaussianNoiseFilter::new(1.0).with_seed(42);
     let filter2 = AdditiveGaussianNoiseFilter::new(1.0).with_seed(43);
-    let v1 = filter1.apply(&img).unwrap().data().to_vec();
-    let v2 = filter2.apply(&img).unwrap().data().to_vec();
+    let v1 = filter1
+        .apply(&img)
+        .unwrap()
+        .data()
+        .to_vec()
+        .expect("test tensor is valid");
+    let v2 = filter2
+        .apply(&img)
+        .unwrap()
+        .data()
+        .to_vec()
+        .expect("test tensor is valid");
     assert_ne!(v1, v2, "different seeds must produce different output");
 }
 
@@ -69,8 +79,18 @@ fn gaussian_same_seed_idempotent() {
     let data = vec![0.0_f32; 50];
     let img = make_image(data, [5, 5, 2]);
     let filter = AdditiveGaussianNoiseFilter::new(1.0).with_seed(42);
-    let v1 = filter.apply(&img).unwrap().data().to_vec();
-    let v2 = filter.apply(&img).unwrap().data().to_vec();
+    let v1 = filter
+        .apply(&img)
+        .unwrap()
+        .data()
+        .to_vec()
+        .expect("test tensor is valid");
+    let v2 = filter
+        .apply(&img)
+        .unwrap()
+        .data()
+        .to_vec()
+        .expect("test tensor is valid");
     assert_eq!(v1, v2, "same seed must produce identical output");
 }
 

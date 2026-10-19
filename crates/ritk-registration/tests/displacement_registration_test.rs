@@ -19,7 +19,7 @@ fn named_adam_optimizes_displacement_through_registration_seam() {
     let backend = SequentialBackend;
     let field = DisplacementField::new(
         (0..3)
-            .map(|_| Tensor::zeros_on([2, 2, 2], &backend))
+            .map(|_| Tensor::zeros_on([2, 2, 2], &backend).expect("valid field component"))
             .collect(),
         Point::origin(),
         Spacing::new([1.0; 3]),
@@ -27,23 +27,23 @@ fn named_adam_optimizes_displacement_through_registration_seam() {
     )
     .expect("valid field");
     let mut transform = DisplacementFieldTransform::new(field);
-    let points = Var::new(
-        Tensor::from_slice_on([1, 3], &[0.5, 0.5, 0.5], &backend),
-        false,
-    );
-    let target = Var::new(
-        Tensor::from_slice_on([1, 3], &[2.5, 2.5, 2.5], &backend),
-        false,
-    );
-    let mut optimizer = Adam::new(transform.named_parameters(), 0.2, 0.9, 0.999, 1.0e-8);
+    let points_tensor =
+        Tensor::from_slice_on([1, 3], &[0.5, 0.5, 0.5], &backend).expect("valid points tensor");
+    let points = Var::new(points_tensor, false).expect("valid points var");
+    let target_tensor =
+        Tensor::from_slice_on([1, 3], &[2.5, 2.5, 2.5], &backend).expect("valid target tensor");
+    let target = Var::new(target_tensor, false).expect("valid target var");
+    let mut optimizer = Adam::new(transform.named_parameters(), 0.2, 0.9, 0.999, 1.0e-8)
+        .expect("Adam builds over field parameters");
 
     let objective = |transform: &DisplacementFieldTransform<SequentialBackend, 3>| {
-        let residual = sub(&apply_registration_transform(transform, &points), &target);
-        let squared_residual = mul(&residual, &residual);
-        mean(&squared_residual)
+        let moved = apply_registration_transform(transform, &points);
+        let residual = sub(&moved, &target).expect("valid residual");
+        let squared_residual = mul(&residual, &residual).expect("valid square");
+        mean(&squared_residual).expect("valid mean")
     };
     let initial = objective(&transform).tensor.as_slice()[0];
-    optimizer.zero_grad();
+    optimizer.zero_grad().expect("zero_grad succeeds");
     objective(&transform)
         .backward()
         .expect("backward succeeds over the test loss");

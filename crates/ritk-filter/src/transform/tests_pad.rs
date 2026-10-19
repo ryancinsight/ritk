@@ -46,7 +46,7 @@ fn constant_pad_custom_value() {
 /// Constant pad preserves spacing, updates origin.
 #[test]
 fn constant_pad_origin_updated() {
-    let tensor = Tensor::<f32, B>::from_slice([1, 1, 1], &[1.0f32]);
+    let tensor = Tensor::<f32, B>::from_slice([1, 1, 1], &[1.0f32]).expect("test tensor is valid");
     // Origin at [0, 0, 10], spacing [1, 1, 2] — pad 1 voxel on lower X.
     let img2 = Image::new(
         tensor,
@@ -67,7 +67,7 @@ fn constant_pad_origin_updated() {
 
 #[test]
 fn constant_pad_origin_follows_direction_columns() {
-    let tensor = Tensor::<f32, B>::from_slice([1, 1, 1], &[1.0f32]);
+    let tensor = Tensor::<f32, B>::from_slice([1, 1, 1], &[1.0f32]).expect("test tensor is valid");
     let direction = Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]);
     let image = Image::new(
         tensor,

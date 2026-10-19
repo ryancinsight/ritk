@@ -75,7 +75,7 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(
     path: P,
     image: &Image<f32, B, 3>,
 ) -> Result<()> {
-    let all_data = image.data_cow_on(&B::default()).into_owned();
+    let all_data = image.data_cow_on(&B::default())?.into_owned();
     let geom = series_geometry(image.origin(), image.spacing(), image.direction());
     write_series_flat(path.as_ref(), &all_data, image.shape(), &geom)
 }

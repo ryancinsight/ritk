@@ -62,7 +62,8 @@ fn derivative_respects_image_spacing() {
     let t = ritk_image::tensor::Tensor::<f32, B>::from_slice(
         [1, 1, 5],
         &[0.0_f32, 10.0, 20.0, 30.0, 40.0],
-    );
+    )
+    .expect("test tensor is valid");
     let img = Image::new(
         t,
         Point::new([0.0, 0.0, 0.0]),

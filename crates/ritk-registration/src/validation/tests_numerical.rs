@@ -7,7 +7,7 @@ type B = SequentialBackend;
 fn make_tensor_1d(vals: Vec<f32>) -> Tensor<f32, B> {
     let n = vals.len();
     let device = Default::default();
-    Tensor::<f32, B>::from_slice_on([n], &vals, &device)
+    Tensor::<f32, B>::from_slice_on([n], &vals, &device).expect("test fixture tensor build failed")
 }
 
 // ── validate_tensor ────────────────────────────────────────────────────

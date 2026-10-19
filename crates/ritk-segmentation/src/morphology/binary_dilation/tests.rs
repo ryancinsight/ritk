@@ -230,7 +230,8 @@ fn test_output_strictly_binary_volumetric() {
 
 #[test]
 fn test_preserves_spatial_metadata() {
-    let tensor = Tensor::<f32, TestBackend>::from_slice([3, 3, 3], &[1.0_f32; 27]);
+    let tensor = Tensor::<f32, TestBackend>::from_slice([3, 3, 3], &[1.0_f32; 27])
+        .expect("test tensor is valid");
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 0.5, 0.5]);
     let direction = Direction::identity();

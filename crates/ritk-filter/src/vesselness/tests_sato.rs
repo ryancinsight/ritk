@@ -106,7 +106,7 @@ fn test_cylindrical_tube_detects_line() {
     };
     let filter = SatoLineFilter::new(config);
     let result = filter.apply(&image).expect("apply failed");
-    let out: Vec<f32> = result.data().to_vec();
+    let out: Vec<f32> = result.data().to_vec().expect("test tensor is valid");
 
     // Centre column: z = any, y = 16, x = 16 (flat index = z*N*N + 16*N + 16).
     let mut centre_responses: Vec<f32> = (0..N).map(|iz| out[iz * N * N + 16 * N + 16]).collect();
@@ -159,12 +159,14 @@ fn test_sphere_lower_response_than_tube() {
         .apply(&tube_img)
         .expect("infallible: validated precondition")
         .data()
-        .to_vec();
+        .to_vec()
+        .expect("test tensor is valid");
     let sphere_out: Vec<f32> = filter
         .apply(&sphere_img)
         .expect("infallible: validated precondition")
         .data()
-        .to_vec();
+        .to_vec()
+        .expect("test tensor is valid");
 
     let tube_peak = tube_out.iter().cloned().fold(0.0_f32, f32::max);
     let sphere_peak = sphere_out.iter().cloned().fold(0.0_f32, f32::max);
@@ -196,7 +198,7 @@ fn test_dark_tube_rejected_by_bright_gate() {
     let result = filter
         .apply(&make_image(dark_tube, [N, N, N]))
         .expect("infallible: validated precondition");
-    let out: Vec<f32> = result.data().to_vec();
+    let out: Vec<f32> = result.data().to_vec().expect("test tensor is valid");
 
     let max_resp = out.iter().cloned().fold(0.0_f32, f32::max);
     assert!(
@@ -218,7 +220,7 @@ fn test_uniform_image_zero_response() {
     let result = filter
         .apply(&make_image(data, [N, N, N]))
         .expect("infallible: validated precondition");
-    let out: Vec<f32> = result.data().to_vec();
+    let out: Vec<f32> = result.data().to_vec().expect("test tensor is valid");
 
     let max_resp = out.iter().cloned().fold(0.0_f32, f32::max);
     assert!(
@@ -255,7 +257,7 @@ fn test_response_all_finite() {
     let result = filter
         .apply(&make_image(data, [N, N, N]))
         .expect("infallible: validated precondition");
-    let out: Vec<f32> = result.data().to_vec();
+    let out: Vec<f32> = result.data().to_vec().expect("test tensor is valid");
 
     for (i, &v) in out.iter().enumerate() {
         assert!(v.is_finite(), "voxel {i} is non-finite: {v}");

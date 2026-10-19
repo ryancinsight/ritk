@@ -122,7 +122,7 @@ impl ThresholdLevelSet {
         );
 
         let mask = helpers::binary_mask(&phi);
-        let tensor = Tensor::<f32, B>::from_slice_on(dims, &mask, &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(dims, &mask, &device)?;
 
         Image::new(
             tensor,

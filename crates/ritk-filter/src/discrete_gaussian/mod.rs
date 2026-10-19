@@ -183,9 +183,12 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
             return data;
         }
 
-        let flat = data.to_vec();
+        let flat = data
+            .to_vec()
+            .expect("filter requires host-accessible tensors");
         let result = convolve_separable(flat, dims, &kernels);
         Tensor::<f32, B>::from_slice(dims, &result)
+            .expect("filter requires host-accessible tensors")
     }
 
     /// Coeus-native sister of [`DiscreteGaussianFilter::apply`].

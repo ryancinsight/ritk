@@ -2,7 +2,9 @@ use super::core::DisplacementField;
 use coeus_autograd::{add, linear_interpolation, reshape, stack, transpose_2d, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::Module;
-use coeus_ops::{BackendOps, Dimension, InterpolationError, Replicate, SupportedDimension};
+use coeus_ops::{
+    BackendOps, Dimension, InterpolationError, InterpolationFailure, Replicate, SupportedDimension,
+};
 
 /// Contract failures while applying a trainable displacement transform.
 #[derive(Debug, thiserror::Error)]
@@ -64,8 +66,10 @@ where
         }
         let displacements = self.field.sample_components(points, self.boundary)?;
         let references = displacements.iter().collect::<Vec<_>>();
-        let displacement = stack(&references, 1);
-        Ok(add(points, &displacement))
+        let displacement = stack(&references, 1)
+            .expect("displacement transform requires backend evaluation to succeed");
+        Ok(add(points, &displacement)
+            .expect("displacement transform requires backend evaluation to succeed"))
     }
 }
 
@@ -83,7 +87,10 @@ where
         let point_count = points.tensor.shape()[0];
         let mut grid_shape = vec![1, D, point_count];
         grid_shape.resize(D + 2, 1);
-        let grid = reshape(&transpose_2d(&indices), grid_shape);
+        let grid_flat = transpose_2d(&indices)
+            .expect("displacement transform requires backend evaluation to succeed");
+        let grid = reshape(&grid_flat, grid_shape)
+            .expect("displacement transform requires backend evaluation to succeed");
         self.components
             .iter()
             .map(|component| {
@@ -91,9 +98,18 @@ where
                     .into_iter()
                     .chain(component.tensor.shape().iter().copied())
                     .collect::<Vec<_>>();
-                let image = reshape(component, image_shape);
-                linear_interpolation::<D, _, _>(&image, &grid, boundary)
-                    .map(|sampled| reshape(&sampled, [point_count]))
+                let image = reshape(component, image_shape)
+                    .expect("displacement transform requires backend evaluation to succeed");
+                let sampled = linear_interpolation::<_, D, _, _>(&image, &grid, boundary).map_err(
+                    |failure| match failure {
+                        InterpolationFailure::Contract(error) => error,
+                        InterpolationFailure::Backend(error) => panic!(
+                            "displacement transform requires backend evaluation to succeed: {error}"
+                        ),
+                    },
+                )?;
+                Ok(reshape(&sampled, [point_count])
+                    .expect("displacement transform requires backend evaluation to succeed"))
             })
             .collect()
     }

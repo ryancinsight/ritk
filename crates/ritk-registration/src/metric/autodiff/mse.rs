@@ -36,9 +36,9 @@ where
     T: Scalar + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
 {
-    let diff = sub(moving, fixed);
-    let sq = mul(&diff, &diff);
-    mean(&sq)
+    let diff = sub(moving, fixed).expect("mean_squared_error: backend subtract failed");
+    let sq = mul(&diff, &diff).expect("mean_squared_error: backend multiply failed");
+    mean(&sq).expect("mean_squared_error: backend mean failed")
 }
 
 /// Mean-squared-error metric ([`Metric`] implementor). Zero-sized; the

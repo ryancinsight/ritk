@@ -43,9 +43,12 @@ impl<B: Backend + BackendOps<f32>, const D: usize> AffineTransform<B, D> {
         );
         assert_eq!(center.shape(), [D], "affine center must have shape [{D}]");
         Self {
-            matrix: Var::new(matrix, true),
-            translation: Var::new(translation, true),
-            center: Var::new(center, false),
+            matrix: Var::new(matrix, true)
+                .expect("affine transform requires backend evaluation to succeed"),
+            translation: Var::new(translation, true)
+                .expect("affine transform requires backend evaluation to succeed"),
+            center: Var::new(center, false)
+                .expect("affine transform requires backend evaluation to succeed"),
         }
     }
 
@@ -57,9 +60,14 @@ impl<B: Backend + BackendOps<f32>, const D: usize> AffineTransform<B, D> {
             values[axis * D + axis] = 1.0;
         }
         Self::new(
-            Tensor::from_slice_on([D, D], &values, backend),
-            Tensor::zeros_on([D], backend),
-            center.unwrap_or_else(|| Tensor::zeros_on([D], backend)),
+            Tensor::from_slice_on([D, D], &values, backend)
+                .expect("affine transform requires backend evaluation to succeed"),
+            Tensor::zeros_on([D], backend)
+                .expect("affine transform requires backend evaluation to succeed"),
+            center.unwrap_or_else(|| {
+                Tensor::zeros_on([D], backend)
+                    .expect("affine transform requires backend evaluation to succeed")
+            }),
         )
     }
 
@@ -97,12 +105,24 @@ impl<B: Backend + BackendOps<f32>, const D: usize> AffineTransform<B, D> {
             "affine transform requires points shaped [N, {D}], got {shape:?}"
         );
         let target = vec![shape[0], D];
-        let center = broadcast_variable(&reshape(&self.center, [1, D]), target.clone());
-        let translation = broadcast_variable(&reshape(&self.translation, [1, D]), target);
-        let centered = sub_variables(points, &center);
-        let linear = matmul_variables(&centered, &transpose_2d(&self.matrix));
-        let centered_output = add_variables(&linear, &center);
+        let center_row = reshape(&self.center, [1, D])
+            .expect("affine transform requires backend evaluation to succeed");
+        let translation_row = reshape(&self.translation, [1, D])
+            .expect("affine transform requires backend evaluation to succeed");
+        let center = broadcast_variable(&center_row, target.clone())
+            .expect("affine transform requires backend evaluation to succeed");
+        let translation = broadcast_variable(&translation_row, target)
+            .expect("affine transform requires backend evaluation to succeed");
+        let centered = sub_variables(points, &center)
+            .expect("affine transform requires backend evaluation to succeed");
+        let matrix_t = transpose_2d(&self.matrix)
+            .expect("affine transform requires backend evaluation to succeed");
+        let linear = matmul_variables(&centered, &matrix_t)
+            .expect("affine transform requires backend evaluation to succeed");
+        let centered_output = add_variables(&linear, &center)
+            .expect("affine transform requires backend evaluation to succeed");
         add_variables(&centered_output, &translation)
+            .expect("affine transform requires backend evaluation to succeed")
     }
 }
 
@@ -119,12 +139,21 @@ where
         );
         let backend = B::default();
         let target = [shape[0], D];
-        let center = broadcast_to(&self.center.tensor.reshape([1, D]), &target, &backend);
-        let translation = broadcast_to(&self.translation.tensor.reshape([1, D]), &target, &backend);
-        let centered = sub(&points, &center, &backend);
-        let linear = matmul(&centered, &self.matrix.tensor.t(), &backend);
-        let centered_output = add(&linear, &center, &backend);
+        let center_row = self.center.tensor.reshape([1, D]);
+        let translation_row = self.translation.tensor.reshape([1, D]);
+        let center = broadcast_to(&center_row, &target, &backend)
+            .expect("affine transform requires backend evaluation to succeed");
+        let translation = broadcast_to(&translation_row, &target, &backend)
+            .expect("affine transform requires backend evaluation to succeed");
+        let centered = sub(&points, &center, &backend)
+            .expect("affine transform requires backend evaluation to succeed");
+        let matrix_t = self.matrix.tensor.t();
+        let linear = matmul(&centered, &matrix_t, &backend)
+            .expect("affine transform requires backend evaluation to succeed");
+        let centered_output = add(&linear, &center, &backend)
+            .expect("affine transform requires backend evaluation to succeed");
         add(&centered_output, &translation, &backend)
+            .expect("affine transform requires backend evaluation to succeed")
     }
 }
 

@@ -210,8 +210,8 @@ fn reader_and_writer_delegate_to_canonical_operations() -> Result<()> {
     let direct = read_jpeg(&wrapped_path, &SequentialBackend)?;
     assert_eq!(wrapped.shape(), direct.shape());
     assert_eq!(
-        wrapped.data_cow_on(&SequentialBackend).as_ref(),
-        direct.data_cow_on(&SequentialBackend).as_ref()
+        wrapped.data_cow_on(&SequentialBackend)?.as_ref(),
+        direct.data_cow_on(&SequentialBackend)?.as_ref()
     );
     Ok(())
 }
@@ -259,7 +259,7 @@ fn grayscale_reader_converts_rgb_to_cie_luminance() -> Result<()> {
     let image = read_jpeg(&path, &SequentialBackend)?;
 
     assert_eq!(image.shape(), [1, 1, 1]);
-    assert_eq!(image.data_cow_on(&SequentialBackend).as_ref(), &[expected]);
+    assert_eq!(image.data_cow_on(&SequentialBackend)?.as_ref(), &[expected]);
     Ok(())
 }
 
@@ -305,7 +305,7 @@ fn reader_preserves_encoded_grid_when_exif_requests_rotation() -> Result<()> {
 
     assert_eq!(image.shape(), [1, 1, 2]);
     assert_eq!(
-        image.data_cow_on(&SequentialBackend).as_ref(),
+        image.data_cow_on(&SequentialBackend)?.as_ref(),
         reference_luma_values(&path)
     );
     Ok(())
@@ -326,6 +326,6 @@ fn wide_grayscale_reader_preserves_luma8_scaling_contract() -> Result<()> {
     let image = read_jpeg(&path, &SequentialBackend)?;
 
     assert_eq!(image.shape(), [1, 1, 1]);
-    assert_eq!(image.data_cow_on(&SequentialBackend).as_ref(), &[18.0]);
+    assert_eq!(image.data_cow_on(&SequentialBackend)?.as_ref(), &[18.0]);
     Ok(())
 }

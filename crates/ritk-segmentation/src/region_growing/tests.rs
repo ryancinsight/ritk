@@ -9,7 +9,7 @@ use ritk_image::test_support::make_image;
 type TestBackend = SequentialBackend;
 
 fn get_values(image: &Image<f32, TestBackend, 3>) -> Vec<f32> {
-    image.data().to_vec()
+    image.data().to_vec().expect("test tensor is valid")
 }
 
 fn count_foreground(image: &Image<f32, TestBackend, 3>) -> usize {
@@ -133,7 +133,8 @@ fn test_fully_grown_region_output_is_strictly_binary() {
 #[test]
 fn test_spatial_metadata_preserved() {
     use ritk_core::spatial::{Direction, Point, Spacing};
-    let tensor = Tensor::<f32, TestBackend>::from_slice([3, 3, 3], &[100.0_f32; 27]);
+    let tensor = Tensor::<f32, TestBackend>::from_slice([3, 3, 3], &[100.0_f32; 27])
+        .expect("test tensor is valid");
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
     let direction = Direction::identity();

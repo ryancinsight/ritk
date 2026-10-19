@@ -11,7 +11,7 @@ fn make_image_1d(data: Vec<f32>) -> Image<f32, TestBackend, 1> {
 }
 
 fn get_values_1d(image: &Image<f32, TestBackend, 1>) -> Vec<f32> {
-    image.data().to_vec()
+    image.data().to_vec().expect("test tensor is valid")
 }
 
 // ── K=4: four-class segmentation ──────────────────────────────────────────

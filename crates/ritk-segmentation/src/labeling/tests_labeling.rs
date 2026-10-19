@@ -12,7 +12,7 @@ fn make_mask(values: Vec<f32>, shape: [usize; 3]) -> Image<f32, TestBackend, 3> 
 }
 
 fn get_values(image: &Image<f32, TestBackend, 3>) -> Vec<f32> {
-    image.data().to_vec()
+    image.data().to_vec().expect("test tensor is valid")
 }
 
 #[test]
@@ -141,7 +141,8 @@ fn test_statistics_bounding_box() {
 fn test_metadata_preserved() {
     use ritk_core::spatial::{Direction, Point, Spacing};
     let values = vec![1.0_f32; 8];
-    let tensor = Tensor::<f32, TestBackend>::from_slice([2, 2, 2], &values);
+    let tensor =
+        Tensor::<f32, TestBackend>::from_slice([2, 2, 2], &values).expect("test tensor is valid");
     let origin = Point::new([5.0, 6.0, 7.0]);
     let spacing = Spacing::new([0.5, 0.5, 0.5]);
     let direction = Direction::identity();

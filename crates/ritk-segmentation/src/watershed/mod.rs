@@ -91,7 +91,7 @@ impl WatershedSegmentation {
         validate_relief(&vals, dims)?;
         let labels = watershed_flooding(&vals, dims);
 
-        let tensor = Tensor::<f32, B>::from_slice_on(dims, &labels, &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(dims, &labels, &device)?;
 
         Image::new(
             tensor,

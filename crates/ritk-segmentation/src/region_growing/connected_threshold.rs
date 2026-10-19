@@ -140,7 +140,8 @@ pub fn connected_threshold<B: Backend>(
 
     let result = flood_fill(img_slice, shape, seed, lower, upper);
 
-    let tensor = Tensor::<f32, B>::from_slice(shape, &result);
+    let tensor = Tensor::<f32, B>::from_slice(shape, &result)
+        .expect("invariant: segmentation output length matches shape");
 
     Image::new(
         tensor,

@@ -20,8 +20,11 @@ where
     B: coeus_core::Backend + ComputeBackend + Default,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
-    let indices = ritk_image::grid::generate_grid::<f32, B, 3>(fixed.shape(), &B::default());
-    let world_coordinates = fixed.index_to_world_native(&indices);
+    let indices = ritk_image::grid::generate_grid::<f32, B, 3>(fixed.shape(), &B::default())
+        .expect("resampling requires backend evaluation to succeed");
+    let world_coordinates = fixed
+        .index_to_world_native(&indices)
+        .expect("resampling requires backend evaluation to succeed");
     world_coordinates.as_slice().to_vec()
 }
 
@@ -48,8 +51,8 @@ where
         world_points.len()
     );
     let point_count = world_points.len() / 3;
-    let world = Tensor::<f32, B>::from_slice([point_count, 3], world_points);
-    let indices = moving.world_to_index_native(&world);
+    let world = Tensor::<f32, B>::from_slice([point_count, 3], world_points)?;
+    let indices = moving.world_to_index_native(&world)?;
     let indices = indices.as_slice();
     let mut grid = vec![0.0f32; 3 * point_count];
     for point in 0..point_count {
@@ -64,7 +67,7 @@ where
         "cannot sample an empty moving image with shape {:?}",
         moving.shape()
     );
-    let moving_values = moving.data_cow_on(&B::default());
+    let moving_values = moving.data_cow_on(&B::default())?;
     let sampled = trilinear_interpolation(
         &moving_values,
         1,
@@ -131,7 +134,7 @@ where
     let moving_world = transform
         .transform_points(&fixed_world)
         .map_err(|error| anyhow::anyhow!("affine resampling transform failed: {error}"))?
-        .data_cow_on(&Default::default())
+        .data_cow_on(&Default::default())?
         .into_owned();
     sample_moving_at_world(moving, &moving_world)
 }

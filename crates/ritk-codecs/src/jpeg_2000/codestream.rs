@@ -191,12 +191,12 @@ impl CodMarker {
     /// Code-block width (2^(xcb_o+2), clamped to the valid range 4–64).
     #[inline]
     pub fn cb_width(&self) -> u32 {
-        1u32 << (self.xcb_o as u32 + 2)
+        1u32 << (u32::from(self.xcb_o) + 2)
     }
     /// Code-block height (2^(ycb_o+2), clamped to the valid range 4–64).
     #[inline]
     pub fn cb_height(&self) -> u32 {
-        1u32 << (self.ycb_o as u32 + 2)
+        1u32 << (u32::from(self.ycb_o) + 2)
     }
 }
 
@@ -325,7 +325,7 @@ impl<'a> Cursor<'a> {
     /// the 2-byte length field and returns a slice of exactly `Lxxx - 2` body bytes,
     /// advancing the cursor past the whole segment.
     pub fn read_segment_body(&mut self) -> Result<&'a [u8]> {
-        let lxxx = self.read_u16()? as usize;
+        let lxxx = usize::from(self.read_u16()?);
         if lxxx < 2 {
             bail!("J2K: segment length {lxxx} < 2 (must include the length field itself)");
         }
@@ -408,7 +408,7 @@ pub fn parse_sot(data: &[u8], offset: usize) -> Result<(SotMarker, usize)> {
     if m != marker::SOT {
         bail!("J2K: expected SOT at offset {offset}, found 0x{m:04X}");
     }
-    let lsot = marker::read_u16(data, offset + 2)? as usize;
+    let lsot = usize::from(marker::read_u16(data, offset + 2)?);
     if lsot != 10 {
         bail!("J2K: Lsot={lsot}, expected 10");
     }
@@ -460,15 +460,15 @@ fn parse_siz(body: &[u8]) -> Result<SizMarker> {
     if csiz == 0 || csiz > 16384 {
         bail!("J2K: Csiz={csiz} out of range 1..=16384");
     }
-    let need = 36 + 3 * csiz as usize;
+    let need = 36 + 3 * usize::from(csiz);
     if body.len() < need {
         bail!(
             "J2K: SIZ body {}-byte, need {need} for {csiz} components",
             body.len()
         );
     }
-    let mut components = Vec::with_capacity(csiz as usize);
-    for i in 0..csiz as usize {
+    let mut components = Vec::with_capacity(usize::from(csiz));
+    for i in 0..usize::from(csiz) {
         let base = 36 + i * 3;
         components.push(ComponentSpec {
             ssiz: body[base],
@@ -559,7 +559,7 @@ fn parse_cod(body: &[u8]) -> Result<CodMarker> {
     let wavelet_transform = body[9];
 
     let precinct_sizes = if scod & 0x01 != 0 {
-        let n = num_decomp_levels as usize + 1;
+        let n = usize::from(num_decomp_levels) + 1;
         if body.len() < 10 + n {
             bail!("J2K: COD body too short for {n} custom precinct sizes");
         }

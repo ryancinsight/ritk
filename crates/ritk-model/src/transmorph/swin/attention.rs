@@ -58,19 +58,19 @@ where
         let backend = B::default();
 
         let num_relative_distance = (2 * m - 1).pow(3);
-        let mut table = Var::new(
-            Tensor::zeros_on([num_relative_distance, num_heads], &backend),
-            true,
-        );
+        let table_tensor = Tensor::zeros_on([num_relative_distance, num_heads], &backend)
+            .expect("invariant: bias table shape is valid");
+        let mut table =
+            Var::new(table_tensor, true).expect("invariant: bias table wraps its tensor");
         coeus_nn::init::normal_with_seed(&mut table, 0.0, 0.02, seed)
             .expect("invariant: relative-position bias table rank is supported");
 
         let index = Self::compute_relative_position_index(m);
         let index: Vec<f32> = index.into_iter().map(|i| i as f32).collect();
-        let relative_position_index = Var::new(
-            Tensor::from_slice_on([index.len()], &index, &backend),
-            false,
-        );
+        let index_tensor = Tensor::from_slice_on([index.len()], &index, &backend)
+            .expect("invariant: position index length matches its shape");
+        let relative_position_index =
+            Var::new(index_tensor, false).expect("invariant: position index wraps its tensor");
 
         // Each projection used to be built and then re-initialized, because
         // `Linear::new` left every weight at 1.0 and that made every head
@@ -143,8 +143,8 @@ where
 
         let project = |lin: &Linear<f32, B>| -> Result<Var<f32, B>, ModelError> {
             let y = lin.forward(x)?;
-            let shaped = reshape(&y, [b, n, nh, hd]);
-            let projected = permute(&shaped, &[0, 2, 1, 3]);
+            let shaped = reshape(&y, [b, n, nh, hd]).map_err(ModelError::backend)?;
+            let projected = permute(&shaped, &[0, 2, 1, 3]).map_err(ModelError::backend)?;
             Ok(projected)
         };
         let q = project(&self.query)?; // [B, nH, N, hd]
@@ -152,27 +152,32 @@ where
         let v = project(&self.value)?;
 
         // Scaled dot-product scores: (Q Káµ€) · scale → [B, nH, N, N].
-        let attn = scalar_mul(&matmul(&q, &transpose(&k, 2, 3)), self.scale);
+        let k_t = transpose(&k, 2, 3).map_err(ModelError::backend)?;
+        let scores = matmul(&q, &k_t).map_err(ModelError::backend)?;
+        let attn = scalar_mul(&scores, self.scale).map_err(ModelError::backend)?;
 
         // Relative-position bias: gather [N*N, nH] → [nH, N, N] → [1, nH, N, N].
         let bias = index_select(
             &self.relative_position_bias_table,
             0,
             &self.relative_position_index,
-        );
-        let bias = permute(&reshape(&bias, [n, n, nh]), &[2, 0, 1]);
-        let bias = reshape(&bias, [1, nh, n, n]);
-        let attn = add(&attn, &bias);
+        )
+        .map_err(ModelError::backend)?;
+        let bias = reshape(&bias, [n, n, nh]).map_err(ModelError::backend)?;
+        let bias = permute(&bias, &[2, 0, 1]).map_err(ModelError::backend)?;
+        let bias = reshape(&bias, [1, nh, n, n]).map_err(ModelError::backend)?;
+        let attn = add(&attn, &bias).map_err(ModelError::backend)?;
 
         let attn = match mask {
-            Some(mask) => add(&attn, mask),
+            Some(mask) => add(&attn, mask).map_err(ModelError::backend)?,
             None => attn,
         };
-        let attn = softmax(&attn, -1);
+        let attn = softmax(&attn, -1).map_err(ModelError::backend)?;
 
         // Aggregate values and merge heads: [B, nH, N, hd] → [B, N, C].
-        let out = matmul(&attn, &v);
-        let out = reshape(&permute(&out, &[0, 2, 1, 3]), [b, n, c]);
+        let out = matmul(&attn, &v).map_err(ModelError::backend)?;
+        let out = permute(&out, &[0, 2, 1, 3]).map_err(ModelError::backend)?;
+        let out = reshape(&out, [b, n, c]).map_err(ModelError::backend)?;
         Ok(self.proj.forward(&out)?)
     }
 

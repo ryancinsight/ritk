@@ -20,17 +20,15 @@ type B = SequentialBackend;
 const DIMS: [usize; 3] = [4, 4, 4];
 
 fn var(data: &[f64], requires_grad: bool) -> Var<f64, B> {
-    Var::new(
-        Tensor::<f64, B>::from_slice_on([data.len()], data, &SequentialBackend),
-        requires_grad,
-    )
+    let tensor = Tensor::<f64, B>::from_slice_on([data.len()], data, &SequentialBackend)
+        .expect("test fixture tensor build failed");
+    Var::new(tensor, requires_grad).expect("test fixture Var build failed")
 }
 
 fn var_shaped(shape: &[usize], data: &[f64], requires_grad: bool) -> Var<f64, B> {
-    Var::new(
-        Tensor::<f64, B>::from_slice_on(shape.to_vec(), data, &SequentialBackend),
-        requires_grad,
-    )
+    let tensor = Tensor::<f64, B>::from_slice_on(shape.to_vec(), data, &SequentialBackend)
+        .expect("test fixture tensor build failed");
+    Var::new(tensor, requires_grad).expect("test fixture Var build failed")
 }
 
 fn linear_moving() -> Vec<f64> {
@@ -111,6 +109,7 @@ fn translation_parameter_gradient_sums_over_points() {
     let t = var(&[0.0, 0.0, 0.0], true);
     let out = Translation { t: t.clone() }.transform_points(&var_shaped(&[n, 3], &gf, false));
     sum(&out)
+        .expect("sum succeeds over the test output")
         .backward()
         .expect("backward succeeds over the test loss");
     for (j, &g) in t.grad().expect("t grad").as_slice().iter().enumerate() {

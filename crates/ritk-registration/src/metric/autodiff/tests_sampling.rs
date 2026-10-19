@@ -14,10 +14,9 @@ use coeus_tensor::Tensor;
 type B = SequentialBackend;
 
 fn var(data: &[f64], requires_grad: bool) -> Var<f64, B> {
-    Var::new(
-        Tensor::<f64, B>::from_slice_on([data.len()], data, &SequentialBackend),
-        requires_grad,
-    )
+    let tensor = Tensor::<f64, B>::from_slice_on([data.len()], data, &SequentialBackend)
+        .expect("test fixture tensor build failed");
+    Var::new(tensor, requires_grad).expect("test fixture Var build failed")
 }
 
 /// Reference: linear interpolation of `signal` at `x` with edge clamping.
@@ -69,6 +68,7 @@ fn coordinate_gradient_of_ramp_is_the_slope() {
     let c = var(&coords, true);
     let out = sample_linear_1d(&var(&signal, false), &c);
     sum(&out)
+        .expect("sum succeeds over the test output")
         .backward()
         .expect("backward succeeds over the test loss");
 
@@ -90,6 +90,7 @@ fn coordinate_gradient_matches_central_finite_difference() {
     let c = var(&coords, true);
     let out = sample_linear_1d(&var(&signal, false), &c);
     sum(&out)
+        .expect("sum succeeds over the test output")
         .backward()
         .expect("backward succeeds over the test loss");
     let analytic = c.grad().expect("grad").as_slice().to_vec();
@@ -113,6 +114,7 @@ fn gather_gradient_flows_to_signal() {
     let s = var(&signal, true);
     let out = sample_linear_1d(&s, &var(&[2.0], false));
     sum(&out)
+        .expect("sum succeeds over the test output")
         .backward()
         .expect("backward succeeds over the test loss");
     let grad = s.grad().expect("signal requires_grad").as_slice().to_vec();
@@ -134,6 +136,7 @@ fn edge_clamp_extrapolates_flat_with_zero_gradient() {
     let out = sample_linear_1d(&var(&signal, false), &c);
     assert!((out.tensor.as_slice()[0] - 3.0).abs() < 1e-12);
     sum(&out)
+        .expect("sum succeeds over the test output")
         .backward()
         .expect("backward succeeds over the test loss");
     assert!(
@@ -233,6 +236,7 @@ fn trilinear_coordinate_gradient_of_separable_ramp_is_the_per_axis_slopes() {
     let xc = var(&[2.5, 1.1], true);
     let out = sample_trilinear(&var(&signal, false), dims, &zc, &yc, &xc);
     sum(&out)
+        .expect("sum succeeds over the test output")
         .backward()
         .expect("backward succeeds over the test loss");
 
@@ -265,6 +269,7 @@ fn trilinear_coordinate_gradient_matches_central_finite_difference() {
     let xc = var(&[x0], true);
     let out = sample_trilinear(&var(&signal, false), dims, &zc, &yc, &xc);
     sum(&out)
+        .expect("sum succeeds over the test output")
         .backward()
         .expect("backward succeeds over the test loss");
     let gz = zc.grad().expect("grad").as_slice()[0];
@@ -304,6 +309,7 @@ fn trilinear_value_gradient_flows_to_signal_at_integer_voxel() {
     let flat = dims[1] * dims[2] + 2 * dims[2];
     assert!((out.tensor.as_slice()[0] - signal[flat]).abs() < 1e-12);
     sum(&out)
+        .expect("sum succeeds over the test output")
         .backward()
         .expect("backward succeeds over the test loss");
     let grad = s.grad().expect("grad").as_slice().to_vec();

@@ -67,7 +67,7 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         spacing,
         direction,
     } = load_dicom_multiframe_flat(path)?;
-    let tensor = Tensor::<f32, B>::from_slice_on(shape, &data, device);
+    let tensor = Tensor::<f32, B>::from_slice_on(shape, &data, device)?;
     Image::new(tensor, origin, spacing, direction)
 }
 

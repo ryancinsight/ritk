@@ -15,7 +15,7 @@ pub(super) fn make_mask_1d(values: Vec<f32>, nx: usize) -> Image<f32, TestBacken
 }
 
 pub(super) fn values_1d(image: &Image<f32, TestBackend, 1>) -> Vec<f32> {
-    image.data().to_vec()
+    image.data().to_vec().expect("test tensor is valid")
 }
 
 pub(super) fn count_fg_1d(image: &Image<f32, TestBackend, 1>) -> usize {
@@ -29,7 +29,7 @@ pub(super) fn make_mask_2d(values: Vec<f32>, shape: [usize; 2]) -> Image<f32, Te
 }
 
 pub(super) fn values_2d(image: &Image<f32, TestBackend, 2>) -> Vec<f32> {
-    image.data().to_vec()
+    image.data().to_vec().expect("test tensor is valid")
 }
 
 pub(super) fn count_fg_2d(image: &Image<f32, TestBackend, 2>) -> usize {
@@ -43,7 +43,7 @@ pub(super) fn make_mask_3d(values: Vec<f32>, shape: [usize; 3]) -> Image<f32, Te
 }
 
 pub(super) fn values_3d(image: &Image<f32, TestBackend, 3>) -> Vec<f32> {
-    image.data().to_vec()
+    image.data().to_vec().expect("test tensor is valid")
 }
 
 pub(super) fn count_fg_3d(image: &Image<f32, TestBackend, 3>) -> usize {

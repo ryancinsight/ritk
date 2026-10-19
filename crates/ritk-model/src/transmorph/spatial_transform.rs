@@ -7,6 +7,7 @@
 //! interpolation). Gradients flow to the displacement field through the sampling
 //! grid, which is the signal deformable-registration optimization requires.
 
+use crate::error::ModelError;
 use coeus_autograd::{add, cat, grid_sample_3d, reshape, scalar_mul, slice, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_ops::BackendOps;
@@ -29,7 +30,11 @@ impl SpatialTransformer {
     ///
     /// # Panics
     /// Panics if `image` is not rank-5 or `flow`'s shape is inconsistent with it.
-    pub fn forward<B>(&self, image: &Var<f32, B>, flow: &Var<f32, B>) -> Var<f32, B>
+    pub fn forward<B>(
+        &self,
+        image: &Var<f32, B>,
+        flow: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, ModelError>
     where
         B: Backend + BackendOps<f32> + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
@@ -50,16 +55,20 @@ impl SpatialTransformer {
         let (sd, sh_, sw) = (scale(d), scale(h), scale(w));
 
         // Displacement components as [B, D, H, W, 1] (channel order d, h, w).
-        let component = |ch: usize| {
-            let c = slice(flow, &[(0, b), (ch, ch + 1), (0, d), (0, h), (0, w)]);
-            reshape(&c, [b, d, h, w, 1])
+        let component = |ch: usize| -> Result<Var<f32, B>, ModelError> {
+            let c = slice(flow, &[(0, b), (ch, ch + 1), (0, d), (0, h), (0, w)])
+                .map_err(ModelError::backend)?;
+            reshape(&c, [b, d, h, w, 1]).map_err(ModelError::backend)
         };
-        let disp_d = scalar_mul(&component(0), sd);
-        let disp_h = scalar_mul(&component(1), sh_);
-        let disp_w = scalar_mul(&component(2), sw);
+        let comp_d = component(0)?;
+        let comp_h = component(1)?;
+        let comp_w = component(2)?;
+        let disp_d = scalar_mul(&comp_d, sd).map_err(ModelError::backend)?;
+        let disp_h = scalar_mul(&comp_h, sh_).map_err(ModelError::backend)?;
+        let disp_w = scalar_mul(&comp_w, sw).map_err(ModelError::backend)?;
 
         // Constant normalized voxel-center grids [1, D, H, W, 1] per axis.
-        let base = |axis_len: usize, axis: usize, s: f32| -> Var<f32, B> {
+        let base = |axis_len: usize, axis: usize, s: f32| -> Result<Var<f32, B>, ModelError> {
             let mut data = vec![0.0f32; d * h * w];
             let center = |i: usize, e: usize| if e > 1 { i as f32 * s - 1.0 } else { 0.0 };
             for z in 0..d {
@@ -70,21 +79,20 @@ impl SpatialTransformer {
                     }
                 }
             }
-            Var::new(
-                Tensor::from_slice_on([1, d, h, w, 1], &data, &B::default()),
-                false,
-            )
+            let grid = Tensor::from_slice_on([1, d, h, w, 1], &data, &B::default())
+                .map_err(ModelError::backend)?;
+            Var::new(grid, false).map_err(ModelError::backend)
         };
-        let base_d = base(d, 0, sd);
-        let base_h = base(h, 1, sh_);
-        let base_w = base(w, 2, sw);
+        let base_d = base(d, 0, sd)?;
+        let base_h = base(h, 1, sh_)?;
+        let base_w = base(w, 2, sw)?;
 
         // grid_sample last-dim order is (x, y, z) → (W, H, D).
-        let grid_x = add(&base_w, &disp_w);
-        let grid_y = add(&base_h, &disp_h);
-        let grid_z = add(&base_d, &disp_d);
-        let grid = cat(&[&grid_x, &grid_y, &grid_z], 4);
+        let grid_x = add(&base_w, &disp_w).map_err(ModelError::backend)?;
+        let grid_y = add(&base_h, &disp_h).map_err(ModelError::backend)?;
+        let grid_z = add(&base_d, &disp_d).map_err(ModelError::backend)?;
+        let grid = cat(&[&grid_x, &grid_y, &grid_z], 4).map_err(ModelError::backend)?;
 
-        grid_sample_3d(image, &grid)
+        grid_sample_3d(image, &grid).map_err(ModelError::backend)
     }
 }

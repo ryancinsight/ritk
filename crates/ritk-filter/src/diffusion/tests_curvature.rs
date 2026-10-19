@@ -11,7 +11,7 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn image_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data().to_vec()
+    img.data().to_vec().expect("test tensor is valid")
 }
 
 // ── Test 1: constant image must be unchanged ───────────────────────────────

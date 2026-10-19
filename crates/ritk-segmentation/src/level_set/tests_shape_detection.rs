@@ -7,7 +7,7 @@ type B = coeus_core::SequentialBackend;
 
 fn make_image(dims: [usize; 3], val: f32) -> Image<f32, B, 3> {
     let n: usize = dims.iter().product();
-    let tensor = Tensor::<f32, B>::from_slice(dims, &vec![val; n]);
+    let tensor = Tensor::<f32, B>::from_slice(dims, &vec![val; n]).expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -49,7 +49,8 @@ fn sphere_phi(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<f32, B, 
     }
 
     let device = Default::default();
-    let tensor = Tensor::<f32, B>::from_slice_on(dims, &data, &device);
+    let tensor =
+        Tensor::<f32, B>::from_slice_on(dims, &data, &device).expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -60,7 +61,13 @@ fn sphere_phi(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<f32, B, 
 }
 
 fn count_foreground(image: &Image<f32, B, 3>) -> usize {
-    image.data().to_vec().iter().filter(|&&v| v == 1.0).count()
+    image
+        .data()
+        .to_vec()
+        .expect("test tensor is valid")
+        .iter()
+        .filter(|&&v| v == 1.0)
+        .count()
 }
 
 fn count_phi_inside(phi: &Image<f32, B, 3>) -> usize {
@@ -68,7 +75,7 @@ fn count_phi_inside(phi: &Image<f32, B, 3>) -> usize {
 }
 
 fn image_values(image: &Image<f32, B, 3>) -> Vec<f32> {
-    image.data().to_vec()
+    image.data().to_vec().expect("test tensor is valid")
 }
 
 #[test]
@@ -122,7 +129,8 @@ fn test_shape_detection_stops_at_edges() {
     }
 
     let device = Default::default();
-    let img_tensor = Tensor::<f32, B>::from_slice_on(dims, &img_data, &device);
+    let img_tensor =
+        Tensor::<f32, B>::from_slice_on(dims, &img_data, &device).expect("test tensor is valid");
     let image = Image::new(
         img_tensor,
         Point::new([0.0, 0.0, 0.0]),

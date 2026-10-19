@@ -130,7 +130,8 @@ impl MultiOtsuThreshold {
         let (_, output) = multi_otsu_labels_from_slice(&vals, self.num_classes, self.num_bins);
 
         let device = B::default();
-        let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device)
+            .expect("invariant: segmentation output length matches shape");
         Image::new(
             tensor,
             *image.origin(),

@@ -54,7 +54,8 @@ fn phantom(dir: &Path) -> (PathBuf, PathBuf, PathBuf) {
 
     let volume = |value: f32| {
         Image::new(
-            Tensor::<f32, Backend>::from_slice_on(SHAPE, &vec![value; voxels], &backend),
+            Tensor::<f32, Backend>::from_slice_on(SHAPE, &vec![value; voxels], &backend)
+                .expect("test fixture tensor build failed"),
             Point::new([0.0; 3]),
             Spacing::new(SPACING),
             Direction::identity(),

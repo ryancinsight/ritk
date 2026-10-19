@@ -13,7 +13,7 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn extract_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data().to_vec()
+    img.data().to_vec().expect("test tensor is valid")
 }
 
 fn flat(iz: usize, iy: usize, ix: usize, ny: usize, nx: usize) -> usize {
@@ -188,7 +188,8 @@ fn spatial_metadata_preserved() {
     let origin = Point::new([2.0, 3.0, 4.0]);
     let spacing = Spacing::new([0.75, 0.75, 1.5]);
     let direction = Direction::identity();
-    let tensor = Tensor::<f32, B>::from_slice([3, 3, 3], &[1.0_f32; 27]);
+    let tensor =
+        Tensor::<f32, B>::from_slice([3, 3, 3], &[1.0_f32; 27]).expect("test tensor is valid");
     let img = Image::new(tensor, origin, spacing, direction)
         .expect("invariant: fixture tensor has the declared rank");
     let out = GrayscaleFillholeFilter::new()

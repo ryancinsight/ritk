@@ -30,7 +30,7 @@ fn make_image_with_metadata(
 }
 
 fn get_values(image: &Image<f32, B, 3>) -> Vec<f32> {
-    image.data().to_vec()
+    image.data().to_vec().expect("test tensor is valid")
 }
 
 // ── Test 1: Bimodal sphere recovery ────────────────────────────────────────

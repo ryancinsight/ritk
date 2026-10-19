@@ -72,24 +72,27 @@ where
         let x4_out = self.run_stage(&x3_down, &self.stage4)?;
 
         // U-Net decoder: upsample, concatenate skip, convolve.
-        let x4_up = self.upsample(&x4_out, 2);
-        let d1 = self.up_conv1.forward(&cat(&[&x4_up, &x3_out], 1))?;
+        let x4_up = self.upsample(&x4_out, 2)?;
+        let cat1 = cat(&[&x4_up, &x3_out], 1).map_err(ModelError::backend)?;
+        let d1 = self.up_conv1.forward(&cat1)?;
 
-        let d1_up = self.upsample(&d1, 2);
-        let d2 = self.up_conv2.forward(&cat(&[&d1_up, &x2_out], 1))?;
+        let d1_up = self.upsample(&d1, 2)?;
+        let cat2 = cat(&[&d1_up, &x2_out], 1).map_err(ModelError::backend)?;
+        let d2 = self.up_conv2.forward(&cat2)?;
 
-        let d2_up = self.upsample(&d2, 2);
-        let d3 = self.up_conv3.forward(&cat(&[&d2_up, &x1_out], 1))?;
+        let d2_up = self.upsample(&d2, 2)?;
+        let cat3 = cat(&[&d2_up, &x1_out], 1).map_err(ModelError::backend)?;
+        let d3 = self.up_conv3.forward(&cat3)?;
 
-        let d3_up = self.upsample(&d3, 4);
+        let d3_up = self.upsample(&d3, 4)?;
         let flow = self.flow_conv.forward(&d3_up)?;
 
         let flow = match &self.integration {
-            Some(integration) => integration.forward(&flow),
+            Some(integration) => integration.forward(&flow)?,
             None => flow,
         };
 
-        let warped = self.spatial_transform.forward(image, &flow);
+        let warped = self.spatial_transform.forward(image, &flow)?;
         Ok(TransMorphOutput { warped, flow })
     }
 
@@ -99,34 +102,34 @@ where
         x: &Var<f32, B>,
         blocks: &[SwinTransformerBlock<B>],
     ) -> Result<Var<f32, B>, ModelError> {
-        let mut y = permute(x, &[0, 2, 3, 4, 1]);
+        let mut y = permute(x, &[0, 2, 3, 4, 1]).map_err(ModelError::backend)?;
         for block in blocks {
             y = block.forward(&y)?;
         }
-        Ok(permute(&y, &[0, 4, 1, 2, 3]))
+        permute(&y, &[0, 4, 1, 2, 3]).map_err(ModelError::backend)
     }
 
     /// Nearest-neighbor upsample `[B, C, D, H, W]` by an integer `scale` on each
     /// spatial axis. Each axis inserts a unit dimension, tiles it, and merges,
     /// keeping every intermediate tensor at most rank-5.
-    fn upsample(&self, x: &Var<f32, B>, scale: usize) -> Var<f32, B> {
+    fn upsample(&self, x: &Var<f32, B>, scale: usize) -> Result<Var<f32, B>, ModelError> {
         let sh = x.tensor.shape();
         let (b, c, d, h, w) = (sh[0], sh[1], sh[2], sh[3], sh[4]);
 
         // D axis.
-        let x = reshape(x, [b, c, d, 1, h * w]);
-        let x = tile(&x, &[1, 1, 1, scale, 1]);
-        let x = reshape(&x, [b, c, d * scale, h, w]);
+        let x = reshape(x, [b, c, d, 1, h * w]).map_err(ModelError::backend)?;
+        let x = tile(&x, &[1, 1, 1, scale, 1]).map_err(ModelError::backend)?;
+        let x = reshape(&x, [b, c, d * scale, h, w]).map_err(ModelError::backend)?;
 
         // H axis.
-        let x = reshape(&x, [b, c * d * scale, h, 1, w]);
-        let x = tile(&x, &[1, 1, 1, scale, 1]);
-        let x = reshape(&x, [b, c, d * scale, h * scale, w]);
+        let x = reshape(&x, [b, c * d * scale, h, 1, w]).map_err(ModelError::backend)?;
+        let x = tile(&x, &[1, 1, 1, scale, 1]).map_err(ModelError::backend)?;
+        let x = reshape(&x, [b, c, d * scale, h * scale, w]).map_err(ModelError::backend)?;
 
         // W axis.
-        let x = reshape(&x, [b, c * d * scale * h * scale, w, 1]);
-        let x = tile(&x, &[1, 1, 1, scale]);
-        reshape(&x, [b, c, d * scale, h * scale, w * scale])
+        let x = reshape(&x, [b, c * d * scale * h * scale, w, 1]).map_err(ModelError::backend)?;
+        let x = tile(&x, &[1, 1, 1, scale]).map_err(ModelError::backend)?;
+        reshape(&x, [b, c, d * scale, h * scale, w * scale]).map_err(ModelError::backend)
     }
 
     /// Trainable parameters in forward order.

@@ -114,6 +114,7 @@ where
                 1,
                 false,
             )
+            .expect("invariant: decoder fusion dims are positive")
         });
         if let Some(layer) = &mut fusion {
             crate::initialization::convolution(layer, output_channels + skip_channels, 3, 601);
@@ -124,7 +125,8 @@ where
             blocks: (0..depth)
                 .map(|_| VMambaBlock::new(VMambaBlockConfig::new_with_dim(output_channels)))
                 .collect(),
-            norm: LayerNorm::new(output_channels, 1e-5),
+            norm: LayerNorm::new(output_channels, 1e-5)
+                .expect("invariant: decoder norm dim is positive"),
         }
     }
 }
@@ -141,7 +143,10 @@ where
     ) -> Result<Var<f32, B>, ModelError> {
         let upsampled = self.upsample.forward(input)?;
         let fused = match (&self.fusion, skip) {
-            (Some(fusion), Some(skip)) => fusion.forward(&cat(&[&upsampled, skip], 1))?,
+            (Some(fusion), Some(skip)) => {
+                let fused_input = cat(&[&upsampled, skip], 1).map_err(ModelError::backend)?;
+                fusion.forward(&fused_input)?
+            }
             (None, None) => upsampled,
             _ => {
                 return Err(ModelError::Shape {
@@ -151,10 +156,9 @@ where
                 });
             }
         };
-        let mut output = permute(
-            &self.norm.forward_nd(&permute(&fused, &[0, 2, 3, 4, 1]))?,
-            &[0, 4, 1, 2, 3],
-        );
+        let channels_last = permute(&fused, &[0, 2, 3, 4, 1]).map_err(ModelError::backend)?;
+        let normed = self.norm.forward_nd(&channels_last)?;
+        let mut output = permute(&normed, &[0, 4, 1, 2, 3]).map_err(ModelError::backend)?;
         for block in &self.blocks {
             output = block.forward(&output)?;
         }
@@ -223,6 +227,10 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Initialize a decoder.
+    ///
+    /// # Panics
+    /// Panics when a channel count is zero: configs this crate builds carry
+    /// positive dims.
     #[must_use]
     pub fn new(config: &SSMMorphDecoderConfig, encoder_channels: &[usize]) -> Self {
         let use_skips = config.skip_connections == SkipConnections::Enabled;
@@ -242,7 +250,8 @@ where
             .collect();
         let final_channels = encoder_channels.first().copied().unwrap_or(16);
         let mut output_projection =
-            Conv3d::with_params(final_channels, config.out_channels, 3, 1, 1, 1, true);
+            Conv3d::with_params(final_channels, config.out_channels, 3, 1, 1, 1, true)
+                .expect("invariant: decoder output dims are positive");
         crate::initialization::zero_convolution(&mut output_projection);
         Self {
             stages,

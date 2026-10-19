@@ -13,7 +13,7 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn flat(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data().to_vec()
+    img.data().to_vec().expect("test tensor is valid")
 }
 
 /// T1: Radius-0 dilation is identity.
@@ -192,7 +192,7 @@ fn spatial_metadata_preserved() {
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 0.5, 1.0]);
     let direction = Direction::identity();
-    let t = Tensor::<f32, B>::from_slice([2, 2, 2], &[1.0_f32; 8]);
+    let t = Tensor::<f32, B>::from_slice([2, 2, 2], &[1.0_f32; 8]).expect("test tensor is valid");
     let img = Image::new(t, origin, spacing, direction)
         .expect("invariant: fixture tensor has the declared rank");
     let out = BinaryDilateFilter::new(0)

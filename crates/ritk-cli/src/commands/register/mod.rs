@@ -244,7 +244,8 @@ pub(super) fn leto_volume_to_image(
     let [nz, ny, nx] = volume.shape();
     let f32_vec: Vec<f32> = volume.iter().map(|&v| v as f32).collect();
     let backend = Backend::default();
-    let tensor = Tensor::<f32, Backend>::from_slice_on([nz, ny, nx], &f32_vec, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([nz, ny, nx], &f32_vec, &backend)
+        .expect("flat data matches the declared volume shape");
 
     Image::new(
         tensor,
@@ -264,7 +265,10 @@ pub(super) fn leto_volume_to_image(
 /// Panics if the tensor data cannot be extracted as `f32`.
 pub(super) fn image_to_flat_vec(image: &Image<f32, Backend, 3>) -> (Vec<f32>, [usize; 3]) {
     let shape = image.shape();
-    let data: Vec<f32> = image.data_cow_on(&Backend::default()).into_owned();
+    let data: Vec<f32> = image
+        .data_cow_on(&Backend::default())
+        .expect("tensor data extracts as f32")
+        .into_owned();
     (data, [shape[0], shape[1], shape[2]])
 }
 
@@ -276,7 +280,8 @@ pub(super) fn flat_vec_to_image(
     reference: &Image<f32, Backend, 3>,
 ) -> Image<f32, Backend, 3> {
     let backend = Backend::default();
-    let tensor = Tensor::<f32, Backend>::from_slice_on(shape, &data, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on(shape, &data, &backend)
+        .expect("flat data matches the declared image shape");
 
     Image::new(
         tensor,
@@ -345,7 +350,8 @@ mod tests {
     pub(crate) fn make_ramp_image() -> Image<f32, Backend, 3> {
         let backend = Backend::default();
         let values: Vec<f32> = (0..64).map(|i| i as f32 * 4.0).collect();
-        let tensor = Tensor::<f32, Backend>::from_slice_on([4, 4, 4], &values, &backend);
+        let tensor = Tensor::<f32, Backend>::from_slice_on([4, 4, 4], &values, &backend)
+            .expect("test fixture tensor build failed");
 
         Image::new(
             tensor,

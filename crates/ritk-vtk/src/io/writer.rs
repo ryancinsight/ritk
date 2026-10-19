@@ -189,7 +189,7 @@ where
     // `SPACING` describing the same axis.
     let spacing_arr = reverse_spatial_axes([spacing[0], spacing[1], spacing[2]]);
 
-    let f32_vec = image.data_cow_on(backend);
+    let f32_vec = image.data_cow_on(backend)?;
 
     encode_vtk_flat(&mut writer, &f32_vec, dims, origin_arr, spacing_arr)?;
 

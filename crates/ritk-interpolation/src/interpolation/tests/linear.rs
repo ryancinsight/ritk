@@ -13,13 +13,18 @@ fn test_bspline_volumetric() {
     let data = Tensor::<f32, TestBackend>::from_slice(
         [2, 2, 2],
         &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-    );
+    )
+    .expect("test tensor is valid");
     let interpolator = BSplineInterpolator::new();
 
     // Test at exact grid point
-    let indices = Tensor::<f32, TestBackend>::from_slice([1, 3], &[0.0, 0.0, 0.0]);
+    let indices = Tensor::<f32, TestBackend>::from_slice([1, 3], &[0.0, 0.0, 0.0])
+        .expect("test tensor is valid");
     let result = interpolator.interpolate(&data, indices);
-    let val = result.to_contiguous().as_slice()[0];
+    let val = result
+        .to_contiguous()
+        .expect("test tensor is valid")
+        .as_slice()[0];
     // Value should be within reasonable range
     assert!(
         (0.0..=8.0).contains(&val),
@@ -28,9 +33,13 @@ fn test_bspline_volumetric() {
     );
 
     // Test at interpolated point
-    let indices = Tensor::<f32, TestBackend>::from_slice([1, 3], &[0.5, 0.5, 0.5]);
+    let indices = Tensor::<f32, TestBackend>::from_slice([1, 3], &[0.5, 0.5, 0.5])
+        .expect("test tensor is valid");
     let result = interpolator.interpolate(&data, indices);
-    let val = result.to_contiguous().as_slice()[0];
+    let val = result
+        .to_contiguous()
+        .expect("test tensor is valid")
+        .as_slice()[0];
     // Value should be between min and max
     assert!(
         (0.0..=8.0).contains(&val),
@@ -42,12 +51,17 @@ fn test_bspline_volumetric() {
 #[test]
 fn test_bspline_planar() {
     // Create a simple 2D image: shape [2, 2] row-major.
-    let data = Tensor::<f32, TestBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]);
+    let data = Tensor::<f32, TestBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0])
+        .expect("test tensor is valid");
     let interpolator = BSplineInterpolator::new();
 
-    let indices = Tensor::<f32, TestBackend>::from_slice([1, 2], &[0.0, 0.0]);
+    let indices =
+        Tensor::<f32, TestBackend>::from_slice([1, 2], &[0.0, 0.0]).expect("test tensor is valid");
     let result = interpolator.interpolate(&data, indices);
-    let val = result.to_contiguous().as_slice()[0];
+    let val = result
+        .to_contiguous()
+        .expect("test tensor is valid")
+        .as_slice()[0];
     assert!(
         (0.0..=5.0).contains(&val),
         "Interpolated value {} out of range",
@@ -74,7 +88,8 @@ fn test_bspline_zero_pad_3d_oob_returns_zero() {
     let data = Tensor::<f32, TestBackend>::from_slice(
         [2, 2, 2],
         &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-    );
+    )
+    .expect("test tensor is valid");
     let interp = BSplineInterpolator::new_zero_pad();
 
     // Clearly out-of-bounds queries in each direction.
@@ -86,9 +101,14 @@ fn test_bspline_zero_pad_3d_oob_returns_zero() {
             0.0, -5.0, 0.0, // dim1 OOB
             0.0, 0.0, 10.0, // dim2 OOB
         ],
-    );
+    )
+    .expect("test tensor is valid");
     let result = interp.interpolate(&data, oob);
-    let s = result.to_contiguous().as_slice().to_vec();
+    let s = result
+        .to_contiguous()
+        .expect("test tensor is valid")
+        .as_slice()
+        .to_vec();
     for (i, v) in s.iter().enumerate() {
         assert!(
             v.abs() < 1e-6,
@@ -113,16 +133,23 @@ fn test_bspline_zero_pad_3d_inbounds_matches_no_pad() {
             }
         }
     }
-    let data = Tensor::<f32, TestBackend>::from_slice([n, n, n], &data_vec);
+    let data =
+        Tensor::<f32, TestBackend>::from_slice([n, n, n], &data_vec).expect("test tensor is valid");
     let interp_pad = BSplineInterpolator::new_zero_pad();
     let interp_nop = BSplineInterpolator::new();
 
-    let pt = Tensor::<f32, TestBackend>::from_slice([1, 3], &[1.5, 1.5, 1.5]);
+    let pt = Tensor::<f32, TestBackend>::from_slice([1, 3], &[1.5, 1.5, 1.5])
+        .expect("test tensor is valid");
     let val_pad = interp_pad
         .interpolate(&data, pt.clone())
         .to_contiguous()
+        .expect("test tensor is valid")
         .as_slice()[0];
-    let val_nop = interp_nop.interpolate(&data, pt).to_contiguous().as_slice()[0];
+    let val_nop = interp_nop
+        .interpolate(&data, pt)
+        .to_contiguous()
+        .expect("test tensor is valid")
+        .as_slice()[0];
     assert!(
         (val_pad - val_nop).abs() < 1e-5,
         "In-bounds zero_pad {} vs no-pad {} should match",
@@ -138,16 +165,22 @@ fn test_bspline_zero_pad_3d_inbounds_matches_no_pad() {
 
 #[test]
 fn test_bspline_zero_pad_2d_oob_returns_zero() {
-    let data = Tensor::<f32, TestBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let data = Tensor::<f32, TestBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        .expect("test tensor is valid");
     let interp = BSplineInterpolator::new_zero_pad();
 
     // OOB in both dimensions.
     let oob = Tensor::<f32, TestBackend>::from_slice(
         [4, 2],
         &[-1.0, 0.0, 0.0, -1.0, 10.0, 0.0, 0.0, 10.0],
-    );
+    )
+    .expect("test tensor is valid");
     let result = interp.interpolate(&data, oob);
-    let s = result.to_contiguous().as_slice().to_vec();
+    let s = result
+        .to_contiguous()
+        .expect("test tensor is valid")
+        .as_slice()
+        .to_vec();
     for (i, v) in s.iter().enumerate() {
         assert!(
             v.abs() < 1e-6,
@@ -166,12 +199,18 @@ fn test_bspline_no_zero_pad_oob_gives_finite_value() {
     let data = Tensor::<f32, TestBackend>::from_slice(
         [2, 2, 2],
         &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0],
-    );
+    )
+    .expect("test tensor is valid");
     let interp = BSplineInterpolator::new(); // zero_pad = false
 
     // Query just outside: floor(-0.1) = -1 (OOB in dim0).
-    let pt = Tensor::<f32, TestBackend>::from_slice([1, 3], &[-0.1, 0.5, 0.5]);
-    let val = interp.interpolate(&data, pt).to_contiguous().as_slice()[0];
+    let pt = Tensor::<f32, TestBackend>::from_slice([1, 3], &[-0.1, 0.5, 0.5])
+        .expect("test tensor is valid");
+    let val = interp
+        .interpolate(&data, pt)
+        .to_contiguous()
+        .expect("test tensor is valid")
+        .as_slice()[0];
     assert!(
         val.is_finite(),
         "No-zero-pad OOB should return finite value, got {}",
@@ -202,7 +241,8 @@ fn test_bspline_performance_regression_volumetric() {
     let size = 64usize;
     let n_voxels = size * size * size;
     let data: Vec<f32> = (0..n_voxels).map(|i| (i % 256) as f32).collect();
-    let data_tensor = Tensor::<f32, TestBackend>::from_slice([size, size, size], &data);
+    let data_tensor = Tensor::<f32, TestBackend>::from_slice([size, size, size], &data)
+        .expect("test tensor is valid");
 
     let interpolator = BSplineInterpolator::new();
 
@@ -218,7 +258,8 @@ fn test_bspline_performance_regression_volumetric() {
         indices_data[i * 3 + 1] = v * size as f32 - 0.5;
         indices_data[i * 3 + 2] = w * size as f32 - 0.5;
     }
-    let indices = Tensor::<f32, TestBackend>::from_slice([n_points, 3], &indices_data);
+    let indices = Tensor::<f32, TestBackend>::from_slice([n_points, 3], &indices_data)
+        .expect("test tensor is valid");
 
     // Time the interpolation
     use std::time::Instant;

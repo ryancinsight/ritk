@@ -8,8 +8,8 @@ fn make_image(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3> {
     ritk_image::test_support::make_image(data, dims)
 }
 
-fn get_labels(image: &Image<f32, TestBackend, 3>) -> Vec<u32> {
-    image.data().to_vec().iter().map(|&v| v as u32).collect()
+fn get_labels(image: &Image<f32, TestBackend, 3>) -> Vec<f32> {
+    image.data().to_vec().expect("test tensor is valid")
 }
 
 // ── Positive tests ────────────────────────────────────────────────────────────
@@ -23,8 +23,8 @@ fn test_seeds_are_immutable() {
     let seeds = make_image(vec![1.0_f32, 0.0, 0.0, 2.0], [1, 1, 4]);
     let result = growcut(&image, &seeds, 100);
     let labels = get_labels(&result);
-    assert_eq!(labels[0], 1, "seed at index 0 must remain label 1");
-    assert_eq!(labels[3], 2, "seed at index 3 must remain label 2");
+    assert_eq!(labels[0], 1.0, "seed at index 0 must remain label 1");
+    assert_eq!(labels[3], 2.0, "seed at index 3 must remain label 2");
 }
 
 /// On a uniform intensity image with seeds at both ends, GrowCut partitions
@@ -42,20 +42,20 @@ fn test_uniform_intensity_voronoi_split() {
     // All voxels must be labeled (no zeros after convergence)
     for (i, &l) in labels.iter().enumerate() {
         assert!(
-            l > 0,
+            l > 0.0,
             "voxel {i} must be labeled after convergence, got {l}"
         );
     }
     // Symmetry: label 1 should be in indices 0..=3 and label 2 in 4..=7
     // (or 0..=3 and 4..=7 with the boundary at 3.5)
-    assert_eq!(labels[0], 1, "index 0 must be label 1");
-    assert_eq!(labels[7], 2, "index 7 must be label 2");
+    assert_eq!(labels[0], 1.0, "index 0 must be label 1");
+    assert_eq!(labels[7], 2.0, "index 7 must be label 2");
     assert_eq!(
-        labels[1], 1,
+        labels[1], 1.0,
         "index 1 should be label 1 (closest to seed 1)"
     );
     assert_eq!(
-        labels[6], 2,
+        labels[6], 2.0,
         "index 6 should be label 2 (closest to seed 2)"
     );
 }
@@ -77,14 +77,14 @@ fn test_high_contrast_barrier_limits_propagation() {
     let result = growcut(&image, &seeds, 200);
     let labels = get_labels(&result);
     // Seed positions must be preserved
-    assert_eq!(labels[0], 1);
-    assert_eq!(labels[6], 2);
+    assert_eq!(labels[0], 1.0);
+    assert_eq!(labels[6], 2.0);
     // Low-intensity region left of barrier belongs to label 1
-    assert_eq!(labels[1], 1, "left of barrier must be label 1");
-    assert_eq!(labels[2], 1, "left of barrier must be label 1");
+    assert_eq!(labels[1], 1.0, "left of barrier must be label 1");
+    assert_eq!(labels[2], 1.0, "left of barrier must be label 1");
     // Low-intensity region right of barrier belongs to label 2
-    assert_eq!(labels[4], 2, "right of barrier must be label 2");
-    assert_eq!(labels[5], 2, "right of barrier must be label 2");
+    assert_eq!(labels[4], 2.0, "right of barrier must be label 2");
+    assert_eq!(labels[5], 2.0, "right of barrier must be label 2");
 }
 
 /// An intensity jump spanning the complete image range has zero attack
@@ -114,7 +114,7 @@ fn test_single_seed_fills_entire_volume() {
     let result = growcut(&image, &seeds, 500);
     let labels = get_labels(&result);
     assert!(
-        labels.iter().all(|&l| l == 1),
+        labels.iter().all(|&l| l == 1.0),
         "all voxels must be label 1 after fill"
     );
 }
@@ -180,9 +180,9 @@ fn test_zero_iterations_returns_seed_map() {
     let result = growcut(&image, &seeds, 0);
     let labels = get_labels(&result);
     // Without any iteration only the seed at index 0 is labeled.
-    assert_eq!(labels[0], 1, "seed must remain labeled");
+    assert_eq!(labels[0], 1.0, "seed must remain labeled");
     for &l in labels.iter().skip(1) {
-        assert_eq!(l, 0, "unlabeled voxels remain 0 with 0 iterations");
+        assert_eq!(l, 0.0, "unlabeled voxels remain 0 with 0 iterations");
     }
 }
 

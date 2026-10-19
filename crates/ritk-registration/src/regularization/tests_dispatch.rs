@@ -28,11 +28,13 @@ const FD_LOSS_TOL: f32 = 1e-5;
 /// (`[channel][height][width]`, width fastest).
 fn planar(values: &[f32], c: usize) -> Tensor<f32, B> {
     Tensor::<f32, B>::from_slice_on([1, c, 4, 4], values, &SequentialBackend)
+        .expect("test fixture tensor build failed")
 }
 
 /// Volumetric (3-D) displacement field `[1, C, 4, 4, 4]` from a flat slice.
 fn volume(values: &[f32], c: usize) -> Tensor<f32, B> {
     Tensor::<f32, B>::from_slice_on([1, c, 4, 4, 4], values, &SequentialBackend)
+        .expect("test fixture tensor build failed")
 }
 
 /// A field that is a linear ramp in the width axis: `u = 0.1·w`, identical

@@ -1,5 +1,6 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, Backend, PyImage};
+use coeus_core::FloatElement;
 use pyo3::prelude::*;
 use ritk_core::spatial::Point;
 use ritk_filter::ResampleImageFilter;
@@ -60,18 +61,19 @@ pub fn rotate_image(
         // points are [X, Y, Z]. Let the image direction map the tensor
         // midpoint instead of manually reversing the axes here.
         let centre_point = inner.continuous_index_to_physical_point(&Point::new([
-            (shape[0] as f64 - 1.0) / 2.0,
-            (shape[1] as f64 - 1.0) / 2.0,
-            (shape[2] as f64 - 1.0) / 2.0,
+            (f64::from_count(shape[0]) - 1.0) / 2.0,
+            (f64::from_count(shape[1]) - 1.0) / 2.0,
+            (f64::from_count(shape[2]) - 1.0) / 2.0,
         ]));
         let centre: Vec<f32> = centre_point
             .as_slice()
             .iter()
             .map(|value| *value as f32)
             .collect();
-        let centre_t = Tensor::<f32, Backend>::from_slice_on([3], &centre, &device);
+        let centre_t = Tensor::<f32, Backend>::from_slice_on([3], &centre, &device)
+            .map_err(|e| e.to_string())?;
         // Zero translation (pure rotation about centre).
-        let translation = Tensor::<f32, Backend>::zeros_on([3], &device);
+        let translation = Tensor::<f32, Backend>::zeros_on([3], &device).map_err(|e| e.to_string())?;
         // Build the rotation to match SimpleITK's `Euler3DTransform`
         // (`ComputeZYX = false`, the default), whose physical-space matrix is
         // `M = R_z(angle_z) · R_x(angle_x) · R_y(angle_y)`. Resample consumes
@@ -84,8 +86,8 @@ pub fn rotate_image(
             .flat_map(|i| (0..3).map(move |j| (i, j)))
             .map(|(i, j)| m[i][j] as f32)
             .collect();
-        let matrix =
-            Tensor::<f32, Backend>::from_slice_on([3, 3], &a, &device);
+        let matrix = Tensor::<f32, Backend>::from_slice_on([3, 3], &a, &device)
+            .map_err(|e| e.to_string())?;
         let transform = AffineTransform::<Backend, 3>::new(matrix, translation, centre_t);
 
         match mode.as_str() {
@@ -164,9 +166,14 @@ pub fn shift_image(
         // intentionally named in NumPy [Z, Y, X] order.
         let translation = Tensor::<f32, Backend>::from_slice_on(
             [3],
-            &[-shift_x as f32, -shift_y as f32, -shift_z as f32],
+            &[
+                f32::from_f64(-shift_x),
+                f32::from_f64(-shift_y),
+                f32::from_f64(-shift_z),
+            ],
             &device,
-        );
+        )
+        .map_err(|e| e.to_string())?;
         let transform = TranslationTransform::<Backend, 3>::new(translation);
 
         match mode.as_str() {

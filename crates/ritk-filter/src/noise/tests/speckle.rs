@@ -11,7 +11,7 @@ fn speckle_zero_std_is_identity() {
     let img = make_image(data.clone(), [2, 2, 2]);
     let filter = SpeckleNoiseFilter::new(0.0);
     let result = filter.apply(&img).unwrap();
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     for (i, &v) in vals.iter().enumerate() {
         assert!(
             (v - data[i]).abs() < 1e-6,
@@ -48,8 +48,18 @@ fn native_speckle_zero_std_preserves_values_and_metadata() {
 fn speckle_deterministic() {
     let img = make_image(vec![10.0_f32; 64], [4, 4, 4]);
     let filter = SpeckleNoiseFilter::new(0.1).with_seed(42);
-    let v1 = filter.apply(&img).unwrap().data().to_vec();
-    let v2 = filter.apply(&img).unwrap().data().to_vec();
+    let v1 = filter
+        .apply(&img)
+        .unwrap()
+        .data()
+        .to_vec()
+        .expect("test tensor is valid");
+    let v2 = filter
+        .apply(&img)
+        .unwrap()
+        .data()
+        .to_vec()
+        .expect("test tensor is valid");
     assert_eq!(v1, v2, "same seed must produce identical output");
 }
 
@@ -59,7 +69,7 @@ fn speckle_preserves_mean_approx() {
     let img = make_image(vec![50.0_f32; 1000], [10, 10, 10]);
     let filter = SpeckleNoiseFilter::new(0.05).with_seed(42);
     let result = filter.apply(&img).unwrap();
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     let mean: f64 = vals.iter().map(|&v| v as f64).sum::<f64>() / vals.len() as f64;
     // Multiplicative N(0, σ) has mean multiplicative factor 1.0
     assert!(
@@ -75,7 +85,7 @@ fn speckle_nonzero_sigma_changes_values() {
     let img = make_image(data.clone(), [5, 5, 4]);
     let filter = SpeckleNoiseFilter::new(0.5).with_seed(42);
     let result = filter.apply(&img).unwrap();
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     assert!(
         vals.iter().any(|&v| (v - 10.0).abs() > 0.01),
         "non-zero sigma must change at least some voxel values"
@@ -89,7 +99,7 @@ fn speckle_positive_input_no_negatives() {
     let img = make_image(data, [4, 4, 4]);
     let filter = SpeckleNoiseFilter::new(0.3).with_seed(42);
     let result = filter.apply(&img).unwrap();
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     // With σ=0.3 the multiplicative factor is (1+N(0,0.3)).
     // The 3σ range is [0.1, 1.9] so all outputs should be ≥ 0.
     // (Values slightly below 0 due to extreme tail draws are clamped by the
@@ -108,8 +118,18 @@ fn speckle_same_seed_idempotent() {
     let data = vec![10.0_f32; 50];
     let img = make_image(data, [5, 5, 2]);
     let filter = SpeckleNoiseFilter::new(0.1).with_seed(42);
-    let v1 = filter.apply(&img).unwrap().data().to_vec();
-    let v2 = filter.apply(&img).unwrap().data().to_vec();
+    let v1 = filter
+        .apply(&img)
+        .unwrap()
+        .data()
+        .to_vec()
+        .expect("test tensor is valid");
+    let v2 = filter
+        .apply(&img)
+        .unwrap()
+        .data()
+        .to_vec()
+        .expect("test tensor is valid");
     assert_eq!(v1, v2, "same seed must produce identical output");
 }
 
@@ -131,7 +151,7 @@ fn speckle_preserves_shape() {
 #[test]
 fn speckle_preserves_metadata() {
     use ritk_spatial::{Direction, Point, Spacing};
-    let t = Tensor::<f32, B>::from_slice([2, 2, 2], &[10.0_f32; 8]);
+    let t = Tensor::<f32, B>::from_slice([2, 2, 2], &[10.0_f32; 8]).expect("test tensor is valid");
     let img = Image::new(
         t,
         Point::new([1.0, 2.0, 3.0]),

@@ -90,7 +90,7 @@ pub fn run(args: ResampleArgs) -> Result<()> {
     use ritk_spatial::Spacing;
     let new_spacing = Spacing::new([new_sz, new_sy, new_sx]);
     let backend = Backend::default();
-    let zero_t = Tensor::<f32, Backend>::from_slice_on([3], &[0.0f32; 3], &backend);
+    let zero_t = Tensor::<f32, Backend>::from_slice_on([3], &[0.0f32; 3], &backend)?;
 
     let result = match args.interpolation {
         InterpolationMode::Nearest => ResampleImageFilter::new(
@@ -150,7 +150,8 @@ mod tests {
 
     fn write_test_nifti(path: &std::path::Path, data: Vec<f32>, shape: [usize; 3], sp: [f64; 3]) {
         let backend = Backend::default();
-        let t = Tensor::<f32, Backend>::from_slice_on(shape, &data, &backend);
+        let t = Tensor::<f32, Backend>::from_slice_on(shape, &data, &backend)
+            .expect("test fixture tensor build failed");
         let img = Image::new(
             t,
             Point::new([0.0; 3]),
@@ -191,7 +192,8 @@ mod tests {
         let input = dir.path().join("in.nrrd");
         let output = dir.path().join("out.nrrd");
         let backend = Backend::default();
-        let t = Tensor::<f32, Backend>::from_slice_on([4, 4, 4], &vec![1.0f32; 64], &backend);
+        let t = Tensor::<f32, Backend>::from_slice_on([4, 4, 4], &vec![1.0f32; 64], &backend)
+            .expect("test fixture tensor build failed");
         let img = Image::new(
             t,
             Point::new([0.0; 3]),

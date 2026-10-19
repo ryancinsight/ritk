@@ -13,10 +13,9 @@ use coeus_tensor::Tensor;
 type B = SequentialBackend;
 
 fn var(data: &[f64], requires_grad: bool) -> Var<f64, B> {
-    Var::new(
-        Tensor::<f64, B>::from_slice_on([data.len()], data, &SequentialBackend),
-        requires_grad,
-    )
+    let tensor = Tensor::<f64, B>::from_slice_on([data.len()], data, &SequentialBackend)
+        .expect("test fixture tensor build failed");
+    Var::new(tensor, requires_grad).expect("test fixture Var build failed")
 }
 
 /// Closed-form MSE over f64 slices, used as the value oracle.

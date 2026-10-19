@@ -54,7 +54,7 @@ type B = SequentialBackend;
 /// Deterministic gradient volume of `side^3` samples.
 fn volume(side: usize) -> Tensor<f32, B> {
     let data: Vec<f32> = (0..side * side * side).map(|i| (i % 4096) as f32).collect();
-    Tensor::<f32, B>::from_slice([side, side, side], &data)
+    Tensor::<f32, B>::from_slice([side, side, side], &data).expect("test tensor is valid")
 }
 
 /// `count` query points on a fixed fractional sweep of the interior.
@@ -70,7 +70,7 @@ fn query_points(count: usize, side: usize) -> Tensor<f32, B> {
             [base, base * 0.5 + 1.0, base * 0.25 + 1.0]
         })
         .collect();
-    Tensor::<f32, B>::from_slice([count, 3], &coords)
+    Tensor::<f32, B>::from_slice([count, 3], &coords).expect("test tensor is valid")
 }
 
 /// Batch size sweep on a fixed volume.
@@ -112,7 +112,7 @@ fn bench_bounds_policy(c: &mut Criterion) {
             [base, base, base]
         })
         .collect();
-    let indices = Tensor::<f32, B>::from_slice([50_000, 3], &coords);
+    let indices = Tensor::<f32, B>::from_slice([50_000, 3], &coords).expect("test tensor is valid");
 
     let mut group = c.benchmark_group("linear_interpolation_bounds");
     for (policy, name) in [

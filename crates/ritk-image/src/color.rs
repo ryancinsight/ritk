@@ -81,7 +81,7 @@ where
         }
         let [depth, rows, columns] = spatial_shape;
         Self::try_new(
-            Tensor::from_slice_on([depth, rows, columns, C], &data, backend),
+            Tensor::from_slice_on([depth, rows, columns, C], &data, backend)?,
             origin,
             spacing,
             direction,
@@ -182,12 +182,15 @@ where
     }
 
     /// Return logical row-major host data, borrowing contiguous storage.
-    #[must_use]
-    pub fn data_cow_on(&self, backend: &B) -> std::borrow::Cow<'_, [T]> {
+    ///
+    /// Extraction fails only when the backend cannot materialize host memory.
+    pub fn data_cow_on(&self, backend: &B) -> Result<std::borrow::Cow<'_, [T]>> {
         if self.data.is_contiguous() {
-            std::borrow::Cow::Borrowed(self.data.as_slice())
+            Ok(std::borrow::Cow::Borrowed(self.data.as_slice()))
         } else {
-            std::borrow::Cow::Owned(self.data.to_contiguous_on(backend).as_slice().to_vec())
+            Ok(std::borrow::Cow::Owned(
+                self.data.to_contiguous_on(backend)?.as_slice().to_vec(),
+            ))
         }
     }
 
@@ -197,18 +200,21 @@ where
     /// The interleaved layout is `[depth, rows, cols, channel]` (channel is the
     /// fastest-varying axis), so component `k`'s buffer is `flat[k], flat[k+C],
     /// flat[k+2C], …`.
-    pub fn into_component_buffers(&self) -> Vec<Vec<T>>
+    ///
+    /// # Errors
+    /// Returns `Err` when the backend cannot materialize host memory.
+    pub fn into_component_buffers(&self) -> Result<Vec<Vec<T>>>
     where
         T: Clone + Default,
     {
         let [d, r, c, _ch] = self.shape();
         let n = d * r * c;
-        let interleaved = self.data.to_vec();
+        let interleaved = self.data.to_vec()?;
         let mut comps: Vec<Vec<T>> = (0..C).map(|_| Vec::with_capacity(n)).collect();
         for (i, v) in interleaved.into_iter().enumerate() {
             comps[i % C].push(v);
         }
-        comps
+        Ok(comps)
     }
 
     /// Rebuild a color volume from `C` scalar component buffers (each in
@@ -250,7 +256,7 @@ where
                 interleaved[i * C + comp] = *v;
             }
         }
-        let tensor = Tensor::<T, B>::from_slice_on([d, r, c, C], &interleaved, backend);
+        let tensor = Tensor::<T, B>::from_slice_on([d, r, c, C], &interleaved, backend)?;
         Self::try_new(tensor, origin, spacing, direction)
     }
 }
@@ -266,7 +272,7 @@ mod tests {
     fn tensor(shape: [usize; 4]) -> Tensor<f32, B> {
         let n = shape.iter().product();
         let data = vec![0.0_f32; n];
-        Tensor::<f32, B>::from_slice_on(shape, &data, &B::default())
+        Tensor::<f32, B>::from_slice_on(shape, &data, &B::default()).unwrap()
     }
 
     #[test]
@@ -309,14 +315,14 @@ mod tests {
         ];
         let backend = B::default();
         let vol = RgbVolume::<f32, B>::try_new(
-            Tensor::<f32, B>::from_slice_on([1, 2, 2, 3], &interleaved, &backend),
+            Tensor::<f32, B>::from_slice_on([1, 2, 2, 3], &interleaved, &backend).unwrap(),
             Point::new([1.0, 2.0, 3.0]),
             Spacing::new([4.0, 5.0, 6.0]),
             Direction::identity(),
         )
         .unwrap();
 
-        let comps = vol.into_component_buffers();
+        let comps = vol.into_component_buffers().unwrap();
         assert_eq!(comps.len(), 3);
         assert_eq!(comps[0], vec![10.0, 11.0, 12.0, 13.0]);
         assert_eq!(comps[1], vec![100.0, 101.0, 102.0, 103.0]);
@@ -331,7 +337,10 @@ mod tests {
             &backend,
         )
         .unwrap();
-        assert_eq!(rebuilt.data_cow_on(&B::default()).into_owned(), interleaved);
+        assert_eq!(
+            rebuilt.data_cow_on(&B::default()).unwrap().into_owned(),
+            interleaved
+        );
         assert_eq!(rebuilt.origin(), vol.origin());
         assert_eq!(rebuilt.spacing(), vol.spacing());
     }

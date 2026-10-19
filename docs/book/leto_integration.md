@@ -24,7 +24,7 @@ consumers that only need array storage (like `apollo-sht`) can depend on
 |---|---|
 | `leto` | N-dimensional `Array<T, S, N>`, `ArrayView`, `ArrayViewMut`, storage backends, layout descriptors |
 | `leto-ops` | `solve_least_squares`, `nnls`, `cholesky_solve`, `qr_decompose`, `eigenvalues`, norms, iterative solvers |
-| `coeus-leto` | Dynamic-rank (Coeus) to const-rank (Leto) dispatch shim |
+| `coeus-cpu` | Dynamic-rank (Coeus) to const-rank (Leto) dispatch over the CPU backend |
 
 RITK consumes `leto` directly for `Array1`/`Array2` construction, and
 `leto-ops` for every linear solve in the diffusion pipeline.
@@ -183,13 +183,13 @@ whether `as_slice()` is safe:
 The diffusion pipeline's arrays are always C-contiguous at offset 0, so
 `.as_slice()` and `.view()` always succeed without materialization.
 
-## coeus-leto Interop
+## coeus-cpu Interop
 
-The `coeus-leto` crate bridges the dynamic-rank Coeus `Layout` to Leto's
+The `coeus-cpu` crate bridges the dynamic-rank Coeus `Layout` to Leto's
 const-rank `Layout<N>`:
 
 ```rust,ignore
-use coeus_leto::{to_leto_view, contiguous_values};
+use coeus_cpu::{to_leto_view, contiguous_values};
 
 // Dynamic-rank Coeus tensor to const-rank Leto view
 let coeus_layout = tensor.layout(); // coeus_core::Layout (rank at runtime)
@@ -272,7 +272,7 @@ Leto provides three sparse matrix formats in `leto::sparse`:
 | CSC | `CscArray<T>` | Compressed Sparse Column — efficient SpMV transpose |
 | COO | `CooArray<T>` | Coordinate list — construction format |
 
-These are consumed by `coeus-leto`'s `spmm_into` / `spmv_into` dispatch
+These are consumed by `coeus-cpu`'s `spmm_into` / `spmv_into` dispatch
 kernels for sparse matrix-matrix and matrix-vector multiplication.
 Non-diffusion pipelines (graph algorithms, registration) use these formats.
 
@@ -293,6 +293,6 @@ in the RITK pipeline.
 - [Leto Linear Algebra Operations](leto_linalg.md) — the provider chapter
   documenting `solve_least_squares`, `nnls`, `cholesky_solve`, etc.
 - [Coeus Tensor Integration](coeus_integration.md) — the Coeus `Tensor<T, B>`
-  type that interops with Leto arrays through `coeus-leto`
+  type that interops with Leto arrays through `coeus-cpu`
 - [Diffusion Models](ritk_diffusion.md) — the models that assemble Leto
   arrays and call leto-ops solvers

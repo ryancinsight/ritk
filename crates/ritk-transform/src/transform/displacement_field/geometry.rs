@@ -56,8 +56,10 @@ pub(crate) fn geometry_tensors<B: Backend, const D: usize>(
         .collect::<Vec<_>>();
     let backend = B::default();
     Ok(GeometryTensors {
-        world_to_index: Tensor::from_slice_on([D, D], &matrix_values, &backend),
-        origin: Tensor::from_slice_on([1, D], &origin_values, &backend),
+        world_to_index: Tensor::from_slice_on([D, D], &matrix_values, &backend)
+            .expect("displacement field requires backend evaluation to succeed"),
+        origin: Tensor::from_slice_on([1, D], &origin_values, &backend)
+            .expect("displacement field requires backend evaluation to succeed"),
     })
 }
 

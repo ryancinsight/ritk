@@ -34,8 +34,12 @@
 //! let network = SSMMorph::<MoiraiBackend>::new(&config);
 //!
 //! // Register images
-//! let fixed = Var::new(Tensor::zeros_on([1, 1, 32, 32, 32], &MoiraiBackend::new()), false);
-//! let moving = Var::new(Tensor::zeros_on([1, 1, 32, 32, 32], &MoiraiBackend::new()), false);
+//! let fixed_t = Tensor::zeros_on([1, 1, 32, 32, 32], &MoiraiBackend::new())
+//!     .map_err(ritk_model::ModelError::backend)?;
+//! let fixed = Var::new(fixed_t, false).map_err(ritk_model::ModelError::backend)?;
+//! let moving_t = Tensor::zeros_on([1, 1, 32, 32, 32], &MoiraiBackend::new())
+//!     .map_err(ritk_model::ModelError::backend)?;
+//! let moving = Var::new(moving_t, false).map_err(ritk_model::ModelError::backend)?;
 //! let displacement = network.forward(&fixed, &moving)?.displacement;
 //! # Ok::<(), ritk_model::ModelError>(())
 //! ```

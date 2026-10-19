@@ -198,7 +198,7 @@ mod tests {
     }
 
     fn volume_values(volume: &RgbVolume<f32, TestBackend>) -> Vec<f32> {
-        volume.data_cow_on(&SequentialBackend).into_owned()
+        volume.data_cow_on(&SequentialBackend).unwrap().into_owned()
     }
 
     #[test]

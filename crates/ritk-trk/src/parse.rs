@@ -172,18 +172,16 @@ pub(crate) fn f32_from_le(buf: &[u8], pos: usize) -> f32 {
 
 /// Apply a row-major `4×4` affine to a point `(x, y, z, 1)`.
 pub(crate) fn apply_affine(affine: &[[f32; 4]; 4], x: f32, y: f32, z: f32) -> (f64, f64, f64) {
-    let rx = affine[0][0] as f64 * x as f64
-        + affine[0][1] as f64 * y as f64
-        + affine[0][2] as f64 * z as f64
-        + affine[0][3] as f64;
-    let ry = affine[1][0] as f64 * x as f64
-        + affine[1][1] as f64 * y as f64
-        + affine[1][2] as f64 * z as f64
-        + affine[1][3] as f64;
-    let rz = affine[2][0] as f64 * x as f64
-        + affine[2][1] as f64 * y as f64
-        + affine[2][2] as f64 * z as f64
-        + affine[2][3] as f64;
+    let (x, y, z) = (f64::from(x), f64::from(y), f64::from(z));
+    let row = |r: usize| {
+        f64::from(affine[r][0]) * x
+            + f64::from(affine[r][1]) * y
+            + f64::from(affine[r][2]) * z
+            + f64::from(affine[r][3])
+    };
+    let rx = row(0);
+    let ry = row(1);
+    let rz = row(2);
     (rx, ry, rz)
 }
 

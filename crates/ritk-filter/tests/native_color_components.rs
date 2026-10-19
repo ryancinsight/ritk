@@ -28,7 +28,12 @@ fn identity_closure_preserves_volume() {
     let out =
         map_color_components(&vol, |img: &Image<f32, B, 3>| img.clone(), &B::default()).unwrap();
     let backend = B::default();
-    assert_eq!(out.data_cow_on(&backend).as_ref(), interleaved.as_slice());
+    assert_eq!(
+        out.data_cow_on(&backend)
+            .expect("test tensor is valid")
+            .as_ref(),
+        interleaved.as_slice()
+    );
 }
 
 #[test]
@@ -52,12 +57,18 @@ fn per_component_median_matches_independent_channel_median() {
         &B::default(),
     )
     .unwrap();
-    let out_comps = out.into_component_buffers();
+    let out_comps = out.into_component_buffers().expect("test tensor is valid");
 
     // Reference: apply the scalar median to each channel independently.
-    for (k, ch) in vol.into_component_buffers().into_iter().enumerate() {
+    for (k, ch) in vol
+        .into_component_buffers()
+        .expect("test tensor is valid")
+        .into_iter()
+        .enumerate()
+    {
         let backend = B::default();
-        let t = coeus_tensor::Tensor::<f32, B>::from_slice_on(spatial, &ch, &backend);
+        let t = coeus_tensor::Tensor::<f32, B>::from_slice_on(spatial, &ch, &backend)
+            .expect("test tensor is valid");
         let img = Image::<f32, B, 3>::new(
             t,
             ritk_spatial::Point::origin(),

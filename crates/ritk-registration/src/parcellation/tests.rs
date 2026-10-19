@@ -1,6 +1,6 @@
 use super::*;
 
-use coeus_core::SequentialBackend;
+use coeus_core::{FloatElement, SequentialBackend};
 use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -17,7 +17,8 @@ fn image(
     direction: Direction<3>,
 ) -> Image<f32, B, 3> {
     let device = Default::default();
-    let tensor = Tensor::<f32, B>::from_slice_on(shape, data, &device);
+    let tensor = Tensor::<f32, B>::from_slice_on(shape, data, &device)
+        .expect("test fixture tensor build failed");
     Image::new(tensor, Point::new(origin), Spacing::new(spacing), direction).expect("valid image")
 }
 
@@ -43,8 +44,18 @@ fn world_of(reference: &Image<f32, B, 3>, ix: usize, iy: usize, iz: usize) -> Po
     // comes back as f32. Every coordinate in these fixtures is a small exact
     // binary value, and the lookup under test rounds to the nearest voxel, so
     // the narrowing carries no error the assertions could see.
-    let index = Tensor::<f32, B>::from_slice([1, 3], &[ix as f32, iy as f32, iz as f32]);
-    let world = reference.index_to_world_native(&index);
+    let index = Tensor::<f32, B>::from_slice(
+        [1, 3],
+        &[
+            f32::from_count(ix),
+            f32::from_count(iy),
+            f32::from_count(iz),
+        ],
+    )
+    .expect("test fixture tensor build failed");
+    let world = reference
+        .index_to_world_native(&index)
+        .expect("fixture index is in-bounds");
     let values = world.as_slice();
     Point::new([
         f64::from(values[0]),

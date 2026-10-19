@@ -54,7 +54,7 @@ where
     let spacing = image.spacing();
     let direction = image.direction();
     let total_voxels = validate_geometry(shape, origin, spacing, direction)?;
-    let f32_values = image.data_cow_on(backend);
+    let f32_values = image.data_cow_on(backend)?;
 
     if f32_values.len() != total_voxels {
         bail!(

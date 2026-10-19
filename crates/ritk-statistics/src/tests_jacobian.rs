@@ -15,7 +15,8 @@ type TestBackend = SequentialBackend;
 
 fn make_disp(data: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<f32, TestBackend, 3> {
     let device = Default::default();
-    let tensor = Tensor::<f32, TestBackend>::from_slice_on(dims, &data, &device);
+    let tensor = Tensor::<f32, TestBackend>::from_slice_on(dims, &data, &device)
+        .expect("invariant: fixture data length matches shape");
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),

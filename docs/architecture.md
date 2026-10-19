@@ -55,7 +55,7 @@ ritk-core/
 > **Theorem 4.1 (DRY Factorization)**: ∀f,g ∈ Functions : f ≈ g ⇒ ∃h : f = h ∘ α ∧ g = h ∘ β
 
 **Consolidation Strategy**:
-- Shared tensor operations → `coeus` framework abstractions (via `coeus-tensor`, `coeus-ops`, `coeus-leto`)
+- Shared tensor operations → `coeus` framework abstractions (via `coeus-tensor`, `coeus-ops`, `coeus-cpu`)
 - Common spatial math → `leto`/`gaia` type system
 - IO patterns → Trait-based abstraction layer (ritk-io)
 

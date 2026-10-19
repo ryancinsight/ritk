@@ -117,8 +117,12 @@ fn box_sigma_does_not_copy_its_input_volume() {
     drop(warm);
 
     // Calibration: what one whole-volume host copy costs, measured here.
-    let (copy_events, copy_bytes, copied) =
-        measure(|| image.data_cow_on(&B::default()).into_owned());
+    let (copy_events, copy_bytes, copied) = measure(|| {
+        image
+            .data_cow_on(&B::default())
+            .expect("test tensor is valid")
+            .into_owned()
+    });
     assert_eq!(copied.len(), voxels);
     assert!(
         copy_bytes >= volume_bytes,

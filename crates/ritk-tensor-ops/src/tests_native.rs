@@ -53,6 +53,7 @@ const BINARY_CASES: &[BinaryCase] = &[
 
 fn native_tensor(values: &[f32]) -> CoeusTensor<f32, MoiraiBackend> {
     CoeusTensor::<f32, _>::from_slice_on(SHAPE, values, &MoiraiBackend)
+        .expect("infallible: validated precondition")
 }
 
 fn native_image(values: &[f32]) -> CoeusImage<f32, MoiraiBackend, 2> {
@@ -76,10 +77,22 @@ fn elementwise_binary_ops_match_exact_values() {
         let lhs_coeus = native_tensor(case.lhs);
         let rhs_coeus = native_tensor(case.rhs);
         let got_coeus = match case.op {
-            BinaryOp::Add => native_data(&coeus_ops::add(&lhs_coeus, &rhs_coeus, &backend)),
-            BinaryOp::Sub => native_data(&coeus_ops::sub(&lhs_coeus, &rhs_coeus, &backend)),
-            BinaryOp::Mul => native_data(&coeus_ops::mul(&lhs_coeus, &rhs_coeus, &backend)),
-            BinaryOp::Div => native_data(&coeus_ops::div(&lhs_coeus, &rhs_coeus, &backend)),
+            BinaryOp::Add => native_data(
+                &coeus_ops::add(&lhs_coeus, &rhs_coeus, &backend)
+                    .expect("infallible: validated precondition"),
+            ),
+            BinaryOp::Sub => native_data(
+                &coeus_ops::sub(&lhs_coeus, &rhs_coeus, &backend)
+                    .expect("infallible: validated precondition"),
+            ),
+            BinaryOp::Mul => native_data(
+                &coeus_ops::mul(&lhs_coeus, &rhs_coeus, &backend)
+                    .expect("infallible: validated precondition"),
+            ),
+            BinaryOp::Div => native_data(
+                &coeus_ops::div(&lhs_coeus, &rhs_coeus, &backend)
+                    .expect("infallible: validated precondition"),
+            ),
         };
 
         assert_eq!(got_coeus, case.expected);
@@ -105,7 +118,9 @@ fn shape_ops_preserve_values() {
     assert_eq!(transposed_coeus.get(&[2, 1]), 6.0);
 
     assert_eq!(
-        transposed_coeus.to_vec(),
+        transposed_coeus
+            .to_vec()
+            .expect("infallible: validated precondition"),
         vec![1.0, 4.0, 2.0, 5.0, 3.0, 6.0]
     );
 }

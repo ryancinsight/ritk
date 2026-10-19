@@ -125,8 +125,15 @@ impl<B: Backend> GaussianFilter<B> {
             (sigma > 1e-6 && dims[axis] > 1)
                 .then(|| axis_kernel(sigma, spacing[axis], self.max_kernel_width))
         });
-        let values = convolve_zero_pad_nd(input.to_vec(), dims, &kernels);
+        let values = convolve_zero_pad_nd(
+            input
+                .to_vec()
+                .expect("filter requires host-accessible tensors"),
+            dims,
+            &kernels,
+        );
         Tensor::<f32, B>::from_slice(dims, &values)
+            .expect("filter requires host-accessible tensors")
     }
 }
 

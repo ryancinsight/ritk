@@ -109,7 +109,7 @@ mod tests {
 
     fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
         use ritk_image::tensor::Tensor;
-        let tensor = Tensor::<f32, B>::from_slice(shape, &vals);
+        let tensor = Tensor::<f32, B>::from_slice(shape, &vals).unwrap();
         Image::new(
             tensor,
             Point::new([0.0_f64, 0.0, 0.0]),

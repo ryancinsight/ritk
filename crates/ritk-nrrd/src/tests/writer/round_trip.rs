@@ -117,7 +117,7 @@ fn curvilinear_geometry_survives_a_file_round_trip() -> Result<()> {
 
     // The map must not disturb the payload or the affine metadata.
     assert_eq!(loaded.shape(), dims);
-    let voxels = loaded.data_cow_on(&SequentialBackend);
+    let voxels = loaded.data_cow_on(&SequentialBackend)?;
     assert_eq!(voxels.as_ref(), data.as_slice(), "voxels must be unchanged");
     Ok(())
 }

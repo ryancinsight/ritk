@@ -228,7 +228,10 @@ fn test_mri_dir_mri_series_metadata() {
     assert!(shape[2] >= 64, "expected ≥64 columns, got {}", shape[2]);
 
     // ── Non-trivial intensity range ───────────────────────────────────────
-    let voxels = image.data_cow_on(&backend).into_owned();
+    let voxels = image
+        .data_cow_on(&backend)
+        .expect("test image is host-addressable")
+        .into_owned();
     let vmin = voxels.iter().cloned().fold(f32::INFINITY, f32::min);
     let vmax = voxels.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
 
@@ -292,7 +295,10 @@ fn test_bspline_ffd_mridir_ct_synthetic_shift_recovery() {
         .expect("CT DICOM series must load for registration test");
 
     let full_shape = image.shape();
-    let raw_data = image.data_cow_on(&backend).into_owned();
+    let raw_data = image
+        .data_cow_on(&backend)
+        .expect("test image is host-addressable")
+        .into_owned();
 
     // Downsample to ≈26×32×32 with stride = 16.
     let (ds_data, ds_dims) = downsample_stride(&raw_data, full_shape, 16);
@@ -399,8 +405,14 @@ fn test_ct_mri_pair_intensity_statistics_differ() {
     let (mri_img, _mri_meta) =
         read_dicom_series_with_metadata(&mri_dir, &backend).expect("MRI DICOM series must load");
 
-    let ct_raw = ct_img.data_cow_on(&backend).into_owned();
-    let mri_raw = mri_img.data_cow_on(&backend).into_owned();
+    let ct_raw = ct_img
+        .data_cow_on(&backend)
+        .expect("test image is host-addressable")
+        .into_owned();
+    let mri_raw = mri_img
+        .data_cow_on(&backend)
+        .expect("test image is host-addressable")
+        .into_owned();
 
     let ct_shape = ct_img.shape();
     let mri_shape = mri_img.shape();

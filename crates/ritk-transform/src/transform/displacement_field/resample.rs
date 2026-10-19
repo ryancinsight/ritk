@@ -32,14 +32,18 @@ where
         new_direction: Direction<D>,
     ) -> Result<Self, ResampleError> {
         let points = physical_grid(new_shape, new_origin, new_spacing, new_direction)?;
-        let points = Var::new(
-            Tensor::from_slice_on([points.len() / D, D], &points, &B::default()),
-            false,
-        );
+        let grid = Tensor::from_slice_on([points.len() / D, D], &points, &B::default())
+            .expect("displacement field requires backend evaluation to succeed");
+        let points = Var::new(grid, false)
+            .expect("displacement field requires backend evaluation to succeed");
         let components = self
             .sample_components(&points, coeus_ops::Replicate)?
             .iter()
-            .map(|sampled| reshape(sampled, new_shape).tensor)
+            .map(|sampled| {
+                reshape(sampled, new_shape)
+                    .expect("displacement field requires backend evaluation to succeed")
+                    .tensor
+            })
             .collect::<Vec<_>>();
         Ok(Self::new(
             components,

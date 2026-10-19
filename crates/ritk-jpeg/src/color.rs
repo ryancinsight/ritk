@@ -171,7 +171,7 @@ mod tests {
             .map(f32::from)
             .collect();
         assert_eq!(volume.shape(), [1, 1, 2, 3]);
-        assert_eq!(volume.data_cow_on(&backend).as_ref(), expected.as_slice());
+        assert_eq!(volume.data_cow_on(&backend)?.as_ref(), expected.as_slice());
         assert_eq!(volume.spatial_shape(), [1, 1, 2]);
         assert_eq!(volume.channels(), 3);
         assert_eq!(volume.origin().to_array(), [0.0; 3]);
@@ -197,7 +197,7 @@ mod tests {
 
         assert_eq!(volume.shape(), [1, 8, 8, 3]);
         assert_eq!(
-            volume.data_cow_on(&SequentialBackend).as_ref(),
+            volume.data_cow_on(&SequentialBackend)?.as_ref(),
             expected.as_slice()
         );
         Ok(())
@@ -226,7 +226,7 @@ mod tests {
 
         assert_eq!(volume.shape(), [1, 8, 8, 3]);
         assert_eq!(
-            volume.data_cow_on(&SequentialBackend).as_ref(),
+            volume.data_cow_on(&SequentialBackend)?.as_ref(),
             &[128.0; 8 * 8 * 3]
         );
         Ok(())

@@ -158,7 +158,7 @@ impl MarkerControlledWatershed {
             self.watershed_lines,
         );
 
-        let tensor = Tensor::<f32, B>::from_slice_on(dims_g, &labels, &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(dims_g, &labels, &device)?;
 
         Image::new(
             tensor,

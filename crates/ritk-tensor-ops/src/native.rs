@@ -118,7 +118,7 @@ where
             expected
         );
     }
-    Ok(Tensor::from_slice_on(dims, &vals, backend))
+    Ok(Tensor::from_slice_on(dims, &vals, backend)?)
 }
 
 /// Construct a Coeus image from a flat buffer, preserving source metadata.

@@ -35,13 +35,13 @@ impl PreprocessingPipeline {
                 }
 
                 PreprocessingStep::IntensityNormalization { mode } => {
-                    let vals = image.data_cow_on(&B::default()).into_owned();
+                    let vals = image.data_cow_on(&B::default())?.into_owned();
                     let result = normalize_values(&vals, mode);
                     rebuild_image(&image, result)?
                 }
 
                 PreprocessingStep::Clamp { lower, upper } => {
-                    let vals = image.data_cow_on(&B::default()).into_owned();
+                    let vals = image.data_cow_on(&B::default())?.into_owned();
                     let result = clamp_values(&vals, *lower, *upper);
                     rebuild_image(&image, result)?
                 }
@@ -52,7 +52,7 @@ impl PreprocessingPipeline {
                 } => {
                     let shape = image.shape();
                     validate_mask(mask, *mask_dims, shape)?;
-                    let vals = image.data_cow_on(&B::default()).into_owned();
+                    let vals = image.data_cow_on(&B::default())?.into_owned();
                     let result = apply_mask_values(&vals, mask)?;
                     rebuild_image(&image, result)?
                 }
@@ -74,7 +74,7 @@ fn rebuild_image<B: Backend>(src: &Image<f32, B, 3>, vals: Vec<f32>) -> Result<I
     let shape = src.shape();
     validate_value_count(vals.len(), shape, "preprocessing rebuild")?;
     let backend = B::default();
-    let tensor = Tensor::<f32, B>::from_slice_on(shape, &vals, &backend);
+    let tensor = Tensor::<f32, B>::from_slice_on(shape, &vals, &backend)?;
     Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
@@ -92,7 +92,7 @@ mod tests {
 
     fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
         let device = Default::default();
-        let t = Tensor::<f32, B>::from_slice_on(dims, &vals, &device);
+        let t = Tensor::<f32, B>::from_slice_on(dims, &vals, &device).unwrap();
         Image::new(
             t,
             Point::new([0.0, 0.0, 0.0]),

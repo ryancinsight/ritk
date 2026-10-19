@@ -20,9 +20,11 @@ fn affine_network_predicts_twelve_parameters() {
     let shape = [1usize, 2, 32, 32, 32];
     let model = AffineNetworkConfig::default().init::<f32, TestBackend>();
     let input = Var::new(
-        Tensor::from_slice_on(shape, &deterministic(&shape, 1.0, -0.5), &SequentialBackend),
+        Tensor::from_slice_on(shape, &deterministic(&shape, 1.0, -0.5), &SequentialBackend)
+            .expect("test tensor is valid"),
         false,
-    );
+    )
+    .expect("test tensor is valid");
     let output = model
         .forward(&input)
         .expect("module forward succeeds on the test input");
@@ -37,19 +39,25 @@ fn affine_transform_applies_predicted_matrix() {
     let shape = [1usize, 1, 32, 32, 32];
     let stn = AffineTransform::new();
     let image = Var::new(
-        Tensor::from_slice_on(shape, &deterministic(&shape, 1.0, 0.0), &SequentialBackend),
+        Tensor::from_slice_on(shape, &deterministic(&shape, 1.0, 0.0), &SequentialBackend)
+            .expect("test tensor is valid"),
         false,
-    );
+    )
+    .expect("test tensor is valid");
     // Identity affine, flattened.
     let theta = Var::new(
         Tensor::from_slice_on(
             [1, 12],
             &[1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
             &SequentialBackend,
-        ),
+        )
+        .expect("test tensor is valid"),
         false,
-    );
-    let output = stn.forward(&image, &theta);
+    )
+    .expect("test tensor is valid");
+    let output = stn
+        .forward(&image, &theta)
+        .expect("module forward succeeds on the test input");
     assert_eq!(output.tensor.shape(), &[1, 1, 32, 32, 32]);
 
     // Identity warp under align_corners reproduces the input exactly.
@@ -76,13 +84,15 @@ fn network_is_differentiable_end_to_end() {
     }
     .init::<f32, TestBackend>();
     let input = Var::new(
-        Tensor::from_slice_on(shape, &deterministic(&shape, 1.0, -0.5), &SequentialBackend),
+        Tensor::from_slice_on(shape, &deterministic(&shape, 1.0, -0.5), &SequentialBackend)
+            .expect("test tensor is valid"),
         true,
-    );
+    )
+    .expect("test tensor is valid");
     let theta = model
         .forward(&input)
         .expect("module forward succeeds on the test input");
-    let loss = coeus_autograd::sum(&theta);
+    let loss = coeus_autograd::sum(&theta).expect("test reduction succeeds");
     loss.backward()
         .expect("backward succeeds over the test loss");
 
@@ -111,9 +121,11 @@ fn network_output_drives_transform_forward() {
             feat_shape,
             &deterministic(&feat_shape, 1.0, -0.5),
             &SequentialBackend,
-        ),
+        )
+        .expect("test tensor is valid"),
         false,
-    );
+    )
+    .expect("test tensor is valid");
     let theta = model
         .forward(&features)
         .expect("module forward succeeds on the test input");
@@ -125,10 +137,14 @@ fn network_output_drives_transform_forward() {
             moving_shape,
             &deterministic(&moving_shape, 1.0, 0.0),
             &SequentialBackend,
-        ),
+        )
+        .expect("test tensor is valid"),
         false,
-    );
-    let warped = stn.forward(&moving, &theta);
+    )
+    .expect("test tensor is valid");
+    let warped = stn
+        .forward(&moving, &theta)
+        .expect("module forward succeeds on the test input");
     assert_eq!(warped.tensor.shape(), &[1, 1, 16, 16, 16]);
     for &v in warped.tensor.as_slice() {
         assert!(v.is_finite(), "warped intensity must be finite: {v}");

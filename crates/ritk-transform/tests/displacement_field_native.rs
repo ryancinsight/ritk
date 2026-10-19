@@ -16,8 +16,8 @@ fn planar_constant_field_has_exact_value_and_named_inventory() {
     let backend = MoiraiBackend;
     let field = DisplacementField::new(
         vec![
-            Tensor::from_slice_on([2, 2], &[1.0; 4], &backend),
-            Tensor::from_slice_on([2, 2], &[0.5; 4], &backend),
+            Tensor::from_slice_on([2, 2], &[1.0; 4], &backend).expect("test tensor is valid"),
+            Tensor::from_slice_on([2, 2], &[0.5; 4], &backend).expect("test tensor is valid"),
         ],
         Point::new([0.0, 0.0]),
         Spacing::new([1.0, 1.0]),
@@ -35,9 +35,11 @@ fn planar_constant_field_has_exact_value_and_named_inventory() {
     );
 
     let points = Var::new(
-        Tensor::from_slice_on([2, 2], &[0.5, 0.5, 1.0, 0.0], &backend),
+        Tensor::from_slice_on([2, 2], &[0.5, 0.5, 1.0, 0.0], &backend)
+            .expect("test tensor is valid"),
         false,
-    );
+    )
+    .expect("test tensor is valid");
     let transformed = transform
         .transform_points(&points)
         .expect("valid interpolation");
@@ -49,9 +51,9 @@ fn volume_center_gradient_matches_multilinear_weights() {
     let backend = MoiraiBackend;
     let field = DisplacementField::new(
         vec![
-            Tensor::from_slice_on([2, 2, 2], &[1.0; 8], &backend),
-            Tensor::from_slice_on([2, 2, 2], &[2.0; 8], &backend),
-            Tensor::from_slice_on([2, 2, 2], &[3.0; 8], &backend),
+            Tensor::from_slice_on([2, 2, 2], &[1.0; 8], &backend).expect("test tensor is valid"),
+            Tensor::from_slice_on([2, 2, 2], &[2.0; 8], &backend).expect("test tensor is valid"),
+            Tensor::from_slice_on([2, 2, 2], &[3.0; 8], &backend).expect("test tensor is valid"),
         ],
         Point::origin(),
         Spacing::new([1.0; 3]),
@@ -60,14 +62,16 @@ fn volume_center_gradient_matches_multilinear_weights() {
     .expect("valid field");
     let transform = DisplacementFieldTransform::<B, 3>::new(field);
     let points = Var::new(
-        Tensor::from_slice_on([1, 3], &[0.5, 0.5, 0.5], &backend),
+        Tensor::from_slice_on([1, 3], &[0.5, 0.5, 0.5], &backend).expect("test tensor is valid"),
         false,
-    );
+    )
+    .expect("test tensor is valid");
     let transformed = transform
         .transform_points(&points)
         .expect("valid interpolation");
     assert_eq!(transformed.tensor.as_slice(), &[1.5, 2.5, 3.5]);
     sum(&transformed)
+        .expect("test reduction succeeds")
         .backward()
         .expect("backward succeeds over the test loss");
 
@@ -85,8 +89,8 @@ fn bounded_state_archive_round_trips_geometry_and_components() {
     let direction = Direction::from_rows([[0.0, -1.0], [1.0, 0.0]]);
     let field = DisplacementField::new(
         vec![
-            Tensor::from_slice_on([1, 2], &[4.0, 5.0], &backend),
-            Tensor::from_slice_on([1, 2], &[6.0, 7.0], &backend),
+            Tensor::from_slice_on([1, 2], &[4.0, 5.0], &backend).expect("test tensor is valid"),
+            Tensor::from_slice_on([1, 2], &[6.0, 7.0], &backend).expect("test tensor is valid"),
         ],
         Point::new([2.0, 3.0]),
         Spacing::new([0.5, 2.0]),
@@ -122,8 +126,8 @@ fn module_forward_propagates_nonfinite_interpolation_errors() {
     let backend = MoiraiBackend;
     let field = DisplacementField::new(
         vec![
-            Tensor::zeros_on([2, 2], &backend),
-            Tensor::zeros_on([2, 2], &backend),
+            Tensor::zeros_on([2, 2], &backend).expect("test tensor is valid"),
+            Tensor::zeros_on([2, 2], &backend).expect("test tensor is valid"),
         ],
         Point::origin(),
         Spacing::new([1.0; 2]),
@@ -132,9 +136,10 @@ fn module_forward_propagates_nonfinite_interpolation_errors() {
     .expect("valid field");
     let transform = DisplacementFieldTransform::new(field);
     let points = Var::new(
-        Tensor::from_slice_on([1, 2], &[f32::NAN, 0.5], &backend),
+        Tensor::from_slice_on([1, 2], &[f32::NAN, 0.5], &backend).expect("test tensor is valid"),
         false,
-    );
+    )
+    .expect("test tensor is valid");
 
     let result = transform.forward(&points);
     match result {
@@ -152,8 +157,8 @@ fn transform_rejects_wrong_point_dimension() {
     let backend = MoiraiBackend;
     let field = DisplacementField::new(
         vec![
-            Tensor::zeros_on([2, 2], &backend),
-            Tensor::zeros_on([2, 2], &backend),
+            Tensor::zeros_on([2, 2], &backend).expect("test tensor is valid"),
+            Tensor::zeros_on([2, 2], &backend).expect("test tensor is valid"),
         ],
         Point::origin(),
         Spacing::new([1.0; 2]),
@@ -161,7 +166,11 @@ fn transform_rejects_wrong_point_dimension() {
     )
     .expect("valid field");
     let transform = DisplacementFieldTransform::new(field);
-    let wrong = Var::new(Tensor::zeros_on([1, 3], &backend), false);
+    let wrong = Var::new(
+        Tensor::zeros_on([1, 3], &backend).expect("test tensor is valid"),
+        false,
+    )
+    .expect("test tensor is valid");
     assert!(matches!(
         transform.transform_points(&wrong),
         Err(DisplacementTransformError::PointShape { dimension: 2, actual })
@@ -180,7 +189,11 @@ fn transform_rejects_wrong_point_dimension() {
         }) if expected == vec![1, 2] && actual == vec![1, 3]
     ));
 
-    let wrong_rank = Var::new(Tensor::zeros_on([1, 2, 1], &backend), false);
+    let wrong_rank = Var::new(
+        Tensor::zeros_on([1, 2, 1], &backend).expect("test tensor is valid"),
+        false,
+    )
+    .expect("test tensor is valid");
     assert!(matches!(
         transform.forward(&wrong_rank),
         Err(ModuleError::InvalidRank {
@@ -196,8 +209,8 @@ fn constant_field_resampling_preserves_values() {
     let backend = MoiraiBackend;
     let field = DisplacementField::new(
         vec![
-            Tensor::from_slice_on([2, 2], &[2.0; 4], &backend),
-            Tensor::from_slice_on([2, 2], &[-1.0; 4], &backend),
+            Tensor::from_slice_on([2, 2], &[2.0; 4], &backend).expect("test tensor is valid"),
+            Tensor::from_slice_on([2, 2], &[-1.0; 4], &backend).expect("test tensor is valid"),
         ],
         Point::origin(),
         Spacing::new([1.0; 2]),
@@ -221,8 +234,8 @@ fn static_planar_field_transforms_and_resamples_without_coeus() {
     let backend = MoiraiBackend;
     let field = StaticDisplacementField::new(
         vec![
-            Tensor::from_slice_on([2, 2], &[1.0; 4], &backend),
-            Tensor::from_slice_on([2, 2], &[-0.5; 4], &backend),
+            Tensor::from_slice_on([2, 2], &[1.0; 4], &backend).expect("test tensor is valid"),
+            Tensor::from_slice_on([2, 2], &[-0.5; 4], &backend).expect("test tensor is valid"),
         ],
         Point::origin(),
         Spacing::new([1.0; 2]),
@@ -230,7 +243,8 @@ fn static_planar_field_transforms_and_resamples_without_coeus() {
     )
     .expect("valid static field");
     let transform = StaticDisplacementFieldTransform::new(field);
-    let points = Tensor::from_slice_on([1, 2], &[0.5, 0.5], &backend);
+    let points =
+        Tensor::from_slice_on([1, 2], &[0.5, 0.5], &backend).expect("test tensor is valid");
     assert_eq!(
         transform
             .transform_points(&points)
@@ -256,8 +270,8 @@ fn static_resampling_rejects_empty_shape_axis() {
     let backend = MoiraiBackend;
     let field = StaticDisplacementField::new(
         vec![
-            Tensor::zeros_on([1, 1], &backend),
-            Tensor::zeros_on([1, 1], &backend),
+            Tensor::zeros_on([1, 1], &backend).expect("test tensor is valid"),
+            Tensor::zeros_on([1, 1], &backend).expect("test tensor is valid"),
         ],
         Point::origin(),
         Spacing::new([1.0; 2]),

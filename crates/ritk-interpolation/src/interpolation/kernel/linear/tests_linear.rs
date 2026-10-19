@@ -7,16 +7,18 @@ type TestBackend = MoiraiBackend;
 #[test]
 fn test_linear_interpolator_volumetric_axes() {
     let data_vec = vec![0.0, 1.0, 10.0, 11.0, 100.0, 101.0, 110.0, 111.0];
-    let data = Tensor::<f32, TestBackend>::from_slice([2, 2, 2], &data_vec);
+    let data =
+        Tensor::<f32, TestBackend>::from_slice([2, 2, 2], &data_vec).expect("test tensor is valid");
 
     let interpolator = LinearInterpolator::new();
 
     let indices = Tensor::<f32, TestBackend>::from_slice(
         [4, 3],
         &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-    );
+    )
+    .expect("test tensor is valid");
     let result = interpolator.interpolate(&data, indices);
-    let contiguous_1 = result.to_contiguous();
+    let contiguous_1 = result.to_contiguous().expect("test tensor is valid");
     let slice = contiguous_1.as_slice();
 
     assert_eq!(slice[0], 0.0);
@@ -24,9 +26,10 @@ fn test_linear_interpolator_volumetric_axes() {
     assert_eq!(slice[2], 10.0);
     assert_eq!(slice[3], 100.0);
 
-    let center = Tensor::<f32, TestBackend>::from_slice([1, 3], &[0.5, 0.5, 0.5]);
+    let center = Tensor::<f32, TestBackend>::from_slice([1, 3], &[0.5, 0.5, 0.5])
+        .expect("test tensor is valid");
     let result_center = interpolator.interpolate(&data, center);
-    let contiguous_2 = result_center.to_contiguous();
+    let contiguous_2 = result_center.to_contiguous().expect("test tensor is valid");
     let center_slice = contiguous_2.as_slice();
 
     let expected = (0.0 + 1.0 + 10.0 + 11.0 + 100.0 + 101.0 + 110.0 + 111.0) / 8.0;
@@ -41,13 +44,15 @@ fn test_linear_interpolator_volumetric_axes() {
 #[test]
 fn test_linear_interpolator_planar() {
     let data_vec = vec![0.0, 1.0, 10.0, 11.0];
-    let data = Tensor::<f32, TestBackend>::from_slice([2, 2], &data_vec);
+    let data =
+        Tensor::<f32, TestBackend>::from_slice([2, 2], &data_vec).expect("test tensor is valid");
 
     let interpolator = LinearInterpolator::new();
 
-    let center = Tensor::<f32, TestBackend>::from_slice([1, 2], &[0.5, 0.5]);
+    let center =
+        Tensor::<f32, TestBackend>::from_slice([1, 2], &[0.5, 0.5]).expect("test tensor is valid");
     let result = interpolator.interpolate(&data, center);
-    let contiguous_3 = result.to_contiguous();
+    let contiguous_3 = result.to_contiguous().expect("test tensor is valid");
     let slice = contiguous_3.as_slice();
 
     let expected = (0.0 + 1.0 + 10.0 + 11.0) / 4.0;
@@ -57,14 +62,16 @@ fn test_linear_interpolator_planar() {
 #[test]
 fn test_linear_interpolation_at_grid_points() {
     let data_vec = vec![0.0, 1.0, 2.0, 3.0];
-    let data = Tensor::<f32, TestBackend>::from_slice([2, 2], &data_vec);
+    let data =
+        Tensor::<f32, TestBackend>::from_slice([2, 2], &data_vec).expect("test tensor is valid");
 
     let interpolator = LinearInterpolator::new();
 
     let indices =
-        Tensor::<f32, TestBackend>::from_slice([4, 2], &[0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]);
+        Tensor::<f32, TestBackend>::from_slice([4, 2], &[0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+            .expect("test tensor is valid");
     let result = interpolator.interpolate(&data, indices);
-    let contiguous_4 = result.to_contiguous();
+    let contiguous_4 = result.to_contiguous().expect("test tensor is valid");
     let slice = contiguous_4.as_slice();
 
     assert_eq!(slice[0], 0.0);
@@ -76,13 +83,15 @@ fn test_linear_interpolation_at_grid_points() {
 #[test]
 fn test_linear_interpolator_out_of_bounds() {
     let data_vec = vec![0.0, 1.0, 2.0, 3.0];
-    let data = Tensor::<f32, TestBackend>::from_slice([2, 2], &data_vec);
+    let data =
+        Tensor::<f32, TestBackend>::from_slice([2, 2], &data_vec).expect("test tensor is valid");
 
     let interpolator = LinearInterpolator::new();
 
-    let indices = Tensor::<f32, TestBackend>::from_slice([2, 2], &[-1.0, -1.0, 5.0, 5.0]);
+    let indices = Tensor::<f32, TestBackend>::from_slice([2, 2], &[-1.0, -1.0, 5.0, 5.0])
+        .expect("test tensor is valid");
     let result = interpolator.interpolate(&data, indices);
-    let contiguous_5 = result.to_contiguous();
+    let contiguous_5 = result.to_contiguous().expect("test tensor is valid");
     let slice = contiguous_5.as_slice();
 
     assert_eq!(slice[0], 0.0);
@@ -92,14 +101,16 @@ fn test_linear_interpolator_out_of_bounds() {
 #[test]
 fn test_linear_interpolator_zero_pad_out_of_bounds() {
     let data_vec = vec![0.0_f32, 1.0, 2.0, 3.0];
-    let data = Tensor::<f32, TestBackend>::from_slice([2, 2], &data_vec);
+    let data =
+        Tensor::<f32, TestBackend>::from_slice([2, 2], &data_vec).expect("test tensor is valid");
 
     let interp = LinearInterpolator::new_zero_pad();
 
     // Out-of-bounds samples must return 0.0
-    let oob = Tensor::<f32, TestBackend>::from_slice([2, 2], &[-1.0, -1.0, 5.0, 5.0]);
+    let oob = Tensor::<f32, TestBackend>::from_slice([2, 2], &[-1.0, -1.0, 5.0, 5.0])
+        .expect("test tensor is valid");
     let result = interp.interpolate(&data, oob);
-    let contiguous_6 = result.to_contiguous();
+    let contiguous_6 = result.to_contiguous().expect("test tensor is valid");
     let slice = contiguous_6.as_slice();
     assert!(
         slice[0].abs() < 1e-6,
@@ -113,9 +124,10 @@ fn test_linear_interpolator_zero_pad_out_of_bounds() {
     );
 
     // In-bounds sample at center must match bilinear interpolation
-    let center = Tensor::<f32, TestBackend>::from_slice([1, 2], &[0.5, 0.5]);
+    let center =
+        Tensor::<f32, TestBackend>::from_slice([1, 2], &[0.5, 0.5]).expect("test tensor is valid");
     let center_val = interp.interpolate(&data, center);
-    let contiguous_7 = center_val.to_contiguous();
+    let contiguous_7 = center_val.to_contiguous().expect("test tensor is valid");
     let cv = contiguous_7.as_slice()[0];
     let expected = (0.0_f32 + 1.0 + 2.0 + 3.0) / 4.0;
     assert!(
@@ -129,13 +141,15 @@ fn test_linear_interpolator_zero_pad_out_of_bounds() {
 #[test]
 fn test_linear_interpolator_volumetric_zero_pad_out_of_bounds() {
     let data_vec = vec![0.0_f32, 1.0, 10.0, 11.0, 100.0, 101.0, 110.0, 111.0];
-    let data = Tensor::<f32, TestBackend>::from_slice([2, 2, 2], &data_vec);
+    let data =
+        Tensor::<f32, TestBackend>::from_slice([2, 2, 2], &data_vec).expect("test tensor is valid");
     let interp = LinearInterpolator::new_zero_pad();
 
     // Out-of-bounds: far outside volume
-    let oob = Tensor::<f32, TestBackend>::from_slice([2, 3], &[-5.0, -5.0, -5.0, 10.0, 10.0, 10.0]);
+    let oob = Tensor::<f32, TestBackend>::from_slice([2, 3], &[-5.0, -5.0, -5.0, 10.0, 10.0, 10.0])
+        .expect("test tensor is valid");
     let result = interp.interpolate(&data, oob);
-    let contiguous_8 = result.to_contiguous();
+    let contiguous_8 = result.to_contiguous().expect("test tensor is valid");
     let s = contiguous_8.as_slice();
     assert!(
         s[0].abs() < 1e-6,
@@ -149,9 +163,10 @@ fn test_linear_interpolator_volumetric_zero_pad_out_of_bounds() {
     );
 
     // In-bounds corner at (0,0,0) should return 0.0 (first element of data)
-    let corner = Tensor::<f32, TestBackend>::from_slice([1, 3], &[0.0, 0.0, 0.0]);
+    let corner = Tensor::<f32, TestBackend>::from_slice([1, 3], &[0.0, 0.0, 0.0])
+        .expect("test tensor is valid");
     let corner_val = interp.interpolate(&data, corner);
-    let contiguous_9 = corner_val.to_contiguous();
+    let contiguous_9 = corner_val.to_contiguous().expect("test tensor is valid");
     let cv = contiguous_9.as_slice()[0];
     assert!(
         (cv - 0.0_f32).abs() < 1e-6,
@@ -163,13 +178,15 @@ fn test_linear_interpolator_volumetric_zero_pad_out_of_bounds() {
 #[test]
 fn test_linear_interpolator_line() {
     let data_vec = vec![0.0, 10.0, 20.0, 30.0];
-    let data = Tensor::<f32, TestBackend>::from_slice([4], &data_vec);
+    let data =
+        Tensor::<f32, TestBackend>::from_slice([4], &data_vec).expect("test tensor is valid");
 
     let interpolator = LinearInterpolator::new();
 
-    let indices = Tensor::<f32, TestBackend>::from_slice([1, 1], &[0.5]);
+    let indices =
+        Tensor::<f32, TestBackend>::from_slice([1, 1], &[0.5]).expect("test tensor is valid");
     let result = interpolator.interpolate(&data, indices);
-    let contiguous_10 = result.to_contiguous();
+    let contiguous_10 = result.to_contiguous().expect("test tensor is valid");
     let slice = contiguous_10.as_slice();
 
     assert!((slice[0] - 5.0).abs() < 1e-5);
@@ -180,19 +197,22 @@ fn test_linear_interpolator_4d() {
     let mut data_vec = vec![0.0; 16];
     data_vec[15] = 100.0;
 
-    let data = Tensor::<f32, TestBackend>::from_slice([2, 2, 2, 2], &data_vec);
+    let data = Tensor::<f32, TestBackend>::from_slice([2, 2, 2, 2], &data_vec)
+        .expect("test tensor is valid");
 
     let interpolator = LinearInterpolator::new();
 
-    let indices = Tensor::<f32, TestBackend>::from_slice([1, 4], &[1.0, 1.0, 1.0, 1.0]);
+    let indices = Tensor::<f32, TestBackend>::from_slice([1, 4], &[1.0, 1.0, 1.0, 1.0])
+        .expect("test tensor is valid");
     let result = interpolator.interpolate(&data, indices);
-    let contiguous_11 = result.to_contiguous();
+    let contiguous_11 = result.to_contiguous().expect("test tensor is valid");
     let val = contiguous_11.as_slice()[0];
     assert_eq!(val, 100.0);
 
-    let center = Tensor::<f32, TestBackend>::from_slice([1, 4], &[0.5, 0.5, 0.5, 0.5]);
+    let center = Tensor::<f32, TestBackend>::from_slice([1, 4], &[0.5, 0.5, 0.5, 0.5])
+        .expect("test tensor is valid");
     let result_center = interpolator.interpolate(&data, center);
-    let contiguous_12 = result_center.to_contiguous();
+    let contiguous_12 = result_center.to_contiguous().expect("test tensor is valid");
     let val_center = contiguous_12.as_slice()[0];
 
     assert!((val_center - 6.25).abs() < 1e-5);

@@ -39,10 +39,10 @@ where
     let spatial = vol.spatial_shape();
     let (origin, spacing, direction) = (*vol.origin(), *vol.spacing(), *vol.direction());
 
-    let bufs = vol.into_component_buffers();
+    let bufs = vol.into_component_buffers()?;
     let mut out_bufs: Vec<Vec<f32>> = Vec::with_capacity(C);
     for buf in bufs {
-        let tensor = coeus_tensor::Tensor::<f32, B>::from_slice_on(spatial, &buf, backend);
+        let tensor = coeus_tensor::Tensor::<f32, B>::from_slice_on(spatial, &buf, backend)?;
         let img = Image::<f32, B, 3>::new(tensor, origin, spacing, direction)?;
         let result = f(&img);
         let (rvals, _) = extract_image_vec(&result)?;

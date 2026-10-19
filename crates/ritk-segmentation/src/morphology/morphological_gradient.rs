@@ -69,7 +69,8 @@ impl<B: Backend> MorphologicalOperation<B, 3> for MorphologicalGradient {
         let device = B::default();
         let (values, _) = extract_vec_infallible(mask);
         let out = gradient_values(&values, shape, self.radius);
-        let tensor = Tensor::<f32, B>::from_slice_on(shape, &out, &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &out, &device)
+            .expect("invariant: segmentation output length matches shape");
         Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
             .expect("invariant: segmentation output tensor preserves the image rank")
     }

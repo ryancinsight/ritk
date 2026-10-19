@@ -14,6 +14,7 @@
 //! - Sampling coordinates stay normalized to `[-1, 1]`; `grid_sample_3d`
 //!   performs the pixel de-normalization internally.
 
+use crate::error::ModelError;
 use coeus_autograd::{flip, grid_sample_3d, matmul, permute, reshape, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_ops::BackendOps;
@@ -43,7 +44,11 @@ impl AffineTransform {
     /// # Panics
     /// Panics if `image` is not rank-5 or `theta`'s element count is not
     /// `B * 12`.
-    pub fn forward<B>(&self, image: &Var<f32, B>, theta: &Var<f32, B>) -> Var<f32, B>
+    pub fn forward<B>(
+        &self,
+        image: &Var<f32, B>,
+        theta: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, ModelError>
     where
         B: Backend + BackendOps<f32> + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
@@ -57,22 +62,22 @@ impl AffineTransform {
         let (b, d, h, w) = (shape[0], shape[2], shape[3], shape[4]);
 
         // theta → [B, 3, 4]
-        let theta = reshape(theta, [b, 3, 4]);
+        let theta = reshape(theta, [b, 3, 4]).map_err(ModelError::backend)?;
 
         // Constant normalized homogeneous grid [B, 4, N], rows (z, y, x, 1).
-        let grid = self.normalized_homogeneous_grid::<B>(b, d, h, w);
+        let grid = self.normalized_homogeneous_grid::<B>(b, d, h, w)?;
 
         // Apply the affine map: [B,3,4] × [B,4,N] → [B,3,N] (rows z, y, x).
-        let warped = matmul(&theta, &grid);
-        let warped = reshape(&warped, [b, 3, d, h, w]);
+        let warped = matmul(&theta, &grid).map_err(ModelError::backend)?;
+        let warped = reshape(&warped, [b, 3, d, h, w]).map_err(ModelError::backend)?;
 
         // Rearrange to the grid_sample layout [B, D, H, W, 3] with last-dim
         // order (x, y, z). permute puts channels last as (z, y, x); flip
         // reverses to (x, y, z) which grid_sample maps to (W, H, D).
-        let grid = permute(&warped, &[0, 2, 3, 4, 1]);
-        let grid = flip(&grid, 4);
+        let grid = permute(&warped, &[0, 2, 3, 4, 1]).map_err(ModelError::backend)?;
+        let grid = flip(&grid, 4).map_err(ModelError::backend)?;
 
-        grid_sample_3d(image, &grid)
+        grid_sample_3d(image, &grid).map_err(ModelError::backend)
     }
 
     /// Build the constant normalized homogeneous coordinate grid `[B, 4, N]`.
@@ -82,7 +87,13 @@ impl AffineTransform {
     /// `[B, 3, D, H, W]` applied to the transformed grid. A singleton extent
     /// maps to coordinate `0` (its normalized center) instead of dividing by
     /// zero.
-    fn normalized_homogeneous_grid<B>(&self, b: usize, d: usize, h: usize, w: usize) -> Var<f32, B>
+    fn normalized_homogeneous_grid<B>(
+        &self,
+        b: usize,
+        d: usize,
+        h: usize,
+        w: usize,
+    ) -> Result<Var<f32, B>, ModelError>
     where
         B: Backend + BackendOps<f32> + Default,
     {
@@ -117,10 +128,9 @@ impl AffineTransform {
             tail[..batch_stride].copy_from_slice(&head[..batch_stride]);
         }
 
-        Var::new(
-            Tensor::from_slice_on([b, 4, n], &data, &B::default()),
-            false,
-        )
+        let grid =
+            Tensor::from_slice_on([b, 4, n], &data, &B::default()).map_err(ModelError::backend)?;
+        Var::new(grid, false).map_err(ModelError::backend)
     }
 }
 
@@ -162,18 +172,24 @@ mod tests {
         let stn = AffineTransform::new();
         let shape = [1usize, 1, 8, 8, 8];
         let image = Var::new(
-            Tensor::from_slice_on(shape, &ramp_image(shape), &SequentialBackend),
+            Tensor::from_slice_on(shape, &ramp_image(shape), &SequentialBackend)
+                .expect("test tensor is valid"),
             false,
-        );
+        )
+        .expect("test tensor is valid");
         let theta = Var::new(
             Tensor::from_slice_on(
                 [1, 12],
                 &[1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
                 &SequentialBackend,
-            ),
+            )
+            .expect("test tensor is valid"),
             false,
-        );
-        let out = stn.forward(&image, &theta);
+        )
+        .expect("test tensor is valid");
+        let out = stn
+            .forward(&image, &theta)
+            .expect("module forward succeeds on the test input");
         assert_eq!(out.tensor.shape(), &[1, 1, 8, 8, 8]);
     }
 
@@ -185,18 +201,23 @@ mod tests {
         let shape = [1usize, 1, 6, 6, 6];
         let img = ramp_image(shape);
         let image = Var::new(
-            Tensor::from_slice_on(shape, &img, &SequentialBackend),
+            Tensor::from_slice_on(shape, &img, &SequentialBackend).expect("test tensor is valid"),
             false,
-        );
+        )
+        .expect("test tensor is valid");
         let theta = Var::new(
             Tensor::from_slice_on(
                 [1, 12],
                 &[1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
                 &SequentialBackend,
-            ),
+            )
+            .expect("test tensor is valid"),
             false,
-        );
-        let out = stn.forward(&image, &theta);
+        )
+        .expect("test tensor is valid");
+        let out = stn
+            .forward(&image, &theta)
+            .expect("module forward succeeds on the test input");
         let got = out.tensor.as_slice();
         for (i, (&a, &b)) in img.iter().zip(got.iter()).enumerate() {
             assert!(
@@ -224,20 +245,26 @@ mod tests {
         let stn = AffineTransform::new();
         let shape = [1usize, 1, 8, 8, 8];
         let image = Var::new(
-            Tensor::from_slice_on(shape, &linear_image(shape), &SequentialBackend),
+            Tensor::from_slice_on(shape, &linear_image(shape), &SequentialBackend)
+                .expect("test tensor is valid"),
             false,
-        );
+        )
+        .expect("test tensor is valid");
         // Scale-0.5 affine with off-grid translations: samples land strictly
         // interior and never on a voxel center, so the warp is locally smooth.
         let base = vec![
             0.5, 0.0, 0.0, 0.111, 0.0, 0.5, 0.0, -0.137, 0.0, 0.0, 0.5, 0.081,
         ];
         let theta = Var::new(
-            Tensor::from_slice_on([1, 12], &base, &SequentialBackend),
+            Tensor::from_slice_on([1, 12], &base, &SequentialBackend)
+                .expect("test tensor is valid"),
             true,
-        );
-        let out = stn.forward(&image, &theta);
-        let loss = sum(&out);
+        )
+        .expect("test tensor is valid");
+        let out = stn
+            .forward(&image, &theta)
+            .expect("module forward succeeds on the test input");
+        let loss = sum(&out).expect("test reduction succeeds");
         loss.backward()
             .expect("backward succeeds over the test loss");
         let grad = theta.grad().expect("theta gradient present");
@@ -250,20 +277,30 @@ mod tests {
             let mut minus = base.clone();
             plus[idx] += h;
             minus[idx] -= h;
-            let fp = sum(&stn.forward(
-                &image,
-                &Var::new(
-                    Tensor::from_slice_on([1, 12], &plus, &SequentialBackend),
-                    false,
-                ),
-            ));
-            let fm = sum(&stn.forward(
-                &image,
-                &Var::new(
-                    Tensor::from_slice_on([1, 12], &minus, &SequentialBackend),
-                    false,
-                ),
-            ));
+            let fp = sum(&stn
+                .forward(
+                    &image,
+                    &Var::new(
+                        Tensor::from_slice_on([1, 12], &plus, &SequentialBackend)
+                            .expect("test tensor is valid"),
+                        false,
+                    )
+                    .expect("test tensor is valid"),
+                )
+                .expect("module forward succeeds on the test input"))
+            .expect("test reduction succeeds");
+            let fm = sum(&stn
+                .forward(
+                    &image,
+                    &Var::new(
+                        Tensor::from_slice_on([1, 12], &minus, &SequentialBackend)
+                            .expect("test tensor is valid"),
+                        false,
+                    )
+                    .expect("test tensor is valid"),
+                )
+                .expect("module forward succeeds on the test input"))
+            .expect("test reduction succeeds");
             let fd = (fp.tensor.as_slice()[0] - fm.tensor.as_slice()[0]) / (2.0 * h);
             let analytic = grad[idx];
             max_analytic = max_analytic.max(analytic.abs());

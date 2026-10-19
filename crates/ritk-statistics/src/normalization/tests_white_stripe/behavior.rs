@@ -284,7 +284,8 @@ fn test_mask_restricts_foreground() {
 #[test]
 fn test_preserves_spatial_metadata() {
     let device = Default::default();
-    let tensor = Tensor::<f32, TestBackend>::from_slice_on([3, 3, 3], &[0.5f32; 27], &device);
+    let tensor = Tensor::<f32, TestBackend>::from_slice_on([3, 3, 3], &[0.5f32; 27], &device)
+        .expect("invariant: fixture data length matches shape");
     let origin = ritk_spatial::Point::new([1.0, 2.0, 3.0]);
     let spacing = ritk_spatial::Spacing::new([0.5, 0.5, 0.5]);
     let direction = ritk_spatial::Direction::identity();

@@ -31,7 +31,8 @@ fn statistics(image: &Image<f32, B, 3>) -> Vec<LabelShapeStatisticsExtended> {
 
 #[test]
 fn non_contiguous_image_reports_host_access_failure() {
-    let data = Tensor::<f32, B>::from_slice([1, 2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let data = Tensor::<f32, B>::from_slice([1, 2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        .expect("invariant: fixture data length matches shape");
     let image = Image::new(
         data.permute(&[0, 2, 1]),
         Point::new([0.0, 0.0, 0.0]),

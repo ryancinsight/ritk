@@ -37,12 +37,28 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Initialize a selective state-space layer.
+    ///
+    /// # Panics
+    /// Panics when a configured dim is zero: configs this crate builds
+    /// carry positive dims.
     #[must_use]
     pub fn new(config: SelectiveStateSpaceConfig) -> Self {
         let inner_dim = config.input_dim * config.expand_factor;
         let state_log_values: Vec<f32> = (0..inner_dim * config.state_dim)
             .map(|index| -((index % config.state_dim + 1) as f32).ln())
             .collect();
+        let state_log_tensor = Tensor::from_slice_on(
+            [inner_dim * config.state_dim],
+            &state_log_values,
+            &B::default(),
+        )
+        .expect("invariant: state-log values match their shape");
+        let state_log =
+            Var::new(state_log_tensor, true).expect("invariant: state-log wraps its tensor");
+        let skip_tensor = Tensor::ones_on([inner_dim], &B::default())
+            .expect("invariant: skip-scale shape is valid");
+        let skip_scale =
+            Var::new(skip_tensor, true).expect("invariant: skip-scale wraps its tensor");
         let mut layer = Self {
             input_projection: Linear::new(config.input_dim, inner_dim * 2, true)
                 .expect("invariant: the configured layer dimensions are positive"),
@@ -56,15 +72,8 @@ where
                 .expect("invariant: the configured layer dimensions are positive"),
             output_matrix_projection: Linear::new(inner_dim, config.state_dim, true)
                 .expect("invariant: the configured layer dimensions are positive"),
-            state_log: Var::new(
-                Tensor::from_slice_on(
-                    [inner_dim * config.state_dim],
-                    &state_log_values,
-                    &B::default(),
-                ),
-                true,
-            ),
-            skip_scale: Var::new(Tensor::ones_on([inner_dim], &B::default()), true),
+            state_log,
+            skip_scale,
             dropout: Dropout::new(config.dropout),
             input_dim: config.input_dim,
             output_dim: config.output_dim,
@@ -118,13 +127,14 @@ where
         }
         let sequence = shape[shape.len() - 2];
         let batch: usize = shape[..shape.len() - 2].iter().product();
-        let projected = self
-            .input_projection
-            .forward(&reshape(input, [batch, sequence, self.input_dim]))?;
+        let flat =
+            reshape(input, [batch, sequence, self.input_dim]).map_err(ModelError::backend)?;
+        let projected = self.input_projection.forward(&flat)?;
         let signal = slice(
             &projected,
             &[(0, batch), (0, sequence), (0, self.inner_dim)],
-        );
+        )
+        .map_err(ModelError::backend)?;
         let gate = slice(
             &projected,
             &[
@@ -132,12 +142,11 @@ where
                 (0, sequence),
                 (self.inner_dim, self.inner_dim * 2),
             ],
-        );
-        let step = softplus(
-            &self
-                .step_expansion
-                .forward(&self.step_contraction.forward(&signal)?)?,
-        );
+        )
+        .map_err(ModelError::backend)?;
+        let contracted = self.step_contraction.forward(&signal)?;
+        let expanded = self.step_expansion.forward(&contracted)?;
+        let step = softplus(&expanded).map_err(ModelError::backend)?;
         let input_matrix = self.input_matrix_projection.forward(&signal)?;
         let output_matrix = self.output_matrix_projection.forward(&signal)?;
         let state = selective_scan(
@@ -147,8 +156,10 @@ where
             &step,
             &input_matrix,
             &output_matrix,
-        );
-        let gated = mul(&mul(&state, &sigmoid(&gate)), &self.skip_scale);
+        )?;
+        let gate_sig = sigmoid(&gate).map_err(ModelError::backend)?;
+        let gated_state = mul(&state, &gate_sig).map_err(ModelError::backend)?;
+        let gated = mul(&gated_state, &self.skip_scale).map_err(ModelError::backend)?;
         let output = self
             .dropout
             .forward(&self.output_projection.forward(&gated)?)?;
@@ -156,7 +167,7 @@ where
         *output_shape
             .last_mut()
             .expect("invariant: rank checked above") = self.output_dim;
-        Ok(reshape(&output, output_shape))
+        reshape(&output, output_shape).map_err(ModelError::backend)
     }
 
     /// Transform `[batch, channels, depth, height, width]` data.
@@ -171,17 +182,18 @@ where
         }
         let (batch, depth, height, width) = (shape[0], shape[2], shape[3], shape[4]);
         let sequence = depth * height * width;
-        let flat = reshape(
-            &permute(input, &[0, 2, 3, 4, 1]),
-            [batch, sequence, self.input_dim],
-        );
+        let channels_last = permute(input, &[0, 2, 3, 4, 1]).map_err(ModelError::backend)?;
+        let flat = reshape(&channels_last, [batch, sequence, self.input_dim])
+            .map_err(ModelError::backend)?;
         let output = self.forward(&flat)?;
-        let sequence_output = reshape(&output, [batch, sequence, self.output_dim]);
-        let channel_output = permute(&sequence_output, &[0, 2, 1]);
+        let sequence_output =
+            reshape(&output, [batch, sequence, self.output_dim]).map_err(ModelError::backend)?;
+        let channel_output = permute(&sequence_output, &[0, 2, 1]).map_err(ModelError::backend)?;
         let volume_output = reshape(
             &channel_output,
             [batch, self.output_dim, depth, height, width],
-        );
+        )
+        .map_err(ModelError::backend)?;
         Ok(volume_output)
     }
 }

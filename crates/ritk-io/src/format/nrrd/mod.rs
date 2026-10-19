@@ -10,16 +10,16 @@ use std::path::Path;
 fn native_to_legacy<B: Backend>(
     native: ritk_image::Image<f32, SequentialBackend, 3>,
     device: &B,
-) -> Image<f32, B, 3> {
-    let values = native.data_cow_on(&SequentialBackend);
-    let tensor = Tensor::<f32, B>::from_slice_on(native.shape(), values.as_ref(), device);
-    Image::new(
+) -> Result<Image<f32, B, 3>> {
+    let values = native.data_cow_on(&SequentialBackend)?;
+    let tensor = Tensor::<f32, B>::from_slice_on(native.shape(), values.as_ref(), device)?;
+    Ok(Image::new(
         tensor,
         *native.origin(),
         *native.spacing(),
         *native.direction(),
     )
-    .expect("invariant: backend conversion preserves the validated image rank")
+    .expect("invariant: backend conversion preserves the validated image rank"))
 }
 
 fn legacy_metadata_to_native<B: Backend>(
@@ -38,7 +38,8 @@ fn legacy_metadata_to_native<B: Backend>(
 
 /// Reads NRRD through the native provider and converts at this legacy boundary.
 pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Image<f32, B, 3>> {
-    ritk_nrrd::read_nrrd(path, &SequentialBackend).map(|native| native_to_legacy(native, device))
+    ritk_nrrd::read_nrrd(path, &SequentialBackend)
+        .and_then(|native| native_to_legacy(native, device))
 }
 
 /// Reads a NRRD acquisition series through the native provider.
@@ -49,13 +50,13 @@ pub fn read_nrrd_series<B: Backend, P: AsRef<Path>>(
     let natives = ritk_nrrd::read_nrrd_series(path, &SequentialBackend)?;
     natives
         .into_iter()
-        .map(|native| Ok(native_to_legacy(native, device)))
+        .map(|native| native_to_legacy(native, device))
         .collect()
 }
 
 /// Writes a legacy image through the native NRRD provider.
 pub fn write_nrrd<B: Backend, P: AsRef<Path>>(path: P, image: &Image<f32, B, 3>) -> Result<()> {
-    let native = legacy_metadata_to_native(image, image.data_cow_on(&B::default()).into_owned())?;
+    let native = legacy_metadata_to_native(image, image.data_cow_on(&B::default())?.into_owned())?;
     ritk_nrrd::write_nrrd(path, &native, &SequentialBackend)
 }
 

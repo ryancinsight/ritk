@@ -53,10 +53,9 @@ where
     /// `data_slice() -> Cow` contract.
     ///
     /// Callers needing an owned `Vec<T>` call `.into_owned()`; extraction
-    /// succeeds for every valid image, so no fallible owning form exists.
-    #[must_use]
-    pub fn data_cow_on(&self, backend: &B) -> std::borrow::Cow<'_, [T]> {
-        self.data.host_cow_on(backend)
+    /// fails only when the backend cannot materialize host memory.
+    pub fn data_cow_on(&self, backend: &B) -> anyhow::Result<std::borrow::Cow<'_, [T]>> {
+        Ok(self.data.host_cow_on(backend)?)
     }
 }
 

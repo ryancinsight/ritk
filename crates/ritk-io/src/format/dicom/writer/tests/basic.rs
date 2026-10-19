@@ -60,7 +60,8 @@ fn test_writer_rejects_non_finite_pixels_without_changing_existing_files() {
 fn test_writer_rejects_unrepresentable_pixel_range_without_changing_existing_files() {
     let device = Default::default();
     let pixels = [-f32::MAX, f32::MAX];
-    let tensor = Tensor::<f32, Backend>::from_slice_on([1, 1, 2], &pixels, &device);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([1, 1, 2], &pixels, &device)
+        .expect("test tensor is valid");
     let image = Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -198,7 +199,8 @@ fn test_series_pixel_clamp_unsigned_range() {
         .map(|i| (i as f32 + 1.0) * (65535.0_f32 / 16.0_f32))
         .collect();
     let tensor =
-        Tensor::<f32, Backend>::from_slice_on([n_frames, rows, cols], &data, &Default::default());
+        Tensor::<f32, Backend>::from_slice_on([n_frames, rows, cols], &data, &Default::default())
+            .expect("test tensor is valid");
     let image = Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),

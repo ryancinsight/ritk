@@ -129,9 +129,12 @@ where
     let n = grid_shape[0];
 
     let transformed = transform.transform_points(grid); // [N, 3], columns (z, y, x)
-    let cz = reshape(&slice(&transformed, &[(0, n), (0, 1)]), [n]);
-    let cy = reshape(&slice(&transformed, &[(0, n), (1, 2)]), [n]);
-    let cx = reshape(&slice(&transformed, &[(0, n), (2, 3)]), [n]);
+    let sz = slice(&transformed, &[(0, n), (0, 1)]).expect("evaluate: backend slice failed");
+    let cz = reshape(&sz, [n]).expect("evaluate: backend reshape failed");
+    let sy = slice(&transformed, &[(0, n), (1, 2)]).expect("evaluate: backend slice failed");
+    let cy = reshape(&sy, [n]).expect("evaluate: backend reshape failed");
+    let sx = slice(&transformed, &[(0, n), (2, 3)]).expect("evaluate: backend slice failed");
+    let cx = reshape(&sx, [n]).expect("evaluate: backend reshape failed");
     let sampled = sample_trilinear(moving_flat, dims, &cz, &cy, &cx);
     metric.reduce(&sampled, fixed)
 }

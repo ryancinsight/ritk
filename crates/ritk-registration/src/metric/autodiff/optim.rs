@@ -50,8 +50,9 @@ where
         .map(|(&pv, &gv)| pv - lr * gv)
         .collect();
     let shape = param.tensor.shape().to_vec();
-    let tensor = Tensor::from_slice_on(shape, &updated, &B::default());
-    Var::new(tensor, true)
+    let tensor = Tensor::from_slice_on(shape, &updated, &B::default())
+        .expect("sgd_step_var: backend tensor build failed");
+    Var::new(tensor, true).expect("sgd_step_var: backend Var build failed")
 }
 
 #[cfg(test)]

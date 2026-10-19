@@ -7,7 +7,8 @@ type B = MoiraiBackend;
 
 fn make_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
     let device = Default::default();
-    let t = Tensor::<f32, B>::from_slice_on(shape, &data, &device);
+    let t = Tensor::<f32, B>::from_slice_on(shape, &data, &device)
+        .expect("invariant: fixture data length matches shape");
     Image::new(
         t,
         Point::new([0.0, 0.0, 0.0]),
@@ -35,7 +36,10 @@ fn extract_and_rebuild_roundtrip() {
     assert_eq!(dims, [2, 3, 4], "extracted dims must match image shape");
 
     let rebuilt = rebuild(vals, dims, &img);
-    let got = rebuilt.data().to_vec();
+    let got = rebuilt
+        .data()
+        .to_vec()
+        .expect("invariant: rebuilt tensor materializes on host");
     assert_eq!(got, data, "rebuilt image must reproduce original data");
 }
 
@@ -45,7 +49,8 @@ fn rebuild_preserves_metadata() {
     let sp = Spacing::new([2.5, 1.0, 0.5]);
     let orig = Point::new([10.0, 20.0, 30.0]);
     let device = Default::default();
-    let t = Tensor::<f32, B>::from_slice_on([1usize, 2, 3], &[1.0_f32; 6], &device);
+    let t = Tensor::<f32, B>::from_slice_on([1usize, 2, 3], &[1.0_f32; 6], &device)
+        .expect("invariant: fixture data length matches shape");
     let img = Image::new(t, orig, sp, Direction::identity())
         .expect("invariant: fixture tensor has the declared rank");
 

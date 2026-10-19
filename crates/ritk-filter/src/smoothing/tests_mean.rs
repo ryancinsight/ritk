@@ -75,7 +75,8 @@ fn step_edge_center_mean() {
 #[test]
 fn preserves_spatial_metadata() {
     use ritk_spatial::Direction;
-    let tensor = Tensor::<f32, B>::from_slice([2, 2, 2], &[1.0f32; 8]);
+    let tensor =
+        Tensor::<f32, B>::from_slice([2, 2, 2], &[1.0f32; 8]).expect("test tensor is valid");
     let origin = Point::new([3.0_f64, 5.0, 7.0]);
     let spacing = Spacing::new([2.0_f64, 3.0, 4.0]);
     let dir = Direction::identity();

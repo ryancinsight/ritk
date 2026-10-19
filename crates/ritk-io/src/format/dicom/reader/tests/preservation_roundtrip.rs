@@ -33,7 +33,8 @@ fn test_scan_preserves_private_text_and_bytes_through_write_read_cycle() {
 
     // Build a 1-slice 4×4 image.
     let device = B::default();
-    let tensor = Tensor::<f32, B>::from_slice_on([1_usize, 4, 4], &[42.0_f32; 4 * 4], &device);
+    let tensor = Tensor::<f32, B>::from_slice_on([1_usize, 4, 4], &[42.0_f32; 4 * 4], &device)
+        .expect("test tensor is valid");
     let image = Image::new(
         tensor,
         Point::new([0.0; 3]),

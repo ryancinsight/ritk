@@ -22,7 +22,9 @@ fn native_image(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn assert_rgb_components(volume: &ColorVolume<f32, B, 3>, expected: [&[f32]; 3]) {
-    let actual = volume.data_cow_on(&B::default());
+    let actual = volume
+        .data_cow_on(&B::default())
+        .expect("test tensor is valid");
     let voxel_count = expected[0].len();
     assert_eq!(expected[1].len(), voxel_count, "green channel length");
     assert_eq!(expected[2].len(), voxel_count, "blue channel length");
@@ -86,7 +88,9 @@ fn unsupported_colormap_rejected() {
 fn label_to_rgb_matches_itk_table_and_cycles() {
     let img = native_image(vec![0.0, 1.0, 2.0, 5.0, 7.0, 30.0, 31.0], [1, 1, 7]);
     let out = LabelToRGBFilter::new(0).apply(&img, &B::default()).unwrap();
-    let c = out.data_cow_on(&B::default());
+    let c = out
+        .data_cow_on(&B::default())
+        .expect("test tensor is valid");
     // (r,g,b) per voxel.
     let rgb = |i: usize| [c[3 * i], c[3 * i + 1], c[3 * i + 2]];
     assert_eq!(rgb(0), [0.0, 0.0, 0.0]); // background
@@ -109,7 +113,9 @@ fn label_overlay_blends_with_table() {
     let out = LabelOverlayFilter::new(0.5, 0)
         .apply(&gray, &lab, &B::default())
         .unwrap();
-    let c = out.data_cow_on(&B::default());
+    let c = out
+        .data_cow_on(&B::default())
+        .expect("test tensor is valid");
     let rgb = |i: usize| [c[3 * i], c[3 * i + 1], c[3 * i + 2]];
     assert_eq!(rgb(0), [100.0, 100.0, 100.0]); // background
     assert_eq!(rgb(1), [50.0, 152.0, 50.0]); // label1: ½·100+½·[0,205,0]
@@ -125,7 +131,9 @@ fn label_overlay_full_opacity_is_label_color() {
     let out = LabelOverlayFilter::new(1.0, 0)
         .apply(&gray, &lab, &B::default())
         .unwrap();
-    let c = out.data_cow_on(&B::default());
+    let c = out
+        .data_cow_on(&B::default())
+        .expect("test tensor is valid");
     assert_eq!([c[0], c[1], c[2]], [0.0, 205.0, 0.0]);
     assert_eq!([c[3], c[4], c[5]], [0.0, 0.0, 255.0]);
 }

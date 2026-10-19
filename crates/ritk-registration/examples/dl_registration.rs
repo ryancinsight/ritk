@@ -31,18 +31,16 @@ where
     let fixed_data: Vec<f32> = (0..n).map(|i| ((i % 17) as f32) / 17.0).collect();
     let moving_data: Vec<f32> = (0..n).map(|i| ((i * 3 + 7) % 31) as f32 / 31.0).collect();
 
-    let fixed = Var::new(
-        Tensor::from_slice_on(shape, &fixed_data, &B::default()),
-        false,
-    );
-    let moving = Var::new(
-        Tensor::from_slice_on(shape, &moving_data, &B::default()),
-        false,
-    );
+    let fixed_tensor = Tensor::from_slice_on(shape, &fixed_data, &B::default())
+        .expect("example fixed tensor build failed");
+    let fixed = Var::new(fixed_tensor, false).expect("example fixed Var build failed");
+    let moving_tensor = Tensor::from_slice_on(shape, &moving_data, &B::default())
+        .expect("example moving tensor build failed");
+    let moving = Var::new(moving_tensor, false).expect("example moving Var build failed");
 
     println!("Running registration...");
     let start = Instant::now();
-    let input = cat(&[&moving, &fixed], 1);
+    let input = cat(&[&moving, &fixed], 1).expect("example concat failed");
     let output = model.forward(&input).expect("transmorph forward");
     let flow = output.flow;
     let warped = output.warped;

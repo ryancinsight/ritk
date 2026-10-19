@@ -34,7 +34,7 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     P: AsRef<Path>,
 {
-    let voxels = image.data_cow_on(backend);
+    let voxels = image.data_cow_on(backend)?;
     write_mif_flat(
         path.as_ref(),
         image.shape(),
@@ -88,7 +88,10 @@ where
         }
     }
 
-    let payloads: Vec<_> = volumes.iter().map(|v| v.data_cow_on(backend)).collect();
+    let payloads: Vec<_> = volumes
+        .iter()
+        .map(|v| v.data_cow_on(backend))
+        .collect::<Result<Vec<_>, _>>()?;
     write_mif_flat(
         path.as_ref(),
         shape,
