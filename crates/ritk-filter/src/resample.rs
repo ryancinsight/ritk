@@ -125,7 +125,9 @@ where
     ) -> Tensor<f32, B> {
         let output_points = self.indices_to_physical(output_indices);
         let input_points = self.transform.transform_points(output_points);
-        let input_indices = input.world_to_index_native(&input_points);
+        let input_indices = input
+            .world_to_index_native(&input_points)
+            .expect("resampling requires backend evaluation to succeed");
         let values = self
             .interpolator
             .interpolate(input.data(), input_indices.clone());
@@ -152,8 +154,12 @@ where
         input_indices: Tensor<f32, B>,
         input_shape: [usize; D],
     ) -> Tensor<f32, B> {
-        let indices = input_indices.to_vec();
-        let mut sampled = values.to_vec();
+        let indices = input_indices
+            .to_vec()
+            .expect("resampling requires backend evaluation to succeed");
+        let mut sampled = values
+            .to_vec()
+            .expect("resampling requires backend evaluation to succeed");
         for (point, value) in sampled.iter_mut().enumerate() {
             let inside = (0..D).all(|column| {
                 let axis = D - 1 - column;
@@ -165,6 +171,7 @@ where
             }
         }
         Tensor::<f32, B>::from_slice([sampled.len()], &sampled)
+            .expect("resampling requires backend evaluation to succeed")
     }
 
     fn generate_grid_indices(&self) -> Tensor<f32, B> {
@@ -181,10 +188,13 @@ where
             }
         }
         Tensor::<f32, B>::from_slice([count, D], &indices)
+            .expect("resampling requires backend evaluation to succeed")
     }
 
     fn indices_to_physical(&self, indices: Tensor<f32, B>) -> Tensor<f32, B> {
-        let indices = indices.to_vec();
+        let indices = indices
+            .to_vec()
+            .expect("resampling requires backend evaluation to succeed");
         let mut points = Vec::with_capacity(indices.len());
         for index in indices.chunks_exact(D) {
             for world_axis in 0..D {
@@ -199,5 +209,6 @@ where
             }
         }
         Tensor::<f32, B>::from_slice([points.len() / D, D], &points)
+            .expect("resampling requires backend evaluation to succeed")
     }
 }

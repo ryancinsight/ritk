@@ -202,7 +202,7 @@ mod tests {
         let transformed = physical_affine.transform_points(&fixed_world_point)?;
         let expected = [60.75_f32, 41.0, 83.5];
         for (axis, (actual, expected)) in transformed
-            .data_cow_on(&Default::default())
+            .data_cow_on(&Default::default())?
             .into_owned()
             .into_iter()
             .zip(expected)

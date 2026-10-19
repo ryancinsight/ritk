@@ -46,7 +46,7 @@ pub mod native;
 ///
 /// # Errors
 /// Returns `Err` when the backend element type cannot be cast to `f32` (e.g. a
-/// non-float backend was used).
+/// non-float backend was used) or the backend cannot materialize host memory.
 ///
 /// # Invariants
 /// - `voxels.len() == shape[0] * shape[1] * … * shape[D-1]`
@@ -64,7 +64,7 @@ pub fn extract_vec<B: Backend, const D: usize>(
     image: &Image<f32, B, D>,
 ) -> anyhow::Result<(Vec<f32>, [usize; D])> {
     let dims = image.shape();
-    let vals = image.data_cow_on(&B::default()).into_owned();
+    let vals = image.data_cow_on(&B::default())?.into_owned();
     Ok((vals, dims))
 }
 
@@ -81,7 +81,10 @@ pub fn extract_vec_infallible<B: Backend, const D: usize>(
     image: &Image<f32, B, D>,
 ) -> (Vec<f32>, [usize; D]) {
     let dims = image.shape();
-    let vals = image.data_cow_on(&B::default()).into_owned();
+    let vals = image
+        .data_cow_on(&B::default())
+        .expect("extract_vec_infallible: backend cannot materialize host memory")
+        .into_owned();
     (vals, dims)
 }
 

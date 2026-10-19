@@ -7,7 +7,8 @@ use ritk_spatial::{Direction, Point, Spacing};
 type B = coeus_core::SequentialBackend;
 
 fn make_image(vals: &[f32], dims: [usize; 3]) -> Image<f32, B, 3> {
-    let tensor = ritk_image::tensor::Tensor::<f32, B>::from_slice(dims, vals);
+    let tensor =
+        ritk_image::tensor::Tensor::<f32, B>::from_slice(dims, vals).expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([1.1, 2.2, 3.3]),

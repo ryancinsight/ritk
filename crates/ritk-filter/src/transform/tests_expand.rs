@@ -40,7 +40,8 @@ fn expand_factor_one_is_identity() {
 #[test]
 fn expand_updates_spacing_and_origin() {
     use ritk_spatial::{Direction, Point, Spacing};
-    let t = ritk_image::tensor::Tensor::<f32, B>::from_slice([1, 1, 2], &[0.0_f32, 4.0]);
+    let t = ritk_image::tensor::Tensor::<f32, B>::from_slice([1, 1, 2], &[0.0_f32, 4.0])
+        .expect("test tensor is valid");
     let img = Image::new(
         t,
         Point::new([0.0, 0.0, 0.0]),

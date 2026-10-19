@@ -10,8 +10,8 @@ use std::path::Path;
 /// Reads MGH/MGZ through the native provider and converts at this legacy boundary.
 pub fn read_mgh<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Image<f32, B, 3>> {
     let native = ritk_mgh::read_mgh(path, &SequentialBackend)?;
-    let values = native.data_cow_on(&SequentialBackend);
-    let tensor = Tensor::<f32, B>::from_slice_on(native.shape(), values.as_ref(), device);
+    let values = native.data_cow_on(&SequentialBackend)?;
+    let tensor = Tensor::<f32, B>::from_slice_on(native.shape(), values.as_ref(), device)?;
     Image::new(
         tensor,
         *native.origin(),
@@ -29,8 +29,8 @@ pub fn read_mgh_series<B: Backend, P: AsRef<Path>>(
     natives
         .into_iter()
         .map(|native| {
-            let values = native.data_cow_on(&SequentialBackend);
-            let tensor = Tensor::<f32, B>::from_slice_on(native.shape(), values.as_ref(), device);
+            let values = native.data_cow_on(&SequentialBackend)?;
+            let tensor = Tensor::<f32, B>::from_slice_on(native.shape(), values.as_ref(), device)?;
             Image::new(
                 tensor,
                 *native.origin(),
@@ -45,7 +45,7 @@ pub fn read_mgh_series<B: Backend, P: AsRef<Path>>(
 pub fn write_mgh<B: Backend, P: AsRef<Path>>(image: &Image<f32, B, 3>, path: P) -> Result<()> {
     let backend = SequentialBackend;
     let native = ritk_image::Image::from_flat_on(
-        image.data_cow_on(&B::default()).into_owned(),
+        image.data_cow_on(&B::default())?.into_owned(),
         image.shape(),
         *image.origin(),
         *image.spacing(),

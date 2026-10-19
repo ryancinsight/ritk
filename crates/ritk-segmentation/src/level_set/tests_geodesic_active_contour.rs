@@ -22,7 +22,7 @@ fn make_image_with_metadata(
 }
 
 fn get_values(image: &Image<f32, B, 3>) -> Vec<f32> {
-    image.data().to_vec()
+    image.data().to_vec().expect("test tensor is valid")
 }
 
 /// Create a signed distance–like initial φ: negative inside a sphere of

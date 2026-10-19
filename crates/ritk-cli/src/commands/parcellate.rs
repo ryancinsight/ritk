@@ -271,7 +271,7 @@ fn write_agreement(
         subject.shape(),
         agreement,
         &device,
-    );
+    )?;
     let image = ritk_image::Image::new(
         tensor,
         *subject.origin(),

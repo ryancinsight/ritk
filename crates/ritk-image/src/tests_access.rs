@@ -22,14 +22,14 @@ fn data_cow_borrows_when_contiguous() {
     )
     .unwrap();
 
-    let cow = image.data_cow_on(&SequentialBackend);
+    let cow = image.data_cow_on(&SequentialBackend).unwrap();
     assert!(
         matches!(cow, std::borrow::Cow::Borrowed(_)),
         "contiguous image must borrow (zero-copy)"
     );
     assert_eq!(cow.as_ref(), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     assert_eq!(
-        image.data_cow_on(&SequentialBackend).into_owned(),
+        image.data_cow_on(&SequentialBackend).unwrap().into_owned(),
         vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
     );
 }
@@ -41,7 +41,8 @@ fn data_cow_materializes_logical_order_for_permuted_view() {
     // view is the host transpose — the oracle the extraction must match.
     let (origin, spacing, direction) = metadata_2d();
     let base =
-        Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .unwrap();
     let permuted = base.permute(&[1, 0]); // shape [3, 2], strides non-contiguous
     let image = TensorImage::<2>::new(permuted, origin, spacing, direction).unwrap();
 
@@ -53,14 +54,14 @@ fn data_cow_materializes_logical_order_for_permuted_view() {
 
     // Host transpose oracle: [[1,4],[2,5],[3,6]] row-major.
     let expected = [1.0, 4.0, 2.0, 5.0, 3.0, 6.0];
-    let cow = image.data_cow_on(&SequentialBackend);
+    let cow = image.data_cow_on(&SequentialBackend).unwrap();
     assert!(
         matches!(cow, std::borrow::Cow::Owned(_)),
         "non-contiguous image must materialize (owned)"
     );
     assert_eq!(cow.as_ref(), &expected);
     assert_eq!(
-        image.data_cow_on(&SequentialBackend).into_owned(),
+        image.data_cow_on(&SequentialBackend).unwrap().into_owned(),
         expected.to_vec()
     );
 }
@@ -68,7 +69,8 @@ fn data_cow_materializes_logical_order_for_permuted_view() {
 #[test]
 fn data_slice_rejects_non_contiguous_layout() {
     let data =
-        Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .unwrap();
     let column_view = Tensor::from_raw_parts(
         data.storage().clone(),
         data.layout().slice(&[(0, 2), (1, 2)]),

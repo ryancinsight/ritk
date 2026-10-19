@@ -21,7 +21,8 @@ fn make_test_image(
 ) -> Image<f32, TestBackend, 3> {
     let device = Default::default();
     let data = vec![fill; depth * rows * cols];
-    let tensor = Tensor::<f32, TestBackend>::from_slice_on([depth, rows, cols], &data, &device);
+    let tensor = Tensor::<f32, TestBackend>::from_slice_on([depth, rows, cols], &data, &device)
+        .expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([10.0, 20.0, 30.0]),
@@ -209,7 +210,8 @@ fn test_write_analyze_path_leak() {
 
     let non_existent_path = PathBuf::from("/non/existent/path/output.hdr");
     let image = {
-        let tensor = Tensor::<f32, TestBackend>::from_slice_on([1, 1, 1], &[0.0_f32], &device);
+        let tensor = Tensor::<f32, TestBackend>::from_slice_on([1, 1, 1], &[0.0_f32], &device)
+            .expect("test tensor is valid");
         Image::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),

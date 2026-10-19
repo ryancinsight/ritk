@@ -14,7 +14,7 @@ use crate::types::Image;
 
 impl<T, B, const D: usize> Image<T, B, D>
 where
-    T: coeus_core::Float,
+    T: coeus_core::Float + eunomia::FloatElement,
     B: coeus_ops::BackendOps<T> + Default,
 {
     /// Map a `[point_count, D]` Coeus tensor from physical coordinates to
@@ -44,27 +44,27 @@ where
             .try_inverse()
             .ok_or_else(|| anyhow!("image direction matrix is singular"))?;
         let origin = (0..D)
-            .map(|axis| <T as coeus_core::Scalar>::from_f64(self.origin[axis]))
+            .map(|axis| <T as eunomia::FloatElement>::from_f64(self.origin[axis]))
             .collect::<Vec<_>>();
         let matrix = (0..D)
             .flat_map(|input_axis| {
                 (0..D).map(move |output_axis| {
-                    <T as coeus_core::Scalar>::from_f64(
+                    <T as eunomia::FloatElement>::from_f64(
                         inverse[(output_axis, input_axis)] / self.spacing[output_axis],
                     )
                 })
             })
             .collect::<Vec<_>>();
-        let origin = Tensor::from_slice_on([1, D], &origin, backend);
-        let matrix = Tensor::from_slice_on([D, D], &matrix, backend);
-        let centered = coeus_ops::sub(points, &origin, backend);
-        Ok(coeus_ops::matmul(&centered, &matrix, backend))
+        let origin = Tensor::from_slice_on([1, D], &origin, backend)?;
+        let matrix = Tensor::from_slice_on([D, D], &matrix, backend)?;
+        let centered = coeus_ops::sub(points, &origin, backend)?;
+        Ok(coeus_ops::matmul(&centered, &matrix, backend)?)
     }
 }
 
 impl<T, B, const D: usize> Image<T, B, D>
 where
-    T: Scalar,
+    T: Scalar + eunomia::FloatElement,
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
@@ -92,8 +92,11 @@ where
     ///
     /// Dispatch on [`CoordinateMap`] happens **once** here; each arm then runs
     /// its own monomorphic per-point loop.
-    #[must_use]
-    pub fn world_to_index_native_on(&self, points: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    pub fn world_to_index_native_on(
+        &self,
+        points: &Tensor<T, B>,
+        backend: &B,
+    ) -> anyhow::Result<Tensor<T, B>> {
         let n = self.assert_batch_shape(points);
         match &self.map {
             CoordinateMap::Cartesian => self.world_to_index_cartesian(points, n, backend),
@@ -110,13 +113,12 @@ where
     }
 
     /// Cartesian arm of [`Self::world_to_index_native_on`].
-    #[must_use]
     fn world_to_index_cartesian(
         &self,
         points: &Tensor<T, B>,
         n: usize,
         backend: &B,
-    ) -> Tensor<T, B> {
+    ) -> anyhow::Result<Tensor<T, B>> {
         let inv_dir = self
             .direction()
             .try_inverse()
@@ -130,8 +132,9 @@ where
         for (r, row) in t.iter_mut().enumerate() {
             for (c, cell) in row.iter_mut().enumerate() {
                 let axis = D - 1 - c;
-                *cell =
-                    <T as coeus_core::Scalar>::from_f64(inv_dir[(axis, r)] / self.spacing()[axis]);
+                *cell = <T as eunomia::FloatElement>::from_f64(
+                    inv_dir[(axis, r)] / self.spacing()[axis],
+                );
             }
         }
         let origin_t = self.origin_narrowed();
@@ -148,7 +151,7 @@ where
             }
         }
 
-        Tensor::from_slice_on([n, D], &out, backend)
+        Ok(Tensor::from_slice_on([n, D], &out, backend)?)
     }
 
     /// Batch transform continuous indices to physical points.
@@ -173,8 +176,11 @@ where
     ///
     /// Dispatch on [`CoordinateMap`] happens **once** here; each arm then runs
     /// its own monomorphic per-point loop.
-    #[must_use]
-    pub fn index_to_world_native_on(&self, indices: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    pub fn index_to_world_native_on(
+        &self,
+        indices: &Tensor<T, B>,
+        backend: &B,
+    ) -> anyhow::Result<Tensor<T, B>> {
         let n = self.assert_batch_shape(indices);
         match &self.map {
             CoordinateMap::Cartesian => self.index_to_world_cartesian(indices, n, backend),
@@ -191,13 +197,12 @@ where
     }
 
     /// Cartesian arm of [`Self::index_to_world_native_on`].
-    #[must_use]
     fn index_to_world_cartesian(
         &self,
         indices: &Tensor<T, B>,
         n: usize,
         backend: &B,
-    ) -> Tensor<T, B> {
+    ) -> anyhow::Result<Tensor<T, B>> {
         // m[r][c] maps innermost-first index column r (axis = D-1-r) to axis-major
         // output column c: m[r][c] = spacing[axis] * direction[(c, axis)]. Product
         // in f64 then narrowed to T, matching the Coeus matrix build's `as f32`.
@@ -205,7 +210,7 @@ where
         for (r, row) in m.iter_mut().enumerate() {
             let axis = D - 1 - r;
             for (c, cell) in row.iter_mut().enumerate() {
-                *cell = <T as coeus_core::Scalar>::from_f64(
+                *cell = <T as eunomia::FloatElement>::from_f64(
                     self.spacing()[axis] * self.direction()[(c, axis)],
                 );
             }
@@ -224,7 +229,7 @@ where
             }
         }
 
-        Tensor::from_slice_on([n, D], &out, backend)
+        Ok(Tensor::from_slice_on([n, D], &out, backend)?)
     }
 
     /// Curvilinear arm of [`Self::index_to_world_native_on`].
@@ -237,20 +242,19 @@ where
     /// Trigonometry runs in `f64` and narrows to `T` per point, because the
     /// polar map is not expressible as a hoisted matrix the way the affine one
     /// is.
-    #[must_use]
     fn index_to_world_curvilinear(
         &self,
         geometry: &ritk_spatial::CurvilinearArray,
         indices: &Tensor<T, B>,
         n: usize,
         backend: &B,
-    ) -> Tensor<T, B> {
+    ) -> anyhow::Result<Tensor<T, B>> {
         // Affine rows for the outer axes, hoisted exactly as the Cartesian arm.
         let mut m = [[<T as eunomia::NumericElement>::ZERO; D]; D];
         for (r, row) in m.iter_mut().enumerate() {
             let axis = D - 1 - r;
             for (c, cell) in row.iter_mut().enumerate() {
-                *cell = <T as coeus_core::Scalar>::from_f64(
+                *cell = <T as eunomia::FloatElement>::from_f64(
                     self.spacing()[axis] * self.direction()[(c, axis)],
                 );
             }
@@ -264,8 +268,8 @@ where
                 <T as eunomia::NumericElement>::to_f64(idx[0]),
                 <T as eunomia::NumericElement>::to_f64(idx[1]),
             );
-            o[D - 1] = <T as coeus_core::Scalar>::from_f64(radius * angle.sin());
-            o[D - 2] = <T as coeus_core::Scalar>::from_f64(radius * angle.cos());
+            o[D - 1] = <T as eunomia::FloatElement>::from_f64(radius * angle.sin());
+            o[D - 2] = <T as eunomia::FloatElement>::from_f64(radius * angle.cos());
             for c in 0..D - 2 {
                 let mut acc = <T as eunomia::NumericElement>::ZERO;
                 for r in 0..D {
@@ -275,7 +279,7 @@ where
             }
         }
 
-        Tensor::from_slice_on([n, D], &out, backend)
+        Ok(Tensor::from_slice_on([n, D], &out, backend)?)
     }
 
     /// Curvilinear arm of [`Self::world_to_index_native_on`].
@@ -286,14 +290,13 @@ where
     /// rather than silently aliasing onto a real beam. Callers that resample
     /// treat a non-finite index as background, exactly as they already do for
     /// an index outside the image bounds.
-    #[must_use]
     fn world_to_index_curvilinear(
         &self,
         geometry: &ritk_spatial::CurvilinearArray,
         points: &Tensor<T, B>,
         n: usize,
         backend: &B,
-    ) -> Tensor<T, B> {
+    ) -> anyhow::Result<Tensor<T, B>> {
         let inv_dir = self
             .direction()
             .try_inverse()
@@ -302,8 +305,9 @@ where
         for (r, row) in t.iter_mut().enumerate() {
             for (c, cell) in row.iter_mut().enumerate() {
                 let axis = D - 1 - c;
-                *cell =
-                    <T as coeus_core::Scalar>::from_f64(inv_dir[(axis, r)] / self.spacing()[axis]);
+                *cell = <T as eunomia::FloatElement>::from_f64(
+                    inv_dir[(axis, r)] / self.spacing()[axis],
+                );
             }
         }
         let origin_t = self.origin_narrowed();
@@ -315,12 +319,12 @@ where
             let axial = <T as eunomia::NumericElement>::to_f64(p[D - 2]);
             match geometry.index_from_cartesian(lateral, axial) {
                 Some((sample, beam)) => {
-                    o[0] = <T as coeus_core::Scalar>::from_f64(sample);
-                    o[1] = <T as coeus_core::Scalar>::from_f64(beam);
+                    o[0] = <T as eunomia::FloatElement>::from_f64(sample);
+                    o[1] = <T as eunomia::FloatElement>::from_f64(beam);
                 }
                 None => {
-                    o[0] = <T as coeus_core::Scalar>::from_f64(f64::NAN);
-                    o[1] = <T as coeus_core::Scalar>::from_f64(f64::NAN);
+                    o[0] = <T as eunomia::FloatElement>::from_f64(f64::NAN);
+                    o[1] = <T as eunomia::FloatElement>::from_f64(f64::NAN);
                 }
             }
             for c in 2..D {
@@ -332,7 +336,7 @@ where
             }
         }
 
-        Tensor::from_slice_on([n, D], &out, backend)
+        Ok(Tensor::from_slice_on([n, D], &out, backend)?)
     }
 
     /// Phased-array arm of [`Self::index_to_world_native_on`].
@@ -349,14 +353,13 @@ where
     ///
     /// A ray whose steering angle has no finite depth yields NaN, on the same
     /// grounds as the curvilinear out-of-fan case.
-    #[must_use]
     fn index_to_world_phased_array(
         &self,
         geometry: &ritk_spatial::PhasedArray3D,
         indices: &Tensor<T, B>,
         n: usize,
         backend: &B,
-    ) -> Tensor<T, B> {
+    ) -> anyhow::Result<Tensor<T, B>> {
         let dir = self.direction();
         let origin_t = self.origin_narrowed();
         let src = indices.as_slice();
@@ -374,21 +377,21 @@ where
                     for c in 0..D {
                         let mut acc = origin_t[c];
                         for r in 0..D {
-                            acc += <T as coeus_core::Scalar>::from_f64(dir[(c, r)])
-                                * <T as coeus_core::Scalar>::from_f64(probe[r]);
+                            acc += <T as eunomia::FloatElement>::from_f64(dir[(c, r)])
+                                * <T as eunomia::FloatElement>::from_f64(probe[r]);
                         }
                         o[c] = acc;
                     }
                 }
                 None => {
                     for value in o.iter_mut() {
-                        *value = <T as coeus_core::Scalar>::from_f64(f64::NAN);
+                        *value = <T as eunomia::FloatElement>::from_f64(f64::NAN);
                     }
                 }
             }
         }
 
-        Tensor::from_slice_on([n, D], &out, backend)
+        Ok(Tensor::from_slice_on([n, D], &out, backend)?)
     }
 
     /// Phased-array arm of [`Self::world_to_index_native_on`].
@@ -398,14 +401,13 @@ where
     ///
     /// Inverse of [`Self::index_to_world_phased_array`]. Points behind the
     /// array (`depth <= 0`) have no ray and are emitted as NaN.
-    #[must_use]
     fn world_to_index_phased_array(
         &self,
         geometry: &ritk_spatial::PhasedArray3D,
         points: &Tensor<T, B>,
         n: usize,
         backend: &B,
-    ) -> Tensor<T, B> {
+    ) -> anyhow::Result<Tensor<T, B>> {
         let inv_dir = self
             .direction()
             .try_inverse()
@@ -428,19 +430,19 @@ where
             // probe is in axis order [depth, elevation, azimuth]
             match geometry.index_from_cartesian(probe[2], probe[1], probe[0]) {
                 Some((azimuth_index, elevation_index, sample)) => {
-                    o[0] = <T as coeus_core::Scalar>::from_f64(azimuth_index);
-                    o[1] = <T as coeus_core::Scalar>::from_f64(elevation_index);
-                    o[2] = <T as coeus_core::Scalar>::from_f64(sample);
+                    o[0] = <T as eunomia::FloatElement>::from_f64(azimuth_index);
+                    o[1] = <T as eunomia::FloatElement>::from_f64(elevation_index);
+                    o[2] = <T as eunomia::FloatElement>::from_f64(sample);
                 }
                 None => {
                     for value in o.iter_mut() {
-                        *value = <T as coeus_core::Scalar>::from_f64(f64::NAN);
+                        *value = <T as eunomia::FloatElement>::from_f64(f64::NAN);
                     }
                 }
             }
         }
 
-        Tensor::from_slice_on([n, D], &out, backend)
+        Ok(Tensor::from_slice_on([n, D], &out, backend)?)
     }
 
     /// Slice-series arm of [`Self::index_to_world_native_on`].
@@ -448,14 +450,13 @@ where
     /// Column 0 (innermost, `axis D-1`) = in-plane x, column 1 = in-plane y,
     /// column 2 (outermost, `axis D-3`) = slice index. Out-of-range slice
     /// indices are clamped per the forward-clamp convention.
-    #[must_use]
     fn index_to_world_slice_series(
         &self,
         sweep: &ritk_spatial::SliceSeries,
         indices: &Tensor<T, B>,
         n: usize,
         backend: &B,
-    ) -> Tensor<T, B> {
+    ) -> anyhow::Result<Tensor<T, B>> {
         let src = indices.as_slice();
         let mut out = vec![<T as eunomia::NumericElement>::ZERO; n * D];
         for (idx, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
@@ -464,25 +465,24 @@ where
             let slice_f = <T as eunomia::NumericElement>::to_f64(idx[2]);
             let world = sweep.world_from_index(j_x, j_y, slice_f);
             // Write axis-major: column c = spatial axis c.
-            o[D - 1] = <T as coeus_core::Scalar>::from_f64(world[0]);
-            o[D - 2] = <T as coeus_core::Scalar>::from_f64(world[1]);
-            o[D - 3] = <T as coeus_core::Scalar>::from_f64(world[2]);
+            o[D - 1] = <T as eunomia::FloatElement>::from_f64(world[0]);
+            o[D - 2] = <T as eunomia::FloatElement>::from_f64(world[1]);
+            o[D - 3] = <T as eunomia::FloatElement>::from_f64(world[2]);
         }
-        Tensor::from_slice_on([n, D], &out, backend)
+        Ok(Tensor::from_slice_on([n, D], &out, backend)?)
     }
 
     /// Slice-series arm of [`Self::world_to_index_native_on`].
     ///
     /// Points outside the sweep extent are emitted as NaN (rejection
     /// convention, matching the other non-Cartesian variants).
-    #[must_use]
     fn world_to_index_slice_series(
         &self,
         sweep: &ritk_spatial::SliceSeries,
         points: &Tensor<T, B>,
         n: usize,
         backend: &B,
-    ) -> Tensor<T, B> {
+    ) -> anyhow::Result<Tensor<T, B>> {
         let src = points.as_slice();
         let mut out = vec![<T as eunomia::NumericElement>::ZERO; n * D];
         for (p, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
@@ -494,25 +494,25 @@ where
             ];
             match sweep.index_from_world(world) {
                 Some(idx) => {
-                    o[0] = <T as coeus_core::Scalar>::from_f64(idx[0]);
-                    o[1] = <T as coeus_core::Scalar>::from_f64(idx[1]);
-                    o[2] = <T as coeus_core::Scalar>::from_f64(idx[2]);
+                    o[0] = <T as eunomia::FloatElement>::from_f64(idx[0]);
+                    o[1] = <T as eunomia::FloatElement>::from_f64(idx[1]);
+                    o[2] = <T as eunomia::FloatElement>::from_f64(idx[2]);
                 }
                 None => {
                     for value in o.iter_mut() {
-                        *value = <T as coeus_core::Scalar>::from_f64(f64::NAN);
+                        *value = <T as eunomia::FloatElement>::from_f64(f64::NAN);
                     }
                 }
             }
         }
-        Tensor::from_slice_on([n, D], &out, backend)
+        Ok(Tensor::from_slice_on([n, D], &out, backend)?)
     }
 
     /// Narrow the `f64` origin into `T` once (mirrors the Coeus path's `as f32`).
     fn origin_narrowed(&self) -> [T; D] {
         let mut origin_t = [<T as eunomia::NumericElement>::ZERO; D];
         for (i, o) in origin_t.iter_mut().enumerate() {
-            *o = <T as coeus_core::Scalar>::from_f64(self.origin()[i]);
+            *o = <T as eunomia::FloatElement>::from_f64(self.origin()[i]);
         }
         origin_t
     }
@@ -546,8 +546,10 @@ where
     /// The single-argument form that most directly replaces the Coeus
     /// `world_to_index_tensor` at call sites.
     #[inline]
-    #[must_use]
-    pub fn world_to_index_native(&self, points: &Tensor<T, B>) -> Tensor<T, B> {
+    pub fn world_to_index_native(&self, points: &Tensor<T, B>) -> anyhow::Result<Tensor<T, B>>
+    where
+        T: eunomia::FloatElement,
+    {
         self.world_to_index_native_on(points, &B::default())
     }
 
@@ -556,8 +558,10 @@ where
     /// The single-argument form that most directly replaces the Coeus
     /// `index_to_world_tensor` at call sites.
     #[inline]
-    #[must_use]
-    pub fn index_to_world_native(&self, indices: &Tensor<T, B>) -> Tensor<T, B> {
+    pub fn index_to_world_native(&self, indices: &Tensor<T, B>) -> anyhow::Result<Tensor<T, B>>
+    where
+        T: eunomia::FloatElement,
+    {
         self.index_to_world_native_on(indices, &B::default())
     }
 }

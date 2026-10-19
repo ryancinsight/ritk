@@ -202,7 +202,7 @@ impl SlicSuperpixelFilter {
         let device = B::default();
         let ndim = D;
         let labels = slic_impl(&vals, &shape, ndim, &self.config);
-        let tensor = Tensor::<f32, B>::from_slice_on(shape, &labels, &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &labels, &device)?;
         Image::new(
             tensor,
             *image.origin(),

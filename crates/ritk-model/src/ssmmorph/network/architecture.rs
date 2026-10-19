@@ -145,7 +145,7 @@ where
         fixed: &Var<f32, B>,
         moving: &Var<f32, B>,
     ) -> Result<SSMMorphOutput<B>, ModelError> {
-        self.forward_combined(&cat(&[fixed, moving], 1))
+        self.forward_combined(&cat(&[fixed, moving], 1).map_err(ModelError::backend)?)
     }
 
     /// Evaluate a pre-concatenated `[fixed, moving]` input.
@@ -155,7 +155,7 @@ where
             .decoder
             .forward(&encoded.bottleneck, &encoded.features)?;
         let displacement = match &self.integrator {
-            Some(integrator) => integrator.forward(&velocity),
+            Some(integrator) => integrator.forward(&velocity)?,
             None => velocity,
         };
         Ok(SSMMorphOutput {
@@ -289,9 +289,10 @@ mod tests {
         };
         let model = SSMMorph::<MoiraiBackend>::new(&config);
         let input = Var::new(
-            Tensor::ones_on([1, 2, 4, 4, 4], &MoiraiBackend::new()),
+            Tensor::ones_on([1, 2, 4, 4, 4], &MoiraiBackend::new()).expect("test tensor is valid"),
             true,
-        );
+        )
+        .expect("test tensor is valid");
 
         let output = model
             .forward_combined(&input)

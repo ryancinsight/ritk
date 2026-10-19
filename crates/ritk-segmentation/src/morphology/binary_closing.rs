@@ -115,7 +115,8 @@ fn pad_background<B: Backend, const D: usize>(
         out[out_flat] = val;
     }
     let device = B::default();
-    let tensor = Tensor::<f32, B>::from_slice_on(new_shape, &out, &device);
+    let tensor = Tensor::<f32, B>::from_slice_on(new_shape, &out, &device)
+        .expect("invariant: segmentation output length matches shape");
     Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
         .expect("invariant: segmentation output tensor preserves the image rank")
 }
@@ -145,7 +146,8 @@ fn crop_border<B: Backend, const D: usize>(
         *slot = pvals[p_flat];
     }
     let device = B::default();
-    let tensor = Tensor::<f32, B>::from_slice_on(o_shape, &out, &device);
+    let tensor = Tensor::<f32, B>::from_slice_on(o_shape, &out, &device)
+        .expect("invariant: segmentation output length matches shape");
     Image::new(
         tensor,
         *original.origin(),
@@ -194,7 +196,8 @@ pub(super) fn apply_morphological_op<B: Backend, const D: usize>(
     }
 
     let device = B::default();
-    let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device);
+    let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device)
+        .expect("invariant: segmentation output length matches shape");
 
     Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
         .expect("invariant: segmentation output tensor preserves the image rank")

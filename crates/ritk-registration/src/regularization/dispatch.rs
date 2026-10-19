@@ -29,7 +29,9 @@ where
     if field.is_contiguous() {
         f(field.as_slice(), field.shape())
     } else {
-        let contiguous = field.to_contiguous();
+        let contiguous = field
+            .to_contiguous()
+            .expect("regularizer: backend compact failed");
         f(contiguous.as_slice(), contiguous.shape())
     }
 }

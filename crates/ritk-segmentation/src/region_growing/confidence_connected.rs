@@ -256,7 +256,8 @@ pub fn confidence_connected<B: Backend>(
         multiplier,
         max_iterations,
     );
-    let tensor = Tensor::<f32, B>::from_slice(shape, &result);
+    let tensor = Tensor::<f32, B>::from_slice(shape, &result)
+        .expect("invariant: segmentation output length matches shape");
     Image::new(
         tensor,
         *image.origin(),

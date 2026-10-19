@@ -46,10 +46,10 @@ where
     let shape = reference.shape();
 
     // reference voxel → world → (transform) → label-image world → label index.
-    let indices = generate_grid(shape, &backend);
-    let ref_world = reference.index_to_world_native(&indices);
+    let indices = generate_grid(shape, &backend)?;
+    let ref_world = reference.index_to_world_native(&indices)?;
     let label_world = transform.transform_points(ref_world);
-    let label_idx = labels.world_to_index_native(&label_world);
+    let label_idx = labels.world_to_index_native(&label_world)?;
 
     // Nearest-neighbour keeps integer labels intact; zero-pad → background outside FOV.
     let warped = NearestNeighborInterpolator::new_zero_pad()
@@ -138,7 +138,7 @@ mod tests {
 
     fn label_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
         let device = Default::default();
-        let t = Tensor::<f32, B>::from_slice_on(shape, &data, &device);
+        let t = Tensor::<f32, B>::from_slice_on(shape, &data, &device).unwrap();
         Image::new(
             t,
             Point::new([0.0; 3]),
@@ -169,8 +169,9 @@ mod tests {
         }
         let img = label_image(v.clone(), [d, h, w]);
         let device = Default::default();
-        let ident =
-            TranslationTransform::<B, 3>::new(Tensor::from_slice_on([3], &[0.0; 3], &device));
+        let ident = TranslationTransform::<B, 3>::new(
+            Tensor::from_slice_on([3], &[0.0; 3], &device).unwrap(),
+        );
         let out = warp_label_map(&img, &ident, &img).unwrap();
         assert_eq!(host(&out), v, "identity warp must preserve labels exactly");
     }
@@ -191,11 +192,9 @@ mod tests {
         let img = label_image(v.clone(), [d, h, w]);
         let device = Default::default();
         // Small in-bounds shift along the x/d2 world axis (component 2, identity dir).
-        let t = TranslationTransform::<B, 3>::new(Tensor::from_slice_on(
-            [3],
-            &[0.0, 0.0, -2.0],
-            &device,
-        ));
+        let t = TranslationTransform::<B, 3>::new(
+            Tensor::from_slice_on([3], &[0.0, 0.0, -2.0], &device).unwrap(),
+        );
         let out = host(&warp_label_map(&img, &t, &img).unwrap());
         // No blending: only the original label values appear.
         for &val in &out {

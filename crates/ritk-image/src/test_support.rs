@@ -49,6 +49,7 @@ where
 {
     let backend = B::default();
     Tensor::<T, B>::from_slice_on(dims, &data, &backend)
+        .expect("test fixture data length matches dims")
 }
 
 /// Build an [`Image<T, B, D>`] from raw voxel data with default spatial metadata.

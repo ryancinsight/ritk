@@ -134,7 +134,7 @@ fn write_multiframe_impl<B: Backend>(
     image: &Image<f32, B, 3>,
     config: &MultiFrameWriterConfig,
 ) -> Result<()> {
-    let all_data = image.data_cow_on(&B::default()).into_owned();
+    let all_data = image.data_cow_on(&B::default())?.into_owned();
     write_multiframe_flat(path, &all_data, image.shape(), config)
 }
 

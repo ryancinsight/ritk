@@ -137,7 +137,7 @@ impl RelabelComponentFilter {
 
         let (output_vec, stats) = relabel_values(flat, self.minimum_object_size)?;
 
-        let tensor = Tensor::<f32, B>::from_slice(shape, &output_vec);
+        let tensor = Tensor::<f32, B>::from_slice(shape, &output_vec)?;
         let out_image = Image::new(
             tensor,
             *label_image.origin(),

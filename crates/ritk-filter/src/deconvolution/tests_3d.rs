@@ -45,7 +45,7 @@ fn wiener_3d_dirac_identity() {
     let result = filter
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     assert_eq!(vals.len(), 27, "output length must equal 27");
     for (i, &v) in vals.iter().enumerate() {
         // Tolerance accounts for K-attenuation: err ≤ input[i] × K/(1+K)
@@ -68,7 +68,7 @@ fn wiener_3d_zero_k_dirac_identity() {
     let result = filter
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     for (i, &v) in vals.iter().enumerate() {
         assert!(
             (v - image_vals[i]).abs() < 0.1,
@@ -107,7 +107,7 @@ fn tikhonov_3d_dirac_identity() {
     let result = filter
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     for (i, &v) in vals.iter().enumerate() {
         assert!(
             (v - image_vals[i]).abs() < 0.1,
@@ -130,7 +130,7 @@ fn tikhonov_3d_lambda_reduces_variance() {
     let result = TikhonovDeconvolution::new(1.0)
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     // All outputs must be finite — verifies no NaN/Inf in 3-D Laplacian path
     for &v in &vals {
         assert!(v.is_finite(), "Tikhonov 3-D output must be finite, got {v}");
@@ -163,7 +163,7 @@ fn richardson_lucy_3d_dirac_identity() {
     let result = filter
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     for (i, &v) in vals.iter().enumerate() {
         assert!(
             (v - image_vals[i]).abs() < 1.0,
@@ -199,7 +199,7 @@ fn richardson_lucy_3d_preserves_non_negativity() {
         .with_max_iterations(10)
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     for &v in &vals {
         assert!(v >= -0.01, "RL 3-D must preserve non-negativity, got {v}");
     }
@@ -234,7 +234,7 @@ fn landweber_3d_dirac_identity() {
     let result = filter
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     for (i, &v) in vals.iter().enumerate() {
         assert!(
             (v - image_vals[i]).abs() < 0.5,

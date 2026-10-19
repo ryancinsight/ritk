@@ -100,18 +100,15 @@ mod tests {
     #[test]
     fn chained_translations_sum_additively() {
         let backend = SequentialBackend;
-        let first = TranslationTransform::<SequentialBackend, 2>::new(Tensor::from_slice_on(
-            [2],
-            &[1.0, 0.0],
-            &backend,
-        ));
-        let second = TranslationTransform::<SequentialBackend, 2>::new(Tensor::from_slice_on(
-            [2],
-            &[0.0, 1.0],
-            &backend,
-        ));
+        let first = TranslationTransform::<SequentialBackend, 2>::new(
+            Tensor::from_slice_on([2], &[1.0, 0.0], &backend).expect("test tensor is valid"),
+        );
+        let second = TranslationTransform::<SequentialBackend, 2>::new(
+            Tensor::from_slice_on([2], &[0.0, 1.0], &backend).expect("test tensor is valid"),
+        );
         let chain = ChainedTransform::new(first, second);
-        let points = Tensor::from_slice_on([1, 2], &[0.0, 0.0], &backend);
+        let points =
+            Tensor::from_slice_on([1, 2], &[0.0, 0.0], &backend).expect("test tensor is valid");
 
         let transformed = chain.transform_points(points);
 

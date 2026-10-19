@@ -28,8 +28,10 @@ impl<B: Backend + BackendOps<f32>, const D: usize> ScaleTransform<B, D> {
         assert_eq!(scale.shape(), [D], "scale parameter must have shape [{D}]");
         assert_eq!(center.shape(), [D], "scale center must have shape [{D}]");
         Self {
-            scale: Var::new(scale, true),
-            center: Var::new(center, false),
+            scale: Var::new(scale, true)
+                .expect("scale transform requires backend evaluation to succeed"),
+            center: Var::new(center, false)
+                .expect("scale transform requires backend evaluation to succeed"),
         }
     }
 
@@ -37,8 +39,12 @@ impl<B: Backend + BackendOps<f32>, const D: usize> ScaleTransform<B, D> {
     #[must_use]
     pub fn identity(center: Option<Tensor<f32, B>>, backend: &B) -> Self {
         Self::new(
-            Tensor::ones_on([D], backend),
-            center.unwrap_or_else(|| Tensor::zeros_on([D], backend)),
+            Tensor::ones_on([D], backend)
+                .expect("scale transform requires backend evaluation to succeed"),
+            center.unwrap_or_else(|| {
+                Tensor::zeros_on([D], backend)
+                    .expect("scale transform requires backend evaluation to succeed")
+            }),
         )
     }
 
@@ -66,11 +72,20 @@ impl<B: Backend + BackendOps<f32>, const D: usize> ScaleTransform<B, D> {
             "scale transform requires points shaped [N, {D}], got {shape:?}"
         );
         let target = vec![shape[0], D];
-        let center = broadcast_variable(&reshape(&self.center, [1, D]), target.clone());
-        let scale = broadcast_variable(&reshape(&self.scale, [1, D]), target);
-        let centered = sub_variables(points, &center);
-        let scaled = mul_variables(&centered, &scale);
+        let center_row = reshape(&self.center, [1, D])
+            .expect("scale transform requires backend evaluation to succeed");
+        let scale_row = reshape(&self.scale, [1, D])
+            .expect("scale transform requires backend evaluation to succeed");
+        let center = broadcast_variable(&center_row, target.clone())
+            .expect("scale transform requires backend evaluation to succeed");
+        let scale = broadcast_variable(&scale_row, target)
+            .expect("scale transform requires backend evaluation to succeed");
+        let centered = sub_variables(points, &center)
+            .expect("scale transform requires backend evaluation to succeed");
+        let scaled = mul_variables(&centered, &scale)
+            .expect("scale transform requires backend evaluation to succeed");
         add_variables(&scaled, &center)
+            .expect("scale transform requires backend evaluation to succeed")
     }
 }
 
@@ -87,11 +102,18 @@ where
         );
         let backend = B::default();
         let target = [shape[0], D];
-        let center = broadcast_to(&self.center.tensor.reshape([1, D]), &target, &backend);
-        let scale = broadcast_to(&self.scale.tensor.reshape([1, D]), &target, &backend);
-        let centered = sub(&points, &center, &backend);
-        let scaled = mul(&centered, &scale, &backend);
+        let center_row = self.center.tensor.reshape([1, D]);
+        let scale_row = self.scale.tensor.reshape([1, D]);
+        let center = broadcast_to(&center_row, &target, &backend)
+            .expect("scale transform requires backend evaluation to succeed");
+        let scale = broadcast_to(&scale_row, &target, &backend)
+            .expect("scale transform requires backend evaluation to succeed");
+        let centered = sub(&points, &center, &backend)
+            .expect("scale transform requires backend evaluation to succeed");
+        let scaled = mul(&centered, &scale, &backend)
+            .expect("scale transform requires backend evaluation to succeed");
         add(&scaled, &center, &backend)
+            .expect("scale transform requires backend evaluation to succeed")
     }
 }
 
@@ -133,10 +155,11 @@ mod tests {
     fn scales_about_fixed_center() {
         let backend = SequentialBackend;
         let transform = ScaleTransform::<SequentialBackend, 2>::new(
-            Tensor::from_slice_on([2], &[2.0, 2.0], &backend),
-            Tensor::from_slice_on([2], &[1.0, 1.0], &backend),
+            Tensor::from_slice_on([2], &[2.0, 2.0], &backend).expect("test tensor is valid"),
+            Tensor::from_slice_on([2], &[1.0, 1.0], &backend).expect("test tensor is valid"),
         );
-        let points = Tensor::from_slice_on([2, 2], &[1.0, 1.0, 2.0, 2.0], &backend);
+        let points = Tensor::from_slice_on([2, 2], &[1.0, 1.0, 2.0, 2.0], &backend)
+            .expect("test tensor is valid");
 
         let transformed = transform.transform_points(points);
 

@@ -237,7 +237,8 @@ pub fn neighborhood_connected<B: Backend>(
 
     let result = grow_neighborhood(&img_vals, shape, seed, lower, upper, radius);
 
-    let tensor = Tensor::<f32, B>::from_slice(shape, &result);
+    let tensor = Tensor::<f32, B>::from_slice(shape, &result)
+        .expect("invariant: segmentation output length matches shape");
 
     Image::new(
         tensor,

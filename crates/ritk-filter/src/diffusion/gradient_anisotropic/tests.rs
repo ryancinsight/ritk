@@ -161,7 +161,8 @@ fn spatial_metadata_preserved() {
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 0.5, 1.0]);
     let direction = Direction::identity();
-    let tensor = Tensor::<f32, B>::from_slice([2, 2, 2], &[1.0_f32; 8]);
+    let tensor =
+        Tensor::<f32, B>::from_slice([2, 2, 2], &[1.0_f32; 8]).expect("test tensor is valid");
     let img = Image::new(tensor, origin, spacing, direction)
         .expect("invariant: fixture tensor has the declared rank");
     let cfg = GradientDiffusionConfig::default();

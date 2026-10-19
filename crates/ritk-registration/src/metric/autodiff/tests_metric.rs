@@ -21,17 +21,15 @@ type B = SequentialBackend;
 const DIMS: [usize; 3] = [1, 1, 6];
 
 fn var(data: &[f64], requires_grad: bool) -> Var<f64, B> {
-    Var::new(
-        Tensor::<f64, B>::from_slice_on([data.len()], data, &SequentialBackend),
-        requires_grad,
-    )
+    let tensor = Tensor::<f64, B>::from_slice_on([data.len()], data, &SequentialBackend)
+        .expect("test fixture tensor build failed");
+    Var::new(tensor, requires_grad).expect("test fixture Var build failed")
 }
 
 fn var_shaped(shape: &[usize], data: &[f64], requires_grad: bool) -> Var<f64, B> {
-    Var::new(
-        Tensor::<f64, B>::from_slice_on(shape.to_vec(), data, &SequentialBackend),
-        requires_grad,
-    )
+    let tensor = Tensor::<f64, B>::from_slice_on(shape.to_vec(), data, &SequentialBackend)
+        .expect("test fixture tensor build failed");
+    Var::new(tensor, requires_grad).expect("test fixture Var build failed")
 }
 
 /// Ramp moving image `moving[x] = x` flattened for `DIMS = [1, 1, 6]`.

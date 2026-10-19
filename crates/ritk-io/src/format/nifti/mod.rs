@@ -11,21 +11,22 @@ use std::path::Path;
 fn native_to_legacy<B: Backend>(
     native: ritk_image::Image<f32, SequentialBackend, 3>,
     device: &B,
-) -> Image<f32, B, 3> {
-    let values = native.data_cow_on(&SequentialBackend);
-    let tensor = Tensor::<f32, B>::from_slice_on(native.shape(), values.as_ref(), device);
-    Image::new(
+) -> Result<Image<f32, B, 3>> {
+    let values = native.data_cow_on(&SequentialBackend)?;
+    let tensor = Tensor::<f32, B>::from_slice_on(native.shape(), values.as_ref(), device)?;
+    Ok(Image::new(
         tensor,
         *native.origin(),
         *native.spacing(),
         *native.direction(),
     )
-    .expect("invariant: backend conversion preserves the validated image rank")
+    .expect("invariant: backend conversion preserves the validated image rank"))
 }
 
 /// Reads NIfTI through the native provider and converts at this legacy boundary.
 pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Image<f32, B, 3>> {
-    ritk_nifti::read_nifti(path, &SequentialBackend).map(|native| native_to_legacy(native, device))
+    ritk_nifti::read_nifti(path, &SequentialBackend)
+        .and_then(|native| native_to_legacy(native, device))
 }
 
 /// Reads a NIfTI acquisition series through the native provider.
@@ -36,14 +37,14 @@ pub fn read_nifti_series<B: Backend, P: AsRef<Path>>(
     let natives = ritk_nifti::read_nifti_series(path, &SequentialBackend)?;
     natives
         .into_iter()
-        .map(|native| Ok(native_to_legacy(native, device)))
+        .map(|native| native_to_legacy(native, device))
         .collect()
 }
 
 /// Reads in-memory NIfTI through the native provider and converts at this boundary.
 pub fn read_nifti_from_bytes<B: Backend>(bytes: &[u8], device: &B) -> Result<Image<f32, B, 3>> {
     ritk_nifti::read_nifti_from_bytes(bytes, &SequentialBackend)
-        .map(|native| native_to_legacy(native, device))
+        .and_then(|native| native_to_legacy(native, device))
 }
 
 /// Reads an in-memory NIfTI payload directly into a Coeus-backed image.
@@ -58,7 +59,7 @@ pub fn read_nifti_from_bytes_native<B: coeus_core::ComputeBackend>(
 pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<f32, B, 3>) -> Result<()> {
     let backend = SequentialBackend;
     let native = ritk_image::Image::from_flat_on(
-        image.data_cow_on(&B::default()).into_owned(),
+        image.data_cow_on(&B::default())?.into_owned(),
         image.shape(),
         *image.origin(),
         *image.spacing(),

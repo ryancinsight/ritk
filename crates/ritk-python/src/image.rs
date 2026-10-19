@@ -94,7 +94,10 @@ impl PyImage {
     fn to_numpy<'py>(&self, py: Python<'py>) -> RitkResult<Bound<'py, PyArray3<f32>>> {
         let shape = self.inner.shape();
         let backend = MoiraiBackend;
-        let cow = self.inner.data_cow_on(&backend);
+        let cow = self
+            .inner
+            .data_cow_on(&backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))?;
         PyArray1::<f32>::from_vec(py, cow.into_owned())
             .reshape([shape[0], shape[1], shape[2]])
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -164,7 +167,10 @@ pub fn into_py_image<I: IntoPyImage>(image: I) -> PyImage {
 
 /// Convert a native image from `ritk-io` onto `MoiraiBackend`.
 pub fn native_into_py_image(image: ritk_io::NativeImage) -> PyImage {
-    let values = image.data_cow_on(&SequentialBackend).into_owned();
+    let values = image
+        .data_cow_on(&SequentialBackend)
+        .expect("native image is host-addressable")
+        .into_owned();
     let shape = image.shape();
     into_py_image(
         NativeImage::from_flat_on(
@@ -200,14 +206,19 @@ pub fn image_from_py(image: &PyImage) -> ScalarImage {
 /// Extract logical row-major image data as `Vec<f32>` plus shape `[Z, Y, X]`.
 pub fn image_to_vec(image: &ScalarImage) -> (Vec<f32>, [usize; 3]) {
     let shape = image.shape();
-    let values = image.data_cow_on(&MoiraiBackend).into_owned();
+    let values = image
+        .data_cow_on(&MoiraiBackend)
+        .expect("image data extracts from host memory")
+        .into_owned();
     (values, shape)
 }
 
 /// Call `f` with a logical row-major slice view of a native image.
 pub(crate) fn with_image_slice<R, F: FnOnce(&[f32]) -> R>(image: &ScalarImage, f: F) -> R {
-    let cow = image.data_cow_on(&MoiraiBackend);
-    f(cow.as_ref())
+    let cow = image
+        .data_cow_on(&MoiraiBackend)
+        .expect("image data extracts from host memory");
+    f(&cow)
 }
 
 /// Call `f` with logical row-major views of two native images.

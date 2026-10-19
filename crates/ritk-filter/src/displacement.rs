@@ -1,4 +1,4 @@
-﻿//! Transform-to-displacement-field: sample an affine transform onto a grid.
+//! Transform-to-displacement-field: sample an affine transform onto a grid.
 //!
 //! # Mathematical Specification
 //!
@@ -68,7 +68,8 @@ pub fn transform_to_displacement_field<B: Backend>(
 
     let extract_component = |values: Vec<f32>| -> Image<f32, B, 3> {
         Image::new(
-            Tensor::<f32, B>::from_slice(dims, &values),
+            Tensor::<f32, B>::from_slice(dims, &values)
+                .expect("filter requires host-accessible tensors"),
             *reference.origin(),
             *reference.spacing(),
             *reference.direction(),

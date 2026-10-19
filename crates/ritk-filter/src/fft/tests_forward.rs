@@ -20,7 +20,8 @@ type B = coeus_core::SequentialBackend;
 
 /// Build a 2-D real image with row-major data and shape `[h, w]`.
 fn make_real_2d(data: Vec<f32>, h: usize, w: usize) -> Image<f32, B, 2> {
-    let tensor = ritk_image::tensor::Tensor::<f32, B>::from_slice([h, w], &data);
+    let tensor = ritk_image::tensor::Tensor::<f32, B>::from_slice([h, w], &data)
+        .expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64]),
@@ -32,7 +33,8 @@ fn make_real_2d(data: Vec<f32>, h: usize, w: usize) -> Image<f32, B, 2> {
 
 /// Build a 3-D real image with row-major data and shape `[d, h, w]`.
 fn make_real_3d(data: Vec<f32>, d: usize, h: usize, w: usize) -> Image<f32, B, 3> {
-    let tensor = ritk_image::tensor::Tensor::<f32, B>::from_slice([d, h, w], &data);
+    let tensor = ritk_image::tensor::Tensor::<f32, B>::from_slice([d, h, w], &data)
+        .expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64, 0.0_f64]),

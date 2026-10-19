@@ -67,7 +67,10 @@ where
 
         let fixed_world = fixed_world_points(fixed);
 
-        let f = fixed.data_cow_on(&B::default()).into_owned();
+        let f = fixed
+            .data_cow_on(&B::default())
+            .expect("invariant: fixed image is host-addressable")
+            .into_owned();
         let gf = compute_gradient_field(&f, &shape, &stride);
         let eta_f2 = weighted_eta2(&gf, mask, weights);
 

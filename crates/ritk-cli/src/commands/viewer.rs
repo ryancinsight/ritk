@@ -15,7 +15,6 @@
 use anyhow::{bail, Context, Result};
 use clap::Parser;
 use ritk_io::{DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, DicomStudyCatalog};
-use ritk_snap::GeometrySummary;
 use std::path::PathBuf;
 
 use super::Backend;
@@ -118,31 +117,32 @@ fn print_summary(
 }
 
 fn print_geometry(meta: &DicomReadMetadata) {
-    let summary = GeometrySummary::from_dicom(meta);
+    // T2 (RITK-SNAP-RETURN-001): read `ritk_snap::GeometrySummary` again once
+    // snap rejoins. `from_dicom` is a field copy; inlining is equivalent.
     println!("geometry:");
     println!(
         "  dimensions: [{}, {}, {}]",
-        summary.dimensions[0], summary.dimensions[1], summary.dimensions[2]
+        meta.dimensions[0], meta.dimensions[1], meta.dimensions[2]
     );
     println!(
         "  spacing: [{:.6}, {:.6}, {:.6}]",
-        summary.spacing[0], summary.spacing[1], summary.spacing[2]
+        meta.spacing[0], meta.spacing[1], meta.spacing[2]
     );
     println!(
         "  origin: [{:.6}, {:.6}, {:.6}]",
-        summary.origin[0], summary.origin[1], summary.origin[2]
+        meta.origin[0], meta.origin[1], meta.origin[2]
     );
     println!(
         "  direction:\n    [{:.6}, {:.6}, {:.6}]\n    [{:.6}, {:.6}, {:.6}]\n    [{:.6}, {:.6}, {:.6}]",
-        summary.direction[0],
-        summary.direction[1],
-        summary.direction[2],
-        summary.direction[3],
-        summary.direction[4],
-        summary.direction[5],
-        summary.direction[6],
-        summary.direction[7],
-        summary.direction[8]
+        meta.direction[0],
+        meta.direction[1],
+        meta.direction[2],
+        meta.direction[3],
+        meta.direction[4],
+        meta.direction[5],
+        meta.direction[6],
+        meta.direction[7],
+        meta.direction[8]
     );
     println!("  modality: {:?}", meta.modality);
     println!("  series_uid: {:?}", meta.series_instance_uid);

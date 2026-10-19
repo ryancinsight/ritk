@@ -8,7 +8,11 @@ use coeus_tensor::Tensor;
 fn sequence_forward_is_finite_and_differentiable() {
     let layer =
         SelectiveStateSpace::<MoiraiBackend>::new(SelectiveStateSpaceConfig::new_with_dims(2, 2));
-    let input = Var::new(Tensor::ones_on([1, 3, 2], &MoiraiBackend::new()), true);
+    let input = Var::new(
+        Tensor::ones_on([1, 3, 2], &MoiraiBackend::new()).expect("test tensor is valid"),
+        true,
+    )
+    .expect("test tensor is valid");
 
     let output = layer.forward(&input).expect("sequence shape is valid");
 
@@ -37,9 +41,10 @@ fn volumetric_forward_preserves_spatial_shape() {
     let layer =
         SelectiveStateSpace::<MoiraiBackend>::new(SelectiveStateSpaceConfig::new_with_dims(2, 3));
     let input = Var::new(
-        Tensor::ones_on([1, 2, 2, 2, 2], &MoiraiBackend::new()),
+        Tensor::ones_on([1, 2, 2, 2, 2], &MoiraiBackend::new()).expect("test tensor is valid"),
         false,
-    );
+    )
+    .expect("test tensor is valid");
 
     let output = layer.forward_3d(&input).expect("volume shape is valid");
 

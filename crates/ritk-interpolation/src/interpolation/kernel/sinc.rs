@@ -232,9 +232,13 @@ where
         let idx_rank = idx_shape[1];
         assert_eq!(idx_rank, rank, "indices rank must match data rank");
 
-        let data_contig = data.to_contiguous();
+        let data_contig = data
+            .to_contiguous()
+            .expect("interpolation requires host-accessible tensors");
         let flat_slice = data_contig.as_slice();
-        let idx_contig = indices.to_contiguous();
+        let idx_contig = indices
+            .to_contiguous()
+            .expect("interpolation requires host-accessible tensors");
         let idx_slice = idx_contig.as_slice();
 
         let mut results = Vec::with_capacity(n_points);
@@ -250,6 +254,7 @@ where
         }
 
         Tensor::from_slice([n_points], &results)
+            .expect("interpolation output length matches point count")
     }
 }
 

@@ -114,7 +114,8 @@ fn step_edge_gradient_at_boundary() {
 #[test]
 fn spatial_metadata_preserved() {
     let sp = Spacing::new([2.5, 3.5, 4.5]);
-    let t = Tensor::<f32, B>::from_slice([1usize, 1, 3], &[1.0_f32, 2.0, 3.0]);
+    let t = Tensor::<f32, B>::from_slice([1usize, 1, 3], &[1.0_f32, 2.0, 3.0])
+        .expect("test tensor is valid");
     let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity())
         .expect("invariant: fixture tensor has the declared rank");
     let out = GrayscaleMorphologicalGradientFilter::new(1)

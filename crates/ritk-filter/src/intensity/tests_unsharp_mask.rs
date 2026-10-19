@@ -13,7 +13,7 @@ fn make_image(vals: Vec<f32>, depth: usize, rows: usize, cols: usize) -> Image<f
 }
 
 fn image_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data().to_vec()
+    img.data().to_vec().expect("test tensor is valid")
 }
 
 /// Invariant: uniform input → output = input.
@@ -150,7 +150,8 @@ fn no_clamp_allows_overshoot() {
 /// Invariant: spatial metadata (origin, spacing, direction) is preserved.
 #[test]
 fn spatial_metadata_preserved() {
-    let tensor = Tensor::<f32, B>::from_slice([2, 3, 3], &[1.0_f32; 2 * 3 * 3]);
+    let tensor = Tensor::<f32, B>::from_slice([2, 3, 3], &[1.0_f32; 2 * 3 * 3])
+        .expect("test tensor is valid");
     let origin = Point::new([10.0, 20.0, 30.0]);
     let spacing = Spacing::new([1.5, 2.0, 0.75]);
     let dir = Direction::<3>::identity();

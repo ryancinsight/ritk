@@ -241,7 +241,7 @@ mod tests_native {
 
         let coeus_img = ts::make_image::<f32, coeus_core::SequentialBackend, 3>(vals.clone(), dims);
         let coeus_out = filter().apply(&coeus_img);
-        let coeus_vals = coeus_out.data().to_vec();
+        let coeus_vals = coeus_out.data().to_vec().expect("test tensor is valid");
 
         let native_out = filter()
             .apply_native(&make_native_image(vals.clone(), dims), &SequentialBackend)
@@ -250,7 +250,7 @@ mod tests_native {
 
         // Iterative parity (2 passes).
         let coeus_it = filter().apply_iterative(&coeus_img, 2);
-        let coeus_it_vals = coeus_it.data().to_vec();
+        let coeus_it_vals = coeus_it.data().to_vec().expect("test tensor is valid");
         let native_it = filter()
             .apply_iterative_native(&make_native_image(vals, dims), 2, &SequentialBackend)
             .expect("native iterative hole fill");

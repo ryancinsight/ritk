@@ -90,7 +90,9 @@ impl DiscreteGaussianDerivativeFilter {
                 .expect("filter preserves the statically validated image rank and map");
         }
 
-        let flat = tensor.to_vec();
+        let flat = tensor
+            .to_vec()
+            .expect("filter requires host-accessible tensors");
         let result = convolve_separable(flat, dims, &kernels);
         rebuild(result, dims, image)
     }

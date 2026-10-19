@@ -164,7 +164,7 @@ mod tests {
         let volume = read_png_color_to_volume(&path, &SequentialBackend)?;
         assert_eq!(volume.shape(), [1, 1, 2, 3]);
         assert_eq!(
-            volume.data_cow_on(&SequentialBackend).as_ref(),
+            volume.data_cow_on(&SequentialBackend)?.as_ref(),
             &[255.0, 0.0, 0.0, 0.0, 128.0, 255.0]
         );
         Ok(())
@@ -194,7 +194,7 @@ mod tests {
         let volume = read_png_color_series(directory.path(), &SequentialBackend)?;
         assert_eq!(volume.shape(), [3, 1, 1, 3]);
         assert_eq!(
-            volume.data_cow_on(&SequentialBackend).as_ref(),
+            volume.data_cow_on(&SequentialBackend)?.as_ref(),
             &[1.0, 5.0, 9.0, 2.0, 3.0, 4.0, 10.0, 11.0, 12.0]
         );
         Ok(())

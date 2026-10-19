@@ -55,7 +55,7 @@ where
     /// Forward pass over a `[B, D, H, W, C]` token volume.
     pub fn forward(&self, x: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
         let x = self.fc1.forward(x)?;
-        let x = gelu(&x);
+        let x = gelu(&x).map_err(ModelError::backend)?;
         Ok(self.fc2.forward(&x)?)
     }
 

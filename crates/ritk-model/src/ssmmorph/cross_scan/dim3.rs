@@ -29,13 +29,23 @@ impl Scan3D {
             (shape[0], shape[1], shape[2], shape[3], shape[4]);
         let ordered = match direction {
             ScanDirection::HorizontalForward => input.clone(),
-            ScanDirection::HorizontalReverse => flip(input, 4),
-            ScanDirection::VerticalForward => permute(input, &[0, 1, 2, 4, 3]),
-            ScanDirection::VerticalReverse => permute(&flip(input, 3), &[0, 1, 2, 4, 3]),
-            ScanDirection::DepthForward => permute(input, &[0, 1, 3, 4, 2]),
-            ScanDirection::DepthReverse => permute(&flip(input, 2), &[0, 1, 3, 4, 2]),
+            ScanDirection::HorizontalReverse => flip(input, 4).map_err(ModelError::backend)?,
+            ScanDirection::VerticalForward => {
+                permute(input, &[0, 1, 2, 4, 3]).map_err(ModelError::backend)?
+            }
+            ScanDirection::VerticalReverse => {
+                let flipped = flip(input, 3).map_err(ModelError::backend)?;
+                permute(&flipped, &[0, 1, 2, 4, 3]).map_err(ModelError::backend)?
+            }
+            ScanDirection::DepthForward => {
+                permute(input, &[0, 1, 3, 4, 2]).map_err(ModelError::backend)?
+            }
+            ScanDirection::DepthReverse => {
+                let flipped = flip(input, 2).map_err(ModelError::backend)?;
+                permute(&flipped, &[0, 1, 3, 4, 2]).map_err(ModelError::backend)?
+            }
         };
-        Ok(reshape(&ordered, [batch, channels, depth * height * width]))
+        reshape(&ordered, [batch, channels, depth * height * width]).map_err(ModelError::backend)
     }
 
     /// Restore a directional sequence to `[batch, channels, depth, height, width]`.
@@ -62,33 +72,35 @@ impl Scan3D {
         Ok(match direction {
             ScanDirection::HorizontalForward => {
                 reshape(scanned, [batch, channels, depth, height, width])
+                    .map_err(ModelError::backend)?
             }
-            ScanDirection::HorizontalReverse => flip(
-                &reshape(scanned, [batch, channels, depth, height, width]),
-                4,
-            ),
-            ScanDirection::VerticalForward => permute(
-                &reshape(scanned, [batch, channels, depth, width, height]),
-                &[0, 1, 2, 4, 3],
-            ),
-            ScanDirection::VerticalReverse => flip(
-                &permute(
-                    &reshape(scanned, [batch, channels, depth, width, height]),
-                    &[0, 1, 2, 4, 3],
-                ),
-                3,
-            ),
-            ScanDirection::DepthForward => permute(
-                &reshape(scanned, [batch, channels, height, width, depth]),
-                &[0, 1, 4, 2, 3],
-            ),
-            ScanDirection::DepthReverse => flip(
-                &permute(
-                    &reshape(scanned, [batch, channels, height, width, depth]),
-                    &[0, 1, 4, 2, 3],
-                ),
-                2,
-            ),
+            ScanDirection::HorizontalReverse => {
+                let flat = reshape(scanned, [batch, channels, depth, height, width])
+                    .map_err(ModelError::backend)?;
+                flip(&flat, 4).map_err(ModelError::backend)?
+            }
+            ScanDirection::VerticalForward => {
+                let flat = reshape(scanned, [batch, channels, depth, width, height])
+                    .map_err(ModelError::backend)?;
+                permute(&flat, &[0, 1, 2, 4, 3]).map_err(ModelError::backend)?
+            }
+            ScanDirection::VerticalReverse => {
+                let flat = reshape(scanned, [batch, channels, depth, width, height])
+                    .map_err(ModelError::backend)?;
+                let ordered = permute(&flat, &[0, 1, 2, 4, 3]).map_err(ModelError::backend)?;
+                flip(&ordered, 3).map_err(ModelError::backend)?
+            }
+            ScanDirection::DepthForward => {
+                let flat = reshape(scanned, [batch, channels, height, width, depth])
+                    .map_err(ModelError::backend)?;
+                permute(&flat, &[0, 1, 4, 2, 3]).map_err(ModelError::backend)?
+            }
+            ScanDirection::DepthReverse => {
+                let flat = reshape(scanned, [batch, channels, height, width, depth])
+                    .map_err(ModelError::backend)?;
+                let ordered = permute(&flat, &[0, 1, 4, 2, 3]).map_err(ModelError::backend)?;
+                flip(&ordered, 2).map_err(ModelError::backend)?
+            }
         })
     }
 }

@@ -42,7 +42,8 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
     // Axial series: IOP=[1,0,0,0,1,0], normal=[0,0,1], origin=[0,0,0].
     // IPP for slice 0 = [0,0,0].
     {
-        let tensor = Tensor::<f32, B>::from_slice_on([1usize, 2, 2], &(data.clone()), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on([1usize, 2, 2], &(data.clone()), &device)
+            .expect("test tensor is valid");
         let image = Image::<f32, B, 3>::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),
@@ -86,7 +87,8 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
     // IPP for slice 0 = origin + 0×spacing×normal = [0,1,0].
     // Projected onto any normal: axial IPP=0 ≤ coronal IPP≥0 → axial sorts first.
     {
-        let tensor = Tensor::<f32, B>::from_slice_on([1usize, 2, 2], &(data.clone()), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on([1usize, 2, 2], &(data.clone()), &device)
+            .expect("test tensor is valid");
         let image = Image::<f32, B, 3>::new(
             tensor,
             Point::new([0.0, 1.0, 0.0]),
@@ -184,7 +186,8 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
 
     // Series A: pixel_spacing=[0.8,0.8], origin=[0,0,0], IPP=[0,0,0].
     {
-        let tensor = Tensor::<f32, B>::from_slice_on([1usize, 2, 2], &(data.clone()), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on([1usize, 2, 2], &(data.clone()), &device)
+            .expect("test tensor is valid");
         let image = Image::<f32, B, 3>::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),
@@ -227,7 +230,8 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
     // Series B: pixel_spacing=[1.0,1.0], origin=[0,0,1.0], IPP=[0,0,1.0].
     // Different z-position ensures both slices are retained after sort.
     {
-        let tensor = Tensor::<f32, B>::from_slice_on([1usize, 2, 2], &(data.clone()), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on([1usize, 2, 2], &(data.clone()), &device)
+            .expect("test tensor is valid");
         let image = Image::<f32, B, 3>::new(
             tensor,
             Point::new([0.0, 0.0, 1.0]),
@@ -317,7 +321,8 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
     const TOL: f64 = 1e-10;
 
     let device = B::default();
-    let tensor = Tensor::<f32, B>::from_slice_on([2, 4, 4], &[0.0f32; 2 * 4 * 4], &device);
+    let tensor = Tensor::<f32, B>::from_slice_on([2, 4, 4], &[0.0f32; 2 * 4 * 4], &device)
+        .expect("test tensor is valid");
     // Axial: NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0], Δz=2.5, ΔRow=0.8, ΔCol=0.8
     let origin = Point::new([10.0, 20.0, -50.0]);
     let spacing = Spacing::new([2.5, 0.8, 0.8]);

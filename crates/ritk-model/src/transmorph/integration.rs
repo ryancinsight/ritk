@@ -9,6 +9,7 @@
 //! `φ = exp(v)`, realized as `v ← v + v ∘ (Id + v)` iterated `N` times.
 
 use super::spatial_transform::SpatialTransformer;
+use crate::error::ModelError;
 use coeus_autograd::{add, scalar_mul, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_ops::BackendOps;
@@ -31,17 +32,17 @@ impl VecInt {
     }
 
     /// Integrate velocity field `flow` `[B, 3, D, H, W]` to a displacement field.
-    pub fn forward<B>(&self, flow: &Var<f32, B>) -> Var<f32, B>
+    pub fn forward<B>(&self, flow: &Var<f32, B>) -> Result<Var<f32, B>, ModelError>
     where
         B: Backend + BackendOps<f32> + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
     {
         let scale = 1.0 / 2.0f32.powi(self.nsteps as i32);
-        let mut flow = scalar_mul(flow, scale);
+        let mut flow = scalar_mul(flow, scale).map_err(ModelError::backend)?;
         for _ in 0..self.nsteps {
-            let warped = self.stn.forward(&flow, &flow);
-            flow = add(&flow, &warped);
+            let warped = self.stn.forward(&flow, &flow)?;
+            flow = add(&flow, &warped).map_err(ModelError::backend)?;
         }
-        flow
+        Ok(flow)
     }
 }

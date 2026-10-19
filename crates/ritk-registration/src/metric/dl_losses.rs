@@ -15,7 +15,9 @@ use coeus_autograd::{
     avg_pool3d, broadcast_to, div, exp, log, matmul, mean, mul, neg, permute, reshape, scalar_add,
     scalar_div, scalar_mul, sqrt, sub, sum, sum_axis, Var,
 };
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement,
+};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -27,7 +29,7 @@ where
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    mul(x, x)
+    mul(x, x).expect("square: backend multiply failed")
 }
 
 /// Mean Squared Error for rank-5 tensors `[B, C, D, H, W]`.
@@ -36,11 +38,13 @@ where
 /// inputs; the reverse pass yields `∂MSE/∂moving = (2/N)·(moving − fixed)`.
 pub fn mse_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement + leto_ops::Scalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    mean(&square(&sub(fixed, moving)))
+    let diff = sub(fixed, moving).expect("mse_loss: backend subtract failed");
+    let sq = square(&diff);
+    mean(&sq).expect("mse_loss: backend mean failed")
 }
 
 /// Global Normalized Cross-Correlation loss for rank-5 tensors.
@@ -54,32 +58,45 @@ where
 /// broadcasting is needed and gradients flow to both inputs.
 pub fn ncc_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement + leto_ops::Scalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let dims = fixed.tensor.shape();
     let (bc, n) = (dims[0] * dims[1], dims[2] * dims[3] * dims[4]);
-    let f = reshape(fixed, [bc, n]);
-    let m = reshape(moving, [bc, n]);
+    let f = reshape(fixed, [bc, n]).expect("ncc_loss: backend reshape failed");
+    let m = reshape(moving, [bc, n]).expect("ncc_loss: backend reshape failed");
 
     // Per-slice raw moments (`[B·C]` vectors, reduced over the voxel axis).
-    let s_f = sum_axis(&f, 1);
-    let s_m = sum_axis(&m, 1);
-    let s_ff = sum_axis(&square(&f), 1);
-    let s_mm = sum_axis(&square(&m), 1);
-    let s_fm = sum_axis(&mul(&f, &m), 1);
+    let s_f = sum_axis(&f, 1).expect("ncc_loss: backend sum_axis failed");
+    let s_m = sum_axis(&m, 1).expect("ncc_loss: backend sum_axis failed");
+    let f_sq = square(&f);
+    let m_sq = square(&m);
+    let s_ff = sum_axis(&f_sq, 1).expect("ncc_loss: backend sum_axis failed");
+    let s_mm = sum_axis(&m_sq, 1).expect("ncc_loss: backend sum_axis failed");
+    let fm = mul(&f, &m).expect("ncc_loss: backend multiply failed");
+    let s_fm = sum_axis(&fm, 1).expect("ncc_loss: backend sum_axis failed");
 
-    let inv_n = <T as coeus_core::Scalar>::from_f64(n as f64);
+    let inv_n = <T as FloatElement>::from_f64(n as f64);
     // num = S_FM − S_F·S_M / N ; d_X = S_XX − S_X² / N.
-    let num = sub(&s_fm, &scalar_div(&mul(&s_f, &s_m), inv_n));
-    let d_f = sub(&s_ff, &scalar_div(&square(&s_f), inv_n));
-    let d_m = sub(&s_mm, &scalar_div(&square(&s_m), inv_n));
+    let s_f_s_m = mul(&s_f, &s_m).expect("ncc_loss: backend multiply failed");
+    let s_f_s_m_n = scalar_div(&s_f_s_m, inv_n).expect("ncc_loss: backend scalar_div failed");
+    let num = sub(&s_fm, &s_f_s_m_n).expect("ncc_loss: backend subtract failed");
+    let s_f_sq = square(&s_f);
+    let s_f_sq_n = scalar_div(&s_f_sq, inv_n).expect("ncc_loss: backend scalar_div failed");
+    let d_f = sub(&s_ff, &s_f_sq_n).expect("ncc_loss: backend subtract failed");
+    let s_m_sq = square(&s_m);
+    let s_m_sq_n = scalar_div(&s_m_sq, inv_n).expect("ncc_loss: backend scalar_div failed");
+    let d_m = sub(&s_mm, &s_m_sq_n).expect("ncc_loss: backend subtract failed");
 
-    let eps = <T as coeus_core::Scalar>::from_f64(1e-5);
-    let ncc = div(&num, &scalar_add(&sqrt(&mul(&d_f, &d_m)), eps));
+    let eps = <T as FloatElement>::from_f64(1e-5);
+    let d_f_d_m = mul(&d_f, &d_m).expect("ncc_loss: backend multiply failed");
+    let denom_sqrt = sqrt(&d_f_d_m).expect("ncc_loss: backend sqrt failed");
+    let denom = scalar_add(&denom_sqrt, eps).expect("ncc_loss: backend scalar_add failed");
+    let ncc = div(&num, &denom).expect("ncc_loss: backend divide failed");
 
-    neg(&mean(&ncc))
+    let mean_ncc = mean(&ncc).expect("ncc_loss: backend mean failed");
+    neg(&mean_ncc).expect("ncc_loss: backend negate failed")
 }
 
 /// Local Normalized Cross-Correlation loss for rank-5 tensors.
@@ -94,25 +111,35 @@ where
 /// fields; `LNCC = Cov / √(Var_F·Var_M + ε)`.
 pub fn lncc_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>, kernel_size: usize) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement + leto_ops::Scalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let pool = |x: &Var<T, B>| box_filter(x, kernel_size);
     let mean_f = pool(fixed);
     let mean_m = pool(moving);
-    let mean_f2 = pool(&square(fixed));
-    let mean_m2 = pool(&square(moving));
-    let mean_fm = pool(&mul(fixed, moving));
+    let fixed_sq = square(fixed);
+    let moving_sq = square(moving);
+    let mean_f2 = pool(&fixed_sq);
+    let mean_m2 = pool(&moving_sq);
+    let fixed_moving = mul(fixed, moving).expect("lncc_loss: backend multiply failed");
+    let mean_fm = pool(&fixed_moving);
 
-    let var_f = sub(&mean_f2, &square(&mean_f));
-    let var_m = sub(&mean_m2, &square(&mean_m));
-    let cov = sub(&mean_fm, &mul(&mean_f, &mean_m));
+    let mean_f_sq = square(&mean_f);
+    let var_f = sub(&mean_f2, &mean_f_sq).expect("lncc_loss: backend subtract failed");
+    let mean_m_sq = square(&mean_m);
+    let var_m = sub(&mean_m2, &mean_m_sq).expect("lncc_loss: backend subtract failed");
+    let mean_f_m = mul(&mean_f, &mean_m).expect("lncc_loss: backend multiply failed");
+    let cov = sub(&mean_fm, &mean_f_m).expect("lncc_loss: backend subtract failed");
 
-    let eps = <T as coeus_core::Scalar>::from_f64(1e-5);
-    let cc = div(&cov, &scalar_add(&sqrt(&mul(&var_f, &var_m)), eps));
+    let eps = <T as FloatElement>::from_f64(1e-5);
+    let var_f_m = mul(&var_f, &var_m).expect("lncc_loss: backend multiply failed");
+    let denom_sqrt = sqrt(&var_f_m).expect("lncc_loss: backend sqrt failed");
+    let denom = scalar_add(&denom_sqrt, eps).expect("lncc_loss: backend scalar_add failed");
+    let cc = div(&cov, &denom).expect("lncc_loss: backend divide failed");
 
-    neg(&mean(&cc))
+    let mean_cc = mean(&cc).expect("lncc_loss: backend mean failed");
+    neg(&mean_cc).expect("lncc_loss: backend negate failed")
 }
 
 /// Channel-wise uniform box filter (mean over each `kernel_size³` window) via
@@ -130,10 +157,13 @@ where
     // Output spatial extent for stride 1, dilation 1: size + 2·pad − (k − 1).
     let out_dim = |size: usize| size + 2 * pad + 1 - kernel_size;
     let backend = B::default();
-    let mut out = Tensor::zeros_on([b, c, out_dim(d), out_dim(h), out_dim(w)], &backend);
+    let mut out = Tensor::zeros_on([b, c, out_dim(d), out_dim(h), out_dim(w)], &backend)
+        .expect("box_filter: backend zeros failed");
     // The autograd `avg_pool3d` only attaches the backward node; compute the
     // forward pooled field into `out` via the backend kernel first.
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let (out_storage, out_layout) = out
+        .storage_mut_and_layout()
+        .expect("box_filter: backend storage detach failed");
     backend
         .avg_pool3d(
             x.tensor.storage(),
@@ -147,6 +177,7 @@ where
         )
         .expect("invariant: pooled output shape is derived from the input shape");
     avg_pool3d(x, out, kernel_size, stride, pad, dilation)
+        .expect("box_filter: backend avg_pool3d failed")
 }
 
 /// Mutual-Information loss for rank-5 tensors, differentiable via soft (RBF)
@@ -165,7 +196,7 @@ pub fn mi_loss<T, B>(
     sigma: f64,
 ) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement + leto_ops::Scalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -176,53 +207,58 @@ where
     // Bin centers over [0, 1] (constant leaf, no gradient), row `[1, num_bins]`.
     let denom = (num_bins as f64 - 1.0).max(1.0);
     let bin_data: Vec<T> = (0..num_bins)
-        .map(|i| <T as coeus_core::Scalar>::from_f64(i as f64 / denom))
+        .map(|i| <T as FloatElement>::from_f64(i as f64 / denom))
         .collect();
-    let bins_row = broadcast_to(
-        &Var::new(
-            Tensor::from_slice_on([1, num_bins], &bin_data, &backend),
-            false,
-        ),
-        [n, num_bins],
-    );
+    let bins_tensor = Tensor::from_slice_on([1, num_bins], &bin_data, &backend)
+        .expect("mi_loss: backend tensor build failed");
+    let bins_var = Var::new(bins_tensor, false).expect("mi_loss: backend Var build failed");
+    let bins_row =
+        broadcast_to(&bins_var, [n, num_bins]).expect("mi_loss: backend broadcast failed");
 
     // Soft membership of each voxel to each bin: exp(−(I − bin)²/(2σ²)).
     let inv_2sigma2 = -1.0 / (2.0 * sigma * sigma);
     let soft = |img: &Var<T, B>| -> Var<T, B> {
-        let col = broadcast_to(&reshape(img, [n, 1]), [n, num_bins]);
-        let d = sub(&col, &bins_row);
-        let exponent = scalar_mul(
-            &square(&d),
-            <T as coeus_core::Scalar>::from_f64(inv_2sigma2),
-        );
-        exp(&exponent)
+        let reshaped = reshape(img, [n, 1]).expect("mi_loss: backend reshape failed");
+        let col =
+            broadcast_to(&reshaped, [n, num_bins]).expect("mi_loss: backend broadcast failed");
+        let d = sub(&col, &bins_row).expect("mi_loss: backend subtract failed");
+        let d_sq = square(&d);
+        let exponent = scalar_mul(&d_sq, <T as FloatElement>::from_f64(inv_2sigma2))
+            .expect("mi_loss: backend scalar_mul failed");
+        exp(&exponent).expect("mi_loss: backend exp failed")
     };
     let w_f = soft(fixed); // [N, bins]
     let w_m = soft(moving); // [N, bins]
 
     // Joint histogram Wá¶ áµ€·Wᵐ (`[bins, bins]`), normalized to a probability.
-    let joint = matmul(&permute(&w_f, &[1, 0]), &w_m);
-    let joint_p = scalar_div(&joint, <T as coeus_core::Scalar>::from_f64(n as f64));
+    let w_f_t = permute(&w_f, &[1, 0]).expect("mi_loss: backend permute failed");
+    let joint = matmul(&w_f_t, &w_m).expect("mi_loss: backend matmul failed");
+    let joint_p = scalar_div(&joint, <T as FloatElement>::from_f64(n as f64))
+        .expect("mi_loss: backend scalar_div failed");
 
     // Marginals broadcast back to `[bins, bins]`.
-    let p_f = broadcast_to(
-        &reshape(&sum_axis(&joint_p, 1), [num_bins, 1]),
-        [num_bins, num_bins],
-    );
-    let p_m = broadcast_to(
-        &reshape(&sum_axis(&joint_p, 0), [1, num_bins]),
-        [num_bins, num_bins],
-    );
+    let jsum1 = sum_axis(&joint_p, 1).expect("mi_loss: backend sum_axis failed");
+    let jsum1_r = reshape(&jsum1, [num_bins, 1]).expect("mi_loss: backend reshape failed");
+    let p_f =
+        broadcast_to(&jsum1_r, [num_bins, num_bins]).expect("mi_loss: backend broadcast failed");
+    let jsum0 = sum_axis(&joint_p, 0).expect("mi_loss: backend sum_axis failed");
+    let jsum0_r = reshape(&jsum0, [1, num_bins]).expect("mi_loss: backend reshape failed");
+    let p_m =
+        broadcast_to(&jsum0_r, [num_bins, num_bins]).expect("mi_loss: backend broadcast failed");
 
-    let eps = <T as coeus_core::Scalar>::from_f64(1e-10);
-    let log_joint = log(&scalar_add(&joint_p, eps));
-    let log_pf = log(&scalar_add(&p_f, eps));
-    let log_pm = log(&scalar_add(&p_m, eps));
+    let eps = <T as FloatElement>::from_f64(1e-10);
+    let jp = scalar_add(&joint_p, eps).expect("mi_loss: backend scalar_add failed");
+    let log_joint = log(&jp).expect("mi_loss: backend log failed");
+    let pf = scalar_add(&p_f, eps).expect("mi_loss: backend scalar_add failed");
+    let log_pf = log(&pf).expect("mi_loss: backend log failed");
+    let pm = scalar_add(&p_m, eps).expect("mi_loss: backend scalar_add failed");
+    let log_pm = log(&pm).expect("mi_loss: backend log failed");
     // MI = Σ P(i,j)·(log P(i,j) − log P(i) − log P(j)); loss = −MI.
-    let term = sub(&sub(&log_joint, &log_pf), &log_pm);
-    let weighted_terms = mul(&joint_p, &term);
-    let mutual_information = sum(&weighted_terms);
-    neg(&mutual_information)
+    let log_diff = sub(&log_joint, &log_pf).expect("mi_loss: backend subtract failed");
+    let term = sub(&log_diff, &log_pm).expect("mi_loss: backend subtract failed");
+    let weighted_terms = mul(&joint_p, &term).expect("mi_loss: backend multiply failed");
+    let mutual_information = sum(&weighted_terms).expect("mi_loss: backend sum failed");
+    neg(&mutual_information).expect("mi_loss: backend negate failed")
 }
 
 #[cfg(test)]
@@ -238,17 +274,15 @@ mod tests {
     fn ascending_volume(d: usize) -> Var<f64, B> {
         let n = d * d * d;
         let data: Vec<f64> = (0..n).map(|i| i as f64).collect();
-        Var::new(
-            Tensor::from_slice_on([1, 1, d, d, d], &data, &SequentialBackend),
-            true,
-        )
+        let tensor = Tensor::from_slice_on([1, 1, d, d, d], &data, &SequentialBackend)
+            .expect("test fixture tensor build failed");
+        Var::new(tensor, true).expect("test fixture Var build failed")
     }
 
     fn from_vals(vals: Vec<f64>, d: usize) -> Var<f64, B> {
-        Var::new(
-            Tensor::from_slice_on([1, 1, d, d, d], &vals, &SequentialBackend),
-            true,
-        )
+        let tensor = Tensor::from_slice_on([1, 1, d, d, d], &vals, &SequentialBackend)
+            .expect("test fixture tensor build failed");
+        Var::new(tensor, true).expect("test fixture Var build failed")
     }
 
     fn scalar(v: &Var<f64, B>) -> f64 {

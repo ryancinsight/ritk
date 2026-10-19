@@ -221,7 +221,8 @@ pub fn change_label(
             })
             .collect();
         let device = Backend::default();
-        let tensor = Tensor::<f32, Backend>::from_slice_on(dims, &out, &device);
+        let tensor = Tensor::<f32, Backend>::from_slice_on(dims, &out, &device)
+            .expect("label remap tensor build failed");
         ritk_image::Image::new(tensor, *img.origin(), *img.spacing(), *img.direction())
             .expect("invariant: label remapping preserves the input image rank")
     });

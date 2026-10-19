@@ -25,9 +25,12 @@ use rand::Rng;
 ///
 /// # Returns
 /// Tensor of shape `[N, D]` containing continuous indices
-pub fn generate_grid<T, B, const D: usize>(shape: [usize; D], backend: &B) -> Tensor<T, B>
+pub fn generate_grid<T, B, const D: usize>(
+    shape: [usize; D],
+    backend: &B,
+) -> anyhow::Result<Tensor<T, B>>
 where
-    T: Scalar,
+    T: Scalar + eunomia::FloatElement,
     B: ComputeBackend,
 {
     let total: usize = shape.iter().product();
@@ -37,7 +40,7 @@ where
 
     for _ in 0..total {
         for d in (0..D).rev() {
-            grid.push(T::from_f64(indices[d] as f64));
+            grid.push(<T as eunomia::FloatElement>::from_f64(indices[d] as f64));
         }
 
         for d in (0..D).rev() {
@@ -49,7 +52,7 @@ where
         }
     }
 
-    Tensor::<T, B>::from_slice_on([total, D], &grid, backend)
+    Ok(Tensor::<T, B>::from_slice_on([total, D], &grid, backend)?)
 }
 
 /// Generate uniformly distributed continuous voxel indices.
@@ -61,9 +64,9 @@ pub fn generate_random_points<T, B, const D: usize>(
     shape: [usize; D],
     count: usize,
     backend: &B,
-) -> Tensor<T, B>
+) -> anyhow::Result<Tensor<T, B>>
 where
-    T: Scalar,
+    T: Scalar + eunomia::FloatElement,
     B: ComputeBackend,
 {
     let mut rng = rand::rng();
@@ -71,10 +74,12 @@ where
     for _ in 0..count {
         for column in 0..D {
             let maximum = shape[D - 1 - column].saturating_sub(1) as f64;
-            points.push(T::from_f64(rng.random_range(0.0..=maximum)));
+            points.push(<T as eunomia::FloatElement>::from_f64(
+                rng.random_range(0.0..=maximum),
+            ));
         }
     }
-    Tensor::from_slice_on([count, D], &points, backend)
+    Ok(Tensor::from_slice_on([count, D], &points, backend)?)
 }
 
 #[cfg(test)]

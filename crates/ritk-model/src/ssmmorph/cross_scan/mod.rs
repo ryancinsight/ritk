@@ -23,14 +23,16 @@ mod tests {
                 [1, 1, 2, 3],
                 &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
                 &MoiraiBackend::new(),
-            ),
+            )
+            .expect("test tensor is valid"),
             true,
-        );
+        )
+        .expect("test tensor is valid");
         for &direction in ScanDirection::all_2d() {
             let scanned = Scan2D::scan(&input, direction).expect("planar input is valid");
             let merged =
                 Scan2D::merge(&scanned, 2, 3, direction).expect("planar sequence length is valid");
-            let contiguous = coeus_autograd::contiguous(&merged);
+            let contiguous = coeus_autograd::contiguous(&merged).expect("test tensor is valid");
             assert_eq!(contiguous.tensor.as_slice(), input.tensor.as_slice());
         }
     }
@@ -42,9 +44,11 @@ mod tests {
                 [1, 1, 2, 2, 2],
                 &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
                 &MoiraiBackend::new(),
-            ),
+            )
+            .expect("test tensor is valid"),
             true,
-        );
+        )
+        .expect("test tensor is valid");
         let scan = CrossScan::new(CrossScanConfig::new_3d());
         let sequences = scan.apply(&input).expect("volumetric input is valid");
         let merged = scan
@@ -59,7 +63,11 @@ mod tests {
 
     #[test]
     fn rejects_rank_mismatch() {
-        let input = Var::new(Tensor::zeros_on([1, 1, 2, 2], &MoiraiBackend::new()), false);
+        let input = Var::new(
+            Tensor::zeros_on([1, 1, 2, 2], &MoiraiBackend::new()).expect("test tensor is valid"),
+            false,
+        )
+        .expect("test tensor is valid");
         let result = CrossScan::new(CrossScanConfig::new_3d()).apply(&input);
         assert!(matches!(result, Err(crate::ModelError::Shape { .. })));
     }

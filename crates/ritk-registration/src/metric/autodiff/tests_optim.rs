@@ -12,10 +12,9 @@ use coeus_tensor::Tensor;
 type B = SequentialBackend;
 
 fn var(data: &[f64], requires_grad: bool) -> Var<f64, B> {
-    Var::new(
-        Tensor::<f64, B>::from_slice_on([data.len()], data, &SequentialBackend),
-        requires_grad,
-    )
+    let tensor = Tensor::<f64, B>::from_slice_on([data.len()], data, &SequentialBackend)
+        .expect("test fixture tensor build failed");
+    Var::new(tensor, requires_grad).expect("test fixture Var build failed")
 }
 
 #[test]
@@ -24,7 +23,8 @@ fn step_moves_parameter_along_negative_gradient() {
     let x0 = [1.0, -2.0, 3.0];
     let lr = 0.1;
     let x = var(&x0, true);
-    let loss = sum(&mul(&x, &x));
+    let xx = mul(&x, &x).expect("test setup multiply failed");
+    let loss = sum(&xx).expect("test setup sum failed");
     loss.backward()
         .expect("backward succeeds over the test loss");
     let stepped = sgd_step_var(&x, lr);
@@ -45,13 +45,15 @@ fn stepped_parameter_is_a_fresh_requires_grad_leaf() {
     // The returned leaf must itself accumulate gradients (so the next descent
     // iteration can backprop through it).
     let x = var(&[2.0], true);
-    let loss = sum(&mul(&x, &x));
+    let xx = mul(&x, &x).expect("test setup multiply failed");
+    let loss = sum(&xx).expect("test setup sum failed");
     loss.backward()
         .expect("backward succeeds over the test loss");
     let stepped = sgd_step_var(&x, 0.5);
 
     // New forward on the stepped parameter: loss2 = Σ (stepped)² ⇒ grad = 2·stepped.
-    let loss2 = sum(&mul(&stepped, &stepped));
+    let ss = mul(&stepped, &stepped).expect("test setup multiply failed");
+    let loss2 = sum(&ss).expect("test setup sum failed");
     loss2
         .backward()
         .expect("backward succeeds over the test loss");

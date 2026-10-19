@@ -55,7 +55,8 @@ impl BinaryDilation {
         let (flat_vals, _shape) = extract_vec_infallible(mask);
         let flat: &[f32] = &flat_vals;
         let output = dilate_nd(flat, &shape, self.radius);
-        let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device)
+            .expect("invariant: segmentation output length matches shape");
         Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
             .expect("invariant: segmentation output tensor preserves the image rank")
     }

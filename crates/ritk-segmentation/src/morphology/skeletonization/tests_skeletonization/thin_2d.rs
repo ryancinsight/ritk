@@ -133,7 +133,8 @@ fn test_2d_no_2x2_block() {
 
 #[test]
 fn test_2d_spatial_metadata_preserved() {
-    let tensor = Tensor::<f32, TestBackend>::from_slice([3, 3], &[1.0_f32; 9]);
+    let tensor = Tensor::<f32, TestBackend>::from_slice([3, 3], &[1.0_f32; 9])
+        .expect("test tensor is valid");
     let origin = Point::new([1.0, 2.0]);
     let spacing = Spacing::new([0.5, 1.5]);
     let direction = Direction::identity();

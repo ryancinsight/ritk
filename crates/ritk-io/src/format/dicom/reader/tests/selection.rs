@@ -45,7 +45,13 @@ fn decoded_pixels_are_the_validated_bytes_after_file_replacement() {
             "decoded metadata must not retain the scan payload"
         );
         assert_eq!(image.spacing().to_array(), [2.0, 0.5, 0.5]);
-        assert_eq!(image.data_cow_on(&backend).as_ref(), &[43.0; 4]);
+        assert_eq!(
+            image
+                .data_cow_on(&backend)
+                .expect("test tensor is valid")
+                .as_ref(),
+            &[43.0; 4]
+        );
     }
 }
 
@@ -80,7 +86,10 @@ fn selected_file_and_exact_members_preserve_minority_pixels_and_metadata() {
         let (image, _) = load_dicom_from_series(scanned, &backend).expect("decode selected series");
         assert_eq!(image.shape(), [2, 2, 2]);
         assert_eq!(
-            image.data_cow_on(&backend).as_ref(),
+            image
+                .data_cow_on(&backend)
+                .expect("test tensor is valid")
+                .as_ref(),
             &[31.0, 31.0, 31.0, 31.0, 37.0, 37.0, 37.0, 37.0]
         );
     }
@@ -129,7 +138,13 @@ fn study_catalog_exposes_and_loads_each_series_independently() {
         metadata.direction,
         [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
     );
-    assert_eq!(image.data_cow_on(&backend).as_ref(), &[91.0; 4]);
+    assert_eq!(
+        image
+            .data_cow_on(&backend)
+            .expect("test tensor is valid")
+            .as_ref(),
+        &[91.0; 4]
+    );
 }
 
 #[test]
@@ -206,11 +221,18 @@ fn named_bytes_and_disk_preserve_identical_values_and_geometry() {
     let (disk, _) = load_dicom_from_series(disk, &backend).expect("disk decode");
     let (bytes, _) = load_dicom_from_series(bytes, &backend).expect("bytes decode");
     assert_eq!(
-        disk.data_cow_on(&backend).as_ref(),
-        bytes.data_cow_on(&backend).as_ref()
+        disk.data_cow_on(&backend)
+            .expect("test tensor is valid")
+            .as_ref(),
+        bytes
+            .data_cow_on(&backend)
+            .expect("test tensor is valid")
+            .as_ref()
     );
     assert_eq!(
-        disk.data_cow_on(&backend).as_ref(),
+        disk.data_cow_on(&backend)
+            .expect("test tensor is valid")
+            .as_ref(),
         &[11.0, 11.0, 11.0, 11.0, 13.0, 13.0, 13.0, 13.0]
     );
 }
@@ -360,7 +382,10 @@ fn indexed_folder_loads_complete_known_series() {
     assert_eq!(metadata.origin, [10.0, 20.0, 2.0]);
     assert_eq!(metadata.spacing, [2.0, 0.5, 0.5]);
     assert_eq!(
-        image.data_cow_on(&backend).as_ref(),
+        image
+            .data_cow_on(&backend)
+            .expect("test tensor is valid")
+            .as_ref(),
         &[11.0, 11.0, 11.0, 11.0, 13.0, 13.0, 13.0, 13.0, 17.0, 17.0, 17.0, 17.0]
     );
 }
@@ -467,11 +492,20 @@ fn explicit_index_and_flat_members_agree_on_geometry_and_values() {
     let (indexed_image, _) = load_dicom_from_series(index, &backend).expect("indexed image");
     let (flat_image, _) = load_dicom_from_series(flat, &backend).expect("flat image");
     assert_eq!(
-        indexed_image.data_cow_on(&backend).as_ref(),
-        flat_image.data_cow_on(&backend).as_ref()
+        indexed_image
+            .data_cow_on(&backend)
+            .expect("test tensor is valid")
+            .as_ref(),
+        flat_image
+            .data_cow_on(&backend)
+            .expect("test tensor is valid")
+            .as_ref()
     );
     assert_eq!(
-        flat_image.data_cow_on(&backend).as_ref(),
+        flat_image
+            .data_cow_on(&backend)
+            .expect("test tensor is valid")
+            .as_ref(),
         &[11.0, 11.0, 11.0, 11.0, 13.0, 13.0, 13.0, 13.0, 17.0, 17.0, 17.0, 17.0]
     );
 }

@@ -99,7 +99,7 @@ where
         "Analyze 7.5 has no direction field; the image's non-identity direction \
          is unrepresentable and cannot be written without silently dropping it"
     );
-    let vals = image.data_cow_on(backend);
+    let vals = image.data_cow_on(backend)?;
     write_analyze_flat(
         path.as_ref(),
         image.shape(),

@@ -5,6 +5,7 @@
 //! cover the paths where the coordinate map is load-bearing; the Cartesian
 //! contracts live in `tests_transform.rs`.
 
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
 use ritk_spatial::{CoordinateMap, Direction, Point, Spacing};
@@ -32,10 +33,10 @@ fn single_point_transform_honours_the_curvilinear_map() {
     let point = img.continuous_index_to_physical_point(&index);
 
     // Batch column c corresponds to axis D-1-c on the index side.
-    let batch = img.index_to_world_native(&Tensor::<f32, SequentialBackend>::from_slice(
-        [1, 2],
-        &[index[1] as f32, index[0] as f32],
-    ));
+    let batch_idx =
+        Tensor::<f32, SequentialBackend>::from_slice([1, 2], &[index[1] as f32, index[0] as f32])
+            .unwrap();
+    let batch = img.index_to_world_native(&batch_idx).unwrap();
 
     for axis in 0..2 {
         assert!(
@@ -64,10 +65,10 @@ fn curvilinear_index_round_trips_through_the_image_transforms() {
         63.0, 32.0, // far sample, centre beam
         10.0, 16.0, 40.0, 5.0,
     ];
-    let idx_t = Tensor::<f32, SequentialBackend>::from_slice([4, 2], &indices);
+    let idx_t = Tensor::<f32, SequentialBackend>::from_slice([4, 2], &indices).unwrap();
 
-    let world = img.index_to_world_native(&idx_t);
-    let back = img.world_to_index_native(&world);
+    let world = img.index_to_world_native(&idx_t).unwrap();
+    let back = img.world_to_index_native(&world).unwrap();
 
     for (row, chunk) in back.as_slice().chunks_exact(2).enumerate() {
         for col in 0..2 {
@@ -89,8 +90,8 @@ fn curvilinear_fan_is_symmetric_and_curved() {
     let img = curvilinear_image();
     // Same sample on the outermost beams (0 and 32), centre beam 16.
     let indices: Vec<f32> = vec![63.0, 0.0, 63.0, 32.0, 63.0, 16.0];
-    let idx_t = Tensor::<f32, SequentialBackend>::from_slice([3, 2], &indices);
-    let world = img.index_to_world_native(&idx_t);
+    let idx_t = Tensor::<f32, SequentialBackend>::from_slice([3, 2], &indices).unwrap();
+    let world = img.index_to_world_native(&idx_t).unwrap();
     let w = world.as_slice();
     // Columns are axis-major: axis 1 = lateral (r sin), axis 0 = axial (r cos).
     let (left_lat, left_ax) = (w[1], w[0]);
@@ -123,8 +124,8 @@ fn points_outside_the_fan_become_nan_indices() {
     let img = curvilinear_image();
     // axis-major (axial, lateral): axial <= 0 is outside the acquisition.
     let pts = [-0.05_f32, 0.01];
-    let pts_t = Tensor::<f32, SequentialBackend>::from_slice([1, 2], &pts);
-    let idx = img.world_to_index_native(&pts_t);
+    let pts_t = Tensor::<f32, SequentialBackend>::from_slice([1, 2], &pts).unwrap();
+    let idx = img.world_to_index_native(&pts_t).unwrap();
     assert!(idx.as_slice()[0].is_nan(), "sample index must be NaN");
     assert!(idx.as_slice()[1].is_nan(), "beam index must be NaN");
 }
@@ -138,8 +139,8 @@ fn phased_array_boresight_through_the_image_transform() {
     // shape [8, 5, 9] -> azimuth_count = shape[2] = 9 (centre 4),
     // elevation_count = shape[1] = 5 (centre 2).
     let indices = [4.0_f32, 2.0, 50.0];
-    let idx_t = Tensor::<f32, SequentialBackend>::from_slice([1, 3], &indices);
-    let world = img.index_to_world_native(&idx_t);
+    let idx_t = Tensor::<f32, SequentialBackend>::from_slice([1, 3], &indices).unwrap();
+    let world = img.index_to_world_native(&idx_t).unwrap();
     let w = world.as_slice();
     // axis-major: axis 2 = azimuth, axis 1 = elevation, axis 0 = depth.
     assert!(w[2].abs() < 1.0e-6, "azimuth offset {}", w[2]);
@@ -160,9 +161,9 @@ fn phased_array_round_trips_through_the_image_transforms() {
         8.0, 4.0, 30.0, // opposite corner
         6.0, 1.0, 75.0,
     ];
-    let idx_t = Tensor::<f32, SequentialBackend>::from_slice([4, 3], &indices);
-    let world = img.index_to_world_native(&idx_t);
-    let back = img.world_to_index_native(&world);
+    let idx_t = Tensor::<f32, SequentialBackend>::from_slice([4, 3], &indices).unwrap();
+    let world = img.index_to_world_native(&idx_t).unwrap();
+    let back = img.world_to_index_native(&world).unwrap();
 
     for (row, chunk) in back.as_slice().chunks_exact(3).enumerate() {
         for col in 0..3 {
@@ -183,8 +184,8 @@ fn phased_array_round_trips_through_the_image_transforms() {
 fn phased_array_angles_steer_independently() {
     let img = phased_array_image();
     let indices = [0.0_f32, 2.0, 50.0, 8.0, 2.0, 50.0];
-    let idx_t = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &indices);
-    let w = img.index_to_world_native(&idx_t);
+    let idx_t = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &indices).unwrap();
+    let w = img.index_to_world_native(&idx_t).unwrap();
     let w = w.as_slice();
     // Elevation stays on boresight for both azimuth-steered rays.
     assert!(w[1].abs() < 1.0e-6, "elevation leaked: {}", w[1]);
@@ -199,8 +200,8 @@ fn phased_array_points_behind_the_array_become_nan() {
     let img = phased_array_image();
     // axis-major (depth, elevation, azimuth): depth <= 0 is behind the array.
     let pts = [-0.02_f32, 0.001, 0.001];
-    let pts_t = Tensor::<f32, SequentialBackend>::from_slice([1, 3], &pts);
-    let idx = img.world_to_index_native(&pts_t);
+    let pts_t = Tensor::<f32, SequentialBackend>::from_slice([1, 3], &pts).unwrap();
+    let idx = img.world_to_index_native(&pts_t).unwrap();
     assert!(idx.as_slice().iter().all(|v| v.is_nan()));
 }
 
@@ -317,9 +318,9 @@ fn phased_array_with_origin_round_trips() {
         0.0, 0.0, 30.0, // corner
         8.0, 4.0, 75.0, // opposite corner
     ];
-    let idx_t = Tensor::<f32, SequentialBackend>::from_slice([3, 3], &indices);
-    let world = img.index_to_world_native(&idx_t);
-    let back = img.world_to_index_native(&world);
+    let idx_t = Tensor::<f32, SequentialBackend>::from_slice([3, 3], &indices).unwrap();
+    let world = img.index_to_world_native(&idx_t).unwrap();
+    let back = img.world_to_index_native(&world).unwrap();
 
     for (row, chunk) in back.as_slice().chunks_exact(3).enumerate() {
         for col in 0..3 {
@@ -367,8 +368,8 @@ fn phased_array_batch_matches_single_point_with_origin() {
         // Convert to axis-major for single-point: [sample, elevation, azimuth]
         let idx = Point::new([f64::from(case[2]), f64::from(case[1]), f64::from(case[0])]);
         let single = img.continuous_index_to_physical_point(&idx);
-        let idx_t = Tensor::<f32, SequentialBackend>::from_slice([1, 3], case);
-        let batch = img.index_to_world_native(&idx_t);
+        let idx_t = Tensor::<f32, SequentialBackend>::from_slice([1, 3], case).unwrap();
+        let batch = img.index_to_world_native(&idx_t).unwrap();
         let b = batch.as_slice();
         for axis in 0..3 {
             assert!(

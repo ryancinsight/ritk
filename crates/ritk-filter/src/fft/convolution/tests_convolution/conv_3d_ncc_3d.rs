@@ -10,7 +10,7 @@ use ritk_tensor_ops::extract_vec;
 type B = coeus_core::SequentialBackend;
 
 fn make_image_3d(vals: Vec<f32>, d: usize, h: usize, w: usize) -> Image<f32, B, 3> {
-    let tensor = Tensor::<f32, B>::from_slice([d, h, w], &vals);
+    let tensor = Tensor::<f32, B>::from_slice([d, h, w], &vals).expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64, 0.0_f64]),

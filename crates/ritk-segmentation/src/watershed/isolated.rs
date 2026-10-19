@@ -366,7 +366,7 @@ impl IsolatedWatershed {
         let labels = isolated_watershed_values(&vals, dims, seed1_flat, seed2_flat, &self.config);
 
         let device = B::default();
-        let tensor = Tensor::<f32, B>::from_slice_on(dims, &labels, &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(dims, &labels, &device)?;
 
         Image::new(
             tensor,

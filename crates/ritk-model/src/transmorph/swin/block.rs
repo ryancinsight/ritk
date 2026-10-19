@@ -41,6 +41,10 @@ where
     /// `shift_size = 0` yields a regular-window block; a positive shift yields the
     /// shifted-window variant with a connectivity mask. `mlp_ratio` scales the
     /// MLP hidden width.
+    ///
+    /// # Panics
+    /// Panics when `input_dim` is zero, matching [`Mlp::new`]: both are
+    /// constructed from a config this crate validates before it reaches them.
     pub fn new(
         input_dim: usize,
         num_heads: usize,
@@ -51,9 +55,11 @@ where
     ) -> Self {
         let mlp_hidden_dim = (input_dim as f64 * mlp_ratio) as usize;
         Self {
-            norm1: LayerNorm::new(input_dim, NORM_EPS),
+            norm1: LayerNorm::new(input_dim, NORM_EPS)
+                .expect("invariant: block input dim is positive"),
             attention: WindowAttention::new(input_dim, num_heads, window_size, seed),
-            norm2: LayerNorm::new(input_dim, NORM_EPS),
+            norm2: LayerNorm::new(input_dim, NORM_EPS)
+                .expect("invariant: block input dim is positive"),
             mlp: Mlp::new(input_dim, mlp_hidden_dim, seed ^ 0x1357_9BDF),
             shift_size,
             window_size,
@@ -81,7 +87,7 @@ where
         let normed = self.norm1.forward_nd(x)?;
 
         let (normed, pd, ph, pw) = if needs_pad {
-            let padded = self.pad_tensor(&normed, pad_d, pad_h, pad_w);
+            let padded = self.pad_tensor(&normed, pad_d, pad_h, pad_w)?;
             let (pd, ph, pw) = {
                 let s = padded.tensor.shape();
                 (s[1], s[2], s[3])
@@ -93,62 +99,65 @@ where
 
         let x_att = if self.shift_size > 0 {
             let s = self.shift_size as isize;
-            let shifted = roll(&normed, &[-s, -s, -s], &[1, 2, 3]);
-            let windows = self.window_partition(&shifted);
-            let mask = self.attention_mask(b, pd, ph, pw);
+            let shifted = roll(&normed, &[-s, -s, -s], &[1, 2, 3]).map_err(ModelError::backend)?;
+            let windows = self.window_partition(&shifted)?;
+            let mask = self.attention_mask(b, pd, ph, pw)?;
             let attended = self.attention.forward(&windows, Some(&mask))?;
-            let reversed = self.window_reverse(&attended, b, pd, ph, pw, c);
-            roll(&reversed, &[s, s, s], &[1, 2, 3])
+            let reversed = self.window_reverse(&attended, b, pd, ph, pw, c)?;
+            roll(&reversed, &[s, s, s], &[1, 2, 3]).map_err(ModelError::backend)?
         } else {
-            let windows = self.window_partition(&normed);
+            let windows = self.window_partition(&normed)?;
             let attended = self.attention.forward(&windows, None)?;
-            self.window_reverse(&attended, b, pd, ph, pw, c)
+            self.window_reverse(&attended, b, pd, ph, pw, c)?
         };
 
         let x_att = if needs_pad {
-            slice(&x_att, &[(0, b), (0, d), (0, h), (0, w), (0, c)])
+            slice(&x_att, &[(0, b), (0, d), (0, h), (0, w), (0, c)]).map_err(ModelError::backend)?
         } else {
             x_att
         };
 
-        let x = add(&shortcut, &x_att);
+        let x = add(&shortcut, &x_att).map_err(ModelError::backend)?;
 
         // MLP branch with pre-norm residual.
         let normed2 = self.norm2.forward_nd(&x)?;
         let mlp_out = self.mlp.forward(&normed2)?;
-        Ok(add(&x, &mlp_out))
+        add(&x, &mlp_out).map_err(ModelError::backend)
     }
 
     /// Zero-pad `[B, D, H, W, C]` on the trailing side of the spatial axes so
     /// each spatial extent becomes a multiple of the window size.
-    fn pad_tensor(&self, x: &Var<f32, B>, pad_d: usize, pad_h: usize, pad_w: usize) -> Var<f32, B> {
+    fn pad_tensor(
+        &self,
+        x: &Var<f32, B>,
+        pad_d: usize,
+        pad_h: usize,
+        pad_w: usize,
+    ) -> Result<Var<f32, B>, ModelError> {
         let backend = B::default();
         let mut x = x.clone();
         if pad_d > 0 {
             let s = x.tensor.shape();
-            let pad = Var::new(
-                Tensor::zeros_on([s[0], pad_d, s[2], s[3], s[4]], &backend),
-                false,
-            );
-            x = cat(&[&x, &pad], 1);
+            let zeros = Tensor::zeros_on([s[0], pad_d, s[2], s[3], s[4]], &backend)
+                .map_err(ModelError::backend)?;
+            let pad = Var::new(zeros, false).map_err(ModelError::backend)?;
+            x = cat(&[&x, &pad], 1).map_err(ModelError::backend)?;
         }
         if pad_h > 0 {
             let s = x.tensor.shape();
-            let pad = Var::new(
-                Tensor::zeros_on([s[0], s[1], pad_h, s[3], s[4]], &backend),
-                false,
-            );
-            x = cat(&[&x, &pad], 2);
+            let zeros = Tensor::zeros_on([s[0], s[1], pad_h, s[3], s[4]], &backend)
+                .map_err(ModelError::backend)?;
+            let pad = Var::new(zeros, false).map_err(ModelError::backend)?;
+            x = cat(&[&x, &pad], 2).map_err(ModelError::backend)?;
         }
         if pad_w > 0 {
             let s = x.tensor.shape();
-            let pad = Var::new(
-                Tensor::zeros_on([s[0], s[1], s[2], pad_w, s[4]], &backend),
-                false,
-            );
-            x = cat(&[&x, &pad], 3);
+            let zeros = Tensor::zeros_on([s[0], s[1], s[2], pad_w, s[4]], &backend)
+                .map_err(ModelError::backend)?;
+            let pad = Var::new(zeros, false).map_err(ModelError::backend)?;
+            x = cat(&[&x, &pad], 3).map_err(ModelError::backend)?;
         }
-        x
+        Ok(x)
     }
 
     /// Partition `[B, D, H, W, C]` into non-overlapping cubic windows,
@@ -156,23 +165,23 @@ where
     ///
     /// Reshapes proceed one axis at a time to keep every intermediate tensor at
     /// most rank-6.
-    fn window_partition(&self, x: &Var<f32, B>) -> Var<f32, B> {
+    fn window_partition(&self, x: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
         let sh = x.tensor.shape();
         let (b, d, h, w, c) = (sh[0], sh[1], sh[2], sh[3], sh[4]);
         let ws = self.window_size;
 
-        let x = permute(&reshape(x, [b, d / ws, ws, h, w, c]), &[0, 1, 3, 4, 2, 5]);
-        let x = reshape(&x, [b * (d / ws), h, w, ws, c]);
-        let x = permute(
-            &reshape(&x, [b * (d / ws), h / ws, ws, w, ws, c]),
-            &[0, 1, 3, 4, 2, 5],
-        );
-        let x = reshape(&x, [b * (d / ws) * (h / ws), w, ws, ws, c]);
-        let x = permute(
-            &reshape(&x, [b * (d / ws) * (h / ws), w / ws, ws, ws, ws, c]),
-            &[0, 1, 3, 4, 2, 5],
-        );
+        let x = reshape(x, [b, d / ws, ws, h, w, c]).map_err(ModelError::backend)?;
+        let x = permute(&x, &[0, 1, 3, 4, 2, 5]).map_err(ModelError::backend)?;
+        let x = reshape(&x, [b * (d / ws), h, w, ws, c]).map_err(ModelError::backend)?;
+        let x = reshape(&x, [b * (d / ws), h / ws, ws, w, ws, c]).map_err(ModelError::backend)?;
+        let x = permute(&x, &[0, 1, 3, 4, 2, 5]).map_err(ModelError::backend)?;
+        let x =
+            reshape(&x, [b * (d / ws) * (h / ws), w, ws, ws, c]).map_err(ModelError::backend)?;
+        let x = reshape(&x, [b * (d / ws) * (h / ws), w / ws, ws, ws, ws, c])
+            .map_err(ModelError::backend)?;
+        let x = permute(&x, &[0, 1, 3, 4, 2, 5]).map_err(ModelError::backend)?;
         reshape(&x, [b * (d / ws) * (h / ws) * (w / ws), ws * ws * ws, c])
+            .map_err(ModelError::backend)
     }
 
     /// Inverse of [`Self::window_partition`]: reassemble `[B, D, H, W, C]` from
@@ -185,18 +194,20 @@ where
         h: usize,
         w: usize,
         c: usize,
-    ) -> Var<f32, B> {
+    ) -> Result<Var<f32, B>, ModelError> {
         let ws = self.window_size;
 
-        let x = reshape(windows, [b * (d / ws) * (h / ws), w / ws, ws, ws, ws, c]);
-        let x = permute(&x, &[0, 1, 4, 2, 3, 5]);
-        let x = reshape(&x, [b * (d / ws) * (h / ws), w, ws, ws, c]);
-        let x = reshape(&x, [b * (d / ws), h / ws, w, ws, ws, c]);
-        let x = permute(&x, &[0, 1, 4, 2, 3, 5]);
-        let x = reshape(&x, [b * (d / ws), h, w, ws, c]);
-        let x = reshape(&x, [b, d / ws, h, w, ws, c]);
-        let x = permute(&x, &[0, 1, 4, 2, 3, 5]);
-        reshape(&x, [b, d, h, w, c])
+        let x = reshape(windows, [b * (d / ws) * (h / ws), w / ws, ws, ws, ws, c])
+            .map_err(ModelError::backend)?;
+        let x = permute(&x, &[0, 1, 4, 2, 3, 5]).map_err(ModelError::backend)?;
+        let x =
+            reshape(&x, [b * (d / ws) * (h / ws), w, ws, ws, c]).map_err(ModelError::backend)?;
+        let x = reshape(&x, [b * (d / ws), h / ws, w, ws, ws, c]).map_err(ModelError::backend)?;
+        let x = permute(&x, &[0, 1, 4, 2, 3, 5]).map_err(ModelError::backend)?;
+        let x = reshape(&x, [b * (d / ws), h, w, ws, c]).map_err(ModelError::backend)?;
+        let x = reshape(&x, [b, d / ws, h, w, ws, c]).map_err(ModelError::backend)?;
+        let x = permute(&x, &[0, 1, 4, 2, 3, 5]).map_err(ModelError::backend)?;
+        reshape(&x, [b, d, h, w, c]).map_err(ModelError::backend)
     }
 
     /// Build the shifted-window attention mask `[b·num_windows, 1, N, N]`.
@@ -206,7 +217,13 @@ where
     /// `0`. The region volume is partitioned by the identical
     /// [`Self::window_partition`] routing, so mask columns align exactly with the
     /// attention windows.
-    fn attention_mask(&self, b: usize, d: usize, h: usize, w: usize) -> Var<f32, B> {
+    fn attention_mask(
+        &self,
+        b: usize,
+        d: usize,
+        h: usize,
+        w: usize,
+    ) -> Result<Var<f32, B>, ModelError> {
         let backend = B::default();
         let ws = self.window_size;
         let s = self.shift_size;
@@ -231,13 +248,12 @@ where
                 }
             }
         }
-        let img_var = Var::new(
-            Tensor::from_slice_on([1, d, h, w, 1], &img, &backend),
-            false,
-        );
+        let img_tensor =
+            Tensor::from_slice_on([1, d, h, w, 1], &img, &backend).map_err(ModelError::backend)?;
+        let img_var = Var::new(img_tensor, false).map_err(ModelError::backend)?;
 
         // Route region ids through the same window partition to get [nw, ws³].
-        let ids = self.window_partition(&img_var);
+        let ids = self.window_partition(&img_var)?;
         let ids = ids.tensor.as_slice();
         let n = ws * ws * ws;
         let num_windows = ids.len() / n;
@@ -258,10 +274,9 @@ where
                 }
             }
         }
-        Var::new(
-            Tensor::from_slice_on([b * num_windows, 1, n, n], &mask, &backend),
-            false,
-        )
+        let mask_tensor = Tensor::from_slice_on([b * num_windows, 1, n, n], &mask, &backend)
+            .map_err(ModelError::backend)?;
+        Var::new(mask_tensor, false).map_err(ModelError::backend)
     }
 
     /// Trainable parameters in forward order.

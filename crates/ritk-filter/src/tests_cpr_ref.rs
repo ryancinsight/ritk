@@ -114,7 +114,8 @@ pub fn cpr_apply_reference<B: Backend>(
                 trilinear_sample(&vals, [nz, ny, nx], &origin, &spacing, &direction, &sample);
         }
     }
-    let tensor = Tensor::<f32, B>::from_slice([num_cross, num_path], &output);
+    let tensor =
+        Tensor::<f32, B>::from_slice([num_cross, num_path], &output).expect("test tensor is valid");
 
     let cs_step = if num_cross > 1 {
         2.0 * half_width / (num_cross - 1) as f64

@@ -29,7 +29,7 @@ pub fn load_dicom_series<B: Backend>(
     device: &B,
 ) -> Result<Image<f32, B, 3>> {
     let decoded = decode_series(series)?;
-    let tensor = Tensor::<f32, B>::from_slice_on(decoded.shape, &decoded.voxels, device);
+    let tensor = Tensor::<f32, B>::from_slice_on(decoded.shape, &decoded.voxels, device)?;
 
     Image::new(tensor, decoded.origin, decoded.spacing, decoded.direction)
 }
@@ -411,7 +411,8 @@ mod tests {
             .map(|i| i as f32 * 0.25 + 2.0)
             .collect();
         let device = B::default();
-        let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(values), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(values), &device)
+            .expect("test tensor is valid");
         let image = Image::<f32, B, 3>::new(
             tensor,
             Point::new([1.0, 2.0, 3.0]),

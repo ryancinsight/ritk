@@ -57,7 +57,10 @@ pub fn fft_convolve(py: Python<'_>, image: &PyImage, kernel: &PyImage) -> RitkRe
             let result = filter
                 .apply(&slice_img)
                 .map_err(|e| RitkPyError::runtime(e.to_string()))?;
-            let result_vals: Vec<f32> = result.data_cow_on(&MoiraiBackend).into_owned();
+            let result_vals: Vec<f32> = result
+                .data_cow_on(&MoiraiBackend)
+                .map_err(|e| RitkPyError::runtime(e.to_string()))?
+                .into_owned();
             out_vals.extend(result_vals);
         }
 

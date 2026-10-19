@@ -111,7 +111,8 @@ fn test_3d_topology_preserved() {
 
 #[test]
 fn test_3d_spatial_metadata_preserved() {
-    let tensor = Tensor::<f32, TestBackend>::from_slice([3, 3, 3], &[1.0_f32; 27]);
+    let tensor = Tensor::<f32, TestBackend>::from_slice([3, 3, 3], &[1.0_f32; 27])
+        .expect("test tensor is valid");
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
     let direction = Direction::identity();

@@ -86,8 +86,8 @@ fn single_volume_round_trip_recovers_identical_voxels() {
     assert_eq!(round_tripped.shape(), image.shape());
     assert_eq!(round_tripped.origin(), image.origin());
 
-    let orig = image.data_cow_on(&backend);
-    let rt = round_tripped.data_cow_on(&backend);
+    let orig = image.data_cow_on(&backend).expect("host voxels");
+    let rt = round_tripped.data_cow_on(&backend).expect("host voxels");
     for (i, (&a, &b)) in orig.iter().zip(rt.iter()).enumerate() {
         assert!((a - b).abs() < 1e-4, "voxel {i} differs: {a} vs {b}");
     }
@@ -213,8 +213,8 @@ fn series_round_trip_recovers_all_frames() {
     assert_eq!(rt_volumes.len(), nframes, "frame count mismatch");
 
     for fi in 0..nframes {
-        let orig = volumes[fi].data_cow_on(&backend);
-        let rt = rt_volumes[fi].data_cow_on(&backend);
+        let orig = volumes[fi].data_cow_on(&backend).expect("host voxels");
+        let rt = rt_volumes[fi].data_cow_on(&backend).expect("host voxels");
         for (i, (&a, &b)) in orig.iter().zip(rt.iter()).enumerate() {
             assert!((a - b).abs() < 1e-4, "frame {fi} voxel {i}: {a} vs {b}");
         }

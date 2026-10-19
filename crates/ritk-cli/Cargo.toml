@@ -34,7 +34,7 @@ ritk-tck = { path = "../ritk-tck", version = "0.1.0" }
 ritk-trk = { path = "../ritk-trk", version = "0.1.0" }
 ritk-trx = { path = "../ritk-trx", version = "0.1.0" }
 gaia = { workspace = true }
-ritk-snap = { path = "../ritk-snap", version = "0.1.0" }
+# T2 (RITK-SNAP-RETURN-001): restore ritk-snap dep with viewer bridge.
 clap = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }

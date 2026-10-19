@@ -23,7 +23,7 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     P: AsRef<Path>,
 {
-    let voxels = image.data_cow_on(backend);
+    let voxels = image.data_cow_on(backend)?;
     write_jpeg_flat(path.as_ref(), image.shape(), &voxels)
 }
 

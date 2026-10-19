@@ -6,7 +6,7 @@ use ritk_image::tensor::Tensor;
 type B = SequentialBackend;
 
 fn make_label_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
-    let tensor = Tensor::<f32, B>::from_slice(dims, &vals);
+    let tensor = Tensor::<f32, B>::from_slice(dims, &vals).expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -157,7 +157,8 @@ fn spatial_metadata_preserved() {
     let spacing = Spacing::new([0.5, 0.75, 1.25]);
     let direction = Direction::identity();
 
-    let tensor = Tensor::<f32, B>::from_slice([2, 2, 2], &[1.0_f32; 8]);
+    let tensor =
+        Tensor::<f32, B>::from_slice([2, 2, 2], &[1.0_f32; 8]).expect("test tensor is valid");
     let img = Image::new(tensor, origin, spacing, direction)
         .expect("invariant: fixture tensor has the declared rank");
 

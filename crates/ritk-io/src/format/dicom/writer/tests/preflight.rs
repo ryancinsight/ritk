@@ -91,7 +91,8 @@ fn series_preflight_rejects_later_slice_before_replacing_earlier_slice() {
     for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
         std::fs::write(&path, original).expect("prior file");
         let tensor =
-            Tensor::<f32, Backend>::from_slice_on([2, 1, 1], &[0.0, value], &Default::default());
+            Tensor::<f32, Backend>::from_slice_on([2, 1, 1], &[0.0, value], &Default::default())
+                .expect("test tensor is valid");
         let image = Image::new(
             tensor,
             Point::new([0.0; 3]),

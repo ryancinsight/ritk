@@ -10,9 +10,9 @@ where
     /// Map physical `[N, D]` points to continuous field indices.
     #[must_use]
     pub fn world_to_index_tensor(&self, points: &Var<f32, B>) -> Var<f32, B> {
-        matmul(
-            &sub(points, &self.origin_tensor),
-            &self.world_to_index_matrix,
-        )
+        let relative = sub(points, &self.origin_tensor)
+            .expect("displacement field requires backend evaluation to succeed");
+        matmul(&relative, &self.world_to_index_matrix)
+            .expect("displacement field requires backend evaluation to succeed")
     }
 }

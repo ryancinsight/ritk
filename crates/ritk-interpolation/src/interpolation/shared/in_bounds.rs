@@ -21,7 +21,9 @@ where
     let rank = idx_shape[1];
     assert_eq!(rank, shape.len(), "index rank must match image rank");
 
-    let indices = indices.to_contiguous();
+    let indices = indices
+        .to_contiguous()
+        .expect("interpolation requires host-accessible tensors");
     let values = indices.as_slice();
     let mut mask = vec![1.0; n];
     for sample in 0..n {
@@ -34,7 +36,7 @@ where
             }
         }
     }
-    Tensor::from_slice([n], &mask)
+    Tensor::from_slice([n], &mask).expect("interpolation output length matches point count")
 }
 
 /// Out-of-bounds handling policy for interpolation kernels.

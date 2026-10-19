@@ -44,7 +44,8 @@ mod tests {
 
     fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
         let device = Default::default();
-        let t = Tensor::<f32, B>::from_slice_on(dims, &vals, &device);
+        let t = Tensor::<f32, B>::from_slice_on(dims, &vals, &device)
+            .expect("test fixture tensor build failed");
         Image::new(
             t,
             Point::new([0.0, 0.0, 0.0]),

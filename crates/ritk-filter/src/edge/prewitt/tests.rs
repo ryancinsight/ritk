@@ -7,7 +7,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 type TestBackend = coeus_core::SequentialBackend;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3> {
-    let tensor = Tensor::<f32, TestBackend>::from_slice(dims, &vals);
+    let tensor = Tensor::<f32, TestBackend>::from_slice(dims, &vals).expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),

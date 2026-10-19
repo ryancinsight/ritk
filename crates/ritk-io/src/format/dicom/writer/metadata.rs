@@ -46,7 +46,7 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     metadata: Option<&DicomReadMetadata>,
 ) -> Result<()> {
     let path = path.as_ref();
-    let all_data = image.data_cow_on(&B::default()).into_owned();
+    let all_data = image.data_cow_on(&B::default())?.into_owned();
     let dimensions = validate_image_shape(image.shape(), all_data.len())?;
     validate_source_pixel_description(metadata)?;
     let pixel_plans = prepare_frame_encodings::<u16>(&all_data, dimensions)?;

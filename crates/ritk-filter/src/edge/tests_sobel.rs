@@ -254,7 +254,7 @@ fn test_metadata_preserved() {
     direction[(0, 1)] = -1.0;
     direction[(1, 0)] = 1.0;
     direction[(1, 1)] = 0.0;
-    let tensor = Tensor::<f32, B>::from_slice(dims, &vals);
+    let tensor = Tensor::<f32, B>::from_slice(dims, &vals).expect("test tensor is valid");
     let img = Image::new(tensor, origin, spacing_val, direction)
         .expect("invariant: fixture tensor has the declared rank");
 

@@ -85,13 +85,18 @@ where
         Ok(Self {
             components: components
                 .into_iter()
-                .map(|component| Var::new(component, true))
+                .map(|component| {
+                    Var::new(component, true)
+                        .expect("displacement field requires backend evaluation to succeed")
+                })
                 .collect(),
             origin,
             spacing,
             direction,
-            world_to_index_matrix: Var::new(geometry.world_to_index, false),
-            origin_tensor: Var::new(geometry.origin, false),
+            world_to_index_matrix: Var::new(geometry.world_to_index, false)
+                .expect("displacement field requires backend evaluation to succeed"),
+            origin_tensor: Var::new(geometry.origin, false)
+                .expect("displacement field requires backend evaluation to succeed"),
         })
     }
 
@@ -135,7 +140,8 @@ where
                     .map(|axis| self.origin[axis] as f32)
                     .collect::<Vec<_>>(),
                 &backend,
-            ),
+            )
+            .expect("displacement field requires backend evaluation to succeed"),
         );
         state.insert(
             "field.spacing",
@@ -145,7 +151,8 @@ where
                     .map(|axis| self.spacing[axis] as f32)
                     .collect::<Vec<_>>(),
                 &backend,
-            ),
+            )
+            .expect("displacement field requires backend evaluation to succeed"),
         );
         state.insert(
             "field.direction",
@@ -155,7 +162,8 @@ where
                     .flat_map(|row| (0..D).map(move |column| self.direction[(row, column)] as f32))
                     .collect::<Vec<_>>(),
                 &backend,
-            ),
+            )
+            .expect("displacement field requires backend evaluation to succeed"),
         );
         state
     }
@@ -215,5 +223,9 @@ where
             actual: tensor.shape().to_vec(),
         });
     }
-    Ok(tensor.to_contiguous().as_slice().to_vec())
+    Ok(tensor
+        .to_contiguous()
+        .expect("displacement field requires backend evaluation to succeed")
+        .as_slice()
+        .to_vec())
 }

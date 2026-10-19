@@ -10,16 +10,16 @@ use std::path::Path;
 fn native_to_legacy<B: Backend>(
     native: ritk_image::Image<f32, SequentialBackend, 3>,
     device: &B,
-) -> Image<f32, B, 3> {
-    let values = native.data_cow_on(&SequentialBackend);
-    let tensor = Tensor::<f32, B>::from_slice_on(native.shape(), values.as_ref(), device);
-    Image::new(
+) -> Result<Image<f32, B, 3>> {
+    let values = native.data_cow_on(&SequentialBackend)?;
+    let tensor = Tensor::<f32, B>::from_slice_on(native.shape(), values.as_ref(), device)?;
+    Ok(Image::new(
         tensor,
         *native.origin(),
         *native.spacing(),
         *native.direction(),
     )
-    .expect("invariant: backend conversion preserves the validated image rank")
+    .expect("invariant: backend conversion preserves the validated image rank"))
 }
 
 fn legacy_metadata_to_native<B: Backend>(
@@ -39,7 +39,7 @@ fn legacy_metadata_to_native<B: Backend>(
 /// Reads MetaImage through the native provider and converts at this legacy boundary.
 pub fn read_metaimage<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Image<f32, B, 3>> {
     ritk_metaimage::read_metaimage(path, &SequentialBackend)
-        .map(|native| native_to_legacy(native, device))
+        .and_then(|native| native_to_legacy(native, device))
 }
 
 /// Writes a legacy image through the native MetaImage provider.
@@ -47,7 +47,7 @@ pub fn write_metaimage<B: Backend, P: AsRef<Path>>(
     path: P,
     image: &Image<f32, B, 3>,
 ) -> Result<()> {
-    let native = legacy_metadata_to_native(image, image.data_cow_on(&B::default()).into_owned())?;
+    let native = legacy_metadata_to_native(image, image.data_cow_on(&B::default())?.into_owned())?;
     ritk_metaimage::write_metaimage(path, &native, &SequentialBackend)
 }
 

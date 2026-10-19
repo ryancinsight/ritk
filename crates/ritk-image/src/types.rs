@@ -80,7 +80,7 @@ where
         }
 
         Self::new(
-            Tensor::from_slice_on(dims, &data, backend),
+            Tensor::from_slice_on(dims, &data, backend)?,
             origin,
             spacing,
             direction,

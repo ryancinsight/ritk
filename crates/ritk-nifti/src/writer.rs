@@ -243,7 +243,7 @@ where
     let payloads = volumes
         .iter()
         .map(|volume| volume.data_cow_on(backend))
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, _>>()?;
     for (position, payload) in payloads.iter().enumerate() {
         if payload.len() != expected {
             anyhow::bail!(
@@ -292,7 +292,7 @@ where
     P: AsRef<Path>,
 {
     let shape = image.shape();
-    let voxels = image.data_cow_on(backend);
+    let voxels = image.data_cow_on(backend)?;
     let origin = image.origin();
     let spacing = image.spacing();
 

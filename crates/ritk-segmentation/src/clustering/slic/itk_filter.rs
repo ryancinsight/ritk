@@ -136,7 +136,7 @@ impl ItkSlicFilter {
         validate_input(&values, shape, self.config.super_grid)?;
         let labels = self.labels(&values, shape);
         let device = B::default();
-        let tensor = Tensor::<f32, B>::from_slice_on(shape, &labels, &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &labels, &device)?;
         Image::new(
             tensor,
             *image.origin(),

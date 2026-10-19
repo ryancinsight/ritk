@@ -366,7 +366,8 @@ fn cpr_apply_matches_brute_force_reference_nonidentity_direction() {
     // 90° rotation about Z in RITK [z, y, x] convention: direction columns
     // are the image-axis vectors expressed in physical space. We place the
     // first two columns as the rotated (y, -x) pair, third as (0, 0, 1).
-    let data = ritk_image::tensor::Tensor::<f32, B>::from_slice([dim, dim, dim], &vals);
+    let data = ritk_image::tensor::Tensor::<f32, B>::from_slice([dim, dim, dim], &vals)
+        .expect("test tensor is valid");
     let mut direction = Direction::identity();
     {
         let m = direction.inner_mut();

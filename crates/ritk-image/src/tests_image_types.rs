@@ -13,7 +13,8 @@ type TensorImage<const D: usize> = Image<f32, SequentialBackend, D>;
 #[test]
 fn construction_preserves_shape_and_metadata() {
     let data =
-        Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .unwrap();
     let (origin, spacing, direction) = metadata_2d();
 
     let image = TensorImage::<2>::new(data, origin, spacing, direction).unwrap();
@@ -68,7 +69,7 @@ fn from_flat_rejects_shape_product_overflow() {
 
 #[test]
 fn construction_rejects_rank_mismatch() {
-    let data = Tensor::<f32, SequentialBackend>::from_slice([2, 3, 1], &[0.0; 6]);
+    let data = Tensor::<f32, SequentialBackend>::from_slice([2, 3, 1], &[0.0; 6]).unwrap();
     let (origin, spacing, direction) = metadata_2d();
 
     let err = TensorImage::<2>::new(data, origin, spacing, direction).unwrap_err();
@@ -81,7 +82,7 @@ fn construction_rejects_rank_mismatch() {
 
 #[test]
 fn into_parts_returns_exact_tensor_and_metadata() {
-    let data = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]);
+    let data = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]).unwrap();
     let (origin, spacing, direction) = metadata_2d();
     let image = TensorImage::<2>::new(data, origin, spacing, direction).unwrap();
 

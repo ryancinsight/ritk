@@ -12,18 +12,16 @@ use coeus_tensor::Tensor;
 type B = SequentialBackend;
 
 fn var(data: &[f64], requires_grad: bool) -> Var<f64, B> {
-    Var::new(
-        Tensor::<f64, B>::from_slice_on([data.len()], data, &SequentialBackend),
-        requires_grad,
-    )
+    let tensor = Tensor::<f64, B>::from_slice_on([data.len()], data, &SequentialBackend)
+        .expect("test fixture tensor build failed");
+    Var::new(tensor, requires_grad).expect("test fixture Var build failed")
 }
 
 /// Build a rank-`shape` `Var` from flat row-major data.
 fn var_shaped(shape: &[usize], data: &[f64], requires_grad: bool) -> Var<f64, B> {
-    Var::new(
-        Tensor::<f64, B>::from_slice_on(shape.to_vec(), data, &SequentialBackend),
-        requires_grad,
-    )
+    let tensor = Tensor::<f64, B>::from_slice_on(shape.to_vec(), data, &SequentialBackend)
+        .expect("test fixture tensor build failed");
+    Var::new(tensor, requires_grad).expect("test fixture Var build failed")
 }
 
 // ── Affine transform ─────────────────────────────────────────────────────────
@@ -80,6 +78,7 @@ fn affine_translation_gradient_is_the_point_count() {
         &t,
     );
     sum(&out)
+        .expect("sum succeeds over the test output")
         .backward()
         .expect("backward succeeds over the test loss");
     for (j, &g) in t.grad().expect("t grad").as_slice().iter().enumerate() {
@@ -111,6 +110,7 @@ fn affine_matrix_gradient_matches_closed_form_and_finite_difference() {
         &var(&t0, false),
     );
     sum(&out)
+        .expect("sum succeeds over the test output")
         .backward()
         .expect("backward succeeds over the test loss");
     let grad = r.grad().expect("R grad").as_slice().to_vec();

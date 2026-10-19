@@ -12,7 +12,8 @@ type B = coeus_core::SequentialBackend;
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn make_complex_2d(vals: &[f32], h: usize, cw: usize) -> Image<f32, B, 2> {
-    let tensor = ritk_image::tensor::Tensor::<f32, B>::from_slice([h, cw], vals);
+    let tensor = ritk_image::tensor::Tensor::<f32, B>::from_slice([h, cw], vals)
+        .expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64]),
@@ -23,7 +24,8 @@ fn make_complex_2d(vals: &[f32], h: usize, cw: usize) -> Image<f32, B, 2> {
 }
 
 fn make_complex_3d(vals: &[f32], depth: usize, h: usize, cw: usize) -> Image<f32, B, 3> {
-    let tensor = ritk_image::tensor::Tensor::<f32, B>::from_slice([depth, h, cw], vals);
+    let tensor = ritk_image::tensor::Tensor::<f32, B>::from_slice([depth, h, cw], vals)
+        .expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64, 0.0_f64]),

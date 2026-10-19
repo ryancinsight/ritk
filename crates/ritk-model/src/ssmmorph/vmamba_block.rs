@@ -61,6 +61,10 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Initialize a VMamba block.
+    ///
+    /// # Panics
+    /// Panics when `config.dim` is zero: configs this crate builds carry
+    /// positive dims.
     #[must_use]
     pub fn new(config: VMambaBlockConfig) -> Self {
         let state_space = SelectiveStateSpace::new(SelectiveStateSpaceConfig {
@@ -76,9 +80,11 @@ where
             ScanDimensionality::Scan3d => CrossScanConfig::new_3d(),
         };
         let mut block = Self {
-            first_norm: LayerNorm::new(config.dim, 1e-5),
-            second_norm: LayerNorm::new(config.dim, 1e-5),
-            local_features: DepthwiseConv3d::new(config.dim, 3, 1, true),
+            first_norm: LayerNorm::new(config.dim, 1e-5).expect("invariant: block dim is positive"),
+            second_norm: LayerNorm::new(config.dim, 1e-5)
+                .expect("invariant: block dim is positive"),
+            local_features: DepthwiseConv3d::new(config.dim, 3, 1, true)
+                .expect("invariant: block dim is positive"),
             cross_scan: CrossScan::new(scan_config),
             state_space,
             ffn_expand: Linear::new(config.dim, config.dim * 4, true)
@@ -110,35 +116,32 @@ where
             });
         }
         let (batch, depth, height, width) = (shape[0], shape[2], shape[3], shape[4]);
-        let normalized = self
-            .first_norm
-            .forward_nd(&permute(input, &[0, 2, 3, 4, 1]))?;
-        let local = self
-            .local_features
-            .forward(&permute(&normalized, &[0, 4, 1, 2, 3]))?;
+        let channels_last = permute(input, &[0, 2, 3, 4, 1]).map_err(ModelError::backend)?;
+        let normalized = self.first_norm.forward_nd(&channels_last)?;
+        let channels_first = permute(&normalized, &[0, 4, 1, 2, 3]).map_err(ModelError::backend)?;
+        let local = self.local_features.forward(&channels_first)?;
         let sequences = self.cross_scan.apply(&local)?;
         let processed = sequences
             .iter()
-            .map(|sequence| {
-                let channel_last = permute(sequence, &[0, 2, 1]);
-                self.state_space
-                    .forward(&channel_last)
-                    .map(|output| permute(&output, &[0, 2, 1]))
+            .map(|sequence| -> Result<Var<f32, B>, ModelError> {
+                let channel_last = permute(sequence, &[0, 2, 1]).map_err(ModelError::backend)?;
+                let output = self.state_space.forward(&channel_last)?;
+                permute(&output, &[0, 2, 1]).map_err(ModelError::backend)
             })
             .collect::<Result<Vec<_>, _>>()?;
         let global = self.cross_scan.merge_3d(&processed, depth, height, width)?;
-        let residual = add(input, &global);
-        let normalized = self
-            .second_norm
-            .forward_nd(&permute(&residual, &[0, 2, 3, 4, 1]))?;
-        let flat = reshape(&normalized, [batch * depth * height * width, self.channels]);
-        let hidden = gelu(&self.ffn_expand.forward(&flat)?);
+        let residual = add(input, &global).map_err(ModelError::backend)?;
+        let residual_last = permute(&residual, &[0, 2, 3, 4, 1]).map_err(ModelError::backend)?;
+        let normalized = self.second_norm.forward_nd(&residual_last)?;
+        let flat = reshape(&normalized, [batch * depth * height * width, self.channels])
+            .map_err(ModelError::backend)?;
+        let expanded = self.ffn_expand.forward(&flat)?;
+        let hidden = gelu(&expanded).map_err(ModelError::backend)?;
         let projected = self.ffn_project.forward(&hidden)?;
-        let projected = permute(
-            &reshape(&projected, [batch, depth, height, width, self.channels]),
-            &[0, 4, 1, 2, 3],
-        );
-        Ok(add(&residual, &projected))
+        let projected = reshape(&projected, [batch, depth, height, width, self.channels])
+            .map_err(ModelError::backend)?;
+        let projected = permute(&projected, &[0, 4, 1, 2, 3]).map_err(ModelError::backend)?;
+        add(&residual, &projected).map_err(ModelError::backend)
     }
 }
 
@@ -200,9 +203,10 @@ mod tests {
     fn forward_preserves_shape_values_and_gradient_connectivity() {
         let block = VMambaBlock::<MoiraiBackend>::new(VMambaBlockConfig::new_with_dim(2));
         let input = Var::new(
-            Tensor::ones_on([1, 2, 2, 2, 2], &MoiraiBackend::new()),
+            Tensor::ones_on([1, 2, 2, 2, 2], &MoiraiBackend::new()).expect("test tensor is valid"),
             true,
-        );
+        )
+        .expect("test tensor is valid");
         let output = block.forward(&input).expect("test shape is valid");
         assert_eq!(output.tensor.shape(), &[1, 2, 2, 2, 2]);
         assert!(output

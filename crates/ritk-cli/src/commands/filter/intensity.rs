@@ -317,7 +317,8 @@ mod tests {
             -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0,
         ];
         let backend = Backend::default();
-        let tensor = Tensor::<f32, Backend>::from_slice_on([1, 4, 4], &values, &backend);
+        let tensor = Tensor::<f32, Backend>::from_slice_on([1, 4, 4], &values, &backend)
+            .expect("test fixture tensor build failed");
         let image = Image::new(
             tensor,
             Point::new([0.0; 3]),

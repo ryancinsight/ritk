@@ -63,7 +63,7 @@ pub fn resample_image(
 
         let new_sp = CoreSpacing::new([spacing_z, spacing_y, spacing_x]);
         let device = Backend::default();
-        let zero_t = Tensor::<f32, Backend>::zeros_on([3], &device);
+        let zero_t = Tensor::<f32, Backend>::zeros_on([3], &device).map_err(|e| e.to_string())?;
 
         match mode.as_str() {
             "nearest" => Ok(ResampleImageFilter::new(

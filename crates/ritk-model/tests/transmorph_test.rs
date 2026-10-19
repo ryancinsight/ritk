@@ -26,9 +26,10 @@ fn test_transmorph_forward() {
     let n: usize = shape.iter().product();
     let data: Vec<f32> = (0..n).map(|i| ((i % 13) as f32) / 13.0 - 0.5).collect();
     let input = Var::new(
-        Tensor::from_slice_on(shape, &data, &SequentialBackend),
+        Tensor::from_slice_on(shape, &data, &SequentialBackend).expect("test tensor is valid"),
         false,
-    );
+    )
+    .expect("test tensor is valid");
 
     let output = model
         .forward(&input)

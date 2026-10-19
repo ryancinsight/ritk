@@ -69,9 +69,10 @@ pub fn rotate_image(
             .iter()
             .map(|value| *value as f32)
             .collect();
-        let centre_t = Tensor::<f32, Backend>::from_slice_on([3], &centre, &device);
+        let centre_t = Tensor::<f32, Backend>::from_slice_on([3], &centre, &device)
+            .map_err(|e| e.to_string())?;
         // Zero translation (pure rotation about centre).
-        let translation = Tensor::<f32, Backend>::zeros_on([3], &device);
+        let translation = Tensor::<f32, Backend>::zeros_on([3], &device).map_err(|e| e.to_string())?;
         // Build the rotation to match SimpleITK's `Euler3DTransform`
         // (`ComputeZYX = false`, the default), whose physical-space matrix is
         // `M = R_z(angle_z) · R_x(angle_x) · R_y(angle_y)`. Resample consumes
@@ -84,8 +85,8 @@ pub fn rotate_image(
             .flat_map(|i| (0..3).map(move |j| (i, j)))
             .map(|(i, j)| m[i][j] as f32)
             .collect();
-        let matrix =
-            Tensor::<f32, Backend>::from_slice_on([3, 3], &a, &device);
+        let matrix = Tensor::<f32, Backend>::from_slice_on([3, 3], &a, &device)
+            .map_err(|e| e.to_string())?;
         let transform = AffineTransform::<Backend, 3>::new(matrix, translation, centre_t);
 
         match mode.as_str() {
@@ -166,7 +167,8 @@ pub fn shift_image(
             [3],
             &[-shift_x as f32, -shift_y as f32, -shift_z as f32],
             &device,
-        );
+        )
+        .map_err(|e| e.to_string())?;
         let transform = TranslationTransform::<Backend, 3>::new(translation);
 
         match mode.as_str() {

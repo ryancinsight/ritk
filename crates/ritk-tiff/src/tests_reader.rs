@@ -31,8 +31,8 @@ fn assert_round_trip(shape: [usize; 3], values: Vec<f32>) -> Result<()> {
     let output = read_tiff(&path, &SequentialBackend)?;
     assert_eq!(output.shape(), shape);
     assert_eq!(
-        output.data_cow_on(&SequentialBackend).as_ref(),
-        input.data_cow_on(&SequentialBackend).as_ref()
+        output.data_cow_on(&SequentialBackend)?.as_ref(),
+        input.data_cow_on(&SequentialBackend)?.as_ref()
     );
     Ok(())
 }
@@ -67,7 +67,10 @@ fn reader_struct_delegates_to_canonical_operation() -> Result<()> {
     let input = image([1, 1, 2], vec![7.0, 9.0])?;
     write_tiff(&input, &path, &SequentialBackend)?;
     let output = TiffReader::new(SequentialBackend).read_image(&path)?;
-    assert_eq!(output.data_cow_on(&SequentialBackend).as_ref(), &[7.0, 9.0]);
+    assert_eq!(
+        output.data_cow_on(&SequentialBackend)?.as_ref(),
+        &[7.0, 9.0]
+    );
     Ok(())
 }
 

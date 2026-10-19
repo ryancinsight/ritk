@@ -9,7 +9,13 @@ fn make_image(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3> {
 }
 
 fn get_labels(image: &Image<f32, TestBackend, 3>) -> Vec<u32> {
-    image.data().to_vec().iter().map(|&v| v as u32).collect()
+    image
+        .data()
+        .to_vec()
+        .expect("test tensor is valid")
+        .iter()
+        .map(|&v| v as u32)
+        .collect()
 }
 
 // ── Positive tests ────────────────────────────────────────────────────────────

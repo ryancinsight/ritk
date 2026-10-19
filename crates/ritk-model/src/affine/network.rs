@@ -74,7 +74,8 @@ impl AffineNetworkConfig {
     /// per-filter response non-degenerate; biases start at zero.
     ///
     /// # Panics
-    /// Panics if `channels` does not contain exactly five entries.
+    /// Panics if `channels` does not contain exactly five entries or any
+    /// channel count is zero.
     pub fn init<T, B>(&self) -> AffineNetwork<T, B>
     where
         T: Float + leto_ops::RealScalar,
@@ -90,7 +91,8 @@ impl AffineNetworkConfig {
         let mut seed = INIT_SEED;
         let mut make_conv = |in_ch: usize, out_ch: usize| {
             let mut layer =
-                Conv3d::<T, B>::with_params(in_ch, out_ch, KERNEL, STRIDE, PADDING, DILATION, true);
+                Conv3d::<T, B>::with_params(in_ch, out_ch, KERNEL, STRIDE, PADDING, DILATION, true)
+                    .expect("invariant: affine conv dims are positive");
             let fan_in = in_ch * KERNEL * KERNEL * KERNEL;
             seed = seed.wrapping_add(SEED_STEP);
             coeus_nn::init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, seed)
@@ -111,15 +113,20 @@ impl AffineNetworkConfig {
 
         AffineNetwork {
             conv1,
-            bn1: InstanceNorm3d::new(c[0], NORM_EPS),
+            bn1: InstanceNorm3d::new(c[0], NORM_EPS)
+                .expect("invariant: affine norm channels are positive"),
             conv2,
-            bn2: InstanceNorm3d::new(c[1], NORM_EPS),
+            bn2: InstanceNorm3d::new(c[1], NORM_EPS)
+                .expect("invariant: affine norm channels are positive"),
             conv3,
-            bn3: InstanceNorm3d::new(c[2], NORM_EPS),
+            bn3: InstanceNorm3d::new(c[2], NORM_EPS)
+                .expect("invariant: affine norm channels are positive"),
             conv4,
-            bn4: InstanceNorm3d::new(c[3], NORM_EPS),
+            bn4: InstanceNorm3d::new(c[3], NORM_EPS)
+                .expect("invariant: affine norm channels are positive"),
             conv5,
-            bn5: InstanceNorm3d::new(c[4], NORM_EPS),
+            bn5: InstanceNorm3d::new(c[4], NORM_EPS)
+                .expect("invariant: affine norm channels are positive"),
             fc,
         }
     }
@@ -193,17 +200,17 @@ where
         &self,
         input: &Var<T, B>,
     ) -> Result<Var<T, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
-        let mut x = relu(&self.bn1.forward(&self.conv1.forward(input)?)?);
-        x = relu(&self.bn2.forward(&self.conv2.forward(&x)?)?);
-        x = relu(&self.bn3.forward(&self.conv3.forward(&x)?)?);
-        x = relu(&self.bn4.forward(&self.conv4.forward(&x)?)?);
-        x = relu(&self.bn5.forward(&self.conv5.forward(&x)?)?);
+        let mut x = relu(&self.bn1.forward(&self.conv1.forward(input)?)?)?;
+        x = relu(&self.bn2.forward(&self.conv2.forward(&x)?)?)?;
+        x = relu(&self.bn3.forward(&self.conv3.forward(&x)?)?)?;
+        x = relu(&self.bn4.forward(&self.conv4.forward(&x)?)?)?;
+        x = relu(&self.bn5.forward(&self.conv5.forward(&x)?)?)?;
 
         // Global average pool [B, C, D, H, W] → [B, C, 1, 1, 1] → [B, C].
         let pooled = GlobalAvgPool3d::<T, B>::new().forward(&x)?;
         let shape = pooled.tensor.shape();
         let (batch, channels) = (shape[0], shape[1]);
-        let pooled = reshape(&pooled, [batch, channels]);
+        let pooled = reshape(&pooled, [batch, channels])?;
 
         let predicted = self.fc.forward(&pooled)?;
 
@@ -213,11 +220,10 @@ where
         for _ in 0..batch {
             identity_batch.extend_from_slice(&identity);
         }
-        let identity = Var::new(
-            Tensor::from_slice_on([batch, AFFINE_PARAMS], &identity_batch, &B::default()),
-            false,
-        );
-        Ok(add(&predicted, &identity))
+        let identity_tensor =
+            Tensor::from_slice_on([batch, AFFINE_PARAMS], &identity_batch, &B::default())?;
+        let identity = Var::new(identity_tensor, false)?;
+        Ok(add(&predicted, &identity)?)
     }
 
     fn load_parameters(&mut self, params: &[Var<T, B>]) {
@@ -275,22 +281,20 @@ mod tests {
         // Deterministic, non-degenerate values in a bounded range.
         let data: Vec<f32> = (0..n).map(|i| ((i % 17) as f32) / 17.0 - 0.5).collect();
         Var::new(
-            Tensor::from_slice_on(shape, &data, &SequentialBackend),
+            Tensor::from_slice_on(shape, &data, &SequentialBackend).expect("test tensor is valid"),
             true,
         )
+        .expect("test tensor is valid")
     }
 
     #[test]
     fn forward_output_shape_is_batch_by_12() {
         let net = AffineNetworkConfig::default().init::<f32, B>();
         let input = sequential_input([1, 2, 8, 8, 8]);
-        let out = net.forward(&input);
-        assert_eq!(
-            out.expect("module forward succeeds on the test input")
-                .tensor
-                .shape(),
-            &[1, 12]
-        );
+        let out = net
+            .forward(&input)
+            .expect("module forward succeeds on the test input");
+        assert_eq!(out.tensor.shape(), &[1, 12]);
     }
 
     #[test]
@@ -358,13 +362,14 @@ mod tests {
         let base: Vec<f32> = (0..n).map(|i| ((i % 17) as f32) / 17.0 - 0.5).collect();
 
         let input = Var::new(
-            Tensor::from_slice_on(shape, &base, &SequentialBackend),
+            Tensor::from_slice_on(shape, &base, &SequentialBackend).expect("test tensor is valid"),
             true,
-        );
+        )
+        .expect("test tensor is valid");
         let out = net
             .forward(&input)
             .expect("module forward succeeds on the test input");
-        let loss = coeus_autograd::sum(&out);
+        let loss = coeus_autograd::sum(&out).expect("test reduction succeeds");
         loss.backward()
             .expect("backward succeeds over the test loss");
         let grad = input.grad().expect("input gradient present");
@@ -379,19 +384,29 @@ mod tests {
             plus[idx] += h;
             minus[idx] -= h;
             let fp = coeus_autograd::sum(
-                &net.forward(&Var::new(
-                    Tensor::from_slice_on(shape, &plus, &SequentialBackend),
-                    false,
-                ))
+                &net.forward(
+                    &Var::new(
+                        Tensor::from_slice_on(shape, &plus, &SequentialBackend)
+                            .expect("test tensor is valid"),
+                        false,
+                    )
+                    .expect("test tensor is valid"),
+                )
                 .expect("module forward succeeds on the test input"),
-            );
+            )
+            .expect("test reduction succeeds");
             let fm = coeus_autograd::sum(
-                &net.forward(&Var::new(
-                    Tensor::from_slice_on(shape, &minus, &SequentialBackend),
-                    false,
-                ))
+                &net.forward(
+                    &Var::new(
+                        Tensor::from_slice_on(shape, &minus, &SequentialBackend)
+                            .expect("test tensor is valid"),
+                        false,
+                    )
+                    .expect("test tensor is valid"),
+                )
                 .expect("module forward succeeds on the test input"),
-            );
+            )
+            .expect("test reduction succeeds");
             let fd = (fp.tensor.as_slice()[0] - fm.tensor.as_slice()[0]) / (2.0 * h);
             let analytic = grad[idx];
             max_analytic = max_analytic.max(analytic.abs());

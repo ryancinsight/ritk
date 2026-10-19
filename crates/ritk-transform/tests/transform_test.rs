@@ -10,11 +10,12 @@ const ABS_TOL: f32 = 8.0 * f32::EPSILON;
 fn rigid_translation_planar_displaces_correctly() {
     let backend = SequentialBackend;
     let transform = RigidTransform::<SequentialBackend, 2>::new(
-        Tensor::from_slice_on([2], &[1.0, 1.0], &backend),
-        Tensor::from_slice_on([1], &[std::f32::consts::FRAC_PI_2], &backend),
-        Tensor::zeros_on([2], &backend),
+        Tensor::from_slice_on([2], &[1.0, 1.0], &backend).expect("test tensor is valid"),
+        Tensor::from_slice_on([1], &[std::f32::consts::FRAC_PI_2], &backend)
+            .expect("test tensor is valid"),
+        Tensor::zeros_on([2], &backend).expect("test tensor is valid"),
     );
-    let point = Tensor::from_slice_on([1, 2], &[1.0, 0.0], &backend);
+    let point = Tensor::from_slice_on([1, 2], &[1.0, 0.0], &backend).expect("test tensor is valid");
 
     let transformed = transform.transform_points(point);
 
@@ -26,8 +27,10 @@ fn rigid_translation_planar_displaces_correctly() {
 #[test]
 fn displacement_field_planar_maps_by_offset() {
     let backend = MoiraiBackend;
-    let x_tensor = Tensor::from_slice_on([2, 2], &[1.0; 4], &backend);
-    let y_tensor = Tensor::from_slice_on([2, 2], &[0.5; 4], &backend);
+    let x_tensor =
+        Tensor::from_slice_on([2, 2], &[1.0; 4], &backend).expect("test tensor is valid");
+    let y_tensor =
+        Tensor::from_slice_on([2, 2], &[0.5; 4], &backend).expect("test tensor is valid");
     let field = DisplacementField::new(
         vec![x_tensor, y_tensor],
         Point::new([0.0, 0.0]),
@@ -36,7 +39,11 @@ fn displacement_field_planar_maps_by_offset() {
     )
     .expect("valid planar field");
     let transform = DisplacementFieldTransform::<MoiraiBackend, 2>::new(field);
-    let points = Var::new(Tensor::from_slice_on([1, 2], &[0.5, 0.5], &backend), false);
+    let points = Var::new(
+        Tensor::from_slice_on([1, 2], &[0.5, 0.5], &backend).expect("test tensor is valid"),
+        false,
+    )
+    .expect("test tensor is valid");
 
     let transformed = transform
         .transform_points(&points)

@@ -55,6 +55,7 @@ pub(crate) fn parse_seed(s: &str) -> Result<[usize; 3]> {
 pub(crate) fn count_foreground(image: &ritk_core::image::Image<f32, Backend, 3>) -> usize {
     image
         .data_cow_on(&Backend::default())
+        .expect("tensor data extracts as f32")
         .into_owned()
         .iter()
         .filter(|&&v| v > 0.5)

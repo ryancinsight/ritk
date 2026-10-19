@@ -47,6 +47,7 @@ where
         assert_eq!(center.shape(), [3], "versor center must have shape [3]");
         let squared_norm = rotation
             .to_contiguous()
+            .expect("versor transform requires backend evaluation to succeed")
             .as_slice()
             .iter()
             .map(|value| value * value)
@@ -56,9 +57,12 @@ where
             "versor quaternion must have a finite nonzero norm"
         );
         Self {
-            translation: Var::new(translation, true),
-            rotation: Var::new(rotation, true),
-            center: Var::new(center, false),
+            translation: Var::new(translation, true)
+                .expect("versor transform requires backend evaluation to succeed"),
+            rotation: Var::new(rotation, true)
+                .expect("versor transform requires backend evaluation to succeed"),
+            center: Var::new(center, false)
+                .expect("versor transform requires backend evaluation to succeed"),
         }
     }
 
@@ -89,45 +93,99 @@ where
             "versor transform requires points shaped [N, 3], got {shape:?}"
         );
         let target = vec![shape[0], 3];
-        let center = broadcast_to(&reshape(&self.center, [1, 3]), target.clone());
-        let translation = broadcast_to(&reshape(&self.translation, [1, 3]), target);
-        let centered = sub(points, &center);
-        let rotated = coeus_autograd::matmul(
-            &centered,
-            &coeus_autograd::transpose_2d(&self.rotation_matrix()),
-        );
-        let centered_output = add(&rotated, &center);
+        let center_row = reshape(&self.center, [1, 3])
+            .expect("versor transform requires backend evaluation to succeed");
+        let translation_row = reshape(&self.translation, [1, 3])
+            .expect("versor transform requires backend evaluation to succeed");
+        let center = broadcast_to(&center_row, target.clone())
+            .expect("versor transform requires backend evaluation to succeed");
+        let translation = broadcast_to(&translation_row, target)
+            .expect("versor transform requires backend evaluation to succeed");
+        let centered =
+            sub(points, &center).expect("versor transform requires backend evaluation to succeed");
+        let rotation_vars = self.rotation_matrix();
+        let rotation_t = coeus_autograd::transpose_2d(&rotation_vars)
+            .expect("versor transform requires backend evaluation to succeed");
+        let rotated = coeus_autograd::matmul(&centered, &rotation_t)
+            .expect("versor transform requires backend evaluation to succeed");
+        let centered_output = add(&rotated, &center)
+            .expect("versor transform requires backend evaluation to succeed");
         add(&centered_output, &translation)
+            .expect("versor transform requires backend evaluation to succeed")
     }
 
     fn rotation_matrix(&self) -> Var<f32, B> {
-        let norm = sqrt(&sum(&mul(&self.rotation, &self.rotation)));
-        let quaternion = div(&self.rotation, &broadcast_to(&norm, vec![4]));
-        let component = |index| coeus_autograd::slice(&quaternion, &[(index, index + 1)]);
+        let rotation_sq = mul(&self.rotation, &self.rotation)
+            .expect("versor transform requires backend evaluation to succeed");
+        let rotation_sum =
+            sum(&rotation_sq).expect("versor transform requires backend evaluation to succeed");
+        let norm =
+            sqrt(&rotation_sum).expect("versor transform requires backend evaluation to succeed");
+        let norm_wide = broadcast_to(&norm, vec![4])
+            .expect("versor transform requires backend evaluation to succeed");
+        let quaternion = div(&self.rotation, &norm_wide)
+            .expect("versor transform requires backend evaluation to succeed");
+        let component = |index| {
+            coeus_autograd::slice(&quaternion, &[(index, index + 1)])
+                .expect("versor transform requires backend evaluation to succeed")
+        };
         let (x, y, z, w) = (component(0), component(1), component(2), component(3));
-        let one = Var::new(Tensor::from_slice_on([1], &[1.0], &B::default()), false);
-        let two = Var::new(Tensor::from_slice_on([1], &[2.0], &B::default()), false);
-        let twice = |value: &Var<f32, B>| mul(&two, value);
+        let one = Var::new(
+            Tensor::from_slice_on([1], &[1.0], &B::default())
+                .expect("versor transform requires backend evaluation to succeed"),
+            false,
+        )
+        .expect("versor transform requires backend evaluation to succeed");
+        let two = Var::new(
+            Tensor::from_slice_on([1], &[2.0], &B::default())
+                .expect("versor transform requires backend evaluation to succeed"),
+            false,
+        )
+        .expect("versor transform requires backend evaluation to succeed");
+        let twice = |value: &Var<f32, B>| {
+            mul(&two, value).expect("versor transform requires backend evaluation to succeed")
+        };
 
-        let xx = mul(&x, &x);
-        let yy = mul(&y, &y);
-        let zz = mul(&z, &z);
-        let xy = mul(&x, &y);
-        let xz = mul(&x, &z);
-        let yz = mul(&y, &z);
-        let xw = mul(&x, &w);
-        let yw = mul(&y, &w);
-        let zw = mul(&z, &w);
+        let xx = mul(&x, &x).expect("versor transform requires backend evaluation to succeed");
+        let yy = mul(&y, &y).expect("versor transform requires backend evaluation to succeed");
+        let zz = mul(&z, &z).expect("versor transform requires backend evaluation to succeed");
+        let xy = mul(&x, &y).expect("versor transform requires backend evaluation to succeed");
+        let xz = mul(&x, &z).expect("versor transform requires backend evaluation to succeed");
+        let yz = mul(&y, &z).expect("versor transform requires backend evaluation to succeed");
+        let xw = mul(&x, &w).expect("versor transform requires backend evaluation to succeed");
+        let yw = mul(&y, &w).expect("versor transform requires backend evaluation to succeed");
+        let zw = mul(&z, &w).expect("versor transform requires backend evaluation to succeed");
 
-        let r11 = sub(&one, &twice(&add(&yy, &zz)));
-        let r12 = twice(&sub(&xy, &zw));
-        let r13 = twice(&add(&xz, &yw));
-        let r21 = twice(&add(&xy, &zw));
-        let r22 = sub(&one, &twice(&add(&xx, &zz)));
-        let r23 = twice(&sub(&yz, &xw));
-        let r31 = twice(&sub(&xz, &yw));
-        let r32 = twice(&add(&yz, &xw));
-        let r33 = sub(&one, &twice(&add(&xx, &yy)));
+        let r11_inner =
+            add(&yy, &zz).expect("versor transform requires backend evaluation to succeed");
+        let r11 = sub(&one, &twice(&r11_inner))
+            .expect("versor transform requires backend evaluation to succeed");
+        let r12_inner =
+            sub(&xy, &zw).expect("versor transform requires backend evaluation to succeed");
+        let r12 = twice(&r12_inner);
+        let r13_inner =
+            add(&xz, &yw).expect("versor transform requires backend evaluation to succeed");
+        let r13 = twice(&r13_inner);
+        let r21_inner =
+            add(&xy, &zw).expect("versor transform requires backend evaluation to succeed");
+        let r21 = twice(&r21_inner);
+        let r22_inner =
+            add(&xx, &zz).expect("versor transform requires backend evaluation to succeed");
+        let r22 = sub(&one, &twice(&r22_inner))
+            .expect("versor transform requires backend evaluation to succeed");
+        let r23_inner =
+            sub(&yz, &xw).expect("versor transform requires backend evaluation to succeed");
+        let r23 = twice(&r23_inner);
+        let r31_inner =
+            sub(&xz, &yw).expect("versor transform requires backend evaluation to succeed");
+        let r31 = twice(&r31_inner);
+        let r32_inner =
+            add(&yz, &xw).expect("versor transform requires backend evaluation to succeed");
+        let r32 = twice(&r32_inner);
+        let r33_inner =
+            add(&xx, &yy).expect("versor transform requires backend evaluation to succeed");
+        let r33 = sub(&one, &twice(&r33_inner))
+            .expect("versor transform requires backend evaluation to succeed");
 
         matrix_from_rows(&[[&r11, &r12, &r13], [&r21, &r22, &r23], [&r31, &r32, &r33]])
     }
@@ -138,7 +196,11 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
-        self.transform_variables(&Var::new(points, false)).tensor
+        self.transform_variables(
+            &Var::new(points, false)
+                .expect("versor transform requires backend evaluation to succeed"),
+        )
+        .tensor
     }
 }
 
@@ -185,11 +247,13 @@ mod tests {
         let backend = SequentialBackend;
         let half_angle = std::f32::consts::FRAC_1_SQRT_2;
         let transform = VersorRigid3DTransform::<SequentialBackend>::new(
-            Tensor::zeros_on([3], &backend),
-            Tensor::from_slice_on([4], &[half_angle, 0.0, 0.0, half_angle], &backend),
-            Tensor::zeros_on([3], &backend),
+            Tensor::zeros_on([3], &backend).expect("test tensor is valid"),
+            Tensor::from_slice_on([4], &[half_angle, 0.0, 0.0, half_angle], &backend)
+                .expect("test tensor is valid"),
+            Tensor::zeros_on([3], &backend).expect("test tensor is valid"),
         );
-        let point = Tensor::from_slice_on([1, 3], &[0.0, 1.0, 0.0], &backend);
+        let point = Tensor::from_slice_on([1, 3], &[0.0, 1.0, 0.0], &backend)
+            .expect("test tensor is valid");
 
         let transformed = transform.transform_points(point);
 

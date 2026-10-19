@@ -28,7 +28,8 @@ impl<B: Backend + BackendOps<f32>, const D: usize> TranslationTransform<B, D> {
             "translation parameter must have shape [{D}]"
         );
         Self {
-            translation: Var::new(translation, true),
+            translation: Var::new(translation, true)
+                .expect("translation transform requires backend evaluation to succeed"),
         }
     }
 
@@ -53,9 +54,12 @@ impl<B: Backend + BackendOps<f32>, const D: usize> TranslationTransform<B, D> {
             shape.len() == 2 && shape[1] == D,
             "translation transform requires points shaped [N, {D}], got {shape:?}"
         );
-        let translation = reshape(&self.translation, [1, D]);
-        let broadcast_translation = broadcast_variable(&translation, vec![shape[0], D]);
+        let translation = reshape(&self.translation, [1, D])
+            .expect("translation transform requires backend evaluation to succeed");
+        let broadcast_translation = broadcast_variable(&translation, vec![shape[0], D])
+            .expect("translation transform requires backend evaluation to succeed");
         add_variables(points, &broadcast_translation)
+            .expect("translation transform requires backend evaluation to succeed")
     }
 }
 
@@ -72,8 +76,10 @@ where
         );
         let backend = B::default();
         let translation = self.translation.tensor.reshape([1, D]);
-        let translated = broadcast_to(&translation, &[shape[0], D], &backend);
+        let translated = broadcast_to(&translation, &[shape[0], D], &backend)
+            .expect("translation transform requires backend evaluation to succeed");
         add(&points, &translated, &backend)
+            .expect("translation transform requires backend evaluation to succeed")
     }
 }
 
@@ -132,10 +138,12 @@ mod tests {
     #[test]
     fn translates_every_point() {
         let backend = SequentialBackend;
-        let translation = Tensor::<f32, _>::from_slice_on([3], &[1.0, 2.0, 3.0], &backend);
+        let translation = Tensor::<f32, _>::from_slice_on([3], &[1.0, 2.0, 3.0], &backend)
+            .expect("test tensor is valid");
         let transform = TranslationTransform::<SequentialBackend, 3>::new(translation);
         let points =
-            Tensor::<f32, _>::from_slice_on([2, 3], &[0.0, 0.0, 0.0, 1.0, 1.0, 1.0], &backend);
+            Tensor::<f32, _>::from_slice_on([2, 3], &[0.0, 0.0, 0.0, 1.0, 1.0, 1.0], &backend)
+                .expect("test tensor is valid");
 
         let transformed = transform.transform_points(points);
 

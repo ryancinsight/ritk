@@ -16,7 +16,8 @@ pub(super) fn make_image(
 ) -> Image<f32, Backend, 3> {
     let device = Default::default();
     let data = vec![fill; depth * rows * cols];
-    let tensor = Tensor::<f32, Backend>::from_slice_on([depth, rows, cols], &(data), &device);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([depth, rows, cols], &(data), &device)
+        .expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -36,7 +37,8 @@ pub(super) fn make_image_with_spatial(
 ) -> Image<f32, Backend, 3> {
     let device = Default::default();
     let data = vec![fill; depth * rows * cols];
-    let tensor = Tensor::<f32, Backend>::from_slice_on([depth, rows, cols], &(data), &device);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([depth, rows, cols], &(data), &device)
+        .expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new(origin),

@@ -32,7 +32,7 @@ fn wiener_dirac_identity() {
     let result = filter
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     for (i, &v) in vals.iter().enumerate() {
         assert!(
             (v - image_vals[i]).abs() < 0.1,
@@ -53,7 +53,7 @@ fn wiener_zero_k_dirac_identity() {
     let result = filter
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     for (i, &v) in vals.iter().enumerate() {
         assert!(
             (v - image_vals[i]).abs() < 0.1,
@@ -91,7 +91,7 @@ fn tikhonov_lambda_reduces_variance() {
     let result = filter
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     let var: f64 = vals
         .iter()
         .map(|&v| {
@@ -115,7 +115,7 @@ fn tikhonov_dirac_identity() {
     let result = filter
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     for (i, &v) in vals.iter().enumerate() {
         assert!(
             (v - image_vals[i]).abs() < 0.1,
@@ -152,7 +152,7 @@ fn richardson_lucy_dirac_identity() {
     let result = filter
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     for (i, &v) in vals.iter().enumerate() {
         assert!(
             (v - image_vals[i]).abs() < 1.0,
@@ -178,7 +178,7 @@ fn richardson_lucy_preserves_total_flux() {
     let result = filter
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     let input_sum: f32 = image_vals.iter().sum();
     let output_sum: f32 = vals.iter().sum();
     assert!(
@@ -214,7 +214,7 @@ fn richardson_lucy_preserves_non_negativity() {
     let result = filter
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     for &v in &vals {
         assert!(v >= -0.01, "RL must preserve non-negativity, got {v}");
     }
@@ -235,7 +235,7 @@ fn landweber_dirac_identity() {
     let result = filter
         .apply(&img, &ker)
         .expect("infallible: validated precondition");
-    let vals = result.data().to_vec();
+    let vals = result.data().to_vec().expect("test tensor is valid");
     for (i, &v) in vals.iter().enumerate() {
         assert!(
             (v - image_vals[i]).abs() < 0.5,

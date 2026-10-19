@@ -106,6 +106,10 @@ where
     /// scheme the original Coeus model relied on), zero biases, HiPPO-real
     /// `a_log` initialization (`A[n] = -(n+1)`, i.e. `a_log[n] = ln(n+1)`), and
     /// `D = 1`. `seed` seeds the deterministic weight draws.
+    ///
+    /// # Panics
+    /// Panics when a configured dim is zero: configs this crate builds
+    /// carry positive dims.
     #[must_use]
     pub fn new(config: &SelectiveStateSpaceConfig, seed: u64) -> Self {
         let backend = B::default();
@@ -132,11 +136,14 @@ where
         let a_init: Vec<f32> = (0..inner_dim * config.state_dim)
             .map(|i| ((i % config.state_dim) as f32 + 1.0).ln())
             .collect();
-        let a_log = Var::new(
-            Tensor::from_slice_on([inner_dim * config.state_dim], &a_init, &backend),
+        let a_tensor = Tensor::from_slice_on([inner_dim * config.state_dim], &a_init, &backend)
+            .expect("invariant: HiPPO init values match their shape");
+        let a_log = Var::new(a_tensor, true).expect("invariant: a-log wraps its tensor");
+        let d = Var::new(
+            Tensor::ones_on([inner_dim], &backend).expect("invariant: skip shape is valid"),
             true,
-        );
-        let d = Var::new(Tensor::ones_on([inner_dim], &backend), true);
+        )
+        .expect("invariant: skip wraps its tensor");
 
         Self {
             in_proj,
@@ -180,38 +187,50 @@ where
         // Input projection, split into the SSM branch `x` and the gating
         // residual (channels `[0, inner)` and `[inner, 2·inner)`).
         let proj = self.in_proj.forward(input)?;
-        let x = slice(&proj, &[(0, batch), (0, seq), (0, inner)]);
-        let residual = slice(&proj, &[(0, batch), (0, seq), (inner, inner * 2)]);
+        let x = slice(&proj, &[(0, batch), (0, seq), (0, inner)]).map_err(ModelError::backend)?;
+        let residual = slice(&proj, &[(0, batch), (0, seq), (inner, inner * 2)])
+            .map_err(ModelError::backend)?;
 
         // Input-dependent Δ: low-rank projection then softplus (Δ > 0).
-        let dt = softplus(&self.dt_proj.forward(&self.dt_in_proj.forward(&x)?)?);
+        let dt_low = self.dt_in_proj.forward(&x)?;
+        let dt_high = self.dt_proj.forward(&dt_low)?;
+        let dt = softplus(&dt_high).map_err(ModelError::backend)?;
         let b = self.b_proj.forward(&x)?; // [batch, seq, state]
         let c = self.c_proj.forward(&x)?; // [batch, seq, state]
 
         // A = -exp(a_log) reshaped to [inner, state].
-        let a = reshape(&neg(&exp(&self.a_log)), [inner, self.state_dim]);
+        let a_exp = exp(&self.a_log).map_err(ModelError::backend)?;
+        let a_neg = neg(&a_exp).map_err(ModelError::backend)?;
+        let a = reshape(&a_neg, [inner, self.state_dim]).map_err(ModelError::backend)?;
 
         // Discretize and assemble the scan inputs, all broadcast to
         // [batch, seq, inner, state] so `selective_scan` sees matched shapes.
-        let dt_exp = unsqueeze(&dt, 3); // [batch, seq, inner, 1]
-        let a_exp = unsqueeze(&unsqueeze(&a, 0), 0); // [1, 1, inner, state]
-        let a_bar = exp(&mul(&dt_exp, &a_exp)); // Ä€ = exp(Δ·A)
+        let dt_exp = unsqueeze(&dt, 3).map_err(ModelError::backend)?; // [batch, seq, inner, 1]
+        let a_3d = unsqueeze(&a, 0).map_err(ModelError::backend)?;
+        let a_exp = unsqueeze(&a_3d, 0).map_err(ModelError::backend)?; // [1, 1, inner, state]
+        let dt_a = mul(&dt_exp, &a_exp).map_err(ModelError::backend)?;
+        let a_bar = exp(&dt_a).map_err(ModelError::backend)?; // Ä€ = exp(Δ·A)
 
-        let b_exp = unsqueeze(&b, 2); // [batch, seq, 1, state]
-        let b_bar = mul(&dt_exp, &b_exp); // BÌ„ = Δ·B
-        let x_exp = unsqueeze(&x, 3); // [batch, seq, inner, 1]
-        let u = mul(&b_bar, &x_exp); // U = BÌ„·x
+        let b_exp = unsqueeze(&b, 2).map_err(ModelError::backend)?; // [batch, seq, 1, state]
+        let b_bar = mul(&dt_exp, &b_exp).map_err(ModelError::backend)?; // BÌ„ = Δ·B
+        let x_exp = unsqueeze(&x, 3).map_err(ModelError::backend)?; // [batch, seq, inner, 1]
+        let u = mul(&b_bar, &x_exp).map_err(ModelError::backend)?; // U = BÌ„·x
 
         // h_t = Ä€_t ⊙ h_{t-1} + U_t along the sequence axis.
-        let h = selective_scan(&a_bar, &u); // [batch, seq, inner, state]
+        let h = selective_scan(&a_bar, &u).map_err(ModelError::backend)?; // [batch, seq, inner, state]
 
         // y = (C ⊙ h).sum(state). `sum_axis` keeps the reduced axis, so drop it.
-        let c_exp = unsqueeze(&c, 2); // [batch, seq, 1, state]
-        let y = reshape(&sum_axis(&mul(&h, &c_exp), 3), [batch, seq, inner]);
+        let c_exp = unsqueeze(&c, 2).map_err(ModelError::backend)?; // [batch, seq, 1, state]
+        let hc = mul(&h, &c_exp).map_err(ModelError::backend)?;
+        let summed = sum_axis(&hc, 3).map_err(ModelError::backend)?;
+        let y = reshape(&summed, [batch, seq, inner]).map_err(ModelError::backend)?;
 
         // Gated skip connection: y ⊙ σ(residual) ⊙ D.
-        let d_exp = unsqueeze(&unsqueeze(&self.d, 0), 0); // [1, 1, inner]
-        let gated = mul(&mul(&y, &sigmoid(&residual)), &d_exp);
+        let d_2d = unsqueeze(&self.d, 0).map_err(ModelError::backend)?;
+        let d_exp = unsqueeze(&d_2d, 0).map_err(ModelError::backend)?; // [1, 1, inner]
+        let sig = sigmoid(&residual).map_err(ModelError::backend)?;
+        let gated_y = mul(&y, &sig).map_err(ModelError::backend)?;
+        let gated = mul(&gated_y, &d_exp).map_err(ModelError::backend)?;
 
         Ok(self.out_proj.forward(&gated)?)
     }
@@ -228,10 +247,11 @@ where
         let (dd, hh, ww) = (sh[2], sh[3], sh[4]);
         let seq = dd * hh * ww;
 
-        let flat = reshape(&permute(input, &[0, 2, 3, 4, 1]), [batch, seq, channels]);
+        let channels_last = permute(input, &[0, 2, 3, 4, 1]).map_err(ModelError::backend)?;
+        let flat = reshape(&channels_last, [batch, seq, channels]).map_err(ModelError::backend)?;
         let out = self.forward(&flat)?; // [batch, seq, output_dim]
-        let restored = permute(&out, &[0, 2, 1]); // [batch, output_dim, seq]
-        Ok(reshape(&restored, [batch, self.output_dim, dd, hh, ww]))
+        let restored = permute(&out, &[0, 2, 1]).map_err(ModelError::backend)?; // [batch, output_dim, seq]
+        reshape(&restored, [batch, self.output_dim, dd, hh, ww]).map_err(ModelError::backend)
     }
 }
 
@@ -320,7 +340,11 @@ mod tests {
     }
 
     fn var(shape: &[usize], data: &[f32], grad: bool) -> Var<f32, Bk> {
-        Var::new(Tensor::from_slice_on(shape, data, &SequentialBackend), grad)
+        Var::new(
+            Tensor::from_slice_on(shape, data, &SequentialBackend).expect("test tensor is valid"),
+            grad,
+        )
+        .expect("test tensor is valid")
     }
 
     /// Reduce `y` against a fixed pseudo-random linear functional `Σ wᵢ yᵢ`, a
@@ -333,7 +357,8 @@ mod tests {
         let w: Vec<f32> = (0..n)
             .map(|i| (((i.wrapping_mul(2_654_435_761)) % 1000) as f32) / 1000.0 - 0.5)
             .collect();
-        sum(&vmul(y, &var(shape, &w, false)))
+        sum(&vmul(y, &var(shape, &w, false)).expect("test reduction succeeds"))
+            .expect("test reduction succeeds")
     }
 
     fn small_ssm() -> SelectiveStateSpace<Bk> {

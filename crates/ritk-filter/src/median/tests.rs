@@ -16,7 +16,7 @@ fn make_image(
     origin: [f64; 3],
     spacing: [f64; 3],
 ) -> Image<f32, B, 3> {
-    let tensor = Tensor::<f32, B>::from_slice(dims, &vals);
+    let tensor = Tensor::<f32, B>::from_slice(dims, &vals).expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new(origin),

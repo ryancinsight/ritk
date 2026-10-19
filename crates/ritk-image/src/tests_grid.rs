@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use coeus_core::SequentialBackend;
 
@@ -9,7 +10,7 @@ type B = SequentialBackend;
 #[test]
 fn grid_3d_shape_is_n_by_3() {
     let backend = B::default();
-    let g = generate_grid::<f32, B, 3>([2, 3, 4], &backend);
+    let g = generate_grid::<f32, B, 3>([2, 3, 4], &backend).unwrap();
     let shape = g.shape();
     assert_eq!(shape[0], 2 * 3 * 4, "row count must equal D*H*W");
     assert_eq!(
@@ -22,7 +23,7 @@ fn grid_3d_shape_is_n_by_3() {
 #[test]
 fn grid_3d_first_voxel_is_origin() {
     let backend = B::default();
-    let g = generate_grid::<f32, B, 3>([3, 3, 3], &backend);
+    let g = generate_grid::<f32, B, 3>([3, 3, 3], &backend).unwrap();
     let first = g.slice(&[(0, 1), (0, 3)]);
     let vals = first.as_slice();
     // column order: innermost-first [x, y, z]
@@ -44,7 +45,7 @@ fn grid_3d_last_voxel_matches_shape_minus_one() {
     let d = 2usize;
     let h = 3usize;
     let w = 4usize;
-    let g = generate_grid::<f32, B, 3>([d, h, w], &backend);
+    let g = generate_grid::<f32, B, 3>([d, h, w], &backend).unwrap();
     let n = d * h * w;
     let last = g.slice(&[(n - 1, n), (0, 3)]);
     let vals = last.as_slice();
@@ -57,7 +58,7 @@ fn grid_3d_last_voxel_matches_shape_minus_one() {
 #[test]
 fn grid_2d_shape_is_n_by_2() {
     let backend = B::default();
-    let g = generate_grid::<f32, B, 2>([5, 7], &backend);
+    let g = generate_grid::<f32, B, 2>([5, 7], &backend).unwrap();
     let shape = g.shape();
     assert_eq!(shape[0], 5 * 7, "row count must equal H*W");
     assert_eq!(shape[1], 2, "column count must be 2 (x, y)");
@@ -67,7 +68,7 @@ fn grid_2d_shape_is_n_by_2() {
 #[test]
 fn grid_2d_first_pixel_is_origin() {
     let backend = B::default();
-    let g = generate_grid::<f32, B, 2>([4, 6], &backend);
+    let g = generate_grid::<f32, B, 2>([4, 6], &backend).unwrap();
     let first = g.slice(&[(0, 1), (0, 2)]);
     let vals = first.as_slice();
     assert_eq!(vals[0], 0.0, "x of first pixel");

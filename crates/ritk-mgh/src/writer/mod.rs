@@ -28,7 +28,7 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     P: AsRef<Path>,
 {
-    let voxels = image.data_cow_on(backend);
+    let voxels = image.data_cow_on(backend)?;
     write_mgh_stream(
         path.as_ref(),
         image.shape(),
@@ -259,7 +259,7 @@ where
         .context("Failed to write MGH header padding")?;
 
     for (position, volume) in volumes.iter().enumerate() {
-        let voxels = volume.data_cow_on(backend);
+        let voxels = volume.data_cow_on(backend)?;
         if voxels.len() != n_voxels {
             return Err(anyhow!(
                 "write_mgh_series: volume {position} has {} voxels but shape \

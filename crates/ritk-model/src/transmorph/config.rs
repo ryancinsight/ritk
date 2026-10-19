@@ -82,6 +82,10 @@ impl TransMorphConfig {
     }
 
     /// Instantiate a [`TransMorph`] over backend `B`.
+    ///
+    /// # Panics
+    /// Panics when any channel dimension is zero: the config this crate
+    /// validates must reach this builder with positive dims.
     pub fn init<B>(&self) -> TransMorph<B>
     where
         B: Backend + BackendOps<f32> + Default + CpuBackend,
@@ -95,7 +99,8 @@ impl TransMorphConfig {
         };
         let conv = |in_ch: usize, out_ch: usize, kernel: usize, stride: usize, pad: usize| {
             let mut layer =
-                Conv3d::<f32, B>::with_params(in_ch, out_ch, kernel, stride, pad, DILATION, true);
+                Conv3d::<f32, B>::with_params(in_ch, out_ch, kernel, stride, pad, DILATION, true)
+                    .expect("invariant: TransMorph conv dims are positive");
             let fan_in = in_ch * kernel * kernel * kernel;
             coeus_nn::init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, next_seed())
                 .expect("invariant: TransMorph conv fan is positive");

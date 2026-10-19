@@ -153,7 +153,8 @@ fn shifted(labels: &[u32], shift: [isize; 3]) -> Vec<u32> {
 /// Build an image on the subject's grid from a flat volume.
 fn image(values: Vec<f32>) -> Result<Image<f32, Backend, 3>> {
     let device = Backend::default();
-    let tensor = ritk_image::tensor::Tensor::<f32, Backend>::from_slice_on(SHAPE, &values, &device);
+    let tensor =
+        ritk_image::tensor::Tensor::<f32, Backend>::from_slice_on(SHAPE, &values, &device)?;
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),

@@ -28,7 +28,9 @@
 //! are the same operation).
 
 use coeus_autograd::{add, gather, mul, sub, Var};
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, FloatElement, Scalar,
+};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -72,18 +74,19 @@ where
     let mut idx1 = Vec::with_capacity(n);
     for &c in coord_vals {
         let floor = <T as eunomia::NumericElement>::to_f64(c).floor();
-        floor_vals.push(<T as coeus_core::Scalar>::from_f64(floor));
+        floor_vals.push(<T as FloatElement>::from_f64(floor));
         idx0.push(clamp_index(floor, max_index));
         idx1.push(clamp_index(floor + 1.0, max_index));
     }
 
-    let floor_const = Var::new(Tensor::from_slice_on([n], &floor_vals, backend), false);
-    let ones = Var::new(
-        Tensor::full_on([n], <T as eunomia::NumericElement>::ONE, backend),
-        false,
-    );
-    let w1 = sub(coords, &floor_const);
-    let w0 = sub(&ones, &w1);
+    let floor_tensor = Tensor::from_slice_on([n], &floor_vals, backend)
+        .expect("axis_interp: backend tensor build failed");
+    let floor_const = Var::new(floor_tensor, false).expect("axis_interp: backend Var build failed");
+    let ones_tensor = Tensor::full_on([n], <T as eunomia::NumericElement>::ONE, backend)
+        .expect("axis_interp: backend ones build failed");
+    let ones = Var::new(ones_tensor, false).expect("axis_interp: backend Var build failed");
+    let w1 = sub(coords, &floor_const).expect("axis_interp: backend subtract failed");
+    let w0 = sub(&ones, &w1).expect("axis_interp: backend subtract failed");
 
     AxisInterp { w0, w1, idx0, idx1 }
 }
@@ -95,10 +98,9 @@ where
     B: ComputeBackend + BackendOps<T> + Default,
 {
     let vals: Vec<T> = indices.iter().map(|&i| T::from_count(i)).collect();
-    Var::new(
-        Tensor::from_slice_on([indices.len()], &vals, backend),
-        false,
-    )
+    let tensor = Tensor::from_slice_on([indices.len()], &vals, backend)
+        .expect("index_var: backend tensor build failed");
+    Var::new(tensor, false).expect("index_var: backend Var build failed")
 }
 
 /// Differentiable linear interpolation of a 1-D `signal` (shape `[L]`) at
@@ -131,11 +133,13 @@ where
     assert!(len > 0, "sample_linear_1d: signal must be non-empty");
 
     let axis = axis_interp(coords, len, &backend);
-    let v0 = gather(signal, 0, &index_var(&axis.idx0, &backend));
-    let v1 = gather(signal, 0, &index_var(&axis.idx1, &backend));
-    let left = mul(&v0, &axis.w0);
-    let right = mul(&v1, &axis.w1);
-    add(&left, &right)
+    let idx0 = index_var(&axis.idx0, &backend);
+    let v0 = gather(signal, 0, &idx0).expect("sample_linear_1d: backend gather failed");
+    let idx1 = index_var(&axis.idx1, &backend);
+    let v1 = gather(signal, 0, &idx1).expect("sample_linear_1d: backend gather failed");
+    let left = mul(&v0, &axis.w0).expect("sample_linear_1d: backend multiply failed");
+    let right = mul(&v1, &axis.w1).expect("sample_linear_1d: backend multiply failed");
+    add(&left, &right).expect("sample_linear_1d: backend add failed")
 }
 
 /// Differentiable trilinear interpolation of a flattened 3-D `signal` (shape
@@ -212,11 +216,14 @@ where
                 let flat: Vec<usize> = (0..n)
                     .map(|k| iz[k] * stride_z + iy[k] * stride_y + ix[k])
                     .collect();
-                let value = gather(signal, 0, &index_var(&flat, &backend));
-                let weight = mul(&mul(wz, wy), wx);
-                let term = mul(&value, &weight);
+                let idx = index_var(&flat, &backend);
+                let value =
+                    gather(signal, 0, &idx).expect("sample_trilinear: backend gather failed");
+                let wz_wy = mul(wz, wy).expect("sample_trilinear: backend multiply failed");
+                let weight = mul(&wz_wy, wx).expect("sample_trilinear: backend multiply failed");
+                let term = mul(&value, &weight).expect("sample_trilinear: backend multiply failed");
                 acc = Some(match acc {
-                    Some(prev) => add(&prev, &term),
+                    Some(prev) => add(&prev, &term).expect("sample_trilinear: backend add failed"),
                     None => term,
                 });
             }

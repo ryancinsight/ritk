@@ -18,7 +18,7 @@ fn make_image_with_spacing(
     ts::make_image_with_spacing::<f32, B, 3>(vals, shape, spacing)
 }
 fn vals(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data().to_vec()
+    img.data().to_vec().expect("test tensor is valid")
 }
 
 // Helper: near-zero sigma that lies below the 1e-9 skip threshold.
@@ -94,7 +94,7 @@ fn test_zero_variance_produces_identity() {
 
 #[test]
 fn test_spatial_metadata_preserved() {
-    let t = Tensor::<f32, B>::from_slice([3, 3, 3], &[1.0_f32; 27]);
+    let t = Tensor::<f32, B>::from_slice([3, 3, 3], &[1.0_f32; 27]).expect("test tensor is valid");
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
     let dir = Direction::identity();

@@ -10,7 +10,7 @@ use ritk_image::test_support::make_image;
 type TestBackend = SequentialBackend;
 
 fn get_values(image: &Image<f32, TestBackend, 3>) -> Vec<f32> {
-    image.data().to_vec()
+    image.data().to_vec().expect("test tensor is valid")
 }
 
 fn count_foreground(image: &Image<f32, TestBackend, 3>) -> usize {

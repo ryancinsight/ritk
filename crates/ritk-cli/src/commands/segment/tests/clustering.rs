@@ -20,7 +20,8 @@ fn make_binary_image_with_components(
             }
         }
     }
-    let tensor = Tensor::<f32, Backend>::from_slice_on(dims, &vals, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on(dims, &vals, &backend)
+        .expect("test fixture tensor build failed");
     Image::new(
         tensor,
         Point::new([0.0; 3]),
@@ -50,7 +51,10 @@ fn test_segment_kmeans_creates_output_with_valid_labels() {
     assert!(output.exists(), "kmeans output must be created");
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(labels.shape(), [6, 6, 6]);
-    let vals: Vec<f32> = labels.data_cow_on(&Backend::default()).into_owned();
+    let vals: Vec<f32> = labels
+        .data_cow_on(&Backend::default())
+        .expect("test image is host-addressable")
+        .into_owned();
     for &v in &vals {
         assert!(
             (0.0..3.0 + 0.5).contains(&v),
@@ -111,7 +115,9 @@ fn test_segment_kmeans_seed_produces_deterministic_output() {
     run(make_args(inp2, out2.clone())).unwrap();
     let read_vals = |p: &std::path::Path| -> Vec<f32> {
         let im: Image<f32, Backend, 3> = ritk_io::read_nifti(p, &Default::default()).unwrap();
-        im.data_cow_on(&Backend::default()).into_owned()
+        im.data_cow_on(&Backend::default())
+            .expect("test image is host-addressable")
+            .into_owned()
     };
     assert_eq!(
         read_vals(&out1),
@@ -245,7 +251,8 @@ fn test_segment_distance_transform_background_is_zero() {
 
     let backend = Backend::default();
     let values = vec![0.0_f32; 27];
-    let tensor = Tensor::<f32, Backend>::from_slice_on([3, 3, 3], &values, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([3, 3, 3], &values, &backend)
+        .expect("test fixture tensor build failed");
     let img = Image::new(
         tensor,
         Point::new([0.0; 3]),
@@ -282,7 +289,8 @@ fn native_distance_transform_cli_preserves_exact_physical_values_and_geometry() 
     let input = dir.path().join("input.nii");
     let output = dir.path().join("distance.nii");
     let backend = Backend::default();
-    let tensor = Tensor::<f32, Backend>::from_slice_on([1, 1, 4], &[1.0, 0.0, 0.0, 0.0], &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([1, 1, 4], &[1.0, 0.0, 0.0, 0.0], &backend)
+        .expect("test fixture tensor build failed");
     let image = Image::new(
         tensor,
         Point::new([2.0, 3.0, 5.0]),
@@ -331,7 +339,8 @@ fn test_segment_fill_holes_fills_enclosed_cavity() {
             }
         }
     }
-    let tensor = Tensor::<f32, Backend>::from_slice_on([nz, ny, nx], &vals, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([nz, ny, nx], &vals, &backend)
+        .expect("test fixture tensor build failed");
     let hollow_sphere = Image::new(
         tensor,
         Point::new([0.0; 3]),

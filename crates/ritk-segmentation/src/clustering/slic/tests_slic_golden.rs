@@ -40,7 +40,7 @@ fn run<const D: usize>(values: Vec<f32>, dims: [usize; D], superpixels: usize) -
     let output = SlicSuperpixelFilter::new(config)
         .apply(&image)
         .expect("invariant: fixture is finite, 2-D/3-D, and nonempty");
-    output.data().to_vec()
+    output.data().to_vec().expect("test tensor is valid")
 }
 
 #[test]

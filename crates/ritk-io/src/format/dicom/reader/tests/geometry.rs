@@ -250,7 +250,8 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
     let (depth, rows, cols) = (3usize, 2usize, 2usize);
     let data = vec![500.0f32; depth * rows * cols];
     let device = B::default();
-    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(data), &device);
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(data), &device)
+        .expect("test tensor is valid");
     let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),

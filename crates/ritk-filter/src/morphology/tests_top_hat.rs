@@ -6,7 +6,7 @@ use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 type B = coeus_core::SequentialBackend;
 fn img(v: Vec<f32>, d: [usize; 3]) -> Image<f32, B, 3> {
-    let t = Tensor::<f32, B>::from_slice(d, &v);
+    let t = Tensor::<f32, B>::from_slice(d, &v).expect("test tensor is valid");
     Image::new(
         t,
         Point::new([0.0, 0.0, 0.0]),
@@ -65,7 +65,7 @@ fn test_wth_radius_zero() {
 fn test_wth_metadata() {
     let d = [5, 5, 5];
     let n = d[0] * d[1] * d[2];
-    let t = Tensor::<f32, B>::from_slice(d, &vec![1.0_f32; n]);
+    let t = Tensor::<f32, B>::from_slice(d, &vec![1.0_f32; n]).expect("test tensor is valid");
     let o = Point::new([1.0, 2.0, 3.0]);
     let s = Spacing::new([0.5, 0.5, 0.5]);
     let r = WhiteTopHatFilter::new(1)
@@ -133,7 +133,7 @@ fn test_bth_radius_zero() {
 fn test_bth_metadata() {
     let d = [5, 5, 5];
     let n = d[0] * d[1] * d[2];
-    let t = Tensor::<f32, B>::from_slice(d, &vec![1.0_f32; n]);
+    let t = Tensor::<f32, B>::from_slice(d, &vec![1.0_f32; n]).expect("test tensor is valid");
     let o = Point::new([1.0, 2.0, 3.0]);
     let s = Spacing::new([0.5, 0.5, 0.5]);
     let r = BlackTopHatFilter::new(1)

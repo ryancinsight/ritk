@@ -71,7 +71,11 @@ impl PyColorImage {
     /// Convert to an f32 NumPy array of shape `[Z, Y, X, 3]`.
     fn to_numpy<'py>(&self, py: Python<'py>) -> RitkResult<Bound<'py, PyArray4<f32>>> {
         let [z, y, x, ch] = self.inner.shape();
-        let vals = self.inner.data_cow_on(&MoiraiBackend).into_owned();
+        let vals = self
+            .inner
+            .data_cow_on(&MoiraiBackend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))?
+            .into_owned();
         PyArray1::<f32>::from_vec(py, vals)
             .reshape([z, y, x, ch])
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -336,7 +340,11 @@ pub fn vector_index_selection_cast(image: &PyColorImage, index: usize) -> RitkRe
             "vector_index_selection_cast: index {index} out of range for {ch} components"
         )));
     }
-    let comp = image.inner.into_component_buffers().swap_remove(index);
+    let mut comps = image
+        .inner
+        .into_component_buffers()
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+    let comp = comps.swap_remove(index);
     Ok(into_py_image(vec_to_image(
         comp,
         [d, r, c],
@@ -352,7 +360,11 @@ pub fn vector_index_selection_cast(image: &PyColorImage, index: usize) -> RitkRe
 #[pyfunction]
 pub fn vector_magnitude(image: &PyColorImage) -> PyImage {
     let [d, r, c, _ch] = image.inner.shape();
-    let mag = vector_magnitude_buffer(&image.inner.into_component_buffers(), d * r * c);
+    let comps = image
+        .inner
+        .into_component_buffers()
+        .expect("color image components extract from host memory");
+    let mag = vector_magnitude_buffer(&comps, d * r * c);
     into_py_image(vec_to_image(
         mag,
         [d, r, c],
@@ -383,7 +395,11 @@ fn vector_magnitude_buffer(comps: &[Vec<f32>], n: usize) -> Vec<f32> {
 #[pyfunction]
 pub fn edge_potential(image: &PyColorImage) -> PyImage {
     let [d, r, c, _ch] = image.inner.shape();
-    let mut mag = vector_magnitude_buffer(&image.inner.into_component_buffers(), d * r * c);
+    let comps = image
+        .inner
+        .into_component_buffers()
+        .expect("color image components extract from host memory");
+    let mut mag = vector_magnitude_buffer(&comps, d * r * c);
     for m in &mut mag {
         *m = (-*m).exp();
     }

@@ -11,7 +11,8 @@ use super::*;
 fn make_uniform_gradient_image() -> Image<f32, Backend, 3> {
     let backend = Backend::default();
     let values = vec![0.5_f32; 27];
-    let tensor = Tensor::<f32, Backend>::from_slice_on([3, 3, 3], &values, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([3, 3, 3], &values, &backend)
+        .expect("test fixture tensor build failed");
     Image::new(
         tensor,
         Point::new([0.0; 3]),
@@ -31,7 +32,8 @@ fn make_two_seed_marker_image() -> Image<f32, Backend, 3> {
     let mut values = vec![0.0_f32; 27];
     values[0] = 1.0;
     values[26] = 2.0;
-    let tensor = Tensor::<f32, Backend>::from_slice_on([3, 3, 3], &values, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([3, 3, 3], &values, &backend)
+        .expect("test fixture tensor build failed");
     Image::new(
         tensor,
         Point::new([0.0; 3]),
@@ -83,7 +85,8 @@ fn native_watershed_cli_rejects_nonfinite_relief_before_output() {
     let output = dir.path().join("labels.nii");
     let backend = Backend::default();
     let image = Image::new(
-        Tensor::<f32, Backend>::from_slice_on([1, 1, 2], &[0.0, f32::NAN], &backend),
+        Tensor::<f32, Backend>::from_slice_on([1, 1, 2], &[0.0, f32::NAN], &backend)
+            .expect("test fixture tensor build failed"),
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),

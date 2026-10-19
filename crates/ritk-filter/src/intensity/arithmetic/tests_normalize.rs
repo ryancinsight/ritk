@@ -102,7 +102,8 @@ fn normalize_two_element() {
 #[test]
 fn normalize_preserves_metadata() {
     let sp = Spacing::new([0.5, 1.0, 2.0]);
-    let t = Tensor::<f32, B>::from_slice([1usize, 1, 2], &[1.0_f32, 3.0]);
+    let t = Tensor::<f32, B>::from_slice([1usize, 1, 2], &[1.0_f32, 3.0])
+        .expect("test tensor is valid");
     let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity())
         .expect("invariant: fixture tensor has the declared rank");
     let out = NormalizeImageFilter::new().apply(&img);

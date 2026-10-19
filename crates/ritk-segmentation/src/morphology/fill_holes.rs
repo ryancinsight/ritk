@@ -52,7 +52,8 @@ impl<B: Backend> MorphologicalOperation<B, 3> for BinaryFillHoles {
         let device = B::default();
         let (vals_vec, _shape) = extract_vec_infallible(mask);
         let out = fill_holes_values(&vals_vec, shape);
-        let tensor = Tensor::<f32, B>::from_slice_on(shape, &out, &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &out, &device)
+            .expect("invariant: segmentation output length matches shape");
         Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
             .expect("invariant: segmentation output tensor preserves the image rank")
     }

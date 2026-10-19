@@ -135,7 +135,7 @@ impl N4BiasFieldCorrectionFilter {
     where
         B: ComputeBackend,
     {
-        let values = image.data_cow_on(backend).into_owned();
+        let values = image.data_cow_on(backend)?.into_owned();
         ritk_image::Image::from_flat_on(
             apply_n4_bias_correction_values(&values, image.shape(), &self.config)?,
             image.shape(),

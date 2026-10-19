@@ -12,7 +12,9 @@
 //! perfect correlation.
 
 use coeus_autograd::{div, mul, neg, scalar_add, scalar_div, sqrt, sub, sum, Var};
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement,
+};
 use coeus_ops::BackendOps;
 
 use super::traits::Metric;
@@ -40,48 +42,51 @@ use super::traits::Metric;
 /// contract) — a caller invariant.
 pub fn normalized_cross_correlation<T, B>(moving: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement + leto_ops::Scalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let n = moving.tensor.shape().first().copied().unwrap_or(0) as f64;
     let inv_n_scale = n; // scalar_div divides by this
 
-    let s_f = sum(fixed);
-    let s_m = sum(moving);
-    let s_ff = sum(&mul(fixed, fixed));
-    let s_mm = sum(&mul(moving, moving));
-    let s_fm = sum(&mul(fixed, moving));
+    let s_f = sum(fixed).expect("normalized_cross_correlation: backend sum failed");
+    let s_m = sum(moving).expect("normalized_cross_correlation: backend sum failed");
+    let fixed_sq =
+        mul(fixed, fixed).expect("normalized_cross_correlation: backend multiply failed");
+    let s_ff = sum(&fixed_sq).expect("normalized_cross_correlation: backend sum failed");
+    let moving_sq =
+        mul(moving, moving).expect("normalized_cross_correlation: backend multiply failed");
+    let s_mm = sum(&moving_sq).expect("normalized_cross_correlation: backend sum failed");
+    let fixed_moving =
+        mul(fixed, moving).expect("normalized_cross_correlation: backend multiply failed");
+    let s_fm = sum(&fixed_moving).expect("normalized_cross_correlation: backend sum failed");
 
     // num = S_FM − S_F·S_M / N
-    let num = sub(
-        &s_fm,
-        &scalar_div(
-            &mul(&s_f, &s_m),
-            <T as coeus_core::Scalar>::from_f64(inv_n_scale),
-        ),
-    );
+    let s_f_s_m = mul(&s_f, &s_m).expect("normalized_cross_correlation: backend multiply failed");
+    let s_f_s_m_n = scalar_div(&s_f_s_m, <T as FloatElement>::from_f64(inv_n_scale))
+        .expect("normalized_cross_correlation: backend scalar_div failed");
+    let num =
+        sub(&s_fm, &s_f_s_m_n).expect("normalized_cross_correlation: backend subtract failed");
     // d_F = S_FF − S_F² / N ; d_M = S_MM − S_M² / N
-    let d_f = sub(
-        &s_ff,
-        &scalar_div(
-            &mul(&s_f, &s_f),
-            <T as coeus_core::Scalar>::from_f64(inv_n_scale),
-        ),
-    );
-    let d_m = sub(
-        &s_mm,
-        &scalar_div(
-            &mul(&s_m, &s_m),
-            <T as coeus_core::Scalar>::from_f64(inv_n_scale),
-        ),
-    );
+    let s_f_sq = mul(&s_f, &s_f).expect("normalized_cross_correlation: backend multiply failed");
+    let s_f_sq_n = scalar_div(&s_f_sq, <T as FloatElement>::from_f64(inv_n_scale))
+        .expect("normalized_cross_correlation: backend scalar_div failed");
+    let d_f = sub(&s_ff, &s_f_sq_n).expect("normalized_cross_correlation: backend subtract failed");
+    let s_m_sq = mul(&s_m, &s_m).expect("normalized_cross_correlation: backend multiply failed");
+    let s_m_sq_n = scalar_div(&s_m_sq, <T as FloatElement>::from_f64(inv_n_scale))
+        .expect("normalized_cross_correlation: backend scalar_div failed");
+    let d_m = sub(&s_mm, &s_m_sq_n).expect("normalized_cross_correlation: backend subtract failed");
 
     // NCC = num / √(d_F·d_M + ε); loss = −NCC.
-    let eps = <T as coeus_core::Scalar>::from_f64(1e-10);
-    let denominator = sqrt(&scalar_add(&mul(&d_f, &d_m), eps));
+    let eps = <T as FloatElement>::from_f64(1e-10);
+    let d_f_d_m = mul(&d_f, &d_m).expect("normalized_cross_correlation: backend multiply failed");
+    let denom_arg =
+        scalar_add(&d_f_d_m, eps).expect("normalized_cross_correlation: backend scalar_add failed");
+    let denominator = sqrt(&denom_arg).expect("normalized_cross_correlation: backend sqrt failed");
 
-    neg(&div(&num, &denominator))
+    let ratio =
+        div(&num, &denominator).expect("normalized_cross_correlation: backend divide failed");
+    neg(&ratio).expect("normalized_cross_correlation: backend negate failed")
 }
 
 /// Negative-normalized-cross-correlation metric ([`Metric`] implementor).
@@ -91,7 +96,7 @@ pub struct Ncc;
 
 impl<T, B> Metric<T, B> for Ncc
 where
-    T: Float,
+    T: Float + FloatElement + leto_ops::Scalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

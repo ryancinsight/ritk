@@ -37,7 +37,8 @@ fn test_write_series_load_series_intensity_roundtrip() {
     let (depth, rows, cols) = (4usize, 4usize, 4usize);
     let original_data: Vec<f32> = (0..(depth * rows * cols)).map(|i| i as f32).collect();
     let device = B::default();
-    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &original_data, &device);
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &original_data, &device)
+        .expect("test tensor is valid");
     let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -100,7 +101,8 @@ fn native_dicom_loader_matches_legacy_loader() {
         .map(|i| (i as f32 * 0.5) - 7.0)
         .collect();
     let device = B::default();
-    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &original_data, &device);
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &original_data, &device)
+        .expect("test tensor is valid");
     let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([3.0, -2.0, 11.0]),
@@ -163,7 +165,8 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
         })
         .collect();
     let device = B::default();
-    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &original_data, &device);
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &original_data, &device)
+        .expect("test tensor is valid");
     let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([5.0, 10.0, -20.0]),

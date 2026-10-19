@@ -56,9 +56,12 @@ where
             "rigid rotation must have shape [{angles}] for dimension {D}"
         );
         Self {
-            translation: Var::new(translation, true),
-            rotation: Var::new(rotation, true),
-            center: Var::new(center, false),
+            translation: Var::new(translation, true)
+                .expect("rigid transform requires backend evaluation to succeed"),
+            rotation: Var::new(rotation, true)
+                .expect("rigid transform requires backend evaluation to succeed"),
+            center: Var::new(center, false)
+                .expect("rigid transform requires backend evaluation to succeed"),
         }
     }
 
@@ -66,9 +69,14 @@ where
     #[must_use]
     pub fn identity(center: Option<Tensor<f32, B>>, backend: &B) -> Self {
         Self::new(
-            Tensor::zeros_on([D], backend),
-            Tensor::zeros_on([if D == 3 { 3 } else { 1 }], backend),
-            center.unwrap_or_else(|| Tensor::zeros_on([D], backend)),
+            Tensor::zeros_on([D], backend)
+                .expect("rigid transform requires backend evaluation to succeed"),
+            Tensor::zeros_on([if D == 3 { 3 } else { 1 }], backend)
+                .expect("rigid transform requires backend evaluation to succeed"),
+            center.unwrap_or_else(|| {
+                Tensor::zeros_on([D], backend)
+                    .expect("rigid transform requires backend evaluation to succeed")
+            }),
         )
     }
 
@@ -95,15 +103,22 @@ where
     pub fn matrix(&self) -> Tensor<f32, B> {
         let backend = B::default();
         let rotation = self.build_rotation_matrix();
-        let rotated_center =
-            matmul(&rotation, &self.center.tensor.reshape([D, 1]), &backend).reshape([D]);
-        let translated_center = add(&self.translation.tensor, &self.center.tensor, &backend);
-        let offset = sub(&translated_center, &rotated_center, &backend).reshape([D, 1]);
-        let top = cat(&[&rotation, &offset], 1);
+        let center_col = self.center.tensor.reshape([D, 1]);
+        let rotated_center = matmul(&rotation, &center_col, &backend)
+            .expect("rigid transform requires backend evaluation to succeed")
+            .reshape([D]);
+        let translated_center = add(&self.translation.tensor, &self.center.tensor, &backend)
+            .expect("rigid transform requires backend evaluation to succeed");
+        let offset = sub(&translated_center, &rotated_center, &backend)
+            .expect("rigid transform requires backend evaluation to succeed")
+            .reshape([D, 1]);
+        let top = cat(&[&rotation, &offset], 1)
+            .expect("rigid transform requires backend evaluation to succeed");
         let mut bottom = vec![0.0; D + 1];
         bottom[D] = 1.0;
-        let bottom = Tensor::from_slice_on([1, D + 1], &bottom, &backend);
-        cat(&[&top, &bottom], 0)
+        let bottom = Tensor::from_slice_on([1, D + 1], &bottom, &backend)
+            .expect("rigid transform requires backend evaluation to succeed");
+        cat(&[&top, &bottom], 0).expect("rigid transform requires backend evaluation to succeed")
     }
 
     /// Materialize the `[D, D]` rotation matrix.
@@ -121,53 +136,109 @@ where
             "rigid transform requires points shaped [N, {D}], got {shape:?}"
         );
         let target = vec![shape[0], D];
-        let center = broadcast_variable(&reshape(&self.center, [1, D]), target.clone());
-        let translation = broadcast_variable(&reshape(&self.translation, [1, D]), target);
-        let centered = sub_variables(points, &center);
-        let rotated = matmul_variables(&centered, &transpose_2d(&self.rotation_matrix_variables()));
-        let centered_output = add_variables(&rotated, &center);
+        let center_row = reshape(&self.center, [1, D])
+            .expect("rigid transform requires backend evaluation to succeed");
+        let translation_row = reshape(&self.translation, [1, D])
+            .expect("rigid transform requires backend evaluation to succeed");
+        let center = broadcast_variable(&center_row, target.clone())
+            .expect("rigid transform requires backend evaluation to succeed");
+        let translation = broadcast_variable(&translation_row, target)
+            .expect("rigid transform requires backend evaluation to succeed");
+        let centered = sub_variables(points, &center)
+            .expect("rigid transform requires backend evaluation to succeed");
+        let rotation_vars = self.rotation_matrix_variables();
+        let rotation_t = transpose_2d(&rotation_vars)
+            .expect("rigid transform requires backend evaluation to succeed");
+        let rotated = matmul_variables(&centered, &rotation_t)
+            .expect("rigid transform requires backend evaluation to succeed");
+        let centered_output = add_variables(&rotated, &center)
+            .expect("rigid transform requires backend evaluation to succeed");
         add_variables(&centered_output, &translation)
+            .expect("rigid transform requires backend evaluation to succeed")
     }
 
     fn rotation_matrix_variables(&self) -> Var<f32, B> {
         if D == 3 {
-            let x = slice(&self.rotation, &[(0, 1)]);
-            let y = slice(&self.rotation, &[(1, 2)]);
-            let z = slice(&self.rotation, &[(2, 3)]);
-            let (cx, sx) = (cos(&x), sin(&x));
-            let (cy, sy) = (cos(&y), sin(&y));
-            let (cz, sz) = (cos(&z), sin(&z));
+            let x = slice(&self.rotation, &[(0, 1)])
+                .expect("rigid transform requires backend evaluation to succeed");
+            let y = slice(&self.rotation, &[(1, 2)])
+                .expect("rigid transform requires backend evaluation to succeed");
+            let z = slice(&self.rotation, &[(2, 3)])
+                .expect("rigid transform requires backend evaluation to succeed");
+            let cx = cos(&x).expect("rigid transform requires backend evaluation to succeed");
+            let sx = sin(&x).expect("rigid transform requires backend evaluation to succeed");
+            let cy = cos(&y).expect("rigid transform requires backend evaluation to succeed");
+            let sy = sin(&y).expect("rigid transform requires backend evaluation to succeed");
+            let cz = cos(&z).expect("rigid transform requires backend evaluation to succeed");
+            let sz = sin(&z).expect("rigid transform requires backend evaluation to succeed");
 
-            let r11 = mul_variables(&cz, &cy);
-            let r12 = sub_variables(
-                &mul_variables(&mul_variables(&cz, &sy), &sx),
-                &mul_variables(&sz, &cx),
-            );
-            let r13 = add_variables(
-                &mul_variables(&mul_variables(&cz, &sy), &cx),
-                &mul_variables(&sz, &sx),
-            );
-            let r21 = mul_variables(&sz, &cy);
-            let r22 = add_variables(
-                &mul_variables(&mul_variables(&sz, &sy), &sx),
-                &mul_variables(&cz, &cx),
-            );
-            let r23 = sub_variables(
-                &mul_variables(&mul_variables(&sz, &sy), &cx),
-                &mul_variables(&cz, &sx),
-            );
-            let r31 = neg_variable(&sy);
-            let r32 = mul_variables(&cy, &sx);
-            let r33 = mul_variables(&cy, &cx);
+            let r11 = mul_variables(&cz, &cy)
+                .expect("rigid transform requires backend evaluation to succeed");
+            let r12_lhs = mul_variables(
+                &mul_variables(&cz, &sy)
+                    .expect("rigid transform requires backend evaluation to succeed"),
+                &sx,
+            )
+            .expect("rigid transform requires backend evaluation to succeed");
+            let r12_rhs = mul_variables(&sz, &cx)
+                .expect("rigid transform requires backend evaluation to succeed");
+            let r12 = sub_variables(&r12_lhs, &r12_rhs)
+                .expect("rigid transform requires backend evaluation to succeed");
+            let r13_lhs = mul_variables(
+                &mul_variables(&cz, &sy)
+                    .expect("rigid transform requires backend evaluation to succeed"),
+                &cx,
+            )
+            .expect("rigid transform requires backend evaluation to succeed");
+            let r13_rhs = mul_variables(&sz, &sx)
+                .expect("rigid transform requires backend evaluation to succeed");
+            let r13 = add_variables(&r13_lhs, &r13_rhs)
+                .expect("rigid transform requires backend evaluation to succeed");
+            let r21 = mul_variables(&sz, &cy)
+                .expect("rigid transform requires backend evaluation to succeed");
+            let r22_lhs = mul_variables(
+                &mul_variables(&sz, &sy)
+                    .expect("rigid transform requires backend evaluation to succeed"),
+                &sx,
+            )
+            .expect("rigid transform requires backend evaluation to succeed");
+            let r22_rhs = mul_variables(&cz, &cx)
+                .expect("rigid transform requires backend evaluation to succeed");
+            let r22 = add_variables(&r22_lhs, &r22_rhs)
+                .expect("rigid transform requires backend evaluation to succeed");
+            let r23_lhs = mul_variables(
+                &mul_variables(&sz, &sy)
+                    .expect("rigid transform requires backend evaluation to succeed"),
+                &cx,
+            )
+            .expect("rigid transform requires backend evaluation to succeed");
+            let r23_rhs = mul_variables(&cz, &sx)
+                .expect("rigid transform requires backend evaluation to succeed");
+            let r23 = sub_variables(&r23_lhs, &r23_rhs)
+                .expect("rigid transform requires backend evaluation to succeed");
+            let r31 =
+                neg_variable(&sy).expect("rigid transform requires backend evaluation to succeed");
+            let r32 = mul_variables(&cy, &sx)
+                .expect("rigid transform requires backend evaluation to succeed");
+            let r33 = mul_variables(&cy, &cx)
+                .expect("rigid transform requires backend evaluation to succeed");
             matrix_from_rows(&[[&r11, &r12, &r13], [&r21, &r22, &r23], [&r31, &r32, &r33]])
         } else if D == 2 {
-            let angle = slice(&self.rotation, &[(0, 1)]);
-            let cosine = cos(&angle);
-            let sine = sin(&angle);
-            let negative_sine = neg_variable(&sine);
+            let angle = slice(&self.rotation, &[(0, 1)])
+                .expect("rigid transform requires backend evaluation to succeed");
+            let cosine =
+                cos(&angle).expect("rigid transform requires backend evaluation to succeed");
+            let sine = sin(&angle).expect("rigid transform requires backend evaluation to succeed");
+            let negative_sine = neg_variable(&sine)
+                .expect("rigid transform requires backend evaluation to succeed");
             matrix_from_rows(&[[&cosine, &negative_sine], [&sine, &cosine]])
         } else {
-            Var::new(Tensor::eye_on(D, &B::default()), false)
+            Var::new(
+                Tensor::eye_on(D, &B::default())
+                    .expect("rigid transform requires backend evaluation to succeed"),
+                false,
+            )
+            .expect("rigid transform requires backend evaluation to succeed")
         }
     }
 }
@@ -183,14 +254,18 @@ where
         .map(|row| {
             let cells = row
                 .iter()
-                .map(|cell| reshape(cell, [1, 1]))
+                .map(|cell| {
+                    reshape(cell, [1, 1])
+                        .expect("rigid transform requires backend evaluation to succeed")
+                })
                 .collect::<Vec<_>>();
             let references = cells.iter().collect::<Vec<_>>();
             cat_variables(&references, 1)
+                .expect("rigid transform requires backend evaluation to succeed")
         })
         .collect::<Vec<_>>();
     let references = rows.iter().collect::<Vec<_>>();
-    cat_variables(&references, 0)
+    cat_variables(&references, 0).expect("rigid transform requires backend evaluation to succeed")
 }
 
 impl<B: Backend + BackendOps<f32> + Default, const D: usize> Transform<B, D>
@@ -206,12 +281,21 @@ where
         );
         let backend = B::default();
         let target = [shape[0], D];
-        let center = broadcast_to(&self.center.tensor.reshape([1, D]), &target, &backend);
-        let translation = broadcast_to(&self.translation.tensor.reshape([1, D]), &target, &backend);
-        let centered = sub(&points, &center, &backend);
-        let rotated = matmul(&centered, &self.build_rotation_matrix().t(), &backend);
-        let centered_output = add(&rotated, &center, &backend);
+        let center_row = self.center.tensor.reshape([1, D]);
+        let translation_row = self.translation.tensor.reshape([1, D]);
+        let center = broadcast_to(&center_row, &target, &backend)
+            .expect("rigid transform requires backend evaluation to succeed");
+        let translation = broadcast_to(&translation_row, &target, &backend)
+            .expect("rigid transform requires backend evaluation to succeed");
+        let centered = sub(&points, &center, &backend)
+            .expect("rigid transform requires backend evaluation to succeed");
+        let rotation_t = self.build_rotation_matrix().t();
+        let rotated = matmul(&centered, &rotation_t, &backend)
+            .expect("rigid transform requires backend evaluation to succeed");
+        let centered_output = add(&rotated, &center, &backend)
+            .expect("rigid transform requires backend evaluation to succeed");
         add(&centered_output, &translation, &backend)
+            .expect("rigid transform requires backend evaluation to succeed")
     }
 }
 

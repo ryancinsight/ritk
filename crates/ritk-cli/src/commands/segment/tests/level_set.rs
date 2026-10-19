@@ -19,7 +19,8 @@ fn make_phi_sphere(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<f32
             }
         }
     }
-    let tensor = Tensor::<f32, Backend>::from_slice_on(dims, &data, &backend);
+    let tensor = Tensor::<f32, Backend>::from_slice_on(dims, &data, &backend)
+        .expect("test fixture tensor build failed");
     Image::new(
         tensor,
         Point::new([0.0; 3]),

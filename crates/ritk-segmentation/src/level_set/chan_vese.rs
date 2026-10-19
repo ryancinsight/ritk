@@ -153,7 +153,7 @@ impl ChanVeseSegmentation {
         let img: &[f32] = &img_vals;
         let mask = self.evolve(img, dims);
 
-        let tensor = Tensor::<f32, B>::from_slice_on(dims, &mask, &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(dims, &mask, &device)?;
 
         Image::new(
             tensor,

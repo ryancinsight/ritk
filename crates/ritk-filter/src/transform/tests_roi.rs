@@ -13,7 +13,7 @@ fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data().to_vec()
+    img.data().to_vec().expect("test tensor is valid")
 }
 
 #[test]
@@ -69,7 +69,8 @@ fn roi_updates_origin_with_identity_direction() {
     // new_origin[1] = 0 + 1*3*1 = 3
     // new_origin[2] = 0 + 1*4*1 = 4
     use ritk_image::tensor::Tensor;
-    let tensor = Tensor::<f32, B>::from_slice([3, 3, 3], &[0.0f32; 27]);
+    let tensor =
+        Tensor::<f32, B>::from_slice([3, 3, 3], &[0.0f32; 27]).expect("test tensor is valid");
     let img = Image::new(
         tensor,
         Point::new([0.0f64, 0.0, 0.0]),

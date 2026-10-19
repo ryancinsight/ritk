@@ -61,11 +61,13 @@ where
     let n = coords_shape[0];
 
     // out = coords[N,3] · Ráµ€[3,3]  ⇒  out[n,j] = Σ_k coords[n,k]·R[j,k] = (R·coords[n])[j].
-    let linear = matmul(coords, &transpose_2d(r));
+    let r_t = transpose_2d(r).expect("affine_transform: backend transpose failed");
+    let linear = matmul(coords, &r_t).expect("affine_transform: backend matmul failed");
     // Broadcast t[3] → [1,3] → [N,3] and add.
-    let t_row = reshape(t, [1usize, 3]);
-    let t_broadcast = broadcast_to(&t_row, vec![n, 3]);
-    add(&linear, &t_broadcast)
+    let t_row = reshape(t, [1usize, 3]).expect("affine_transform: backend reshape failed");
+    let t_broadcast =
+        broadcast_to(&t_row, vec![n, 3]).expect("affine_transform: backend broadcast failed");
+    add(&linear, &t_broadcast).expect("affine_transform: backend add failed")
 }
 
 /// Translation transform parameter bundle: a single `[3]` offset applied to
@@ -93,9 +95,10 @@ where
         assert_eq!(shape[1], 3, "Translation: points must have 3 columns");
         assert_eq!(self.t.tensor.shape(), [3], "Translation: t must be [3]");
         let n = shape[0];
-        let t_row = reshape(&self.t, [1usize, 3]);
-        let translation = broadcast_to(&t_row, vec![n, 3]);
-        add(points, &translation)
+        let t_row = reshape(&self.t, [1usize, 3]).expect("Translation: backend reshape failed");
+        let translation =
+            broadcast_to(&t_row, vec![n, 3]).expect("Translation: backend broadcast failed");
+        add(points, &translation).expect("Translation: backend add failed")
     }
 }
 

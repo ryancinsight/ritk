@@ -223,7 +223,7 @@ impl KMeansSegmentation {
             self.seed,
         );
 
-        let tensor = Tensor::<f32, B>::from_slice_on(shape, &labels, &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &labels, &device)?;
 
         Image::new(
             tensor,

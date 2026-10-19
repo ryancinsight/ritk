@@ -67,7 +67,8 @@ fn invert_constant_auto_max_all_zero() {
 #[test]
 fn invert_preserves_metadata() {
     let sp = Spacing::new([1.5, 2.5, 3.5]);
-    let t = Tensor::<f32, B>::from_slice([1usize, 1, 2], &[1.0_f32, 3.0]);
+    let t = Tensor::<f32, B>::from_slice([1usize, 1, 2], &[1.0_f32, 3.0])
+        .expect("test tensor is valid");
     let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity())
         .expect("invariant: fixture tensor has the declared rank");
     let out = InvertIntensityFilter::new().apply(&img);

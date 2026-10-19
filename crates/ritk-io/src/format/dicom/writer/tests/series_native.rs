@@ -202,7 +202,8 @@ fn coeus_series_writer_preserves_canonical_axis_order() {
 
     let device = SequentialBackend;
     let tensor =
-        ritk_image::tensor::Tensor::<f32, SequentialBackend>::from_slice_on(DIMS, &ramp(), &device);
+        ritk_image::tensor::Tensor::<f32, SequentialBackend>::from_slice_on(DIMS, &ramp(), &device)
+            .expect("test tensor is valid");
     let image = ritk_image::Image::<f32, SequentialBackend, 3>::new(
         tensor,
         Point::new(ORIGIN),

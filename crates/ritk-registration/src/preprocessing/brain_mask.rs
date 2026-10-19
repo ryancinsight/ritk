@@ -113,7 +113,8 @@ mod tests {
             }
         }
         let img = Image::<f32, B, 3>::new(
-            Tensor::<f32, B>::from_slice_on([n, n, n], &v, &device),
+            Tensor::<f32, B>::from_slice_on([n, n, n], &v, &device)
+                .expect("test fixture tensor build failed"),
             Point::new([0.0; 3]),
             Spacing::new([1.0; 3]),
             Direction::identity(),

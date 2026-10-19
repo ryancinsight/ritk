@@ -37,7 +37,7 @@ type B = coeus_core::SequentialBackend;
 /// `w_complex` must equal `2 * w_real`. Re and Im are interleaved in the last
 /// dimension: Re at column `2c`, Im at column `2c+1`.
 fn make_complex_2d(data: Vec<f32>, h: usize, w_complex: usize) -> Image<f32, B, 2> {
-    let tensor = Tensor::<f32, B>::from_slice([h, w_complex], &data);
+    let tensor = Tensor::<f32, B>::from_slice([h, w_complex], &data).expect("test tensor is valid");
     Image::new(
         tensor,
         Point::origin(),
@@ -51,7 +51,8 @@ fn make_complex_2d(data: Vec<f32>, h: usize, w_complex: usize) -> Image<f32, B, 
 ///
 /// `w_complex` must equal `2 * w_real`.
 fn make_complex_3d(data: Vec<f32>, depth: usize, h: usize, w_complex: usize) -> Image<f32, B, 3> {
-    let tensor = Tensor::<f32, B>::from_slice([depth, h, w_complex], &data);
+    let tensor =
+        Tensor::<f32, B>::from_slice([depth, h, w_complex], &data).expect("test tensor is valid");
     Image::new(
         tensor,
         Point::origin(),
@@ -172,7 +173,7 @@ fn dc_only_complex_input_reconstructs_to_constant() {
 
 /// Construct a 3-D real image `[d, h, w]`.
 fn make_real_3d(data: Vec<f32>, d: usize, h: usize, w: usize) -> Image<f32, B, 3> {
-    let tensor = Tensor::<f32, B>::from_slice([d, h, w], &data);
+    let tensor = Tensor::<f32, B>::from_slice([d, h, w], &data).expect("test tensor is valid");
     Image::new(
         tensor,
         Point::new([0.0_f64, 0.0, 0.0]),

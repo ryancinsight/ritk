@@ -1,6 +1,11 @@
 # Nextest configuration for RITK workspace.
 # Reference: https://nexte.st/docs/configuration/
 
+# TRACK 1: ritk-snap is excluded from the workspace (metis unalignable), so
+# its nextest filters match no packages and nextest rejects the config.
+# The snap blocks below are commented out until TRACK 2 (RITK-SNAP-RETURN-001)
+# re-adds the crate; uncomment them verbatim when snap returns.
+#
 # ritk-snap links native GPU (wgpu) and DICOM transport dependencies whose
 # per-process initialization is not safe under heavy parallel process execution
 # on the Windows/miniforge/headless build: concurrent nextest test processes
@@ -9,16 +14,16 @@
 # including `apply_pacs_retrieve_series_err` which performs no network I/O, and
 # each test passes in isolation). Serialize ritk-snap so only one of its test
 # processes runs at a time, eliminating the startup race.
-[test-groups]
-ritk-snap-native-serial = { max-threads = 1 }
+# [test-groups]
+# ritk-snap-native-serial = { max-threads = 1 }
 
-[[profile.default.overrides]]
-filter = 'package(ritk-snap)'
-test-group = 'ritk-snap-native-serial'
+# [[profile.default.overrides]]
+# filter = 'package(ritk-snap)'
+# test-group = 'ritk-snap-native-serial'
 
-[[profile.ci.overrides]]
-filter = 'package(ritk-snap)'
-test-group = 'ritk-snap-native-serial'
+# [[profile.ci.overrides]]
+# filter = 'package(ritk-snap)'
+# test-group = 'ritk-snap-native-serial'
 
 [profile.default]
 retries = 0
@@ -89,10 +94,11 @@ filter = 'test(dispatch_routes_1024_to_typed_path) | test(nearest_dispatch_route
 slow-timeout = { period = "120s", terminate-after = 2 }
 
 # wgpu/GPU rendering and layout tests in ritk-snap.
-[[profile.default.overrides]]
-filter = 'package(ritk-snap) & (test(gpu_) | test(render::))'
-slow-timeout = { period = "180s", terminate-after = 2 }
+# TRACK 1: commented out with the snap exclusion; restore in RITK-SNAP-RETURN-001.
+# [[profile.default.overrides]]
+# filter = 'package(ritk-snap) & (test(gpu_) | test(render::))'
+# slow-timeout = { period = "180s", terminate-after = 2 }
 
-[[profile.ci.overrides]]
-filter = 'package(ritk-snap) & (test(gpu_) | test(render::))'
-slow-timeout = { period = "180s", terminate-after = 2 }
+# [[profile.ci.overrides]]
+# filter = 'package(ritk-snap) & (test(gpu_) | test(render::))'
+# slow-timeout = { period = "180s", terminate-after = 2 }

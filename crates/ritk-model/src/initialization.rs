@@ -12,7 +12,7 @@ where
     init::xavier_uniform_with_seed(&mut layer.weight, fan_in, fan_out, seed)
         .expect("invariant: linear layer fan is positive");
     if let Some(bias) = &mut layer.bias {
-        init::zeros(bias);
+        init::zeros(bias).expect("invariant: bias zeroing succeeds");
     }
 }
 
@@ -27,7 +27,7 @@ pub(crate) fn depthwise_convolution<B>(
     init::kaiming_uniform_with_seed(&mut layer.weight, kernel * kernel * kernel, seed)
         .expect("invariant: depthwise convolution kernel is non-zero");
     if let Some(bias) = &mut layer.bias {
-        init::zeros(bias);
+        init::zeros(bias).expect("invariant: bias zeroing succeeds");
     }
 }
 
@@ -44,7 +44,7 @@ pub(crate) fn convolution<B>(
     init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, seed)
         .expect("invariant: convolution fan is positive");
     if let Some(bias) = &mut layer.bias {
-        init::zeros(bias);
+        init::zeros(bias).expect("invariant: bias zeroing succeeds");
     }
 }
 
@@ -52,8 +52,8 @@ pub(crate) fn zero_convolution<B>(layer: &mut Conv3d<f32, B>)
 where
     B: Backend + BackendOps<f32>,
 {
-    init::zeros(&mut layer.weight);
+    init::zeros(&mut layer.weight).expect("invariant: weight zeroing succeeds");
     if let Some(bias) = &mut layer.bias {
-        init::zeros(bias);
+        init::zeros(bias).expect("invariant: bias zeroing succeeds");
     }
 }

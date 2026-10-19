@@ -239,7 +239,7 @@ fn rows_lend_direct_borrows_when_the_inner_axis_is_unit_stride() {
 fn permuted_image_3x2() -> Image<f32, B, 2> {
     use coeus_tensor::Tensor;
 
-    let base = Tensor::<f32, B>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let base = Tensor::<f32, B>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
     Image::<f32, B, 2>::new(
         base.permute(&[1, 0]),
         Point::new([0.0, 0.0]),
@@ -346,7 +346,10 @@ fn strided_image_is_readable_in_place_rather_than_materialised() {
         "the flat-slice accessor still refuses a strided image"
     );
     assert!(
-        matches!(image.data_cow_on(&B::default()), std::borrow::Cow::Owned(_)),
+        matches!(
+            image.data_cow_on(&B::default()).unwrap(),
+            std::borrow::Cow::Owned(_)
+        ),
         "the cow accessor still materialises a strided image"
     );
 

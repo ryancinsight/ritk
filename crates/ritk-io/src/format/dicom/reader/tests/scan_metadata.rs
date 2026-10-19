@@ -73,7 +73,8 @@ fn test_scan_metadata_round_trip_spatial_fields() {
     let (depth, rows, cols) = (3usize, 6usize, 8usize);
     let data = vec![500.0f32; depth * rows * cols];
     let device = B::default();
-    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(data), &device);
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(data), &device)
+        .expect("test tensor is valid");
     let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([10.0, 20.0, -50.0]),
@@ -303,7 +304,8 @@ fn test_scan_metadata_round_trip_rescale_params() {
     let original_first = data[0];
 
     let device = B::default();
-    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(data), &device);
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(data), &device)
+        .expect("test tensor is valid");
     let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -394,7 +396,8 @@ fn test_scan_metadata_round_trip_transfer_syntax() {
     let (depth, rows, cols) = (2usize, 4usize, 4usize);
     let data = vec![1000.0f32; depth * rows * cols];
     let device = B::default();
-    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(data), &device);
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(data), &device)
+        .expect("test tensor is valid");
     let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),

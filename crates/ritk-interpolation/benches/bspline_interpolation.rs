@@ -17,7 +17,7 @@ fn bench_bspline_3d(c: &mut Criterion) {
 
     // Build a 64³ volume with gradient values.
     let data_vec: Vec<f32> = (0..n * n * n).map(|i| i as f32).collect();
-    let data = Tensor::<f32, B>::from_slice([n, n, n], &data_vec);
+    let data = Tensor::<f32, B>::from_slice([n, n, n], &data_vec).expect("test tensor is valid");
 
     // Interior query points: cycle through the [1, 62] interior to avoid OOB.
     let pts: Vec<f32> = (0..n_pts)
@@ -26,7 +26,7 @@ fn bench_bspline_3d(c: &mut Criterion) {
             [c, c, c]
         })
         .collect();
-    let indices = Tensor::<f32, B>::from_slice([n_pts, 3], &pts);
+    let indices = Tensor::<f32, B>::from_slice([n_pts, 3], &pts).expect("test tensor is valid");
 
     let interp = BSplineInterpolator::new();
 
@@ -44,7 +44,7 @@ fn bench_bspline_2d(c: &mut Criterion) {
 
     // Build a 64² image with gradient values.
     let data_vec: Vec<f32> = (0..n * n).map(|i| i as f32).collect();
-    let data = Tensor::<f32, B>::from_slice([n, n], &data_vec);
+    let data = Tensor::<f32, B>::from_slice([n, n], &data_vec).expect("test tensor is valid");
 
     // Interior query points.
     let pts: Vec<f32> = (0..n_pts)
@@ -53,7 +53,7 @@ fn bench_bspline_2d(c: &mut Criterion) {
             [c, c]
         })
         .collect();
-    let indices = Tensor::<f32, B>::from_slice([n_pts, 2], &pts);
+    let indices = Tensor::<f32, B>::from_slice([n_pts, 2], &pts).expect("test tensor is valid");
 
     let interp = BSplineInterpolator::new();
 

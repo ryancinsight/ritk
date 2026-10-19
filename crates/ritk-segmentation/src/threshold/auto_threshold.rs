@@ -118,7 +118,8 @@ pub trait AutoThreshold: sealed::Sealed {
         let (_, output) = threshold_mask_from_slice(self, &vals);
 
         let device = B::default();
-        let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device)
+            .expect("invariant: segmentation output length matches shape");
 
         Image::new(
             tensor,

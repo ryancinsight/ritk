@@ -28,9 +28,14 @@ impl Scan2D {
         let (batch, channels, height, width) = (shape[0], shape[1], shape[2], shape[3]);
         let ordered = match direction {
             ScanDirection::HorizontalForward => input.clone(),
-            ScanDirection::HorizontalReverse => flip(input, 3),
-            ScanDirection::VerticalForward => permute(input, &[0, 1, 3, 2]),
-            ScanDirection::VerticalReverse => permute(&flip(input, 2), &[0, 1, 3, 2]),
+            ScanDirection::HorizontalReverse => flip(input, 3).map_err(ModelError::backend)?,
+            ScanDirection::VerticalForward => {
+                permute(input, &[0, 1, 3, 2]).map_err(ModelError::backend)?
+            }
+            ScanDirection::VerticalReverse => {
+                let flipped = flip(input, 2).map_err(ModelError::backend)?;
+                permute(&flipped, &[0, 1, 3, 2]).map_err(ModelError::backend)?
+            }
             ScanDirection::DepthForward | ScanDirection::DepthReverse => {
                 return Err(ModelError::Shape {
                     operation: "Scan2D::scan",
@@ -39,7 +44,7 @@ impl Scan2D {
                 });
             }
         };
-        Ok(reshape(&ordered, [batch, channels, height * width]))
+        reshape(&ordered, [batch, channels, height * width]).map_err(ModelError::backend)
     }
 
     /// Restore a directional sequence to `[batch, channels, height, width]`.
@@ -63,21 +68,25 @@ impl Scan2D {
         }
         let (batch, channels) = (shape[0], shape[1]);
         Ok(match direction {
-            ScanDirection::HorizontalForward => reshape(scanned, [batch, channels, height, width]),
-            ScanDirection::HorizontalReverse => {
-                flip(&reshape(scanned, [batch, channels, height, width]), 3)
+            ScanDirection::HorizontalForward => {
+                reshape(scanned, [batch, channels, height, width]).map_err(ModelError::backend)?
             }
-            ScanDirection::VerticalForward => permute(
-                &reshape(scanned, [batch, channels, width, height]),
-                &[0, 1, 3, 2],
-            ),
-            ScanDirection::VerticalReverse => flip(
-                &permute(
-                    &reshape(scanned, [batch, channels, width, height]),
-                    &[0, 1, 3, 2],
-                ),
-                2,
-            ),
+            ScanDirection::HorizontalReverse => {
+                let flat = reshape(scanned, [batch, channels, height, width])
+                    .map_err(ModelError::backend)?;
+                flip(&flat, 3).map_err(ModelError::backend)?
+            }
+            ScanDirection::VerticalForward => {
+                let flat = reshape(scanned, [batch, channels, width, height])
+                    .map_err(ModelError::backend)?;
+                permute(&flat, &[0, 1, 3, 2]).map_err(ModelError::backend)?
+            }
+            ScanDirection::VerticalReverse => {
+                let flat = reshape(scanned, [batch, channels, width, height])
+                    .map_err(ModelError::backend)?;
+                let ordered = permute(&flat, &[0, 1, 3, 2]).map_err(ModelError::backend)?;
+                flip(&ordered, 2).map_err(ModelError::backend)?
+            }
             ScanDirection::DepthForward | ScanDirection::DepthReverse => {
                 return Err(ModelError::Shape {
                     operation: "Scan2D::merge",

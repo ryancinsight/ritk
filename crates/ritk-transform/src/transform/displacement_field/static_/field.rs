@@ -75,8 +75,10 @@ where
     #[must_use]
     pub fn world_to_index_tensor(&self, points: &Tensor<f32, B>) -> Tensor<f32, B> {
         let backend = B::default();
-        let relative_points = coeus_ops::sub(points, &self.origin_tensor, &backend);
+        let relative_points = coeus_ops::sub(points, &self.origin_tensor, &backend)
+            .expect("displacement transform requires backend evaluation to succeed");
         coeus_ops::matmul(&relative_points, &self.world_to_index_matrix, &backend)
+            .expect("displacement transform requires backend evaluation to succeed")
     }
 
     pub(crate) fn sample_components(
@@ -88,7 +90,11 @@ where
         let point_count = points.shape()[0];
         let mut grid_shape = vec![1, D, point_count];
         grid_shape.resize(D + 2, 1);
-        let grid = indices.transpose().to_contiguous().reshape(grid_shape);
+        let grid = indices
+            .transpose()
+            .to_contiguous()
+            .expect("displacement transform requires backend evaluation to succeed")
+            .reshape(grid_shape);
         self.components
             .iter()
             .map(|component| {
@@ -97,8 +103,15 @@ where
                     .chain(component.shape().iter().copied())
                     .collect::<Vec<_>>();
                 let image = component.reshape(image_shape);
-                coeus_ops::linear_interpolation::<D, _, _>(&image, &grid, boundary)
-                    .map(|sampled| sampled.reshape([point_count]))
+                let sampled =
+                    coeus_ops::linear_interpolation::<_, D, _, _>(&image, &grid, boundary)
+                        .map_err(|failure| match failure {
+                            coeus_ops::InterpolationFailure::Contract(error) => error,
+                            coeus_ops::InterpolationFailure::Backend(error) => panic!(
+                        "displacement transform requires backend evaluation to succeed: {error}"
+                    ),
+                        })?;
+                Ok(sampled.reshape([point_count]))
             })
             .collect()
     }
@@ -112,7 +125,8 @@ where
         new_direction: Direction<D>,
     ) -> Result<Self, ResampleError> {
         let values = physical_grid(new_shape, new_origin, new_spacing, new_direction)?;
-        let points = Tensor::from_slice_on([values.len() / D, D], &values, &B::default());
+        let points = Tensor::from_slice_on([values.len() / D, D], &values, &B::default())
+            .expect("displacement transform requires backend evaluation to succeed");
         let components = self
             .sample_components(&points, Replicate)?
             .iter()
@@ -171,9 +185,11 @@ where
         }
         let components = self.field.sample_components(points, self.boundary)?;
         let references = components.iter().collect::<Vec<_>>();
-        let displacement = coeus_ops::stack(&references, 1);
+        let displacement = coeus_ops::stack(&references, 1)
+            .expect("displacement transform requires backend evaluation to succeed");
         let backend = B::default();
-        let output = coeus_ops::add(points, &displacement, &backend);
+        let output = coeus_ops::add(points, &displacement, &backend)
+            .expect("displacement transform requires backend evaluation to succeed");
         Ok(output)
     }
 

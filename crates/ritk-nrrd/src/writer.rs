@@ -50,7 +50,7 @@ where
 {
     // RITK [Z,Y,X] flat layout is already NRRD X-fastest raw order.  Extract via
     // the backend's fast host path to avoid the `into_data()` materialization.
-    let voxels = image.data_cow_on(backend);
+    let voxels = image.data_cow_on(backend)?;
     write_nrrd_flat(
         path.as_ref(),
         image.shape(),
@@ -442,7 +442,7 @@ where
     let payloads: Vec<_> = volumes
         .iter()
         .map(|volume| volume.data_cow_on(backend))
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
     write_nrrd_series_flat(
         path.as_ref(),

@@ -190,7 +190,8 @@ impl ConnectedComponentsFilter {
             self.background_value,
         );
 
-        let tensor = Tensor::<f32, B>::from_slice(shape, &label_vec);
+        let tensor = Tensor::<f32, B>::from_slice(shape, &label_vec)
+            .expect("invariant: segmentation output length matches shape");
 
         let label_image = Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
             .expect("invariant: segmentation output tensor preserves the image rank");

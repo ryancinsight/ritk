@@ -32,28 +32,28 @@ where
     let fixed_data: Vec<f32> = (0..n).map(|i| ((i % 17) as f32) / 17.0).collect();
     let moving_data: Vec<f32> = (0..n).map(|i| ((i * 3 + 7) % 31) as f32 / 31.0).collect();
 
-    let fixed = Var::new(
-        Tensor::from_slice_on(in_shape, &fixed_data, &B::default()),
-        false,
-    );
-    let moving = Var::new(
-        Tensor::from_slice_on(in_shape, &moving_data, &B::default()),
-        false,
-    );
+    let fixed_tensor = Tensor::from_slice_on(in_shape, &fixed_data, &B::default())
+        .expect("example fixed tensor build failed");
+    let fixed = Var::new(fixed_tensor, false).expect("example fixed Var build failed");
+    let moving_tensor = Tensor::from_slice_on(in_shape, &moving_data, &B::default())
+        .expect("example moving tensor build failed");
+    let moving = Var::new(moving_tensor, false).expect("example moving Var build failed");
 
     let params = model.named_parameters();
-    let mut opt = Adam::new(params, 1e-3, 0.9, 0.999, 1e-8);
+    let mut opt =
+        Adam::new(params, 1e-3, 0.9, 0.999, 1e-8).expect("Adam builds over model parameters");
 
     println!("Starting training loop ({} epochs)...", num_epochs);
 
     for epoch in 0..num_epochs {
         let start = Instant::now();
-        let input = cat(&[&moving, &fixed], 1);
+        let input = cat(&[&moving, &fixed], 1).expect("example concat failed");
         let theta = model.forward(&input).expect("affine network forward");
-        let warped = stn.forward(&moving, &theta);
+        let warped = stn.forward(&moving, &theta).expect("affine warp forward");
 
-        let diff = sub(&warped, &fixed);
-        let loss = mean(&pow(&diff, 2.0));
+        let diff = sub(&warped, &fixed).expect("example subtract failed");
+        let sq = pow(&diff, 2.0).expect("example power failed");
+        let loss = mean(&sq).expect("example mean failed");
 
         let loss_val = loss.tensor.as_slice()[0];
 
@@ -65,7 +65,7 @@ where
         let updated: Vec<Var<f32, B>> = opt.params.iter().map(|p| p.var.clone()).collect();
         model.load_parameters(&updated);
 
-        opt.zero_grad();
+        opt.zero_grad().expect("zero_grad succeeds");
 
         let duration = start.elapsed();
         println!(

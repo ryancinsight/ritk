@@ -111,7 +111,8 @@ pub fn growcut<B: Backend>(
 
     let result = growcut_slice(&img_vals, &seed_vals, [nz, ny, nx], max_iter);
 
-    let tensor = Tensor::<f32, B>::from_slice([nz, ny, nx], &result);
+    let tensor = Tensor::<f32, B>::from_slice([nz, ny, nx], &result)
+        .expect("invariant: segmentation output length matches shape");
     Image::new(
         tensor,
         *image.origin(),
