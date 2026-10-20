@@ -24,7 +24,7 @@ ritk-image = { path = "../ritk-image", version = "0.5.0" }
 ritk-morphology = { path = "../ritk-morphology", version = "0.2.1" }
 ritk-annotation = { path = "../ritk-annotation", version = "0.3.0" }
 ritk-tensor-ops = { path = "../ritk-tensor-ops", version = "0.3.0" }
-ritk-statistics = { path = "../ritk-statistics", version = "0.5.0" }
+ritk-statistics = { path = "../ritk-statistics", version = "0.6.0" }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 mnemosyne = { workspace = true }

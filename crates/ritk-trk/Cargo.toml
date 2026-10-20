@@ -1,6 +1,6 @@
 [package]
 name = "ritk-trk"
-version = "0.1.0"
+version = "0.2.0"
 edition.workspace = true
 rust-version = "1.95"
 license.workspace = true

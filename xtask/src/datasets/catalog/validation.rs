@@ -1,7 +1,6 @@
 use anyhow::Result;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -108,26 +107,15 @@ pub(super) fn extract_tar_gz(data: &[u8], dest: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Extract zip archive
-pub(super) fn extract_zip(data: &[u8], dest: &Path) -> Result<()> {
+/// Extracts a zip archive into `dest`, sanitizing every entry path.
+///
+/// An entry whose name escapes `dest` (absolute path, `..` component) fails
+/// the extraction with `ZipError::InvalidArchive`; nothing is written outside
+/// the destination.
+pub fn extract_zip(data: &[u8], dest: &Path) -> Result<()> {
     let reader = std::io::Cursor::new(data);
     let mut archive = zip::ZipArchive::new(reader)?;
-
-    for i in 0..archive.len() {
-        let mut file = archive.by_index(i)?;
-        let outpath = dest.join(file.name());
-
-        if file.name().ends_with('/') {
-            std::fs::create_dir_all(&outpath)?;
-        } else {
-            if let Some(parent) = outpath.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            let mut outfile = File::create(&outpath)?;
-            std::io::copy(&mut file, &mut outfile)?;
-        }
-    }
-
+    archive.extract(dest)?;
     Ok(())
 }
 

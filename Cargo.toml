@@ -68,25 +68,25 @@ categories = [
 # crates.io reserves `iris`, so the crate is published as `iris-viz`; the
 # import path stays `iris` via its `[lib] name`, so no source changes.
 iris = { package = "iris-viz", version = "0.1.0", git = "https://github.com/ryancinsight/iris" }
-ritk-filter = { path = "crates/ritk-filter", version = "0.4.0" }
-ritk-segmentation = { path = "crates/ritk-segmentation", version = "0.4.0" }
+ritk-filter = { path = "crates/ritk-filter", version = "0.5.0" }
+ritk-segmentation = { path = "crates/ritk-segmentation", version = "0.5.0" }
 ritk-core = { path = "crates/ritk-core", version = "0.11.0" }
-ritk-dicom = { path = "crates/ritk-dicom", version = "0.3.0" }
-ritk-codecs = { path = "crates/ritk-codecs", version = "0.7.0" }
+ritk-dicom = { path = "crates/ritk-dicom", version = "0.4.0" }
+ritk-codecs = { path = "crates/ritk-codecs", version = "0.8.0" }
 ritk-image-io = { path = "crates/ritk-image-io", version = "0.1.0" }
-ritk-nifti = { path = "crates/ritk-nifti", version = "0.3.0" }
+ritk-nifti = { path = "crates/ritk-nifti", version = "0.4.0" }
 ritk-nrrd = { path = "crates/ritk-nrrd", version = "0.3.0" }
 ritk-metaimage = { path = "crates/ritk-metaimage", version = "0.3.0" }
-ritk-mgh = { path = "crates/ritk-mgh", version = "0.4.0" }
-ritk-analyze = { path = "crates/ritk-analyze", version = "0.3.0" }
+ritk-mgh = { path = "crates/ritk-mgh", version = "0.5.0" }
+ritk-analyze = { path = "crates/ritk-analyze", version = "0.4.0" }
 ritk-png = { path = "crates/ritk-png", version = "0.3.0" }
-ritk-jpeg = { path = "crates/ritk-jpeg", version = "0.3.0" }
+ritk-jpeg = { path = "crates/ritk-jpeg", version = "0.4.0" }
 ritk-tiff = { path = "crates/ritk-tiff", version = "0.3.0" }
-ritk-minc = { path = "crates/ritk-minc", version = "0.3.0" }
-ritk-vtk = { path = "crates/ritk-vtk", version = "0.3.0" }
-ritk-io = { path = "crates/ritk-io", version = "0.4.0" }
-ritk-model = { path = "crates/ritk-model", version = "0.3.0" }
-ritk-registration = { path = "crates/ritk-registration", version = "0.55.1" }
+ritk-minc = { path = "crates/ritk-minc", version = "0.4.0" }
+ritk-vtk = { path = "crates/ritk-vtk", version = "0.4.0" }
+ritk-io = { path = "crates/ritk-io", version = "0.5.0" }
+ritk-model = { path = "crates/ritk-model", version = "0.4.0" }
+ritk-registration = { path = "crates/ritk-registration", version = "0.56.0" }
 ritk-transform = { path = "crates/ritk-transform", version = "0.3.0" }
 ritk-interpolation = { path = "crates/ritk-interpolation", version = "0.6.0" }
 ritk-spatial = { path = "crates/ritk-spatial", version = "0.4.0" }
@@ -95,28 +95,28 @@ ritk-wgpu-compat = { path = "crates/ritk-wgpu-compat", version = "0.2.1" }
 ritk-morphology = { path = "crates/ritk-morphology", version = "0.2.1" }
 ritk-annotation = { path = "crates/ritk-annotation", version = "0.3.0" }
 ritk-tensor-ops = { path = "crates/ritk-tensor-ops", version = "0.3.0" }
-ritk-statistics = { path = "crates/ritk-statistics", version = "0.5.0" }
+ritk-statistics = { path = "crates/ritk-statistics", version = "0.6.0" }
 ritk-diffusion = { path = "crates/ritk-diffusion", version = "0.1.0" }
 ritk-diffusion-scheme = { path = "crates/ritk-diffusion-scheme", version = "0.3.0" }
-ritk-tractography = { path = "crates/ritk-tractography", version = "0.1.0" }
-ritk-parcellation = { path = "crates/ritk-parcellation", version = "0.1.0" }
-ritk-connectome = { path = "crates/ritk-connectome", version = "0.1.0" }
-ritk-trk = { path = "crates/ritk-trk", version = "0.1.0" }
+ritk-tractography = { path = "crates/ritk-tractography", version = "0.2.0" }
+ritk-parcellation = { path = "crates/ritk-parcellation", version = "0.2.0" }
+ritk-connectome = { path = "crates/ritk-connectome", version = "0.2.0" }
+ritk-trk = { path = "crates/ritk-trk", version = "0.2.0" }
 ritk-mif = { path = "crates/ritk-mif", version = "0.3.0" }
-ritk-tck = { path = "crates/ritk-tck", version = "0.1.0" }
-ritk-trx = { path = "crates/ritk-trx", version = "0.1.0" }
+ritk-tck = { path = "crates/ritk-tck", version = "0.2.0" }
+ritk-trx = { path = "crates/ritk-trx", version = "0.2.0" }
 # The crates.io name `gaia` belongs to an unrelated third-party crate, so the
 # crate is published as `gaia-mesh`; the import path stays `gaia` via its
 # `[lib] name`, so no source changes.
-gaia = { package = "gaia-mesh", version = "0.6.0", git = "https://github.com/ryancinsight/gaia", default-features = false }
+gaia = { package = "gaia-mesh", version = "0.6.9", git = "https://github.com/ryancinsight/gaia", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 coeus-nn = { version = "0.12.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-optim = { version = "0.12.0", git = "https://github.com/ryancinsight/Coeus.git" }
 pyo3 = { version = "0.29.2", default-features = false }
 numpy = { version = "0.29.0", git = "https://github.com/PyO3/rust-numpy", rev = "9df402373716a60f0e7825b6043568abe4e63b46" }
 dicom = { version = "0.10.0", default-features = false }
-moirai = { package = "moirai-runtime", version = "0.9.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
-moirai-pal = { package = "moirai-pal", version = "0.9.0", git = "https://github.com/ryancinsight/Moirai.git", default-features = false }
+moirai = { package = "moirai-runtime", version = "0.10.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
+moirai-pal = { package = "moirai-pal", version = "0.10.0", git = "https://github.com/ryancinsight/Moirai.git", default-features = false }
 # T2 (RITK-SNAP-RETURN-001): metis-platform/web/ui-lang re-added with snap.
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { package = "mnemosyne-memory", version = "0.10.0", git = "https://github.com/ryancinsight/Mnemosyne.git", default-features = false, features = ["std_tls", "eunomia"] }
@@ -150,7 +150,7 @@ wgpu = { version = "0.20", default-features = false, features = ["wgsl"] }
 pollster = "0.3"
 flate2 = "1.0"
 tar = "0.4"
-zip = { version = "0.6", default-features = false }
+zip = { version = "9", default-features = false }
 indicatif = "0.17"
 dirs = "5.0"
 sha2 = "0.10"
@@ -175,12 +175,12 @@ dicom-core = "0.10"
 dicom-ul = "0.10"
 dicom-pixeldata = { version = "0.10", default-features = false }
 dicom-transfer-syntax-registry = { version = "0.10", default-features = false }
-consus-hdf5 = { version = "0.2.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
-consus-core = { version = "0.2.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
-consus-compression = { version = "0.2.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "deflate"] }
-consus-io = { version = "0.2.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
-consus-onnx = { version = "0.2.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
-consus-raster = { version = "0.2", git = "https://github.com/ryancinsight/consus.git" }
+consus-hdf5 = { version = "0.3.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
+consus-core = { version = "0.3.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
+consus-compression = { version = "0.3.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "deflate"] }
+consus-io = { version = "0.3.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
+consus-onnx = { version = "0.3.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
+consus-raster = { version = "0.3", git = "https://github.com/ryancinsight/consus.git" }
 
 arrayvec = "0.7"
 
