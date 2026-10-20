@@ -1,12 +1,12 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::catalog::validation::{
-    extract_zip, is_html_payload, looks_like_nifti_header, validate_nifti_payload,
+    extract_zip, is_html_payload, looks_like_nifti_header, member_path, validate_nifti_payload,
+    UnsafeMemberPath,
 };
+use consus_zip::{Method, ZipWriter};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::io::Write;
-use zip::write::SimpleFileOptions;
-use zip::ZipWriter;
 
 #[test]
 fn nifti_header_detection_accepts_nifti1_little_endian() {
@@ -38,14 +38,11 @@ fn validate_nifti_payload_accepts_valid_gzip_nifti_header() {
 }
 
 fn stored_zip(entries: &[(&str, &[u8])]) -> Vec<u8> {
-    let mut writer = ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let mut writer = ZipWriter::new(Vec::new());
     for (name, payload) in entries {
-        writer
-            .start_file(*name, SimpleFileOptions::default())
-            .unwrap();
-        writer.write_all(payload).unwrap();
+        writer.add_entry(name, payload, Method::Stored).unwrap();
     }
-    writer.finish().unwrap().into_inner()
+    writer.finish().unwrap()
 }
 
 #[test]
@@ -61,19 +58,72 @@ fn extract_zip_restores_nested_entries_byte_for_byte() {
 }
 
 #[test]
-fn extract_zip_never_writes_outside_the_destination() {
-    let archive = stored_zip(&[("../escaped.txt", b"x"), ("kept.txt", b"ok")]);
+fn extract_zip_creates_directory_members() {
+    let archive = stored_zip(&[("empty/", b""), ("empty/inner/", b"")]);
+    let dest = tempfile::tempdir().unwrap();
+    extract_zip(&archive, dest.path()).unwrap();
+    assert!(dest.path().join("empty/inner").is_dir());
+}
+
+/// Extracts an archive holding a safe member and `name`, returning the
+/// rejection after checking that nothing was written.
+fn rejected(name: &str) -> UnsafeMemberPath {
+    let archive = stored_zip(&[("kept.txt", b"ok"), (name, b"x")]);
     let parent = tempfile::tempdir().unwrap();
     let dest = parent.path().join("dest");
     std::fs::create_dir(&dest).unwrap();
     let err = extract_zip(&archive, &dest).unwrap_err();
-    assert!(
-        matches!(
-            err.downcast_ref::<zip::result::ZipError>(),
-            Some(zip::result::ZipError::InvalidArchive(_))
-        ),
-        "unexpected error: {err:?}"
+    assert_eq!(std::fs::read_dir(&dest).unwrap().count(), 0);
+    assert_eq!(std::fs::read_dir(parent.path()).unwrap().count(), 1);
+    err.downcast::<UnsafeMemberPath>().unwrap()
+}
+
+#[test]
+fn extract_zip_never_writes_outside_the_destination() {
+    for (name, reason) in [
+        ("../escaped.txt", "contains a `.` or `..` component"),
+        ("a/../../escaped.txt", "contains a `.` or `..` component"),
+        ("./a", "contains a `.` or `..` component"),
+        ("/abs.txt", "is absolute"),
+        ("C:/abs.txt", "contains a backslash or colon"),
+        ("a\\..\\..\\x", "contains a backslash or colon"),
+        ("a/./b", "contains a `.` or `..` component"),
+    ] {
+        let err = rejected(name);
+        assert_eq!((err.name.as_str(), err.reason), (name, reason));
+    }
+}
+
+#[test]
+fn member_path_rejects_an_empty_name_and_drops_empty_components() {
+    assert_eq!(member_path("").unwrap_err().reason, "is empty");
+    assert_eq!(
+        member_path("a//b/").unwrap(),
+        std::path::PathBuf::from("a").join("b")
     );
-    assert!(!parent.path().join("escaped.txt").exists());
-    assert!(!dest.join("escaped.txt").exists());
+}
+
+#[test]
+fn extract_zip_refuses_to_overwrite_an_existing_file() {
+    let archive = stored_zip(&[("a.txt", b"new")]);
+    let dest = tempfile::tempdir().unwrap();
+    std::fs::write(dest.path().join("a.txt"), b"old").unwrap();
+    let err = extract_zip(&archive, dest.path()).unwrap_err();
+    assert_eq!(
+        err.downcast_ref::<std::io::Error>().unwrap().kind(),
+        std::io::ErrorKind::AlreadyExists
+    );
+    assert_eq!(std::fs::read(dest.path().join("a.txt")).unwrap(), b"old");
+}
+
+#[cfg(unix)]
+#[test]
+fn extract_zip_refuses_to_write_through_a_symbolic_link() {
+    let archive = stored_zip(&[("link/escaped.txt", b"x")]);
+    let outside = tempfile::tempdir().unwrap();
+    let dest = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(outside.path(), dest.path().join("link")).unwrap();
+    let err = extract_zip(&archive, dest.path()).unwrap_err();
+    assert!(err.to_string().ends_with("is a symbolic link"), "{err}");
+    assert_eq!(std::fs::read_dir(outside.path()).unwrap().count(), 0);
 }

@@ -19,7 +19,8 @@ clap = { workspace = true, features = ["derive"] }
 reqwest = { workspace = true, features = ["blocking", "stream"] }
 flate2 = { workspace = true }
 tar = { workspace = true }
-zip = { workspace = true, features = ["deflate-flate2-zlib-rs"] }
+consus-zip = { workspace = true }
+thiserror = { workspace = true }
 indicatif = { workspace = true }
 dirs = { workspace = true }
 tracing = { workspace = true }

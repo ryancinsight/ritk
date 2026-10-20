@@ -108,7 +108,7 @@ ritk-trx = { path = "crates/ritk-trx", version = "0.2.0" }
 # The crates.io name `gaia` belongs to an unrelated third-party crate, so the
 # crate is published as `gaia-mesh`; the import path stays `gaia` via its
 # `[lib] name`, so no source changes.
-gaia = { package = "gaia-mesh", version = "0.6.9", git = "https://github.com/ryancinsight/gaia", default-features = false }
+gaia = { package = "gaia-mesh", version = "0.6.10", git = "https://github.com/ryancinsight/gaia", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 coeus-nn = { version = "0.12.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-optim = { version = "0.12.0", git = "https://github.com/ryancinsight/Coeus.git" }
@@ -150,7 +150,6 @@ wgpu = { version = "0.20", default-features = false, features = ["wgsl"] }
 pollster = "0.3"
 flate2 = "1.0"
 tar = "0.4"
-zip = { version = "9", default-features = false }
 indicatif = "0.17"
 dirs = "5.0"
 sha2 = "0.10"
@@ -175,12 +174,13 @@ dicom-core = "0.10"
 dicom-ul = "0.10"
 dicom-pixeldata = { version = "0.10", default-features = false }
 dicom-transfer-syntax-registry = { version = "0.10", default-features = false }
-consus-hdf5 = { version = "0.3.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
-consus-core = { version = "0.3.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
-consus-compression = { version = "0.3.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "deflate"] }
-consus-io = { version = "0.3.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
-consus-onnx = { version = "0.3.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
-consus-raster = { version = "0.3", git = "https://github.com/ryancinsight/consus.git" }
+consus-hdf5 = { version = "0.4.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
+consus-core = { version = "0.4.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
+consus-compression = { version = "0.4.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "deflate"] }
+consus-io = { version = "0.4.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
+consus-onnx = { version = "0.4.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
+consus-raster = { version = "0.4.0", git = "https://github.com/ryancinsight/consus.git" }
+consus-zip = { version = "0.4.0", git = "https://github.com/ryancinsight/consus.git" }
 
 arrayvec = "0.7"
 

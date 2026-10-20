@@ -1,7 +1,7 @@
 use anyhow::Result;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 pub fn validate_nifti_payload(filename: &str, data: &[u8]) -> Result<()> {
@@ -107,15 +107,92 @@ pub(super) fn extract_tar_gz(data: &[u8], dest: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Extracts a zip archive into `dest`, sanitizing every entry path.
+/// A ZIP member name that would place a file outside the destination.
+#[derive(Debug, thiserror::Error)]
+#[error("zip member {name:?} is not a relative path inside the destination: {reason}")]
+pub struct UnsafeMemberPath {
+    /// Rejected member name.
+    pub name: String,
+    /// Violated constraint.
+    pub reason: &'static str,
+}
+
+/// The destination-relative path of a member, or why it is unsafe.
 ///
-/// An entry whose name escapes `dest` (absolute path, `..` component) fails
-/// the extraction with `ZipError::InvalidArchive`; nothing is written outside
-/// the destination.
+/// A name is accepted only when every `/`-separated component is a plain
+/// file or directory name: no root, `.` or `..`, and no `\` or `:` that
+/// Windows would read as a separator or drive.
+pub(crate) fn member_path(name: &str) -> std::result::Result<PathBuf, UnsafeMemberPath> {
+    let reject = |reason| UnsafeMemberPath {
+        name: name.to_owned(),
+        reason,
+    };
+    if name.contains(['\\', ':']) {
+        return Err(reject("contains a backslash or colon"));
+    }
+    if name.starts_with('/') {
+        return Err(reject("is absolute"));
+    }
+    let mut path = PathBuf::new();
+    for component in name.split('/').filter(|component| !component.is_empty()) {
+        if component == "." || component == ".." {
+            return Err(reject("contains a `.` or `..` component"));
+        }
+        path.push(component);
+    }
+    if path.as_os_str().is_empty() {
+        return Err(reject("is empty"));
+    }
+    Ok(path)
+}
+
+/// Extracts a zip archive into `dest`.
+///
+/// Every member name is validated before anything is written, so one unsafe
+/// name ([`UnsafeMemberPath`]) leaves `dest` untouched. Members are written
+/// as new regular files, never over an existing path, and a symbolic link on
+/// the way to a member fails the extraction, so no write follows a link out
+/// of `dest`.
 pub fn extract_zip(data: &[u8], dest: &Path) -> Result<()> {
-    let reader = std::io::Cursor::new(data);
-    let mut archive = zip::ZipArchive::new(reader)?;
-    archive.extract(dest)?;
+    let mut archive = consus_zip::ZipReader::new(std::io::Cursor::new(data))?;
+    let members = archive
+        .entries()
+        .iter()
+        .map(|entry| Ok((member_path(entry.name())?, entry.name().ends_with('/'))))
+        .collect::<std::result::Result<Vec<_>, UnsafeMemberPath>>()?;
+    for (index, (relative, is_directory)) in members.into_iter().enumerate() {
+        let target = dest.join(&relative);
+        let directory = if is_directory {
+            relative.as_path()
+        } else {
+            relative.parent().unwrap_or(Path::new(""))
+        };
+        create_dir_without_links(dest, directory)?;
+        if !is_directory {
+            let bytes = archive.read_entry(index)?;
+            std::fs::File::create_new(&target)?.write_all(&bytes)?;
+        }
+    }
+    Ok(())
+}
+
+/// Creates `dest/relative` component by component, refusing symbolic links.
+fn create_dir_without_links(dest: &Path, relative: &Path) -> Result<()> {
+    let mut current = dest.to_path_buf();
+    for component in relative.components() {
+        current.push(component);
+        match std::fs::symlink_metadata(&current) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                anyhow::bail!("{} is a symbolic link", current.display())
+            }
+            Ok(meta) if meta.is_dir() => {}
+            Ok(_) => anyhow::bail!("{} exists and is not a directory", current.display()),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                std::fs::create_dir(&current)?;
+            }
+            Err(err) => return Err(err.into()),
+        }
+    }
     Ok(())
 }
 
