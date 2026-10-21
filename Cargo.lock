@@ -707,8 +707,8 @@ dependencies = [
 
 [[package]]
 name = "consus-compression"
-version = "0.3.0"
-source = "git+https://github.com/ryancinsight/consus.git#441738cde38607a88c2c29920f137dabf58f45db"
+version = "0.4.0"
+source = "git+https://github.com/ryancinsight/consus.git#5bcaf33d4e8a86ef49319f1427a5a22c7f477d03"
 dependencies = [
  "byteorder",
  "consus-core",
@@ -716,8 +716,8 @@ dependencies = [
 
 [[package]]
 name = "consus-core"
-version = "0.3.0"
-source = "git+https://github.com/ryancinsight/consus.git#441738cde38607a88c2c29920f137dabf58f45db"
+version = "0.4.0"
+source = "git+https://github.com/ryancinsight/consus.git#5bcaf33d4e8a86ef49319f1427a5a22c7f477d03"
 dependencies = [
  "byteorder",
  "smallvec",
@@ -726,8 +726,8 @@ dependencies = [
 
 [[package]]
 name = "consus-hdf5"
-version = "0.3.0"
-source = "git+https://github.com/ryancinsight/consus.git#441738cde38607a88c2c29920f137dabf58f45db"
+version = "0.4.0"
+source = "git+https://github.com/ryancinsight/consus.git#5bcaf33d4e8a86ef49319f1427a5a22c7f477d03"
 dependencies = [
  "byteorder",
  "consus-compression",
@@ -737,21 +737,21 @@ dependencies = [
 
 [[package]]
 name = "consus-io"
-version = "0.3.0"
-source = "git+https://github.com/ryancinsight/consus.git#441738cde38607a88c2c29920f137dabf58f45db"
+version = "0.4.0"
+source = "git+https://github.com/ryancinsight/consus.git#5bcaf33d4e8a86ef49319f1427a5a22c7f477d03"
 dependencies = [
  "consus-core",
 ]
 
 [[package]]
 name = "consus-onnx"
-version = "0.3.0"
-source = "git+https://github.com/ryancinsight/consus.git#441738cde38607a88c2c29920f137dabf58f45db"
+version = "0.4.0"
+source = "git+https://github.com/ryancinsight/consus.git#5bcaf33d4e8a86ef49319f1427a5a22c7f477d03"
 
 [[package]]
 name = "consus-raster"
-version = "0.3.0"
-source = "git+https://github.com/ryancinsight/consus.git#441738cde38607a88c2c29920f137dabf58f45db"
+version = "0.4.0"
+source = "git+https://github.com/ryancinsight/consus.git#5bcaf33d4e8a86ef49319f1427a5a22c7f477d03"
 dependencies = [
  "apollo-dctdst-core",
  "jpeg-encoder",
