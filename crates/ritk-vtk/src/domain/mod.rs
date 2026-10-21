@@ -12,6 +12,11 @@ pub mod vtk_data_object;
 pub mod vtk_pipeline;
 pub mod vtk_scene;
 
+/// Common runtime contract for VTK-domain types.
+pub trait VtkComponent: Send + Sync {}
+
+impl<T: Send + Sync> VtkComponent for T {}
+
 pub use filters::{ComputeNormalsFilter, SmoothFilter, ThresholdFilter};
 pub use iris::color::NamedColorMap;
 pub use mapper::{PolygonMode, ScalarVisibility, SurfaceMapper, VtkLookupTable, VtkMapper};

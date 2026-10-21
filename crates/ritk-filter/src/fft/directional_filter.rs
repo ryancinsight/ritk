@@ -32,7 +32,7 @@ use ritk_tensor_ops::rebuild;
 ///
 /// Receives normalised frequency `f ∈ [0, 0.5]` and returns the
 /// transfer-function magnitude in `[0, 1]`.
-pub trait DirectionalResponse: Send + Sync {
+pub trait DirectionalResponse {
     /// Transfer-function magnitude at normalised frequency `f ∈ [0, 0.5]`.
     fn response(&self, f: f64) -> f32;
 }

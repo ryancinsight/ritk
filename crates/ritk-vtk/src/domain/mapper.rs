@@ -19,7 +19,7 @@
 
 use iris::color::LookupTable;
 
-use super::NamedColorMap;
+use super::{NamedColorMap, VtkComponent};
 
 /// Polygon display mode for surface rendering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -101,7 +101,7 @@ pub enum ScalarVisibility {
 
 /// Abstraction for VTK rendering mappers — converts a dataset to a renderable
 /// representation using a lookup table and a chosen polygon display mode.
-pub trait VtkMapper: Send + Sync {
+pub trait VtkMapper: VtkComponent {
     /// Replace the lookup table.
     fn set_lookup_table(&mut self, lut: VtkLookupTable);
     /// Borrow the current lookup table.

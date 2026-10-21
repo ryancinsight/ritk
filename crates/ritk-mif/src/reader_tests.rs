@@ -361,3 +361,36 @@ fn a_zero_extent_on_any_axis_is_rejected() {
         );
     }
 }
+
+/// A `dim` product that overflows `usize` is rejected before any allocation.
+///
+/// `voxels_per_volume`, `total_voxels`, and `expected_bytes` are products of
+/// header-supplied extents, each parsed as `usize`. On a 64-bit target
+/// `dim: 4294967296 4294967296 4294967296` wraps `nx · ny` past `usize::MAX`;
+/// without the checked products the wrapped count would size the decode, so the
+/// rejection must name the overflow rather than accept a wrapped grid.
+#[cfg(target_pointer_width = "64")]
+#[test]
+fn a_dim_product_that_overflows_usize_is_rejected() {
+    const PEAK_LIMIT: usize = 64 * 1024 * 1024;
+    let backend = SequentialBackend;
+    let path = write_raw_mif(&header_with("4294967296 4294967296 4294967296", ". 0"), &[]);
+
+    let (result, peak) =
+        peak_bytes_during(|| -> anyhow::Result<Image<f32, SequentialBackend, 3>> {
+            read_mif(&path, &backend)
+        });
+    let _ = std::fs::remove_file(&path);
+
+    let err = result.expect_err("a dim product past usize::MAX cannot describe a grid");
+    let message = format!("{err:#}");
+    assert!(
+        message.contains("overflows usize"),
+        "the rejection should name the overflow, got: {message}"
+    );
+    assert!(
+        peak < PEAK_LIMIT,
+        "reading a sub-kilobyte file peaked at {peak} live bytes, above {PEAK_LIMIT}; \
+         the header's dimension product is driving allocation"
+    );
+}

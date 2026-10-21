@@ -12,7 +12,7 @@
 //! perfect correlation.
 
 use coeus_autograd::{div, mul, neg, scalar_add, scalar_div, sqrt, sub, sum, Var};
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement};
 use coeus_ops::BackendOps;
 
 use super::traits::Metric;
@@ -40,12 +40,12 @@ use super::traits::Metric;
 /// contract) — a caller invariant.
 pub fn normalized_cross_correlation<T, B>(moving: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    let n = moving.tensor.shape().first().copied().unwrap_or(0) as f64;
-    let inv_n_scale = n; // scalar_div divides by this
+    let n = moving.tensor.shape().first().copied().unwrap_or(0);
+    let n_val = <T as coeus_core::FloatElement>::from_count(n);
 
     let s_f = sum(fixed);
     let s_m = sum(moving);
@@ -58,7 +58,7 @@ where
         &s_fm,
         &scalar_div(
             &mul(&s_f, &s_m),
-            <T as coeus_core::Scalar>::from_f64(inv_n_scale),
+            n_val,
         ),
     );
     // d_F = S_FF − S_F² / N ; d_M = S_MM − S_M² / N
@@ -66,14 +66,14 @@ where
         &s_ff,
         &scalar_div(
             &mul(&s_f, &s_f),
-            <T as coeus_core::Scalar>::from_f64(inv_n_scale),
+            n_val,
         ),
     );
     let d_m = sub(
         &s_mm,
         &scalar_div(
             &mul(&s_m, &s_m),
-            <T as coeus_core::Scalar>::from_f64(inv_n_scale),
+            n_val,
         ),
     );
 
@@ -91,7 +91,7 @@ pub struct Ncc;
 
 impl<T, B> Metric<T, B> for Ncc
 where
-    T: Float,
+    T: Float + FloatElement,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

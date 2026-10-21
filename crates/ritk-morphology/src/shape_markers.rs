@@ -82,7 +82,7 @@ pub const fn ball_cardinality_upper(r: usize) -> usize {
 /// Each shape produces a separate monomorphized function at every call site,
 /// enabling LLVM to constant-fold the offset-generation loops when the radius
 /// is also a compile-time constant.
-pub trait SeShape: Copy + Clone + Default + Send + Sync + sealed::Sealed {
+pub trait SeShape: Copy + Clone + Default + sealed::Sealed {
     /// Human-readable shape name (e.g. `"cube"`, `"cross"`, `"ball"`).
     const NAME: &'static str;
 

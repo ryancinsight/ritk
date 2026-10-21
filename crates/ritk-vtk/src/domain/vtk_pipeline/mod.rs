@@ -31,8 +31,10 @@ use super::vtk_data_object::VtkDataObject;
 use anyhow::Result;
 use std::any::Any;
 
+use super::VtkComponent;
+
 /// Produces a `VtkDataObject` from an external source (file, procedural generator).
-pub trait VtkSource: Send + Sync {
+pub trait VtkSource: VtkComponent {
     /// Generate the initial data object.
     fn produce(&self) -> Result<VtkDataObject>;
 
@@ -49,7 +51,7 @@ pub trait VtkSource: Send + Sync {
 /// Transforms one `VtkDataObject` into another.
 ///
 /// Implementations must document which variants they accept and which they produce.
-pub trait VtkFilter: Send + Sync {
+pub trait VtkFilter: VtkComponent {
     /// Apply the filter transformation.
     fn execute(&self, input: VtkDataObject) -> Result<VtkDataObject>;
 
@@ -80,7 +82,7 @@ pub trait VtkFilter: Send + Sync {
 }
 
 /// Consumes a `VtkDataObject` (writes to disk, renders, accumulates statistics, etc.).
-pub trait VtkSink: Send + Sync {
+pub trait VtkSink: VtkComponent {
     /// Process the final data object.
     fn consume(&self, data: &VtkDataObject) -> Result<()>;
 }

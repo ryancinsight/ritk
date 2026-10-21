@@ -15,7 +15,7 @@ use coeus_autograd::{
     avg_pool3d, broadcast_to, div, exp, log, matmul, mean, mul, neg, permute, reshape, scalar_add,
     scalar_div, scalar_mul, sqrt, sub, sum, sum_axis, Var,
 };
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -54,7 +54,7 @@ where
 /// broadcasting is needed and gradients flow to both inputs.
 pub fn ncc_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -70,7 +70,7 @@ where
     let s_mm = sum_axis(&square(&m), 1);
     let s_fm = sum_axis(&mul(&f, &m), 1);
 
-    let inv_n = <T as coeus_core::Scalar>::from_f64(n as f64);
+    let inv_n = <T as coeus_core::FloatElement>::from_count_reciprocal(n);
     // num = S_FM − S_F·S_M / N ; d_X = S_XX − S_X² / N.
     let num = sub(&s_fm, &scalar_div(&mul(&s_f, &s_m), inv_n));
     let d_f = sub(&s_ff, &scalar_div(&square(&s_f), inv_n));
@@ -165,7 +165,7 @@ pub fn mi_loss<T, B>(
     sigma: f64,
 ) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -202,7 +202,7 @@ where
 
     // Joint histogram Wá¶ áµ€·Wᵐ (`[bins, bins]`), normalized to a probability.
     let joint = matmul(&permute(&w_f, &[1, 0]), &w_m);
-    let joint_p = scalar_div(&joint, <T as coeus_core::Scalar>::from_f64(n as f64));
+    let joint_p = scalar_div(&joint, <T as coeus_core::FloatElement>::from_count(n));
 
     // Marginals broadcast back to `[bins, bins]`.
     let p_f = broadcast_to(

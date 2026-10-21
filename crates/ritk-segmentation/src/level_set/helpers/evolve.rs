@@ -86,7 +86,7 @@ pub(crate) struct Scratch {
 /// Implementations are zero-sized markers selected with turbofish at the
 /// call site (`evolve_to_convergence::<MaxAbsRate, _, _>`), so the metric
 /// is monomorphized into the loop rather than branched on per element.
-pub(crate) trait Convergence: Copy + Send + Sync + 'static {
+pub(crate) trait Convergence: Copy + 'static {
     /// The fresh per-slice accumulator value.
     fn initial() -> f64;
     /// Fold one element's increment into its slice accumulator.

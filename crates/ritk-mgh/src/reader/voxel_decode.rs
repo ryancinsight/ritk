@@ -36,13 +36,19 @@ pub(super) fn decode_volumes<R: Read>(
     voxels_per_volume: usize,
     volume_count: usize,
 ) -> Result<Vec<Vec<f32>>> {
+    // `volume_count` is the header's `nframes`: a claim about the file, not a
+    // fact about it. Reserving the table from the claim let a 90-byte header
+    // demand a multi-gigabyte `Vec<Vec<f32>>` before a single volume decoded.
+    // Every volume must stream `voxels_per_volume` voxels out of the input, so
+    // growing the table only as volumes genuinely decode bounds it by the real
+    // payload while keeping the allocation failure graceful.
     let mut volumes = Vec::new();
-    volumes
-        .try_reserve_exact(volume_count)
-        .context("cannot allocate MGH volume table")?;
     for volume in 0..volume_count {
         let values = decode_voxels(reader, voxel_type, voxels_per_volume)
             .with_context(|| format!("failed to decode MGH volume {volume} of {volume_count}"))?;
+        volumes
+            .try_reserve(1)
+            .context("cannot allocate MGH volume table")?;
         volumes.push(values);
     }
     Ok(volumes)

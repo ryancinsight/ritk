@@ -8,6 +8,60 @@
 This document tracks performance characteristics, known bottlenecks, and
 optimization opportunities across the RITK codebase.
 
+## SEC-446-05 — Parser allocation bounding
+
+Every first-party parser's count-driven allocation — the sample buffers a header
+field sizes (`dim`, `DimSize`, NRRD `dimension`, MGH `width × height × depth`,
+DICOM frame count, TrackVis `n_scalars`, …). A header naming a multi-gigabyte
+payload on a tiny file must fail typed after a bounded allocation, never abort
+the process. Closed in two rounds.
+
+**Round 1 (landed at `133ef5415`).** `ritk-trk`'s reader rejects
+`n_scalars`/`n_properties` outside the format's fixed `scalar_name[10][20]` /
+`property_name[10][20]` tables (`TrkError::InvalidScalarCount` /
+`InvalidPropertyCount`), which also caps the per-point stride, and streams the
+streamline payload through a fixed 4 KiB buffer instead of a second full-size
+`Vec<u8>`. `ritk-vtk`'s legacy ASCII `CELLS`/`CELL_TYPES` no longer pre-reserve
+the header count, and every `count × factor` product goes through
+`checked_scaled`. Before the fix a 1 KiB TrackVis file demanded
+`100_000 × (3 + 32_767) × 4` bytes — roughly 13 GB — from `n_scalars = i16::MAX`.
+
+**Round 2 (landed here).** Three residual sites the round-1 survey left open are
+now bounded and pinned by fixtures:
+
+| Parser | Bound mechanism | Evidence |
+| --- | --- | --- |
+| TrackVis | `n_scalars`/`n_properties` rejected outside the `[10][20]` name tables; payload streamed through a fixed 4 KiB buffer | `crates/ritk-trk/src/io.rs`, `crates/ritk-trk/src/tests_allocation.rs` |
+| VTK legacy | ASCII `CELLS`/`CELL_TYPES` grow from parsed lines; `count × factor` through `checked_scaled` | `crates/ritk-vtk/src/io/unstruct_grid/mod.rs`, `tests.rs` |
+| JPEG 2000 EBCOT | code-block area rejected above the ISO 15444-1 bound (`cbw · cbh ≤ 4096`) before either per-sample `vec!` is sized | `crates/ritk-codecs/src/jpeg_2000/ebcot/decoder.rs:34,62`, `tests.rs:72` |
+| MGH | volume table grows only as volumes decode from confirmed input (was reserved whole from `nframes`); voxels stream in 16 KiB chunks; MGZ capped by `MAX_MGZ_UNCOMPRESSED_BYTES` | `crates/ritk-mgh/src/reader/voxel_decode.rs:39`, `reader/tests/errors.rs:210` |
+| MIF | `voxels_per_volume`/`total_voxels`/`expected_bytes` are `checked_mul` products; payload must reach `expected_bytes` | `crates/ritk-mif/src/reader.rs:191`, `reader_tests.rs:374` |
+| NRRD | `dimension` validated `2..=4` before `parse_quoted_strings` reserves; raw declared length checked before payload storage | `crates/ritk-nrrd/src/reader/volume/payload.rs`, `src/spatial.rs` |
+| NIfTI | `volume_byte_range(byte_len)` rejects a payload shorter than the declared volume before any `vec![…; voxel_count]` | `crates/ritk-nifti/src/header/types.rs` |
+| MetaImage | decompressed output capped by a `DimSize`-derived limit, then length must equal `expected_payload_bytes` exactly | `crates/ritk-metaimage/src/reader.rs` |
+| Analyze | `.img` length must equal `vox_offset + voxel_count × width` exactly before `decode_payload` reserves | `crates/ritk-analyze/src/reader.rs` |
+| VTK / PLY | payload reads go through `read_exact_bounded`; ASCII and binary count fields reject hostile counts | `crates/ritk-vtk/src/io/reader.rs` |
+| TIFF | `validate_page_length` compares the decoded page against the expected sample count before reservation | `crates/ritk-tiff/src/reader.rs` |
+| DICOM | element values read through `read_bounded` against the remaining input; multiframe volumes reserve `bounded_capacity` | `crates/ritk-dicom/src/backend/parse_budget.rs`, `crates/ritk-io/src/format/dicom/multiframe/reader/volume.rs` |
+| GIFTI | per-array capacity capped at 2¹⁶ elements and grows from parsed input | `crates/ritk-gifti/src/decode.rs` |
+| JPEG | encoded-byte ceiling `MAX_FILE_ENCODED_BYTES` (256 MiB) enforced before the buffer reservation and re-checked while reading | `crates/ritk-jpeg/src/decode.rs` |
+
+Each round-2 guard was falsified by reverting it: the EBCOT and MGH fixtures
+fail on the pre-fix code (abort / wrong rejection), so the tests detect the
+defect they exist for rather than a coincidental error.
+
+**Out of scope:** PNG decoding delegates to the external `image` crate, so its
+allocation policy is not first-party and is not covered here.
+
+**Residual risk, and the next increment:** the bounds cap *speculative*
+allocation, not the true output size — a header that agrees with a genuinely
+huge file still allocates the full volume. The remaining wins are constant-factor
+and memory-footprint: NIfTI's `read_f32_voxel`-per-voxel loop
+(`crates/ritk-nifti/src/reader.rs:182`) re-derives each voxel's offset
+arithmetically and decodes one lane at a time, while MGH's chunked
+`decode_stream` converts whole chunks; batching NIfTI's conversion the same way
+is the identified optimization, not a correctness fix.
+
 ## Sprint 392 — Grayscale morphology: O(N·(2r+1)³) → O(N) (separable sliding window)
 
 Flat-box grayscale erosion/dilation (`erode_3d`/`dilate_3d`, and the
