@@ -191,3 +191,52 @@ fn test_read_non_positive_spacing_is_rejected_not_panicked() {
         assert_rejects(result, "Invalid MGH RAS voxel spacing");
     }
 }
+
+/// An overstated `nframes` must not size the volume table.
+///
+/// `nframes` is an `i32` header field, so `i32::MAX` frames of a 2×2×2 volume
+/// fits in a 90-byte header while declaring 68 GB of voxel data. The table
+/// reservation previously took that claim as a fact and reserved
+/// `i32::MAX × size_of::<Vec<f32>>()` — about 51 GB — before a single volume
+/// decoded. Each volume must stream its voxels out of the input, so the read
+/// must be bounded by the payload that actually arrives.
+///
+/// The single-volume [`read_mgh`] rejects `nframes != 1` before decoding, so the
+/// claim reaches the table only through [`read_mgh_series`].
+///
+/// Peak allocation is measured rather than inferred: a 51 GB reservation
+/// succeeds wherever the memory (or address space) exists, so asserting only on
+/// the returned error leaves the defect invisible on such a host. The fixture
+/// carries exactly one volume, so an honest read touches bytes and fails at the
+/// second; 64 MiB sits orders of magnitude above that and below the defect's.
+#[test]
+fn test_read_overstated_nframes_does_not_drive_allocation() {
+    use ritk_core::alloc_probe::peak_bytes_during;
+
+    const PEAK_LIMIT: usize = 64 * 1024 * 1024;
+
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("huge_nframes.mgh");
+    let backend = TestBackend::default();
+    let mgh = build_mgh_bytes(
+        1,
+        [2, 2, 2],
+        i32::MAX,
+        MRI_FLOAT,
+        [1.0, 1.0, 1.0],
+        IDENTITY_DIR,
+        [0.0, 0.0, 0.0],
+        &[0u8; 2 * 2 * 2 * 4],
+    );
+    std::fs::write(&path, &mgh).unwrap();
+
+    let (result, peak) = peak_bytes_during(|| read_mgh_series::<TestBackend, _>(&path, &backend));
+
+    assert_rejects(result, "truncated");
+    assert!(
+        peak < PEAK_LIMIT,
+        "reading a {}-byte file peaked at {peak} live bytes, above the {PEAK_LIMIT}-byte limit; \
+         the header's frame count is driving allocation",
+        mgh.len()
+    );
+}
