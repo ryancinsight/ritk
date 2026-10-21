@@ -20,6 +20,17 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+### Changed
+
+- [patch] Follow the Consus provider to 0.4.0. `consus-core`, `consus-hdf5`,
+  `consus-compression`, `consus-io`, `consus-onnx`, and `consus-raster` move
+  from 0.3.0 to 0.4.0 and the lock resolves them at the published 0.4.0
+  revision, so every edge that names the Consus repository agrees on one
+  identity. Consus 0.4.0 changes the public HDF5 async reader bounds and
+  the `consus_npy::Error::Zip` payload; RITK reads no HDF5 async surface and
+  no NPZ error, so no caller migrates and the public RITK surface is
+  unchanged.
+
 ### Fixed
 
 - [patch] Python CI restores build caches on every ref and saves them only from
