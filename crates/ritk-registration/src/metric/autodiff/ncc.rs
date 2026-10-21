@@ -46,8 +46,9 @@ where
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    let n = moving.tensor.shape().first().copied().unwrap_or(0) as f64;
-    let inv_n_scale = n; // scalar_div divides by this
+    let n = moving.tensor.shape().first().copied().unwrap_or(0);
+    // `scalar_div` divides by this count, converted in `T`'s own precision.
+    let n_val = <T as FloatElement>::from_count(n);
 
     let s_f = sum(fixed).expect("normalized_cross_correlation: backend sum failed");
     let s_m = sum(moving).expect("normalized_cross_correlation: backend sum failed");
@@ -63,17 +64,17 @@ where
 
     // num = S_FM − S_F·S_M / N
     let s_f_s_m = mul(&s_f, &s_m).expect("normalized_cross_correlation: backend multiply failed");
-    let s_f_s_m_n = scalar_div(&s_f_s_m, <T as FloatElement>::from_f64(inv_n_scale))
+    let s_f_s_m_n = scalar_div(&s_f_s_m, n_val)
         .expect("normalized_cross_correlation: backend scalar_div failed");
     let num =
         sub(&s_fm, &s_f_s_m_n).expect("normalized_cross_correlation: backend subtract failed");
     // d_F = S_FF − S_F² / N ; d_M = S_MM − S_M² / N
     let s_f_sq = mul(&s_f, &s_f).expect("normalized_cross_correlation: backend multiply failed");
-    let s_f_sq_n = scalar_div(&s_f_sq, <T as FloatElement>::from_f64(inv_n_scale))
+    let s_f_sq_n = scalar_div(&s_f_sq, n_val)
         .expect("normalized_cross_correlation: backend scalar_div failed");
     let d_f = sub(&s_ff, &s_f_sq_n).expect("normalized_cross_correlation: backend subtract failed");
     let s_m_sq = mul(&s_m, &s_m).expect("normalized_cross_correlation: backend multiply failed");
-    let s_m_sq_n = scalar_div(&s_m_sq, <T as FloatElement>::from_f64(inv_n_scale))
+    let s_m_sq_n = scalar_div(&s_m_sq, n_val)
         .expect("normalized_cross_correlation: backend scalar_div failed");
     let d_m = sub(&s_mm, &s_m_sq_n).expect("normalized_cross_correlation: backend subtract failed");
 
