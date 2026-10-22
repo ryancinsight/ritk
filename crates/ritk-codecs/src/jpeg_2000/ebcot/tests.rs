@@ -59,6 +59,25 @@ fn ebcot_rejects_body_exhaustion_before_declared_passes() {
     assert!(format!("{err:#}").contains("ended before"));
 }
 
+/// A declared code-block area above the format's limit is rejected before the
+/// per-sample reservations are sized from it.
+///
+/// `width`/`height` arrive from the packet header, and the two `vec!`
+/// reservations below them are sized by `width · height`. Without the area
+/// bound a 65535×65535 header declares 4.29e9 samples — a 4 GiB `state` plus a
+/// 17 GiB `mag` — from a header field and a handful of entropy bytes. The
+/// fixture supplies 16 bytes: an honest decode reads the block's samples, so a
+/// rejected call must not reserve them.
+#[test]
+fn ebcot_rejects_a_code_block_larger_than_the_format_permits() {
+    let err = decode_code_block(&[0u8; 16], 65_535, 65_535, 1, 1, SubbandOrientation::LlOrLh)
+        .expect_err("a code-block above the format's area limit is malformed");
+    assert!(
+        format!("{err:#}").contains("maximum area"),
+        "the rejection must name the area limit, got: {err:#}"
+    );
+}
+
 #[test]
 fn ebcot_all_zeros_round_trip() {
     enc_dec_roundtrip(&[0i32; 16], 4, 4, SubbandOrientation::LlOrLh);

@@ -24,6 +24,15 @@ pub struct DecodedBlock {
     pub lowest_bitplane: u32,
 }
 
+/// Maximum number of samples in one code-block.
+///
+/// ISO 15444-1 (Table A.12) bounds a code-block to `cbw ≤ 1024`, `cbh ≤ 1024`,
+/// and `cbw · cbh ≤ 4096`; this decoder additionally requires the 64×64 nominal
+/// size before it reaches tier-1. A declared area above the format bound is
+/// therefore malformed, and the two per-sample reservations below must not be
+/// sized from it.
+const MAX_CODE_BLOCK_AREA: usize = 4096;
+
 /// Decode one EBCOT code-block.
 ///
 /// # Parameters
@@ -50,6 +59,11 @@ pub fn decode_code_block(
     let n = width
         .checked_mul(height)
         .context("J2K EBCOT code-block dimensions overflow")?;
+    if n > MAX_CODE_BLOCK_AREA {
+        bail!(
+            "J2K EBCOT code-block {width}×{height} declares {n} samples; the format's maximum area is {MAX_CODE_BLOCK_AREA}"
+        );
+    }
     let mut state = vec![SampleState::default(); n];
     let mut mag = vec![0u32; n]; // accumulated magnitude
 
