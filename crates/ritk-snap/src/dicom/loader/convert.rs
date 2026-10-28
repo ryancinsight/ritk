@@ -44,7 +44,7 @@ pub(super) fn volume_from_image_no_meta(
     let (spacing, origin, direction) = extract_spatial_metadata(&image);
 
     let pixels = image
-        .data_cow_on(&coeus_core::SequentialBackend)
+        .data_cow_on(&coeus_core::SequentialBackend)?
         .into_owned();
 
     Ok(LoadedVolume {

@@ -6,7 +6,6 @@
 - scope: crates/ritk-io/src/format/{png,tiff,jpeg}/, raster model, and conversion tests
 - next: Derive raster model semantics from each codec, then test lossless values and JPEG reconstruction against the T.81/quantizer oracle.
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
-- status: blocked
-- blocker: Prerequisite items must merge before this item is ready.
-- needs: RITK-IO-FORMAT-CAPABILITIES-001
+- status: todo
+- needs: none
 - priority: architecture

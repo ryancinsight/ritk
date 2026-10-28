@@ -11,7 +11,7 @@ const SECONDARY_UID: &str = "2.25.20260905002";
 #[test]
 fn browser_dicom_byte_action_loads_primary_volume() {
     let root = tempfile::tempdir().expect("study root");
-    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID)
+    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
         .expect("write browser DICOM fixture");
     let payloads = files
         .into_iter()
@@ -31,10 +31,7 @@ fn assert_primary(app: &SnapApp, uid: &str) {
     assert_eq!(volume.spacing, fixtures::SPACING);
     assert_eq!(volume.origin, fixtures::ORIGIN);
     assert_eq!(volume.direction, fixtures::DIRECTION);
-    let expected: Vec<_> = fixtures::SAMPLES
-        .iter()
-        .map(|&raw| 2.0 * f32::from(raw) - 20.0)
-        .collect();
+    let expected = fixtures::displayed_samples(&fixtures::SAMPLES);
     assert_eq!(volume.data.as_slice(), expected);
     assert_eq!(
         volume
@@ -99,8 +96,9 @@ fn click_series(app: &mut SnapApp, context: &egui::Context, uid: &str) {
 #[test]
 fn sidebar_loads_distinct_same_folder_primary_and_secondary_acquisitions() {
     let root = tempfile::tempdir().expect("study root");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write CT");
-    fixtures::write_study(root.path(), "MR", SECONDARY_UID).expect("write MR");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write CT");
+    fixtures::write_study(root.path(), "MR", SECONDARY_UID, &fixtures::SAMPLES).expect("write MR");
     let mut app = SnapApp::default();
     app.scan_for_series(root.path().to_path_buf());
     assert_eq!(app.series_tree.total_series(), 2);
@@ -147,7 +145,8 @@ fn sidebar_loads_distinct_same_folder_primary_and_secondary_acquisitions() {
 #[test]
 fn failed_primary_and_secondary_replacements_preserve_loaded_state() {
     let root = tempfile::tempdir().expect("study root");
-    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write CT");
+    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write CT");
     let selected = root.path().join(&files.first().expect("slice").0);
     let mut app = SnapApp::default();
     app.load_primary(VolumeInput::Path(selected.clone()));
@@ -182,7 +181,8 @@ fn failed_primary_and_secondary_replacements_preserve_loaded_state() {
 #[test]
 fn session_restores_exact_acquisition_and_presentation_after_decode() {
     let root = tempfile::tempdir().expect("study root");
-    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write CT");
+    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write CT");
     let selected = root.path().join(&files.first().expect("slice").0);
     let mut app = SnapApp::default();
     app.load_primary(VolumeInput::Path(selected));
@@ -194,7 +194,8 @@ fn session_restores_exact_acquisition_and_presentation_after_decode() {
         matches!(&snapshot.source, Some(StudySource::Dicom { series_uid, files }) if series_uid == fixtures::SERIES_UID && files.len() == 3)
     );
     let bytes = serde_json::to_vec(&snapshot).expect("serialize acquisition");
-    fixtures::write_study(root.path(), "MR", SECONDARY_UID).expect("add unrelated series");
+    fixtures::write_study(root.path(), "MR", SECONDARY_UID, &fixtures::SAMPLES)
+        .expect("add unrelated series");
     let mut restored = SnapApp::default();
     restored
         .apply_session_snapshot(serde_json::from_slice(&bytes).expect("deserialize acquisition"))
@@ -238,9 +239,9 @@ fn dicomdir_index_opens_referenced_pixels_and_excludes_unreferenced_acquisition(
 
     let root = tempfile::tempdir().expect("indexed study root");
     let images = root.path().join("IMAGES");
-    let slices = fixtures::write_study(&images, "CT", fixtures::SERIES_UID)
+    let slices = fixtures::write_study(&images, "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
         .expect("write indexed acquisition");
-    fixtures::write_study(&images, "MR", SECONDARY_UID)
+    fixtures::write_study(&images, "MR", SECONDARY_UID, &fixtures::SAMPLES)
         .expect("write unreferenced distractor acquisition");
     let mut referenced_paths = Vec::new();
     let mut file_ids = Vec::new();
@@ -320,7 +321,8 @@ fn selected_image_replaced_by_non_image_rejects_partial_reload() {
     use ritk_io::{DicomObjectModel, DicomObjectNode, DicomTag};
 
     let root = tempfile::tempdir().expect("study root");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write CT");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write CT");
     let mut app = SnapApp::default();
     app.load_primary(VolumeInput::Path(root.path().to_path_buf()));
     assert_primary(&app, fixtures::SERIES_UID);

@@ -7,6 +7,6 @@
 - next: Implement the DICOM adapter after import and metadata preflight pass on real fixtures.
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
 - status: blocked
-- blocker: Prerequisite items must merge before this item is ready.
-- needs: RITK-DICOM-METADATA-INVENTORY-001, RITK-DICOM-STORED-IMPORT-001, RITK-DICOM-CALIBRATION-UNITS-001, RITK-DICOM-OBJECT-PIXEL-PREFLIGHT-001
+- blocker: RITK-DICOM-CALIBRATION-UNITS-001 must merge before this item is ready.
+- needs: RITK-DICOM-CALIBRATION-UNITS-001
 - priority: architecture

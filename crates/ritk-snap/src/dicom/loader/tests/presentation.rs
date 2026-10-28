@@ -93,7 +93,8 @@ fn dicom_grayscale_presentation_rejects_unknown_voi_function() {
 fn dicom_study_renders_independent_grayscale_oracles_on_all_axes() {
     use crate::render::{NamedColorMap, RenderBufferPool, SliceRenderer, WindowLevel};
     let dir = tempdir().expect("create render fixture directory");
-    fixtures::write_study(dir.path(), "CT", fixtures::SERIES_UID).expect("write render study");
+    fixtures::write_study(dir.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write render study");
     let volume = load_dicom_volume(dir.path()).expect("load render study");
     let mut pool = RenderBufferPool::default();
     // L=-20, U=490 maps decoded (2*raw-20) to byte raw exactly.

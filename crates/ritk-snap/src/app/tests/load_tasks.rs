@@ -7,7 +7,7 @@ use crate::dicom::loader::tests::fixtures;
 #[test]
 fn completed_task_publishes_a_real_dicom_volume() {
     let root = tempfile::tempdir().expect("study root");
-    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID)
+    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
         .expect("write fixture study");
     let path = root.path().join(&files[0].0);
     let mut app = SnapApp::default();
@@ -33,7 +33,7 @@ fn completed_task_publishes_a_real_dicom_volume() {
 #[test]
 fn superseded_task_cannot_replace_newer_primary_study() {
     let root = tempfile::tempdir().expect("study root");
-    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID)
+    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
         .expect("write fixture study");
     let valid = root.path().join(&files[0].0);
     let missing = root.path().join("missing.dcm");
@@ -60,7 +60,7 @@ fn superseded_task_cannot_replace_newer_primary_study() {
 #[test]
 fn closing_study_cancels_pending_tasks_and_clears_requests() {
     let root = tempfile::tempdir().expect("study root");
-    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID)
+    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
         .expect("write fixture study");
     let path = root.path().join(&files[0].0);
     let mut app = SnapApp::default();
@@ -78,7 +78,7 @@ fn closing_study_cancels_pending_tasks_and_clears_requests() {
 #[test]
 fn current_task_failure_preserves_the_previous_study() {
     let root = tempfile::tempdir().expect("study root");
-    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID)
+    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
         .expect("write fixture study");
     let valid = root.path().join(&files[0].0);
     let mut app = SnapApp::default();

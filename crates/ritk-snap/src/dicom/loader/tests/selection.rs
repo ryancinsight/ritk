@@ -54,10 +54,11 @@ fn test_load_dicom_series_from_stored_instances_empty_input_errors() {
 #[test]
 fn explicit_file_selects_minority_series_while_mixed_batches_reject() {
     let root = tempdir().expect("mixed study root");
-    let primary = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID)
-        .expect("write primary acquisition");
+    let primary =
+        fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+            .expect("write primary acquisition");
     let secondary_uid = "2.25.20260905002";
-    let mut secondary = fixtures::write_study(root.path(), "MR", secondary_uid)
+    let mut secondary = fixtures::write_study(root.path(), "MR", secondary_uid, &fixtures::SAMPLES)
         .expect("write secondary acquisition");
 
     for expected_counts in [[3, 3], [3, 2]] {
@@ -91,10 +92,7 @@ fn explicit_file_selects_minority_series_while_mixed_batches_reject() {
     let volume =
         load_volume_from_path(&selected).expect("open explicitly selected minority acquisition");
     assert_eq!(volume.shape, [2, 2, 4]);
-    let expected: Vec<_> = fixtures::SAMPLES[..16]
-        .iter()
-        .map(|&raw| 2.0 * f32::from(raw) - 20.0)
-        .collect();
+    let expected = fixtures::displayed_samples(&fixtures::SAMPLES[..16]);
     assert_eq!(volume.data.as_slice(), expected);
     assert_eq!(
         volume
@@ -112,10 +110,11 @@ fn explicit_file_selects_minority_series_while_mixed_batches_reject() {
 #[test]
 fn series_uid_selection_loads_the_requested_acquisition_from_a_mixed_directory() {
     let root = tempdir().expect("mixed study root");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID)
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
         .expect("write primary acquisition");
     let secondary_uid = "2.25.20260905002";
-    fixtures::write_study(root.path(), "MR", secondary_uid).expect("write secondary acquisition");
+    fixtures::write_study(root.path(), "MR", secondary_uid, &fixtures::SAMPLES)
+        .expect("write secondary acquisition");
 
     let volume = load_volume_from_series_uid(root.path(), secondary_uid)
         .expect("explicit series UID must select one acquisition");
@@ -140,7 +139,8 @@ fn series_uid_selection_loads_the_requested_acquisition_from_a_mixed_directory()
 #[test]
 fn series_uid_selection_rejects_an_unknown_acquisition_without_fallback() {
     let root = tempdir().expect("study root");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write acquisition");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write acquisition");
 
     let error = load_volume_from_series_uid(root.path(), "2.25.404")
         .expect_err("unknown series UID must fail closed");

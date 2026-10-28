@@ -13,8 +13,9 @@ fn orthogonal_overlay_uses_embedded_typeface_and_composites_exact_rgba() {
     );
 
     let overlay = application_overlay(&session.views, &session.viewports, false, 30.0)
-        .expect("compose the RITK overlay commands");
-    assert_eq!(overlay.commands.len(), 12);
+        .expect("compose the RITK overlay commands")
+        .into_display_list();
+    assert_eq!(overlay.commands().len(), 12);
 
     let expected_fills = session
         .viewports
@@ -31,14 +32,14 @@ fn orthogonal_overlay_uses_embedded_typeface_and_composites_exact_rgba() {
     let mut fill_index = 0;
     for (view_index, view) in session.views.iter().enumerate() {
         let command_index = view_index * 4;
-        for (command, expected_rect) in overlay.commands[command_index..command_index + 2]
+        for (command, expected_rect) in overlay.commands()[command_index..command_index + 2]
             .iter()
             .zip(&expected_fills[fill_index..fill_index + 2])
         {
             match command {
                 DisplayCommand::FillRect { rect, color, .. } => {
-                    assert_eq!(*rect, *expected_rect);
-                    assert_eq!(*color, Color::rgba(0, 0, 0, 224));
+                    assert_eq!(rect, expected_rect);
+                    assert_eq!(color, &Color::rgba(0, 0, 0, 224));
                 }
                 other => panic!("expected a panel bar fill, got {other:?}"),
             }
@@ -56,16 +57,20 @@ fn orthogonal_overlay_uses_embedded_typeface_and_composites_exact_rgba() {
             view.window_level.center
         );
         for (command, expected_text, expected_size) in [
-            (&overlay.commands[command_index + 2], expected_title, 16_u32),
             (
-                &overlay.commands[command_index + 3],
+                &overlay.commands()[command_index + 2],
+                expected_title,
+                16_u32,
+            ),
+            (
+                &overlay.commands()[command_index + 3],
                 expected_footer,
                 13_u32,
             ),
         ] {
             match command {
                 DisplayCommand::DrawText { text, style, .. } => {
-                    assert_eq!(&**text, expected_text);
+                    assert_eq!(text.as_ref(), expected_text);
                     assert_eq!(style.color, Color::rgba(255, 255, 160, 255));
                     assert_eq!(style.size.pixels(), f64::from(expected_size));
                     assert_eq!(style.weight, GlyphWeight::Regular);

@@ -6,7 +6,6 @@
 - scope: crates/ritk-mif/, crates/ritk-io/src/format/mif/, conversion tests, and guide
 - next: Add the MIF codec adapter to shared conversion preflight and verify real paths against stored-series semantics.
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
-- status: blocked
-- blocker: Prerequisite items must merge before this item is ready.
-- needs: RITK-IO-FORMAT-CAPABILITIES-001
+- status: todo
+- needs: none
 - priority: correctness

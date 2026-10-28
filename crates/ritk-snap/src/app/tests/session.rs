@@ -241,10 +241,16 @@ fn initial_series_uid_queues_the_discovered_acquisition() {
         root.path(),
         "CT",
         crate::dicom::loader::tests::fixtures::SERIES_UID,
+        &crate::dicom::loader::tests::fixtures::SAMPLES,
     )
     .expect("write CT acquisition");
-    crate::dicom::loader::tests::fixtures::write_study(root.path(), "MR", "2.25.20260905002")
-        .expect("write MR acquisition");
+    crate::dicom::loader::tests::fixtures::write_study(
+        root.path(),
+        "MR",
+        "2.25.20260905002",
+        &crate::dicom::loader::tests::fixtures::SAMPLES,
+    )
+    .expect("write MR acquisition");
 
     let mut app = SnapApp::with_initial_path(
         root.path().to_path_buf(),

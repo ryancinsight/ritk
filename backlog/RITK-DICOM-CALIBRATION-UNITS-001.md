@@ -6,7 +6,6 @@
 - scope: crates/ritk-image-io/, crates/ritk-io/src/format/dicom/, calibration tests, and ADR 0055
 - next: Derive the unit model from DICOM coded-value rules and IntensityCalibration.
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
-- status: blocked
-- blocker: Prerequisite items must merge before this item is ready.
-- needs: RITK-DICOM-METADATA-INVENTORY-001, RITK-DICOM-STORED-IMPORT-001
+- status: todo
+- needs: none
 - priority: correctness

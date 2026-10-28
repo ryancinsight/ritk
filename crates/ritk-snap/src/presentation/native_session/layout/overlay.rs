@@ -19,8 +19,8 @@ pub(crate) fn application_overlay(
     viewports: &[NativeViewport],
     cine_enabled: bool,
     cine_fps: f32,
-) -> Result<DisplayList> {
-    let mut overlay = DisplayList::default();
+) -> Result<OverlayCommands> {
+    let mut overlay = OverlayCommands::with_capacity(views.len() * 4)?;
     for (view, viewport) in views.iter().zip(viewports) {
         let panel_x =
             i32::try_from(viewport.panel_x).map_err(|_| anyhow!("native overlay x exceeds i32"))?;
@@ -33,37 +33,28 @@ pub(crate) fn application_overlay(
         if panel_width <= OVERLAY_MARGIN * 2 {
             continue;
         }
-        push_overlay_command(
-            &mut overlay,
-            DisplayCommand::FillRect {
-                rect: Rect::new(panel_x, panel_y, panel_width, OVERLAY_BAR_HEIGHT),
-                radius: CornerRadius::SQUARE,
-                color: OVERLAY_BACKGROUND,
-            },
-        )?;
-        push_overlay_command(
-            &mut overlay,
-            DisplayCommand::FillRect {
-                rect: Rect::new(
-                    panel_x,
-                    panel_y + panel_height - OVERLAY_BAR_HEIGHT,
-                    panel_width,
-                    OVERLAY_BAR_HEIGHT,
-                ),
-                radius: CornerRadius::SQUARE,
-                color: OVERLAY_BACKGROUND,
-            },
-        )?;
-        let title = format!("METIS  RITK-SNAP  {}", view.plane_name);
-        push_overlay_command(
-            &mut overlay,
-            text_command(
-                title,
-                panel_x + OVERLAY_MARGIN,
-                panel_y + 2,
-                text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?,
+        overlay.push(DisplayCommand::FillRect {
+            rect: Rect::new(panel_x, panel_y, panel_width, OVERLAY_BAR_HEIGHT),
+            radius: CornerRadius::SQUARE,
+            color: OVERLAY_BACKGROUND,
+        });
+        overlay.push(DisplayCommand::FillRect {
+            rect: Rect::new(
+                panel_x,
+                panel_y + panel_height - OVERLAY_BAR_HEIGHT,
+                panel_width,
+                OVERLAY_BAR_HEIGHT,
             ),
-        )?;
+            radius: CornerRadius::SQUARE,
+            color: OVERLAY_BACKGROUND,
+        });
+        let title = format!("METIS  RITK-SNAP  {}", view.plane_name);
+        overlay.push(text_command(
+            title,
+            panel_x + OVERLAY_MARGIN,
+            panel_y + 2,
+            text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?,
+        ));
         let footer = format!(
             "Slice {}/{}  {}x{}  W:{:.0} C:{:.0}",
             view.slice_index.saturating_add(1),
@@ -78,15 +69,12 @@ pub(crate) fn application_overlay(
         } else {
             footer
         };
-        push_overlay_command(
-            &mut overlay,
-            text_command(
-                footer,
-                panel_x + OVERLAY_MARGIN,
-                panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
-                text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE)?,
-            ),
-        )?;
+        overlay.push(text_command(
+            footer,
+            panel_x + OVERLAY_MARGIN,
+            panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
+            text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE)?,
+        ));
     }
     Ok(overlay)
 }
@@ -97,7 +85,7 @@ pub(crate) fn projection_overlay(
     panel_y: u32,
     panel_width: u32,
     panel_height: u32,
-) -> Result<DisplayList> {
+) -> Result<OverlayCommands> {
     let panel_x =
         i32::try_from(panel_x).map_err(|_| anyhow!("native projection overlay x exceeds i32"))?;
     let panel_y =
@@ -106,70 +94,79 @@ pub(crate) fn projection_overlay(
         .map_err(|_| anyhow!("native projection overlay width exceeds i32"))?;
     let panel_height = i32::try_from(panel_height)
         .map_err(|_| anyhow!("native projection overlay height exceeds i32"))?;
-    let mut overlay = DisplayList::default();
+    let mut overlay = OverlayCommands::with_capacity(4)?;
     if panel_width <= OVERLAY_MARGIN * 2 || panel_height <= OVERLAY_BAR_HEIGHT * 2 {
         return Ok(overlay);
     }
-    push_overlay_command(
-        &mut overlay,
-        DisplayCommand::FillRect {
-            rect: Rect::new(panel_x, panel_y, panel_width, OVERLAY_BAR_HEIGHT),
-            radius: CornerRadius::SQUARE,
-            color: OVERLAY_BACKGROUND,
-        },
-    )?;
-    push_overlay_command(
-        &mut overlay,
-        DisplayCommand::FillRect {
-            rect: Rect::new(
-                panel_x,
-                panel_y + panel_height - OVERLAY_BAR_HEIGHT,
-                panel_width,
-                OVERLAY_BAR_HEIGHT,
-            ),
-            radius: CornerRadius::SQUARE,
-            color: OVERLAY_BACKGROUND,
-        },
-    )?;
-    push_overlay_command(
-        &mut overlay,
-        text_command(
-            format!("METIS  RITK-SNAP  3D {}", projection.statistic.label()),
-            panel_x + OVERLAY_MARGIN,
-            panel_y + 2,
-            text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?,
+    overlay.push(DisplayCommand::FillRect {
+        rect: Rect::new(panel_x, panel_y, panel_width, OVERLAY_BAR_HEIGHT),
+        radius: CornerRadius::SQUARE,
+        color: OVERLAY_BACKGROUND,
+    });
+    overlay.push(DisplayCommand::FillRect {
+        rect: Rect::new(
+            panel_x,
+            panel_y + panel_height - OVERLAY_BAR_HEIGHT,
+            panel_width,
+            OVERLAY_BAR_HEIGHT,
         ),
-    )?;
-    push_overlay_command(
-        &mut overlay,
-        text_command(
-            format!(
-                "Axial {}  {}x{}",
-                projection.statistic.label(),
-                projection.frame.width(),
-                projection.frame.height()
-            ),
-            panel_x + OVERLAY_MARGIN,
-            panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
-            text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE)?,
+        radius: CornerRadius::SQUARE,
+        color: OVERLAY_BACKGROUND,
+    });
+    overlay.push(text_command(
+        format!("METIS  RITK-SNAP  3D {}", projection.statistic.label()),
+        panel_x + OVERLAY_MARGIN,
+        panel_y + 2,
+        text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?,
+    ));
+    overlay.push(text_command(
+        format!(
+            "Axial {}  {}x{}",
+            projection.statistic.label(),
+            projection.frame.width(),
+            projection.frame.height()
         ),
-    )?;
+        panel_x + OVERLAY_MARGIN,
+        panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
+        text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE)?,
+    ));
     Ok(overlay)
 }
-fn push_overlay_command(display: &mut DisplayList, command: DisplayCommand) -> Result<()> {
-    display
-        .commands
-        .try_reserve(1)
-        .map_err(|_| anyhow!("native viewer overlay command allocation failed"))?;
-    display.commands.push(command);
-    Ok(())
+
+/// The painter-ordered commands an overlay contributes.
+///
+/// The display list owns its command storage, so an overlay builds its
+/// commands here and converts once, at the boundary the renderer reads.
+pub(crate) struct OverlayCommands {
+    commands: Vec<DisplayCommand>,
 }
 
-pub(super) fn append_overlay_list(target: &mut DisplayList, mut source: DisplayList) -> Result<()> {
-    target
-        .commands
-        .try_reserve(source.commands.len())
-        .map_err(|_| anyhow!("native viewer overlay command allocation failed"))?;
-    target.commands.append(&mut source.commands);
-    Ok(())
+impl OverlayCommands {
+    /// Reserves room for `capacity` commands before any is written.
+    fn with_capacity(capacity: usize) -> Result<Self> {
+        let mut commands = Vec::new();
+        commands
+            .try_reserve(capacity)
+            .map_err(|_| anyhow!("native viewer overlay command allocation failed"))?;
+        Ok(Self { commands })
+    }
+
+    /// Appends one command; the reserved capacity covers it.
+    fn push(&mut self, command: DisplayCommand) {
+        self.commands.push(command);
+    }
+
+    /// Appends another overlay's commands after this one's.
+    pub(crate) fn extend(&mut self, other: Self) -> Result<()> {
+        self.commands
+            .try_reserve(other.commands.len())
+            .map_err(|_| anyhow!("native viewer overlay command allocation failed"))?;
+        self.commands.extend(other.commands);
+        Ok(())
+    }
+
+    /// Hands the commands to the display list that renders them.
+    pub(crate) fn into_display_list(self) -> DisplayList {
+        DisplayList::from_commands(self.commands)
+    }
 }

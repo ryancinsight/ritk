@@ -10,7 +10,7 @@ use super::geometry::{
     placement_geometry, placement_with_bounds, NativeViewport, ScreenRect, ViewportArea,
     VIEW_GAP_PIXELS,
 };
-use super::overlay::{append_overlay_list, application_overlay, projection_overlay};
+use super::overlay::{application_overlay, projection_overlay};
 use crate::presentation::{PaneLayout, PaneRole};
 use crate::tools::interaction::ViewportOffset;
 
@@ -108,12 +108,15 @@ pub(crate) fn surface_frames_responsive(
     if show_application_overlay {
         let mut overlay = application_overlay(views, &viewports, cine_enabled, cine_fps)?;
         if let Some((projection, pane_x, pane_y, pane_width, pane_height)) = projection_panel {
-            append_overlay_list(
-                &mut overlay,
-                projection_overlay(projection, pane_x, pane_y, pane_width, pane_height)?,
-            )?;
+            overlay.extend(projection_overlay(
+                projection,
+                pane_x,
+                pane_y,
+                pane_width,
+                pane_height,
+            )?)?;
         }
-        overlay.render_to(&mut framebuffer);
+        overlay.into_display_list().render_to(&mut framebuffer);
     }
     Ok((framebuffer, viewports))
 }

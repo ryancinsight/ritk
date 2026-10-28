@@ -50,14 +50,9 @@ fn multi_series_selection_opens_each_selected_study_series_in_its_own_panel() {
     .map(|uid| uid.expect("selected panel has DICOM metadata").to_owned())
     .collect::<Vec<_>>();
     assert_eq!(actual_uids, expected_uids);
-    for (index, viewport) in viewer.viewports.iter().enumerate() {
-        let (x, y) = viewport.center();
-        assert_ne!(
-            viewer.framebuffer.get_pixel(x, y),
-            metis_platform::Color::BLACK,
-            "selected panel {index} must display its own pixels"
-        );
-    }
+    let expected_uids: Vec<&str> = expected_uids.iter().map(String::as_str).collect();
+    assert_panel_displays_its_own_pixels(&viewer, &expected_uids);
+    assert_panels_render_distinct_images(&viewer);
 }
 
 #[test]
@@ -66,7 +61,8 @@ fn multi_series_selection_pads_rounded_grid_with_empty_panels() {
     let study = tempfile::tempdir().expect("create seven-series study");
     for index in 0..7 {
         let uid = format!("2.25.202609050{index:02}");
-        fixtures::write_study(study.path(), "MR", &uid).expect("write DICOM series");
+        fixtures::write_study(study.path(), "MR", &uid, &fixtures::SAMPLES)
+            .expect("write DICOM series");
     }
     viewer
         .open_study_path(study.path())
@@ -340,14 +336,23 @@ fn four_panel_layout_assigns_four_independent_dicom_series() {
             Some(FOURTH_SERIES_UID),
         ]
     );
-    for index in 0..4 {
-        let (x, y) = viewer.viewports[index].center();
-        assert_ne!(
-            viewer.framebuffer.get_pixel(x, y),
-            metis_platform::Color::BLACK,
-            "panel {index} must display its assigned series"
-        );
-    }
+    assert_eq!(
+        displayed_uids,
+        [
+            Some(fixtures::SERIES_UID),
+            Some(SECOND_SERIES_UID),
+            Some(THIRD_SERIES_UID),
+            Some(FOURTH_SERIES_UID),
+        ]
+    );
+    let assigned_uids = [
+        fixtures::SERIES_UID,
+        SECOND_SERIES_UID,
+        THIRD_SERIES_UID,
+        FOURTH_SERIES_UID,
+    ];
+    assert_panel_displays_its_own_pixels(&viewer, &assigned_uids);
+    assert_panels_render_distinct_images(&viewer);
 }
 
 #[test]

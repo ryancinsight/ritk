@@ -124,7 +124,8 @@ fn details_activation_displays_metadata_and_escape_or_outside_click_closes() {
 fn zoom_clipped_overlay_discloses_details_inside_visible_image() {
     use crate::dicom::loader::{load_volume_from_path, tests::fixtures};
     let root = tempfile::tempdir().expect("study root");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write study");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write study");
     let volume = load_volume_from_path(root.path()).expect("load study");
     let context = egui::Context::default();
     let visible = Rect::from_min_size(Pos2::new(20.0, 20.0), egui::vec2(176.0, 88.0));
@@ -170,7 +171,8 @@ fn zoom_clipped_overlay_discloses_details_inside_visible_image() {
 fn keyboard_details_scroll_reaches_boundaries_without_changing_study_slice() {
     use crate::dicom::loader::{load_volume_from_path, tests::fixtures};
     let root = tempfile::tempdir().expect("study root");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write study");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write study");
     let mut app = crate::app::SnapApp::default();
     app.load_volume(
         load_volume_from_path(root.path()).expect("load study"),
@@ -296,7 +298,8 @@ fn omitted_details_owner_closes_popup_and_restores_viewer_navigation() {
         )
     }
     let root = tempfile::tempdir().expect("study root");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write study");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write study");
     let volume = load_volume_from_path(root.path()).expect("load study");
     let key = |key| egui::Event::Key {
         key,

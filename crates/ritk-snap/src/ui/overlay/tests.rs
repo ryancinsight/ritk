@@ -181,7 +181,8 @@ fn overlay_fits_or_discloses_complete_metadata_at_small_sizes() {
     use crate::dicom::loader::{load_volume_from_path, tests::fixtures};
 
     let root = tempfile::tempdir().expect("study root");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write study");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write study");
     let mut volume = load_volume_from_path(root.path()).expect("load study");
     for (width, height, patient, series, overflow) in [
         (176.0, 88.0, "Example Patient", "Acquisition", true),
