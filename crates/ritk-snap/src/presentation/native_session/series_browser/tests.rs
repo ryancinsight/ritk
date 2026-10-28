@@ -106,7 +106,8 @@ fn preview_preserves_dicom_rescale_voi_and_inversion() {
 #[test]
 fn preview_reads_only_first_instance() {
     let root = tempdir().expect("study root");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write CT series");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write CT series");
     let tree = crate::dicom::loader::scan_folder_for_series(root.path()).expect("scan study");
     let mut browser = SeriesBrowser::from_tree(&tree, None).expect("browser");
     let paths = &browser.choice(0).expect("series").acquisition.file_paths;
@@ -260,8 +261,10 @@ fn unavailable_previews_are_cached_and_retried_after_eviction() {
 #[test]
 fn browser_retains_every_series_and_selects_by_uid() {
     let root = tempdir().expect("study root");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write CT series");
-    fixtures::write_study(root.path(), "MR", "2.25.20260905002").expect("write MR series");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write CT series");
+    fixtures::write_study(root.path(), "MR", "2.25.20260905002", &fixtures::SAMPLES)
+        .expect("write MR series");
     let tree = crate::dicom::loader::scan_folder_for_series(root.path()).expect("scan study");
 
     let browser = SeriesBrowser::from_tree(&tree, Some("2.25.20260905002")).expect("browser");
@@ -302,7 +305,8 @@ fn browser_retains_every_series_and_selects_by_uid() {
 #[test]
 fn browser_rejects_a_series_uid_outside_the_discovered_study() {
     let root = tempdir().expect("study root");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write CT series");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write CT series");
     let tree = crate::dicom::loader::scan_folder_for_series(root.path()).expect("scan study");
 
     let result = SeriesBrowser::from_tree(&tree, Some("2.25.999"));
@@ -317,8 +321,13 @@ fn browser_rejects_a_series_uid_outside_the_discovered_study() {
 fn active_series_stays_visible_after_selection_and_scroll_clamps() {
     let root = tempdir().expect("study root");
     for index in 1..=4 {
-        fixtures::write_study(root.path(), "MR", &format!("2.25.2026090500{index}"))
-            .expect("write series");
+        fixtures::write_study(
+            root.path(),
+            "MR",
+            &format!("2.25.2026090500{index}"),
+            &fixtures::SAMPLES,
+        )
+        .expect("write series");
     }
     let tree = crate::dicom::loader::scan_folder_for_series(root.path()).expect("scan study");
     let mut browser = SeriesBrowser::from_tree(&tree, None).expect("browser");

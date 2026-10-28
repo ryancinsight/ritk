@@ -7,7 +7,8 @@ use crate::ui::{RotationSteps, ViewTransform};
 
 fn study_app() -> EguiApp {
     let root = tempfile::tempdir().expect("study root");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write Part 10 study");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write Part 10 study");
     let volume = load_volume_from_path(root.path()).expect("decode anisotropic study");
     assert_eq!(volume.spacing, [2.0, 1.5, 0.5]);
     let mut app = EguiApp::new(SnapApp::default());

@@ -11,10 +11,7 @@ mod volumes;
 
 fn assert_study(volume: &crate::LoadedVolume, modality: &str) {
     // Integer samples and powers-of-two rescale coefficients are exact in f32.
-    let expected: Vec<f32> = fixtures::SAMPLES
-        .iter()
-        .map(|&raw| 2.0 * f32::from(raw) - 20.0)
-        .collect();
+    let expected = fixtures::displayed_samples(&fixtures::SAMPLES);
     assert_eq!(volume.data.as_slice(), expected);
     assert_eq!(volume.shape, fixtures::SHAPE);
     assert_eq!(volume.channels, 1);

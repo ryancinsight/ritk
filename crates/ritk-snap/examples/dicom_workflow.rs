@@ -23,17 +23,14 @@ fn main() -> Result<()> {
             .context("expected output directory")?,
     );
     let study = output.join("study");
-    let files = fixtures::write_study(&study, "CT", fixtures::SERIES_UID)?;
+    let files = fixtures::write_study(&study, "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)?;
     let volume = load_volume_from_path(&study)?;
     let borrowed: Vec<_> = files
         .iter()
         .map(|(name, bytes)| (name.clone(), bytes.as_slice()))
         .collect();
     let dropped = load_dicom_series_from_named_bytes(&borrowed)?;
-    let expected: Vec<_> = fixtures::SAMPLES
-        .iter()
-        .map(|sample| 2.0 * f32::from(*sample) - 20.0)
-        .collect();
+    let expected = fixtures::displayed_samples(&fixtures::SAMPLES);
     ensure!(
         *volume.data == expected && volume.data == dropped.data,
         "filesystem and byte-batch voxel oracle"

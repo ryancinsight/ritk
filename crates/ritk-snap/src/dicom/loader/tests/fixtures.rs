@@ -15,11 +15,29 @@ pub(crate) const ORIGIN: [f64; 3] = [10.0, 20.0, 30.0];
 pub(crate) const DIRECTION: [f64; 9] = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0];
 /// Fixed synthetic series identity; this contains no patient information.
 pub(crate) const SERIES_UID: &str = "2.25.20260905001";
-/// Stored samples, in spatial order, before slope 2 and intercept -20.
+/// Stored samples, in spatial order, before the rescale coefficients below.
 pub(crate) const SAMPLES: [u8; 24] = [
     0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
     210, 220, 230,
 ];
+/// Stored samples per encoded slice, in row-major `[rows, cols]` order.
+pub(crate) const SAMPLES_PER_SLICE: usize = SHAPE[1] * SHAPE[2];
+/// Rescale slope every synthetic study encodes against its stored samples.
+pub(crate) const RESCALE_SLOPE: f32 = 2.0;
+/// Rescale intercept every synthetic study encodes against its stored samples.
+pub(crate) const RESCALE_INTERCEPT: f32 = -20.0;
+
+/// The displayed `f32` values a stored payload produces under this fixture's
+/// rescale coefficients.
+///
+/// Assertions compare displayed values, so the coefficients are resolved once
+/// here rather than re-derived at each assertion site.
+pub(crate) fn displayed_samples(stored: &[u8]) -> Vec<f32> {
+    stored
+        .iter()
+        .map(|&raw| RESCALE_SLOPE * f32::from(raw) + RESCALE_INTERCEPT)
+        .collect()
+}
 
 /// Two-frame scalar multiframe fixture geometry in `[frames, rows, cols]`
 /// order. The frame payloads are intentionally distinct so a frame-zero
@@ -285,9 +303,16 @@ pub(crate) fn write_study(
     root: &Path,
     modality: &str,
     series_uid: &str,
+    samples: &[u8],
 ) -> Result<Vec<(String, Vec<u8>)>> {
     std::fs::create_dir_all(root).context("create synthetic study directory")?;
+    assert!(
+        samples.len() >= SHAPE[0] * SAMPLES_PER_SLICE,
+        "fixture payload must cover every stored slice"
+    );
     let mut files = Vec::with_capacity(SHAPE[0]);
+    let intercept = RESCALE_INTERCEPT.to_string();
+    let slope = RESCALE_SLOPE.to_string();
     for (depth, filename, instance) in [(2_u16, "a.dcm", 1), (1, "b.dcm", 2), (0, "c.dcm", 3)] {
         let mut model = DicomObjectModel::new();
         let sop_uid = format!("{series_uid}.{instance}");
@@ -307,8 +332,8 @@ pub(crate) fn write_study(
             (0x0028, 0x0004, "CS", "MONOCHROME2"),
             (0x0028, 0x0030, "DS", "1.5\\0.5"),
             (0x0018, 0x0050, "DS", "2"),
-            (0x0028, 0x1052, "DS", "-20"),
-            (0x0028, 0x1053, "DS", "2"),
+            (0x0028, 0x1052, "DS", intercept.as_str()),
+            (0x0028, 0x1053, "DS", slope.as_str()),
         ] {
             model.insert(DicomObjectNode::text(
                 DicomTag::new(group, element),
@@ -336,11 +361,11 @@ pub(crate) fn write_study(
                 value,
             ));
         }
-        let start = usize::from(depth) * 8;
+        let start = usize::from(depth) * SAMPLES_PER_SLICE;
         model.insert(DicomObjectNode::bytes(
             DicomTag::new(0x7FE0, 0x0010),
             "OB",
-            SAMPLES[start..start + 8].to_vec(),
+            samples[start..start + SAMPLES_PER_SLICE].to_vec(),
         ));
         let filename = format!("{series_uid}_{filename}");
         let path = root.join(&filename);

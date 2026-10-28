@@ -60,7 +60,8 @@ pub(super) fn session_with_browser(
 ) -> (NativeViewerSession, tempfile::TempDir) {
     let root = tempfile::tempdir().expect("study root");
     let path = root.path().to_path_buf();
-    fixtures::write_study(&path, "CT", fixtures::SERIES_UID).expect("write study");
+    fixtures::write_study(&path, "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("write study");
     let mut app = SnapApp::default();
     let volume = load_volume_from_path(&path).expect("load study fixture");
     app.load_volume(volume, "fixture".to_owned());

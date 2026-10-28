@@ -52,8 +52,13 @@ fn nifti_file_and_bytes_preserve_values_and_geometry() {
 fn dicom_file_bytes_and_scanned_studies_preserve_values_and_geometry() {
     for modality in ["CT", "MR"] {
         let dir = tempdir().expect("create DICOM fixture directory");
-        let files = fixtures::write_study(dir.path(), modality, fixtures::SERIES_UID)
-            .expect("write synthetic study");
+        let files = fixtures::write_study(
+            dir.path(),
+            modality,
+            fixtures::SERIES_UID,
+            &fixtures::SAMPLES,
+        )
+        .expect("write synthetic study");
         let from_file = load_dicom_volume(dir.path()).expect("load DICOM directory");
         let named: Vec<(String, &[u8])> = files
             .iter()
@@ -80,7 +85,7 @@ fn dicom_file_bytes_and_scanned_studies_preserve_values_and_geometry() {
 #[test]
 fn dicom_byte_loader_rejects_malformed_and_truncated_instances() {
     let dir = tempdir().expect("create malformed fixture directory");
-    let files = fixtures::write_study(dir.path(), "CT", fixtures::SERIES_UID)
+    let files = fixtures::write_study(dir.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
         .expect("write truncation source");
     let (_, bytes) = files.first().expect("fixture includes a slice");
     // Header-only and mid-pixel truncation both reject; neither may produce a partial volume.

@@ -6,8 +6,13 @@ fn dialog_with_series(count: usize) -> (MultiSeriesDialog, SeriesBrowser, tempfi
     let root = tempfile::tempdir().expect("series root");
     for index in 0..count {
         let modality = if index % 2 == 0 { "MR" } else { "CT" };
-        fixtures::write_study(root.path(), modality, &format!("2.25.20260906{index:04}"))
-            .expect("write DICOM series");
+        fixtures::write_study(
+            root.path(),
+            modality,
+            &format!("2.25.20260906{index:04}"),
+            &fixtures::SAMPLES,
+        )
+        .expect("write DICOM series");
     }
     let tree = scan_folder_for_series(root.path()).expect("scan study");
     let browser = SeriesBrowser::from_tree(&tree, None).expect("build series catalog");

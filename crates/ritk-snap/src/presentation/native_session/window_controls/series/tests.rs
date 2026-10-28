@@ -11,8 +11,13 @@ fn series_cards_show_order_within_their_study() {
 
     let root = tempfile::tempdir().expect("series root");
     for (index, modality) in ["MR", "CT", "MR"].into_iter().enumerate() {
-        fixtures::write_study(root.path(), modality, &format!("2.25.20260906{index:04}"))
-            .expect("write series into the shared study");
+        fixtures::write_study(
+            root.path(),
+            modality,
+            &format!("2.25.20260906{index:04}"),
+            &fixtures::SAMPLES,
+        )
+        .expect("write series into the shared study");
     }
     let tree = scan_folder_for_series(root.path()).expect("scan the shared study");
     let browser = SeriesBrowser::from_tree(&tree, None).expect("build the series catalog");
@@ -44,7 +49,8 @@ fn first_series_card_shows_separate_patient_and_study_header_boxes() {
     use crate::dicom::loader::{scan_folder_for_series, tests::fixtures};
 
     let root = tempfile::tempdir().expect("series root");
-    fixtures::write_study(root.path(), "MR", "2.25.202609050001").expect("write series");
+    fixtures::write_study(root.path(), "MR", "2.25.202609050001", &fixtures::SAMPLES)
+        .expect("write series");
     let tree = scan_folder_for_series(root.path()).expect("scan series");
     let browser = SeriesBrowser::from_tree(&tree, None).expect("build series catalog");
     let area = Rect::new(0, 0, 300, 400);

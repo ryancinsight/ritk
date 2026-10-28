@@ -60,6 +60,6 @@
 <a id="RITK-SNAP-INTERACTION-STATE-001"></a>- [RITK-SNAP-INTERACTION-STATE-001](backlog/RITK-SNAP-INTERACTION-STATE-001.md) — Separate interaction state tests — blocked
 <a id="RITK-SNAP-INTERACTION-WINDOW-LEVEL-001"></a>- [RITK-SNAP-INTERACTION-WINDOW-LEVEL-001](backlog/RITK-SNAP-INTERACTION-WINDOW-LEVEL-001.md) — Separate window-level tests — blocked
 <a id="RITK-SNAP-OBLIQUE-APP-ADAPTER-001"></a>- [RITK-SNAP-OBLIQUE-APP-ADAPTER-001](backlog/RITK-SNAP-OBLIQUE-APP-ADAPTER-001.md) — Route oblique viewer actions — todo
-<a id="RITK-SNAP-MULTI-SERIES-001"></a>- [RITK-SNAP-MULTI-SERIES-001](backlog/RITK-SNAP-MULTI-SERIES-001.md) — Load and compare multiple DICOM series — blocked
+<a id="RITK-SNAP-MULTI-SERIES-001"></a>- [RITK-SNAP-MULTI-SERIES-001](backlog/RITK-SNAP-MULTI-SERIES-001.md) — Load and compare multiple DICOM series — todo
 <a id="RITK-SNAP-RADIANT-UI-001"></a>- [RITK-SNAP-RADIANT-UI-001](backlog/RITK-SNAP-RADIANT-UI-001.md) — Organize a multi-series DICOM viewer workspace — blocked
 <a id="RITK-SNAP-OBLIQUE-ROUTING-001"></a>- [RITK-SNAP-OBLIQUE-ROUTING-001](backlog/RITK-SNAP-OBLIQUE-ROUTING-001.md) — Route native oblique input — blocked

@@ -47,7 +47,7 @@ fn opening_a_study_skips_an_undecodable_first_series() {
     let root = tempfile::tempdir().expect("study root");
     fixtures::write_grayscale_presentation(root.path(), "MONOCHROME3", None)
         .expect("write a catalogued series with unsupported pixel presentation");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID)
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
         .expect("write a valid later series");
 
     let (mut viewer, _initial_root) = session();
