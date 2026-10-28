@@ -6,7 +6,6 @@
 - scope: crates/ritk-minc/, crates/ritk-io/src/format/minc/, conversion tests, and guide
 - next: Add the MINC codec adapter to shared conversion preflight and verify real stored-series round-trips.
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
-- status: blocked
-- blocker: Prerequisite items must merge before this item is ready.
-- needs: RITK-IO-FORMAT-CAPABILITIES-001
+- status: todo
+- needs: none
 - priority: correctness

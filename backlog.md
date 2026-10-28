@@ -17,14 +17,14 @@
 <a id="RITK-MGH-CONVERSION-INVENTORY-001"></a>- [RITK-MGH-CONVERSION-INVENTORY-001](backlog/RITK-MGH-CONVERSION-INVENTORY-001.md) — Map MGH volume semantics — todo
 <a id="RITK-VTK-IMAGE-CONTRACT-001"></a>- [RITK-VTK-IMAGE-CONTRACT-001](backlog/RITK-VTK-IMAGE-CONTRACT-001.md) — Separate VTK image semantics — todo
 <a id="SEC-446-05"></a>- [SEC-446-05](backlog/SEC-446-05.md) — Bound format parser allocations by input — todo
-<a id="RITK-NRRD-NIFTI-001"></a>- [RITK-NRRD-NIFTI-001](backlog/RITK-NRRD-NIFTI-001.md) — Convert NRRD and NIfTI volumes — blocked
+<a id="RITK-NRRD-NIFTI-001"></a>- [RITK-NRRD-NIFTI-001](backlog/RITK-NRRD-NIFTI-001.md) — Convert NRRD and NIfTI volumes — todo
 <a id="RITK-METAIMAGE-CONVERSION-001"></a>- [RITK-METAIMAGE-CONVERSION-001](backlog/RITK-METAIMAGE-CONVERSION-001.md) — Preserve MetaImage volume semantics — blocked
-<a id="RITK-MINC-CONVERSION-001"></a>- [RITK-MINC-CONVERSION-001](backlog/RITK-MINC-CONVERSION-001.md) — Preserve MINC volume semantics — blocked
-<a id="RITK-MIF-CONVERSION-001"></a>- [RITK-MIF-CONVERSION-001](backlog/RITK-MIF-CONVERSION-001.md) — Preserve MRtrix image semantics — blocked
+<a id="RITK-MINC-CONVERSION-001"></a>- [RITK-MINC-CONVERSION-001](backlog/RITK-MINC-CONVERSION-001.md) — Preserve MINC volume semantics — todo
+<a id="RITK-MIF-CONVERSION-001"></a>- [RITK-MIF-CONVERSION-001](backlog/RITK-MIF-CONVERSION-001.md) — Preserve MRtrix image semantics — todo
 <a id="RITK-MGH-CONVERSION-001"></a>- [RITK-MGH-CONVERSION-001](backlog/RITK-MGH-CONVERSION-001.md) — Preserve MGH and MGZ volume semantics — blocked
 <a id="RITK-VTK-VOLUME-CONVERSION-001"></a>- [RITK-VTK-VOLUME-CONVERSION-001](backlog/RITK-VTK-VOLUME-CONVERSION-001.md) — Preserve VTK image-volume semantics — blocked
 <a id="RITK-SNAP-OBLIQUE-SESSION-WIRING-001"></a>- [RITK-SNAP-OBLIQUE-SESSION-WIRING-001](backlog/RITK-SNAP-OBLIQUE-SESSION-WIRING-001.md) — Wire the oblique session pane — blocked
-<a id="RITK-DICOM-CALIBRATION-UNITS-001"></a>- [RITK-DICOM-CALIBRATION-UNITS-001](backlog/RITK-DICOM-CALIBRATION-UNITS-001.md) — Preserve DICOM values and units — blocked
+<a id="RITK-DICOM-CALIBRATION-UNITS-001"></a>- [RITK-DICOM-CALIBRATION-UNITS-001](backlog/RITK-DICOM-CALIBRATION-UNITS-001.md) — Preserve DICOM values and units — todo
 <a id="RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001"></a>- [RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001](backlog/RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001.md) — Present patient-space lengths — blocked
 <a id="RITK-CI-MERGE-GATE-001"></a>- [RITK-CI-MERGE-GATE-001](backlog/RITK-CI-MERGE-GATE-001.md) — Gate pull requests through one CI check — todo
 <a id="RITK-PYTHON-SCRIPT-RUNTIME-001"></a>- [RITK-PYTHON-SCRIPT-RUNTIME-001](backlog/RITK-PYTHON-SCRIPT-RUNTIME-001.md) — Support older Python in script validation [patch] — in review
@@ -36,7 +36,7 @@
 <a id="RITK-MESH-CONVERSION-001"></a>- [RITK-MESH-CONVERSION-001](backlog/RITK-MESH-CONVERSION-001.md) — Convert supported mesh formats — todo
 <a id="RITK-TRACTOGRAM-CONVERSION-001"></a>- [RITK-TRACTOGRAM-CONVERSION-001](backlog/RITK-TRACTOGRAM-CONVERSION-001.md) — Convert supported tractogram formats — todo
 <a id="RITK-GAP-2026-08-20-01"></a>- [RITK-GAP-2026-08-20-01](backlog/RITK-GAP-2026-08-20-01.md) — Retire duplicate X and X_native APIs — todo
-<a id="RITK-RASTER-CONVERSION-001"></a>- [RITK-RASTER-CONVERSION-001](backlog/RITK-RASTER-CONVERSION-001.md) — Convert PNG TIFF and JPEG rasters — blocked
+<a id="RITK-RASTER-CONVERSION-001"></a>- [RITK-RASTER-CONVERSION-001](backlog/RITK-RASTER-CONVERSION-001.md) — Convert PNG TIFF and JPEG rasters — todo
 <a id="RITK-SNAP-OBLIQUE-SESSION-MODULES-001"></a>- [RITK-SNAP-OBLIQUE-SESSION-MODULES-001](backlog/RITK-SNAP-OBLIQUE-SESSION-MODULES-001.md) — Separate native oblique session concerns — blocked
 <a id="RITK-DICOM-CONVERSION-001"></a>- [RITK-DICOM-CONVERSION-001](backlog/RITK-DICOM-CONVERSION-001.md) — Convert DICOM series through RITK — blocked
 <a id="RITK-FORMAT-CONVERSION-001"></a>- [RITK-FORMAT-CONVERSION-001](backlog/RITK-FORMAT-CONVERSION-001.md) — Convert supported formats through RITK — blocked

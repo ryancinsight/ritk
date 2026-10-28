@@ -7,6 +7,6 @@
 - next: After the inventory, implement the MetaImage adapter through shared conversion preflight.
 - basis: 2c277e2d5b1e2c3b60b2c8afb587ab72d68f690a
 - status: blocked
-- blocker: Prerequisite items must merge before this item is ready.
-- needs: RITK-IO-FORMAT-CAPABILITIES-001, RITK-METAIMAGE-CONVERSION-INVENTORY-001
+- blocker: RITK-METAIMAGE-CONVERSION-INVENTORY-001 must merge before this item is ready.
+- needs: RITK-METAIMAGE-CONVERSION-INVENTORY-001
 - priority: correctness
