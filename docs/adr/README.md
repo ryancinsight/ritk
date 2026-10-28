@@ -64,3 +64,4 @@
 | [0053](0053-typed-sample-io.md) | Typed stored-sample I/O | Accepted |
 | [0054](0054-stored-volume-contract.md) | Shared typed stored-volume contract | Accepted |
 | [0055](0055-dicom-metadata-retention-inventory.md) | DICOM metadata retention inventory | Accepted |
+| [0056](0056-viewer-crate-returns-to-the-workspace.md) | The viewer crate returns to the workspace | Accepted |

@@ -67,29 +67,32 @@ impl PartialEq<Vec<f32>> for NativeFilterOutput {
 
 impl NativeFilterOutput {
     #[inline]
-    fn from_image(output: Image<f32, SequentialBackend, 3>, backend: &SequentialBackend) -> Self {
-        Self {
-            data: output.data_cow_on(backend).into_owned(),
+    fn from_image(
+        output: Image<f32, SequentialBackend, 3>,
+        backend: &SequentialBackend,
+    ) -> Result<Self> {
+        Ok(Self {
+            data: output.data_cow_on(backend)?.into_owned(),
             shape: output.shape(),
             origin: output.origin().to_array(),
             spacing: output.spacing().to_array(),
             direction: output.direction().to_row_major(),
-        }
+        })
     }
 
     #[inline]
     fn from_cpr_image(
         output: Image<f32, SequentialBackend, 2>,
         backend: &SequentialBackend,
-    ) -> Self {
+    ) -> Result<Self> {
         let [rows, columns] = output.shape();
-        Self {
-            data: output.data_cow_on(backend).into_owned(),
+        Ok(Self {
+            data: output.data_cow_on(backend)?.into_owned(),
             shape: [1, rows, columns],
             origin: [0.0, output.origin()[0], output.origin()[1]],
             spacing: [1.0, output.spacing()[0], output.spacing()[1]],
             direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-        }
+        })
     }
 }
 
@@ -179,7 +182,7 @@ fn apply_cpr(
     .apply_native(&image, &backend)
     .context("Coeus-native CPR failed")?;
 
-    Ok(NativeFilterOutput::from_cpr_image(output, &backend))
+    NativeFilterOutput::from_cpr_image(output, &backend)
 }
 
 fn apply_supported_filter(
@@ -495,7 +498,7 @@ fn apply_supported_filter(
     }
     .context("Coeus-native filter failed")?;
 
-    Ok(NativeFilterOutput::from_image(output, &backend))
+    NativeFilterOutput::from_image(output, &backend)
 }
 
 #[cfg(test)]
@@ -521,7 +524,8 @@ mod tests {
         let image =
             native_image_from_volume(&volume, &backend).expect("invariant: valid test volume");
 
-        let output = NativeFilterOutput::from_image(image, &backend);
+        let output = NativeFilterOutput::from_image(image, &backend)
+            .expect("invariant: contiguous filter output");
 
         assert_eq!(output.shape, volume.shape);
         assert_eq!(output.origin, volume.origin);

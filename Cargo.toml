@@ -22,9 +22,7 @@ members = [
   "crates/ritk-registration",
   "crates/ritk-python",
   "crates/ritk-cli",
-  # T2 (RITK-SNAP-RETURN-001): ritk-snap rejoins once metis advances to the
-  # new provider cohort (metis #TBD). See backlog item. The legacy
-  # ritk-snap-eframe package was deleted instead of excluded.
+  "crates/ritk-snap",
   "crates/ritk-transform",
   "crates/ritk-interpolation",
   "crates/ritk-spatial",
@@ -117,7 +115,9 @@ numpy = { version = "0.29.0", git = "https://github.com/PyO3/rust-numpy", rev = 
 dicom = { version = "0.10.0", default-features = false }
 moirai = { package = "moirai-runtime", version = "0.11.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
 moirai-pal = { package = "moirai-pal", version = "0.11.0", git = "https://github.com/ryancinsight/Moirai.git", default-features = false }
-# T2 (RITK-SNAP-RETURN-001): metis-platform/web/ui-lang re-added with snap.
+metis-platform = { package = "metis-platform", version = "0.5.0", git = "https://github.com/ryancinsight/metis.git" }
+metis-web = { package = "metis-web", version = "0.5.0", git = "https://github.com/ryancinsight/metis.git" }
+metis-ui-lang = { package = "metis-ui-lang", version = "0.5.0", git = "https://github.com/ryancinsight/metis.git" }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { package = "mnemosyne-memory", version = "0.10.0", git = "https://github.com/ryancinsight/Mnemosyne.git", default-features = false, features = ["std_tls", "eunomia"] }
 eunomia = { version = "0.11.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }

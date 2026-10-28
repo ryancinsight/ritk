@@ -352,7 +352,7 @@ fn native_crosshair_overlay_maps_one_linked_voxel_into_each_plane() {
         .expect("crosshair display list");
     assert_eq!(
         overlay
-            .commands
+            .commands()
             .iter()
             .filter(|command| matches!(command, DisplayCommand::DrawLine { color, .. } if *color == CROSSHAIR_COLOR))
             .count(),
@@ -362,7 +362,7 @@ fn native_crosshair_overlay_maps_one_linked_voxel_into_each_plane() {
 
     let vertical_x = |display_list: &DisplayList| {
         display_list
-            .commands
+            .commands()
             .iter()
             .find_map(|command| match command {
                 DisplayCommand::DrawLine {
@@ -389,7 +389,7 @@ fn native_crosshair_overlay_maps_one_linked_voxel_into_each_plane() {
     assert!(
         crosshair_overlay(&session.views, &session.viewports, shape, cursor, false)
             .expect("hidden crosshair display list")
-            .commands
+            .commands()
             .is_empty()
     );
 }
@@ -415,8 +415,9 @@ fn native_session_cine_rate_controls_repaint_and_bound_overlay() {
         true,
         session.app.cine.fps,
     )
-    .expect("active cine overlay");
-    assert!(overlay.commands.iter().any(|command| matches!(
+    .expect("active cine overlay")
+    .into_display_list();
+    assert!(overlay.commands().iter().any(|command| matches!(
         command,
         DisplayCommand::DrawText { text, .. } if text.contains("Cine:13fps") && text.contains("Space/-/+")
     )));

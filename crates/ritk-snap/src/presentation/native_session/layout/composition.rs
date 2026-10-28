@@ -9,7 +9,7 @@ use super::geometry::{
     placement_geometry, placement_with_bounds, NativeViewport, ScreenRect, ViewportArea,
     VIEW_GAP_PIXELS,
 };
-use super::overlay::{append_overlay_list, application_overlay, projection_overlay};
+use super::overlay::{application_overlay, projection_overlay};
 use crate::presentation::PresentationFrame;
 use crate::tools::interaction::ViewportOffset;
 
@@ -105,7 +105,7 @@ pub(crate) fn surface_frames(
     }
     if show_application_overlay {
         let overlay = application_overlay(views, &viewports, cine_enabled, cine_fps)?;
-        overlay.render_to(&mut framebuffer);
+        overlay.into_display_list().render_to(&mut framebuffer);
     }
     Ok((framebuffer, viewports))
 }
@@ -134,17 +134,16 @@ pub(crate) fn surface_frames_with_projection(
     if show_application_overlay {
         let mut overlay =
             application_overlay(views, &composition.viewports, cine_enabled, cine_fps)?;
-        append_overlay_list(
-            &mut overlay,
-            projection_overlay(
-                projection,
-                composition.fourth_panel.x,
-                composition.fourth_panel.y,
-                composition.fourth_panel.width,
-                composition.fourth_panel.height,
-            )?,
-        )?;
-        overlay.render_to(&mut composition.framebuffer);
+        overlay.extend(projection_overlay(
+            projection,
+            composition.fourth_panel.x,
+            composition.fourth_panel.y,
+            composition.fourth_panel.width,
+            composition.fourth_panel.height,
+        )?)?;
+        overlay
+            .into_display_list()
+            .render_to(&mut composition.framebuffer);
     }
     Ok((composition.framebuffer, composition.viewports))
 }

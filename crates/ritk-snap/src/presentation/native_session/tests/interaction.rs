@@ -249,8 +249,9 @@ fn native_session_scalar_projection_modes_render_and_label() {
             "the {label} panel contains rendered scalar pixels"
         );
         let overlay = super::layout::projection_overlay(projection, 640, 400, 640, 400)
-            .expect("projection overlay");
-        assert!(overlay.commands.iter().any(|command| matches!(
+            .expect("projection overlay")
+            .into_display_list();
+        assert!(overlay.commands().iter().any(|command| matches!(
             command,
             DisplayCommand::DrawText { text, .. } if text.contains(label)
         )));
@@ -328,21 +329,22 @@ fn native_overlay_is_emitted_as_metis_display_commands() {
         false,
         session.app.cine.fps,
     )
-    .expect("Métis overlay display list");
+    .expect("Métis overlay display list")
+    .into_display_list();
     assert_eq!(
         overlay
-            .commands
+            .commands()
             .iter()
             .filter(|command| matches!(command, DisplayCommand::FillRect { .. }))
             .count(),
         6,
         "each orthogonal panel receives two Metis chrome bars"
     );
-    assert!(overlay.commands.iter().any(|command| matches!(
+    assert!(overlay.commands().iter().any(|command| matches!(
         command,
         DisplayCommand::DrawText { text, .. } if &**text == "METIS  RITK-SNAP  Axial"
     )));
-    assert!(overlay.commands.iter().any(|command| matches!(
+    assert!(overlay.commands().iter().any(|command| matches!(
         command,
         DisplayCommand::DrawText { text, .. } if text.starts_with(&format!(
             "Slice {}/{}",

@@ -120,7 +120,7 @@ fn loaded_volume_from_scalar_image(
     let spacing = image.spacing().to_array();
     let origin = image.origin().to_array();
     let direction = image.direction().to_row_major();
-    let pixels = image.data_cow_on(backend).into_owned();
+    let pixels = image.data_cow_on(backend)?.into_owned();
     loaded_volume_from_scalar_data(pixels, shape, spacing, origin, direction, meta, source)
 }
 
