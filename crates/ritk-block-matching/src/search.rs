@@ -6,7 +6,7 @@
 
 use anyhow::{bail, Context, Result};
 
-use crate::extent::check_buffer_lengths;
+use crate::{extent::check_buffer_lengths, BlockMatchingError};
 
 use super::{
     match_block_at, BayesianDisplacementPrior, BlockGrid, DisplacementField, MovingSamples, Sample,
@@ -250,8 +250,8 @@ impl MultiResolutionSearch {
     ///
     /// # Errors
     ///
-    /// Returns an error when the pyramid level count, dimensions, or buffer
-    /// lengths are invalid, or when any grid stride is zero.
+    /// Returns an error when pyramid dimensions or buffer lengths are invalid,
+    /// a grid stride is zero, or a result buffer exceeds the allocation limit.
     pub fn track_volume_pyramid<T: Sample>(
         &self,
         pyramid: &[PyramidLevel<'_, T>],
@@ -277,7 +277,7 @@ impl MultiResolutionSearch {
             block_radius: finest.block_radius,
             search_radius: finest.search_radius,
         };
-        let centres = grid.centres(finest_dims, &config);
+        let centres = grid.centres(finest_dims, &config)?;
         let mut displacements = vec![[0.0; 3]; centres.len()];
         let mut peak_similarities = vec![f64::NAN; centres.len()];
 
@@ -393,7 +393,8 @@ impl MultiResolutionSearch {
     /// # Errors
     ///
     /// Returns the same pyramid and grid validation errors as
-    /// [`Self::track_volume_pyramid`].
+    /// [`Self::track_volume_pyramid`], or when the diagnostic output exceeds the
+    /// platform allocation limit.
     pub fn track_volume_pyramid_diagnostics<T: Sample>(
         &self,
         pyramid: &[PyramidLevel<'_, T>],
@@ -436,7 +437,11 @@ impl MultiResolutionSearch {
             block_radius: finest.block_radius,
             search_radius: finest.search_radius,
         };
-        let centres = grid.centres(finest_dims, &config);
+        let centres = grid.centres(finest_dims, &config)?;
+        crate::extent::buffer_len::<Option<Vec<MultiResolutionDisplacement>>>(
+            [1, 1, centres.len()],
+            "pyramid level diagnostics",
+        )?;
         let mut displacements = vec![[0.0; 3]; centres.len()];
         let mut peak_similarities = vec![f64::NAN; centres.len()];
         let mut level_diagnostics = vec![None; centres.len()];
@@ -681,7 +686,8 @@ impl<T: Sample> OwnedPyramid<T> {
     ///
     /// Returns an error when `scales` is empty, not strictly decreasing, ends
     /// anywhere other than `1`, contains a zero, when any extent is not
-    /// divisible by its scale, or when the buffers do not match `dims`.
+    /// divisible by its scale, buffers do not match `dims`, or derived level
+    /// storage exceeds the platform allocation limit.
     pub fn nearest(fixed: &[T], moving: &[T], dims: [usize; 3], scales: &[usize]) -> Result<Self> {
         validate_scales(dims, scales)?;
         check_buffer_lengths(fixed.len(), moving.len(), dims)?;
@@ -692,7 +698,7 @@ impl<T: Sample> OwnedPyramid<T> {
                 level_extent(dims[1], *scale),
                 level_extent(dims[2], *scale),
             ];
-            let level_len = level_dims[0] * level_dims[1] * level_dims[2];
+            let level_len = crate::extent::buffer_len::<T>(level_dims, "pyramid level")?;
             let mut fixed_level = Vec::with_capacity(level_len);
             let mut moving_level = Vec::with_capacity(level_len);
             for z in 0..level_dims[0] {
@@ -725,7 +731,8 @@ impl<T: Sample> OwnedPyramid<T> {
     ///
     /// # Errors
     ///
-    /// Same validation as [`Self::nearest`].
+    /// Same validation as [`Self::nearest`]; the axial extent and `T`/`f64`
+    /// capacities are checked before allocation.
     pub fn min_max(fixed: &[T], moving: &[T], dims: [usize; 3], scales: &[usize]) -> Result<Self> {
         validate_scales(dims, scales)?;
         check_buffer_lengths(fixed.len(), moving.len(), dims)?;
@@ -743,10 +750,15 @@ impl<T: Sample> OwnedPyramid<T> {
                 reduction_window(dims[1], *scale),
                 reduction_window(dims[2], *scale),
             ];
-            let level_dims = [base_dims[0], base_dims[1], 2 * base_dims[2]];
-            let level_len = level_dims[0] * level_dims[1] * level_dims[2];
-            let mut fixed_level = vec![f64::NAN; level_len];
-            let mut moving_level = vec![f64::NAN; level_len];
+            let axial_extent = base_dims[2]
+                .checked_mul(2)
+                .ok_or(BlockMatchingError::AxialPairExtentOverflow { base_dims })?;
+            let level_dims = [base_dims[0], base_dims[1], axial_extent];
+            let output_len = crate::extent::buffer_len::<T>(level_dims, "min/max pyramid level")?;
+            let scratch_len =
+                crate::extent::buffer_len::<f64>(level_dims, "min/max pyramid level")?;
+            let mut fixed_level = vec![f64::NAN; scratch_len];
+            let mut moving_level = vec![f64::NAN; scratch_len];
             for z in 0..base_dims[0] {
                 for y in 0..base_dims[1] {
                     for x in 0..base_dims[2] {
@@ -774,14 +786,12 @@ impl<T: Sample> OwnedPyramid<T> {
                     }
                 }
             }
-            let fixed_level: Vec<T> = fixed_level
-                .into_iter()
-                .map(T::from_f64_saturating)
-                .collect();
-            let moving_level: Vec<T> = moving_level
-                .into_iter()
-                .map(T::from_f64_saturating)
-                .collect();
+            let mut converted_fixed = Vec::with_capacity(output_len);
+            converted_fixed.extend(fixed_level.into_iter().map(T::from_f64_saturating));
+            let fixed_level = converted_fixed;
+            let mut converted_moving = Vec::with_capacity(output_len);
+            converted_moving.extend(moving_level.into_iter().map(T::from_f64_saturating));
+            let moving_level = converted_moving;
             levels.push(OwnedLevel {
                 fixed: fixed_level,
                 moving: moving_level,
@@ -895,6 +905,24 @@ fn add_displacement(centre: [usize; 3], displacement: [f64; 3]) -> [usize; 3] {
 mod tests {
     use super::*;
 
+    #[derive(Clone, Copy, Debug)]
+    struct ZeroSizedSample;
+
+    impl Sample for ZeroSizedSample {
+        fn to_f64(self) -> f64 {
+            0.0
+        }
+
+        fn from_f64_saturating(_: f64) -> Self {
+            Self
+        }
+    }
+
+    fn assert_error<T: std::fmt::Debug>(result: anyhow::Result<T>, expected: BlockMatchingError) {
+        let error = result.expect_err("operation must reject invalid input");
+        assert_eq!(error.downcast_ref::<BlockMatchingError>(), Some(&expected));
+    }
+
     #[test]
     fn pyramids_reject_a_grid_whose_voxel_count_overflows() {
         // `scales = [1]` passes scale validation for any dims, so the
@@ -905,13 +933,40 @@ mod tests {
             OwnedPyramid::nearest(&empty, &empty, dims, &[1]),
             OwnedPyramid::min_max(&empty, &empty, dims, &[1]),
         ] {
-            let Err(error) = pyramid else {
-                panic!("the voxel count overflows, so construction must fail");
-            };
-            assert_eq!(
-                error.to_string(),
-                format!("image dimensions {dims:?} overflow")
+            assert_error(
+                pyramid,
+                BlockMatchingError::VoxelCountOverflow {
+                    label: "image",
+                    dims,
+                },
             );
+        }
+    }
+
+    #[test]
+    fn min_max_rejects_derived_extent_and_capacity_overflows() {
+        let sample = ZeroSizedSample;
+        for (len, dims, expected) in [
+            (
+                usize::MAX,
+                [1, 1, usize::MAX],
+                BlockMatchingError::AxialPairExtentOverflow {
+                    base_dims: [1, 1, usize::MAX],
+                },
+            ),
+            (
+                usize::MAX / 2,
+                [1, 1, usize::MAX / 2],
+                BlockMatchingError::ByteCountOverflow {
+                    label: "min/max pyramid level",
+                    dims: [1, 1, usize::MAX - 1],
+                    element_size: std::mem::size_of::<f64>(),
+                },
+            ),
+        ] {
+            // SAFETY: ZST needs no backing range; each case fails before sampling.
+            let image = unsafe { std::slice::from_raw_parts(&sample, len) };
+            assert_error(OwnedPyramid::min_max(image, image, dims, &[1]), expected);
         }
     }
 
