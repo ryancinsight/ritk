@@ -168,8 +168,17 @@ impl<const D: usize> Direction<D> {
         }
     }
 
-    /// Try to compute the inverse of the direction matrix.
+    /// Try to compute a finite inverse of the direction matrix.
+    ///
+    /// Returns `None` for non-finite input, a pivot below the existing
+    /// singularity threshold, or elimination that overflows finite arithmetic.
+    /// Every normalized/eliminated entry is checked before it can participate
+    /// in a subsequent step: an infinite pivot must not turn a failed
+    /// elimination into a finite but incorrect inverse through division.
     pub fn try_inverse(&self) -> Option<Self> {
+        if self.iter().any(|value| !value.is_finite()) {
+            return None;
+        }
         let mut matrix = self.0.into_rows();
         let mut inverse = FixedMatrix::<f64, D, D>::identity().into_rows();
 
@@ -197,6 +206,9 @@ impl<const D: usize> Direction<D> {
             for col in 0..D {
                 matrix[column][col] /= pivot;
                 inverse[column][col] /= pivot;
+                if !matrix[column][col].is_finite() || !inverse[column][col].is_finite() {
+                    return None;
+                }
             }
 
             for row in 0..D {
@@ -207,6 +219,9 @@ impl<const D: usize> Direction<D> {
                 for col in 0..D {
                     matrix[row][col] -= factor * matrix[column][col];
                     inverse[row][col] -= factor * inverse[column][col];
+                    if !matrix[row][col].is_finite() || !inverse[row][col].is_finite() {
+                        return None;
+                    }
                 }
             }
         }
@@ -287,6 +302,10 @@ impl Direction<3> {
         self.0.into_column_major()
     }
 }
+
+#[cfg(test)]
+#[path = "tests_direction_inverse.rs"]
+mod inverse_tests;
 
 #[cfg(test)]
 mod tests {

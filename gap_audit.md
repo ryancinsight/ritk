@@ -1,5 +1,12 @@
 # RITK Gap Audit
 
+<a id="RITK-SPATIAL-FINITE-INVERSE-001"></a>
+## RITK-SPATIAL-FINITE-INVERSE-001: Direction inversion admits non-finite arithmetic [patch]
+- risk: malformed directions and elimination overflow create accepted Cartesian transform pairs with corrupt index/world coordinates.
+- evidence: three regression failures on current main `2775dacf`; NaN yields an accepted inverse, and finite `MAX+MAX` elimination returns `[[1,0],[0,0]]` instead of reporting failure.
+- correction: finite input and arithmetic checks preserve the existing pivot policy and report numerical failure through `None` and the existing typed geometry error. Exact finite/shear/subnormal oracles remain valid.
+- review: [the backlog item](backlog/RITK-SPATIAL-FINITE-INVERSE-001.md) records red/green evidence, unchanged external provider records, ownership boundaries and final-gate requirements. Publication prerequisites remain separate.
+
 <a id="RITK-REGISTRY-PUBLICATION-001"></a>
 ## RITK-REGISTRY-PUBLICATION-001: Git validation does not establish registry publication [patch]
 - risk: a corrected Git revision passes native checks while the registry resolves older incompatible dependencies or lacks required packages.

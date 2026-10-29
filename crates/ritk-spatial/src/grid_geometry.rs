@@ -45,8 +45,9 @@ impl<const D: usize> CartesianGridGeometry<D> {
     /// Returns an error when `map` is not [`CoordinateMap::Cartesian`], because
     /// a beam-space index tuple is a beam and a sample rather than a raster
     /// coordinate and the affine formula would return a point in no physical
-    /// space at all; and when `direction` is singular, which is a malformed
-    /// file header rather than a programmer error.
+    /// space at all; and when `direction` is singular, contains non-finite
+    /// entries, or cannot be inverted with finite arithmetic. These failures
+    /// are reported before constructing a transform pair with a corrupt inverse.
     pub fn new(
         origin: &Point<D>,
         spacing: &Spacing<D>,
@@ -131,8 +132,9 @@ pub enum NonCartesianGrid {
     /// index/world pair is not the mapping.
     #[error("a Cartesian grid geometry requires a Cartesian coordinate map; got {0}")]
     CoordinateMap(String),
-    /// The direction cosine matrix has no inverse, so world→index is undefined.
-    #[error("image direction matrix is singular")]
+    /// The direction matrix has no finite inverse under the bounded
+    /// elimination, so a valid world→index mapping cannot be constructed.
+    #[error("image direction matrix is singular or cannot be inverted with finite arithmetic")]
     SingularDirection,
 }
 
