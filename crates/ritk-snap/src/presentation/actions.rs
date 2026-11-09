@@ -184,7 +184,7 @@ pub enum ViewerAction {
         /// Completed gesture classification.
         gesture: PointerGesture,
     },
-    /// A focus loss canceled an in-progress pointer gesture.
+    /// A focus loss, host cancellation or repeated press ended a pointer gesture.
     PointerCancelled {
         /// Canceled button.
         button: PointerButton,
@@ -326,9 +326,9 @@ impl PresentationDispatcher {
     /// retry or report the same input without a partial gesture state.
     ///
     /// # Errors
-    /// Returns [`ActionDispatchError`] for an oversized batch, malformed
-    /// pointer sequence, non-finite coordinate or displacement, overlong
-    /// composition, or bounded allocation failure.
+    /// Returns [`ActionDispatchError`] for an oversized batch, non-finite
+    /// coordinate or displacement, overlong composition, or bounded allocation
+    /// failure.
     pub fn dispatch(
         &mut self,
         events: &[PresentationEvent],

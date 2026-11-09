@@ -143,6 +143,10 @@ fn selecting_a_tool_from_the_toolbar_ends_a_pending_measurement() {
         .handle_events(&[down(x, y, MouseButton::Left), up(x, y, MouseButton::Left)])
         .expect("place the first anchor");
     assert!(session.app.tool_state.is_pending_measurement());
+    session
+        .handle_events(&[down(x, y, MouseButton::Right)])
+        .expect("a display gesture suspends the measurement");
+    assert_ne!(session.app.pointer.suspended_measurement, None);
 
     session
         .apply_window_action(WindowAction::SelectTool(ToolKind::Pan))
@@ -150,4 +154,5 @@ fn selecting_a_tool_from_the_toolbar_ends_a_pending_measurement() {
 
     assert_eq!(session.app.active_tool, ToolKind::Pan);
     assert!(session.app.tool_state.is_idle());
+    assert_eq!(session.app.pointer.suspended_measurement, None);
 }

@@ -175,6 +175,45 @@ fn a_left_drag_with_the_length_tool_records_a_length() {
     ));
 }
 
+fn cancel(app: &mut SnapApp, button: PointerButton, x: f64, y: f64) {
+    apply_app_event(
+        app,
+        &viewport(SOURCE),
+        PresentationEvent::PointerCancel { x, y, button },
+    );
+}
+
+#[test]
+fn cancelling_a_moved_length_drag_records_nothing() {
+    let mut app = app_with_window();
+    app.active_tool = ToolKind::MeasureLength;
+
+    press(&mut app, PointerButton::Left, 1.0, 1.0);
+    move_to(&mut app, 4.0, 5.0);
+    cancel(&mut app, PointerButton::Left, 4.0, 5.0);
+
+    assert!(app.annotations.is_empty());
+    assert!(app.tool_state.is_idle());
+    assert_eq!(app.pointer.owner, None);
+}
+
+#[test]
+fn another_buttons_cancel_or_repeated_press_keeps_the_gesture() {
+    let mut app = app_with_window();
+    press(&mut app, PointerButton::Right, 20.0, 30.0);
+    press(&mut app, PointerButton::Left, 20.0, 30.0);
+
+    cancel(&mut app, PointerButton::Left, 20.0, 30.0);
+    press(&mut app, PointerButton::Left, 21.0, 30.0);
+    press(&mut app, PointerButton::Left, 22.0, 30.0);
+
+    assert_eq!(
+        app.pointer.owner.map(|owner| owner.button),
+        Some(PointerButton::Right)
+    );
+    assert!(app.tool_state.is_drag_gesture());
+}
+
 #[test]
 fn selecting_a_tool_by_key_ends_the_pending_measurement() {
     let mut app = app_with_window();

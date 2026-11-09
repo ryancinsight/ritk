@@ -187,3 +187,126 @@ fn a_press_between_panels_reaches_no_panel() {
         Some(PointerButton::Right)
     );
 }
+
+#[test]
+fn a_picker_opened_from_the_toolbar_leaves_the_pointer_free() {
+    let (mut viewer, _root) = session();
+    let study = four_series_study();
+    viewer
+        .open_study_path(study.path())
+        .expect("open four-series study");
+    viewer.refresh_frame().expect("render the study");
+    let (x, y) = viewer.viewports[0].center();
+    let (picker_x, picker_y) = control_center(
+        &viewer,
+        None,
+        crate::presentation::native_session::window_controls::WindowAction::OpenSeriesPicker,
+    );
+
+    viewer
+        .handle_events(&[down(picker_x, picker_y, MouseButton::Left)])
+        .expect("the toolbar press opens the picker");
+    assert!(viewer.window_chrome.multi_series_dialog_is_open());
+    viewer
+        .handle_events(&[up(picker_x, picker_y, MouseButton::Left), key(ESCAPE)])
+        .expect("the dialog takes the release and closes");
+    assert!(!viewer.window_chrome.multi_series_dialog_is_open());
+
+    viewer
+        .handle_events(&[down(x, y, MouseButton::Right)])
+        .expect("the pane takes the next press");
+    assert_eq!(
+        viewer.app.pointer.owner.map(|owner| owner.button),
+        Some(PointerButton::Right)
+    );
+    assert_eq!(viewer.active_view, Some(0));
+}
+
+#[test]
+fn a_press_of_a_held_button_in_another_panel_ends_the_first_gesture() {
+    let (mut viewer, _root) = session();
+    let study = four_series_study();
+    show_two_panels(&mut viewer, study.path());
+    let (x, y) = viewer.viewports[0].center();
+    let (other_x, other_y) = viewer.viewports[1].center();
+
+    viewer
+        .handle_events(&[down(x, y, MouseButton::Right)])
+        .expect("press in the first panel");
+    viewer
+        .handle_events(&[down(other_x, other_y, MouseButton::Right)])
+        .expect("a lost release is ordinary host input");
+    assert_eq!(viewer.app.pointer.owner, None);
+    assert_eq!(viewer.active_view, Some(1));
+
+    let zoom = viewer.app.zoom;
+    viewer
+        .handle_events(&[
+            up(other_x, other_y, MouseButton::Right),
+            WindowEvent::PointerMove { x, y: y - 40 },
+        ])
+        .expect("release, then hover over the first panel");
+    assert_nothing_held(&viewer);
+    assert_eq!(viewer.app.zoom, zoom);
+}
+
+#[test]
+fn replacing_the_study_ends_the_held_gesture() {
+    let (mut viewer, _root) = session();
+    let study = four_series_study();
+    viewer
+        .open_study_path(study.path())
+        .expect("open four-series study");
+    viewer.refresh_frame().expect("render the study");
+    let (x, y) = viewer.viewports[0].center();
+
+    viewer
+        .handle_events(&[down(x, y, MouseButton::Right)])
+        .expect("press on the pane");
+    viewer
+        .open_study_path(study.path())
+        .expect("reopen the study");
+
+    assert!(viewer.captured_buttons.is_empty());
+    assert_eq!(viewer.active_view, None);
+    assert_eq!(viewer.app.pointer.owner, None);
+    viewer.refresh_frame().expect("render the replacement");
+    viewer
+        .handle_events(&[down(x, y, MouseButton::Left)])
+        .expect("another button starts a gesture");
+    assert_eq!(
+        viewer.app.pointer.owner.map(|owner| owner.button),
+        Some(PointerButton::Left)
+    );
+}
+
+#[test]
+fn a_press_between_panels_joins_a_gesture_already_held() {
+    let (mut viewer, _root) = session();
+    let study = four_series_study();
+    show_two_panels(&mut viewer, study.path());
+    let (x, y) = viewer.viewports[0].center();
+    let (other_x, _) = viewer.viewports[1].center();
+    let gap_x = (x..other_x)
+        .find(|candidate| {
+            viewer
+                .viewports
+                .iter()
+                .all(|viewport| !viewport.contains(f64::from(*candidate), f64::from(y)))
+        })
+        .expect("the panels are separated");
+
+    viewer
+        .handle_events(&[
+            down(x, y, MouseButton::Right),
+            down(gap_x, y, MouseButton::Middle),
+        ])
+        .expect("a second button joins the held gesture");
+
+    assert_eq!(viewer.active_view, Some(0));
+    assert!(viewer.captured_buttons.contains(PointerButton::Middle));
+    assert_eq!(
+        viewer.app.pointer.owner.map(|owner| owner.button),
+        Some(PointerButton::Right)
+    );
+}

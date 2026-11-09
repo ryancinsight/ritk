@@ -156,6 +156,7 @@ impl NativeViewerSession {
     }
 
     pub(super) fn open_study_path(&mut self, path: &Path) -> Result<()> {
+        self.end_held_gestures();
         if path.is_dir() {
             let tree = scan_folder_for_series(path).context("discover selected RITK study")?;
             if tree.total_series() == 0 {

@@ -26,6 +26,16 @@ fn lost_pointer_cancellation_releases_dispatcher_for_the_next_press() {
     );
     app.cancel_presentation_gesture();
     assert!(app.tool_state.is_idle());
+    let held_after_cancel = app
+        .presentation_dispatcher
+        .clone()
+        .dispatch(&[PresentationEvent::PointerUp {
+            x: 2.25,
+            y: 2.75,
+            button: PointerButton::Left,
+        }])
+        .expect("a release is ordinary host input");
+    assert_eq!(held_after_cancel.as_ref(), &[]);
 
     apply_app_event(
         &mut app,

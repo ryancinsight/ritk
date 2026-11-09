@@ -320,7 +320,7 @@ pub(crate) enum ViewerInputError {
     /// The presentation event sequence violated its bounded contract.
     #[error("presentation event dispatch failed: {0}")]
     Dispatch(#[from] ActionDispatchError),
-    /// The reduced action had no corresponding RITK transition.
+    /// The reduced action carried a value its RITK transition cannot apply.
     #[error("viewer action application failed: {0}")]
     Action(#[from] ViewerActionError),
 }

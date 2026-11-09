@@ -241,6 +241,7 @@ impl WindowChrome {
         };
         self.multi_series_dialog = Some(MultiSeriesDialog::new(browser)?);
         self.open_menu = None;
+        self.cancel_pointer_capture();
         Ok(true)
     }
 

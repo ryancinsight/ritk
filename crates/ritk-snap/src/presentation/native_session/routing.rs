@@ -32,7 +32,6 @@ impl EventRoute {
 /// Input routes bound to the framebuffer visible when the host batch begins.
 pub(super) struct RoutedBatch {
     pub(super) layout: WorkspaceLayout,
-    pub(super) active_view: Option<usize>,
     routes: ArrayVec<EventRoute, { crate::presentation::MAX_PRESENTATION_EVENTS }>,
     view_mappings: ArrayVec<ViewerViewport, MAX_GRID_PANELS>,
 }
@@ -66,6 +65,18 @@ impl PointerCapture {
             && self.pressed.contains(*button)
         {
             *self = Self::default();
+        }
+    }
+
+    /// The pane still holding a gesture that this press has moved elsewhere.
+    fn lost_to(&self, event: &PresentationEvent, route: EventRoute) -> Option<usize> {
+        match event {
+            PresentationEvent::PointerDown { button, .. }
+                if self.pressed.contains(*button) && route.view() != self.view =>
+            {
+                self.view
+            }
+            _ => None,
         }
     }
 
@@ -132,10 +143,6 @@ impl PanelEventRouter {
 
     pub(super) const fn active_panel(&self) -> usize {
         self.panel
-    }
-
-    pub(super) const fn active_view(&self) -> Option<usize> {
-        self.capture.view
     }
 
     pub(super) fn route(
@@ -301,7 +308,6 @@ impl NativeViewerSession {
         }
         Ok(RoutedBatch {
             layout: self.workspace_layout,
-            active_view: route_cursor.active_view(),
             routes,
             view_mappings,
         })
@@ -328,6 +334,19 @@ impl NativeViewerSession {
         let mut start = 0;
         while start < events.len() {
             let route = routes[start];
+            if let Some(view) = capture.lost_to(&events[start], route) {
+                let stale_panel = self.panel_for_event(
+                    &events[start],
+                    EventRoute::View(view),
+                    panel_routes,
+                    grid.is_some(),
+                );
+                if let Some(panel) =
+                    stale_panel.filter(|index| panel_routes.contains_current_panel(*index))
+                {
+                    self.app_for_panel_mut(panel)?.cancel_presentation_gesture();
+                }
+            }
             let Some(panel_index) = self
                 .panel_for_event(&events[start], route, panel_routes, grid.is_some())
                 .filter(|index| {

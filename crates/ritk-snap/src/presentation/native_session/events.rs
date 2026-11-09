@@ -37,9 +37,12 @@ impl NativeViewerSession {
         primary_advanced || secondary_advanced
     }
 
-    /// End every held pane gesture because a window action changed what its
-    /// pane shows or where pointer input goes.
-    fn cancel_pane_gestures(&mut self) {
+    /// End every held pane gesture because what its pane shows, or where
+    /// pointer input goes, has changed.
+    pub(super) fn end_held_gestures(&mut self) {
+        if self.captured_buttons.is_empty() {
+            return;
+        }
         self.app.cancel_presentation_gesture();
         for panel in &mut self.compare_panels {
             panel.app.cancel_presentation_gesture();
@@ -358,11 +361,10 @@ impl NativeApplication for NativeViewerSession {
                     .map_or(layout_before, |panel| panel.layout)
                     .grid()
                     .map_or(1, PanelGrid::panel_count);
-                let held = !self.captured_buttons.is_empty();
                 let changed = self.apply_window_action(action)?;
                 chrome_repaint |= changed;
-                if held && changed {
-                    self.cancel_pane_gestures();
+                if changed {
+                    self.end_held_gestures();
                 }
                 let maximized_after = self.maximized_panel.map(|panel| panel.panel_index);
                 panel_routes.apply_action(
@@ -398,8 +400,8 @@ impl NativeApplication for NativeViewerSession {
                 }
             }
         }
-        if self.workspace_layout != routed.layout && routed.active_view.is_some() {
-            self.cancel_pane_gestures();
+        if self.workspace_layout != routed.layout {
+            self.end_held_gestures();
         }
         // Keep the shortcut in the bounded event stream to preserve pointer
         // and focus ordering without a second allocation.
