@@ -3,7 +3,7 @@
 //! Provides the viewer-side PACS integration layer:
 //!
 //! - [`PacsConfig`] — UI-facing server configuration (AE titles, host, port).
-//! - [`QueryState`] — state machine driving the PACS panel (Idle/Pending/Results/Error).
+//! - [`QueryState`] — state machine of one PACS query (Idle/Pending/Results/Error).
 //! - [`FindResultRow`] — decoded C-FIND response row.
 //! - [`PacsRequest`] / [`PacsResponse`] — typed request/response for the background worker.
 //! - [`PacsWorkerHandle`] — non-blocking channel handle for polling worker results.
@@ -24,5 +24,4 @@ pub use worker::PacsWorkerHandle;
 mod tests;
 #[cfg(test)]
 #[path = "tests_query.rs"]
-#[cfg(feature = "eframe-shell")]
 mod tests_query;

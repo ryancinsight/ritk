@@ -164,9 +164,9 @@ fn test_build_study_query_includes_all_return_keys() {
 /// callers can initialize and compare correctly.
 #[test]
 fn test_pacs_panel_action_default_is_none() {
-    let action = crate::ui::pacs_panel::PacsPanelAction::default();
+    let action = crate::app::pacs_ops::PacsPanelAction::default();
     assert!(
-        matches!(action, crate::ui::pacs_panel::PacsPanelAction::None),
+        matches!(action, crate::app::pacs_ops::PacsPanelAction::None),
         "PacsPanelAction::default() must be None"
     );
 }

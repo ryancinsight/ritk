@@ -1,13 +1,11 @@
 //! Session snapshot, view reset, study close, and slice-mapping tests.
 
 use super::*;
-use crate::app::eframe::EguiRenderState;
 use crate::app::state::{ProjectionBackend, ProjectionMode, SeriesLoadTarget};
-use crate::app::EguiApp;
 use crate::render::histogram::compute_histogram;
 use crate::tools::interaction::ViewportOffset;
 use crate::ui::LinkedCursor;
-use crate::{AppLaunchOptions, CompatibilityPresentation};
+use crate::AppLaunchOptions;
 
 #[test]
 fn session_snapshot_round_trip_preserves_cine_state() {
@@ -23,21 +21,6 @@ fn session_snapshot_round_trip_preserves_cine_state() {
         .expect("restore presentation");
     assert!(recovered.cine.enabled);
     assert_eq!(recovered.cine.fps, 18.0);
-}
-
-#[test]
-fn reset_view_to_fit_restores_canonical_transform() {
-    let mut app = SnapApp::default();
-    app.zoom = 3.25;
-    app.pan_offset = ViewportOffset::new(24.0, -8.0);
-    let revision = app.visual_revision;
-
-    app.reset_view_to_fit();
-
-    assert_eq!(app.zoom, 1.0);
-    assert_eq!(app.pan_offset, ViewportOffset::new(0.0, 0.0));
-    assert!(app.visual_revision > revision);
-    assert_eq!(app.status_message, "Zoom reset to fit.");
 }
 
 #[test]
@@ -111,103 +94,6 @@ fn close_study_clears_loaded_and_cached_state() {
 }
 
 #[test]
-fn primary_visual_ready_waits_for_current_multi_planar_projection() {
-    let mut app = EguiApp::new(SnapApp::default());
-    assert!(
-        !app.primary_visual_ready(),
-        "an empty app is not capture-ready"
-    );
-
-    app.loaded = Some(test_volume([2, 2, 2]));
-    app.multi_planar = true;
-    app.render.mip_tex = None;
-    app.projection_backend = ProjectionBackend::Pending;
-    assert!(
-        !app.primary_visual_ready(),
-        "pending projection must not capture"
-    );
-
-    let ctx = egui::Context::default();
-    app.render.mip_tex = Some(ctx.load_texture(
-        "capture-ready",
-        egui::ColorImage::new([2, 2], egui::Color32::WHITE),
-        egui::TextureOptions::NEAREST,
-    ));
-    app.projection_backend = ProjectionBackend::Gpu;
-    assert!(
-        app.primary_visual_ready(),
-        "a completed projection texture must be capture-ready"
-    );
-}
-
-#[test]
-fn orthogonal_surface_disables_hanging_protocol_projection_gate() {
-    let mut app = EguiApp::new_with_presentation(
-        SnapApp::default(),
-        CompatibilityPresentation::OrthogonalSurface,
-    );
-    app.loaded = Some(test_volume([2, 2, 2]));
-    app.multi_planar = true;
-    app.projection_backend = ProjectionBackend::Pending;
-
-    let context = egui::Context::default();
-    drop(context.run(
-        egui::RawInput {
-            screen_rect: Some(egui::Rect::from_min_size(
-                egui::Pos2::ZERO,
-                egui::vec2(640.0, 480.0),
-            )),
-            ..egui::RawInput::default()
-        },
-        |context| app.update_orthogonal_surface(context),
-    ));
-
-    assert!(!app.multi_planar);
-    assert!(!app.dual_plane);
-    assert!(!app.compare_side_by_side);
-    assert!(app.primary_visual_ready());
-}
-
-#[test]
-fn render_state_invalidation_clears_retained_cache_keys() {
-    let mut render = EguiRenderState::default();
-    render.buffer_pool.pixel_f32.resize(8, 0.0_f32);
-    render.buffer_pool.resize_pixel_bytes(16);
-    render.buffer_pool.resize_color32(4);
-    let scratch_capacities = (
-        render.buffer_pool.pixel_f32.capacity(),
-        render.buffer_pool.rgba_u8.capacity(),
-        render.buffer_pool.color32.capacity(),
-    );
-    render.visual_revision = 4;
-    render.secondary_texture_key = Some((2, 7));
-
-    render.invalidate(5);
-
-    assert_eq!(render.visual_revision, 5);
-    assert_eq!(render.secondary_texture_key, None);
-    assert!(render.texture.is_none());
-    assert!(render.secondary_texture.is_none());
-    assert!(render.coronal_tex.is_none());
-    assert!(render.sagittal_tex.is_none());
-    assert!(render.mip_tex.is_none());
-    assert!(render.mesh_tex.is_none());
-    assert!(render.rt_dose_overlay_cache.iter().all(Option::is_none));
-    assert_eq!(render.buffer_pool.pixel_f32.len(), 8);
-    assert_eq!(render.buffer_pool.rgba_u8.len(), 16);
-    assert_eq!(render.buffer_pool.color32.len(), 4);
-    assert_eq!(
-        (
-            render.buffer_pool.pixel_f32.capacity(),
-            render.buffer_pool.rgba_u8.capacity(),
-            render.buffer_pool.color32.capacity(),
-        ),
-        scratch_capacities,
-        "visual invalidation must retain reusable eframe scratch storage"
-    );
-}
-
-#[test]
 fn test_viewer_state_default() {
     let state = ViewerState::default();
     assert_eq!(state.slice_index, 0);
@@ -225,56 +111,6 @@ fn test_app_launch_options_default_has_no_initial_path() {
     assert_eq!(
         options.initial_series_uid, None,
         "default launch options must not select a startup series"
-    );
-    assert_eq!(
-        options.metis_native,
-        cfg!(windows),
-        "Windows defaults to the Métis shell while other native targets keep eframe"
-    );
-}
-
-#[test]
-#[cfg(not(target_arch = "wasm32"))]
-fn initial_series_uid_queues_the_discovered_acquisition() {
-    let root = tempfile::tempdir().expect("study root");
-    crate::dicom::loader::tests::fixtures::write_study(
-        root.path(),
-        "CT",
-        crate::dicom::loader::tests::fixtures::SERIES_UID,
-        &crate::dicom::loader::tests::fixtures::SAMPLES,
-    )
-    .expect("write CT acquisition");
-    crate::dicom::loader::tests::fixtures::write_study(
-        root.path(),
-        "MR",
-        "2.25.20260905002",
-        &crate::dicom::loader::tests::fixtures::SAMPLES,
-    )
-    .expect("write MR acquisition");
-
-    let mut app = SnapApp::with_initial_path(
-        root.path().to_path_buf(),
-        Some("2.25.20260905002".to_owned()),
-    );
-
-    assert!(matches!(
-        &app.pending_load,
-        Some(crate::app::volume_input::VolumeInput::Series(info))
-            if info.series_instance_uid() == "2.25.20260905002"
-    ));
-    app.process_pending_loads();
-    app.wait_for_load_tasks();
-    let loaded = app.loaded.as_ref().expect("selected acquisition loaded");
-    assert_eq!(loaded.shape, [3, 2, 4]);
-    assert_eq!(loaded.modality.as_deref(), Some("MR"));
-    assert_eq!(
-        loaded
-            .metadata
-            .as_ref()
-            .expect("selected metadata")
-            .series_instance_uid
-            .as_deref(),
-        Some("2.25.20260905002")
     );
 }
 

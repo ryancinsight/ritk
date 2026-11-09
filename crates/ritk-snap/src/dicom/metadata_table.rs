@@ -1,7 +1,7 @@
-//! Deterministic DICOM metadata table model for the viewer sidebar.
+//! Deterministic DICOM metadata table model.
 //!
 //! This module converts `ritk-io` DICOM metadata into a presentation-neutral
-//! row list. The egui sidebar renders rows only; it does not know how to walk
+//! row list. A view renders rows only; it does not know how to walk
 //! slice metadata, preservation nodes, or raw preserved elements.
 
 use ritk_io::{DicomObjectNode, DicomPreservedElement, DicomReadMetadata, DicomValue};

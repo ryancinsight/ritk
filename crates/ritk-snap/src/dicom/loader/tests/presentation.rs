@@ -49,11 +49,7 @@ fn dicom_grayscale_presentation_preserves_signed_rescale_and_inversion() {
             WindowLevel::new(0.0, 40.0),
             NamedColorMap::Grayscale,
         );
-        let actual: Vec<[u8; 4]> = rendered
-            .pixels
-            .iter()
-            .map(egui::Color32::to_array)
-            .collect();
+        let actual: Vec<[u8; 4]> = rendered.rgba_pixels().collect();
         assert_eq!(
             actual,
             [
@@ -91,12 +87,13 @@ fn dicom_grayscale_presentation_rejects_unknown_voi_function() {
 /// This uses an explicit window that preserves the fixture's stored samples.
 #[test]
 fn dicom_study_renders_independent_grayscale_oracles_on_all_axes() {
-    use crate::render::{NamedColorMap, RenderBufferPool, SliceRenderer, WindowLevel};
+    use crate::render::slice_render::{FrameRenderScratch, RgbaImage};
+    use crate::render::{NamedColorMap, SliceRenderer, WindowLevel};
     let dir = tempdir().expect("create render fixture directory");
     fixtures::write_study(dir.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
         .expect("write render study");
     let volume = load_dicom_volume(dir.path()).expect("load render study");
-    let mut pool = RenderBufferPool::default();
+    let mut scratch = FrameRenderScratch::default();
     // L=-20, U=490 maps decoded (2*raw-20) to byte raw exactly.
     let window = WindowLevel::new(235.0, 510.0);
     let cases: [(usize, usize, [usize; 2], &[u8]); 3] = [
@@ -112,17 +109,18 @@ fn dicom_study_renders_independent_grayscale_oracles_on_all_axes() {
     for (axis, index, size, expected) in cases {
         let allocating =
             SliceRenderer::render(&volume, axis, index, window, NamedColorMap::Grayscale);
-        let scratch = SliceRenderer::render_with_scratch(
-            &mut pool,
+        let size_of_frame = SliceRenderer::render_rgba_into(
+            &mut scratch,
             &volume,
             axis,
             index,
             window,
             NamedColorMap::Grayscale,
         );
-        for image in [&allocating, &scratch] {
-            assert_eq!(image.size, size);
-            let actual: Vec<[u8; 4]> = image.pixels.iter().map(egui::Color32::to_array).collect();
+        let frame = RgbaImage::new(size_of_frame, scratch.rgba.clone());
+        for image in [&allocating, &frame] {
+            assert_eq!(image.size(), size);
+            let actual: Vec<[u8; 4]> = image.rgba_pixels().collect();
             let rgba: Vec<[u8; 4]> = expected
                 .iter()
                 .map(|&value| [value, value, value, 255])

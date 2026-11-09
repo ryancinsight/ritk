@@ -159,9 +159,9 @@ fn gpu_mesh_async_yields_image_after_poll() {
     let img = r
         .render(&mesh, &camera, &mat, &lights, 64, 64, &cfg)
         .expect("second call after blocking poll must return the completed frame");
-    assert_eq!(img.size, [64, 64], "image dimensions must match viewport");
+    assert_eq!(img.size(), [64, 64], "image dimensions must match viewport");
     assert_eq!(
-        img.pixels.len(),
+        img.rgba_pixels().count(),
         64 * 64,
         "pixel count must be width × height"
     );
@@ -184,7 +184,7 @@ fn gpu_mesh_front_facing_triangle_produces_lit_pixels() {
         .render_sync(&mesh, &camera, &mat, &lights, 64, 64, &cfg)
         .expect("render_sync must return Some after blocking");
 
-    let lit = img.pixels.iter().any(|px| px.a() > 0);
+    let lit = img.rgba_pixels().any(|px| px[3] > 0);
     assert!(
         lit,
         "front-facing triangle must produce at least one non-transparent pixel"
@@ -208,9 +208,13 @@ fn gpu_mesh_output_dimensions_match_viewport() {
         .render_sync(&mesh, &camera, &mat, &lights, 80, 60, &cfg)
         .expect("render_sync must return Some");
 
-    assert_eq!(img.size[0], 80, "width must be 80");
-    assert_eq!(img.size[1], 60, "height must be 60");
-    assert_eq!(img.pixels.len(), 80 * 60, "pixel count must be 80 × 60");
+    assert_eq!(img.size()[0], 80, "width must be 80");
+    assert_eq!(img.size()[1], 60, "height must be 60");
+    assert_eq!(
+        img.rgba_pixels().count(),
+        80 * 60,
+        "pixel count must be 80 × 60"
+    );
 }
 
 /// GPU output buffer must contain the correct byte length (4 bytes per pixel).
@@ -230,7 +234,7 @@ fn gpu_mesh_pixel_count_is_width_times_height() {
         .render_sync(&mesh, &camera, &mat, &lights, 32, 32, &cfg)
         .expect("render_sync must return Some");
 
-    assert_eq!(img.pixels.len(), 32 * 32);
+    assert_eq!(img.rgba_pixels().count(), 32 * 32);
 }
 
 /// Viewport resize: after resize, dimensions must update correctly.
@@ -253,7 +257,7 @@ fn gpu_mesh_viewport_resize_updates_dimensions() {
     let img = r
         .render_sync(&mesh, &camera, &mat, &lights, 48, 48, &cfg)
         .expect("render_sync after resize must return Some");
-    assert_eq!(img.size, [48, 48]);
+    assert_eq!(img.size(), [48, 48]);
 }
 
 /// Empty mesh renders to all-transparent output.
@@ -278,7 +282,7 @@ fn gpu_mesh_empty_mesh_all_transparent() {
         result.is_none()
             || result
                 .as_ref()
-                .map(|img| img.pixels.iter().all(|px| px.a() == 0))
+                .map(|img| img.rgba_pixels().all(|px| px[3] == 0))
                 .unwrap_or(false),
         "empty mesh must produce None or all-transparent pixels"
     );
@@ -302,11 +306,5 @@ fn gpu_mesh_ssao_enabled_produces_valid_image() {
         .render_sync(&mesh, &camera, &mat, &lights, 32, 32, &cfg)
         .expect("render_sync with SSAO enabled must return Some");
 
-    // All pixel color channels must be in [0, 255].
-    for px in &img.pixels {
-        // egui::Color32 stores RGBA as u8 in [0,255]. Structural validity is guaranteed
-        // by the type; we verify the buffer was not left as uninitialised zeros for lit pixels.
-        let _ = px.r(); // access to confirm no panic
-    }
-    assert_eq!(img.size, [32, 32]);
+    assert_eq!(img.size(), [32, 32]);
 }

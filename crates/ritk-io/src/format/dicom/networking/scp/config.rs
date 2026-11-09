@@ -149,7 +149,7 @@ pub struct ScpConfig {
 
     /// Bounded channel capacity for buffered [`StoredInstance`] values.
     ///
-    /// When the consumer (egui frame loop) falls behind by this many instances,
+    /// When the consumer (viewer frame loop) falls behind by this many instances,
     /// new arrivals are acknowledged to the PACS and then discarded.
     pub queue_capacity: usize,
 
@@ -175,7 +175,7 @@ impl Default for ScpConfig {
 
 /// Handle to a running embedded C-STORE SCP.
 ///
-/// Poll [`StoreScpHandle::try_recv`] regularly (e.g., once per egui frame).
+/// Poll [`StoreScpHandle::try_recv`] regularly (e.g., once per frame).
 /// Dropping the handle signals the accept thread to exit on its next poll cycle.
 pub struct StoreScpHandle {
     pub(super) rx: mpsc::Receiver<StoredInstance>,

@@ -396,7 +396,7 @@ fn test_build_study_query_ct_modality_uses_ct_filter() {
 /// `QueryState::Pending` stores the operation label string.
 ///
 /// Analytical basis: Pending is a named-field variant; `label` is rendered in
-/// the panel spinner on every egui frame while a request is in-flight.
+/// the panel spinner on every frame while a request is in-flight.
 #[test]
 fn test_query_state_pending_has_label() {
     let state = QueryState::Pending {

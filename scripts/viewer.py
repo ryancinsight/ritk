@@ -137,15 +137,11 @@ def main():
     parser.add_argument("binary", type=Path, help="compiled dicom_workflow example")
     parser.add_argument("--update-goldens", action="store_true", help="replace the reviewed manual images with this run")
     parser.add_argument("--native-binary", type=Path, help="also open and capture the real desktop viewer")
-    parser.add_argument("--metis-native", action="store_true",
-                        help="run the native binary through the Windows Métis host")
     parser.add_argument("--real-study", type=Path,
                         help="also capture a caller-supplied saved DICOM file or directory")
     parser.add_argument("--real-series-uid", metavar="UID",
                         help="select this SeriesInstanceUID for --real-study")
     arguments = parser.parse_args()
-    if arguments.metis_native and not arguments.native_binary:
-        parser.error("--metis-native requires --native-binary")
     if arguments.real_study and not arguments.native_binary:
         parser.error("--real-study requires --native-binary")
     if arguments.real_series_uid and not arguments.real_study:
@@ -165,8 +161,8 @@ def main():
     destination.mkdir(parents=True, exist_ok=True)
     real_capture_name = None
     if arguments.real_study:
-        real_capture_name = "real-metis-frame.png" if arguments.metis_native else "real-window.png"
-    cleanup_names = [*images, "window.png", "metis-frame.png", "rejected.png", "metis-rejected.png", "workflow.json"]
+        real_capture_name = "real-metis-frame.png"
+    cleanup_names = [*images, "metis-frame.png", "metis-rejected.png", "workflow.json"]
     if real_capture_name:
         cleanup_names.append(real_capture_name)
     for name in cleanup_names:
@@ -176,7 +172,6 @@ def main():
     # Invalidate previous evidence before resolving or executing the new binary.
     (destination / "workflow.json").write_text('{"schema":1,"status":"failed"}\n', encoding="utf-8")
     # A run without a native host must not retain captures from an earlier run.
-    (destination / "window.png").unlink(missing_ok=True)
     (destination / "metis-frame.png").unlink(missing_ok=True)
     if real_capture_name:
         (destination / real_capture_name).unlink(missing_ok=True)
@@ -191,35 +186,26 @@ def main():
         report = json.loads((output / "workflow.json").read_text(encoding="utf-8"))
         if arguments.native_binary:
             native = arguments.native_binary.resolve(strict=True)
-            native_args = [str(native), str(output / "study")]
-            if arguments.metis_native:
-                native_args.extend(("--metis-native", "--capture", str(output / "metis-frame.png")))
-            else:
-                native_args.extend(("--eframe", "--capture", str(output / "window.png")))
+            native_args = [str(native), str(output / "study"), "--capture", str(output / "metis-frame.png")]
             window = subprocess.run(native_args, capture_output=True, encoding="utf-8",
                                     timeout=60, check=True)
             # Exercise actual failure propagation without publishing a screenshot
             # of the empty viewer as evidence of successful study opening.
-            rejected_name = "metis-rejected.png" if arguments.metis_native else "rejected.png"
-            rejected_args = [str(native), str(output / "absent.dcm")]
-            if arguments.metis_native:
-                rejected_args.extend(("--metis-native", "--capture", str(output / rejected_name)))
-            else:
-                rejected_args.extend(("--eframe", "--capture", str(output / rejected_name)))
+            rejected_name = "metis-rejected.png"
+            rejected_args = [str(native), str(output / "absent.dcm"), "--capture", str(output / rejected_name)]
             rejected = subprocess.run(rejected_args, capture_output=True, encoding="utf-8",
                                       timeout=60, check=False)
-            error_marker = "open initial RITK study" if arguments.metis_native else "initial study did not load"
+            error_marker = "open initial RITK study"
             if rejected.returncode == 0 or (output / rejected_name).exists() or error_marker not in rejected.stderr:
                 raise ValueError("native invalid-study capture did not reject explicitly")
             with native.open("rb") as executable:
                 native_hash = hashlib.file_digest(executable, "sha256").hexdigest()
-            report_key = "metis_native" if arguments.metis_native else "native"
-            capture_name = "metis-frame.png" if arguments.metis_native else "window.png"
+            capture_name = "metis-frame.png"
             metrics = png_summary(output / capture_name)
             if metrics["non_black_pixels"] == 0:
                 raise ValueError(f"native capture contains no visible pixels: {capture_name}")
             images.append(capture_name)
-            report[report_key] = {"binary_sha256": native_hash, "stdout": window.stdout,
+            report["metis_native"] = {"binary_sha256": native_hash, "stdout": window.stdout,
                                   "stderr": window.stderr, "invalid_study_exit": rejected.returncode,
                                   "capture": capture_name, **metrics}
             if arguments.real_study:
@@ -227,11 +213,7 @@ def main():
                 real_args = [str(native), str(study)]
                 if arguments.real_series_uid:
                     real_args.extend(("--series-instance-uid", arguments.real_series_uid))
-                if arguments.metis_native:
-                    real_args.extend(("--metis-native", "--capture-application", "--capture",
-                                      str(output / real_capture_name)))
-                else:
-                    real_args.extend(("--eframe", "--capture", str(output / real_capture_name)))
+                real_args.extend(("--capture-application", "--capture", str(output / real_capture_name)))
                 subprocess.run(real_args, capture_output=True, encoding="utf-8",
                                timeout=60, check=True)
                 real_metrics = png_summary(output / real_capture_name)
@@ -284,7 +266,7 @@ def main():
             golden.write_bytes(actual)
         elif golden.read_bytes() != actual:
             raise ValueError(f"render differs from reviewed manual image: {golden}")
-        if arguments.metis_native:
+        if arguments.native_binary:
             golden = golden_root / "dicom-metis-native.png"
             if linked(golden) or (golden.exists() and golden.stat().st_nlink != 1):
                 raise ValueError(f"refusing linked golden file: {golden}")

@@ -29,7 +29,7 @@ RITK provides a comprehensive framework for medical image analysis:
   autodiff
 - **Image Processing Pipeline**: Filtering, segmentation, statistics, normalization
 - **CT Visualization Support**: Bed separation filter for CT foreground/body masking
-- **Native DICOM Viewer**: `ritk-snap` desktop viewer with DICOM folder/DICOMDIR launch, MPR viewports, overlays, measurements, and tag inspection
+- **Native DICOM Viewer**: `ritk-snap` desktop viewer with DICOM folder/DICOMDIR launch, MPR viewports, and measurement tools
 - **Python Bindings**: PyO3 + maturin with NumPy bridge, packaged type stubs, and `py.typed`
 - **CLI**: `ritk` binary with `convert`, `filter`, `register`, `segment`, and `stats` subcommands
 
@@ -74,47 +74,36 @@ a single DICOM file, a `DICOMDIR` file, or a supported medical image file. The v
 I/O in `ritk-io` and presentation logic in `ritk-snap`, with a vertical module
 split for input path normalization, hanging-protocol selection, series
 discovery, metadata row construction, session snapshot persistence, rendering,
-and tools. On Windows the default shell is Métis. The default `ritk-snap`
-graph has no eframe, egui, or rfd dependency; the legacy eframe shell was
-removed with its `ritk-snap-eframe` package. The source-level compatibility
-feature remains available for the existing capture harness and tests:
+and tools. The desktop shell is Métis, which currently hosts the viewer on
+Windows.
 
-```console
-cargo run --locked -p ritk-snap --features eframe-shell -- \
-  path/to/study --eframe --capture window.png
-```
-
-`ritk-snap --metis-native` may omit `PATH` on Windows. The Métis host then
+`ritk-snap` may omit `PATH` on Windows. The Métis host then
 opens Moirai's bounded native folder picker; RITK scans, decodes, and renders
-the selected saved study. A multi-series folder still requires an explicit
-`PATH` and `--series-instance-uid` so RITK never chooses an acquisition
-implicitly.
+the selected saved study. A scripted capture of a multi-series folder requires
+`--series-instance-uid` so RITK never chooses an acquisition implicitly; the
+interactive shell loads the first readable series and offers the rest.
 
 Current viewer capabilities include DICOM series browsing, axial/coronal/
-sagittal MPR layout, modality-aware window presets, colormaps, measurement and
-ROI tools, interactive segmentation label paint/erase with brush radius,
-label visibility/active-label controls with undo/redo, viewport label overlays,
+sagittal MPR layout, measurement and ROI tools,
 load-time hanging-protocol defaults for CT/MR series, linked MPR cursor
-navigation across all three planes, DICOM-style patient-orientation labels,
-linked-cursor HU overlay readout, linked-cursor physical LPS readout,
+navigation across all three planes,
 active-axis cine playback (Space toggles playback), Ctrl/Cmd+scroll viewport zoom,
-Ctrl/Cmd+0 zoom-to-fit,
 Arrow Up/Down and Page Up/Down active-axis slice navigation,
-Home/End active-axis first/last slice navigation,
+Home/End first/last series navigation while the browser holds another series,
+and first/last slice navigation otherwise,
 tool keyboard shortcuts (L=length, A=angle, R=rect ROI, E=ellipse ROI, H=HU point, P=pan, Z=zoom, W=window/level, B=paint),
 Zoom tool continuous drag zoom,
-Segmentation keyboard undo/redo shortcuts,
 Pan tool drag mapping (additive viewport offset) via SSOT `ui/pan`,
 ROI Ellipse true pixel-mask statistics (ellipse membership test `((r−cy)/a)²+((c−cx)/b)²≤1`) via `Annotation::compute_roi_ellipse_stats`,
-W/L drag mapping (horizontal width, vertical center) via SSOT `ui/window_level`,
-PNG slice export, full axial/coronal/sagittal MPR PNG export, DICOM overlays,
-RT-STRUCT contour overlay loading and rendering,
-and a
-deterministic Tags panel covering series metadata, first-slice geometry/display
-tags, private scalar tags, preserved object-model nodes, and raw preserved
-element byte counts. Viewer session save/load stores presentation state as
-JSON, including source path, slice indices, window/level, colormap, active
-tool, layout flags, overlay flags, sidebar tab, pan, and zoom.
+and W/L drag mapping (horizontal width, vertical center) via SSOT `ui/window_level`.
+
+The crate also keeps logic that the native shell does not reach until its
+`RITK-SNAP-NATIVE-*` port item lands: window presets and colormaps,
+drawn measurements, segmentation label editing with undo and redo, label and
+DICOM overlays, patient-orientation labels, cursor HU and LPS readouts,
+Ctrl/Cmd+0 zoom-to-fit, PNG slice and full MPR export, RT-STRUCT contour overlays, the series tag listing, and JSON viewer sessions holding the
+source path, slice indices, window/level, colormap, active tool, layout flags,
+overlay flags, pan, and zoom.
 
 The rendering domain also exposes a validated `ReslicePlane` contract for
 anisotropic and oblique scalar planes. It carries patient-space basis vectors,
@@ -456,7 +445,7 @@ Third-party:
 | `dicom` (`dicom-rs`) | DICOM dataset, metadata, and external-codec adapter |
 | `tiff` / `image` | Pixel codecs behind `ritk-tiff` and `ritk-png` |
 | `consus-raster` / `zune-jpegxl` | Shared JPEG raster provider and JPEG XL pixel decode; JPEG migration follows [ADR 0048](docs/adr/0048-jpeg-provider.md) |
-| `wgpu` / `eframe` / `egui` | Viewer rendering and graphics interop |
+| `wgpu` | Viewer GPU rendering and graphics interop |
 | `onnx-ir` | ONNX graph import for DL registration |
 | `pyo3` / `numpy` | Python bindings |
 | `clap` | CLI argument parsing |

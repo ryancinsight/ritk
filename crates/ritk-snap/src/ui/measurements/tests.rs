@@ -1,25 +1,4 @@
 use super::*;
-use crate::geometry::PatientPointMm;
-use crate::tools::interaction::PatientLength;
-
-#[test]
-fn orthogonal_layer_does_not_rasterize_patient_space_length() {
-    let start = PatientPointMm::try_new([0.0, 0.0, 0.0]).expect("finite point");
-    let end = PatientPointMm::try_new([3.0, 4.0, 0.0]).expect("finite point");
-    let annotation = Annotation::PatientLength(
-        PatientLength::try_new(start, end).expect("3-4-5 segment is representable"),
-    );
-    let context = egui::Context::default();
-    let output = context.run(egui::RawInput::default(), |context| {
-        let painter = context.layer_painter(egui::LayerId::background());
-        MeasurementLayer::draw_annotations(&painter, &[annotation], |point| point);
-    });
-
-    assert!(
-        output.shapes.is_empty(),
-        "an orthogonal painter must not fabricate a 2D patient-length line"
-    );
-}
 
 /// `perpendicular_offset` for a horizontal right-pointing line must return
 /// a straight-up vector.
@@ -29,19 +8,19 @@ fn orthogonal_layer_does_not_rasterize_patient_space_length() {
 /// With distance = 10: result = (0, 10).
 #[test]
 fn test_perpendicular_offset_horizontal() {
-    let p1 = Pos2::new(0.0, 0.0);
-    let p2 = Pos2::new(10.0, 0.0);
+    let p1 = [0.0, 0.0];
+    let p2 = [10.0, 0.0];
     let off = perpendicular_offset(p1, p2, 10.0);
     // (-dy/|d|, dx/|d|) * distance = (-0/10, 10/10) * 10 = (0.0, 1.0) * 10
     assert!(
-        off.x.abs() < 1e-4,
+        off[0].abs() < 1e-4,
         "horizontal line perpendicular x must be 0, got {}",
-        off.x
+        off[0]
     );
     assert!(
-        (off.y - 10.0).abs() < 1e-4,
+        (off[1] - 10.0).abs() < 1e-4,
         "horizontal line perpendicular y must be 10, got {}",
-        off.y
+        off[1]
     );
 }
 
@@ -52,20 +31,20 @@ fn test_perpendicular_offset_horizontal() {
 /// With distance = 5: result = (-5, 0).
 #[test]
 fn test_perpendicular_offset_vertical() {
-    let p1 = Pos2::new(0.0, 0.0);
-    let p2 = Pos2::new(0.0, 10.0);
+    let p1 = [0.0, 0.0];
+    let p2 = [0.0, 10.0];
     let off = perpendicular_offset(p1, p2, 5.0);
     // direction = (0, 1), normalised = (0, 1).
     // (-dy, dx) = (-1, 0) * 5 = (-5, 0).
     assert!(
-        (off.x - (-5.0)).abs() < 1e-4,
+        (off[0] - (-5.0)).abs() < 1e-4,
         "vertical line perpendicular x must be -5, got {}",
-        off.x
+        off[0]
     );
     assert!(
-        off.y.abs() < 1e-4,
+        off[1].abs() < 1e-4,
         "vertical line perpendicular y must be 0, got {}",
-        off.y
+        off[1]
     );
 }
 
@@ -73,22 +52,16 @@ fn test_perpendicular_offset_vertical() {
 /// a straight-up fallback `(0, -d)`.
 #[test]
 fn test_perpendicular_offset_degenerate() {
-    let p = Pos2::new(5.0, 5.0);
+    let p = [5.0, 5.0];
     let off = perpendicular_offset(p, p, 8.0);
     assert!(
-        off.x.abs() < 1e-4,
+        off[0].abs() < 1e-4,
         "degenerate line perpendicular x must be 0, got {}",
-        off.x
+        off[0]
     );
     assert!(
-        (off.y - (-8.0)).abs() < 1e-4,
+        (off[1] - (-8.0)).abs() < 1e-4,
         "degenerate line perpendicular y must be -8, got {}",
-        off.y
+        off[1]
     );
-}
-
-/// The `MeasurementLayer` type must be constructible (zero-size type check).
-#[test]
-fn test_measurement_layer_is_zero_size() {
-    let _layer = MeasurementLayer;
 }

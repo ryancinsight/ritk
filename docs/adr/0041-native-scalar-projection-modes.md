@@ -4,6 +4,8 @@
 - Date: 2026-09-20
 - Driver: [RITK-SNAP-SLAB-PRESENTATION-001](../../backlog.md#RITK-SNAP-SLAB-PRESENTATION-001)
 
+Revision 2026-11-09: the eframe shell is deleted and Métis is the only desktop shell. Text below that names eframe records the state when this decision was made ([ADR 0026](0026-viewer-presentation-migration.md)).
+
 ## Context
 
 The typed slab contract now provides exact maximum, minimum, and arithmetic-mean

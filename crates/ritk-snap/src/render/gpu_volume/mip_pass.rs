@@ -10,7 +10,7 @@
 //!    bytes are ready to read.
 //!
 //! 2. [`collect_mip_result`] — reads the already-mapped `staging_buf` and
-//!    returns a [`ColorImage`].  Must only be called after the receiver from
+//!    returns a [`RgbaImage`].  Must only be called after the receiver from
 //!    `submit_mip_async` fires `Ok(Ok(()))`.
 //!
 //! # Non-blocking contract
@@ -29,7 +29,7 @@
 
 use std::sync::mpsc;
 
-use egui::ColorImage;
+use crate::render::RgbaImage;
 
 use crate::render::{GrayscalePresentation, NamedColorMap, WindowLevel};
 
@@ -149,7 +149,7 @@ pub(super) fn submit_mip_async(
 ///
 /// Creates a new `BufferSlice` from `staging_buf` (the buffer holds mapping
 /// state, not the slice), reads packed u32 RGBA bytes written by the shader,
-/// and returns a [`ColorImage`].
+/// and returns a [`RgbaImage`].
 ///
 /// # Precondition
 ///
@@ -159,18 +159,17 @@ pub(super) fn submit_mip_async(
 ///
 /// # Output
 ///
-/// `pack4x8unorm` writes `[R, G, B, A]` bytes on little-endian; the byte
-/// layout is forwarded directly to `from_rgba_unmultiplied` — no CPU
-/// conversion required.
+/// `pack4x8unorm` writes `[R, G, B, A]` bytes on little-endian, the order
+/// [`RgbaImage`] stores, so no CPU conversion is required.
 pub(super) fn collect_mip_result(
     staging_buf: &wgpu::Buffer,
     rows: usize,
     cols: usize,
-) -> ColorImage {
+) -> RgbaImage {
     let buffer_slice = staging_buf.slice(..);
     let mapped = buffer_slice.get_mapped_range();
     let rgba: Vec<u8> = mapped.to_vec();
     drop(mapped);
     staging_buf.unmap();
-    ColorImage::from_rgba_unmultiplied([cols, rows], &rgba)
+    RgbaImage::new([cols, rows], rgba)
 }

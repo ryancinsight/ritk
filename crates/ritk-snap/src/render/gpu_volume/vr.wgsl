@@ -17,7 +17,7 @@
 //   This is 4× smaller than the previous 4×f32 layout (4 bytes vs 16 bytes per
 //   pixel), reducing staging buffer allocation and map/unmap cost by 4×.
 //   The host reads the staging buffer as `&[u8]` and forwards directly to
-//   egui::ColorImage::from_rgba_unmultiplied — zero CPU post-processing.
+//   the RGBA presentation frame — zero CPU post-processing.
 //
 // # Dispatch
 //   ceil(cols / 8) × ceil(rows / 8) × 1 workgroups.

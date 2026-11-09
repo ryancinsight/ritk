@@ -46,7 +46,7 @@ fn volume_with_segmentation() -> SnapApp {
 #[test]
 fn save_rt_struct_no_volume_shows_status() {
     let mut app = SnapApp::default();
-    app.save_rt_struct_dialog();
+    app.save_rt_struct_to(std::path::Path::new("unused.dcm"));
     assert!(app.status_message.contains("no volume or segmentation"));
 }
 
@@ -56,7 +56,6 @@ fn save_rt_struct_with_segmentation_writes_valid_file() {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("test_rt.dcm");
 
-    // Override the file dialog result by writing directly
     let vol = app.loaded.as_ref().unwrap();
     let editor = app.label_editor.as_ref().unwrap();
     let map = editor.current_map();

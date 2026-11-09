@@ -10,7 +10,8 @@
 
 use std::sync::Arc;
 
-use crate::render::mip_vr::render_vr_axial;
+use crate::render::mip_vr::render_vr_axial_rgba;
+use crate::render::slice_render::RgbaImage;
 use crate::render::{NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 
@@ -26,7 +27,7 @@ fn render_vr_sync(
     wl: WindowLevel,
     colormap: NamedColorMap,
     alpha_scale: f32,
-) -> Option<egui::ColorImage> {
+) -> Option<RgbaImage> {
     let _ = renderer.render_vr(volume, wl, colormap, alpha_scale);
     renderer.poll_blocking();
     let _ = renderer.render_vr(volume, wl, colormap, alpha_scale);
@@ -115,23 +116,23 @@ fn gpu_vr_matches_cpu_vr_grayscale() {
     let colormap = NamedColorMap::Grayscale;
     let alpha_scale = 0.06f32;
 
-    let cpu_img = render_vr_axial(&volume, wl, colormap, alpha_scale);
+    let cpu_img = render_vr_axial_rgba(&volume, wl, colormap, alpha_scale);
     let gpu_img = render_vr_sync(&mut renderer, &volume, wl, colormap, alpha_scale)
         .expect("GPU VR must succeed when GPU is available");
 
-    assert_eq!(cpu_img.size, gpu_img.size, "VR image sizes must match");
+    assert_eq!(cpu_img.size(), gpu_img.size(), "VR image sizes must match");
     assert_eq!(
-        cpu_img.pixels.len(),
-        gpu_img.pixels.len(),
+        cpu_img.rgba_pixels().count(),
+        gpu_img.rgba_pixels().count(),
         "Pixel buffer lengths must match"
     );
 
     let mut max_diff: i32 = 0;
-    for (i, (c, g)) in cpu_img.pixels.iter().zip(gpu_img.pixels.iter()).enumerate() {
-        let diff = (c.r() as i32 - g.r() as i32)
+    for (i, (c, g)) in cpu_img.rgba_pixels().zip(gpu_img.rgba_pixels()).enumerate() {
+        let diff = (i32::from(c[0]) - i32::from(g[0]))
             .abs()
-            .max((c.g() as i32 - g.g() as i32).abs())
-            .max((c.b() as i32 - g.b() as i32).abs());
+            .max((i32::from(c[1]) - i32::from(g[1])).abs())
+            .max((i32::from(c[2]) - i32::from(g[2])).abs());
         if diff > max_diff {
             max_diff = diff;
         }
@@ -150,7 +151,7 @@ fn gpu_vr_matches_cpu_vr_grayscale() {
 /// DICOM LINEAR maps this zero sample to norm 0, so a = 0.06 × 0 = 0.
 /// No accumulation → acc_r=0, acc_g=0, acc_b=0, acc_alpha=0.
 /// pack4x8unorm(0,0,0,0) → bytes [0,0,0,0] → from_rgba_unmultiplied(0,0,0,0)
-/// → Color32::TRANSPARENT.
+/// → [0, 0, 0, 0].
 #[test]
 fn gpu_vr_below_window_floor_transparent_black() {
     let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
@@ -162,11 +163,11 @@ fn gpu_vr_below_window_floor_transparent_black() {
     let img = render_vr_sync(&mut renderer, &vol, wl, NamedColorMap::Grayscale, 0.06)
         .expect("GPU VR must succeed when GPU is available");
 
-    for &p in &img.pixels {
-        assert_eq!(p.r(), 0, "R must be 0 for zero-intensity volume");
-        assert_eq!(p.g(), 0, "G must be 0 for zero-intensity volume");
-        assert_eq!(p.b(), 0, "B must be 0 for zero-intensity volume");
-        assert_eq!(p.a(), 0, "A must be 0 for zero-intensity volume");
+    for p in img.rgba_pixels() {
+        assert_eq!(p[0], 0, "R must be 0 for zero-intensity volume");
+        assert_eq!(p[1], 0, "G must be 0 for zero-intensity volume");
+        assert_eq!(p[2], 0, "B must be 0 for zero-intensity volume");
+        assert_eq!(p[3], 0, "A must be 0 for zero-intensity volume");
     }
 }
 
@@ -182,10 +183,7 @@ fn gpu_vr_nonzero_volume_has_nonzero_output() {
     let img = render_vr_sync(&mut renderer, &volume, wl, NamedColorMap::Grayscale, 0.06)
         .expect("GPU VR must succeed when GPU is available");
 
-    let has_nonzero = img
-        .pixels
-        .iter()
-        .any(|p| p.r() > 0 || p.g() > 0 || p.b() > 0);
+    let has_nonzero = img.rgba_pixels().any(|p| p[0] > 0 || p[1] > 0 || p[2] > 0);
     assert!(
         has_nonzero,
         "Non-zero-intensity volume must produce at least one non-black pixel"
@@ -204,10 +202,7 @@ fn gpu_vr_nonzero_volume_has_nonzero_output_sync() {
     let img = render_vr_sync(&mut renderer, &volume, wl, NamedColorMap::Grayscale, 0.06)
         .expect("GPU VR must succeed when GPU is available");
 
-    let has_nonzero = img
-        .pixels
-        .iter()
-        .any(|p| p.r() > 0 || p.g() > 0 || p.b() > 0);
+    let has_nonzero = img.rgba_pixels().any(|p| p[0] > 0 || p[1] > 0 || p[2] > 0);
     assert!(
         has_nonzero,
         "Non-zero-intensity volume must produce at least one non-black pixel"
@@ -231,10 +226,11 @@ fn gpu_vr_repeated_render_identical() {
         render_vr_sync(&mut renderer, &vol, wl, cm, 0.06).expect("second VR render (cache reuse)");
 
     assert_eq!(
-        img1.size, img2.size,
+        img1.size(),
+        img2.size(),
         "Sizes must match on repeated VR render"
     );
-    for (i, (a, b)) in img1.pixels.iter().zip(img2.pixels.iter()).enumerate() {
+    for (i, (a, b)) in img1.rgba_pixels().zip(img2.rgba_pixels()).enumerate() {
         assert_eq!(
             a, b,
             "Pixel {i}: repeated VR render must be pixel-identical"
@@ -253,7 +249,7 @@ fn gpu_vr_repeated_render_identical() {
 /// Let `r₁ = render_mip(v, wl, cm)` (after `poll_blocking`).
 ///
 /// Invariant 1: `r₀ = Pending` — no blocking of the calling thread.
-/// Invariant 2: `r₁ = Ready(img)` where `img.size = [cols, rows]`.
+/// Invariant 2: `r₁ = Ready(img)` where `img.size() = [cols, rows]`.
 /// Invariant 3: `img` contains ≥1 non-zero pixel for a non-zero input volume.
 #[test]
 fn gpu_mip_async_first_call_pending_then_yields_result() {
@@ -281,23 +277,20 @@ fn gpu_mip_async_first_call_pending_then_yields_result() {
         panic!("Second render_mip must return Ready after poll_blocking");
     };
 
-    assert_eq!(r1.size, [8, 8], "Output size must be [cols=8, rows=8]");
+    assert_eq!(r1.size(), [8, 8], "Output size must be [cols=8, rows=8]");
     assert_eq!(
-        r1.pixels.len(),
+        r1.rgba_pixels().count(),
         8 * 8,
         "Pixel buffer length must equal rows × cols = 64"
     );
-    let has_nonzero = r1
-        .pixels
-        .iter()
-        .any(|p| p.r() > 0 || p.g() > 0 || p.b() > 0);
+    let has_nonzero = r1.rgba_pixels().any(|p| p[0] > 0 || p[1] > 0 || p[2] > 0);
     assert!(
         has_nonzero,
         "Non-zero test volume must produce at least one non-black MIP pixel"
     );
     tracing::info!(
         "Async MIP contract verified: r0=Pending, r1=Ready({} pixels)",
-        r1.pixels.len()
+        r1.rgba_pixels().count()
     );
 }
 
@@ -333,9 +326,9 @@ fn gpu_mip_changed_window_level_discards_stale_readback() {
         panic!("changed window/level must yield a completed current projection");
     };
 
-    let black_pixel = egui::Color32::from_rgba_unmultiplied(0, 0, 0, 255);
+    let black_pixel = [0, 0, 0, 255];
     assert!(
-        image.pixels.iter().all(|&pixel| pixel == black_pixel),
+        image.rgba_pixels().all(|pixel| pixel == black_pixel),
         "the changed request must render black rather than reuse the white frame"
     );
 }
@@ -347,7 +340,7 @@ fn gpu_mip_changed_window_level_discards_stale_readback() {
 ///
 /// Invariant 1: `render_vr(v, wl, cm, α)` on first call = `Pending`.
 /// Invariant 2: after `poll_blocking`, `render_vr(v, wl, cm, α)` = `Ready(img)`.
-/// Invariant 3: `img.size = [cols, rows]`.
+/// Invariant 3: `img.size() = [cols, rows]`.
 #[test]
 fn gpu_vr_async_first_call_pending_then_yields_result() {
     let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
@@ -374,10 +367,14 @@ fn gpu_vr_async_first_call_pending_then_yields_result() {
         panic!("Second render_vr must return Ready after poll_blocking");
     };
 
-    assert_eq!(r1.size, [8, 8], "Output size must be [cols=8, rows=8]");
-    assert_eq!(r1.pixels.len(), 8 * 8, "Pixel buffer length must equal 64");
+    assert_eq!(r1.size(), [8, 8], "Output size must be [cols=8, rows=8]");
+    assert_eq!(
+        r1.rgba_pixels().count(),
+        8 * 8,
+        "Pixel buffer length must equal 64"
+    );
     tracing::info!(
         "Async VR contract verified: r0=Pending, r1=Ready({} pixels)",
-        r1.pixels.len()
+        r1.rgba_pixels().count()
     );
 }

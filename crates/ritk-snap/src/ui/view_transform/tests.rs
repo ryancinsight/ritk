@@ -1,27 +1,39 @@
 use super::*;
-use crate::render::buffer_pool::RenderBufferPool;
-use egui::{Color32, ColorImage};
+use crate::render::slice_render::RgbaImage;
 
-/// Build a 3×2 (width=3, height=2) test image where each pixel encodes
-/// its position uniquely: pixel(row, col) = Color32::from_rgb(row as u8, col as u8, 0).
-fn make_test_image() -> ColorImage {
-    // size = [width, height] = [3, 2]
-    let w = 3usize;
-    let h = 2usize;
-    let mut pixels = Vec::with_capacity(w * h);
-    for row in 0..h {
-        for col in 0..w {
-            pixels.push(Color32::from_rgb(row as u8, col as u8, 0));
-        }
-    }
-    ColorImage {
-        size: [w, h],
-        pixels,
-    }
+/// Build a 3×2 image where pixel `(row, col)` holds `[row, col, 0, 255]`.
+fn make_test_image() -> RgbaImage {
+    RgbaImage::new(
+        [3, 2],
+        vec![
+            0, 0, 0, 255, 0, 1, 0, 255, 0, 2, 0, 255, 1, 0, 0, 255, 1, 1, 0, 255, 1, 2, 0, 255,
+        ],
+    )
 }
 
-fn px(img: &ColorImage, row: usize, col: usize) -> Color32 {
-    img.pixels[row * img.size[0] + col]
+fn transformed(image: &RgbaImage, transform: ViewTransform) -> RgbaImage {
+    let mut output = Vec::new();
+    let size = apply_to_rgba_into(image.size(), image.pixels(), transform, &mut output)
+        .expect("valid RGBA transform input");
+    RgbaImage::new(size, output)
+}
+
+fn px(img: &RgbaImage, row: usize, col: usize) -> [u8; 4] {
+    img.rgba_pixels()
+        .nth(row * img.size()[0] + col)
+        .expect("pixel within the image")
+}
+
+fn mirrored_left_to_right(image: &RgbaImage) -> RgbaImage {
+    transformed(image, ViewTransform::default().toggle_flip_h())
+}
+
+fn mirrored_top_to_bottom(image: &RgbaImage) -> RgbaImage {
+    transformed(image, ViewTransform::default().toggle_flip_v())
+}
+
+fn rotated_clockwise(image: &RgbaImage) -> RgbaImage {
+    transformed(image, ViewTransform::default().rotate_cw())
 }
 
 // ── Identity ──────────────────────────────────────────────────────────────
@@ -29,11 +41,19 @@ fn px(img: &ColorImage, row: usize, col: usize) -> Color32 {
 #[test]
 fn test_identity_no_change() {
     let img = make_test_image();
-    let result = apply_to_image(&img, ViewTransform::default());
-    assert_eq!(result.size, img.size, "identity must preserve dimensions");
+    let mut output = vec![7_u8; 3];
+    let size = apply_to_rgba_into(
+        img.size(),
+        img.pixels(),
+        ViewTransform::default(),
+        &mut output,
+    )
+    .expect("valid RGBA transform input");
+    assert_eq!(size, img.size(), "identity must preserve dimensions");
     assert_eq!(
-        result.pixels, img.pixels,
-        "identity must preserve pixel values"
+        output,
+        [7, 7, 7],
+        "identity must leave the output untouched"
     );
 }
 
@@ -41,11 +61,11 @@ fn test_identity_no_change() {
 
 #[test]
 fn test_flip_h_pixel_mapping() {
-    // Original: pixel(0,0)=Color32::from_rgb(0,0,0), pixel(0,1)=Color32::from_rgb(0,1,0)
+    // Original: pixel(0,0)=[0,0,0, 255], pixel(0,1)=[0,1,0, 255]
     // After flip_h on width=3: col 0→2, col 1→1, col 2→0
     let img = make_test_image(); // 3×2
-    let flipped = flip_h_image(&img);
-    assert_eq!(flipped.size, [3, 2], "flip_h must preserve dimensions");
+    let flipped = mirrored_left_to_right(&img);
+    assert_eq!(flipped.size(), [3, 2], "flip_h must preserve dimensions");
     // Pixel originally at (row=0, col=0) must now be at (row=0, col=2)
     assert_eq!(
         px(&flipped, 0, 2),
@@ -70,8 +90,8 @@ fn test_flip_h_pixel_mapping() {
 fn test_flip_h_involution() {
     // Two flip_h applications compose to identity.
     let img = make_test_image();
-    let twice = flip_h_image(&flip_h_image(&img));
-    assert_eq!(twice.pixels, img.pixels, "flip_h ∘ flip_h = identity");
+    let twice = mirrored_left_to_right(&mirrored_left_to_right(&img));
+    assert_eq!(twice.pixels(), img.pixels(), "flip_h ∘ flip_h = identity");
 }
 
 // ── Flip vertical ─────────────────────────────────────────────────────────
@@ -79,8 +99,8 @@ fn test_flip_h_involution() {
 #[test]
 fn test_flip_v_pixel_mapping() {
     let img = make_test_image(); // 3×2 (height=2)
-    let flipped = flip_v_image(&img);
-    assert_eq!(flipped.size, [3, 2], "flip_v must preserve dimensions");
+    let flipped = mirrored_top_to_bottom(&img);
+    assert_eq!(flipped.size(), [3, 2], "flip_v must preserve dimensions");
     // Row 0 ↔ row 1 (height = 2 → H-1-0 = 1).
     assert_eq!(
         px(&flipped, 0, 0),
@@ -97,8 +117,8 @@ fn test_flip_v_pixel_mapping() {
 #[test]
 fn test_flip_v_involution() {
     let img = make_test_image();
-    let twice = flip_v_image(&flip_v_image(&img));
-    assert_eq!(twice.pixels, img.pixels, "flip_v ∘ flip_v = identity");
+    let twice = mirrored_top_to_bottom(&mirrored_top_to_bottom(&img));
+    assert_eq!(twice.pixels(), img.pixels(), "flip_v ∘ flip_v = identity");
 }
 
 // ── Rotation ──────────────────────────────────────────────────────────────
@@ -107,8 +127,8 @@ fn test_flip_v_involution() {
 fn test_rotate_90_cw_dimensions() {
     // 3×2 (W=3, H=2) rotated 90° CW → 2×3 (W=H_orig, H=W_orig).
     let img = make_test_image();
-    let r = rotate_90_cw_image(&img);
-    assert_eq!(r.size, [2, 3], "90° CW rotation: size must swap W↔H");
+    let r = rotated_clockwise(&img);
+    assert_eq!(r.size(), [2, 3], "90° CW rotation: size must swap W↔H");
 }
 
 #[test]
@@ -116,7 +136,7 @@ fn test_rotate_90_cw_analytical_mapping() {
     // For 3×2 (W=3, H=2): pixel at (row=0, col=0) maps to output (orow=0, ocol=H-1-row=1).
     // For pixel at (row=1, col=2): output (orow=2, ocol=H-1-1=0).
     let img = make_test_image();
-    let r = rotate_90_cw_image(&img);
+    let r = rotated_clockwise(&img);
     // Original (0,0) → output (0, 1)
     assert_eq!(px(&r, 0, 1), px(&img, 0, 0), "rotate_90_cw: (0,0)→(0,H-1)");
     // Original (0,2) → output (2, 1)
@@ -135,14 +155,16 @@ fn test_four_rotations_is_identity() {
     let img = make_test_image();
     let mut r = img.clone();
     for _ in 0..4 {
-        r = rotate_90_cw_image(&r);
+        r = rotated_clockwise(&r);
     }
     assert_eq!(
-        r.size, img.size,
+        r.size(),
+        img.size(),
         "4×90° rotation: dimensions must be restored"
     );
     assert_eq!(
-        r.pixels, img.pixels,
+        r.pixels(),
+        img.pixels(),
         "4×90° rotation: pixels must be restored"
     );
 }
@@ -173,32 +195,32 @@ fn test_rotate_cw_four_times_is_identity() {
 #[test]
 fn test_continuous_point_mapping_round_trips_all_transforms() {
     let source_size = [7, 4];
-    let points = [
-        egui::pos2(0.0, 0.0),
-        egui::pos2(7.0, 0.0),
-        egui::pos2(0.0, 4.0),
-        egui::pos2(7.0, 4.0),
-        egui::pos2(2.25, 1.75),
-    ];
+    let points = [[0.0, 0.0], [7.0, 0.0], [0.0, 4.0], [7.0, 4.0], [2.25, 1.75]];
 
     for transform in all_transforms() {
-        let output = transform.output_size(source_size);
-        let expected = if matches!(
+        let quarter_turn = matches!(
             transform.rotation,
             RotationSteps::Ninety | RotationSteps::TwoSeventy
-        ) {
-            [4, 7]
+        );
+        let (expected, limits) = if quarter_turn {
+            ([4, 7], [4.0, 7.0])
         } else {
-            source_size
+            (source_size, [7.0, 4.0])
         };
-        assert_eq!(output, expected, "output dimensions for {transform:?}");
+        assert_eq!(
+            transform.output_size(source_size),
+            expected,
+            "output dimensions for {transform:?}"
+        );
+        // The points and extents are dyadic, so f64 reflection is exact.
         for point in points {
-            let mapped = transform.source_to_output(point, source_size);
-            let recovered = transform.output_to_source(mapped, source_size);
-            assert!((recovered.x - point.x).abs() < 1e-5);
-            assert!((recovered.y - point.y).abs() < 1e-5);
-            assert!(mapped.x >= -1e-5 && mapped.x <= output[0] as f32 + 1e-5);
-            assert!(mapped.y >= -1e-5 && mapped.y <= output[1] as f32 + 1e-5);
+            let mapped = transform.source_to_output_coordinates(point, source_size);
+            assert_eq!(
+                transform.output_to_source_coordinates(mapped, source_size),
+                point
+            );
+            assert!((0.0..=limits[0]).contains(&mapped[0]));
+            assert!((0.0..=limits[1]).contains(&mapped[1]));
         }
     }
 }
@@ -206,23 +228,24 @@ fn test_continuous_point_mapping_round_trips_all_transforms() {
 #[test]
 fn test_continuous_point_mapping_matches_pixel_centres() {
     let source_size = [3, 2];
-    let source = egui::pos2(0.5, 0.5);
+    let source = [0.5, 0.5];
     let transform = ViewTransform {
         flip_h: true,
         flip_v: false,
         rotation: RotationSteps::Ninety,
     };
-    let output = transform.source_to_output(source, source_size);
-    assert_eq!(output, egui::pos2(1.5, 2.5));
-    let recovered = transform.output_to_source(output, source_size);
-    assert_eq!(recovered, source);
+    let output = transform.source_to_output_coordinates(source, source_size);
+    assert_eq!(output, [1.5, 2.5]);
+    assert_eq!(
+        transform.output_to_source_coordinates(output, source_size),
+        source
+    );
 }
 
-// ── Differential equivalence: apply_to_image_into vs apply_to_image ────
+// ── Reusable storage ───────────────────────────────────────────────────
 //
-// For every (flip_h, flip_v, rotation) combination (2×2×4 = 16), verify
-// that the single-pass scratch-based function produces pixel-identical
-// output to the multi-step allocating function.
+// Every (flip_h, flip_v, rotation) combination (2×2×4 = 16) places pixels
+// where the display coordinate mapping says they are, and reuses its storage.
 
 /// Generate all 16 ViewTransform combinations.
 fn all_transforms() -> Vec<ViewTransform> {
@@ -247,156 +270,44 @@ fn all_transforms() -> Vec<ViewTransform> {
 }
 
 #[test]
-fn test_apply_to_image_into_differential_all_16_combinations() {
-    let img = make_test_image(); // 3×2
-    let mut pool = RenderBufferPool::default();
-
-    for t in all_transforms() {
-        let expected = apply_to_image(&img, t);
-        let actual = apply_to_image_into(&mut pool, &img, t);
-        assert_eq!(
-            actual.size, expected.size,
-            "apply_to_image_into size mismatch for {:?}",
-            t
-        );
-        assert_eq!(
-            actual.pixels, expected.pixels,
-            "apply_to_image_into pixel mismatch for {:?}",
-            t
-        );
-    }
-}
-
-#[test]
-fn test_apply_to_rgba_matches_color_image_for_all_16_combinations() {
+fn test_apply_to_rgba_into_agrees_with_the_display_mapping() {
     let img = make_test_image();
-    let rgba = img
-        .pixels
-        .iter()
-        .flat_map(|pixel| pixel.to_array())
-        .collect::<Vec<_>>()
-        .into_boxed_slice();
-
-    for transform in all_transforms() {
-        let expected = apply_to_image(&img, transform);
-        let (size, actual) =
-            apply_to_rgba(img.size, rgba.clone(), transform).expect("valid RGBA transform input");
-        let expected_rgba = expected
-            .pixels
-            .iter()
-            .flat_map(|pixel| pixel.to_array())
-            .collect::<Vec<_>>();
-        assert_eq!(size, expected.size, "RGBA size mismatch for {transform:?}");
-        assert_eq!(
-            actual.as_ref(),
-            expected_rgba,
-            "RGBA pixels mismatch for {transform:?}"
-        );
-    }
-}
-
-#[test]
-fn test_apply_to_rgba_into_reuses_storage_and_matches_owned_transform() {
-    let img = make_test_image();
-    let rgba = img
-        .pixels
-        .iter()
-        .flat_map(|pixel| pixel.to_array())
-        .collect::<Vec<_>>();
-    let transform = ViewTransform {
-        flip_h: true,
-        flip_v: false,
-        rotation: RotationSteps::Ninety,
-    };
     let mut output = Vec::new();
-
-    let expected = apply_to_rgba(img.size, rgba.clone().into_boxed_slice(), transform)
-        .expect("valid RGBA transform input");
-    let actual_size = apply_to_rgba_into(img.size, &rgba, transform, &mut output)
-        .expect("valid reusable RGBA transform input");
-    let warm_capacity = output.capacity();
-    assert_eq!(actual_size, expected.0, "reusable transform size mismatch");
-    assert_eq!(
-        output,
-        expected.1.as_ref(),
-        "reusable transform pixels mismatch"
-    );
-
-    let repeat_size = apply_to_rgba_into(img.size, &rgba, transform, &mut output)
-        .expect("repeat reusable RGBA transform input");
-    assert_eq!(repeat_size, actual_size, "repeat transform size mismatch");
-    assert_eq!(
-        output,
-        expected.1.as_ref(),
-        "repeat transform pixels mismatch"
-    );
-    assert_eq!(
-        output.capacity(),
-        warm_capacity,
-        "repeated transform must retain its warmed output capacity"
-    );
-}
-
-#[test]
-fn test_apply_to_image_into_pool_reuse_consistent() {
-    let img = make_test_image();
-    let mut pool = RenderBufferPool::default();
-    let t = ViewTransform {
-        flip_h: true,
-        flip_v: false,
-        rotation: RotationSteps::Ninety,
-    };
-
-    let first = apply_to_image_into(&mut pool, &img, t);
-    let second = apply_to_image_into(&mut pool, &img, t);
-    assert_eq!(
-        first.pixels, second.pixels,
-        "pool reuse must produce identical output across consecutive calls"
-    );
-}
-
-#[test]
-fn test_apply_to_image_into_identity_no_deep_copy() {
-    // Identity path returns img.clone() which is an Arc bump, not deep copy.
-    let img = make_test_image();
-    let mut pool = RenderBufferPool::default();
-    let result = apply_to_image_into(&mut pool, &img, ViewTransform::default());
-    assert_eq!(result.size, img.size, "identity must preserve dimensions");
-    assert_eq!(
-        result.pixels, img.pixels,
-        "identity must preserve pixel values"
-    );
-}
-
-#[test]
-fn test_apply_to_image_into_square_image_all_combinations() {
-    // Test with a square image where W==H to catch dimension-swap edge cases.
-    let w = 3usize;
-    let h = 3usize;
-    let mut pixels = Vec::with_capacity(w * h);
-    for row in 0..h {
-        for col in 0..w {
-            pixels.push(Color32::from_rgb(row as u8, col as u8, 1));
+    for transform in all_transforms().into_iter().filter(|t| !t.is_identity()) {
+        let size = apply_to_rgba_into(img.size(), img.pixels(), transform, &mut output)
+            .expect("valid RGBA transform input");
+        for (row, line) in (0_u8..).zip(output.chunks_exact(size[0] * 4)) {
+            for (column, pixel) in (0_u8..).zip(line.chunks_exact(4)) {
+                let centre = [f64::from(column) + 0.5, f64::from(row) + 0.5];
+                let source = transform.output_to_source_coordinates(centre, img.size());
+                // Each pixel stores its source row and column. Half-integers
+                // this small are exact, so the mapping is compared exactly.
+                assert_eq!(
+                    source,
+                    [f64::from(pixel[1]) + 0.5, f64::from(pixel[0]) + 0.5],
+                    "{transform:?} at output row {row}, column {column}"
+                );
+            }
         }
     }
-    let img = ColorImage {
-        size: [w, h],
-        pixels,
-    };
-    let mut pool = RenderBufferPool::default();
+}
 
-    for t in all_transforms() {
-        let expected = apply_to_image(&img, t);
-        let actual = apply_to_image_into(&mut pool, &img, t);
-        assert_eq!(
-            actual.size, expected.size,
-            "square: size mismatch for {:?}",
-            t
-        );
-        assert_eq!(
-            actual.pixels, expected.pixels,
-            "square: pixel mismatch for {:?}",
-            t
-        );
+#[test]
+fn test_apply_to_rgba_into_reuses_storage_for_every_transform() {
+    let img = make_test_image();
+    let mut output = Vec::new();
+    for transform in all_transforms() {
+        let size = apply_to_rgba_into(img.size(), img.pixels(), transform, &mut output)
+            .expect("valid reusable RGBA transform input");
+        assert_eq!(size, transform.output_size(img.size()));
+        if !transform.is_identity() {
+            assert_eq!(output.len(), size[0] * size[1] * 4);
+        }
+    }
+    let warm_capacity = output.capacity();
+    for transform in all_transforms() {
+        apply_to_rgba_into(img.size(), img.pixels(), transform, &mut output)
+            .expect("repeat reusable RGBA transform input");
+        assert_eq!(output.capacity(), warm_capacity);
     }
 }

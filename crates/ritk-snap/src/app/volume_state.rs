@@ -1,22 +1,19 @@
 //! Generic volume loading (file/bytes), study lifecycle, and histogram cache.
 
-#[cfg(any(target_arch = "wasm32", feature = "eframe-shell"))]
 use std::sync::Arc;
-#[cfg(any(target_arch = "wasm32", feature = "eframe-shell"))]
 use tracing::error;
 use tracing::info;
 
 use super::state::SnapApp;
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+#[cfg(not(target_arch = "wasm32"))]
 use super::state::{ProjectionBackend, ProjectionMode, SeriesLoadTarget, DEFAULT_FUSION_ALPHA};
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+#[cfg(not(target_arch = "wasm32"))]
 use super::volume_input::VolumeInput;
 use crate::dicom::select_hanging_protocol;
 use crate::label::LabelEditor;
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+#[cfg(not(target_arch = "wasm32"))]
 use crate::render::NamedColorMap;
 use crate::tools::interaction::{ToolState, ViewportOffset};
-#[cfg(any(target_arch = "wasm32", feature = "eframe-shell"))]
 use crate::ui::DroppedInputAction;
 use crate::ui::LinkedCursor;
 use crate::LoadedVolume;
@@ -71,7 +68,7 @@ impl SnapApp {
         state.slice_index = shape[0] / 2;
 
         self.cine.stop();
-        #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+        #[cfg(not(target_arch = "wasm32"))]
         {
             self.selected_series = super::volume_input::VolumeInput::acquisition(&vol);
         }
@@ -80,7 +77,7 @@ impl SnapApp {
         self.axis = protocol.preferred_axis.min(2);
         self.coronal_slice = shape[1] / 2;
         self.sagittal_slice = shape[2] / 2;
-        #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+        #[cfg(not(target_arch = "wasm32"))]
         {
             self.multi_planar = protocol.layout
                 == crate::dicom::hanging_protocol::LayoutSuggestion::MultiPlanarReformat;
@@ -96,7 +93,7 @@ impl SnapApp {
         ));
         self.annotations.clear();
         self.label_editor = Some(LabelEditor::new(shape));
-        #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+        #[cfg(not(target_arch = "wasm32"))]
         {
             self.rt_struct = None;
             self.rt_dose = None;
@@ -114,17 +111,21 @@ impl SnapApp {
         self.colormap =
             Self::colormap_for_modality(self.loaded.as_ref().and_then(|v| v.modality.as_deref()));
         self.bump_visual_revision();
-        #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+        #[cfg(not(target_arch = "wasm32"))]
         {
             self.projection_backend = ProjectionBackend::Pending;
         }
         self.status_message = status_msg;
-        #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+        #[cfg(not(target_arch = "wasm32"))]
         self.refresh_cached_histogram();
         info!("{}", self.status_message);
     }
 
-    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-OPEN-001")
+    )]
     pub(crate) fn load_volume_file(&mut self, path: std::path::PathBuf) {
         match crate::dicom::loader::load_volume_from_path(&path) {
             Ok(vol) => {
@@ -149,7 +150,10 @@ impl SnapApp {
     }
 
     /// Load a medical image volume from pathless dropped bytes.
-    #[cfg(any(target_arch = "wasm32", feature = "eframe-shell"))]
+    #[cfg_attr(
+        not(any(test, target_arch = "wasm32")),
+        expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-OPEN-001")
+    )]
     pub(crate) fn load_volume_bytes(&mut self, name_hint: String, bytes: &[u8]) {
         match crate::dicom::loader::load_volume_from_bytes(&name_hint, bytes) {
             Ok(vol) => {
@@ -175,7 +179,10 @@ impl SnapApp {
     }
 
     /// Load a DICOM series from pathless dropped named byte payloads.
-    #[cfg(any(target_arch = "wasm32", feature = "eframe-shell"))]
+    #[cfg_attr(
+        not(any(test, target_arch = "wasm32")),
+        expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-OPEN-001")
+    )]
     pub(crate) fn load_dicom_series_bytes(&mut self, files: Vec<(String, Arc<[u8]>)>) {
         let borrowed: Vec<(String, &[u8])> = files
             .iter()
@@ -207,13 +214,16 @@ impl SnapApp {
 
     /// Applies one dropped-input decision to the RITK-owned load state.
     ///
-    /// Both the eframe shell and the Métis browser canvas use this reducer so
+    /// The Métis native and browser hosts use this reducer so
     /// pathless browser bytes and native paths cannot diverge in DICOM
     /// classification or replacement semantics.
-    #[cfg(any(target_arch = "wasm32", feature = "eframe-shell"))]
+    #[cfg_attr(
+        not(any(test, target_arch = "wasm32")),
+        expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-OPEN-001")
+    )]
     pub(crate) fn apply_dropped_input_action(&mut self, action: DroppedInputAction) {
         match action {
-            #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+            #[cfg(not(target_arch = "wasm32"))]
             DroppedInputAction::QueueDicom(path) => {
                 self.scan_for_series(path.clone());
                 self.pending_load = Some(VolumeInput::Path(path.clone()));
@@ -226,7 +236,7 @@ impl SnapApp {
                     path.display()
                 );
             }
-            #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+            #[cfg(not(target_arch = "wasm32"))]
             DroppedInputAction::LoadVolume(path) => {
                 self.load_volume_file(path);
             }
@@ -251,7 +261,11 @@ impl SnapApp {
     }
 
     /// Drop the currently loaded study and reset all study-owned state.
-    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-OPEN-001")
+    )]
     pub(crate) fn close_study(&mut self) {
         self.cancel_load_tasks();
         self.loaded = None;
@@ -290,7 +304,7 @@ impl SnapApp {
         self.status_message = "Study closed.".to_owned();
     }
 
-    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn refresh_cached_histogram(&mut self) {
         use crate::render::histogram::compute_histogram;
 

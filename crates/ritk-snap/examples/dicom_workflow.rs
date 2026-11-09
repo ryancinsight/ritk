@@ -10,7 +10,7 @@ use ritk_snap::render::{
     render_fused_slice, FusedSliceParams, GrayscalePresentation, NamedColorMap, SliceRenderer,
     VoiLutFunction, WindowLevel,
 };
-use ritk_snap::ui::{apply_to_image, voxel_to_lps, RotationSteps, ViewTransform};
+use ritk_snap::ui::{apply_to_rgba_into, voxel_to_lps, RotationSteps, ViewTransform};
 use std::path::PathBuf;
 
 #[path = "../src/dicom/loader/tests/fixtures.rs"]
@@ -83,13 +83,9 @@ fn main() -> Result<()> {
             WindowLevel::new(235.0, 510.0),
             NamedColorMap::Grayscale,
         );
-        let rgba: Vec<_> = rendered
-            .pixels
-            .iter()
-            .flat_map(|pixel| pixel.to_array())
-            .collect();
-        let width = u32::try_from(rendered.size[0])?;
-        let height = u32::try_from(rendered.size[1])?;
+        let rgba: Vec<u8> = rendered.pixels().to_vec();
+        let width = u32::try_from(rendered.size()[0])?;
+        let height = u32::try_from(rendered.size()[1])?;
         let pixels =
             image::RgbaImage::from_raw(width, height, rgba).context("rendered RGBA dimensions")?;
         pixels.save(output.join(format!("{name}.png")))?;
@@ -102,7 +98,7 @@ fn main() -> Result<()> {
             image::imageops::FilterType::Nearest,
         )
         .save(output.join(format!("{name}-grid.png")))?;
-        captures.push(serde_json::json!({"axis": axis, "index": index, "image": format!("{name}.png"), "size": rendered.size}));
+        captures.push(serde_json::json!({"axis": axis, "index": index, "image": format!("{name}.png"), "size": rendered.size()}));
     }
 
     let color_study = output.join("color-study");
@@ -129,13 +125,9 @@ fn main() -> Result<()> {
             WindowLevel::new(-10_000.0, 1.0),
             NamedColorMap::Hot,
         );
-        let rgba: Vec<_> = rendered
-            .pixels
-            .iter()
-            .flat_map(|pixel| pixel.to_array())
-            .collect();
-        let width = u32::try_from(rendered.size[0])?;
-        let height = u32::try_from(rendered.size[1])?;
+        let rgba: Vec<u8> = rendered.pixels().to_vec();
+        let width = u32::try_from(rendered.size()[0])?;
+        let height = u32::try_from(rendered.size()[1])?;
         let pixels = image::RgbaImage::from_raw(width, height, rgba)
             .context("rendered RGB RGBA dimensions")?;
         pixels.save(output.join(format!("{name}.png")))?;
@@ -150,7 +142,7 @@ fn main() -> Result<()> {
             "axis": axis,
             "index": 0,
             "image": format!("{name}.png"),
-            "size": rendered.size,
+            "size": rendered.size(),
             "display": "decoded RGB channels bypass scalar windowing"
         }));
     }
@@ -182,13 +174,9 @@ fn main() -> Result<()> {
         WindowLevel::new(0.0, 40.0),
         NamedColorMap::Grayscale,
     );
-    let grayscale_rgba: Vec<_> = grayscale_rendered
-        .pixels
-        .iter()
-        .flat_map(|pixel| pixel.to_array())
-        .collect();
-    let grayscale_width = u32::try_from(grayscale_rendered.size[0])?;
-    let grayscale_height = u32::try_from(grayscale_rendered.size[1])?;
+    let grayscale_rgba: Vec<u8> = grayscale_rendered.pixels().to_vec();
+    let grayscale_width = u32::try_from(grayscale_rendered.size()[0])?;
+    let grayscale_height = u32::try_from(grayscale_rendered.size()[1])?;
     let grayscale_pixels =
         image::RgbaImage::from_raw(grayscale_width, grayscale_height, grayscale_rgba)
             .context("rendered grayscale RGBA dimensions")?;
@@ -204,7 +192,7 @@ fn main() -> Result<()> {
         "axis": 0,
         "index": 0,
         "image": "grayscale.png",
-        "size": grayscale_rendered.size,
+        "size": grayscale_rendered.size(),
         "photometric": "MONOCHROME1",
         "voi_function": "LINEAR_EXACT",
         "decoded_values": grayscale_volume.data.as_ref(),
@@ -218,21 +206,19 @@ fn main() -> Result<()> {
         WindowLevel::new(235.0, 510.0),
         NamedColorMap::Grayscale,
     );
-    let transformed = apply_to_image(
-        &transformed,
+    let mut transformed_rgba = Vec::new();
+    let transformed_size = apply_to_rgba_into(
+        transformed.size(),
+        transformed.pixels(),
         ViewTransform {
             flip_h: true,
             flip_v: false,
             rotation: RotationSteps::Ninety,
         },
-    );
-    let transformed_rgba: Vec<_> = transformed
-        .pixels
-        .iter()
-        .flat_map(|pixel| pixel.to_array())
-        .collect();
-    let transformed_width = u32::try_from(transformed.size[0])?;
-    let transformed_height = u32::try_from(transformed.size[1])?;
+        &mut transformed_rgba,
+    )?;
+    let transformed_width = u32::try_from(transformed_size[0])?;
+    let transformed_height = u32::try_from(transformed_size[1])?;
     let transformed_pixels =
         image::RgbaImage::from_raw(transformed_width, transformed_height, transformed_rgba)
             .context("transformed RGBA dimensions")?;
@@ -248,7 +234,7 @@ fn main() -> Result<()> {
         "axis": 0,
         "index": 1,
         "image": "orientation.png",
-        "size": transformed.size,
+        "size": transformed_size,
         "transform": "flip_h then rotate clockwise 90 degrees"
     }));
 
@@ -294,13 +280,9 @@ fn main() -> Result<()> {
         0.5,
     )
     .map_err(|error| anyhow::anyhow!("render fused slice: {error}"))?;
-    let fused_rgba: Vec<_> = fused
-        .pixels
-        .iter()
-        .flat_map(|pixel| pixel.to_array())
-        .collect();
-    let fused_width = u32::try_from(fused.size[0])?;
-    let fused_height = u32::try_from(fused.size[1])?;
+    let fused_rgba: Vec<u8> = fused.pixels().to_vec();
+    let fused_width = u32::try_from(fused.size()[0])?;
+    let fused_height = u32::try_from(fused.size()[1])?;
     let fused_pixels = image::RgbaImage::from_raw(fused_width, fused_height, fused_rgba)
         .context("fused RGBA dimensions")?;
     fused_pixels.save(output.join("fusion.png"))?;
@@ -342,7 +324,7 @@ fn main() -> Result<()> {
         "index": 1,
         "secondary_index": secondary_slice,
         "image": "fusion.png",
-        "size": fused.size,
+        "size": fused.size(),
         "coordinate_labels": fusion_landmarks,
     }));
     let report = serde_json::json!({

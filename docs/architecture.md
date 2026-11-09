@@ -300,30 +300,16 @@ For any RGB TIFF page stack with depth `d`, height `h`, width `w`, and decoded i
 
 ### 17. Render Pipeline Scratch-Buffer Boundary
 
-> **Theorem 17.1 (Render-Path Zero-Allocation After Warm-Up)**: Once `RenderBufferPool` scratch buffers have reached peak observed dimension, all subsequent dirty-texture rebuilds for equal or smaller dimensions incur zero heap allocations.
+> **Theorem 17.1 (Render-Path Zero-Allocation After Warm-Up)**: Once `FrameRenderScratch` buffers have reached the peak observed dimension, subsequent presentation frames of equal or smaller dimension allocate no pixel storage.
 
 **Boundary surface**:
-- `ritk-snap::render::buffer_pool::RenderBufferPool` owns three monotone-capacity scratch buffers: `pixel_f32: Vec<f32>`, `rgba_u8: Vec<u8>`, `color32: Vec<egui::Color32>`.
-- `SliceRenderer::render_with_scratch` writes f32 extraction and u8 RGBA encoding into `pool.pixel_f32` and `pool.rgba_u8`, replacing the former per-rebuild `Vec<f32>` and `Vec<u8>` allocations.
-- `render_mip_axial_with_scratch` / `render_vr_axial_with_scratch` write RGBA into `pool.rgba_u8`.
-- `apply_to_image_into` writes viewport orientation transform output (flip/rotate) into `pool.color32`, replacing the former multi-step `Vec<Color32>` allocations (one per flip/rotate step).
-- `SnapApp::render_buffer_pool` is the single owner; it is threaded through as `&mut RenderBufferPool`.
+- `ritk-snap::render::FrameRenderScratch` owns two monotone-capacity buffers: `pixel_f32: AlignedVec<f32>` for slice extraction and `rgba: Vec<u8>` for RGBA encoding.
+- A presentation frame swaps its completed storage with the scratch value, so the next render writes into the storage returned by the previous frame.
+- `apply_to_rgba_into` writes the orientation transform (flip/rotate) into caller-owned storage and leaves it untouched for the identity.
 
-**Capacity invariant**: `Vec::capacity` is monotone non-decreasing for each scratch field. `resize_u8`, `resize_color32`, and direct `pixel_f32.resize` extend when needed and reuse without shrinking. New elements are zero-initialized (`0_u8`, `Color32::BLACK`, `0.0_f32`).
+**Capacity invariant**: `Vec::capacity` is monotone non-decreasing for each scratch field across equal or smaller frames.
 
-**Allocation profile per dirty-texture rebuild (after warm-up)**:
-
-| Operation | Before pool | After pool | Remaining |
-|---|---|---|---|
-| `extract_slice` → f32 | 1 × `Vec<f32>` alloc | 0 (reused) | — |
-| RGBA encoding → u8 | 1 × `Vec<u8>` alloc | 0 (reused) | — |
-| Orientation transform | N × `Vec<Color32>` allocs | 0 (reused) | — |
-| `ColorImage::from_rgba_unmultiplied` | 1 × `Vec<Color32>` alloc | same | 1 (egui API) |
-| Texture name string | 1 × `String` alloc (format!) | 0 (static str) | — |
-
-**Deferred**: `egui::ColorImage::from_rgba_unmultiplied` constructs a `Vec<Color32>` internally. Eliminating this requires an egui API addition for in-place texture pixel update. Tracked as GAP-258-PERF-03 (Low, blocked on upstream).
-
-**Proof obligation**: For all valid (`img`, `transform`) inputs, `apply_to_image_into(pool, img, transform).pixels == apply_to_image(img, transform).pixels`. The differential test suite in `view_transform/tests.rs` verifies pixel identity across all 16 `(flip_h, flip_v, rotation)` combinations for both rectangular and square images.
+**Evidence**: `frame_scratch_capacity_does_not_fall_across_smaller_frames` in `render/tests_frame_scratch.rs` and `test_apply_to_rgba_into_reuses_storage_for_every_transform` in `ui/view_transform/tests.rs`.
 
 ### 18. Image Comparison Metrics Boundary
 

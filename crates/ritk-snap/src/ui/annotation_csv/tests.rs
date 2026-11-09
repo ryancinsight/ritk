@@ -194,51 +194,6 @@ fn csv_multi_annotation_indices_are_sequential() {
 
 // ── AnnotationPanelAction equality ────────────────────────────────────────
 
-#[test]
-fn action_none_equals_none() {
-    assert_eq!(AnnotationPanelAction::None, AnnotationPanelAction::None);
-}
-
-#[test]
-fn action_delete_carries_index() {
-    let action = AnnotationPanelAction::Delete(3);
-    match action {
-        AnnotationPanelAction::Delete(i) => {
-            assert_eq!(i, 3, "Delete must carry the exact index")
-        }
-        _ => panic!("expected Delete variant"),
-    }
-}
-
-#[test]
-fn action_clear_all_is_distinct_from_delete() {
-    assert_ne!(
-        AnnotationPanelAction::ClearAll,
-        AnnotationPanelAction::Delete(0),
-        "ClearAll and Delete(0) must be distinct actions"
-    );
-}
-
-#[test]
-fn action_export_csv_payload_matches_csv_for() {
-    let annotations = vec![Annotation::Length {
-        p1: [0.0, 0.0],
-        p2: [3.0, 4.0],
-        length_mm: 5.0,
-    }];
-    let expected_csv = csv_for(&annotations);
-    let action = AnnotationPanelAction::ExportCsv(expected_csv.clone());
-    match action {
-        AnnotationPanelAction::ExportCsv(payload) => {
-            assert_eq!(
-                payload, expected_csv,
-                "ExportCsv payload must equal csv_for output"
-            );
-        }
-        _ => panic!("expected ExportCsv variant"),
-    }
-}
-
 // ── annotation_label determinism ──────────────────────────────────────────
 
 #[test]

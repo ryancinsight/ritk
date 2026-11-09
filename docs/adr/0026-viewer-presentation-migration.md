@@ -6,6 +6,12 @@ Date: 2026-09-06
 
 Driver: [RITK-SNAP-METIS-001](../../backlog.md#RITK-SNAP-METIS-001).
 
+Revision 2026-11-09: at the maintainer's direction the `eframe-shell` feature
+and the eframe, egui and rfd dependencies are deleted; Métis is the only
+desktop shell and no compatibility shell remains. Later text describing an
+eframe path records the state at that revision. Non-shell logic stays in RITK
+behind per-capability native port items (PR #849).
+
 Revision 2026-09-08: [RITK-SNAP-RESOURCES-001](../../backlog.md#RITK-SNAP-RESOURCES-001)
 now has a `ritk-dicom` structural Part 10 preflight backed by the existing
 Consus `ParseBudget`. All selected, exact-member, SCP, named-byte, and
@@ -148,7 +154,7 @@ state. A hidden capture run exits after its first idle batch and writes the
 validated RITK source frame, so capture is finite and does not wait for user
 input. Session tests assert slice changes, resize/minimize behavior, DPI
 rejection, focus cancellation, close, and capture completion. The command is
-`ritk-snap PATH --metis-native`; the native host owns only window, event and
+`ritk-snap PATH`; the native host owns only window, event and
 framebuffer lifecycle. Browser handoff, the three-view composition, GPU upload,
 full application-window goldens and packaged installer artifacts remain open.
 The public `AppLaunchOptions` struct gains `metis_native`, so downstream
@@ -202,7 +208,7 @@ mapped staging cache. This closes the panic observed while opening the public
 409 × 512 × 512 CT series without moving DICOM decoding or clinical state into
 the host. A fitting-volume capture now exercises the GPU projection and shows
 the `3D MIP · GPU` status label in the complete eframe application; the
-provenance is [`dicom-eframe-real-gpu-ct.json`](../manual/images/dicom-eframe-real-gpu-ct.json).
+provenance record `dicom-eframe-real-gpu-ct.json` was deleted with that shell.
 The size helper, stale-readback invalidation, and device-limit tests plus the
 full `ritk-snap` nextest run verify the behavior.
 

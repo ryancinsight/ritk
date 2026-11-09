@@ -1,13 +1,6 @@
 use super::*;
 
-// ── Pure value tests against published reference data ─────────────────────
-//
-// These tests do not invoke egui rendering (no Ui available in unit test
-// context). They validate the analytical invariants over `WindowPreset`
-// values that `draw_preset_buttons` would return when a button is clicked.
-//
-// Integration coverage (button clicks) is exercised through app-level tests
-// that synthesize the egui context.
+// Window presets against published reference data.
 
 /// CT Brain preset center = 40 HU, width = 80 HU.
 /// Reference: DICOM PS3.3 §C.7.6.3.1.5; Prokop & Galanski standard.
@@ -156,25 +149,4 @@ fn for_modality_none_falls_back_to_ct() {
         presets_ct.len(),
         "None modality must fall back to CT preset list"
     );
-}
-
-/// Preset identity: a WindowPreset round-trips through copy without mutation.
-/// Validates that `draw_preset_buttons` returns an identical value to what
-/// the presets slice contains (copy semantics, no transformation).
-#[test]
-fn preset_copy_identity() {
-    for &p in WindowPreset::ct_presets() {
-        let q = p; // copy
-        assert_eq!(
-            p.center, q.center,
-            "copy must preserve center for '{}'",
-            p.name
-        );
-        assert_eq!(
-            p.width, q.width,
-            "copy must preserve width for '{}'",
-            p.name
-        );
-        assert_eq!(p.name, q.name, "copy must preserve name for '{}'", p.name);
-    }
 }

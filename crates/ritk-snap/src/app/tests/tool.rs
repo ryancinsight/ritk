@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::tools::interaction::{ImagePoint, ViewportOffset};
-use crate::ui::tool_kind_for_key;
+use crate::ui::tool_kind_for_virtual_key;
 
 #[test]
 fn zoom_tool_drag_updates_zoom_from_pointer_delta() {
@@ -114,7 +114,7 @@ fn window_level_drag_updates_center_and_width_via_ssot() {
 fn tool_shortcut_l_selects_measure_length() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Pan; // different tool initially
-    if let Some(tool) = tool_kind_for_key(egui::Key::L) {
+    if let Some(tool) = tool_kind_for_virtual_key(u32::from(b'L')) {
         app.active_tool = tool;
     }
     assert_eq!(app.active_tool, ToolKind::MeasureLength);
@@ -125,7 +125,7 @@ fn tool_shortcut_l_selects_measure_length() {
 fn tool_shortcut_a_selects_measure_angle() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Pan;
-    if let Some(tool) = tool_kind_for_key(egui::Key::A) {
+    if let Some(tool) = tool_kind_for_virtual_key(u32::from(b'A')) {
         app.active_tool = tool;
     }
     assert_eq!(app.active_tool, ToolKind::MeasureAngle);
@@ -136,7 +136,7 @@ fn tool_shortcut_a_selects_measure_angle() {
 fn tool_shortcut_r_selects_roi_rect() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Zoom;
-    if let Some(tool) = tool_kind_for_key(egui::Key::R) {
+    if let Some(tool) = tool_kind_for_virtual_key(u32::from(b'R')) {
         app.active_tool = tool;
     }
     assert_eq!(app.active_tool, ToolKind::RoiRect);
@@ -147,7 +147,7 @@ fn tool_shortcut_r_selects_roi_rect() {
 fn tool_shortcut_e_selects_roi_ellipse() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::MeasureLength;
-    if let Some(tool) = tool_kind_for_key(egui::Key::E) {
+    if let Some(tool) = tool_kind_for_virtual_key(u32::from(b'E')) {
         app.active_tool = tool;
     }
     assert_eq!(app.active_tool, ToolKind::RoiEllipse);
@@ -158,7 +158,7 @@ fn tool_shortcut_e_selects_roi_ellipse() {
 fn tool_shortcut_h_selects_point_hu() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::WindowLevel;
-    if let Some(tool) = tool_kind_for_key(egui::Key::H) {
+    if let Some(tool) = tool_kind_for_virtual_key(u32::from(b'H')) {
         app.active_tool = tool;
     }
     assert_eq!(app.active_tool, ToolKind::PointHu);
@@ -169,7 +169,7 @@ fn tool_shortcut_h_selects_point_hu() {
 fn tool_shortcut_p_selects_pan() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Zoom;
-    if let Some(tool) = tool_kind_for_key(egui::Key::P) {
+    if let Some(tool) = tool_kind_for_virtual_key(u32::from(b'P')) {
         app.active_tool = tool;
     }
     assert_eq!(app.active_tool, ToolKind::Pan);
@@ -180,7 +180,7 @@ fn tool_shortcut_p_selects_pan() {
 fn tool_shortcut_z_selects_zoom() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::WindowLevel;
-    if let Some(tool) = tool_kind_for_key(egui::Key::Z) {
+    if let Some(tool) = tool_kind_for_virtual_key(u32::from(b'Z')) {
         app.active_tool = tool;
     }
     assert_eq!(app.active_tool, ToolKind::Zoom);
@@ -191,7 +191,7 @@ fn tool_shortcut_z_selects_zoom() {
 fn tool_shortcut_w_selects_window_level() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Pan;
-    if let Some(tool) = tool_kind_for_key(egui::Key::W) {
+    if let Some(tool) = tool_kind_for_virtual_key(u32::from(b'W')) {
         app.active_tool = tool;
     }
     assert_eq!(app.active_tool, ToolKind::WindowLevel);
@@ -202,7 +202,7 @@ fn tool_shortcut_w_selects_window_level() {
 fn tool_shortcut_b_selects_label_paint() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Zoom;
-    if let Some(tool) = tool_kind_for_key(egui::Key::B) {
+    if let Some(tool) = tool_kind_for_virtual_key(u32::from(b'B')) {
         app.active_tool = tool;
     }
     assert_eq!(app.active_tool, ToolKind::LabelPaint);

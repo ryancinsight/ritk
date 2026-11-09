@@ -157,8 +157,8 @@ fn test_window_level_apply_slice_analytic() {
 
 // ── SliceRenderer shape tests ─────────────────────────────────────────────
 
-/// Axial slice (axis=0) at depth index `d` must produce a ColorImage of
-/// egui size `[cols, rows]` (width = C, height = R).
+/// Axial slice (axis=0) at depth index `d` must produce a RgbaImage of
+/// image size `[cols, rows]` (width = C, height = R).
 ///
 /// Analytical: volume [D=4, R=5, C=6], d=2 → width=6, height=5.
 #[test]
@@ -166,21 +166,21 @@ fn test_slice_render_axial_shape() {
     let vol = make_volume(4, 5, 6);
     let wl = WindowLevel::new(12.0, 24.0);
     let img = SliceRenderer::render(&vol, 0, 2, wl, NamedColorMap::Grayscale);
-    // egui::ColorImage size convention: [width, height] = [cols, rows].
+    // RgbaImage size convention: [width, height] = [cols, rows].
     assert_eq!(
-        img.size,
+        img.size(),
         [6, 5],
-        "axial slice of [D=4,R=5,C=6] at d=2 must have egui size [cols=6, rows=5]"
+        "axial slice of [D=4,R=5,C=6] at d=2 must have image size [cols=6, rows=5]"
     );
     assert_eq!(
-        img.pixels.len(),
+        img.rgba_pixels().count(),
         5 * 6,
         "axial pixel count must equal rows × cols = 30"
     );
 }
 
-/// Coronal slice (axis=1) at row index `r` must produce a ColorImage of
-/// egui size `[cols, depth]` (width = C, height = D).
+/// Coronal slice (axis=1) at row index `r` must produce a RgbaImage of
+/// image size `[cols, depth]` (width = C, height = D).
 ///
 /// Analytical: volume [D=4, R=5, C=6], r=2 → width=6, height=4.
 #[test]
@@ -188,21 +188,21 @@ fn test_slice_render_coronal_shape() {
     let vol = make_volume(4, 5, 6);
     let wl = WindowLevel::new(12.0, 24.0);
     let img = SliceRenderer::render(&vol, 1, 2, wl, NamedColorMap::Grayscale);
-    // egui::ColorImage size convention: [width, height] = [cols, depth].
+    // RgbaImage size convention: [width, height] = [cols, depth].
     assert_eq!(
-        img.size,
+        img.size(),
         [6, 4],
-        "coronal slice of [D=4,R=5,C=6] at r=2 must have egui size [cols=6, depth=4]"
+        "coronal slice of [D=4,R=5,C=6] at r=2 must have image size [cols=6, depth=4]"
     );
     assert_eq!(
-        img.pixels.len(),
+        img.rgba_pixels().count(),
         4 * 6,
         "coronal pixel count must equal depth × cols = 24"
     );
 }
 
-/// Sagittal slice (axis=2) at column index `c` must produce a ColorImage
-/// of egui size `[rows, depth]` (width = R, height = D).
+/// Sagittal slice (axis=2) at column index `c` must produce a RgbaImage
+/// of image size `[rows, depth]` (width = R, height = D).
 ///
 /// Analytical: volume [D=4, R=5, C=6], c=1 → width=5, height=4.
 #[test]
@@ -210,14 +210,14 @@ fn test_slice_render_sagittal_shape() {
     let vol = make_volume(4, 5, 6);
     let wl = WindowLevel::new(12.0, 24.0);
     let img = SliceRenderer::render(&vol, 2, 1, wl, NamedColorMap::Grayscale);
-    // egui::ColorImage size convention: [width, height] = [rows, depth].
+    // RgbaImage size convention: [width, height] = [rows, depth].
     assert_eq!(
-        img.size,
+        img.size(),
         [5, 4],
-        "sagittal slice of [D=4,R=5,C=6] at c=1 must have egui size [rows=5, depth=4]"
+        "sagittal slice of [D=4,R=5,C=6] at c=1 must have image size [rows=5, depth=4]"
     );
     assert_eq!(
-        img.pixels.len(),
+        img.rgba_pixels().count(),
         4 * 5,
         "sagittal pixel count must equal depth × rows = 20"
     );
@@ -235,7 +235,7 @@ fn test_slice_render_axial_pixel_values() {
     let wl = WindowLevel::new(4.0, 8.0);
     let img = SliceRenderer::render(&vol, 0, 0, wl, NamedColorMap::Grayscale);
     // Extract the red channel (= green = blue for Grayscale).
-    let actual: Vec<u8> = img.pixels.iter().map(|p| p.r()).collect();
+    let actual: Vec<u8> = img.rgba_pixels().map(|p| p[0]).collect();
     // DICOM default LINEAR values (see test_window_level_apply_slice_analytic).
     let expected: Vec<u8> = vec![0, 36, 73, 109, 146, 182, 219, 255, 255];
     assert_eq!(
@@ -285,7 +285,7 @@ fn test_slice_render_rgb_preserves_channels_in_all_axes() {
 
     for (axis, index, expected_pixels) in expected {
         let image = SliceRenderer::render(&volume, axis, index, wl, NamedColorMap::Hot);
-        let actual: Vec<[u8; 4]> = image.pixels.iter().map(egui::Color32::to_array).collect();
+        let actual: Vec<[u8; 4]> = image.rgba_pixels().collect();
         assert_eq!(actual, expected_pixels, "RGB channel order for axis {axis}");
     }
 }
@@ -296,11 +296,11 @@ fn test_slice_render_rgb_preserves_channels_in_all_axes() {
 fn test_slice_render_rgb_scratch_matches_allocating_path() {
     let volume = make_rgb_volume();
     let wl = WindowLevel::new(123.0, 0.5);
-    let mut pool = RenderBufferPool::default();
+    let mut scratch = FrameRenderScratch::default();
     for (axis, index) in [(0, 1), (1, 1), (2, 1)] {
         let allocating = SliceRenderer::render(&volume, axis, index, wl, NamedColorMap::Viridis);
-        let scratch = SliceRenderer::render_with_scratch(
-            &mut pool,
+        let rendered = frame_image(
+            &mut scratch,
             &volume,
             axis,
             index,
@@ -308,12 +308,27 @@ fn test_slice_render_rgb_scratch_matches_allocating_path() {
             NamedColorMap::Viridis,
         );
         assert_eq!(
-            scratch.size, allocating.size,
+            rendered.size(),
+            allocating.size(),
             "RGB scratch size for axis {axis}"
         );
         assert_eq!(
-            scratch.pixels, allocating.pixels,
+            rendered.pixels(),
+            allocating.pixels(),
             "RGB scratch output for axis {axis}"
         );
     }
+}
+
+/// Render through the reusable frame path into a comparable image.
+fn frame_image(
+    scratch: &mut FrameRenderScratch,
+    volume: &LoadedVolume,
+    axis: usize,
+    index: usize,
+    wl: WindowLevel,
+    colormap: NamedColorMap,
+) -> RgbaImage {
+    let size = SliceRenderer::render_rgba_into(scratch, volume, axis, index, wl, colormap);
+    RgbaImage::new(size, scratch.rgba.clone())
 }

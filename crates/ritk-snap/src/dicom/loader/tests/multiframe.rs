@@ -60,8 +60,8 @@ fn dicom_multiframe_render_uses_each_frame() {
 
     let first = SliceRenderer::render(&volume, 0, 0, window, NamedColorMap::Grayscale);
     let second = SliceRenderer::render(&volume, 0, 1, window, NamedColorMap::Grayscale);
-    let first_values: Vec<[u8; 4]> = first.pixels.iter().map(egui::Color32::to_array).collect();
-    let second_values: Vec<[u8; 4]> = second.pixels.iter().map(egui::Color32::to_array).collect();
+    let first_values: Vec<[u8; 4]> = first.rgba_pixels().collect();
+    let second_values: Vec<[u8; 4]> = second.rgba_pixels().collect();
     let expected = |values: &[u8]| {
         values
             .iter()
@@ -130,11 +130,7 @@ fn dicom_color_multiframe_preserves_channels_and_display() {
         ];
         for (axis, index, expected_pixels) in expected {
             let rendered = SliceRenderer::render(volume, axis, index, window, NamedColorMap::Hot);
-            let actual: Vec<[u8; 4]> = rendered
-                .pixels
-                .iter()
-                .map(egui::Color32::to_array)
-                .collect();
+            let actual: Vec<[u8; 4]> = rendered.rgba_pixels().collect();
             assert_eq!(
                 actual, expected_pixels,
                 "RGB display channels for axis {axis}"

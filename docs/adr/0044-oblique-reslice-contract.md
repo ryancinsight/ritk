@@ -4,6 +4,8 @@
 - Date: 2026-09-20
 - Delivery: [RITK PR #539](https://github.com/ryancinsight/ritk/pull/539), merge `2d9377975b4fc420ab0f16481c6e2a6c80279cc7`.
 
+Revision 2026-11-09: the eframe shell is deleted and Métis is the only desktop shell. Text below that names eframe records the state when this decision was made ([ADR 0026](0026-viewer-presentation-migration.md)).
+
 ## Context
 
 RITK already preserves DICOM origin, spacing and direction through the VTK

@@ -233,3 +233,6 @@ pub(super) fn placement_geometry(
         height: rendered_height,
     })
 }
+
+#[cfg(test)]
+mod tests;

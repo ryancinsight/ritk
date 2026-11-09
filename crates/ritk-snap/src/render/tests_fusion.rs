@@ -1,6 +1,5 @@
 use super::*;
 use crate::render::SliceRenderer;
-use egui::Color32;
 use iris::color::{ColorMap, Normalized};
 use ritk_io::{literal_arraystring, DicomReadMetadata};
 
@@ -77,8 +76,8 @@ fn alpha_zero_equals_primary_render() {
     )
     .expect("identical grids form a valid fusion");
     let primary = SliceRenderer::render(&p, 0, 1, wl, NamedColorMap::Grayscale);
-    assert_eq!(fused.size, primary.size);
-    assert_eq!(fused.pixels, primary.pixels);
+    assert_eq!(fused.size(), primary.size());
+    assert_eq!(fused.pixels(), primary.pixels());
 }
 
 #[test]
@@ -104,8 +103,8 @@ fn output_size_matches_primary_slice_geometry() {
         0.5,
     )
     .expect("parallel planes form a valid fusion");
-    // Axis 1 slice is [depth, cols] => [5, 9] in [rows, cols], egui [width, height].
-    assert_eq!(fused.size, [9, 5]);
+    // Axis 1 slice is [depth, cols] => [5, 9] in [rows, cols], image [width, height].
+    assert_eq!(fused.size(), [9, 5]);
 }
 
 #[test]
@@ -144,10 +143,10 @@ fn pet_secondary_is_windowed_in_suv_units() {
 
     let expected_wl = WindowLevel::new(3.0, 6.0).apply(1.0);
     let [r, g, b] = rgb8(NamedColorMap::Hot, f32::from(expected_wl) / 255.0);
-    assert_eq!(fused.size, [1, 1]);
+    assert_eq!(fused.size(), [1, 1]);
     assert_eq!(
-        fused.pixels[0],
-        Color32::from_rgb(r, g, b),
+        fused.pixels()[..4],
+        [r, g, b, 255],
         "PET fusion must apply SUVbw before the SUV window"
     );
 }
@@ -188,8 +187,8 @@ fn non_pet_secondary_with_pet_fields_uses_raw_window_units() {
     let expected_wl = WindowLevel::new(3.0, 6.0).apply(f64::from(raw_bqml));
     let [r, g, b] = rgb8(NamedColorMap::Hot, f32::from(expected_wl) / 255.0);
     assert_eq!(
-        fused.pixels[0],
-        Color32::from_rgb(r, g, b),
+        fused.pixels()[..4],
+        [r, g, b, 255],
         "non-PT fusion inputs must not apply SUV conversion"
     );
 }
@@ -230,9 +229,9 @@ fn rotated_anisotropic_grids_sample_by_patient_landmarks() {
     .expect("parallel grids with one frame should fuse");
 
     let expected_values = [4.0, 24.0, 2.0, 22.0, 0.0, 20.0];
-    for (pixel, value) in image.pixels.iter().zip(expected_values) {
+    for (pixel, value) in image.rgba_pixels().zip(expected_values) {
         let [red, green, blue] = rgb8(NamedColorMap::Grayscale, f32::from(wl.apply(value)) / 255.0);
-        assert_eq!(*pixel, Color32::from_rgb(red, green, blue));
+        assert_eq!(pixel, [red, green, blue, 255]);
     }
 }
 
@@ -345,7 +344,7 @@ fn out_of_field_in_plane_pixels_keep_primary_values() {
     )
     .expect("in-plane field gaps are a valid partial fusion");
     let primary_image = SliceRenderer::render(&primary, 0, 0, wl, NamedColorMap::Grayscale);
-    assert_eq!(fused.pixels, primary_image.pixels);
+    assert_eq!(fused.pixels(), primary_image.pixels());
 }
 
 #[test]

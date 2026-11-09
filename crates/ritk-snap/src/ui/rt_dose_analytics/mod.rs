@@ -5,8 +5,6 @@
 
 use std::collections::BTreeMap;
 
-#[cfg(feature = "eframe-shell")]
-use egui::{Color32, Pos2, Rect, Stroke, Ui, Vec2};
 use ritk_io::{ContourGeometricType, RtDoseGrid, RtStructureSet};
 
 use crate::ui::rtdose_overlay::extract_dose_slice_for_volume;
@@ -271,42 +269,6 @@ fn build_dvh_curve_histogram(dose_samples: &[f32], max_dose: f32, bins: usize) -
         });
     }
     curve
-}
-
-#[cfg(feature = "eframe-shell")]
-pub fn draw_dvh_curve(ui: &mut Ui, points: &[DvhPoint]) {
-    let desired = Vec2::new(260.0, 120.0);
-    let (rect, _) = ui.allocate_exact_size(desired, egui::Sense::hover());
-    let painter = ui.painter_at(rect);
-
-    painter.rect_stroke(rect, 0.0, Stroke::new(1.0_f32, Color32::GRAY));
-    if points.len() < 2 {
-        return;
-    }
-
-    let max_dose = points
-        .iter()
-        .map(|p| p.dose_gy)
-        .fold(0.0_f32, f32::max)
-        .max(1e-6);
-
-    let to_screen = |dose: f32, frac: f32, area: Rect| -> Pos2 {
-        let x = area.left() + (dose / max_dose).clamp(0.0, 1.0) * area.width();
-        let y = area.bottom() - frac.clamp(0.0, 1.0) * area.height();
-        Pos2::new(x, y)
-    };
-
-    for pair in points.windows(2) {
-        let a = &pair[0];
-        let b = &pair[1];
-        painter.line_segment(
-            [
-                to_screen(a.dose_gy, a.volume_fraction_ge, rect),
-                to_screen(b.dose_gy, b.volume_fraction_ge, rect),
-            ],
-            Stroke::new(1.5_f32, Color32::from_rgb(255, 128, 0)),
-        );
-    }
 }
 
 fn point_in_polygon(row: f32, col: f32, polygon_rc: &[[f32; 2]]) -> bool {

@@ -4,6 +4,8 @@
 - Date: 2026-09-21
 - Delivery: [RITK PR #576](https://github.com/ryancinsight/ritk/pull/576), merge `87b2d841a5849c75f2a1f7523a5d8b0ef0c0c2c4`.
 
+Revision 2026-11-09: the eframe shell is deleted and Métis is the only desktop shell. Text below that names eframe records the state when this decision was made ([ADR 0026](0026-viewer-presentation-migration.md)).
+
 ## Context
 
 The RITK viewer already carries validated physical spacing with every

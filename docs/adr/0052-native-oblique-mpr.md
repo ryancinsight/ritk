@@ -5,6 +5,8 @@
 - Item: [RITK-SNAP-OBLIQUE-NATIVE-001](../../backlog.md#RITK-SNAP-OBLIQUE-NATIVE-001)
 - Revision: 2026-09-27 — co-deliver patient-length persistence and presentation: the annotation variant requires exhaustive snapshot and panel updates, and its distance contract remains f64 end to end; see [PR #664](https://github.com/ryancinsight/ritk/pull/664).
 
+Revision 2026-11-09: the eframe shell is deleted and Métis is the only desktop shell. Text below that names eframe records the state when this decision was made ([ADR 0026](0026-viewer-presentation-migration.md)).
+
 ## Context
 
 ADR 0044 defines a host-neutral physical reslice plane but stops before host

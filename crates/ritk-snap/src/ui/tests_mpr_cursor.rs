@@ -1,82 +1,9 @@
 use super::*;
-use crate::ui::{RotationSteps, ViewTransform};
 
 #[test]
 fn centered_cursor_uses_shape_midpoint() {
     let cursor = LinkedCursor::centered([9, 11, 21]);
     assert_eq!(cursor.voxel(), [4, 5, 10]);
-}
-
-#[test]
-fn viewport_mapping_axial_center_hits_expected_voxel() {
-    let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(200.0, 100.0));
-    let voxel = viewport_point_to_voxel(
-        [8, 10, 20],
-        0,
-        3,
-        egui::pos2(100.0, 50.0),
-        rect,
-        ViewTransform::default(),
-    )
-    .expect("center point must map to a voxel");
-    assert_eq!(voxel, [3, 5, 10]);
-}
-
-#[test]
-fn viewport_mapping_coronal_maps_row_to_depth() {
-    let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(100.0, 160.0));
-    let voxel = viewport_point_to_voxel(
-        [8, 10, 20],
-        1,
-        4,
-        egui::pos2(50.0, 80.0),
-        rect,
-        ViewTransform::default(),
-    )
-    .expect("point must map to voxel");
-    assert_eq!(voxel, [4, 4, 10]);
-}
-
-#[test]
-fn viewport_mapping_rejects_outside_points() {
-    let rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(50.0, 50.0));
-    assert!(viewport_point_to_voxel(
-        [8, 10, 20],
-        2,
-        6,
-        egui::pos2(5.0, 5.0),
-        rect,
-        ViewTransform::default(),
-    )
-    .is_none());
-}
-
-#[test]
-fn cursor_click_updates_hidden_axes() {
-    let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(200.0, 100.0));
-    let mut cursor = LinkedCursor::from_slices([8, 10, 20], 3, 5, 9);
-    let voxel = cursor
-        .update_from_viewport_point(
-            [8, 10, 20],
-            0,
-            3,
-            egui::pos2(150.0, 20.0),
-            rect,
-            ViewTransform::default(),
-        )
-        .expect("click must update cursor");
-    assert_eq!(voxel, [3, 2, 15]);
-    assert_eq!(cursor.voxel(), [3, 2, 15]);
-}
-
-#[test]
-fn projected_crosshair_matches_voxel_center() {
-    let rect = egui::Rect::from_min_size(egui::pos2(10.0, 20.0), egui::vec2(200.0, 100.0));
-    let cursor = LinkedCursor::from_slices([8, 10, 20], 3, 5, 9);
-    let pos = cursor
-        .viewport_crosshair([8, 10, 20], 0, rect, ViewTransform::default())
-        .expect("cursor projection must exist");
-    assert_eq!(pos, egui::pos2(105.0, 75.0));
 }
 
 #[test]
@@ -99,60 +26,5 @@ fn row_col_voxel_mapping_is_invertible_per_axis_plane() {
             .expect("valid axis must produce inverse coordinates");
         assert_eq!(inv_row, row, "row inverse mismatch for axis {axis}");
         assert_eq!(inv_col, col, "col inverse mismatch for axis {axis}");
-    }
-}
-
-#[test]
-fn viewport_projection_then_inverse_returns_same_voxel_on_fixed_slice() {
-    let shape = [8, 10, 20];
-    let rect = egui::Rect::from_min_size(egui::pos2(25.0, 40.0), egui::vec2(300.0, 180.0));
-    let samples = [
-        (0usize, [3usize, 4usize, 15usize]),
-        (1usize, [6usize, 2usize, 11usize]),
-        (2usize, [5usize, 7usize, 1usize]),
-    ];
-
-    for (axis, voxel) in samples {
-        let point = voxel_to_viewport_point(shape, axis, voxel, rect, ViewTransform::default())
-            .expect("in-range voxel must project to viewport point");
-        let slice = voxel[axis];
-        let round_trip =
-            viewport_point_to_voxel(shape, axis, slice, point, rect, ViewTransform::default())
-                .expect("projected point must map back to a voxel");
-        assert_eq!(
-            round_trip, voxel,
-            "voxel projection/inverse mismatch on axis {axis}"
-        );
-    }
-}
-
-#[test]
-fn transformed_projection_and_inverse_preserve_voxel() {
-    let shape = [8, 10, 20];
-    let rect = egui::Rect::from_min_max(egui::pos2(10.0, 20.0), egui::pos2(410.0, 320.0));
-    let transforms = [
-        ViewTransform {
-            flip_h: true,
-            flip_v: false,
-            rotation: RotationSteps::Zero,
-        },
-        ViewTransform {
-            flip_h: false,
-            flip_v: true,
-            rotation: RotationSteps::Ninety,
-        },
-        ViewTransform {
-            flip_h: true,
-            flip_v: true,
-            rotation: RotationSteps::TwoSeventy,
-        },
-    ];
-    let voxel = [3, 6, 11];
-    for transform in transforms {
-        let point =
-            voxel_to_viewport_point(shape, 0, voxel, rect, transform).expect("voxel must project");
-        let recovered = viewport_point_to_voxel(shape, 0, voxel[0], point, rect, transform)
-            .expect("projected point must invert");
-        assert_eq!(recovered, voxel, "transform {transform:?}");
     }
 }

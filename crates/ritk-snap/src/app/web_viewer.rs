@@ -1,6 +1,6 @@
 //! Métis browser canvas viewer workflow.
 //!
-//! This module is the first browser migration slice beyond the eframe shell:
+//! This module is the browser viewer entry:
 //! RITK consumes the bounded byte handoff from Métis, applies its existing
 //! dropped-input classifier and presents the selected RITK frame through the
 //! borrowed canvas seam. It also publishes a bounded semantic snapshot on

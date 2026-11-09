@@ -12,7 +12,7 @@
 //! The renderer uses this convex combination after each source has been
 //! windowed and colour-mapped.
 
-use egui::ColorImage;
+use crate::render::RgbaImage;
 use iris::color::{ColorMap, Normalized};
 
 use crate::dicom::pet::PetAcquisitionParams;
@@ -61,7 +61,7 @@ pub fn render_fused_slice(
     primary: FusedSliceParams<'_>,
     secondary: FusedSliceParams<'_>,
     secondary_alpha: f32,
-) -> Result<ColorImage, FusionError> {
+) -> Result<RgbaImage, FusionError> {
     if !secondary_alpha.is_finite() {
         return Err(FusionError::InvalidBlendWeight);
     }
@@ -162,7 +162,7 @@ pub fn render_fused_slice(
         }
     }
 
-    Ok(ColorImage::from_rgb([width, height], &rgb))
+    Ok(RgbaImage::from_rgb([width, height], &rgb))
 }
 
 /// Map the centre of a primary slice into the secondary slice index.

@@ -8,16 +8,28 @@ use crate::app::state::SnapApp;
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 use crate::render::{SliceRenderer, WindowLevel};
-use crate::ui::{apply_to_image, plan_all_mpr_exports};
+use crate::ui::{apply_to_rgba_into, plan_all_mpr_exports};
 use crate::LoadedVolume;
 use tracing::{error, info};
 
 use std::path::Path;
 
-use super::dialog::{save_color_image_png, FileDialog};
+/// Write row-major RGBA bytes as an opaque PNG, whatever the path's extension.
+fn save_rgba_png(path: &Path, size: [usize; 2], rgba: &[u8]) -> anyhow::Result<()> {
+    let rgb = rgba
+        .chunks_exact(4)
+        .flat_map(|pixel| [pixel[0], pixel[1], pixel[2]])
+        .collect();
+    let width = u32::try_from(size[0])?;
+    let height = u32::try_from(size[1])?;
+    let image = image::RgbImage::from_raw(width, height, rgb)
+        .ok_or_else(|| anyhow::anyhow!("buffer length mismatch"))?;
+    image.save_with_format(path, image::ImageFormat::Png)?;
+    Ok(())
+}
 
 impl SnapApp {
-    pub fn export_current_slice(&mut self) {
+    pub(crate) fn export_current_slice_to(&mut self, path: &Path) {
         let Some(vol) = &self.loaded else {
             return;
         };
@@ -33,41 +45,25 @@ impl SnapApp {
             .max(1.0) as f64;
         let wl = WindowLevel::new(wc, ww);
 
-        if let Some(path) = FileDialog::new()
-            .set_file_name("slice.png")
-            .add_filter("PNG", &["png"][..])
-            .save_file()
+        match self.save_rendered_slice_png(vol, self.axis, self.viewer_state.slice_index, wl, path)
         {
-            match self.save_rendered_slice_png(
-                vol,
-                self.axis,
-                self.viewer_state.slice_index,
-                wl,
-                &path,
-            ) {
-                Ok(()) => {
-                    self.status_message = format!("Exported slice PNG: {}", path.display());
-                    info!("{}", self.status_message);
-                }
-                Err(e) => {
-                    self.status_message =
-                        format!("PNG export failed for {}: {e:#}", path.display());
-                    error!("{}", self.status_message);
-                }
+            Ok(()) => {
+                self.status_message = format!("Exported slice PNG: {}", path.display());
+                info!("{}", self.status_message);
+            }
+            Err(e) => {
+                self.status_message = format!("PNG export failed for {}: {e:#}", path.display());
+                error!("{}", self.status_message);
             }
         }
     }
 
-    pub fn export_all_mpr_slices(&mut self) {
+    pub(crate) fn export_all_mpr_slices_into(&mut self, root: &Path) {
         let Some(vol) = &self.loaded else {
             self.status_message = "No volume loaded; MPR export skipped.".to_owned();
             return;
         };
 
-        let Some(root) = FileDialog::new().pick_folder() else {
-            return;
-        };
-
         let wc = self
             .viewer_state
             .window_center
@@ -79,7 +75,7 @@ impl SnapApp {
             .max(1.0) as f64;
         let wl = WindowLevel::new(wc, ww);
 
-        match self.export_all_mpr_slices_to(vol, wl, &root) {
+        match self.export_all_mpr_slices_to(vol, wl, root) {
             Ok((success, failed)) => {
                 self.status_message = format!(
                     "MPR export complete: {} succeeded, {} failed ({})",
@@ -104,9 +100,20 @@ impl SnapApp {
         wl: WindowLevel,
         path: &Path,
     ) -> anyhow::Result<()> {
-        let color_image = SliceRenderer::render(vol, axis, slice_index, wl, self.colormap);
-        let color_image = apply_to_image(&color_image, self.view_transform);
-        save_color_image_png(path, &color_image)
+        let image = SliceRenderer::render(vol, axis, slice_index, wl, self.colormap);
+        let mut transformed = Vec::new();
+        let size = apply_to_rgba_into(
+            image.size(),
+            image.pixels(),
+            self.view_transform,
+            &mut transformed,
+        )?;
+        let rgba = if self.view_transform.is_identity() {
+            image.pixels()
+        } else {
+            &transformed
+        };
+        save_rgba_png(path, size, rgba)
     }
 
     fn export_all_mpr_slices_to(
@@ -202,12 +209,8 @@ impl SnapApp {
         })
     }
 
-    pub fn export_clinical_distribution_dialog(&mut self) {
-        let Some(root) = FileDialog::new().pick_folder() else {
-            return;
-        };
-
-        match self.export_clinical_distribution_to(&root) {
+    pub(crate) fn export_clinical_distribution_into(&mut self, root: &Path) {
+        match self.export_clinical_distribution_to(root) {
             Ok(summary) => {
                 self.status_message = format!(
                     "Clinical distribution package exported: report={}, current slice={}, {} MPR slices written, {} failed ({})",
@@ -224,5 +227,25 @@ impl SnapApp {
                 error!("{}", self.status_message);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn png_writer_ignores_a_jpeg_extension() -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("rendered.jpg");
+        let rgba = [12, 34, 56, 255, 12, 34, 56, 255];
+
+        save_rgba_png(&path, [2, 1], &rgba)?;
+
+        let bytes = std::fs::read(&path)?;
+        assert_eq!(bytes.get(..8), Some(b"\x89PNG\r\n\x1a\n".as_slice()));
+        let decoded = image::load_from_memory_with_format(&bytes, image::ImageFormat::Png)?;
+        assert_eq!(decoded.to_rgb8().into_raw(), vec![12, 34, 56, 12, 34, 56]);
+        Ok(())
     }
 }

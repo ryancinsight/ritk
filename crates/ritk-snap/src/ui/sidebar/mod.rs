@@ -1,4 +1,4 @@
-//! Sidebar state and optional eframe panel.
+//! Sidebar state.
 
 /// Active tab in the viewer sidebar.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
@@ -12,10 +12,5 @@ pub enum SidebarTab {
     PetSuv,
 }
 
-#[cfg(feature = "eframe-shell")]
-mod panel;
 #[cfg(test)]
 mod tests;
-
-#[cfg(feature = "eframe-shell")]
-pub use panel::SidebarPanel;

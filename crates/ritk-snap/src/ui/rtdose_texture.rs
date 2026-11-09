@@ -1,10 +1,8 @@
 //! RT-DOSE overlay colorization helpers.
 //!
-//! Converts projected RT-DOSE scalar slices into `egui::ColorImage` textures.
-//! The app shell caches these textures to avoid per-frame per-pixel draw calls.
+//! Converts projected RT-DOSE scalar slices into straight-alpha RGBA images.
 
-use egui::{Color32, ColorImage};
-
+use crate::render::slice_render::RgbaImage;
 use crate::ui::rtdose_overlay::dose_to_rgba;
 
 /// Convert opacity in `[0, 1]` to the effective alpha byte used by dose overlay mapping.
@@ -35,19 +33,15 @@ pub fn build_overlay_image(
     min_dose: f32,
     max_dose: f32,
     opacity: f32,
-) -> Option<ColorImage> {
+) -> Option<RgbaImage> {
     if rows == 0 || cols == 0 || dose_map.len() != rows.saturating_mul(cols) {
         return None;
     }
-    let mut pixels = Vec::with_capacity(dose_map.len());
-    for &dose in dose_map {
-        let [r, g, b, a] = dose_to_rgba(dose, min_dose, max_dose, opacity);
-        pixels.push(Color32::from_rgba_unmultiplied(r, g, b, a));
-    }
-    Some(ColorImage {
-        size: [cols, rows],
-        pixels,
-    })
+    let pixels = dose_map
+        .iter()
+        .flat_map(|&dose| dose_to_rgba(dose, min_dose, max_dose, opacity))
+        .collect();
+    Some(RgbaImage::new([cols, rows], pixels))
 }
 
 #[cfg(test)]
@@ -72,16 +66,17 @@ mod tests {
     fn build_overlay_image_produces_expected_shape_and_alpha() {
         let map = [0.0, f32::NAN, 2.5, 5.0];
         let img = build_overlay_image(&map, 2, 2, 2.5, 5.0, 0.5).expect("valid image");
-        assert_eq!(img.size, [2, 2]);
-        assert_eq!(img.pixels.len(), 4);
+        assert_eq!(img.size(), [2, 2]);
+        let pixels: Vec<[u8; 4]> = img.rgba_pixels().collect();
+        assert_eq!(pixels.len(), 4);
 
         // Zero and NaN dose are fully transparent by definition.
-        assert_eq!(img.pixels[0].a(), 0);
-        assert_eq!(img.pixels[1].a(), 0);
+        assert_eq!(pixels[0][3], 0);
+        assert_eq!(pixels[1][3], 0);
 
         // Positive in-range dose must be visible.
-        assert!(img.pixels[2].a() > 0);
-        assert!(img.pixels[3].a() > 0);
+        assert!(pixels[2][3] > 0);
+        assert!(pixels[3][3] > 0);
     }
 
     #[test]

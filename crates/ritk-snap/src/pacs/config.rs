@@ -1,6 +1,6 @@
 //! PACS server configuration for the snap viewer UI.
 //!
-//! Stores raw string fields edited directly in the egui config form.
+//! Stores the raw string fields a settings form edits.
 //! Conversion to [`AssociationConfig`] is performed at request submission time,
 //! keeping the UI layer free of DIMSE protocol details.
 
@@ -21,8 +21,8 @@ pub enum AutoLoadPolicy {
 
 /// PACS server configuration (UI-facing).
 ///
-/// All fields are raw strings / primitive values for direct in-place editing
-/// inside the `pacs_panel` egui form.  They are converted to [`AssociationConfig`]
+/// All fields are raw strings / primitive values for direct in-place editing.
+/// They are converted to [`AssociationConfig`]
 /// by [`PacsConfig::to_association_config`] only when a request is submitted.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PacsConfig {

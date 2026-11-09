@@ -26,11 +26,8 @@
 //!
 //! Scalar slices are converted through the WL LUT and then through a
 //! [`NamedColorMap`]. RGB slices preserve their three decoded channels and
-//! bypass scalar windowing. The canonical output is a bounded RGBA image;
-//! the eframe host adapts it to `egui::ColorImage` at its own boundary.
+//! bypass scalar windowing. The canonical output is a bounded RGBA image.
 
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
-use super::buffer_pool::RenderBufferPool;
 use super::{GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 use iris::color::{ColorMap, Normalized};
@@ -38,9 +35,9 @@ use iris::color::{ColorMap, Normalized};
 // ── SliceRenderer ─────────────────────────────────────────────────────────────
 
 /// A bounded row-major RGBA image produced by the RITK display pipeline.
-#[cfg(all(not(target_arch = "wasm32"), any(feature = "eframe-shell", test)))]
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct RgbaImage {
+pub struct RgbaImage {
     size: [usize; 2],
     pixels: Box<[u8]>,
 }
@@ -58,12 +55,18 @@ pub(crate) struct FrameRenderScratch {
     pub(crate) rgba: Vec<u8>,
 }
 
-#[cfg(all(not(target_arch = "wasm32"), any(feature = "eframe-shell", test)))]
+#[cfg(not(target_arch = "wasm32"))]
 impl RgbaImage {
-    pub(crate) fn new(size: [usize; 2], pixels: Vec<u8>) -> Self {
-        debug_assert_eq!(
+    /// Wraps row-major RGBA bytes for an image of `[width, height]` pixels.
+    ///
+    /// # Panics
+    /// Panics when `pixels` does not hold exactly four bytes per pixel.
+    #[must_use]
+    pub fn new(size: [usize; 2], pixels: Vec<u8>) -> Self {
+        assert_eq!(
             pixels.len(),
-            size[0].saturating_mul(size[1]).saturating_mul(4)
+            size[0].saturating_mul(size[1]).saturating_mul(4),
+            "RGBA storage must hold four bytes per pixel"
         );
         Self {
             size,
@@ -76,10 +79,34 @@ impl RgbaImage {
         (self.size, self.pixels)
     }
 
-    /// Converts the neutral image for the legacy eframe host.
-    #[cfg(feature = "eframe-shell")]
-    pub(crate) fn to_color_image(&self) -> egui::ColorImage {
-        egui::ColorImage::from_rgba_unmultiplied(self.size, &self.pixels)
+    /// Builds an opaque image from row-major RGB bytes.
+    #[must_use]
+    pub fn from_rgb(size: [usize; 2], rgb: &[u8]) -> Self {
+        let mut pixels = Vec::with_capacity(rgb.len() / 3 * 4);
+        for channels in rgb.chunks_exact(3) {
+            pixels.extend_from_slice(channels);
+            pixels.push(u8::MAX);
+        }
+        Self::new(size, pixels)
+    }
+
+    /// Image extent as `[width, height]`.
+    #[must_use]
+    pub const fn size(&self) -> [usize; 2] {
+        self.size
+    }
+
+    /// Row-major RGBA bytes.
+    #[must_use]
+    pub fn pixels(&self) -> &[u8] {
+        &self.pixels
+    }
+
+    /// Pixels as RGBA quadruples in row-major order.
+    pub fn rgba_pixels(&self) -> impl Iterator<Item = [u8; 4]> + '_ {
+        self.pixels
+            .chunks_exact(4)
+            .map(|pixel| [pixel[0], pixel[1], pixel[2], pixel[3]])
     }
 }
 
@@ -91,7 +118,7 @@ impl RgbaImage {
 ///
 /// # Coordinate conventions
 ///
-/// | `axis` | Name     | Fixed index | Output: `[width, height]` in egui |
+/// | `axis` | Name     | Fixed index | Output: `[width, height]` in pixels |
 /// |--------|----------|-------------|-----------------------------------|
 /// | 0      | Axial    | depth `d`   | `[cols, rows]`                    |
 /// | 1      | Coronal  | row `r`     | `[cols, depth]`                   |
@@ -102,35 +129,10 @@ impl RgbaImage {
 pub struct SliceRenderer;
 
 impl SliceRenderer {
-    /// Extract and render a single slice from `volume`.
-    ///
-    /// # Parameters
-    /// - `volume`   — source volume with row-major `[depth, rows, cols]` layout.
-    /// - `axis`     — 0 = axial (fixed depth), 1 = coronal (fixed row),
-    ///   2 = sagittal (fixed column).
-    /// - `index`    — position along `axis`; clamped to the valid range silently.
-    /// - `wl`       — DICOM window/level parameters for scalar intensity mapping.
-    /// - `colormap` — colormap applied after scalar WL normalisation; ignored for RGB.
-    ///
-    /// # Returns
-    /// An [`egui::ColorImage`] of size `[width, height]` (see table above).
-    /// This adapter is retained for the eframe host; Métis-facing consumers
-    /// use `render_rgba` and receive no egui carrier.
-    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
-    pub fn render(
-        volume: &LoadedVolume,
-        axis: usize,
-        index: usize,
-        wl: WindowLevel,
-        colormap: NamedColorMap,
-    ) -> egui::ColorImage {
-        Self::render_rgba(volume, axis, index, wl, colormap).to_color_image()
-    }
-
     /// Extracts and renders one slice into the neutral RGBA carrier used by
-    /// Métis and other non-egui hosts.
-    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
-    pub(crate) fn render_rgba(
+    /// Métis hosts.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn render(
         volume: &LoadedVolume,
         axis: usize,
         index: usize,
@@ -147,7 +149,7 @@ impl SliceRenderer {
     /// The returned dimensions are `[width, height]`. The RGBA bytes in
     /// `scratch.rgba` are valid for exactly that extent. The method preserves
     /// the same invalid-channel and malformed-grayscale sentinel images as
-    /// [`Self::render_rgba`], while reusing both extraction and pixel buffers.
+    /// [`Self::render`], while reusing both extraction and pixel buffers.
     pub(crate) fn render_rgba_into(
         scratch: &mut FrameRenderScratch,
         volume: &LoadedVolume,
@@ -222,77 +224,6 @@ impl SliceRenderer {
         }
         [width, height]
     }
-
-    /// Extract and render a single slice using pre-allocated scratch buffers.
-    ///
-    /// Produces output pixel-identical to [`Self::render`] for the same inputs
-    /// while eliminating two per-call heap allocations:
-    ///
-    /// 1. The `Vec<f32>` created by `extract_slice` (replaced by
-    ///    `pool.pixel_f32` reuse via `extract_slice_into`).
-    /// 2. The `Vec<u8>` RGBA intermediate (replaced by `pool.rgba_u8` reuse).
-    ///
-    /// # Differential equivalence invariant
-    ///
-    /// For all valid (`volume`, `axis`, `index`, `wl`, `colormap`) inputs:
-    /// ```text
-    /// render_with_scratch(pool, volume, axis, index, wl, colormap).pixels
-    ///   == render(volume, axis, index, wl, colormap).pixels
-    /// ```
-    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
-    pub(crate) fn render_with_scratch(
-        pool: &mut RenderBufferPool,
-        volume: &LoadedVolume,
-        axis: usize,
-        index: usize,
-        wl: WindowLevel,
-        colormap: NamedColorMap,
-    ) -> egui::ColorImage {
-        if volume.channels == 3 {
-            let (width, height) =
-                volume.extract_slice_channels_into(&mut pool.pixel_f32, axis, index);
-            if width == 0 || height == 0 {
-                return egui::ColorImage::from_rgb([1, 1], &[0_u8, 0, 0]);
-            }
-            pool.resize_pixel_bytes(width * height * 4);
-            let valid = write_rgb_rgba(&pool.pixel_f32, &mut pool.rgba_u8);
-            if !valid {
-                return invalid_color_image(volume.channels);
-            }
-            return egui::ColorImage::from_rgba_unmultiplied([width, height], &pool.rgba_u8);
-        }
-        if volume.channels != 1 {
-            return invalid_color_image(volume.channels);
-        }
-
-        let presentation = match GrayscalePresentation::for_volume(volume) {
-            Ok(presentation) => presentation,
-            Err(error) => {
-                tracing::error!(%error, "invalid DICOM grayscale presentation metadata");
-                return invalid_color_image(volume.channels);
-            }
-        };
-        let (width, height) = volume.extract_slice_into(&mut pool.pixel_f32, axis, index);
-        if width == 0 || height == 0 {
-            return egui::ColorImage::from_rgb([1, 1], &[0u8, 0, 0]);
-        }
-        pool.resize_pixel_bytes(width * height * 4);
-        // Split-borrow: pool.pixel_f32 (read) and pool.rgba_u8 (write) are
-        // distinct fields; Rust NLL permits simultaneous borrows.
-        let pixels = pool.pixel_f32.as_slice();
-        let rgba = pool.rgba_u8.as_mut_slice();
-        for (i, &p) in pixels.iter().enumerate() {
-            let byte = presentation.apply(wl, f64::from(p));
-            let value = Normalized::from_u8(byte);
-            let [r, g, b, alpha] = colormap.sample(value).to_rgba8();
-            let base = i * 4;
-            rgba[base] = r;
-            rgba[base + 1] = g;
-            rgba[base + 2] = b;
-            rgba[base + 3] = alpha;
-        }
-        egui::ColorImage::from_rgba_unmultiplied([width, height], &pool.rgba_u8)
-    }
 }
 
 fn write_rgb_rgba(samples: &[f32], rgba: &mut [u8]) -> bool {
@@ -325,22 +256,11 @@ fn rgb_component(value: f32) -> Option<u8> {
     Some(value as u8)
 }
 
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
-fn invalid_channel_image(channels: u8) -> RgbaImage {
-    tracing::error!(channels, "slice rendering requires scalar or RGB channels");
-    RgbaImage::new([1, 1], vec![255, 0, 255, 255])
-}
-
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
-fn invalid_color_image(channels: u8) -> egui::ColorImage {
-    invalid_channel_image(channels).to_color_image()
-}
-
 fn write_invalid_image(rgba: &mut Vec<u8>) {
     rgba.clear();
     rgba.extend_from_slice(&[255, 0, 255, 255]);
 }
 
-#[cfg(all(test, feature = "eframe-shell"))]
+#[cfg(test)]
 #[path = "tests_slice_render.rs"]
 mod tests;

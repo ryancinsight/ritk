@@ -158,9 +158,6 @@ hex = "0.4"
 zune-core = { version = "0.4", default-features = false }
 zune-jpegxl = { version = "0.4", default-features = false }
 mockito = "1"
-eframe = "0.28"
-egui = "0.28"
-rfd = "0.14"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"

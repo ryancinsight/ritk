@@ -1,6 +1,6 @@
 //! `ritk-snap` binary entry point.
 //!
-//! Launches the RITK DICOM viewer with the selected desktop host.
+//! Launches the RITK DICOM viewer on the Métis native host.
 
 // Mnemosyne as the process-wide allocator. Not applicable on WASM where
 // the runtime provides its own allocator.
@@ -33,7 +33,7 @@ enum CliNativeLayout {
     Responsive,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(windows)]
 impl CliNativeLayout {
     const fn fixed_mode(self) -> Option<ritk_snap::NativePresentationMode> {
         match self {
@@ -55,7 +55,8 @@ impl CliNativeLayout {
 #[derive(Debug, Parser)]
 #[command(author, version, about)]
 struct Args {
-    /// Optional DICOM folder or medical image file loaded at startup.
+    /// DICOM folder or medical image file. Without PATH, the native folder
+    /// picker selects a study before the viewer opens.
     #[arg(value_name = "PATH")]
     initial_path: Option<PathBuf>,
     /// Select one SeriesInstanceUID after discovering the startup DICOM input.
@@ -78,18 +79,8 @@ struct Args {
     /// Include the bounded RITK application overlay in a Métis capture.
     #[arg(long, requires = "capture")]
     capture_application: bool,
-    /// Run a study through the Métis native host. Without PATH, open the
-    /// Windows native folder picker before loading the selected study. This is
-    /// the default Windows shell; use `--eframe` for the compatibility shell.
-    #[arg(long)]
-    metis_native: bool,
-    /// Use the legacy eframe compatibility shell instead of the default Métis
-    /// host on Windows.
-    #[cfg(feature = "eframe-shell")]
-    #[arg(long, conflicts_with = "metis_native")]
-    eframe: bool,
     /// Select the native Métis framebuffer layout.
-    #[arg(long = "metis-native-layout", value_enum, default_value = "orthogonal")]
+    #[arg(long = "layout", value_enum, default_value = "orthogonal")]
     native_presentation_mode: CliNativeLayout,
     /// Validate a RITK-owned semantic canvas trace and exit.
     #[arg(
@@ -99,8 +90,7 @@ struct Args {
             "initial_path",
             "initial_series_uid",
             "comparison_series_uid",
-            "capture",
-            "metis_native"
+            "capture"
         ]
     )]
     validate_browser_trace: Option<PathBuf>,
@@ -148,59 +138,49 @@ fn main() -> anyhow::Result<()> {
         writeln!(stdout, "{report}")?;
         return Ok(());
     }
-    #[cfg(feature = "eframe-shell")]
-    let eframe_requested = args.eframe;
-    #[cfg(not(feature = "eframe-shell"))]
-    let eframe_requested = false;
-    let metis_native = !eframe_requested && (args.metis_native || cfg!(windows));
-    if args.capture_application && !metis_native {
-        anyhow::bail!("--capture-application requires the Métis native shell");
-    }
-    if !matches!(args.native_presentation_mode, CliNativeLayout::Orthogonal) && !metis_native {
-        anyhow::bail!("native presentation layout requires the Métis native shell");
-    }
+    launch(args)
+}
+
+#[cfg(windows)]
+fn launch(args: Args) -> anyhow::Result<()> {
     if let Some(comparison_series_uid) = args.comparison_series_uid {
-        if !metis_native {
-            anyhow::bail!("series comparison requires the Métis native shell");
-        }
-        if matches!(args.native_presentation_mode, CliNativeLayout::Responsive) {
-            anyhow::bail!("series comparison currently requires a fixed native layout");
-        }
+        let native_presentation_mode =
+            args.native_presentation_mode.fixed_mode().ok_or_else(|| {
+                anyhow::anyhow!("series comparison currently requires a fixed native layout")
+            })?;
         return ritk_snap::run_app_with_series_comparison(
             ritk_snap::AppLaunchOptions {
                 initial_path: args.initial_path,
                 initial_series_uid: args.initial_series_uid,
                 capture: args.capture,
                 capture_application: args.capture_application,
-                metis_native,
-                native_presentation_mode: args
-                    .native_presentation_mode
-                    .fixed_mode()
-                    .ok_or_else(|| anyhow::anyhow!("comparison layout did not resolve"))?,
+                native_presentation_mode,
             },
             comparison_series_uid,
         );
     }
-    if matches!(args.native_presentation_mode, CliNativeLayout::Responsive) {
-        return ritk_snap::run_responsive_native_app_with_options(ritk_snap::AppLaunchOptions {
-            initial_path: args.initial_path,
-            initial_series_uid: args.initial_series_uid,
-            capture: args.capture,
-            capture_application: args.capture_application,
-            metis_native,
-            native_presentation_mode: ritk_snap::NativePresentationMode::Orthogonal,
-        });
-    }
-    let Some(native_presentation_mode) = args.native_presentation_mode.fixed_mode() else {
-        anyhow::bail!("responsive layout selection did not resolve to a fixed mode");
-    };
-    ritk_snap::run_app_with_options(ritk_snap::AppLaunchOptions {
+    let options = ritk_snap::AppLaunchOptions {
         initial_path: args.initial_path,
         initial_series_uid: args.initial_series_uid,
         capture: args.capture,
         capture_application: args.capture_application,
-        metis_native,
-        native_presentation_mode,
+        native_presentation_mode: args
+            .native_presentation_mode
+            .fixed_mode()
+            .unwrap_or_default(),
+    };
+    if matches!(args.native_presentation_mode, CliNativeLayout::Responsive) {
+        return ritk_snap::run_responsive_native_app_with_options(options);
+    }
+    ritk_snap::run_app_with_options(options)
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(windows)))]
+fn launch(args: Args) -> anyhow::Result<()> {
+    let Args { initial_path, .. } = args;
+    ritk_snap::run_app_with_options(ritk_snap::AppLaunchOptions {
+        initial_path,
+        ..Default::default()
     })
 }
 

@@ -25,13 +25,8 @@ parent directory. Invalid indices fail instead of enabling folder fallback.
 | `SeriesNode<'a>` | Remove the lifetime argument; the node owns its shared acquisition descriptor. |
 | `SeriesTree::find_by_folder` | Select by UID with `find_by_uid`, then retain the returned node's acquisition. A shared folder cannot identify one series. |
 | `run_native_viewer` | Pass `None` for the series selection to preserve unambiguous-path loading, or pass `Some(series_instance_uid)` with the startup path to select one discovered acquisition before the Métis host starts. |
-| `SidebarPanel::new` | Pass the last successfully loaded acquisition as `Option<&DicomSeriesInfo>`. |
-| `SidebarPanel::with_tag_search` | Use `new`; the removed alias ignored its tag-search argument. Struct literals use `selected_acquisition` instead of `selected_path`. |
-| `SidebarPanel::show` | Consume the returned `Arc<DicomSeriesInfo>`, keeping both UID and files. Update highlighting only after successful loading. |
 | `ViewerSessionSnapshot` struct construction | Supply `SessionFormat::default()` and `Option<StudySource>`; filesystem sources use `StudySource::Path`, selected series use `StudySource::Dicom { series_uid, files }`. |
-| `AppLaunchOptions` struct construction | Supply `capture: None`, `initial_series_uid: None`, and `metis_native: false` to select the eframe compatibility shell, or set `metis_native: true` with an optional initial path and optional `initial_series_uid` to use the Windows Métis host. When the path is absent, Windows opens the native folder picker. `Default` selects Métis on Windows and eframe on other native targets. |
-| `OverlayRenderer::draw` | Consume its `Option<String>` result. Pass returned overflow metadata to `OverlayRenderer::show_details` with the viewport UI and rectangle. |
-| `OverlayRenderer::draw_orientation_labels` | Remove the separate call; `draw` now lays out orientation and corner annotations together. |
+| `AppLaunchOptions` struct construction | Supply `capture: None` and `initial_series_uid: None`, or an optional initial path with an optional `initial_series_uid`. The `metis_native` field is gone because Métis is the only shell. |
 | `Annotation` | Keep a wildcard arm for the non-exhaustive enum; handle `PatientLength` in patient millimetres and retain its full `f64` distance. |
 | `AnnotationSummary::primary_value()` | Consume `f64` so patient-space distances are not narrowed to `f32`. |
 
@@ -44,19 +39,17 @@ directory sources containing several series require a new explicit selection.
 Unknown versions fail.
 Restoring a session validates its source before replacing either the displayed
 study or presentation controls; a failure preserves the current viewer state.
+The native shell reaches this path once `RITK-SNAP-NATIVE-EXPORT-001` lands.
 
 The [user workflow](manual/dicom-workflow.md) contains runnable commands,
 synthetic pixel/coordinate oracles, and the distinction between software
 slice captures and the rendered application window.
 
-The Métis native-host increment adds `metis_native` to `AppLaunchOptions` and
-is therefore a breaking public-struct change. The native series-selection
-increment adds `initial_series_uid` to the same public struct. Downstream
-struct literals must set both fields explicitly (`initial_series_uid: None` and
-`metis_native: false` for the eframe compatibility shell, or a selected UID
-with `metis_native: true` and an optional initial path for the Windows Métis
-shell; when the path is absent, the shell obtains one from the native folder
-picker). Callers that use `Default` now select the Métis host on Windows and
-remain on eframe on other native targets. `load_volume_from_series_uid` is the
+The native series-selection increment adds `initial_series_uid` to
+`AppLaunchOptions`, a breaking public-struct change. Struct literals set it
+explicitly: `None`, or a selected UID with an optional initial path. When the
+path is absent, the Windows Métis shell obtains one from the native folder
+picker. The eframe shell and its widgets are deleted; Métis is the only shell.
+`load_volume_from_series_uid` is the
 RITK-owned path API for non-interactive selection and never chooses an
 arbitrary series.

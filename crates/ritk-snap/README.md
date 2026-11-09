@@ -1,9 +1,7 @@
 # ritk-snap
 
-`ritk-snap` is the RITK medical-image viewer. On Windows the Métis host is the
-default desktop shell. The default package has no eframe, egui, or rfd active
-dependency; the complete compatibility shell is the separately named
-`ritk-snap-eframe` package. The migration is described in
+`ritk-snap` is the RITK medical-image viewer. The Métis host is its desktop
+shell, currently on Windows. The migration is described in
 [ADR 0026](../../docs/adr/0026-viewer-presentation-migration.md).
 
 RITK owns DICOM opening, decoding, geometry, and medical display semantics.
@@ -11,8 +9,7 @@ The `presentation` module exposes a validated format-neutral RGBA frame for a
 Métis host and translates native input into format-neutral events; the host
 does not parse DICOM or retain viewer state.
 The Métis-facing path renders through RITK's neutral RGBA carrier and applies
-orientation before the host boundary; `egui::ColorImage` remains only the
-legacy eframe slice adapter.
+orientation before the host boundary.
 Each `PresentationFrame` also carries a validated `PresentationSpacing` value,
 so native placement and browser aspect semantics consume one axis-ordered
 geometry value while Metis remains format-neutral.
@@ -44,8 +41,9 @@ Select a DICOM instance to choose its acquisition in a mixed-series folder.
 Scripted launches from a mixed directory require `--series-instance-uid`;
 the native window retains the discovered series list so the reader can switch
 series or open several in comparison panels. DICOMDIR file sets use their
-referenced members. Session restore retains the selected UID and files and
-validates them before replacing the current study.
+referenced members. The session format retains the selected UID and files, and
+restoring one validates them before replacing the current study; the native
+shell reaches that path once `RITK-SNAP-NATIVE-EXPORT-001` lands.
 Public caller changes are in the
 [selection migration guide](../../docs/migration_selected_dicom.md).
 
@@ -56,36 +54,16 @@ fallback:
 
 ```console
 cargo run --locked -p ritk-snap -- path/to/study \
-  --series-instance-uid 2.25.20260905001 --metis-native
-```
-
-To capture the rendered eframe compatibility window and exit, use the
-dedicated compatibility package:
-
-```console
-cargo run --locked -p ritk-snap-eframe -- path/to/study --capture window.png
-```
-
-The compatibility binary accepts `--viewport-size WIDTHxHEIGHT` in logical
-points for controlled comparison captures. The physical PNG dimensions remain
-display-scale dependent and belong in the capture provenance; the default is
-`1280x800` logical points.
-
-The existing source-level capture harness can still select the complete shell
-with the feature explicitly enabled:
-
-```console
-cargo run --locked -p ritk-snap --features eframe-shell -- \
-  path/to/study --eframe --capture window.png
+  --series-instance-uid 2.25.20260905001
 ```
 
 For a mixed folder, keep `--series-instance-uid` on the same command so the
 capture waits for that selected RITK acquisition to load. A supplied study must
-load successfully; capture failure returns an error. To run the same loaded
-study through the Windows Métis host, use:
+load successfully; capture failure returns an error. To run the loaded study
+interactively, use:
 
 ```console
-cargo run --locked -p ritk-snap -- path/to/study --metis-native
+cargo run --locked -p ritk-snap -- path/to/study
 ```
 
 To compare two acquisitions from one discovered folder, select the primary and
@@ -95,7 +73,6 @@ bar replaces only the active panel:
 
 ```console
 cargo run --locked -p ritk-snap -- path/to/study \
-  --metis-native \
   --series-instance-uid 2.25.20260905001 \
   --compare-series-instance-uid 2.25.20260905002
 ```
@@ -110,18 +87,13 @@ workspace remains the three-plane MPR view. Comparison panels display the image
 number and count, window width and centre, and source pixel dimensions in
 the RadiAnt-clone image corners.
 
-On Windows the same command works without `--metis-native`; the flag remains an
-explicit spelling for scripts and existing workflows. The separately named
-`ritk-snap-eframe` executable selects the compatibility shell without activating
-the legacy graph in the default package.
-
 The Métis session owns the HWND, bounded event wait, framebuffer presentation,
 resize/minimize and terminal cleanup. RITK owns DICOM opening, decoded volume
 state, slice rendering, window/level and viewer actions. A deterministic hidden
 host capture closes after its first idle event batch:
 
 ```console
-cargo run --locked -p ritk-snap -- path/to/study --metis-native --capture window.png
+cargo run --locked -p ritk-snap -- path/to/study --capture window.png
 ```
 
 The PNG is the complete 1280 × 800 RITK content framebuffer: axial, coronal,
@@ -135,7 +107,7 @@ of the native four-panel presentations:
 
 ```console
 cargo run --locked -p ritk-snap -- path/to/study \
-  --metis-native --metis-native-layout orthogonal-with-mip \
+  --layout orthogonal-with-mip \
   --capture mip-frame.png --capture-application
 ```
 
@@ -154,7 +126,7 @@ four panes from the current surface extent:
 
 ```console
 cargo run --locked -p ritk-snap -- path/to/study \
-  --metis-native --metis-native-layout responsive \
+  --layout responsive \
   --capture responsive-frame.png --capture-application
 ```
 
@@ -211,8 +183,7 @@ attributes on the named canvas for consumer workflow assertions. They expose
 load/frame state, axis, slice bounds and pixel dimensions without patient
 identifiers, DICOM metadata or pixels.
 
-The direct canvas migration slice uses the same host and byte handoff without
-starting eframe. It renders one selected RITK slice through the borrowed Métis
+The direct canvas path uses the same host and byte handoff. It renders one selected RITK slice through the borrowed Métis
 canvas seam:
 
 ```javascript

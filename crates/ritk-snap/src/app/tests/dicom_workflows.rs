@@ -2,12 +2,25 @@
 
 use crate::dicom::loader::tests::fixtures;
 
-use crate::app::{state::SeriesLoadTarget, volume_input::VolumeInput, SnapApp};
-use crate::dicom::series_tree::SeriesEntryView;
+use crate::app::{volume_input::VolumeInput, SnapApp};
 use crate::session::{StudySource, ViewerSessionSnapshot};
 use crate::ui::DroppedInputAction;
 
 const SECONDARY_UID: &str = "2.25.20260905002";
+#[test]
+fn dicom_window_metadata_drives_initial_viewer_state() {
+    let root = tempfile::tempdir().expect("window metadata fixture root");
+    let (filename, _) =
+        fixtures::write_grayscale_presentation(root.path(), "MONOCHROME2", Some("LINEAR"))
+            .expect("write window metadata fixture");
+    let volume = crate::dicom::loader::load_volume_from_path(root.path().join(filename).as_path())
+        .expect("decode window metadata fixture");
+    let mut app = SnapApp::default();
+    app.load_volume(volume, "Loaded".to_owned());
+    assert_eq!(app.viewer_state.window_center, Some(0.0));
+    assert_eq!(app.viewer_state.window_width, Some(40.0));
+}
+
 #[test]
 fn browser_dicom_byte_action_loads_primary_volume() {
     let root = tempfile::tempdir().expect("study root");
@@ -42,104 +55,6 @@ fn assert_primary(app: &SnapApp, uid: &str) {
             .as_deref(),
         Some(uid)
     );
-}
-
-fn sidebar_frame(
-    app: &mut SnapApp,
-    context: &egui::Context,
-    events: Vec<egui::Event>,
-) -> egui::FullOutput {
-    let mut input = egui::RawInput::default();
-    input.screen_rect = Some(egui::Rect::from_min_size(
-        egui::Pos2::ZERO,
-        egui::vec2(1000.0, 900.0),
-    ));
-    input.events = events;
-    context.run(input, |context| app.show_left_panel(context))
-}
-
-fn click_series(app: &mut SnapApp, context: &egui::Context, uid: &str) {
-    let label = app
-        .series_tree
-        .find_by_uid(uid)
-        .expect("discovered acquisition")
-        .display_label();
-    let output = sidebar_frame(app, context, Vec::new());
-    let center = output
-        .shapes
-        .iter()
-        .find_map(|shape| {
-            if let egui::Shape::Text(text) = &shape.shape {
-                (text.galley.text() == label).then(|| text.pos + text.galley.size() * 0.5)
-            } else {
-                None
-            }
-        })
-        .expect("actual sidebar includes acquisition label");
-    for pressed in [true, false] {
-        drop(sidebar_frame(
-            app,
-            context,
-            vec![
-                egui::Event::PointerMoved(center),
-                egui::Event::PointerButton {
-                    pos: center,
-                    button: egui::PointerButton::Primary,
-                    pressed,
-                    modifiers: egui::Modifiers::NONE,
-                },
-            ],
-        ));
-    }
-}
-
-#[test]
-fn sidebar_loads_distinct_same_folder_primary_and_secondary_acquisitions() {
-    let root = tempfile::tempdir().expect("study root");
-    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
-        .expect("write CT");
-    fixtures::write_study(root.path(), "MR", SECONDARY_UID, &fixtures::SAMPLES).expect("write MR");
-    let mut app = SnapApp::default();
-    app.scan_for_series(root.path().to_path_buf());
-    assert_eq!(app.series_tree.total_series(), 2);
-    let discovered = app
-        .series_tree
-        .find_by_uid(SECONDARY_UID)
-        .expect("MR discovery");
-    assert_eq!(discovered.folder(), root.path());
-    assert_eq!(discovered.acquisition.file_paths.len(), 3);
-    let context = egui::Context::default();
-    click_series(&mut app, &context, fixtures::SERIES_UID);
-    assert!(
-        matches!(&app.pending_load, Some(VolumeInput::Series(info)) if info.series_instance_uid() == fixtures::SERIES_UID)
-    );
-    app.process_pending_loads();
-    app.wait_for_load_tasks();
-    assert_primary(&app, fixtures::SERIES_UID);
-    app.series_load_target = SeriesLoadTarget::Secondary;
-    click_series(&mut app, &context, SECONDARY_UID);
-    assert!(
-        matches!(&app.pending_secondary_load, Some(VolumeInput::Series(info)) if info.series_instance_uid() == SECONDARY_UID)
-    );
-    app.process_pending_loads();
-    app.wait_for_load_tasks();
-    assert_primary(&app, fixtures::SERIES_UID);
-    assert_eq!(
-        app.loaded_secondary
-            .as_ref()
-            .expect("secondary loaded")
-            .modality
-            .as_deref(),
-        Some("MR")
-    );
-    assert_eq!(
-        app.selected_series
-            .as_ref()
-            .expect("successful highlight")
-            .series_instance_uid(),
-        SECONDARY_UID
-    );
-    assert!(app.compare_side_by_side);
 }
 
 #[test]

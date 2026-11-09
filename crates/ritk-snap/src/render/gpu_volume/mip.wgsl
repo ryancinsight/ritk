@@ -16,7 +16,7 @@
 //   pack4x8unorm(vec4<f32>(r, g, b, 1.0)) stores the pixel as four u8 values
 //   in little-endian order: byte 0 = R, byte 1 = G, byte 2 = B, byte 3 = A.
 //   On the host side the staging buffer can be reinterpreted directly as
-//   `&[u8]` and passed to egui::ColorImage::from_rgba_unmultiplied without
+//   `&[u8]` and passed to the RGBA presentation frame without
 //   any CPU post-processing.
 //
 // # DICOM presentation (in-shader)

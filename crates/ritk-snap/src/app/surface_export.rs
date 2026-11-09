@@ -1,27 +1,6 @@
 use super::state::SnapApp;
 
-#[cfg(not(target_arch = "wasm32"))]
-use rfd::FileDialog;
-
-#[cfg(target_arch = "wasm32")]
-struct FileDialog;
-
-#[cfg(target_arch = "wasm32")]
-impl FileDialog {
-    fn new() -> Self {
-        Self
-    }
-    fn set_file_name(self, _: &str) -> Self {
-        self
-    }
-    fn add_filter(self, _: &str, _: &[&str]) -> Self {
-        self
-    }
-    fn save_file(self) -> Option<std::path::PathBuf> {
-        None
-    }
-}
-
+use std::path::Path;
 use tracing::{error, info};
 
 fn binary_mask_from_labels(labels: &[u32]) -> Option<Vec<f32>> {
@@ -83,7 +62,7 @@ fn build_label_surface_mesh(
 
 impl SnapApp {
     /// Export the active label map as a VTK legacy POLYDATA surface mesh.
-    pub(super) fn export_surface_dialog(&mut self) {
+    pub(super) fn export_surface_to(&mut self, path: &Path) {
         let (Some(vol), Some(editor)) = (self.loaded.as_ref(), self.label_editor.as_ref()) else {
             self.status_message = "Export surface: no volume or segmentation loaded.".to_owned();
             return;
@@ -96,19 +75,11 @@ impl SnapApp {
             return;
         };
 
-        let Some(path) = FileDialog::new()
-            .set_file_name("surface.vtk")
-            .add_filter("VTK Polydata", &["vtk"])
-            .save_file()
-        else {
-            return;
-        };
-
         let (spacing, direction) = filter_geometry(vol.spacing, vol.direction);
         let origin = vol.origin;
         let mesh = build_label_surface_mesh(&binary, map.shape.0, spacing, origin, direction);
 
-        match ritk_io::write_mesh_as_vtk(&path, &mesh) {
+        match ritk_io::write_mesh_as_vtk(path, &mesh) {
             Ok(()) => {
                 self.status_message = format!(
                     "Exported surface ({} triangles) to {}",

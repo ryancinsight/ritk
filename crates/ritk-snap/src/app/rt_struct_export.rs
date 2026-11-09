@@ -1,33 +1,9 @@
 use super::state::SnapApp;
+use std::path::Path;
 use tracing::{error, info};
 
-#[cfg(not(target_arch = "wasm32"))]
-use rfd::FileDialog;
-
-#[cfg(target_arch = "wasm32")]
-struct FileDialog;
-
-#[cfg(target_arch = "wasm32")]
-impl FileDialog {
-    fn new() -> Self {
-        Self
-    }
-
-    fn set_file_name(self, _name: &str) -> Self {
-        self
-    }
-
-    fn add_filter(self, _name: &str, _extensions: &[&str]) -> Self {
-        self
-    }
-
-    fn save_file(self) -> Option<std::path::PathBuf> {
-        None
-    }
-}
-
 impl SnapApp {
-    pub(super) fn save_rt_struct_dialog(&mut self) {
+    pub(super) fn save_rt_struct_to(&mut self, path: &Path) {
         let (Some(vol), Some(editor)) = (self.loaded.as_ref(), self.label_editor.as_ref()) else {
             self.status_message = "Save RT-STRUCT: no volume or segmentation loaded.".to_owned();
             return;
@@ -35,20 +11,12 @@ impl SnapApp {
 
         let map = editor.current_map();
 
-        let Some(path) = FileDialog::new()
-            .set_file_name("rtstruct.dcm")
-            .add_filter("DICOM RT-STRUCT", &["dcm"][..])
-            .save_file()
-        else {
-            return;
-        };
-
         let origin = vol.origin;
         let spacing = vol.spacing;
         let direction = vol.direction;
 
         match ritk_io::label_map_to_rt_struct(map, origin, spacing, direction) {
-            Ok(ss) => match ritk_io::write_rt_struct(&path, &ss) {
+            Ok(ss) => match ritk_io::write_rt_struct(path, &ss) {
                 Ok(()) => {
                     self.status_message = format!(
                         "Saved RT-STRUCT ({} ROIs) to {}",

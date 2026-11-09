@@ -6,6 +6,14 @@ and physical coordinates, and captures three orthogonal scalar and RGB slice
 buffers plus a patient-coordinate fusion buffer.
 It needs no downloaded datasets or patient information.
 
+**What the native shell reaches.** The Métis desktop shell opens a study through
+**File → Open Study…** or a path on the command line, browses its series, and
+provides MPR layouts, cine, the crosshair and the measurement tools. This manual
+also documents RITK's library contracts and their verification, which the
+workflow example exercises directly. A capability the shell does not reach yet
+has a `RITK-SNAP-NATIVE-*` item in [the board](../../backlog.md). Only a passage
+naming a menu command or key describes something the shell does.
+
 RITK owns the DICOM boundary used by presentation hosts. A host that receives
 files or browser drops passes the named Part 10 byte batch to
 `ritk_io::scan_dicom_part10_bytes` (or its budgeted form), then passes the
@@ -26,9 +34,8 @@ use these provider pins. Historical hosted captures
 retain the provider revisions recorded in their own provenance files. RITK
 continues to own DICOM scanning, decoding, geometry and clinical presentation.
 
-This workflow is the DICOM opening demonstration for the default Windows Métis
-shell and the explicit eframe compatibility shell. The code, fixtures, visual
-goldens, and rejection tests remain in RITK so a framework migration cannot
+This workflow is the DICOM opening demonstration for the Windows Métis shell.
+The code, fixtures, visual goldens, and rejection tests remain in RITK so a framework migration cannot
 fork medical-data semantics.
 
 ## Actual application gallery
@@ -69,7 +76,7 @@ The same saved CT study also survives a live native resize. The initial
 three decoded planes, and the exact dimensions, digests, source revisions and
 orderly close are recorded in the [resize provenance record](images/dicom-metis-real-ct-resize.json).
 
-The detailed synthetic, native, eframe, browser, and saved-study workflows
+The detailed synthetic, native, browser, and saved-study workflows
 below explain how to reproduce and inspect each component boundary. RITK owns
 scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
 host, canvas, and window lifecycle.
@@ -98,8 +105,8 @@ slice into the retained frame, applies the orientation into the scratch
 buffer, and swaps the completed storage back into the frame. The focused
 `native_session_reuses_transformed_frame_storage_across_refreshes` test runs
 two ninety-degree refreshes and checks byte-identical pixels, dimensions and
-stable scratch capacities; the RGBA transform test checks the same result
-against the allocating reference path. The optional scalar projection keeps
+stable scratch capacities; the RGBA transform test checks every transform
+against the display mapping. The optional scalar projection keeps
 one retained frame plus scalar and RGBA scratch, so MIP, MinIP and Average
 refreshes swap storage after warmup instead of allocating a new projection;
 `native_projection_reuses_frame_and_scratch_storage_after_warmup` and
@@ -147,8 +154,8 @@ this presentation path, not a cross-framework memory ranking. The exact
 command fingerprint, revisions and bounded statistics are in the [native MRI
 resource provenance record](images/dicom-metis-real-mri-resource.json).
 
-The replay was also run three times with `--metis-native-layout
-orthogonal-with-mip`, exercising the retained scalar projection frame and
+The replay was also run three times with the `orthogonal-with-mip` layout,
+exercising the retained scalar projection frame and
 scalar/RGBA scratch. All runs exited with code 0 and produced the same
 1280×800, 614,907-byte capture (534,414 non-black pixels); the capture visibly
 contains the saved axial, coronal and sagittal MRI planes plus the axial
@@ -161,7 +168,7 @@ are in the [native MRI projection resource provenance record](images/dicom-metis
 Build from a standalone RITK checkout, then run the bounded demonstration:
 
 ```console
-cargo build --locked -p ritk-snap --features eframe-shell --example dicom_workflow
+cargo build --locked -p ritk-snap --example dicom_workflow
 python scripts/viewer.py target/debug/examples/dicom_workflow
 ```
 
@@ -300,9 +307,7 @@ exact NIfTI file/byte roundtrips for `.nii` and `.nii.gz`.
 
 ## Open, select, and restore a study
 
-Use **File → Open DICOM file…** to select a particular acquisition in a folder
-containing several series. The selected instance's SeriesInstanceUID determines
-which neighbouring image files load. **File → Open Study…** discovers the
+**File → Open Study…** discovers the
 series catalog and displays its preview bar. The desktop viewer loads the first
 readable series initially. Selecting a series card loads it into the active
 panel; if it is already open, the viewer activates its existing panel. Ctrl-click
@@ -315,7 +320,7 @@ member list again before pixel decode:
 
 ```console
 cargo run --locked -p ritk-snap -- path/to/study \
-  --series-instance-uid 2.25.20260905001 --metis-native --capture selected.png
+  --series-instance-uid 2.25.20260905001 --capture selected.png
 ```
 
 An unknown UID, a non-DICOM path, or a changed member list fails with a typed
@@ -337,7 +342,7 @@ replacement study can be opened, the prior catalog and every populated panel
 remain unchanged and the failure appears in the status bar. Selecting an
 unreadable series likewise preserves its assigned panel image.
 
-**Open DICOMDIR…** uses the index's referenced image set. Missing references or
+A DICOMDIR path given on the command line uses the index's referenced image set. Missing references or
 an invalid index report an error; unreferenced subdirectories do not supply a
 replacement study. The reader follows the linked PATIENT/STUDY/SERIES/IMAGE
 record tree, excludes inactive or unreachable records, rejects cycles and
@@ -352,9 +357,11 @@ longer an image fails explicitly and leaves the current study displayed.
 Older path-based sessions remain readable, but an ambiguous folder requires
 selection. See the [public API migration guide](../migration_selected_dicom.md).
 This session format does not persist the secondary comparison acquisition.
+The native shell reaches session save and restore once
+`RITK-SNAP-NATIVE-EXPORT-001` lands.
 
 Native tests exercise the RITK series selector and exact UID load path alongside
-the existing egui series-row pointer events, primary/secondary loads, failed
+the series-row pointer events, primary/secondary loads, failed
 replacement, and session restore with deterministic Part 10 files.
 `ritk_io::DicomStudyCatalog` is the shared discovery boundary: each row exposes
 the series UID, instance count, description, modality, patient identifier, and
@@ -487,122 +494,33 @@ byte-identical (`4fac3ea73e58325755c780de51c1b1504c0fc391da5c48ed2f578810ff46ddc
 The repeat count, executable digest, sample summaries and dataset identity are
 recorded in [the resource provenance record](images/dicom-metis-real-ct-resource.json).
 
-## Capture the eframe application
+## Capture the Métis application
 
-Build the synthetic workflow example with the compatibility feature and run:
+Build the synthetic workflow example and the viewer, then run:
 
 ```console
-cargo build --locked -p ritk-snap --features eframe-shell --bin ritk-snap --example dicom_workflow
+cargo build --locked -p ritk-snap --bin ritk-snap --example dicom_workflow
 python scripts/viewer.py target/debug/examples/dicom_workflow --native-binary target/debug/ritk-snap
 ```
 
 Use `.exe` suffixes on Windows and the shared Atlas target paths when applicable.
-The optional eframe workflow launches the real viewer with the generated study,
-saves its rendered root viewport to `scratch/viewer/window.png`, and exits. It
-then launches with a missing study and requires an explicit failure without a
-screenshot. Each of the three processes has a 60-second limit; the complete
-native workflow therefore has a maximum 180-second subprocess budget.
+The workflow launches the real viewer with the generated study, saves its
+framebuffer to `scratch/viewer/metis-frame.png`, and exits. It then launches
+with a missing study and requires an explicit failure without a screenshot.
+Each of the three processes has a 60-second limit; the complete native workflow
+therefore has a maximum 180-second subprocess budget.
 
-Capture uses the normal viewer update and egui/eframe screenshot response. The
-capture wrapper keeps requesting bounded repaints while RITK's background load
-publishes, then takes the screenshot; a failed or over-deadline load returns an
-error instead of saving an empty frame. For your own local study, run the
-source-level compatibility shell:
+To open the generated study interactively:
 
 ```console
-cargo run --locked -p ritk-snap --features eframe-shell -- \
-  path/to/study --eframe --capture window.png
+target/debug/ritk-snap.exe scratch/viewer/study
 ```
-
-The supplied study must load and the PNG must save before success is reported.
-Native window images depend on the host renderer and fonts; the exact pixel
-goldens above remain the deterministic software-rendering check.
-
-### Capture the saved MRI in the eframe compatibility shell
-
-The compatibility shell can open the same saved public MRI-DIR T2 study. This
-is a real DICOM run through the RITK loader, not a generated illustration:
-
-```powershell
-target\debug\ritk-snap.exe `
-  test_data\2_head_mri_t2\DICOM `
-  --eframe `
-  --capture scratch\viewer\real-mri-eframe.png
-```
-
-The reviewed capture is a 1600 × 1000 eframe application surface containing
-the series browser, axial, coronal and sagittal planes, and the `3D MIP · GPU`
-projection. Three bounded lifecycle repeats exited with code 0 and produced
-the same PNG digest:
-
-![Actual MRI-DIR T2 series rendered in the eframe compatibility shell](images/dicom-eframe-real-mri.webp)
-
-The image and resource measurements are recorded in
-[`dicom-eframe-real-mri-resource.json`](images/dicom-eframe-real-mri-resource.json).
-This is a useful egui/eframe baseline, but it is not a matched performance
-fixture for the current 1280 × 800 Métis three-plane surface: eframe includes
-the browser and GPU MIP. A common output contract is required before comparing
-framework resource or latency numbers; GPUI and Tauri fixtures remain open.
-
-### Capture the matched eframe orthogonal surface
-
-The eframe-shell feature build also exposes a shell-free measurement surface.
-It uses the same RITK loader, decoded pixels and spacing-aware `ImagePlacement`
-path, while presenting only the three planes that the Métis host exposes:
-
-```powershell
-cargo run --locked -p ritk-snap --features eframe-shell -- `
-  test_data\2_head_mri_t2\DICOM `
-  --eframe `
-  --presentation orthogonal-surface `
-  --viewport-size 1024x640 `
-  --capture scratch\viewer\real-mri-eframe-matched.png
-```
-
-The eframe viewport size is logical points. On the controlled Windows host,
-the display scale is 125%, so `--viewport-size 1024x640` produces the same
-1280×800 physical surface as the Métis native capture. Pass that option to the
-command above when producing the matched resource fixture. The provenance
-record keeps the requested logical size and observed physical PNG dimensions
-together, so a DPI-dependent fixture cannot be mistaken for a rescaled image.
-
-The reviewed capture below contains real saved MRI pixels in axial, coronal
-and sagittal panels. The three panels preserve voxel spacing when they fit the
-host rectangles; the shell-free mode does not add a series browser or MIP. The
-committed manual figure is a 640×400 display of the 1280×800 source capture;
-the provenance retains the source dimensions and digest.
-
-![Actual MRI-DIR T2 planes rendered in the matched eframe surface (640×400 figure from a 1280×800 capture)](images/dicom-eframe-orthogonal-surface.png)
-
-Three bounded lifecycle repeats exited with code 0 and produced the same source
-PNG digest. Dimensions, resource samples, source revisions and the exact semantic
-surface list are recorded in
-[`dicom-eframe-orthogonal-surface-resource.json`](images/dicom-eframe-orthogonal-surface-resource.json).
-The current standalone-lock sample records mean peak private bytes of
-416,867,669 ± 30,202,762 and lifecycle duration of 2,123 ± 203 ms across three
-bounded runs. The record binds RITK lock commit
-`f1a556786e849696caa73d8c341adf309e87d163` with merged Metis
-`8d4ab58e8731c51547bbca3ec87100facb698322` and Moirai
-`f038622d24907884ce5f386da4e04d05bdb60d62`.
-The matched 1280×800 record is the eframe half of the common fixture for
-`METIS-PERF-001`; it does not rank frameworks. GPUI and Tauri captures still
-require the same semantic surface and host-size contract before their resource
-numbers can be compared.
-
-For the migrated Windows host, run the same generated study through Métis:
-
-```console
-target/debug/ritk-snap.exe scratch/viewer/study --metis-native
-```
-
-On Windows the `--metis-native` spelling is optional for this command; the
-Métis host is the default shell. Existing scripts may retain the explicit flag.
 
 To open a saved study through the same host without typing its path, omit the
 positional argument on Windows:
 
 ```powershell
-target\debug\ritk-snap.exe --metis-native
+target\debug\ritk-snap.exe
 ```
 
 Moirai opens the bounded native folder picker and returns only the selected
@@ -661,7 +579,7 @@ PNG. The fixed capture surface is 1280 × 800 pixels; the panels are axial,
 coronal, and sagittal from left to right, separated by four-pixel black gaps.
 
 ```console
-target/debug/ritk-snap.exe scratch/viewer/study --metis-native --capture scratch/viewer/metis-frame.png
+target/debug/ritk-snap.exe scratch/viewer/study --capture scratch/viewer/metis-frame.png
 ```
 
 This capture checks real DICOM opening, RITK rendering, orthogonal slice
@@ -676,7 +594,6 @@ bounded RITK application overlay explicitly:
 cargo build --locked -p ritk-snap
 target\debug\ritk-snap.exe `
   test_data\3_head_ct_mridir\DICOM `
-  --metis-native `
   --capture-application `
   --capture scratch\viewer\real-dicom-metis-application.png
 ```
@@ -698,8 +615,8 @@ the latter adds only bounded viewer labels for visual inspection.
 
 ### Show the real study with a native scalar projection panel
 
-The native host can expose the same scalar axial MIP already used by the RITK
-eframe viewer, or the typed minimum and average reductions. The option is
+The native host can expose RITK's scalar axial MIP, or the typed minimum and
+average reductions. The option is
 explicit so the default three-panel capture stays stable, while a matched
 capture can show all four RITK projections through the same Métis framebuffer:
 
@@ -708,8 +625,7 @@ cargo run --locked -p ritk-snap -- `
   test_data\3_head_ct_mridir\DICOM `
   --series-instance-uid `
   1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
-  --metis-native `
-  --metis-native-layout orthogonal-with-mip `
+  --layout orthogonal-with-mip `
   --capture-application `
   --capture scratch\viewer\real-dicom-metis-mip.png
 ```
@@ -733,8 +649,7 @@ cargo run --locked -p ritk-snap -- `
   test_data\3_head_ct_mridir\DICOM `
   --series-instance-uid `
   1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
-  --metis-native `
-  --metis-native-layout orthogonal-with-minip `
+  --layout orthogonal-with-minip `
   --capture-application `
   --capture scratch\viewer\real-dicom-metis-minip.png
 
@@ -742,8 +657,7 @@ cargo run --locked -p ritk-snap -- `
   test_data\3_head_ct_mridir\DICOM `
   --series-instance-uid `
   1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
-  --metis-native `
-  --metis-native-layout orthogonal-with-average `
+  --layout orthogonal-with-average `
   --capture-application `
   --capture scratch\viewer\real-dicom-metis-average.png
 ```
@@ -765,8 +679,7 @@ so anisotropic voxels are letterboxed instead of stretched:
 ```powershell
 cargo run --locked -p ritk-snap -- `
   test_data\2_head_mri_t2\DICOM `
-  --metis-native `
-  --metis-native-layout responsive `
+  --layout responsive `
   --capture-application `
   --capture scratch\viewer\real-mri-metis-responsive.png
 ```
@@ -940,7 +853,6 @@ python ..\metis\scripts\python_native_capture.py `
   --argument=test_data\3_head_ct_mridir\DICOM `
   --argument=--series-instance-uid `
   --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
-  --argument=--metis-native `
   --output docs\manual\images\dicom-metis-real-ct-window.png
 ```
 
@@ -971,7 +883,6 @@ python ..\metis\scripts\python_native_capture.py `
   --argument=test_data\3_head_ct_mridir\DICOM `
   --argument=--series-instance-uid `
   --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
-  --argument=--metis-native `
   --resize 1024 720 `
   --output docs\manual\images\dicom-metis-real-ct-resize-initial.png `
   --resize-output docs\manual\images\dicom-metis-real-ct-resize-after.png
@@ -998,8 +909,7 @@ python ..\metis\scripts\python_native_capture.py `
   --argument=test_data\3_head_ct_mridir\DICOM `
   --argument=--series-instance-uid `
   --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
-  --argument=--metis-native `
-  --argument=--metis-native-layout `
+  --argument=--layout `
   --argument=orthogonal-with-mip `
   --output docs\manual\images\dicom-metis-real-ct-mip-window.png
 ```
@@ -1017,7 +927,7 @@ executable hash, invalid-study rejection and `metis-frame.png` hash in
 `scratch/viewer/workflow.json`:
 
 ```console
-python scripts/viewer.py target/debug/examples/dicom_workflow.exe --native-binary target/debug/ritk-snap.exe --metis-native
+python scripts/viewer.py target/debug/examples/dicom_workflow.exe --native-binary target/debug/ritk-snap.exe
 ```
 
 ![Métis native three-panel DICOM capture](images/dicom-metis-native.png)
@@ -1054,12 +964,10 @@ target\debug\examples\dicom_workflow.exe scratch\metis-synthetic
 python ..\metis\scripts\python_native_capture.py `
   --command target\debug\ritk-snap.exe `
   --argument=scratch\metis-synthetic\multiframe-study `
-  --argument=--metis-native `
   --output docs\manual\images\dicom-metis-multiframe-window.png
 python ..\metis\scripts\python_native_capture.py `
   --command target\debug\ritk-snap.exe `
   --argument=scratch\metis-synthetic\color-study `
-  --argument=--metis-native `
   --output docs\manual\images\dicom-metis-color-window.png
 ```
 
@@ -1091,7 +999,6 @@ and Métis native surface used by the synthetic workflow:
 cargo build --locked -p ritk-snap
 target\debug\ritk-snap.exe `
   test_data\3_head_ct_mridir\DICOM `
-  --metis-native `
   --capture scratch\viewer\real-dicom-metis.png
 ```
 
@@ -1114,80 +1021,6 @@ This command proves the native Métis frame path. It does not claim a browser
 WebDriver, WebGPU, or cross-engine run; those require configured browser
 drivers and remain separate RITK integration gates.
 
-The eframe viewer uses the same RITK loader and display state. Before uploading
-the scalar volume, its GPU renderer checks both the device buffer and storage
-binding limits. A volume that cannot fit, including this 409-slice public
-series on the reference Windows adapter, is rendered by the existing CPU MIP or
-volume-rendering path and emits a diagnostic instead of panicking in wgpu. The
-GPU path remains available for volumes within the device limits; this guard
-keeps a real saved study displayable on either path.
-
-### Capture the saved CT study in the eframe compatibility shell
-
-The same public series can be opened in the complete eframe application with an
-explicit acquisition selection:
-
-```powershell
-cargo run --locked -p ritk-snap --features eframe-shell -- `
-  test_data\3_head_ct_mridir\DICOM `
-  --eframe `
-  --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
-  --capture scratch\viewer\real-dicom-eframe.png
-```
-
-This run decoded the saved 409-slice CT series and exited successfully with a
-1600 × 1000 application-content capture. The image includes the Series Browser,
-axial, coronal, sagittal and 3D MIP views, plus the RITK geometry and
-window/level state. The scalar volume exceeds the reference adapter's GPU
-storage-buffer limit, so the guard above selected the existing CPU projection
-path and kept the actual DICOM pixels visible:
-
-![Actual MRI-DIR CT series rendered in the eframe application](images/dicom-eframe-real-ct.png)
-
-The capture is byte-identical across two independent runs (SHA-256
-`f4b30c71bd57f54227f5eeec524cd72e93f56f68e834fed909b907f9ecace048`). Its
-source revisions, executable digest, selected UID and command bounds are in
-[`dicom-eframe-real-ct.json`](images/dicom-eframe-real-ct.json). The PNG is
-committed because this is public CC BY 4.0 phantom data; private clinical
-captures remain local and ignored.
-
-### Capture a fitting CT volume through the eframe GPU projection
-
-The same RITK-owned viewer also exercises its asynchronous wgpu projection
-when the selected volume fits the device storage-buffer limits. The complete
-409-file series above exceeds the reference adapter limit, so this reproducible
-GPU check selects the first nine public Part 10 files as a small fitting volume:
-
-```powershell
-$subset = 'scratch\viewer\gpu-ct-input'
-New-Item -ItemType Directory -Force $subset | Out-Null
-Get-ChildItem test_data\3_head_ct_mridir\DICOM -Filter '*.dcm' |
-  Sort-Object Name | Select-Object -First 9 |
-  Copy-Item -Destination $subset
-$env:WGPU_BACKEND = 'gl'
-cargo run --locked -p ritk-snap --features eframe-shell -- `
-  $subset `
-  --eframe `
-  --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
-  --capture scratch\viewer\real-dicom-eframe-gpu.png
-```
-
-This command decodes the saved DICOM files, renders the axial, coronal and
-sagittal views, submits the 3D projection to wgpu, waits for the matching
-asynchronous readback, and exits successfully. The reviewed 1600 × 1000
-capture below shows the public phantom anatomy and the `3D MIP · GPU` status
-label in the running application:
-
-![Actual MRI-DIR CT slices and GPU MIP rendered in the eframe application](images/dicom-eframe-real-gpu-ct.webp)
-
-The capture is byte-identical across two runs (SHA-256
-`d8c82a0c51b9172ca11a0947f10cc31e80b135a2f23f10ba879f18b228575a7c`). The
-input file list, concatenated input digest, executable digest, graphics-backend
-selection and bounds are recorded in
-[`dicom-eframe-real-gpu-ct.json`](images/dicom-eframe-real-gpu-ct.json). The
-GL selector makes the run reproducible on this host; the evidence records the
-backend without claiming hardware acceleration.
-
 ### Capture the saved MRI study through Métis
 
 The same native path accepts the saved MRI-DIR T2 series in
@@ -1198,7 +1031,6 @@ do not contain private patient data. Run the viewer from the repository root:
 ```powershell
 target\debug\ritk-snap.exe `
   test_data\2_head_mri_t2\DICOM `
-  --metis-native `
   --capture scratch\viewer\real-mri-metis.png
 ```
 
@@ -1207,14 +1039,14 @@ planes, and transfers the resulting RGBA frame to the Métis native surface.
 Press Space in the loaded viewer to toggle active-axis cine playback. The
 native Métis session advances slices from its bounded event-wait clock and
 requests a new presentation only when a frame boundary is reached; the same
-host-neutral transition is used by the browser animation-frame loop and the
-legacy eframe shell. A newly loaded study starts paused.
+host-neutral transition is used by the browser animation-frame loop. A newly
+loaded study starts paused.
 When cine is active, press `+` or `=` to increase the rate by one frame per
 second, or `-` to decrease it. The native Métis footer shows the current rate
 and these controls; the value is bounded to 1–60 FPS, repeated key-down events
 are ignored, and a rate change reanchors the host clock so stale elapsed time
-does not create a burst of slice advances. The eframe shell and browser canvas
-adapter accept the same controls: browser `Equal` and `Minus` codes map through
+does not create a burst of slice advances. The browser canvas adapter accepts
+the same controls: browser `Equal` and `Minus` codes map through
 the host-neutral reducer, which requests a repaint when the bounded rate
 changes. The retained cross-engine study trace proves focused `Equal` delivery;
 the extended cine-rate evidence below also checks repeated-key handling and frame generations.
@@ -1325,8 +1157,7 @@ python $captureUtility `
   --command (Join-Path $target "debug\ritk-snap.exe") `
   --cwd (Get-Location).Path `
   --argument=test_data\2_head_mri_t2\DICOM `
-  --argument=--metis-native `
-  --argument=--metis-native-layout `
+  --argument=--layout `
   --argument=orthogonal-with-mip `
   --title 'RITK DICOM Viewer' `
   --width 1280 `
@@ -1348,7 +1179,6 @@ python $captureUtility `
   --command (Join-Path $target "debug\ritk-snap.exe") `
   --cwd (Get-Location).Path `
   --argument=$comparisonStudy `
-  --argument=--metis-native `
   --argument=--series-instance-uid `
   --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213 `
   --argument=--compare-series-instance-uid `
@@ -1411,7 +1241,7 @@ outside the Atlas development overlay at RITK source
 `python scripts/viewer.py D:/atlas/target/debug/examples/dicom_workflow.exe
 --native-binary D:/atlas/target/debug/ritk-snap.exe --metis-native
 --real-study D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM`
-read all 94 files and exited 0; the invalid-study probe exited 1. It reproduced the committed 1280 × 800
+(a flag since removed) read all 94 files and exited 0; the invalid-study probe exited 1. It reproduced the committed 1280 × 800
 frame byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`,
 411,589 non-black pixels). The executable digest
 `05aa4f42b075fd3913d2c43a152148e2dc1f9a946729a278f7d2c0dbac068b88`
@@ -1479,7 +1309,6 @@ be mistaken for a blank image:
 python scripts/viewer.py `
   target/debug/examples/dicom_workflow.exe `
   --native-binary target/debug/ritk-snap.exe `
-  --metis-native `
   --real-study test_data/2_head_mri_t2/DICOM
 ```
 
@@ -2284,9 +2113,7 @@ active gesture. Physical browser-driver input and Safari's file-backed
 WebDriver read remain separate acceptance work. Browser WebGPU is selected
 only through the explicit asynchronous `*_gpu` entrypoints or the gallery's
 `?renderer=webgpu` query; hosted capability evidence is recorded below and
-does not imply a device is present. The native eframe volume
-upload now preflights device limits, reports pending GPU readback, and uses the
-CPU projection path when the GPU path is unsupported or fails.
+does not imply a device is present.
 When browser GPU setup rejects, the RITK gallery preserves the underlying WASM
 error text in `gallery-status`; a missing adapter or device is reported as a
 setup failure rather than an `undefined` message.
@@ -2330,8 +2157,7 @@ acceptance work. Browser WebGPU is available through the explicit asynchronous
 GPU visual or equivalence claim is made for the recorded hosted run because its
 browser reported no adapter. The generic Métis runner's `--canvas-capture screenshot
 --canvas-context webgpu` mode captures those non-2D canvases as real element
-PNGs and verifies the context without substituting a 2D readback. Native eframe GPU uploads are guarded by the same RITK device limit
-check and have a fitting-volume visual capture in the eframe workflow above.
+PNGs and verifies the context without substituting a 2D readback.
 
 ### Add a display-only scalar projection canvas
 
@@ -2442,9 +2268,8 @@ or DICOM metadata.
 The generic Métis runner may read them as consumer assertions, but it does
 not assign them meaning.
 
-The shared RITK viewport mapper accepts finite display geometry independently
-of egui. Native eframe placement converts its coordinates at the host boundary;
-the browser canvas and viewer action path use the same RITK-owned mapping
+The shared RITK viewport mapper accepts finite display geometry. The native
+session, browser canvas and viewer action path use the same RITK-owned mapping
 without importing GUI carrier types.
 
 The browser task schedules each presentation tick with Moirai's owned
@@ -2456,9 +2281,8 @@ an explicit `stop_web_canvas` call: it releases provider listeners before the
 task exits so the next route generation cannot retain callbacks or stale
 pointer capture.
 
-The drop reducer consumes RITK's `DroppedInput` value rather than an eframe
-carrier. Native eframe input is converted at the host edge; browser payloads
-from Métis enter the same RITK value directly. This keeps DICOM filename, MIME,
+The drop reducer consumes RITK's `DroppedInput` value. Browser payloads from
+Métis enter that value directly. This keeps DICOM filename, MIME,
 Part 10 detection, byte-series assembly, and loader decisions in RITK while
 leaving Métis responsible only for bounded browser file transfer.
 
@@ -2680,8 +2504,7 @@ window/level, colormap, orientation, and physical-spacing rules as the RITK
 viewer. The host receives one bounded framebuffer; DICOM identifiers, paths,
 codec state, geometry, and volume storage stay in RITK.
 The canonical handoff uses RITK's neutral `render_rgba` and RGBA orientation
-path; the legacy eframe slice adapter is the only path in this handoff that
-converts those pixels to `egui::ColorImage`.
+path.
 
 On Windows, `run_native_viewer` loads the selected study in RITK, presents the
 three orthogonal views through Métis's native surface, routes pointer events to
@@ -2708,8 +2531,9 @@ move one slice; Page Up and Page Down move ten slices as in RadiAnt's series
 navigation workflow. The native session recomposes the Métis framebuffer after
 each action, and RITK tests assert the resulting slice indices.
 
-Deferred viewer loads use a bounded Moirai task per primary or comparison
-target. RITK assigns each request a generation and checks cooperative
+The native shell loads a study synchronously until
+`RITK-SNAP-NATIVE-LOAD-001` lands. The deferred load path it will adopt uses a
+bounded Moirai task per primary or comparison target. RITK assigns each request a generation and checks cooperative
 cancellation before publication, so a superseded or closed request cannot
 replace the current study. A failed replacement reports its error while the
 previous decoded study remains displayed. The load-task tests use the real
@@ -2718,8 +2542,7 @@ supersession, and close cancellation.
 
 Wheel input is now reduced and applied by RITK for every host. The native
 Moirai `ModifierState` is translated into the format-neutral
-`PresentationModifiers`; the current egui producer emits the same
-`PresentationEvent::PointerWheel` shape. Ctrl/Command plus a vertical delta
+`PresentationModifiers`. Ctrl/Command plus a vertical delta
 uses the existing zoom policy, while an unmodified vertical delta steps the
 active slice. Non-finite deltas and events outside a viewport are rejected or
 ignored before viewer state changes. Métis carries the event snapshot only; it
@@ -2737,36 +2560,20 @@ pixel path. The focused proof covers identity bytes, zoom, pan, invalid state,
 storage reuse and transformed pointer coordinates. The public 94-file MRI
 replay below remains the real-image visual oracle for this workflow.
 
-The existing `dicom-window.png` below remains the egui/eframe baseline. The
-`dicom-metis-native.png` image is the reviewed Métis content capture; it is
-generated from the same synthetic study and is not relabeled as an OS-window
-golden.
+`dicom-metis-native.png` is the reviewed Métis content capture generated from
+the synthetic study; it is not relabeled as an OS-window golden.
 
-![Running native viewer with the synthetic DICOM study](images/dicom-window.png)
-
-This egui/eframe capture runs on Windows at 125% display scale, producing a
-1600 × 1000 root viewport. The viewer's current hanging protocol selects width
-400 and center 60, unlike the software-grid oracle's width 510 and center 235.
 Image placement preserves physical proportions in every layout. For this
 fixture, displayed width/height is 2/3 for the depth slice, 1/3 for the row
 slice, and 1/2 for the column slice: pixel count times sample spacing on each
-axis. A quarter turn exchanges the two extents. The same placement determines
-image bounds and cursor hit coordinates; tests inspect the actual egui image
-shapes across layouts and rotations. Geometry that cannot be represented in
-positive finite screen coordinates reports an explicit placement error.
-The status bar's
-cursor `[1, 1, 2]` maps to LPS `[12, 21, 31.5]` mm by the equation above, and
-the decoded cursor value is 260. The capture demonstrates the existing viewer
-baseline; it is not a Métis application screenshot.
+axis. Geometry that cannot be
+represented in positive finite screen coordinates reports an explicit placement
+error.
 
 Scalar readouts use “value” because this carrier does not establish physical
-intensity units; PET SUV readouts retain their explicit SUV label.
-Annotations use opaque backings for contrast. When the viewport cannot fit all
-annotations without overlap, activate **Details** to read the complete metadata
-in a scrollable popup. Press Escape or click outside the popup to close it.
-With Details focused, press Enter or Space to open it. Arrow keys scroll by a
-line, Page Up/Down by a page, and Home/End reach the content boundaries without
-changing the study slice.
+intensity units. The PET SUV readout keeps its explicit SUV label and returns
+to the native shell with `RITK-SNAP-NATIVE-FUSION-001`. The native shell draws
+no annotation text until `RITK-SNAP-NATIVE-OVERLAY-TEXT-001` lands.
 
 Secondary images use their own sampling distances. A fused image keeps the
 primary output grid, then maps each primary voxel centre through the physical
@@ -2806,17 +2613,17 @@ the native window capture above remains the host-renderer demonstration.
 | `[1, 1, 2]` | `[12, 21, 31.5]` | `[1, 1, 3]` | Secondary column 3 |
 | `[1, 1, 3]` | `[12, 21.5, 31.5]` | `[1, 1, 4]` | Primary retained (out of field) |
 
-The capture is generated by the same `render_fused_slice` path used by the
-viewer, rather than by a hand-assembled image. A changed capture must update
+The capture is generated by `render_fused_slice`, the path
+`RITK-SNAP-NATIVE-FUSION-001` routes into compare panels, rather than by a
+hand-assembled image. A changed capture must update
 the reviewed `dicom-fusion.png` image only after the coordinate table and the
 pixel tests agree.
 
 ## Keep cursor and measurements with transformed pixels
 
-The viewer's **View → Orientation** commands and shortcuts apply the same
-`ViewTransform` to the texture and every source-coordinate overlay:
-**H** flips horizontally, **V** flips vertically, **R** rotates clockwise by
-90°, **Shift+R** rotates counter-clockwise, and **O** restores the identity.
+`ViewTransform` applies one flip and quarter-turn state to the texture and
+every source-coordinate overlay. The native shell has no menu command or key
+for it until `RITK-SNAP-NATIVE-DISPLAY-001` lands.
 The linked cursor, pointer intensity, crosshair, label map, RT-STRUCT, RT-DOSE,
 orientation labels, and measurement annotations all use source voxel
 coordinates. Screen input first enters the displayed output rectangle and is
@@ -2835,15 +2642,14 @@ an invalid annotation.
 The workflow also emits a deterministic transformed slice capture. It flips
 the depth slice horizontally and rotates it clockwise, then enlarges the
 result with nearest-neighbour sampling. The image is generated by the same
-`apply_to_image` path used before texture upload and is compared byte-for-byte
+`apply_to_rgba_into` path used before texture upload and is compared byte-for-byte
 with the reviewed manual image.
 
 ![Transformed depth slice pixel grid](images/dicom-orientation.png)
 
 Temporal multiframe organization and default DICOM LINEAR/VOI semantics are
 covered by the completed [RITK-SNAP-FRAMES-001](../../backlog.md#RITK-SNAP-FRAMES-001)
-item. These workflows prepare the egui baseline for the Métis migration. The
-browser handoff now has a compiled RITK adapter, manual workflow, and a local
+item. The browser handoff now has a compiled RITK adapter, manual workflow, and a local
 synthetic runtime visual smoke. Browser WebGPU is an explicit opt-in path;
 physical browser input, a real GPU visual run and full browser-window
 capture remain separate acceptance items in

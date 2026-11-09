@@ -4,8 +4,6 @@
 //! The specification these satisfy is in [`super`]; this module is the state,
 //! and [`super::image_ops`] is what applies it to pixels.
 
-#[cfg(feature = "eframe-shell")]
-use egui::Pos2;
 /// Number of 90° clockwise rotation steps (0=0°, 1=90°, 2=180°, 3=270°).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum RotationSteps {
@@ -111,28 +109,8 @@ impl ViewTransform {
 
     /// Map a source image-edge point `(x=column, y=row)` to display space.
     ///
-    /// Coordinates are measured from the outer image edges, so a source image
-    /// of size `[width, height]` occupies `[0,width] × [0,height]`. This is the
-    /// continuous counterpart of the pixel mapping used by
-    /// [`crate::ui::view_transform::apply_to_image`], and therefore maps
-    /// annotation geometry without a
-    /// half-pixel drift.
-    #[must_use]
-    #[cfg(feature = "eframe-shell")]
-    pub fn source_to_output(self, point: Pos2, source_size: [usize; 2]) -> Pos2 {
-        let [x, y] = self
-            .source_to_output_coordinates([f64::from(point.x), f64::from(point.y)], source_size);
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "the eframe point contract is f32 and the caller supplied f32 coordinates"
-        )]
-        Pos2::new(x as f32, y as f32)
-    }
-
-    /// Map a source image-edge point `(x=column, y=row)` to display space.
-    ///
     /// This host-neutral form keeps the orientation equation available to the
-    /// native Métis compositor as well as the eframe shell. Coordinates are
+    /// native Métis compositor. Coordinates are
     /// measured from the outer image edges, so `[width, height]` occupies
     /// `[0,width] × [0,height]`.
     #[must_use]
@@ -158,18 +136,6 @@ impl ViewTransform {
             RotationSteps::OneEighty => [width - x, height - y],
             RotationSteps::TwoSeventy => [y, width - x],
         }
-    }
-
-    /// Map a display image-edge point back to source coordinates.
-    ///
-    /// This is the exact inverse of [`Self::source_to_output`] for every
-    /// transform and source size, including non-square images.
-    #[must_use]
-    #[cfg(feature = "eframe-shell")]
-    pub fn output_to_source(self, point: Pos2, source_size: [usize; 2]) -> Pos2 {
-        let [x, y] = self
-            .output_to_source_coordinates([f64::from(point.x), f64::from(point.y)], source_size);
-        Pos2::new(x as f32, y as f32)
     }
 
     /// Map a display image-edge point back to source coordinates without

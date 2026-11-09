@@ -5,85 +5,90 @@
 //! | Module           | Contents                                                |
 //! |------------------|---------------------------------------------------------|
 //! | `layout`       | `LayoutMode` and `ViewportId` enumerations.        |
-//! | `toolbar`      | `ToolbarState` and `ToolbarPanel` — top toolbar.    |
-//! | `sidebar`      | `SidebarPanel` — series browser + metadata tab.       |
-//! | `overlay`      | `OverlayRenderer` — DICOM 4-corner text overlays.     |
-//! | `measurements` | `MeasurementLayer` — annotation drawing helpers.     |
+//! | `sidebar`      | `SidebarTab` — active sidebar tab state.              |
 //! | `tool_shortcuts` | Tool keyboard shortcuts SSOT (L=length, A=angle, etc.). |
+//! | `annotation_csv` | Annotation CSV export and row labels. |
+//! | `histogram` | Log-scaled bar height and W/L x-position geometry. |
+//! | `measurements` | Measurement annotation geometry. |
+//! | `overlay` | Anatomical edge labels and intensity readout strings. |
+//! | `pet_suv_readout` | PET acquisition and SUV readout text. |
+//! | `rtdose_texture` | RT-DOSE scalar-to-RGBA colorization helpers. |
 //! | `mpr_cursor`   | `LinkedCursor` and viewport/voxel transforms.         |
 //! | `cine`         | `CinePlayback` — per-frame playback timing state.     |
 //! | `coordinate_system` | `AnatomicalFrame`, `lps_to_ras`, `ras_to_lps` — LPS/RAS frame conversion. |
 //! | `cursor_info`  | `voxel_to_lps` — ITK affine voxel → LPS mm transform. |
 //! | `pointer_intensity` | `intensity_at_voxel` — voxel intensity lookup SSOT. |
 //! | `live_preview` | `live_length_mm` and `live_angle_deg` — live measurement labels. |
-//! | `histogram` | `draw_histogram` — voxel intensity histogram + W/L range overlay. |
 //! | `histogram_interact` | `x_to_intensity`, `wl_from_histogram_drag`, `wl_center_from_click` — histogram canvas interaction SSOT. |
-//! | `preset_panel` | `draw_preset_buttons` — W/L preset quick-select button strip SSOT.  |
-//! | `annotation_panel` | `draw_annotation_panel` — per-entry delete and CSV export SSOT.    |
 //! | `export_plan`  | Deterministic all-axis MPR PNG export planning.          |
 //! | `rtstruct_overlay` | RT-STRUCT patient-space contour projection.          |
 //! | `rtdose_overlay`   | RT-DOSE grid slice projection and dose-colormap mapping.|
-//! | `rtdose_texture`   | RT-DOSE scalar-to-texture colorization helpers.      |
-//! | `filter_panel`     | Image processing filter selection panel for viewer.    |
 //! | `pan`          | Pan drag mapping SSOT for viewport offset updates.      |
 //! | `zoom`         | Scroll-wheel zoom policy and clamped zoom mapping.       |
 //! | `window_level` | W/L drag mapping SSOT and sensitivity constant.          |
 //! | `window_presets` | `WindowPreset` with standard CT/MR presets.         |
 //! | `view_transform` | `ViewTransform` viewport flip/rotate state + pixel transforms. |
-//! | `colorbar`     | `draw_colorbar` / `show_colorbar` — W/L colorbar widget.     |
 //! | `dropped_input` | Dropped-file routing SSOT for app-shell ingestion decisions. |
 
 pub mod anatomical_plane;
-#[cfg(feature = "eframe-shell")]
-pub mod annotation_panel;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-EXPORT-001")
+)]
+pub(crate) mod annotation_csv;
 pub mod cine;
-#[cfg(feature = "eframe-shell")]
-pub mod colorbar;
 pub mod coordinate_system;
 pub mod cursor_info;
 pub mod dropped_input;
 pub mod export_plan;
-#[cfg(feature = "eframe-shell")]
-pub mod filter_panel;
-#[cfg(feature = "eframe-shell")]
-pub mod histogram;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-DISPLAY-001")
+)]
+pub(crate) mod histogram;
 pub mod histogram_interact;
 pub mod layout;
 pub mod live_preview;
-#[cfg(feature = "eframe-shell")]
-pub mod measurements;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "ratchet RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001"
+    )
+)]
+pub(crate) mod measurements;
 pub mod mpr_cursor;
-#[cfg(feature = "eframe-shell")]
-pub mod overlay;
-#[cfg(feature = "eframe-shell")]
-pub mod pacs_panel;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-OVERLAY-TEXT-001")
+)]
+pub(crate) mod overlay;
 pub mod pan;
-#[cfg(feature = "eframe-shell")]
-pub mod pet_suv_panel;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-FUSION-001")
+)]
+pub(crate) mod pet_suv_readout;
 pub mod pointer_intensity;
-#[cfg(feature = "eframe-shell")]
-pub mod preset_panel;
 pub mod rt_dose_analytics;
 pub mod rtdose_overlay;
-#[cfg(feature = "eframe-shell")]
-pub mod rtdose_texture;
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-RT-001")
+)]
+pub(crate) mod rtdose_texture;
 pub mod rtstruct_overlay;
 pub mod sidebar;
 pub mod slice_navigation;
 pub mod tool_shortcuts;
-#[cfg(feature = "eframe-shell")]
-pub mod toolbar;
 pub mod view_transform;
 pub mod window_level;
 pub mod window_presets;
 pub mod zoom;
 
 pub use anatomical_plane::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
-#[cfg(feature = "eframe-shell")]
-pub use annotation_panel::{draw_annotation_panel, AnnotationPanelAction};
 pub use cine::CinePlayback;
-#[cfg(feature = "eframe-shell")]
-pub use colorbar::{draw_colorbar, show_colorbar, COLORBAR_PANEL_WIDTH, COLORBAR_WIDTH};
 pub use coordinate_system::{
     format_point_mm, lps_to_ras, ras_to_lps, AnatomicalFrame, PatientPosition,
 };
@@ -93,43 +98,20 @@ pub use export_plan::{
     axis_folder_name, axis_slice_total, plan_all_mpr_exports, PlannedSliceExport,
 };
 pub use layout::{LayoutMode, ViewportId};
-#[cfg(feature = "eframe-shell")]
-pub use measurements::MeasurementLayer;
 pub use mpr_cursor::{
     axis_slice_dimensions, image_point_to_voxel, map_view_row_col_to_voxel,
     map_voxel_to_view_row_col, LinkedCursor,
 };
-#[cfg(feature = "eframe-shell")]
-pub use mpr_cursor::{viewport_point_to_voxel, voxel_to_viewport_point};
-#[cfg(feature = "eframe-shell")]
-pub use overlay::OverlayRenderer;
 pub use pan::pan_from_drag_delta;
-#[cfg(feature = "eframe-shell")]
-pub use pet_suv_panel::{draw_pet_suv_panel, PetSuvPanelAction};
 pub use pointer_intensity::intensity_at_voxel;
-#[cfg(feature = "eframe-shell")]
-pub use preset_panel::draw_preset_buttons;
-#[cfg(feature = "eframe-shell")]
-pub use rt_dose_analytics::draw_dvh_curve;
 pub use rt_dose_analytics::{
     compute_roi_dose_analytics, DvhPoint, RoiDoseAnalytics, VolumeGeometry,
 };
 pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtContour};
-#[cfg(feature = "eframe-shell")]
-pub use sidebar::SidebarPanel;
 pub use sidebar::SidebarTab;
 pub use slice_navigation::{advance_wrapped, axis_total, clamp_index, step_clamped};
-#[cfg(feature = "eframe-shell")]
-pub use tool_shortcuts::tool_kind_for_key;
 pub use tool_shortcuts::tool_kind_for_virtual_key;
-#[cfg(feature = "eframe-shell")]
-pub use toolbar::{ToolbarPanel, ToolbarState};
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
-pub(crate) use view_transform::apply_to_image_into;
-#[cfg(windows)]
-pub(crate) use view_transform::apply_to_rgba_into;
-#[cfg(feature = "eframe-shell")]
-pub use view_transform::{apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image};
+pub use view_transform::apply_to_rgba_into;
 pub use view_transform::{RotationSteps, ViewTransform};
 pub use window_level::MIN_WINDOW_WIDTH;
 pub use window_level::{

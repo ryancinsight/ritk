@@ -56,7 +56,7 @@ pub fn clamp_window_width(width: f64) -> f64 {
 /// Compute updated `(center, width)` from a drag delta `(dx, dy)`.
 ///
 /// `dx` is the screen-space horizontal displacement (positive = right).
-/// `dy` is the screen-space vertical displacement (positive = down, egui
+/// `dy` is the screen-space vertical displacement (positive = down, screen
 /// convention).  The y-axis is inverted so dragging **up** increases center.
 ///
 /// `sensitivity` controls HU adjustment per pixel; use

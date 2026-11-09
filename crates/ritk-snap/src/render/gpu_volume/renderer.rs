@@ -4,7 +4,7 @@
 //! `PendingReadback`, and `build_colormap_lut` live in [`super`] so that the
 //! sub-modules (`mip_pass`, `vr_pass`) can reference them via `super::`.
 
-use egui::ColorImage;
+use crate::render::RgbaImage;
 
 use crate::render::{GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
@@ -16,7 +16,7 @@ use super::vr_pass::{collect_vr_result, submit_vr_async};
 use super::PendingReadback;
 use super::{GpuRenderResult, GpuVolumeRenderer, ProjectionRequest};
 
-fn ready_or_pending(last: Option<&ColorImage>) -> GpuRenderResult {
+fn ready_or_pending(last: Option<&RgbaImage>) -> GpuRenderResult {
     last.map_or(GpuRenderResult::Pending, |image| {
         GpuRenderResult::Ready(image.clone())
     })

@@ -1,6 +1,6 @@
 use crate::ui::advance_wrapped;
 use crate::ui::{axis_total, clamp_index, step_clamped};
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+#[cfg(not(target_arch = "wasm32"))]
 use crate::LoadedVolume;
 
 use super::state::SnapApp;
@@ -51,7 +51,7 @@ impl SnapApp {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    #[cfg(feature = "eframe-shell")]
+    #[expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-LINK-001")]
     pub(crate) fn axis_extent_for_volume(volume: &LoadedVolume, axis: usize) -> usize {
         match axis {
             0 => volume.shape[0],
@@ -61,7 +61,10 @@ impl SnapApp {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    #[cfg(feature = "eframe-shell")]
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-LINK-001")
+    )]
     pub(crate) fn map_slice_index_between_volumes(
         primary_index: usize,
         primary_total: usize,

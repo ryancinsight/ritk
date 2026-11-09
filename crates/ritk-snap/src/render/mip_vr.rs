@@ -1,17 +1,14 @@
 //! Scalar axial maximum-intensity and volume-rendered projections.
 //!
 //! Projection math is host-neutral: RITK produces bounded RGBA storage and
-//! the optional eframe shell adapts that storage to its image carrier.
+//! hosts present that storage directly.
 
-#[cfg(any(feature = "eframe-shell", test))]
 use crate::render::RgbaImage;
 use crate::render::{map_scalar_value, GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
-#[cfg(feature = "eframe-shell")]
 use iris::color::{ColorMap, Normalized};
 
 /// Render a scalar axial maximum-intensity projection into owned RGBA storage.
-#[cfg(any(feature = "eframe-shell", test))]
 pub(crate) fn render_mip_axial_rgba(
     volume: &LoadedVolume,
     wl: WindowLevel,
@@ -22,7 +19,6 @@ pub(crate) fn render_mip_axial_rgba(
 }
 
 /// Render an axial maximum-intensity projection using caller-owned scratch.
-#[cfg(any(feature = "eframe-shell", test))]
 pub(crate) fn render_mip_axial_rgba_with_scratch(
     scratch: &mut mnemosyne::AlignedVec<u8>,
     volume: &LoadedVolume,
@@ -90,7 +86,6 @@ fn render_mip_pixels(
 }
 
 /// Render a scalar axial front-to-back volume projection into RGBA storage.
-#[cfg(feature = "eframe-shell")]
 pub(crate) fn render_vr_axial_rgba(
     volume: &LoadedVolume,
     wl: WindowLevel,
@@ -102,7 +97,6 @@ pub(crate) fn render_vr_axial_rgba(
 }
 
 /// Render an axial volume projection using caller-owned scratch.
-#[cfg(feature = "eframe-shell")]
 pub(crate) fn render_vr_axial_rgba_with_scratch(
     scratch: &mut mnemosyne::AlignedVec<u8>,
     volume: &LoadedVolume,
@@ -156,7 +150,6 @@ fn valid_presentation(volume: &LoadedVolume) -> Option<GrayscalePresentation> {
     }
 }
 
-#[cfg(feature = "eframe-shell")]
 fn channel_to_byte(value: f32) -> u8 {
     #[expect(
         clippy::cast_possible_truncation,
@@ -166,57 +159,11 @@ fn channel_to_byte(value: f32) -> u8 {
     byte
 }
 
-#[cfg(any(feature = "eframe-shell", test))]
 fn unsupported_projection_image(channels: u8) -> RgbaImage {
     tracing::error!(channels, "3D projection requires a scalar volume");
     invalid_image()
 }
 
-#[cfg(any(feature = "eframe-shell", test))]
 fn invalid_image() -> RgbaImage {
     RgbaImage::new([1, 1], vec![255_u8, 0, 255, 255])
-}
-
-#[cfg(feature = "eframe-shell")]
-/// Render a maximum-intensity projection for the eframe shell.
-pub fn render_mip_axial(
-    volume: &LoadedVolume,
-    wl: WindowLevel,
-    colormap: NamedColorMap,
-) -> egui::ColorImage {
-    render_mip_axial_rgba(volume, wl, colormap).to_color_image()
-}
-
-#[cfg(feature = "eframe-shell")]
-/// Render a maximum-intensity projection using eframe-owned scratch.
-pub(crate) fn render_mip_axial_with_scratch(
-    scratch: &mut mnemosyne::AlignedVec<u8>,
-    volume: &LoadedVolume,
-    wl: WindowLevel,
-    colormap: NamedColorMap,
-) -> egui::ColorImage {
-    render_mip_axial_rgba_with_scratch(scratch, volume, wl, colormap).to_color_image()
-}
-
-#[cfg(feature = "eframe-shell")]
-/// Render a volume-rendered projection for the eframe shell.
-pub fn render_vr_axial(
-    volume: &LoadedVolume,
-    wl: WindowLevel,
-    colormap: NamedColorMap,
-    alpha: f32,
-) -> egui::ColorImage {
-    render_vr_axial_rgba(volume, wl, colormap, alpha).to_color_image()
-}
-
-#[cfg(feature = "eframe-shell")]
-/// Render a volume-rendered projection using eframe-owned scratch.
-pub(crate) fn render_vr_axial_with_scratch(
-    scratch: &mut mnemosyne::AlignedVec<u8>,
-    volume: &LoadedVolume,
-    wl: WindowLevel,
-    colormap: NamedColorMap,
-    alpha: f32,
-) -> egui::ColorImage {
-    render_vr_axial_rgba_with_scratch(scratch, volume, wl, colormap, alpha).to_color_image()
 }

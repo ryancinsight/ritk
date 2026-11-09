@@ -40,7 +40,7 @@ mod mesh_buf;
 mod params;
 mod passes;
 
-use egui::ColorImage;
+use crate::render::RgbaImage;
 use ritk_io::VtkPolyData;
 
 use crate::render::mesh_render::{look_at, mat4_mul, normalize, perspective};
@@ -113,7 +113,7 @@ pub struct GpuMeshRenderer {
     cache: Option<GpuMeshFrameCache>,
     mesh: Option<GpuMeshBufs>,
     pending: Option<PendingMeshReadback>,
-    last: Option<ColorImage>,
+    last: Option<RgbaImage>,
 }
 
 impl GpuMeshRenderer {
@@ -147,7 +147,7 @@ impl GpuMeshRenderer {
         width: usize,
         height: usize,
         config: &MeshRenderConfig,
-    ) -> Option<ColorImage> {
+    ) -> Option<RgbaImage> {
         // Non-blocking poll: drive any completed map_async callbacks.
         let _ = self.ctx.device.poll(wgpu::Maintain::Poll);
 
@@ -232,7 +232,7 @@ impl GpuMeshRenderer {
         width: usize,
         height: usize,
         config: &MeshRenderConfig,
-    ) -> Option<ColorImage> {
+    ) -> Option<RgbaImage> {
         // Submit frame.
         let _ = self.render(mesh, camera, mat, lights, width, height, config);
         // Block until GPU completes.

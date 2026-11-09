@@ -21,21 +21,15 @@
 //! Transforms are applied in the order: flip_h → flip_v → rotate.
 //!
 //! ## Invariants
-//! - `apply_to_image(img, identity)` returns a pixel-identical image.
+//! - `apply_to_rgba_into` with the identity leaves the output untouched and
+//!   returns the source dimensions.
 //! - Four 90° clockwise rotations compose to the identity.
 //! - Two flip_h applications compose to the identity.
 mod image_ops;
 mod transform;
 
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
-pub(crate) use image_ops::apply_to_image_into;
-#[cfg(all(test, feature = "eframe-shell"))]
-pub(crate) use image_ops::apply_to_rgba;
-#[cfg(any(windows, test))]
-pub(crate) use image_ops::apply_to_rgba_into;
-#[cfg(feature = "eframe-shell")]
-pub use image_ops::{apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image};
+pub use image_ops::apply_to_rgba_into;
 pub use transform::{RotationSteps, ViewTransform};
 
-#[cfg(all(test, feature = "eframe-shell"))]
+#[cfg(test)]
 mod tests;

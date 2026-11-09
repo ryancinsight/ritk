@@ -3,6 +3,8 @@
 - Status: Accepted
 - Delivery: [RITK PR #547](https://github.com/ryancinsight/ritk/pull/547) and ADR correction [PR #548](https://github.com/ryancinsight/ritk/pull/548). Merges: `7eb4a0a1513248755d7d09b7ac8e3363113163a7`, `cfe61bd271b47c1bfaf8694bb7f136512eeb3180`.
 
+Revision 2026-11-09: the eframe shell is deleted and Métis is the only desktop shell. Text below that names eframe records the state when this decision was made ([ADR 0026](0026-viewer-presentation-migration.md)).
+
 ## Context
 
 RITK already keeps one linked MPR cursor in volume voxel order `[z, y, x]`.

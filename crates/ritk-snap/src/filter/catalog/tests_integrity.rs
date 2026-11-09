@@ -1,14 +1,13 @@
 use crate::FilterKind;
-use ritk_filter::ForegroundValue;
 
-// Verify that the default `FilterKind` values exposed by the panel are
+// Verify that the catalog's starting `FilterKind` values are
 // within the analytically valid clamped ranges — GrayscaleMorph (remaining),
 // Pointwise, Geometry, and Threshold variants.
 
 /// Abs: unit struct, always valid.
 #[test]
 fn abs_variant_is_valid() {
-    let fk = FilterKind::Abs;
+    let fk = super::catalog_default("Abs");
     assert!(
         matches!(fk, FilterKind::Abs),
         "Abs variant must match itself"
@@ -18,7 +17,7 @@ fn abs_variant_is_valid() {
 /// InvertIntensity default: maximum=None (computed from image data, ITK default).
 #[test]
 fn invert_intensity_default_maximum_is_none() {
-    let fk = FilterKind::InvertIntensity { maximum: None };
+    let fk = super::catalog_default("Invert Intensity");
     if let FilterKind::InvertIntensity { maximum } = fk {
         assert!(
             maximum.is_none(),
@@ -32,7 +31,7 @@ fn invert_intensity_default_maximum_is_none() {
 /// NormalizeIntensity: unit struct, always valid.
 #[test]
 fn normalize_intensity_variant_is_valid() {
-    let fk = FilterKind::NormalizeIntensity;
+    let fk = super::catalog_default("Normalize");
     assert!(
         matches!(fk, FilterKind::NormalizeIntensity),
         "NormalizeIntensity variant must match itself"
@@ -42,7 +41,7 @@ fn normalize_intensity_variant_is_valid() {
 /// Square: unit struct, always valid.
 #[test]
 fn square_variant_is_valid() {
-    let fk = FilterKind::Square;
+    let fk = super::catalog_default("Square");
     assert!(
         matches!(fk, FilterKind::Square),
         "Square variant must match itself"
@@ -52,7 +51,7 @@ fn square_variant_is_valid() {
 /// Sqrt: unit struct, always valid.
 #[test]
 fn sqrt_variant_is_valid() {
-    let fk = FilterKind::Sqrt;
+    let fk = super::catalog_default("Sqrt");
     assert!(
         matches!(fk, FilterKind::Sqrt),
         "Sqrt variant must match itself"
@@ -62,7 +61,7 @@ fn sqrt_variant_is_valid() {
 /// Log: unit struct, always valid.
 #[test]
 fn log_variant_is_valid() {
-    let fk = FilterKind::Log;
+    let fk = super::catalog_default("Log");
     assert!(
         matches!(fk, FilterKind::Log),
         "Log variant must match itself"
@@ -72,7 +71,7 @@ fn log_variant_is_valid() {
 /// Exp: unit struct, always valid.
 #[test]
 fn exp_variant_is_valid() {
-    let fk = FilterKind::Exp;
+    let fk = super::catalog_default("Exp");
     assert!(
         matches!(fk, FilterKind::Exp),
         "Exp variant must match itself"
@@ -83,12 +82,7 @@ fn exp_variant_is_valid() {
 /// binary label values. lower ≤ upper required for valid threshold.
 #[test]
 fn binary_threshold_defaults_ordered() {
-    let fk = FilterKind::BinaryThreshold {
-        lower: 100.0,
-        upper: 500.0,
-        foreground: ForegroundValue::ONE,
-        background: 0.0,
-    };
+    let fk = super::catalog_default("Binary Threshold");
     if let FilterKind::BinaryThreshold {
         lower,
         upper,
@@ -111,10 +105,7 @@ fn binary_threshold_defaults_ordered() {
 /// Rescale intensity: out_min < out_max required for a non-degenerate mapping.
 #[test]
 fn rescale_intensity_defaults_ordered() {
-    let fk = FilterKind::RescaleIntensity {
-        out_min: 0.0,
-        out_max: 1.0,
-    };
+    let fk = super::catalog_default("Rescale Intensity");
     if let FilterKind::RescaleIntensity { out_min, out_max } = fk {
         assert!(
             out_min < out_max,
@@ -128,10 +119,7 @@ fn rescale_intensity_defaults_ordered() {
 /// Clamp: lower ≤ upper required for non-degenerate clamping.
 #[test]
 fn clamp_defaults_ordered() {
-    let fk = FilterKind::Clamp {
-        lower: 0.0,
-        upper: 255.0,
-    };
+    let fk = super::catalog_default("Clamp");
     if let FilterKind::Clamp { lower, upper } = fk {
         assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
     } else {
@@ -142,13 +130,7 @@ fn clamp_defaults_ordered() {
 /// Connected threshold: lower ≤ upper for a valid acceptance interval.
 #[test]
 fn connected_threshold_defaults_ordered() {
-    let fk = FilterKind::ConnectedThreshold {
-        seed_z: 0,
-        seed_y: 0,
-        seed_x: 0,
-        lower: 100.0,
-        upper: 500.0,
-    };
+    let fk = super::catalog_default("Connected Threshold");
     if let FilterKind::ConnectedThreshold { lower, upper, .. } = fk {
         assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
     } else {
@@ -159,15 +141,7 @@ fn connected_threshold_defaults_ordered() {
 /// Confidence connected: multiplier > 0 and max_iterations ≥ 1.
 #[test]
 fn confidence_connected_defaults_valid() {
-    let fk = FilterKind::ConfidenceConnected {
-        seed_z: 0,
-        seed_y: 0,
-        seed_x: 0,
-        initial_lower: 0.0,
-        initial_upper: 100.0,
-        multiplier: 2.5,
-        max_iterations: 15,
-    };
+    let fk = super::catalog_default("Confidence Connected");
     if let FilterKind::ConfidenceConnected {
         multiplier,
         max_iterations,
@@ -193,16 +167,7 @@ fn confidence_connected_defaults_valid() {
 /// Neighborhood connected: lower ≤ upper and all radii ≥ 1.
 #[test]
 fn neighborhood_connected_defaults_valid() {
-    let fk = FilterKind::NeighborhoodConnected {
-        seed_z: 0,
-        seed_y: 0,
-        seed_x: 0,
-        lower: 100.0,
-        upper: 500.0,
-        radius_z: 1,
-        radius_y: 1,
-        radius_x: 1,
-    };
+    let fk = super::catalog_default("Neighborhood Connected");
     if let FilterKind::NeighborhoodConnected {
         lower,
         upper,
@@ -222,22 +187,31 @@ fn neighborhood_connected_defaults_valid() {
     }
 }
 
-/// Atan, Sin, Cos, Tan, Asin, Acos, BoundedReciprocal are unit variants — no parameters.
+/// The trigonometric filters are parameterless catalog entries.
 #[test]
 fn trig_filter_variants_are_unit() {
-    // All 7 unit variants must be constructible and equatable.
-    let _atan = FilterKind::Atan;
-    let _sin = FilterKind::Sin;
-    let _cos = FilterKind::Cos;
-    let _tan = FilterKind::Tan;
-    let _asin = FilterKind::Asin;
-    let _acos = FilterKind::Acos;
-    let _br = FilterKind::BoundedReciprocal;
-    assert_eq!(FilterKind::Atan, FilterKind::Atan);
-    assert_eq!(FilterKind::Sin, FilterKind::Sin);
-    assert_eq!(FilterKind::Cos, FilterKind::Cos);
-    assert_eq!(FilterKind::Tan, FilterKind::Tan);
-    assert_eq!(FilterKind::Asin, FilterKind::Asin);
-    assert_eq!(FilterKind::Acos, FilterKind::Acos);
-    assert_eq!(FilterKind::BoundedReciprocal, FilterKind::BoundedReciprocal);
+    let expected = [
+        ("Atan", FilterKind::Atan),
+        ("Sin", FilterKind::Sin),
+        ("Cos", FilterKind::Cos),
+        ("Tan", FilterKind::Tan),
+        ("Asin", FilterKind::Asin),
+        ("Acos", FilterKind::Acos),
+        ("Bounded Reciprocal", FilterKind::BoundedReciprocal),
+    ];
+    for (label, kind) in expected {
+        assert_eq!(super::catalog_default(label), kind);
+    }
+}
+
+/// Each catalog label names exactly one filter.
+#[test]
+fn catalog_labels_are_unique() {
+    let catalog = super::filter_catalog();
+    for (index, (label, _)) in catalog.iter().enumerate() {
+        assert!(
+            catalog[index + 1..].iter().all(|(other, _)| other != label),
+            "{label} is duplicated"
+        );
+    }
 }

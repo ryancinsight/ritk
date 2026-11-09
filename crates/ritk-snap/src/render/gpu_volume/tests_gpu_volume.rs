@@ -22,9 +22,9 @@
 
 use std::sync::Arc;
 
-use egui::ColorImage;
+use crate::render::slice_render::RgbaImage;
 
-use crate::render::mip_vr::render_mip_axial;
+use crate::render::mip_vr::render_mip_axial_rgba;
 use crate::render::{NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 
@@ -60,7 +60,7 @@ fn render_mip_sync(
     volume: &LoadedVolume,
     wl: WindowLevel,
     colormap: NamedColorMap,
-) -> Option<ColorImage> {
+) -> Option<RgbaImage> {
     // Round 1: flush any in-flight work from a previous render call.
     let _ = renderer.render_mip(volume, wl, colormap);
     renderer.poll_blocking();
@@ -154,23 +154,23 @@ fn gpu_mip_matches_cpu_mip_grayscale() {
     let wl = WindowLevel::new(1024.0, 2048.0);
     let colormap = NamedColorMap::Grayscale;
 
-    let cpu_img = render_mip_axial(&volume, wl, colormap);
+    let cpu_img = render_mip_axial_rgba(&volume, wl, colormap);
     let gpu_img = render_mip_sync(&mut renderer, &volume, wl, colormap)
         .expect("GPU MIP must succeed when GPU is available");
 
-    assert_eq!(cpu_img.size, gpu_img.size, "MIP image sizes must match");
+    assert_eq!(cpu_img.size(), gpu_img.size(), "MIP image sizes must match");
     assert_eq!(
-        cpu_img.pixels.len(),
-        gpu_img.pixels.len(),
+        cpu_img.rgba_pixels().count(),
+        gpu_img.rgba_pixels().count(),
         "Pixel buffer lengths must match"
     );
 
     let mut max_diff: i32 = 0;
-    for (i, (c, g)) in cpu_img.pixels.iter().zip(gpu_img.pixels.iter()).enumerate() {
-        let diff = (c.r() as i32 - g.r() as i32)
+    for (i, (c, g)) in cpu_img.rgba_pixels().zip(gpu_img.rgba_pixels()).enumerate() {
+        let diff = (i32::from(c[0]) - i32::from(g[0]))
             .abs()
-            .max((c.g() as i32 - g.g() as i32).abs())
-            .max((c.b() as i32 - g.b() as i32).abs());
+            .max((i32::from(c[1]) - i32::from(g[1])).abs())
+            .max((i32::from(c[2]) - i32::from(g[2])).abs());
         if diff > max_diff {
             max_diff = diff;
         }
@@ -226,8 +226,8 @@ fn gpu_mip_cache_invalidated_on_volume_change() {
     let img_a = render_mip_sync(&mut renderer, &vol_a, wl, cm).expect("render vol_a");
     let img_b = render_mip_sync(&mut renderer, &vol_b, wl, cm).expect("render vol_b");
 
-    let zero_pixel = egui::Color32::from_rgba_unmultiplied(0, 0, 0, 255);
-    for &p in &img_b.pixels {
+    let zero_pixel = [0, 0, 0, 255];
+    for p in img_b.rgba_pixels() {
         assert_eq!(
             p, zero_pixel,
             "vol_b must render to black (norm=0 → Grayscale LUT[0]=black)"
@@ -235,9 +235,8 @@ fn gpu_mip_cache_invalidated_on_volume_change() {
     }
 
     let all_same = img_a
-        .pixels
-        .iter()
-        .zip(img_b.pixels.iter())
+        .rgba_pixels()
+        .zip(img_b.rgba_pixels())
         .all(|(a, b)| a == b);
     assert!(!all_same, "vol_a and vol_b MIP outputs must differ");
 }
@@ -260,15 +259,15 @@ fn gpu_mip_wl_clamps_below_floor_all_black() {
         .expect("GPU MIP must succeed when GPU is available");
 
     assert_eq!(
-        img.size,
+        img.size(),
         [8, 8],
         "Output size must be [cols, rows] = [8, 8]"
     );
-    for &p in &img.pixels {
-        assert_eq!(p.r(), 0, "R must be 0 for below-floor volume");
-        assert_eq!(p.g(), 0, "G must be 0 for below-floor volume");
-        assert_eq!(p.b(), 0, "B must be 0 for below-floor volume");
-        assert_eq!(p.a(), 255, "A must be 255 (MIP: fully opaque)");
+    for p in img.rgba_pixels() {
+        assert_eq!(p[0], 0, "R must be 0 for below-floor volume");
+        assert_eq!(p[1], 0, "G must be 0 for below-floor volume");
+        assert_eq!(p[2], 0, "B must be 0 for below-floor volume");
+        assert_eq!(p[3], 255, "A must be 255 (MIP: fully opaque)");
     }
 }
 
@@ -290,16 +289,16 @@ fn gpu_mip_wl_clamps_above_ceiling_all_white() {
         .expect("GPU MIP must succeed when GPU is available");
 
     assert_eq!(
-        img.size,
+        img.size(),
         [8, 8],
         "Output size must be [cols, rows] = [8, 8]"
     );
-    for &p in &img.pixels {
+    for p in img.rgba_pixels() {
         // Grayscale LUT[255]: pack4x8unorm(1.0, 1.0, 1.0, 1.0) = round(255) = 255 each.
-        assert_eq!(p.r(), 255, "R must be 255 for above-ceiling Grayscale MIP");
-        assert_eq!(p.g(), 255, "G must be 255 for above-ceiling Grayscale MIP");
-        assert_eq!(p.b(), 255, "B must be 255 for above-ceiling Grayscale MIP");
-        assert_eq!(p.a(), 255, "A must be 255 (MIP: fully opaque)");
+        assert_eq!(p[0], 255, "R must be 255 for above-ceiling Grayscale MIP");
+        assert_eq!(p[1], 255, "G must be 255 for above-ceiling Grayscale MIP");
+        assert_eq!(p[2], 255, "B must be 255 for above-ceiling Grayscale MIP");
+        assert_eq!(p[3], 255, "A must be 255 (MIP: fully opaque)");
     }
 }
 
@@ -325,8 +324,12 @@ fn gpu_mip_repeated_render_identical() {
     let img2 =
         render_mip_sync(&mut renderer, &vol, wl, cm).expect("second MIP render (cache reuse)");
 
-    assert_eq!(img1.size, img2.size, "Sizes must match on repeated render");
-    for (i, (a, b)) in img1.pixels.iter().zip(img2.pixels.iter()).enumerate() {
+    assert_eq!(
+        img1.size(),
+        img2.size(),
+        "Sizes must match on repeated render"
+    );
+    for (i, (a, b)) in img1.rgba_pixels().zip(img2.rgba_pixels()).enumerate() {
         assert_eq!(
             a, b,
             "Pixel {i}: repeated MIP render must be pixel-identical"
@@ -347,7 +350,7 @@ fn gpu_mip_empty_volume_no_panic() {
     let img = render_mip_sync(&mut renderer, &vol, wl, NamedColorMap::Grayscale)
         .expect("single-slice volume must produce a valid MIP");
     assert_eq!(
-        img.size,
+        img.size(),
         [4, 4],
         "Output size must be [cols, rows] = [4, 4]"
     );

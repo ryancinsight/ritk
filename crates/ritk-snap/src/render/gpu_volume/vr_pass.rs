@@ -7,7 +7,7 @@
 //!    a non-blocking `map_async`.
 //!
 //! 2. [`collect_vr_result`] — reads the mapped staging buffer and returns a
-//!    [`ColorImage`].  Must only be called after the receiver fires `Ok(Ok(()))`.
+//!    [`RgbaImage`].  Must only be called after the receiver fires `Ok(Ok(()))`.
 //!
 //! # Memory efficiency
 //!
@@ -22,7 +22,7 @@
 
 use std::sync::mpsc;
 
-use egui::ColorImage;
+use crate::render::RgbaImage;
 
 use crate::render::{GrayscalePresentation, NamedColorMap, WindowLevel};
 
@@ -146,17 +146,13 @@ pub(super) fn submit_vr_async(
 ///
 /// # Output
 ///
-/// `pack4x8unorm` writes `[R, G, B, A]` bytes on little-endian; forwarded
-/// directly to `from_rgba_unmultiplied` without CPU conversion.
-pub(super) fn collect_vr_result(
-    staging_buf: &wgpu::Buffer,
-    rows: usize,
-    cols: usize,
-) -> ColorImage {
+/// `pack4x8unorm` writes `[R, G, B, A]` bytes on little-endian, the order
+/// [`RgbaImage`] stores, so no CPU conversion is required.
+pub(super) fn collect_vr_result(staging_buf: &wgpu::Buffer, rows: usize, cols: usize) -> RgbaImage {
     let buffer_slice = staging_buf.slice(..);
     let mapped = buffer_slice.get_mapped_range();
     let rgba: Vec<u8> = mapped.to_vec();
     drop(mapped);
     staging_buf.unmap();
-    ColorImage::from_rgba_unmultiplied([cols, rows], &rgba)
+    RgbaImage::new([cols, rows], rgba)
 }

@@ -7,13 +7,50 @@ use super::state::SnapApp;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::pacs::query::PacsRequest;
 use crate::pacs::query::{PacsResponse, QueryState};
-use crate::ui::pacs_panel::PacsPanelAction;
 use tracing::{error, info};
+
+/// Action triggered by the PACS panel on a given frame.
+///
+/// `SnapApp` performs the resulting state transition or network call.
+#[derive(Debug, Default)]
+pub enum PacsPanelAction {
+    /// No action was triggered this frame.
+    #[default]
+    None,
+    /// User pressed "Test Connection (C-ECHO)".
+    SubmitEcho,
+    /// User pressed "Search (C-FIND)".
+    SubmitFind {
+        patient_name: String,
+        modality: String,
+        study_date: String,
+        accession_number: String,
+    },
+    /// User pressed "Retrieve (C-MOVE)" for a specific study.
+    SubmitRetrieve { study_uid: String },
+    /// User pressed "Show Series" to drill into a study's series list.
+    SubmitFindSeries { study_instance_uid: String },
+    /// User pressed "Retrieve Series (C-MOVE)" for a specific series.
+    SubmitRetrieveSeries {
+        series_uid: String,
+        study_uid: String,
+    },
+    /// User pressed "Back to studies" to return from series drill-down.
+    BackToStudies,
+    /// User pressed "Clear" to reset the results table.
+    ClearResults,
+    /// User pressed "Start SCP".
+    StartScp,
+    /// User pressed "Stop SCP".
+    StopScp,
+    /// User pressed "Load Received" to load buffered SCP instances into the viewer.
+    LoadReceived,
+}
 
 impl SnapApp {
     /// Poll the background PACS worker for a completed response.
     ///
-    /// Must be called every egui frame (registered in the `update` loop) so
+    /// Must be called every frame (registered in the `update` loop) so
     /// that completed responses are applied promptly even while the PACS panel
     /// is closed.
     pub(crate) fn poll_pacs_worker(&mut self) {
@@ -317,7 +354,7 @@ impl SnapApp {
         }
     }
 
-    /// Poll the embedded SCP for received instances on every egui frame.
+    /// Poll the embedded SCP for received instances on every frame.
     ///
     /// Drains all buffered instances from the bounded channel into
     /// `pacs_pending_instances`. When `pacs_config.auto_load_policy` is

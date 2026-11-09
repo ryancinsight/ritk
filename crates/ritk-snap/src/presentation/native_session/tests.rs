@@ -16,7 +16,6 @@ mod pointer_capture;
 mod series_browser;
 mod support;
 mod window_controls;
-#[cfg(feature = "eframe-shell")]
 use support::{expected_native_frame, session_with_volume};
 use support::{session, session_with_mode, session_with_responsive_mode};
 
@@ -59,7 +58,6 @@ fn native_session_renders_and_steps_the_loaded_slice() {
 }
 
 #[test]
-#[cfg(feature = "eframe-shell")]
 fn native_session_multiframe_navigation_preserves_frame_values() {
     let root = tempfile::tempdir().expect("multiframe study root");
     fixtures::write_multiframe(root.path(), fixtures::MULTIFRAME_SHAPE[0], None)
@@ -104,7 +102,6 @@ fn native_session_multiframe_navigation_preserves_frame_values() {
 }
 
 #[test]
-#[cfg(feature = "eframe-shell")]
 fn native_session_preserves_rgb_multiframe_channels() {
     let root = tempfile::tempdir().expect("RGB multiframe study root");
     fixtures::write_color_multiframe(root.path()).expect("write RGB multiframe fixture");

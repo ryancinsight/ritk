@@ -36,19 +36,9 @@ mod volume;
 // Re-export flat API surface so downstream crates don't need path changes.
 pub use filter::{BedSeparationConfigSerde, FilterKind};
 pub use geometry::{GeometrySummary, ModalityDisplay, ViewerResult, ViewerStatus};
-#[cfg(not(target_arch = "wasm32"))]
-pub use launch::{
-    run_app, run_app_with_options, run_app_with_series_comparison,
-    run_responsive_native_app_with_options, AppLaunchOptions, CompatibilityPresentation,
-    NativePresentationMode,
-};
-#[cfg(target_arch = "wasm32")]
+#[cfg(windows)]
+pub use launch::{run_app, run_app_with_series_comparison, run_responsive_native_app_with_options};
 pub use launch::{run_app_with_options, AppLaunchOptions, NativePresentationMode};
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
-pub use launch::{
-    run_eframe_app, run_eframe_app_with_options, run_eframe_app_with_presentation,
-    run_eframe_app_with_viewport, EframeViewport, EframeViewportError,
-};
 #[cfg(target_arch = "wasm32")]
 pub use launch::{
     select_web_slice, select_web_tool, set_web_cine_rate, set_web_window_preset, start_web,

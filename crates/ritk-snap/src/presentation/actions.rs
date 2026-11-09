@@ -360,7 +360,13 @@ impl PresentationDispatcher {
 
     /// Clear pressed-button state after a host terminates a gesture without a
     /// final pointer coordinate.
-    #[cfg(any(target_arch = "wasm32", windows, feature = "eframe-shell"))]
+    #[cfg_attr(
+        not(any(windows, target_arch = "wasm32", test)),
+        expect(
+            dead_code,
+            reason = "only the Windows and browser hosts drive viewer input"
+        )
+    )]
     pub(crate) fn cancel_pointers(&mut self) {
         self.pointers = [None; POINTER_BUTTONS.len()];
     }

@@ -106,36 +106,3 @@ fn measurement_spacing_all_axes_are_distinct() {
         "coronal and sagittal spacing must differ"
     );
 }
-
-/// `img_to_screen` mapping: image-pixel (col=c, row=r) maps to
-/// screen position `origin + (c * scale, r * scale)`.
-///
-/// Analytical: origin=(10, 20), scale=2.0, img=(3, 5)
-/// x = 10 + 3 × 2 = 16
-/// y = 20 + 5 × 2 = 30
-#[test]
-fn measurement_img_to_screen_analytical() {
-    let origin = egui::pos2(10.0, 20.0);
-    let scale = 2.0_f32;
-    let img_to_screen = |p: egui::Pos2| egui::pos2(origin.x + p.x * scale, origin.y + p.y * scale);
-    let screen = img_to_screen(egui::pos2(3.0, 5.0)); // col=3, row=5
-    assert_eq!(
-        (screen.x, screen.y),
-        (16.0, 30.0),
-        "img_to_screen must compute origin + img × scale analytically"
-    );
-}
-
-/// `img_to_screen` at image origin maps to screen origin.
-#[test]
-fn measurement_img_to_screen_origin_maps_to_rect_min() {
-    let origin = egui::pos2(50.0, 75.0);
-    let scale = 3.0_f32;
-    let img_to_screen = |p: egui::Pos2| egui::pos2(origin.x + p.x * scale, origin.y + p.y * scale);
-    let screen = img_to_screen(egui::pos2(0.0, 0.0));
-    assert_eq!(
-        (screen.x, screen.y),
-        (50.0, 75.0),
-        "image origin must map to screen rect.min"
-    );
-}

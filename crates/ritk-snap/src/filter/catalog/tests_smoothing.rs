@@ -1,13 +1,13 @@
 use crate::FilterKind;
 use ritk_filter::Connectivity;
 
-// Verify that the default `FilterKind` values exposed by the panel are
+// Verify that the catalog's starting `FilterKind` values are
 // within the analytically valid clamped ranges — Smoothing, Segmentation,
 // and BinaryMorphology variants.
 
 #[test]
 fn gaussian_default_sigma_in_range() {
-    let fk = FilterKind::Gaussian { sigma: 1.0 };
+    let fk = super::catalog_default("Gaussian");
     if let FilterKind::Gaussian { sigma } = fk {
         assert!(
             (0.1..=20.0).contains(&sigma),
@@ -20,7 +20,7 @@ fn gaussian_default_sigma_in_range() {
 
 #[test]
 fn median_default_radius_in_range() {
-    let fk = FilterKind::Median { radius: 1 };
+    let fk = super::catalog_default("Median");
     if let FilterKind::Median { radius } = fk {
         assert!(radius <= 10, "default radius {radius} must be ≤ 10");
     } else {
@@ -30,10 +30,7 @@ fn median_default_radius_in_range() {
 
 #[test]
 fn clahe_defaults_in_range() {
-    let fk = FilterKind::Clahe {
-        tile_grid_size: [8, 8],
-        clip_limit: 40.0,
-    };
+    let fk = super::catalog_default("CLAHE");
     if let FilterKind::Clahe {
         tile_grid_size,
         clip_limit,
@@ -60,7 +57,7 @@ fn clahe_defaults_in_range() {
 
 #[test]
 fn histeq_default_bins_in_range() {
-    let fk = FilterKind::HistEq { bins: 256 };
+    let fk = super::catalog_default("Hist Equalize");
     if let FilterKind::HistEq { bins } = fk {
         assert!((2..=1024).contains(&bins), "bins={bins} out of range");
     } else {
@@ -75,12 +72,7 @@ fn histeq_default_bins_in_range() {
 /// - threshold ∈ [0.0, 100.0]
 #[test]
 fn unsharp_mask_defaults_in_range() {
-    let fk = FilterKind::UnsharpMask {
-        sigma: 1.0,
-        amount: 0.5,
-        threshold: 0.0,
-        clamp: ritk_filter::ClampPolicy::ClampToInputRange,
-    };
+    let fk = super::catalog_default("Unsharp Mask");
     if let FilterKind::UnsharpMask {
         sigma,
         amount,
@@ -118,11 +110,7 @@ fn unsharp_mask_defaults_in_range() {
 /// ITK defaults: iterations=5, time_step=0.125, conductance=1.0.
 #[test]
 fn gradient_anisotropic_diffusion_defaults_in_range() {
-    let fk = FilterKind::GradientAnisotropicDiffusion {
-        iterations: 5,
-        time_step: 0.125,
-        conductance: 1.0,
-    };
+    let fk = super::catalog_default("Gradient Aniso. Diffusion");
     if let FilterKind::GradientAnisotropicDiffusion {
         iterations,
         time_step,
@@ -156,10 +144,7 @@ fn gradient_anisotropic_diffusion_defaults_in_range() {
 /// `ConnectedComponentsFilter::with_connectivity(6).with_background(0.0)`.
 #[test]
 fn connected_components_defaults_are_valid() {
-    let fk = FilterKind::ConnectedComponents {
-        connectivity: Connectivity::Face6,
-        background_value: 0.0,
-    };
+    let fk = super::catalog_default("Connected Components");
     if let FilterKind::ConnectedComponents {
         connectivity,
         background_value,
@@ -193,9 +178,7 @@ fn connected_components_defaults_are_valid() {
 /// `RelabelComponentFilter::with_minimum_object_size(0)`.
 #[test]
 fn relabel_components_defaults_are_valid() {
-    let fk = FilterKind::RelabelComponents {
-        minimum_object_size: 0,
-    };
+    let fk = super::catalog_default("Relabel Components");
     if let FilterKind::RelabelComponents {
         minimum_object_size,
     } = fk
@@ -220,7 +203,7 @@ fn relabel_components_defaults_are_valid() {
 /// `MultiOtsuThreshold::new(3).apply(&image)`.
 #[test]
 fn multi_otsu_threshold_defaults_are_valid() {
-    let fk = FilterKind::MultiOtsuThreshold { num_classes: 3 };
+    let fk = super::catalog_default("Multi-Otsu Threshold");
     if let FilterKind::MultiOtsuThreshold { num_classes } = fk {
         assert!(
             num_classes >= 2,
@@ -238,10 +221,7 @@ fn multi_otsu_threshold_defaults_are_valid() {
 /// BinaryErode defaults: radius=1, foreground_value=1.0 — ITK defaults.
 #[test]
 fn binary_erode_defaults_are_valid() {
-    let fk = FilterKind::BinaryErode {
-        radius: 1,
-        foreground_value: ritk_filter::ForegroundValue::ONE,
-    };
+    let fk = super::catalog_default("Binary Erode");
     if let FilterKind::BinaryErode {
         radius,
         foreground_value,
@@ -260,10 +240,7 @@ fn binary_erode_defaults_are_valid() {
 /// BinaryDilate defaults: radius=1, foreground_value=1.0 — ITK defaults.
 #[test]
 fn binary_dilate_defaults_are_valid() {
-    let fk = FilterKind::BinaryDilate {
-        radius: 1,
-        foreground_value: ritk_filter::ForegroundValue::ONE,
-    };
+    let fk = super::catalog_default("Binary Dilate");
     if let FilterKind::BinaryDilate {
         radius,
         foreground_value,
@@ -282,10 +259,7 @@ fn binary_dilate_defaults_are_valid() {
 /// BinaryClosing defaults: radius=1, foreground_value=1.0 — ITK defaults.
 #[test]
 fn binary_closing_defaults_are_valid() {
-    let fk = FilterKind::BinaryClosing {
-        radius: 1,
-        foreground_value: ritk_filter::ForegroundValue::ONE,
-    };
+    let fk = super::catalog_default("Binary Closing");
     if let FilterKind::BinaryClosing {
         radius,
         foreground_value,
@@ -304,10 +278,7 @@ fn binary_closing_defaults_are_valid() {
 /// BinaryOpening defaults: radius=1, foreground_value=1.0 — ITK defaults.
 #[test]
 fn binary_opening_defaults_are_valid() {
-    let fk = FilterKind::BinaryOpening {
-        radius: 1,
-        foreground_value: ritk_filter::ForegroundValue::ONE,
-    };
+    let fk = super::catalog_default("Binary Opening");
     if let FilterKind::BinaryOpening {
         radius,
         foreground_value,
@@ -326,9 +297,7 @@ fn binary_opening_defaults_are_valid() {
 /// BinaryFillhole defaults: foreground_value=1.0 — ITK default.
 #[test]
 fn binary_fillhole_defaults_are_valid() {
-    let fk = FilterKind::BinaryFillhole {
-        foreground_value: ritk_filter::ForegroundValue::ONE,
-    };
+    let fk = super::catalog_default("Binary Fill Holes");
     if let FilterKind::BinaryFillhole { foreground_value } = fk {
         assert_eq!(
             foreground_value, 1.0,
@@ -346,7 +315,7 @@ fn binary_fillhole_defaults_are_valid() {
 /// `GrayscaleMorphologicalClosingImageFilter` default radius is 1.
 #[test]
 fn grayscale_closing_defaults_are_valid() {
-    let fk = FilterKind::GrayscaleClosing { radius: 1 };
+    let fk = super::catalog_default("Grayscale Closing");
     if let FilterKind::GrayscaleClosing { radius } = fk {
         assert!(radius <= 10, "default radius {radius} must be ≤ 10");
         assert_eq!(radius, 1, "ITK default radius = 1 (3×3×3 SE)");
@@ -362,7 +331,7 @@ fn grayscale_closing_defaults_are_valid() {
 /// `GrayscaleMorphologicalOpeningImageFilter` default radius is 1.
 #[test]
 fn grayscale_opening_defaults_are_valid() {
-    let fk = FilterKind::GrayscaleOpening { radius: 1 };
+    let fk = super::catalog_default("Grayscale Opening");
     if let FilterKind::GrayscaleOpening { radius } = fk {
         assert!(radius <= 10, "default radius {radius} must be ≤ 10");
         assert_eq!(radius, 1, "ITK default radius = 1 (3×3×3 SE)");
@@ -376,7 +345,7 @@ fn grayscale_opening_defaults_are_valid() {
 fn grayscale_fillhole_variant_is_valid() {
     // FilterKind::GrayscaleFillhole has no parameters to validate.
     // Verify the variant is constructible and matches correctly.
-    let fk = FilterKind::GrayscaleFillhole;
+    let fk = super::catalog_default("Grayscale Fill Holes");
     assert!(
         matches!(fk, FilterKind::GrayscaleFillhole),
         "GrayscaleFillhole variant must match itself"
@@ -390,7 +359,7 @@ fn grayscale_fillhole_variant_is_valid() {
 /// ITK `GrayscaleMorphologicalGradientImageFilter` uses radius=1 by default.
 #[test]
 fn morphological_gradient_default_radius_is_valid() {
-    let fk = FilterKind::MorphologicalGradient { radius: 1 };
+    let fk = super::catalog_default("Morphological Gradient");
     if let FilterKind::MorphologicalGradient { radius } = fk {
         assert_eq!(
             radius, 1,
@@ -408,7 +377,7 @@ fn morphological_gradient_default_radius_is_valid() {
 /// Grayscale erosion: default radius=1 is the smallest non-trivial SE.
 #[test]
 fn grayscale_erode_default_radius_valid() {
-    let fk = FilterKind::GrayscaleErode { radius: 1 };
+    let fk = super::catalog_default("Grayscale Erode");
     if let FilterKind::GrayscaleErode { radius } = fk {
         assert_eq!(radius, 1, "default radius must be 1");
         assert!(radius <= 10, "default radius within slider range");
@@ -420,7 +389,7 @@ fn grayscale_erode_default_radius_valid() {
 /// Grayscale dilation: default radius=1 is the smallest non-trivial SE.
 #[test]
 fn grayscale_dilate_default_radius_valid() {
-    let fk = FilterKind::GrayscaleDilate { radius: 1 };
+    let fk = super::catalog_default("Grayscale Dilate");
     if let FilterKind::GrayscaleDilate { radius } = fk {
         assert_eq!(radius, 1, "default radius must be 1");
         assert!(radius <= 10, "default radius within slider range");
@@ -432,10 +401,7 @@ fn grayscale_dilate_default_radius_valid() {
 /// CurvatureFlow default time_step satisfies the 3-D stability bound Δt ≤ 1/6.
 #[test]
 fn curvature_flow_default_time_step_is_stable() {
-    let fk = FilterKind::CurvatureFlow {
-        iterations: 5,
-        time_step: 0.0625,
-    };
+    let fk = super::catalog_default("Curvature Flow");
     if let FilterKind::CurvatureFlow {
         iterations,
         time_step,
@@ -455,10 +421,7 @@ fn curvature_flow_default_time_step_is_stable() {
 /// CurvatureFlow default iterations is the ITK default (5).
 #[test]
 fn curvature_flow_default_iterations_matches_itk() {
-    let fk = FilterKind::CurvatureFlow {
-        iterations: 5,
-        time_step: 0.0625,
-    };
+    let fk = super::catalog_default("Curvature Flow");
     if let FilterKind::CurvatureFlow { iterations, .. } = fk {
         assert_eq!(iterations, 5, "ITK default iterations = 5");
     } else {

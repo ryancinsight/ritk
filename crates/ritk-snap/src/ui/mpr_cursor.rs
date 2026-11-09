@@ -22,8 +22,6 @@
 //! - Surjective: every voxel on the fixed slice has uniquely recoverable
 //!   `(row,col)` from the two non-slice coordinates.
 
-#[cfg(feature = "eframe-shell")]
-use super::ViewTransform;
 use crate::tools::interaction::ImagePoint;
 
 /// Linked crosshair cursor stored in voxel coordinates `[z, y, x]`.
@@ -75,22 +73,6 @@ impl LinkedCursor {
         }
     }
 
-    /// Map a viewport point into a study voxel using the current slice on `axis`.
-    #[cfg(feature = "eframe-shell")]
-    pub fn update_from_viewport_point(
-        &mut self,
-        shape: [usize; 3],
-        axis: usize,
-        slice_index: usize,
-        point: egui::Pos2,
-        rect: egui::Rect,
-        transform: ViewTransform,
-    ) -> Option<[usize; 3]> {
-        let voxel = viewport_point_to_voxel(shape, axis, slice_index, point, rect, transform)?;
-        self.set_voxel(shape, voxel);
-        Some(self.voxel)
-    }
-
     /// Update the cursor from a source-image point already mapped by a host.
     ///
     /// The caller supplies coordinates in the displayed slice's source-image
@@ -106,18 +88,6 @@ impl LinkedCursor {
         let voxel = image_point_to_voxel(shape, axis, slice_index, point)?;
         self.set_voxel(shape, voxel);
         Some(self.voxel)
-    }
-
-    /// Project the linked voxel into viewport coordinates for `axis`.
-    #[cfg(feature = "eframe-shell")]
-    pub fn viewport_crosshair(
-        &self,
-        shape: [usize; 3],
-        axis: usize,
-        rect: egui::Rect,
-        transform: ViewTransform,
-    ) -> Option<egui::Pos2> {
-        voxel_to_viewport_point(shape, axis, self.voxel, rect, transform)
     }
 }
 
@@ -159,34 +129,6 @@ pub fn map_voxel_to_view_row_col(axis: usize, voxel: [usize; 3]) -> Option<(usiz
     Some((row, col))
 }
 
-/// Map a viewport point into a voxel on the currently displayed slice.
-#[cfg(feature = "eframe-shell")]
-pub fn viewport_point_to_voxel(
-    shape: [usize; 3],
-    axis: usize,
-    slice_index: usize,
-    point: egui::Pos2,
-    rect: egui::Rect,
-    transform: ViewTransform,
-) -> Option<[usize; 3]> {
-    let (width, height) = axis_slice_dimensions(shape, axis)?;
-    if width == 0 || height == 0 || rect.width() <= 0.0 || rect.height() <= 0.0 {
-        return None;
-    }
-    if !rect.contains(point) {
-        return None;
-    }
-
-    let output_size = transform.output_size([width, height]);
-    let x = ((point.x - rect.min.x) / rect.width()).clamp(0.0, 0.999_999);
-    let y = ((point.y - rect.min.y) / rect.height()).clamp(0.0, 0.999_999);
-    let output_point = egui::pos2(x * output_size[0] as f32, y * output_size[1] as f32);
-    let source_point = transform.output_to_source(output_point, [width, height]);
-    let col = source_point.x.floor().clamp(0.0, (width - 1) as f32) as usize;
-    let row = source_point.y.floor().clamp(0.0, (height - 1) as f32) as usize;
-    Some(map_view_row_col_to_voxel(axis, slice_index, row, col))
-}
-
 /// Map a source-image point into a voxel on the currently displayed slice.
 pub fn image_point_to_voxel(
     shape: [usize; 3],
@@ -203,35 +145,6 @@ pub fn image_point_to_voxel(
     Some(map_view_row_col_to_voxel(axis, slice_index, row, col))
 }
 
-/// Project a study voxel into viewport coordinates for `axis`.
-#[cfg(feature = "eframe-shell")]
-pub fn voxel_to_viewport_point(
-    shape: [usize; 3],
-    axis: usize,
-    voxel: [usize; 3],
-    rect: egui::Rect,
-    transform: ViewTransform,
-) -> Option<egui::Pos2> {
-    let (width, height) = axis_slice_dimensions(shape, axis)?;
-    if width == 0 || height == 0 || rect.width() <= 0.0 || rect.height() <= 0.0 {
-        return None;
-    }
-
-    let (row, col) = map_voxel_to_view_row_col(axis, voxel)?;
-    if row >= height || col >= width {
-        return None;
-    }
-
-    let output_size = transform.output_size([width, height]);
-    let output_point = transform.source_to_output(
-        egui::pos2(col as f32 + 0.5, row as f32 + 0.5),
-        [width, height],
-    );
-    let x = rect.min.x + (output_point.x / output_size[0] as f32) * rect.width();
-    let y = rect.min.y + (output_point.y / output_size[1] as f32) * rect.height();
-    Some(egui::pos2(x, y))
-}
-
 fn clamp_index(index: usize, len: usize) -> usize {
     if len == 0 {
         0
@@ -240,6 +153,6 @@ fn clamp_index(index: usize, len: usize) -> usize {
     }
 }
 
-#[cfg(all(test, feature = "eframe-shell"))]
+#[cfg(test)]
 #[path = "tests_mpr_cursor.rs"]
 mod tests;

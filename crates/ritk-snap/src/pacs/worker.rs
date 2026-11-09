@@ -36,7 +36,7 @@ use super::query::{FindResultRow, FindResultRowSeries, PacsRequest};
 
 /// Handle to an in-flight PACS background operation.
 ///
-/// The caller polls [`PacsWorkerHandle::try_recv`] on every egui frame to
+/// The caller polls [`PacsWorkerHandle::try_recv`] on every frame to
 /// detect completion.  Exactly one response is produced per handle.
 pub struct PacsWorkerHandle {
     rx: mpsc::Receiver<PacsResponse>,

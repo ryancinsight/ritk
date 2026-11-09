@@ -23,7 +23,7 @@
 // # Output packing
 //
 //   pack4x8unorm(final_color) → u32 (R=byte0, G=byte1, B=byte2, A=byte3)
-//   Host reads staging buffer directly as &[u8] → egui::ColorImage.
+//   Host reads staging buffer directly as &[u8] → RGBA presentation frame.
 //
 // Bindings (group 0):
 //   0: color_layers — texture_2d_array<f32>, Rgba8Unorm, N_LAYERS array layers

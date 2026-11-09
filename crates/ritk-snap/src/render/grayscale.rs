@@ -28,7 +28,10 @@ pub enum VoiLutFunction {
 impl VoiLutFunction {
     /// Return the compact discriminant used by the GPU presentation uniform.
     #[cfg(not(target_arch = "wasm32"))]
-    #[cfg(feature = "eframe-shell")]
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-VR-001")
+    )]
     pub(crate) const fn gpu_code(self) -> u32 {
         match self {
             Self::Linear => 0,
@@ -256,7 +259,10 @@ impl GrayscalePresentation {
 
     /// Return the compact presentation bitfield used by the GPU uniform.
     #[cfg(not(target_arch = "wasm32"))]
-    #[cfg(feature = "eframe-shell")]
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "ratchet RITK-SNAP-NATIVE-VR-001")
+    )]
     pub(crate) const fn gpu_code(self) -> u32 {
         self.voi_function.gpu_code() | if self.invert { 4 } else { 0 }
     }

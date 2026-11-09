@@ -6,6 +6,8 @@ Date: 2026-09-12
 
 Driver: [RITK-SNAP-METIS-MIP-001](../../backlog.md#RITK-SNAP-METIS-MIP-001).
 
+Revision 2026-11-09: the eframe shell is deleted and Métis is the only desktop shell. Text below that names eframe records the state when this decision was made ([ADR 0026](0026-viewer-presentation-migration.md)).
+
 ## Context
 
 The RITK eframe viewer presents a loaded scalar study as three orthogonal

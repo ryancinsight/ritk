@@ -52,8 +52,8 @@
 //! The ±2 tolerance accounts for f32→u8 rounding (LUT truncation vs round)
 //! and pack4x8unorm rounding vs CPU truncation.
 
+use crate::render::RgbaImage;
 use crate::render::{GrayscalePresentation, NamedColorMap, WindowLevel};
-use egui::ColorImage;
 use iris::color::LookupTable;
 
 pub(crate) mod context;
@@ -87,7 +87,7 @@ use frame_cache::GpuFrameCache;
 pub(crate) enum GpuRenderResult {
     /// A completed projection image, possibly the previous frame while a new
     /// request is in flight.
-    Ready(ColorImage),
+    Ready(RgbaImage),
     /// GPU work is still in flight and no completed image is available yet.
     Pending,
     /// The input or device cannot use this GPU projection path.
@@ -223,13 +223,13 @@ pub struct GpuVolumeRenderer {
     /// In-flight MIP readback awaiting GPU completion.
     pub(in crate::render::gpu_volume) mip_pending: Option<PendingReadback>,
     /// Last successfully collected MIP frame; `None` before any frame completes.
-    pub(in crate::render::gpu_volume) mip_last: Option<egui::ColorImage>,
+    pub(in crate::render::gpu_volume) mip_last: Option<RgbaImage>,
     /// Request identity that produced `mip_last`.
     pub(in crate::render::gpu_volume) mip_last_request: Option<ProjectionRequest>,
     /// In-flight VR readback awaiting GPU completion.
     pub(in crate::render::gpu_volume) vr_pending: Option<PendingReadback>,
     /// Last successfully collected VR frame; `None` before any frame completes.
-    pub(in crate::render::gpu_volume) vr_last: Option<egui::ColorImage>,
+    pub(in crate::render::gpu_volume) vr_last: Option<RgbaImage>,
     /// Request identity that produced `vr_last`.
     pub(in crate::render::gpu_volume) vr_last_request: Option<ProjectionRequest>,
 }

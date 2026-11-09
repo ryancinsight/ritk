@@ -9,9 +9,9 @@
 //!
 //! `submit_mesh_async` submits this command buffer and registers `map_async` on
 //! the staging buffer.  `collect_mesh_result` reads the mapped data and returns
-//! a `ColorImage`.  Both functions mirror the protocol from `mip_pass.rs`.
+//! a `RgbaImage`.  Both functions mirror the protocol from `mip_pass.rs`.
 
-use egui::ColorImage;
+use crate::render::RgbaImage;
 use eunomia::layout::cast_slice;
 use std::sync::mpsc;
 
@@ -88,23 +88,17 @@ pub(super) fn submit_mesh_async(
     rx
 }
 
-/// Read the mapped staging buffer and return a `ColorImage`.
+/// Read the mapped staging buffer and return a `RgbaImage`.
 ///
 /// # Precondition
 ///
 /// The receiver returned by `submit_mesh_async` must have fired `Ok(Ok(()))`.
-pub(super) fn collect_mesh_result(cache: &GpuMeshFrameCache) -> ColorImage {
+pub(super) fn collect_mesh_result(cache: &GpuMeshFrameCache) -> RgbaImage {
     let data = cache.staging_buf.slice(..).get_mapped_range();
-    let pixels: Vec<egui::Color32> = data
-        .chunks_exact(4)
-        .map(|px| egui::Color32::from_rgba_unmultiplied(px[0], px[1], px[2], px[3]))
-        .collect();
+    let pixels = data.to_vec();
     drop(data);
     cache.staging_buf.unmap();
-    ColorImage {
-        size: [cache.cols, cache.rows],
-        pixels,
-    }
+    RgbaImage::new([cache.cols, cache.rows], pixels)
 }
 
 // ── Geometry passes ───────────────────────────────────────────────────────────

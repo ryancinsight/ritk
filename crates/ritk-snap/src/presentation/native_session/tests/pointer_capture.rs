@@ -189,3 +189,23 @@ fn a_stationary_release_leaves_a_display_gesture_where_its_last_move_put_it() {
         .expect("release where the last move ended");
     assert_eq!(session.app.pan_offset, pan);
 }
+
+#[test]
+fn reset_view_restores_the_fit_and_ends_a_pending_measurement() {
+    use crate::tools::interaction::{ImagePoint, ToolState, ViewportOffset};
+
+    let (mut session, _root) = session();
+    session.app.zoom = 3.25;
+    session.app.pan_offset = ViewportOffset::new(24.0, -8.0);
+    session.app.tool_state = ToolState::MeasureLength1 {
+        p1: ImagePoint::new(1.0, 2.0),
+    };
+
+    session
+        .apply_window_action(WindowAction::ResetView)
+        .expect("reset the view");
+
+    assert_eq!(session.app.zoom, 1.0);
+    assert_eq!(session.app.pan_offset, ViewportOffset::new(0.0, 0.0));
+    assert!(session.app.tool_state.is_idle());
+}

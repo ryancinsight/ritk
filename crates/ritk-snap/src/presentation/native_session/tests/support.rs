@@ -1,9 +1,7 @@
 //! Shared native session fixtures for the sibling test modules.
 
 use super::*;
-#[cfg(feature = "eframe-shell")]
 use crate::presentation::PresentationFrame;
-#[cfg(feature = "eframe-shell")]
 use crate::LoadedVolume;
 
 pub(super) fn session() -> (NativeViewerSession, tempfile::TempDir) {
@@ -80,7 +78,6 @@ pub(super) fn session_with_browser(
     )
 }
 
-#[cfg(feature = "eframe-shell")]
 pub(super) fn session_with_volume(
     volume: LoadedVolume,
 ) -> (NativeViewerSession, tempfile::TempDir) {
@@ -102,7 +99,6 @@ pub(super) fn session_with_volume(
     )
 }
 
-#[cfg(feature = "eframe-shell")]
 pub(super) fn expected_native_frame(
     session: &NativeViewerSession,
     axis: usize,

@@ -16,62 +16,22 @@
 //! - **Z**   → Zoom (scroll wheel or drag to zoom)
 //! - **W**   → Window/Level (adjust display intensity mapping)
 //! - **B**   → LabelPaint (paint segmentation labels)
-//! - **E**   → LabelErase (erase segmentation labels; conflicts with ROI Ellipse — E prioritizes paint, use Shift+E for erase)
 //!
-//! Tools not directly selectable via single key (Crosshair) remain toolbar-only or
-//! are context-active (e.g., Crosshair is always active for viewport clicks).
+//! No key selects LabelErase or Crosshair. Crosshair is active for viewport clicks.
 //!
 //! # Implementation
 //!
-//! `tool_kind_for_key` and `tool_kind_for_virtual_key` are the SSOTs that
-//! map host keyboard values to optional [`ToolKind`] values.
+//! `tool_kind_for_virtual_key` is the SSOT that maps host keyboard values to
+//! optional [`ToolKind`] values.
 //! Return value is `Some(ToolKind)` if the key corresponds to a shortcut,
 //! or `None` if the key has no tool binding.
 //!
 //! The caller invokes this function when a key-press event is detected and
-//! applies the returned tool via the app-shell's existing `set_active_tool` path.
+//! applies the returned tool through `select_tool`.
 
 use crate::tools::kind::ToolKind;
-#[cfg(feature = "eframe-shell")]
-use egui::Key;
 
 // ── Shortcut constants ────────────────────────────────────────────────────────
-
-/// Single-key shortcut for Measure Length tool.
-#[cfg(feature = "eframe-shell")]
-pub const KEY_MEASURE_LENGTH: Key = Key::L;
-
-/// Single-key shortcut for Measure Angle tool.
-#[cfg(feature = "eframe-shell")]
-pub const KEY_MEASURE_ANGLE: Key = Key::A;
-
-/// Single-key shortcut for ROI Rectangle tool.
-#[cfg(feature = "eframe-shell")]
-pub const KEY_ROI_RECT: Key = Key::R;
-
-/// Single-key shortcut for ROI Ellipse tool.
-#[cfg(feature = "eframe-shell")]
-pub const KEY_ROI_ELLIPSE: Key = Key::E;
-
-/// Single-key shortcut for HU Point tool.
-#[cfg(feature = "eframe-shell")]
-pub const KEY_HU_POINT: Key = Key::H;
-
-/// Single-key shortcut for Pan tool.
-#[cfg(feature = "eframe-shell")]
-pub const KEY_PAN: Key = Key::P;
-
-/// Single-key shortcut for Zoom tool.
-#[cfg(feature = "eframe-shell")]
-pub const KEY_ZOOM: Key = Key::Z;
-
-/// Single-key shortcut for Window/Level tool.
-#[cfg(feature = "eframe-shell")]
-pub const KEY_WINDOW_LEVEL: Key = Key::W;
-
-/// Single-key shortcut for Label Paint tool.
-#[cfg(feature = "eframe-shell")]
-pub const KEY_LABEL_PAINT: Key = Key::B;
 
 /// Host virtual-key value for the Measure Length shortcut.
 pub const VIRTUAL_KEY_MEASURE_LENGTH: u32 = 0x4c;
@@ -106,7 +66,7 @@ pub const VIRTUAL_KEY_LABEL_PAINT: u32 = 0x42;
 ///
 /// The values are the stable ASCII virtual-key values used by the native
 /// presentation contract. Browser and native hosts can therefore select the
-/// same RITK tool without depending on egui's key type.
+/// same RITK tool without depending on a shell key type.
 ///
 /// Returns `Some(ToolKind)` if the value corresponds to a tool shortcut, or
 /// `None` if it has no binding.
@@ -126,45 +86,6 @@ pub fn tool_kind_for_virtual_key(virtual_key: u32) -> Option<ToolKind> {
     }
 }
 
-/// Map an egui key press to an optional tool kind.
-///
-/// Returns `Some(ToolKind)` if the key corresponds to a tool shortcut,
-/// or `None` if the key has no binding.
-///
-/// # Design
-/// This function is the single authoritative mapping from keyboard input
-/// to tool activation. All app-shell key-handling code must call this
-/// function to determine which tool (if any) should be activated.
-///
-/// # Convention
-/// - **L** → Length measurement
-/// - **A** → Angle measurement
-/// - **R** → Rectangle ROI
-/// - **E** → Ellipse ROI
-/// - **H** → HU point readout
-/// - **P** → Pan
-/// - **Z** → Zoom
-/// - **W** → Window/Level
-/// - **B** → Label Paint
-///
-/// All other keys return `None`.
-#[inline]
-#[cfg(feature = "eframe-shell")]
-pub fn tool_kind_for_key(key: Key) -> Option<ToolKind> {
-    match key {
-        KEY_MEASURE_LENGTH => tool_kind_for_virtual_key(VIRTUAL_KEY_MEASURE_LENGTH),
-        KEY_MEASURE_ANGLE => tool_kind_for_virtual_key(VIRTUAL_KEY_MEASURE_ANGLE),
-        KEY_ROI_RECT => tool_kind_for_virtual_key(VIRTUAL_KEY_ROI_RECT),
-        KEY_ROI_ELLIPSE => tool_kind_for_virtual_key(VIRTUAL_KEY_ROI_ELLIPSE),
-        KEY_HU_POINT => tool_kind_for_virtual_key(VIRTUAL_KEY_HU_POINT),
-        KEY_PAN => tool_kind_for_virtual_key(VIRTUAL_KEY_PAN),
-        KEY_ZOOM => tool_kind_for_virtual_key(VIRTUAL_KEY_ZOOM),
-        KEY_WINDOW_LEVEL => tool_kind_for_virtual_key(VIRTUAL_KEY_WINDOW_LEVEL),
-        KEY_LABEL_PAINT => tool_kind_for_virtual_key(VIRTUAL_KEY_LABEL_PAINT),
-        _ => None,
-    }
-}
-
-#[cfg(all(test, feature = "eframe-shell"))]
+#[cfg(test)]
 #[path = "tests_tool_shortcuts.rs"]
 mod tests;
