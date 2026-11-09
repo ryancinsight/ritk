@@ -110,3 +110,4 @@
 <a id="RITK-SNAP-NATIVE-TAGS-001"></a>- [RITK-SNAP-NATIVE-TAGS-001](backlog/RITK-SNAP-NATIVE-TAGS-001.md) — Show searchable DICOM tags natively — todo
 <a id="RITK-SNAP-NATIVE-VR-001"></a>- [RITK-SNAP-NATIVE-VR-001](backlog/RITK-SNAP-NATIVE-VR-001.md) — Render volumes in the native shell — blocked
 <a id="RITK-SNAP-RADIANT-INPUT-001"></a>- [RITK-SNAP-RADIANT-INPUT-001](backlog/RITK-SNAP-RADIANT-INPUT-001.md) — Let readers reassign mouse buttons — todo
+<a id="RITK-SNAP-NATIVE-SEGMENTATION-001"></a>- [RITK-SNAP-NATIVE-SEGMENTATION-001](backlog/RITK-SNAP-NATIVE-SEGMENTATION-001.md) — Draw and edit label maps natively — todo
