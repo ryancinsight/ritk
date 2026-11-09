@@ -93,10 +93,20 @@ jobs:
           toolchain: 1.97.0
           targets: wasm32-unknown-unknown
 
+      - name: Read the locked wasm-bindgen version
+        id: wasm-bindgen
+        working-directory: ritk
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(awk '$0 == "name = \"wasm-bindgen\"" { getline; gsub(/version = |"/, ""); print; exit }' Cargo.lock)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+
       - name: Install wasm-bindgen
         uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
         with:
-          tool: wasm-bindgen@0.2.128
+          tool: wasm-bindgen@${{ steps.wasm-bindgen.outputs.version }}
           checksum: true
 
       - name: Confirm the framework revision is locked
