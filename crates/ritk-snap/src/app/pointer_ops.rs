@@ -51,20 +51,13 @@ impl SnapApp {
                 current: pos,
                 kind: RoiKind::Ellipse,
             },
-            ToolKind::MeasureLength
-                if !matches!(self.tool_state, ToolState::MeasureLength1 { .. }) =>
-            {
-                ToolState::LengthDrag {
-                    start: pos,
-                    current: pos,
-                }
-            }
+            ToolKind::MeasureLength => ToolState::LengthDrag {
+                start: pos,
+                current: pos,
+            },
             _ => return,
         };
-        if matches!(
-            self.tool_state,
-            ToolState::MeasureLength1 { .. } | ToolState::MeasureAngle2 { .. }
-        ) {
+        if self.tool_state.is_pending_measurement() {
             self.pointer.suspended_measurement = Some(self.tool_state.clone());
         }
         self.tool_state = gesture;
@@ -123,6 +116,7 @@ impl SnapApp {
 
     pub(crate) fn on_drag_end(&mut self, pos: Option<ImagePoint>) {
         if pos.is_some() {
+            self.on_drag(pos);
             match self.tool_state.clone() {
                 ToolState::RoiDrag {
                     start,
@@ -138,7 +132,7 @@ impl SnapApp {
                 } => {
                     self.finalise_roi_ellipse(start, current);
                 }
-                ToolState::LengthDrag { start, current } => {
+                ToolState::LengthDrag { start, current } if start != current => {
                     self.record_length(start, current);
                 }
                 _ => {}
@@ -148,13 +142,17 @@ impl SnapApp {
     }
 
     /// Release the gesture owner and return to any suspended measurement.
+    ///
+    /// State that no drag owns, such as a waiting measurement anchor, stays.
     fn finish_gesture(&mut self) {
         self.pointer.owner = None;
-        self.tool_state = self
-            .pointer
-            .suspended_measurement
-            .take()
-            .unwrap_or(ToolState::Idle);
+        if self.tool_state.is_drag_gesture() {
+            self.tool_state = self
+                .pointer
+                .suspended_measurement
+                .take()
+                .unwrap_or(ToolState::Idle);
+        }
     }
 
     /// End a click without discarding a multi-click measurement anchor.
@@ -164,14 +162,7 @@ impl SnapApp {
     /// advance their anchors, so they must be allowed to observe their prior
     /// state before the transient gesture is cleared.
     pub(crate) fn on_click_end(&mut self) {
-        if matches!(
-            self.tool_state,
-            ToolState::Panning { .. }
-                | ToolState::Zooming { .. }
-                | ToolState::WindowLevelDrag { .. }
-                | ToolState::RoiDrag { .. }
-                | ToolState::LengthDrag { .. }
-        ) {
+        if self.tool_state.is_drag_gesture() {
             self.finish_gesture();
         } else {
             self.pointer.owner = None;

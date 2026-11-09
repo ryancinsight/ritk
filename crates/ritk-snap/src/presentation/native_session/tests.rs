@@ -12,6 +12,7 @@ use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::time::{Duration, Instant};
 mod display;
 mod interaction;
+mod pointer_capture;
 mod series_browser;
 mod support;
 mod window_controls;

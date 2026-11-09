@@ -3,6 +3,7 @@
 use super::super::layout::{
     panel_header_action_at, NativeViewport, PanelHeaderAction, WorkspaceLayout,
 };
+use super::super::pressed_buttons::PressedButtons;
 use super::super::series_browser::SeriesBrowser;
 use super::layout::ChromeLayout;
 use super::multi_series::DialogAction;
@@ -331,7 +332,7 @@ impl WindowChrome {
                     PointerOwner::Series(_) => true,
                 };
                 self.pointer_owner = PointerOwner::None;
-                self.pressed_buttons = 0;
+                self.pressed_buttons = PressedButtons::EMPTY;
                 Ok(if consumed {
                     WindowChromeEvent::consumed(false)
                 } else {
@@ -404,7 +405,7 @@ impl WindowChrome {
             PresentationEvent::FocusLost => {
                 let repaint = self.open_menu.take().is_some();
                 self.pointer_owner = PointerOwner::None;
-                self.pressed_buttons = 0;
+                self.pressed_buttons = PressedButtons::EMPTY;
                 Ok(WindowChromeEvent {
                     consumed: false,
                     repaint,
@@ -416,12 +417,12 @@ impl WindowChrome {
     }
 
     fn press(&mut self, button: PointerButton) {
-        self.pressed_buttons |= pointer_button_bit(button);
+        self.pressed_buttons.insert(button);
     }
 
     fn release(&mut self, button: PointerButton) {
-        self.pressed_buttons &= !pointer_button_bit(button);
-        if self.pressed_buttons == 0 {
+        self.pressed_buttons.remove(button);
+        if self.pressed_buttons.is_empty() {
             self.pointer_owner = PointerOwner::None;
         }
     }
@@ -434,14 +435,4 @@ fn adjacent_series(browser: &SeriesBrowser, active: usize, direction: i32) -> Op
         active.checked_add(1)?
     };
     browser.choice(next).map(|_| next)
-}
-
-fn pointer_button_bit(button: PointerButton) -> u8 {
-    match button {
-        PointerButton::Left => 1,
-        PointerButton::Right => 2,
-        PointerButton::Middle => 4,
-        PointerButton::X1 => 8,
-        PointerButton::X2 => 16,
-    }
 }

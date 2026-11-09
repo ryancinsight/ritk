@@ -5,6 +5,7 @@ mod panel_state;
 use self::panel_state::KeyboardPanelState;
 use super::layout::PanelGrid;
 use super::panels::PanelRouteMap;
+use super::pressed_buttons::PressedButtons;
 use super::routing::RoutedBatch;
 use super::WindowAction;
 use super::{record_state, NativeViewerError, NativeViewerSession, VIRTUAL_KEY_OPEN_STUDY};
@@ -163,7 +164,7 @@ impl NativeApplication for NativeViewerSession {
         let mut keyboard_panel_state = KeyboardPanelState::new(
             workspace_layout,
             active_panel,
-            self.active_view,
+            self.pointer_capture(),
             self.active_app().axis,
             maximized_panel,
             &displayed_series,
@@ -232,23 +233,18 @@ impl NativeApplication for NativeViewerSession {
                 Ok(chrome_event) => {
                     chrome_repaint |= chrome_event.repaint;
                     if modal_pointer_down {
-                        suppress_cancelled_pointer_release = Some(PointerButton::Left);
+                        suppress_cancelled_pointer_release.insert(PointerButton::Left);
                     }
                     let cancelled_pointer_event = match event {
                         PresentationEvent::PointerUp { button, .. }
-                            if suppress_cancelled_pointer_release == Some(*button) =>
+                        | PresentationEvent::PointerCancel { button, .. }
+                            if suppress_cancelled_pointer_release.contains(*button) =>
                         {
-                            suppress_cancelled_pointer_release = None;
-                            true
-                        }
-                        PresentationEvent::PointerCancel { button, .. }
-                            if suppress_cancelled_pointer_release == Some(*button) =>
-                        {
-                            suppress_cancelled_pointer_release = None;
+                            suppress_cancelled_pointer_release.remove(*button);
                             true
                         }
                         PresentationEvent::FocusLost => {
-                            suppress_cancelled_pointer_release = None;
+                            suppress_cancelled_pointer_release = PressedButtons::EMPTY;
                             false
                         }
                         _ => false,
@@ -419,7 +415,7 @@ impl NativeApplication for NativeViewerSession {
             }
             self.window_chrome.cancel_pointer_capture();
             self.active_view = None;
-            suppress_cancelled_pointer_release = Some(PointerButton::Left);
+            suppress_cancelled_pointer_release = routed.captured_buttons;
         }
         self.suppress_cancelled_pointer_release = suppress_cancelled_pointer_release;
         // Keep the shortcut in the bounded event stream to preserve pointer

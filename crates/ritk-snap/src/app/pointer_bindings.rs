@@ -59,3 +59,14 @@ pub(crate) struct PointerGestures {
     /// Multi-click measurement held while another gesture runs.
     pub(crate) suspended_measurement: Option<ToolState>,
 }
+
+impl PointerGestures {
+    /// Forget the running gesture and any measurement it suspended.
+    ///
+    /// Used when the state a gesture would return to no longer exists, such as
+    /// after the volume is replaced or another tool is selected.
+    pub(crate) fn abandon(&mut self) {
+        self.owner = None;
+        self.suspended_measurement = None;
+    }
+}

@@ -76,7 +76,7 @@ fn focus_loss_cancels_a_gesture_and_lifecycle_actions_exit() {
 }
 
 #[test]
-fn unsupported_buttons_and_invalid_viewports_are_typed_failures() {
+fn invalid_viewports_are_typed_failures() {
     let invalid_axis =
         ViewerViewport::new(3, [0.0, 0.0], [1.0, 1.0], [4, 4], ViewTransform::default());
     assert!(matches!(

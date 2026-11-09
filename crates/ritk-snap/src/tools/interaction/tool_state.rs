@@ -11,7 +11,7 @@ use super::{ImagePoint, ViewportOffset};
 /// the resting state; every other variant represents a partially completed
 /// gesture that will either be confirmed (producing an `Annotation`) or
 /// cancelled on the next interaction event.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ToolState {
     /// No gesture in progress.
     Idle,
@@ -87,6 +87,26 @@ impl ToolState {
     /// Returns `true` when no gesture is in progress.
     pub fn is_idle(&self) -> bool {
         matches!(self, ToolState::Idle)
+    }
+
+    /// Returns `true` while a pointer drag owns this state.
+    pub fn is_drag_gesture(&self) -> bool {
+        matches!(
+            self,
+            ToolState::Panning { .. }
+                | ToolState::Zooming { .. }
+                | ToolState::WindowLevelDrag { .. }
+                | ToolState::RoiDrag { .. }
+                | ToolState::LengthDrag { .. }
+        )
+    }
+
+    /// Returns `true` while a multi-click measurement waits for its next anchor.
+    pub fn is_pending_measurement(&self) -> bool {
+        matches!(
+            self,
+            ToolState::MeasureLength1 { .. } | ToolState::MeasureAngle2 { .. }
+        )
     }
 
     /// Returns the [`ToolKind`] that owns this state, or `None` when idle.

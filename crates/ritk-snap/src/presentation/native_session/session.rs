@@ -14,6 +14,7 @@ use super::layout::{
 };
 use super::observation::{record_state, NativeViewerObservation};
 use super::panels::MaximizedPanel;
+use super::pressed_buttons::PressedButtons;
 use super::projection::{
     empty_projection, render_projection_into, ProjectionRenderScratch, RenderedProjection,
 };
@@ -46,6 +47,7 @@ pub(super) struct NativeViewerSession {
     pub(super) framebuffer: Framebuffer,
     pub(super) viewports: ArrayVec<NativeViewport, MAX_GRID_PANELS>,
     pub(super) active_view: Option<usize>,
+    pub(super) captured_buttons: PressedButtons,
     pub(super) surface_width: u32,
     pub(super) surface_height: u32,
     pub(super) dpi: u32,
@@ -61,7 +63,7 @@ pub(super) struct NativeViewerSession {
     pub(super) active_panel: usize,
     pub(super) maximized_panel: Option<MaximizedPanel>,
     pub(super) window_chrome: WindowChrome,
-    pub(super) suppress_cancelled_pointer_release: Option<crate::presentation::PointerButton>,
+    pub(super) suppress_cancelled_pointer_release: PressedButtons,
 }
 
 impl NativeViewerSession {
@@ -141,6 +143,7 @@ impl NativeViewerSession {
             framebuffer,
             viewports,
             active_view: None,
+            captured_buttons: PressedButtons::EMPTY,
             surface_width: INITIAL_WIDTH,
             surface_height: INITIAL_HEIGHT,
             dpi: 96,
@@ -156,7 +159,7 @@ impl NativeViewerSession {
             active_panel: 0,
             maximized_panel: None,
             window_chrome,
-            suppress_cancelled_pointer_release: None,
+            suppress_cancelled_pointer_release: PressedButtons::EMPTY,
         };
         if let Some(uid) = comparison_series_uid {
             session.initialize_comparison_uid(uid)?;

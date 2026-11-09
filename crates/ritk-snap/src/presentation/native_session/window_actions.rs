@@ -121,6 +121,7 @@ impl NativeViewerSession {
                 let app = self.active_app_mut();
                 app.active_tool = tool;
                 app.tool_state = ToolState::Idle;
+                app.pointer.abandon();
                 Ok(true)
             }
             WindowAction::ToggleCrosshair => {
@@ -140,6 +141,7 @@ impl NativeViewerSession {
                 app.zoom = 1.0;
                 app.pan_offset = ViewportOffset::new(0.0, 0.0);
                 app.tool_state = ToolState::Idle;
+                app.pointer.abandon();
                 Ok(true)
             }
         }

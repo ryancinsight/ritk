@@ -173,3 +173,155 @@ fn a_left_drag_with_the_length_tool_records_a_length() {
         [Annotation::Length { length_mm, .. }] if *length_mm == 5.0
     ));
 }
+
+fn place_length_anchor(app: &mut SnapApp, x: f64, y: f64) -> ToolState {
+    app.active_tool = ToolKind::MeasureLength;
+    press(app, PointerButton::Left, x, y);
+    release(app, PointerButton::Left, x, y);
+    assert!(matches!(app.tool_state, ToolState::MeasureLength1 { .. }));
+    app.tool_state.clone()
+}
+
+#[test]
+fn forward_drag_uses_the_physical_spacing_of_the_displayed_plane() {
+    let mut app = app_with_window();
+    app.loaded
+        .as_mut()
+        .expect("the fixture loads a volume")
+        .spacing = [9.0, 2.0, 3.0];
+
+    drag(&mut app, PointerButton::X2, [1.0, 1.0], [4.0, 5.0]);
+
+    // Axial rows use the 2 mm spacing and columns the 3 mm spacing. The
+    // operands are exact, so one rounding of the root bounds the result.
+    let expected = 145.0_f32.sqrt();
+    match app.annotations.as_slice() {
+        [Annotation::Length { length_mm, .. }] => {
+            assert!((length_mm - expected).abs() <= f32::EPSILON * expected);
+        }
+        other => panic!("expected one length annotation, found {other:?}"),
+    }
+}
+
+#[test]
+fn forward_drag_between_anchors_records_and_keeps_the_anchor() {
+    let mut app = app_with_window();
+    let anchor = place_length_anchor(&mut app, 1.0, 1.0);
+
+    drag(&mut app, PointerButton::X2, [10.0, 10.0], [13.0, 14.0]);
+
+    assert_eq!(app.tool_state, anchor);
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [Annotation::Length { length_mm, .. }] if *length_mm == 5.0
+    ));
+}
+
+#[test]
+fn moving_during_the_second_click_keeps_the_anchor() {
+    let mut app = app_with_window();
+    let anchor = place_length_anchor(&mut app, 1.0, 1.0);
+
+    drag(&mut app, PointerButton::Left, [8.0, 8.0], [9.0, 9.0]);
+
+    assert_eq!(app.tool_state, anchor);
+    assert!(app.annotations.is_empty());
+}
+
+#[test]
+fn releasing_a_refused_press_does_not_place_an_anchor() {
+    let mut app = app_with_window();
+    let anchor = place_length_anchor(&mut app, 1.0, 1.0);
+
+    press(&mut app, PointerButton::Right, 20.0, 20.0);
+    press(&mut app, PointerButton::Left, 4.0, 5.0);
+    release(&mut app, PointerButton::Right, 20.0, 20.0);
+    release(&mut app, PointerButton::Left, 4.0, 5.0);
+
+    assert_eq!(app.tool_state, anchor);
+    assert!(app.annotations.is_empty());
+}
+
+#[test]
+fn a_press_outside_the_image_leaves_a_pending_anchor() {
+    let mut app = app_with_window();
+    let anchor = place_length_anchor(&mut app, 1.0, 1.0);
+
+    drag(&mut app, PointerButton::Right, [-5.0, 2.0], [-9.0, 2.0]);
+
+    assert_eq!(app.tool_state, anchor);
+    assert_eq!(app.pointer.owner, None);
+}
+
+#[test]
+fn cancelling_a_display_gesture_restores_the_anchor() {
+    let mut app = app_with_window();
+    let anchor = place_length_anchor(&mut app, 1.0, 1.0);
+
+    press(&mut app, PointerButton::Right, 20.0, 20.0);
+    apply_app_event(
+        &mut app,
+        &viewport(SOURCE),
+        PresentationEvent::PointerCancel {
+            x: 20.0,
+            y: 20.0,
+            button: PointerButton::Right,
+        },
+    );
+
+    assert_eq!(app.tool_state, anchor);
+    assert_eq!(app.pointer.owner, None);
+    assert_eq!(app.pointer.suspended_measurement, None);
+}
+
+#[test]
+fn losing_focus_during_a_display_gesture_keeps_the_anchor() {
+    let mut app = app_with_window();
+    let anchor = place_length_anchor(&mut app, 1.0, 1.0);
+
+    press(&mut app, PointerButton::Right, 20.0, 20.0);
+    apply_app_event(&mut app, &viewport(SOURCE), PresentationEvent::FocusLost);
+
+    assert_eq!(app.tool_state, anchor);
+    assert_eq!(app.pointer.owner, None);
+}
+
+#[test]
+fn replacing_the_volume_drops_a_suspended_anchor() {
+    let mut app = app_with_window();
+    place_length_anchor(&mut app, 1.0, 1.0);
+
+    press(&mut app, PointerButton::Right, 20.0, 20.0);
+    app.load_volume(test_volume([1, SOURCE[0], SOURCE[1]]), "next".to_owned());
+    release(&mut app, PointerButton::Right, 20.0, 14.0);
+
+    assert!(app.tool_state.is_idle());
+    assert_eq!(app.pointer.owner, None);
+    assert_eq!(app.pointer.suspended_measurement, None);
+}
+
+#[test]
+fn a_drag_release_contributes_its_final_position() {
+    let mut app = app_with_window();
+
+    press(&mut app, PointerButton::X2, 1.0, 1.0);
+    release(&mut app, PointerButton::X2, 4.0, 5.0);
+
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [Annotation::Length { length_mm, .. }] if *length_mm == 5.0
+    ));
+}
+
+#[test]
+fn a_drag_returned_to_its_origin_records_no_length() {
+    let mut app = app_with_window();
+
+    press(&mut app, PointerButton::X2, 1.0, 1.0);
+    move_to(&mut app, 4.0, 5.0);
+    move_to(&mut app, 1.0, 1.0);
+    release(&mut app, PointerButton::X2, 1.0, 1.0);
+
+    assert!(app.annotations.is_empty());
+    assert!(app.tool_state.is_idle());
+}

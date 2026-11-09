@@ -51,10 +51,10 @@ pub(crate) enum ViewerActionError {
 }
 
 impl SnapApp {
-    fn gesture_belongs_to_another_button(&self, button: PointerButton) -> bool {
+    fn owns_gesture(&self, button: PointerButton) -> bool {
         self.pointer
             .owner
-            .is_some_and(|owner| owner.button != button)
+            .is_some_and(|owner| owner.button == button)
     }
 
     /// Reduce and apply a bounded batch of format-neutral host events.
@@ -156,7 +156,11 @@ impl SnapApp {
                 if is_label_tool(tool) {
                     self.apply_label_at_pointer(viewport.axis(), Some(image));
                 }
-                self.on_drag_start(tool, Some(image));
+                let places_next_anchor =
+                    *button == PointerButton::Left && self.tool_state.is_pending_measurement();
+                if !places_next_anchor {
+                    self.on_drag_start(tool, Some(image));
+                }
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerDragged {
@@ -182,7 +186,7 @@ impl SnapApp {
                 position,
                 gesture,
             } => {
-                if self.gesture_belongs_to_another_button(*button) {
+                if !self.owns_gesture(*button) {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 }
                 let mapped = viewport.and_then(|viewport| viewport.map(*position));
@@ -202,7 +206,7 @@ impl SnapApp {
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerCancelled { button, .. } => {
-                if self.gesture_belongs_to_another_button(*button) {
+                if !self.owns_gesture(*button) {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 }
                 self.on_drag_end(None);

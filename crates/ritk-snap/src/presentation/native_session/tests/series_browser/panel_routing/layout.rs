@@ -61,23 +61,23 @@ fn pane_input_after_layout_selection_uses_the_presented_layout_snapshot() {
     assert_eq!(viewer.app.axis, 2);
 }
 
-#[test]
-fn layout_change_cancels_a_captured_drag_before_remapping_panes() {
-    let (mut viewer, _initial_root) = session();
-    viewer
-        .refresh_frame()
-        .expect("render the orthogonal workspace");
+/// Select a two-panel grid and press `button` over the old sagittal pane in
+/// the same host batch, returning the press and picker positions.
+fn press_after_selecting_two_panels(
+    viewer: &mut crate::presentation::native_session::NativeViewerSession,
+    button: MouseButton,
+) -> ((i32, i32), (i32, i32)) {
     let (sagittal_x, sagittal_y) = viewer.viewports[2].center();
     viewer.app.active_tool = crate::tools::kind::ToolKind::Pan;
     let (picker_x, picker_y) = control_center(
-        &viewer,
+        viewer,
         None,
         crate::presentation::native_session::window_controls::WindowAction::OpenMenu(
             crate::presentation::native_session::window_controls::Menu::GridPicker,
         ),
     );
     let (grid_x, grid_y) = control_center(
-        &viewer,
+        viewer,
         Some(crate::presentation::native_session::window_controls::Menu::GridPicker),
         crate::presentation::native_session::window_controls::WindowAction::SetLayout(
             WorkspaceLayout::Panels(PanelGrid::new(2, 1).expect("side-by-side grid")),
@@ -109,18 +109,29 @@ fn layout_change_cancels_a_captured_drag_before_remapping_panes() {
             WindowEvent::PointerDown {
                 x: sagittal_x,
                 y: sagittal_y,
-                button: MouseButton::Left,
+                button,
             },
         ])
         .expect("apply layout selection against the presented orthogonal frame");
+    ((sagittal_x, sagittal_y), (picker_x, picker_y))
+}
+
+#[test]
+fn layout_change_cancels_a_captured_drag_before_remapping_panes() {
+    let (mut viewer, _initial_root) = session();
+    viewer
+        .refresh_frame()
+        .expect("render the orthogonal workspace");
+    viewer.app.active_tool = crate::tools::kind::ToolKind::Pan;
+    let ((sagittal_x, sagittal_y), (picker_x, picker_y)) =
+        press_after_selecting_two_panels(&mut viewer, MouseButton::Left);
 
     assert!(viewer.workspace_layout.is_grid());
     assert_eq!(viewer.viewports.len(), 2);
     assert_eq!(viewer.active_view, None);
-    assert_eq!(
-        viewer.suppress_cancelled_pointer_release,
-        Some(crate::presentation::PointerButton::Left)
-    );
+    assert!(viewer
+        .suppress_cancelled_pointer_release
+        .contains(crate::presentation::PointerButton::Left));
     assert!(viewer.app.tool_state.is_idle());
 
     viewer
@@ -137,10 +148,9 @@ fn layout_change_cancels_a_captured_drag_before_remapping_panes() {
             },
         ])
         .expect("a different button does not release the canceled left gesture");
-    assert_eq!(
-        viewer.suppress_cancelled_pointer_release,
-        Some(crate::presentation::PointerButton::Left)
-    );
+    assert!(viewer
+        .suppress_cancelled_pointer_release
+        .contains(crate::presentation::PointerButton::Left));
 
     viewer
         .handle_events(&[WindowEvent::PointerMove {
@@ -156,6 +166,29 @@ fn layout_change_cancels_a_captured_drag_before_remapping_panes() {
         }])
         .expect("consume the release for the canceled drag");
 
-    assert_eq!(viewer.suppress_cancelled_pointer_release, None);
+    assert!(viewer.suppress_cancelled_pointer_release.is_empty());
     assert!(viewer.app.tool_state.is_idle());
+}
+
+#[test]
+fn layout_change_drops_the_release_of_a_non_primary_button() {
+    let (mut viewer, _initial_root) = session();
+    viewer
+        .refresh_frame()
+        .expect("render the orthogonal workspace");
+
+    let ((x, y), _) = press_after_selecting_two_panels(&mut viewer, MouseButton::Right);
+
+    assert!(viewer
+        .suppress_cancelled_pointer_release
+        .contains(crate::presentation::PointerButton::Right));
+    viewer
+        .handle_events(&[WindowEvent::PointerUp {
+            x,
+            y,
+            button: MouseButton::Right,
+        }])
+        .expect("the release of a cancelled right drag is not an orphan");
+    assert!(viewer.suppress_cancelled_pointer_release.is_empty());
+    assert_eq!(viewer.active_view, None);
 }
