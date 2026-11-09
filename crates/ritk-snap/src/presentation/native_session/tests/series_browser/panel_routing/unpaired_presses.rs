@@ -94,6 +94,30 @@ fn a_press_after_a_lost_release_on_the_chrome_reaches_the_pane() {
 }
 
 #[test]
+fn focus_loss_frees_the_pointer_the_chrome_held() {
+    let (mut viewer, _root) = session();
+    let study = four_series_study();
+    show_two_panels(&mut viewer, study.path());
+    let (card_x, card_y) = series_card_center(&viewer, 3);
+    let (x, y) = viewer.viewports[0].center();
+
+    viewer
+        .handle_events(&[
+            down(card_x, card_y, MouseButton::Right),
+            WindowEvent::FocusLost,
+        ])
+        .expect("the window loses focus while the chrome holds a button");
+    viewer
+        .handle_events(&[down(x, y, MouseButton::Middle)])
+        .expect("another button presses a pane");
+
+    assert_eq!(
+        viewer.app.pointer.owner.map(|owner| owner.button),
+        Some(PointerButton::Middle)
+    );
+}
+
+#[test]
 fn cancelling_one_button_leaves_the_pane_the_other_holds() {
     let (mut viewer, _root) = session();
     let study = four_series_study();

@@ -156,3 +156,36 @@ fn selecting_a_tool_from_the_toolbar_ends_a_pending_measurement() {
     assert!(session.app.tool_state.is_idle());
     assert_eq!(session.app.pointer.suspended_measurement, None);
 }
+
+#[test]
+fn a_stationary_release_leaves_a_display_gesture_where_its_last_move_put_it() {
+    let (mut session, _root) = session();
+    let (x, y) = session.viewports[0].center();
+
+    session
+        .handle_events(&[down(x, y, MouseButton::Right)])
+        .expect("begin zooming");
+    session
+        .handle_events(&[WindowEvent::PointerMove { x, y: y - 40 }])
+        .expect("drag the zoom");
+    let zoom = session.app.zoom;
+    assert_ne!(zoom, 1.0, "the drag must change the zoom");
+    session
+        .handle_events(&[up(x, y - 40, MouseButton::Right)])
+        .expect("release where the last move ended");
+    assert_eq!(session.app.zoom, zoom);
+
+    let (x, y) = session.viewports[0].center();
+    session
+        .handle_events(&[down(x, y, MouseButton::X1)])
+        .expect("begin panning");
+    session
+        .handle_events(&[WindowEvent::PointerMove { x: x + 40, y }])
+        .expect("drag the pan");
+    let pan = session.app.pan_offset;
+    assert_ne!(pan.x(), 0.0, "the drag must change the pan");
+    session
+        .handle_events(&[up(x + 40, y, MouseButton::X1)])
+        .expect("release where the last move ended");
+    assert_eq!(session.app.pan_offset, pan);
+}

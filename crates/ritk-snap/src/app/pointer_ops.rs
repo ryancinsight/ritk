@@ -116,7 +116,15 @@ impl SnapApp {
 
     pub(crate) fn on_drag_end(&mut self, pos: Option<ImagePoint>) {
         if pos.is_some() {
-            self.on_drag(pos);
+            // Only a measurement takes its release as a final point. The
+            // viewport mapping a display gesture's release already includes
+            // that gesture's own zoom and pan, so reapplying it would move it.
+            if matches!(
+                self.tool_state,
+                ToolState::RoiDrag { .. } | ToolState::LengthDrag { .. }
+            ) {
+                self.on_drag(pos);
+            }
             match self.tool_state.clone() {
                 ToolState::RoiDrag {
                     start,
