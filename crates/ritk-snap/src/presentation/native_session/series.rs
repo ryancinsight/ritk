@@ -439,6 +439,7 @@ impl NativeViewerSession {
     }
 
     pub(super) fn open_study_from_dialog(&mut self) -> Result<bool> {
+        self.end_held_gestures();
         let selected = pick(DialogSelection::Folder).context("show native study picker")?;
         let Some(path) = selected else {
             return Ok(false);

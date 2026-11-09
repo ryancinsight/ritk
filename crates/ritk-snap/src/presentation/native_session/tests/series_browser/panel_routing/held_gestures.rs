@@ -2,8 +2,9 @@
 //! and releases a host delivers afterwards are ordinary input.
 
 use super::*;
+use crate::presentation::native_session::routing::{EventRoute, PanelEventRouter, PointerCapture};
 use crate::presentation::native_session::NativeViewerSession;
-use crate::presentation::PointerButton;
+use crate::presentation::{PointerButton, PresentationEvent};
 
 fn down(x: i32, y: i32, button: MouseButton) -> WindowEvent {
     WindowEvent::PointerDown { x, y, button }
@@ -173,6 +174,26 @@ fn a_press_between_panels_reaches_no_panel() {
         .handle_events(&[down(gap_x, y, MouseButton::Right)])
         .expect("a press between panels is ordinary input");
     assert_nothing_held(&viewer);
+    let viewports = viewer.viewports.clone();
+    let layout = viewer.workspace_layout;
+    let mut router = PanelEventRouter::new(0, PointerCapture::default(), 0);
+    let press = PresentationEvent::PointerDown {
+        x: f64::from(gap_x),
+        y: f64::from(y),
+        button: PointerButton::Right,
+    };
+    assert_eq!(
+        router.route(&press, layout, &viewports),
+        EventRoute::Discarded
+    );
+    let zoom = viewer.app.zoom;
+    viewer
+        .handle_events(&[
+            WindowEvent::PointerMove { x, y },
+            WindowEvent::PointerMove { x, y: y + 40 },
+        ])
+        .expect("the panels hold no press to drag");
+    assert_eq!(viewer.app.zoom, zoom);
 
     viewer
         .handle_events(&[up(other_x, other_y, MouseButton::Right)])
@@ -309,4 +330,129 @@ fn a_press_between_panels_joins_a_gesture_already_held() {
         viewer.app.pointer.owner.map(|owner| owner.button),
         Some(PointerButton::Right)
     );
+}
+
+#[test]
+fn a_delivered_release_ends_its_gesture_after_another_button_lost_its_release() {
+    let (mut viewer, _root) = session();
+    let study = four_series_study();
+    show_two_panels(&mut viewer, study.path());
+    let (x, y) = viewer.viewports[0].center();
+
+    viewer
+        .handle_events(&[
+            down(x, y, MouseButton::Right),
+            down(x, y, MouseButton::Middle),
+            down(x, y, MouseButton::Middle),
+        ])
+        .expect("the repeated press replaces a lost release");
+    assert_eq!(viewer.active_view, Some(0));
+    assert_eq!(
+        viewer.app.pointer.owner.map(|owner| owner.button),
+        Some(PointerButton::Right)
+    );
+
+    viewer
+        .handle_events(&[up(x, y, MouseButton::Right)])
+        .expect("the owner's release is delivered");
+    assert_eq!(viewer.app.pointer.owner, None);
+    let zoom = viewer.app.zoom;
+    viewer
+        .handle_events(&[
+            up(x, y, MouseButton::Middle),
+            WindowEvent::PointerMove { x, y },
+            WindowEvent::PointerMove { x, y: y + 40 },
+        ])
+        .expect("no button remains held");
+    assert_nothing_held(&viewer);
+    assert_eq!(viewer.app.zoom, zoom);
+}
+
+#[test]
+fn a_repeated_press_elsewhere_stays_with_the_pane_another_button_holds() {
+    let (mut viewer, _root) = session();
+    let study = four_series_study();
+    show_two_panels(&mut viewer, study.path());
+    let (x, y) = viewer.viewports[0].center();
+    let (other_x, other_y) = viewer.viewports[1].center();
+
+    viewer
+        .handle_events(&[
+            down(x, y, MouseButton::Right),
+            down(x, y, MouseButton::Middle),
+            down(other_x, other_y, MouseButton::Middle),
+        ])
+        .expect("the repeated press replaces a lost release");
+
+    assert_eq!(viewer.active_view, Some(0));
+    assert_eq!(
+        viewer.app.pointer.owner.map(|owner| owner.button),
+        Some(PointerButton::Right)
+    );
+    assert_eq!(viewer.compare_panels[0].app.pointer.owner, None);
+}
+
+#[test]
+fn a_lost_release_repeated_between_panels_leaves_the_capture_to_the_next_press() {
+    let (mut viewer, _root) = session();
+    let study = four_series_study();
+    show_two_panels(&mut viewer, study.path());
+    let (x, y) = viewer.viewports[0].center();
+    let (other_x, other_y) = viewer.viewports[1].center();
+    let gap_x = (x..other_x)
+        .find(|candidate| {
+            viewer
+                .viewports
+                .iter()
+                .all(|viewport| !viewport.contains(f64::from(*candidate), f64::from(y)))
+        })
+        .expect("the panels are separated");
+
+    viewer
+        .handle_events(&[down(x, y, MouseButton::Middle)])
+        .expect("begin a gesture in the first panel");
+    viewer
+        .handle_events(&[
+            down(gap_x, y, MouseButton::Middle),
+            down(other_x, other_y, MouseButton::Right),
+        ])
+        .expect("both presses arrive in one batch");
+
+    assert_eq!(viewer.active_view, Some(1));
+    assert_eq!(viewer.app.pointer.owner, None);
+    assert_eq!(
+        viewer.compare_panels[0]
+            .app
+            .pointer
+            .owner
+            .map(|owner| owner.button),
+        Some(PointerButton::Right)
+    );
+
+    viewer
+        .handle_events(&[up(other_x, other_y, MouseButton::Right)])
+        .expect("the release reaches the second panel");
+    assert_nothing_held(&viewer);
+}
+
+#[test]
+fn browsing_during_a_series_card_drag_abandons_the_drop() {
+    let (mut viewer, _root) = session();
+    let study = four_series_study();
+    show_two_panels(&mut viewer, study.path());
+    viewer.active_panel = 1;
+    let (card_x, card_y) = series_card_center(&viewer, 3);
+    let (x, y) = viewer.viewports[1].center();
+
+    viewer
+        .handle_events(&[down(card_x, card_y, MouseButton::Left), key(ARROW_RIGHT)])
+        .expect("browse while a series card is held");
+    let browsed = viewer.compare_panels[0].series_index;
+    assert_eq!(browsed, Some(2), "the key must browse to the next series");
+
+    viewer
+        .handle_events(&[up(x, y, MouseButton::Left)])
+        .expect("the release has no drop left to perform");
+    assert_eq!(viewer.compare_panels[0].series_index, browsed);
+    assert_nothing_held(&viewer);
 }

@@ -59,12 +59,16 @@ pub(super) struct PointerCapture {
 
 impl PointerCapture {
     /// A second press of a held button proves its release never arrived, so
-    /// the capture it began is over and the press hit-tests afresh.
+    /// that button stops holding the capture. Another held button keeps the
+    /// pane, and the press joins it; otherwise the press hit-tests afresh.
     fn forget_lost_release(&mut self, event: &PresentationEvent) {
         if let PresentationEvent::PointerDown { button, .. } = event
             && self.pressed.contains(*button)
         {
-            *self = Self::default();
+            self.pressed.remove(*button);
+            if self.pressed.is_empty() {
+                self.view = None;
+            }
         }
     }
 
@@ -353,6 +357,7 @@ impl NativeViewerSession {
                     !is_pointer_event(&events[start]) || panel_routes.contains_current_panel(*index)
                 })
             else {
+                capture.update(&events[start], &self.viewports);
                 start += 1;
                 continue;
             };

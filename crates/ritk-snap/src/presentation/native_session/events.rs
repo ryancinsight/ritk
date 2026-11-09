@@ -40,6 +40,7 @@ impl NativeViewerSession {
     /// End every held pane gesture because what its pane shows, or where
     /// pointer input goes, has changed.
     pub(super) fn end_held_gestures(&mut self) {
+        self.window_chrome.cancel_pointer_capture();
         if self.captured_buttons.is_empty() {
             return;
         }
@@ -47,7 +48,6 @@ impl NativeViewerSession {
         for panel in &mut self.compare_panels {
             panel.app.cancel_presentation_gesture();
         }
-        self.window_chrome.cancel_pointer_capture();
         self.active_view = None;
         self.captured_buttons = PressedButtons::EMPTY;
     }

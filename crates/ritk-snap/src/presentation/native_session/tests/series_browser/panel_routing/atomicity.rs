@@ -1,4 +1,17 @@
 use super::*;
+use metis_platform::native::{AccessibilityAction, AccessibilityActionRequest};
+
+/// The presentation reducer rejects this input, so it fails in preflight.
+fn unsupported_accessibility_request() -> WindowEvent {
+    WindowEvent::AccessibilityAction {
+        request: AccessibilityActionRequest {
+            target_node: 41,
+            action: AccessibilityAction::Focus,
+            value: None,
+            delta: None,
+        },
+    }
+}
 
 #[test]
 fn rejected_comparison_batch_does_not_apply_an_earlier_panel_event() {
@@ -29,11 +42,11 @@ fn rejected_comparison_batch_does_not_apply_an_earlier_panel_event() {
                 delta_y: -120,
                 modifiers: ModifierState::NONE,
             },
-            WindowEvent::DpiChanged { dpi: 0 },
+            unsupported_accessibility_request(),
         ])
-        .expect_err("reject the zero DPI after the wheel input");
+        .expect_err("preflight rejects the request after the wheel input");
 
-    assert!(error.to_string().contains("DPI"), "{error}");
+    assert!(error.to_string().contains("accessibility"), "{error}");
     assert_eq!(viewer.app.viewer_state.slice_index, primary_before);
     assert_eq!(
         viewer.compare_panels[0].app.viewer_state.slice_index,
@@ -89,11 +102,11 @@ fn rejected_native_batch_does_not_apply_pane_events_before_toolbar_actions() {
                 y: pan_y,
                 button: MouseButton::Left,
             },
-            WindowEvent::DpiChanged { dpi: 0 },
+            unsupported_accessibility_request(),
         ])
-        .expect_err("reject the zero DPI after all earlier inputs");
+        .expect_err("preflight rejects the request after all earlier inputs");
 
-    assert!(error.to_string().contains("DPI"), "{error}");
+    assert!(error.to_string().contains("accessibility"), "{error}");
     assert_eq!(viewer.app.viewer_state.slice_index, primary_slice);
     assert_eq!(viewer.app.active_tool, primary_tool);
 }
