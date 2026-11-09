@@ -264,18 +264,6 @@ pub enum ActionDispatchError {
         /// Number of entries or bytes requested.
         requested: usize,
     },
-    /// The event sequence contains two presses for one button.
-    #[error("pointer button {button:?} was pressed twice without release")]
-    DuplicatePointerPress {
-        /// Button whose state is already pressed.
-        button: PointerButton,
-    },
-    /// The event sequence releases a button that is not pressed.
-    #[error("pointer button {button:?} was released without a press")]
-    PointerReleaseWithoutPress {
-        /// Button whose state is absent.
-        button: PointerButton,
-    },
     /// A pointer coordinate or displacement is not finite.
     #[error("pointer coordinate {point:?} is not finite")]
     NonFiniteCoordinate {

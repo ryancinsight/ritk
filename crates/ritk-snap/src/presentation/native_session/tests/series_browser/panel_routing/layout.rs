@@ -129,9 +129,7 @@ fn layout_change_cancels_a_captured_drag_before_remapping_panes() {
     assert!(viewer.workspace_layout.is_grid());
     assert_eq!(viewer.viewports.len(), 2);
     assert_eq!(viewer.active_view, None);
-    assert!(viewer
-        .suppress_cancelled_pointer_release
-        .contains(crate::presentation::PointerButton::Left));
+    assert!(viewer.captured_buttons.is_empty());
     assert!(viewer.app.tool_state.is_idle());
 
     viewer
@@ -148,9 +146,6 @@ fn layout_change_cancels_a_captured_drag_before_remapping_panes() {
             },
         ])
         .expect("a different button does not release the canceled left gesture");
-    assert!(viewer
-        .suppress_cancelled_pointer_release
-        .contains(crate::presentation::PointerButton::Left));
 
     viewer
         .handle_events(&[WindowEvent::PointerMove {
@@ -164,10 +159,10 @@ fn layout_change_cancels_a_captured_drag_before_remapping_panes() {
             y: sagittal_y + 12,
             button: MouseButton::Left,
         }])
-        .expect("consume the release for the canceled drag");
+        .expect("the release of a canceled drag has no gesture to end");
 
-    assert!(viewer.suppress_cancelled_pointer_release.is_empty());
     assert!(viewer.app.tool_state.is_idle());
+    assert_eq!(viewer.active_view, None);
 }
 
 #[test]
@@ -179,16 +174,15 @@ fn layout_change_drops_the_release_of_a_non_primary_button() {
 
     let ((x, y), _) = press_after_selecting_two_panels(&mut viewer, MouseButton::Right);
 
-    assert!(viewer
-        .suppress_cancelled_pointer_release
-        .contains(crate::presentation::PointerButton::Right));
+    assert!(viewer.captured_buttons.is_empty());
+    let active_panel = viewer.active_panel;
     viewer
         .handle_events(&[WindowEvent::PointerUp {
             x,
             y,
             button: MouseButton::Right,
         }])
-        .expect("the release of a cancelled right drag is not an orphan");
-    assert!(viewer.suppress_cancelled_pointer_release.is_empty());
+        .expect("the release of a cancelled right drag has no gesture to end");
     assert_eq!(viewer.active_view, None);
+    assert_eq!(viewer.active_panel, active_panel);
 }

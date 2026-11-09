@@ -6,11 +6,11 @@ use self::panel_state::KeyboardPanelState;
 use super::layout::PanelGrid;
 use super::panels::PanelRouteMap;
 use super::pressed_buttons::PressedButtons;
-use super::routing::RoutedBatch;
+use super::routing::{EventRoute, RoutedBatch};
 use super::WindowAction;
 use super::{record_state, NativeViewerError, NativeViewerSession, VIRTUAL_KEY_OPEN_STUDY};
 use crate::app::action_adapter::ViewerActionDisposition;
-use crate::presentation::{translate_native_events, PointerButton, PresentationEvent};
+use crate::presentation::{translate_native_events, PresentationEvent};
 use metis_platform::native::{NativeApplication, NativeFlow, WindowEvent};
 use metis_platform::Framebuffer;
 use std::sync::atomic::Ordering;
@@ -37,10 +37,22 @@ impl NativeViewerSession {
         primary_advanced || secondary_advanced
     }
 
+    /// End every held pane gesture because a window action changed what its
+    /// pane shows or where pointer input goes.
+    fn cancel_pane_gestures(&mut self) {
+        self.app.cancel_presentation_gesture();
+        for panel in &mut self.compare_panels {
+            panel.app.cancel_presentation_gesture();
+        }
+        self.window_chrome.cancel_pointer_capture();
+        self.active_view = None;
+        self.captured_buttons = PressedButtons::EMPTY;
+    }
+
     fn apply_viewer_event_segment(
         &mut self,
         events: &[PresentationEvent],
-        routes: &[Option<usize>],
+        routes: &[EventRoute],
         panel_routes: &PanelRouteMap,
         routed: &RoutedBatch,
     ) -> std::result::Result<ViewerActionDisposition, NativeViewerError> {
@@ -141,7 +153,6 @@ impl NativeApplication for NativeViewerSession {
         let mut viewer_events = Vec::from(translated);
         let mut retained_event_count = 0;
         let mut chrome_error = None;
-        let mut suppress_cancelled_pointer_release = self.suppress_cancelled_pointer_release;
         let width = self.surface_width;
         let height = self.surface_height;
         let workspace_layout = self.workspace_layout;
@@ -210,14 +221,6 @@ impl NativeApplication for NativeViewerSession {
             } else {
                 &displayed_series
             };
-            let modal_pointer_down = window_chrome.multi_series_dialog_is_open()
-                && matches!(
-                    event,
-                    PresentationEvent::PointerDown {
-                        button: PointerButton::Left,
-                        ..
-                    }
-                );
             match window_chrome.handle_event(
                 event,
                 width,
@@ -232,24 +235,7 @@ impl NativeApplication for NativeViewerSession {
             ) {
                 Ok(chrome_event) => {
                     chrome_repaint |= chrome_event.repaint;
-                    if modal_pointer_down {
-                        suppress_cancelled_pointer_release.insert(PointerButton::Left);
-                    }
-                    let cancelled_pointer_event = match event {
-                        PresentationEvent::PointerUp { button, .. }
-                        | PresentationEvent::PointerCancel { button, .. }
-                            if suppress_cancelled_pointer_release.contains(*button) =>
-                        {
-                            suppress_cancelled_pointer_release.remove(*button);
-                            true
-                        }
-                        PresentationEvent::FocusLost => {
-                            suppress_cancelled_pointer_release = PressedButtons::EMPTY;
-                            false
-                        }
-                        _ => false,
-                    };
-                    if !chrome_event.consumed && !cancelled_pointer_event {
+                    if !chrome_event.consumed {
                         retained_event_count += 1;
                         keyboard_panel_state.retain_event(event, viewports);
                     }
@@ -272,7 +258,7 @@ impl NativeApplication for NativeViewerSession {
                             keyboard_key,
                         ));
                     }
-                    !chrome_event.consumed && !cancelled_pointer_event
+                    !chrome_event.consumed
                 }
                 Err(error) => {
                     chrome_error = Some(error);
@@ -372,8 +358,12 @@ impl NativeApplication for NativeViewerSession {
                     .map_or(layout_before, |panel| panel.layout)
                     .grid()
                     .map_or(1, PanelGrid::panel_count);
+                let held = !self.captured_buttons.is_empty();
                 let changed = self.apply_window_action(action)?;
                 chrome_repaint |= changed;
+                if held && changed {
+                    self.cancel_pane_gestures();
+                }
                 let maximized_after = self.maximized_panel.map(|panel| panel.panel_index);
                 panel_routes.apply_action(
                     action,
@@ -409,15 +399,8 @@ impl NativeApplication for NativeViewerSession {
             }
         }
         if self.workspace_layout != routed.layout && routed.active_view.is_some() {
-            self.app.cancel_presentation_gesture();
-            for panel in &mut self.compare_panels {
-                panel.app.cancel_presentation_gesture();
-            }
-            self.window_chrome.cancel_pointer_capture();
-            self.active_view = None;
-            suppress_cancelled_pointer_release = routed.captured_buttons;
+            self.cancel_pane_gestures();
         }
-        self.suppress_cancelled_pointer_release = suppress_cancelled_pointer_release;
         // Keep the shortcut in the bounded event stream to preserve pointer
         // and focus ordering without a second allocation.
         let disposition = if chrome_exit || viewer_exit {

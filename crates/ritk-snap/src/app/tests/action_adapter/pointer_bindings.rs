@@ -2,9 +2,10 @@
 
 use super::super::test_volume;
 use crate::app::SnapApp;
-use crate::presentation::{PointerButton, PresentationEvent};
+use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
 use crate::tools::interaction::{Annotation, ToolState, ViewportOffset};
 use crate::tools::kind::ToolKind;
+use crate::ui::tool_shortcuts::VIRTUAL_KEY_PAN;
 use crate::ui::{window_level_from_drag_delta, zoom_from_drag_delta, WINDOW_LEVEL_SENSITIVITY};
 
 use super::{apply_app_event, viewport};
@@ -172,6 +173,46 @@ fn a_left_drag_with_the_length_tool_records_a_length() {
         app.annotations.as_slice(),
         [Annotation::Length { length_mm, .. }] if *length_mm == 5.0
     ));
+}
+
+#[test]
+fn selecting_a_tool_by_key_ends_the_pending_measurement() {
+    let mut app = app_with_window();
+    place_length_anchor(&mut app, 1.0, 1.0);
+
+    apply_app_event(
+        &mut app,
+        &viewport(SOURCE),
+        PresentationEvent::KeyDown {
+            virtual_key: VIRTUAL_KEY_PAN,
+            repeated: false,
+            modifiers: PresentationModifiers::NONE,
+        },
+    );
+    assert_eq!(app.active_tool, ToolKind::Pan);
+    assert!(app.tool_state.is_idle());
+
+    drag(&mut app, PointerButton::Left, [20.0, 30.0], [40.0, 20.0]);
+
+    assert_eq!(app.pan_offset, ViewportOffset::new(20.0, -10.0));
+    assert!(app.annotations.is_empty());
+}
+
+#[test]
+fn selecting_a_tool_forgets_a_measurement_suspended_by_a_gesture() {
+    let mut app = app_with_window();
+    place_length_anchor(&mut app, 1.0, 1.0);
+    press(&mut app, PointerButton::Right, 20.0, 30.0);
+    assert!(matches!(
+        app.pointer.suspended_measurement,
+        Some(ToolState::MeasureLength1 { .. })
+    ));
+
+    app.select_tool(ToolKind::Pan);
+
+    assert_eq!(app.pointer.suspended_measurement, None);
+    assert_eq!(app.pointer.owner, None);
+    assert!(app.tool_state.is_idle());
 }
 
 fn place_length_anchor(app: &mut SnapApp, x: f64, y: f64) -> ToolState {

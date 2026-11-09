@@ -137,17 +137,14 @@ fn focus_loss_cancels_pressed_buttons_and_clears_state() {
             },
         ]
     );
-    let release = dispatcher.dispatch(&[PresentationEvent::PointerUp {
-        x: 5.0,
-        y: 6.0,
-        button: PointerButton::X2,
-    }]);
-    assert!(matches!(
-        release,
-        Err(ActionDispatchError::PointerReleaseWithoutPress {
-            button: PointerButton::X2
-        })
-    ));
+    let release = dispatcher
+        .dispatch(&[PresentationEvent::PointerUp {
+            x: 5.0,
+            y: 6.0,
+            button: PointerButton::X2,
+        }])
+        .expect("a release after focus loss is ordinary host input");
+    assert_eq!(release.as_ref(), &[]);
 }
 
 #[test]
@@ -180,16 +177,14 @@ fn pointer_cancel_clears_one_pressed_button_without_releasing_a_click() {
             },
         ]
     );
-    assert!(matches!(
-        dispatcher.dispatch(&[PresentationEvent::PointerUp {
+    let release = dispatcher
+        .dispatch(&[PresentationEvent::PointerUp {
             x: 7.0,
             y: 11.0,
             button: PointerButton::Left,
-        }]),
-        Err(ActionDispatchError::PointerReleaseWithoutPress {
-            button: PointerButton::Left
-        })
-    ));
+        }])
+        .expect("a release after cancellation is ordinary host input");
+    assert_eq!(release.as_ref(), &[]);
 }
 
 #[test]
@@ -210,36 +205,14 @@ fn malformed_batch_is_atomic_and_composition_is_bounded() {
         malformed,
         Err(ActionDispatchError::NonFiniteCoordinate { .. })
     ));
-    let release = dispatcher.dispatch(&[PresentationEvent::PointerUp {
-        x: f64::MIN,
-        y: 0.0,
-        button: PointerButton::Left,
-    }]);
-    assert!(matches!(
-        release,
-        Err(ActionDispatchError::PointerReleaseWithoutPress {
-            button: PointerButton::Left
-        })
-    ));
-
-    let duplicate = dispatcher.dispatch(&[
-        PresentationEvent::PointerDown {
-            x: 1.0,
-            y: 1.0,
-            button: PointerButton::Middle,
-        },
-        PresentationEvent::PointerDown {
-            x: 2.0,
-            y: 2.0,
-            button: PointerButton::Middle,
-        },
-    ]);
-    assert!(matches!(
-        duplicate,
-        Err(ActionDispatchError::DuplicatePointerPress {
-            button: PointerButton::Middle
-        })
-    ));
+    let release = dispatcher
+        .dispatch(&[PresentationEvent::PointerUp {
+            x: f64::MIN,
+            y: 0.0,
+            button: PointerButton::Left,
+        }])
+        .expect("the rejected batch committed no press");
+    assert_eq!(release.as_ref(), &[]);
 
     let oversized = "😀".repeat(MAX_COMPOSITION_UNITS / 2 + 1);
     let error = dispatcher.dispatch(&[PresentationEvent::TextComposition {
@@ -251,6 +224,54 @@ fn malformed_batch_is_atomic_and_composition_is_bounded() {
     };
     assert_eq!(actual, MAX_COMPOSITION_UNITS + 2);
     assert_eq!(limit, MAX_COMPOSITION_UNITS);
+}
+
+#[test]
+fn a_repeated_press_ends_the_gesture_whose_release_was_lost() {
+    let mut dispatcher = PresentationDispatcher::new();
+    let actions = dispatcher
+        .dispatch(&[
+            PresentationEvent::PointerDown {
+                x: 1.0,
+                y: 1.0,
+                button: PointerButton::Middle,
+            },
+            PresentationEvent::PointerMove { x: 4.0, y: 5.0 },
+            PresentationEvent::PointerDown {
+                x: 2.0,
+                y: 2.0,
+                button: PointerButton::Middle,
+            },
+        ])
+        .expect("a lost release is ordinary host input");
+    assert_eq!(
+        actions.as_ref(),
+        &[
+            ViewerAction::PointerPressed {
+                button: PointerButton::Middle,
+                position: ViewportPoint::new(1.0, 1.0),
+            },
+            ViewerAction::PointerMoved {
+                position: ViewportPoint::new(4.0, 5.0),
+            },
+            ViewerAction::PointerDragged {
+                button: PointerButton::Middle,
+                start: ViewportPoint::new(1.0, 1.0),
+                current: ViewportPoint::new(4.0, 5.0),
+                delta: ViewportPoint::new(1.0, 1.0)
+                    .delta_to(ViewportPoint::new(4.0, 5.0))
+                    .expect("finite delta"),
+            },
+            ViewerAction::PointerCancelled {
+                button: PointerButton::Middle,
+                position: ViewportPoint::new(4.0, 5.0),
+            },
+            ViewerAction::PointerPressed {
+                button: PointerButton::Middle,
+                position: ViewportPoint::new(2.0, 2.0),
+            },
+        ]
+    );
 }
 
 #[test]
@@ -298,13 +319,8 @@ fn wheel_actions_reject_non_finite_deltas_without_state_changes() {
             y: 2.0,
             button: PointerButton::Left,
         }])
-        .expect_err("failed wheel batch must not alter pointer state");
-    assert!(matches!(
-        actions,
-        ActionDispatchError::PointerReleaseWithoutPress {
-            button: PointerButton::Left
-        }
-    ));
+        .expect("failed wheel batch must not alter pointer state");
+    assert_eq!(actions.as_ref(), &[]);
 }
 
 #[test]

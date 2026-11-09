@@ -1,8 +1,10 @@
 //! A pane keeps the pointer until the last held button is released.
 
 use super::super::layout::{PanelGrid, WorkspaceLayout};
+use super::super::window_controls::WindowAction;
 use super::*;
 use crate::presentation::PointerButton;
+use crate::tools::kind::ToolKind;
 use metis_platform::native::MouseButton;
 
 fn down(x: i32, y: i32, button: MouseButton) -> WindowEvent {
@@ -82,4 +84,70 @@ fn a_button_pressed_in_another_panel_reaches_the_panel_that_owns_the_gesture() {
         .expect("the owning button ends the gesture");
     assert_eq!(session.app.pointer.owner, None);
     assert_eq!(session.active_view, None);
+}
+
+#[test]
+fn a_release_after_focus_loss_is_ordinary_input() {
+    let (mut session, _root) = session();
+    let (x, y) = session.viewports[0].center();
+
+    session
+        .handle_events(&[down(x, y, MouseButton::Right), WindowEvent::FocusLost])
+        .expect("focus loss cancels the gesture");
+    session
+        .handle_events(&[up(x, y, MouseButton::Right)])
+        .expect("the release has no gesture left to end");
+
+    assert_eq!(session.active_view, None);
+    assert_eq!(session.app.pointer.owner, None);
+    session
+        .handle_events(&[down(x, y, MouseButton::Right)])
+        .expect("the button starts a new gesture");
+    assert_eq!(session.active_view, Some(0));
+}
+
+#[test]
+fn a_press_of_a_held_button_recaptures_at_the_pointer() {
+    let (mut session, _root) = session();
+    let (x, y) = session.viewports[0].center();
+    let (other_x, other_y) = session.viewports[1].center();
+
+    session
+        .handle_events(&[
+            down(x, y, MouseButton::Right),
+            down(other_x, other_y, MouseButton::Right),
+        ])
+        .expect("a lost release is ordinary host input");
+
+    assert_eq!(session.active_view, Some(1));
+    assert!(session.captured_buttons.contains(PointerButton::Right));
+    assert_eq!(
+        session.app.pointer.owner.map(|owner| owner.button),
+        Some(PointerButton::Right)
+    );
+
+    session
+        .handle_events(&[up(other_x, other_y, MouseButton::Right)])
+        .expect("the release ends the new capture");
+    assert_eq!(session.active_view, None);
+    assert!(session.captured_buttons.is_empty());
+    assert_eq!(session.app.pointer.owner, None);
+}
+
+#[test]
+fn selecting_a_tool_from_the_toolbar_ends_a_pending_measurement() {
+    let (mut session, _root) = session();
+    let (x, y) = session.viewports[0].center();
+    session.app.active_tool = ToolKind::MeasureLength;
+    session
+        .handle_events(&[down(x, y, MouseButton::Left), up(x, y, MouseButton::Left)])
+        .expect("place the first anchor");
+    assert!(session.app.tool_state.is_pending_measurement());
+
+    session
+        .apply_window_action(WindowAction::SelectTool(ToolKind::Pan))
+        .expect("select another tool");
+
+    assert_eq!(session.app.active_tool, ToolKind::Pan);
+    assert!(session.app.tool_state.is_idle());
 }

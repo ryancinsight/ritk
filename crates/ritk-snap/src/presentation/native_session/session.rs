@@ -63,7 +63,6 @@ pub(super) struct NativeViewerSession {
     pub(super) active_panel: usize,
     pub(super) maximized_panel: Option<MaximizedPanel>,
     pub(super) window_chrome: WindowChrome,
-    pub(super) suppress_cancelled_pointer_release: PressedButtons,
 }
 
 impl NativeViewerSession {
@@ -159,7 +158,6 @@ impl NativeViewerSession {
             active_panel: 0,
             maximized_panel: None,
             window_chrome,
-            suppress_cancelled_pointer_release: PressedButtons::EMPTY,
         };
         if let Some(uid) = comparison_series_uid {
             session.initialize_comparison_uid(uid)?;

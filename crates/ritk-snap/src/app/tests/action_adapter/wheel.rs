@@ -226,14 +226,19 @@ fn out_of_range_wheel_keeps_the_dispatcher_transactional() {
         error,
         ViewerInputError::Action(ViewerActionError::WheelDeltaOutOfRange { .. })
     ));
-    app.apply_presentation_events(
-        &[PresentationEvent::PointerUp {
-            x: 2.0,
-            y: 2.0,
-            button: PointerButton::Left,
-        }],
-        Some(&viewport),
-    )
-    .expect_err("rejected batch must not press the pointer");
+    let release = app
+        .apply_presentation_events(
+            &[PresentationEvent::PointerUp {
+                x: 2.0,
+                y: 2.0,
+                button: PointerButton::Left,
+            }],
+            Some(&viewport),
+        )
+        .expect("the rejected batch committed no press");
+    assert!(matches!(
+        release,
+        ViewerActionDisposition::Continue { repaint: false }
+    ));
     assert_eq!(app.zoom, 1.0);
 }

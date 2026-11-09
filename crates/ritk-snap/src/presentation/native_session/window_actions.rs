@@ -118,10 +118,7 @@ impl NativeViewerSession {
                 if self.workspace_layout.is_grid() && tool == ToolKind::Crosshair {
                     return Ok(false);
                 }
-                let app = self.active_app_mut();
-                app.active_tool = tool;
-                app.tool_state = ToolState::Idle;
-                app.pointer.abandon();
+                self.active_app_mut().select_tool(tool);
                 Ok(true)
             }
             WindowAction::ToggleCrosshair => {

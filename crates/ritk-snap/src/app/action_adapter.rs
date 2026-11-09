@@ -12,6 +12,7 @@ use crate::presentation::{
     ActionDispatchError, PointerButton, PointerGesture, PresentationDispatcher, PresentationEvent,
     ViewerAction,
 };
+use crate::tools::interaction::ToolState;
 use crate::tools::kind::ToolKind;
 use crate::ui::{should_zoom_with_scroll, tool_kind_for_virtual_key, zoom_from_scroll};
 use thiserror::Error;
@@ -99,6 +100,13 @@ impl SnapApp {
     pub(crate) fn cancel_presentation_gesture(&mut self) {
         self.presentation_dispatcher.cancel_pointers();
         self.on_drag_end(None);
+    }
+
+    /// Make `tool` the left-button tool, ending any measurement in progress.
+    pub(crate) fn select_tool(&mut self, tool: ToolKind) {
+        self.active_tool = tool;
+        self.tool_state = ToolState::Idle;
+        self.pointer.abandon();
     }
 
     /// Apply one reduced host action to the RITK viewer state.
@@ -289,7 +297,7 @@ impl SnapApp {
             };
         }
         if let Some(tool) = tool_kind_for_virtual_key(virtual_key) {
-            self.active_tool = tool;
+            self.select_tool(tool);
             return ViewerActionDisposition::Continue { repaint: true };
         }
         let (arrow_up, arrow_down, page_up, page_down, home, end) = match virtual_key {
