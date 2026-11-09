@@ -157,7 +157,7 @@ impl MeasurementLayer {
     ) {
         match tool_state {
             ToolState::Idle => {}
-            ToolState::MeasureLength1 { p1 } => {
+            ToolState::MeasureLength1 { p1 } | ToolState::LengthDrag { start: p1, .. } => {
                 // Rubber-band line from anchor to cursor with live distance label.
                 let sp1 = img_to_screen(egui_point(*p1));
                 painter.circle_filled(sp1, HANDLE_RADIUS, COLOR_MEASURE);

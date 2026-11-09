@@ -13,52 +13,61 @@ use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 // ── Pointer / interaction event handlers ───────────────────────────────────
 
 impl SnapApp {
-    pub(crate) fn on_drag_start(&mut self, pos: Option<ImagePoint>) {
+    /// Begin the gesture `tool` performs from `pos`.
+    ///
+    /// A gesture started while a multi-click measurement is pending suspends
+    /// that measurement, so a reader can adjust the display between anchors.
+    pub(crate) fn on_drag_start(&mut self, tool: ToolKind, pos: Option<ImagePoint>) {
         let Some(pos) = pos else { return };
-        match self.active_tool {
-            ToolKind::Pan => {
-                self.tool_state = ToolState::Panning {
-                    start: pos,
-                    viewport_origin: self.pan_offset,
-                };
-            }
-            ToolKind::Zoom => {
-                self.tool_state = ToolState::Zooming {
-                    start: pos,
-                    original_zoom: self.zoom,
-                };
-            }
-            ToolKind::WindowLevel => {
-                let wc = self
-                    .viewer_state
-                    .window_center
-                    .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
-                let ww = self
-                    .viewer_state
-                    .window_width
-                    .unwrap_or(DEFAULT_WINDOW_WIDTH) as f64;
-                self.tool_state = ToolState::WindowLevelDrag {
-                    start: pos,
-                    original_center: wc,
-                    original_width: ww,
-                };
-            }
-            ToolKind::RoiRect => {
-                self.tool_state = ToolState::RoiDrag {
+        let gesture = match tool {
+            ToolKind::Pan => ToolState::Panning {
+                start: pos,
+                viewport_origin: self.pan_offset,
+            },
+            ToolKind::Zoom => ToolState::Zooming {
+                start: pos,
+                original_zoom: self.zoom,
+            },
+            ToolKind::WindowLevel => ToolState::WindowLevelDrag {
+                start: pos,
+                original_center: f64::from(
+                    self.viewer_state
+                        .window_center
+                        .unwrap_or(DEFAULT_WINDOW_CENTER),
+                ),
+                original_width: f64::from(
+                    self.viewer_state
+                        .window_width
+                        .unwrap_or(DEFAULT_WINDOW_WIDTH),
+                ),
+            },
+            ToolKind::RoiRect => ToolState::RoiDrag {
+                start: pos,
+                current: pos,
+                kind: RoiKind::Rect,
+            },
+            ToolKind::RoiEllipse => ToolState::RoiDrag {
+                start: pos,
+                current: pos,
+                kind: RoiKind::Ellipse,
+            },
+            ToolKind::MeasureLength
+                if !matches!(self.tool_state, ToolState::MeasureLength1 { .. }) =>
+            {
+                ToolState::LengthDrag {
                     start: pos,
                     current: pos,
-                    kind: RoiKind::Rect,
-                };
+                }
             }
-            ToolKind::RoiEllipse => {
-                self.tool_state = ToolState::RoiDrag {
-                    start: pos,
-                    current: pos,
-                    kind: RoiKind::Ellipse,
-                };
-            }
-            _ => {}
+            _ => return,
+        };
+        if matches!(
+            self.tool_state,
+            ToolState::MeasureLength1 { .. } | ToolState::MeasureAngle2 { .. }
+        ) {
+            self.pointer.suspended_measurement = Some(self.tool_state.clone());
         }
+        self.tool_state = gesture;
     }
 
     pub(crate) fn on_drag(&mut self, pos: Option<ImagePoint>) {
@@ -102,6 +111,12 @@ impl SnapApp {
                     kind,
                 };
             }
+            ToolState::LengthDrag { start, .. } => {
+                self.tool_state = ToolState::LengthDrag {
+                    start,
+                    current: pos,
+                };
+            }
             _ => {}
         }
     }
@@ -123,10 +138,23 @@ impl SnapApp {
                 } => {
                     self.finalise_roi_ellipse(start, current);
                 }
+                ToolState::LengthDrag { start, current } => {
+                    self.record_length(start, current);
+                }
                 _ => {}
             }
         }
-        self.tool_state = ToolState::Idle;
+        self.finish_gesture();
+    }
+
+    /// Release the gesture owner and return to any suspended measurement.
+    fn finish_gesture(&mut self) {
+        self.pointer.owner = None;
+        self.tool_state = self
+            .pointer
+            .suspended_measurement
+            .take()
+            .unwrap_or(ToolState::Idle);
     }
 
     /// End a click without discarding a multi-click measurement anchor.
@@ -142,8 +170,12 @@ impl SnapApp {
                 | ToolState::Zooming { .. }
                 | ToolState::WindowLevelDrag { .. }
                 | ToolState::RoiDrag { .. }
+                | ToolState::LengthDrag { .. }
         ) {
-            self.tool_state = ToolState::Idle;
+            self.finish_gesture();
+        } else {
+            self.pointer.owner = None;
+            self.pointer.suspended_measurement = None;
         }
     }
 
@@ -152,30 +184,7 @@ impl SnapApp {
         match self.active_tool {
             ToolKind::MeasureLength => match self.tool_state.clone() {
                 ToolState::MeasureLength1 { p1 } => {
-                    let p1_arr = [p1.y(), p1.x()];
-                    let p2_arr = [pos.y(), pos.x()];
-                    let spacing = match self.slice_plane_spacing() {
-                        Ok(spacing) => spacing,
-                        Err(error) => {
-                            self.status_message = format!("Measurement rejected: {error}");
-                            self.tool_state = ToolState::Idle;
-                            return;
-                        }
-                    };
-                    let length_mm =
-                        match Annotation::compute_length_checked(p1_arr, p2_arr, spacing) {
-                            Ok(length) => length,
-                            Err(error) => {
-                                self.status_message = format!("Measurement rejected: {error}");
-                                self.tool_state = ToolState::Idle;
-                                return;
-                            }
-                        };
-                    self.annotations.push(Annotation::Length {
-                        p1: p1_arr,
-                        p2: p2_arr,
-                        length_mm,
-                    });
+                    self.record_length(p1, pos);
                     self.tool_state = ToolState::Idle;
                 }
                 _ => {
@@ -224,6 +233,25 @@ impl SnapApp {
     }
 
     // ── Annotation helpers ────────────────────────────────────────────────
+
+    /// Record the patient-space length between two image points.
+    fn record_length(&mut self, start: ImagePoint, end: ImagePoint) {
+        let p1 = [start.y(), start.x()];
+        let p2 = [end.y(), end.x()];
+        let measured = self
+            .slice_plane_spacing()
+            .and_then(|spacing| Annotation::compute_length_checked(p1, p2, spacing));
+        match measured {
+            Ok(length_mm) => {
+                self.annotations
+                    .push(Annotation::Length { p1, p2, length_mm });
+                self.status_message = format!("Length: {length_mm:.2} mm");
+            }
+            Err(error) => {
+                self.status_message = format!("Measurement rejected: {error}");
+            }
+        }
+    }
 
     /// Compute ROI rect statistics for the pixel region between `start` and
     /// `end` (screen-space corners) on the current primary-axis slice.

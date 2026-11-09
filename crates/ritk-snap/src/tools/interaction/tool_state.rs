@@ -57,6 +57,14 @@ pub enum ToolState {
         p2: ImagePoint,
     },
 
+    /// Length measurement drag in progress.
+    LengthDrag {
+        /// Drag start in image pixel coordinates.
+        start: ImagePoint,
+        /// Current pointer position in image pixel coordinates.
+        current: ImagePoint,
+    },
+
     /// ROI drag in progress.
     RoiDrag {
         /// Drag start in image pixel coordinates `[row, col]`.
@@ -88,7 +96,9 @@ impl ToolState {
             ToolState::Panning { .. } => Some(ToolKind::Pan),
             ToolState::Zooming { .. } => Some(ToolKind::Zoom),
             ToolState::WindowLevelDrag { .. } => Some(ToolKind::WindowLevel),
-            ToolState::MeasureLength1 { .. } => Some(ToolKind::MeasureLength),
+            ToolState::MeasureLength1 { .. } | ToolState::LengthDrag { .. } => {
+                Some(ToolKind::MeasureLength)
+            }
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
             ToolState::RoiDrag {
                 kind: RoiKind::Rect,

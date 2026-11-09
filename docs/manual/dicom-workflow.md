@@ -1275,6 +1275,12 @@ horizontal wheel browses relative to the series shown in the panel under the
 pointer and replaces only that panel's series. Activating a series card still
 switches to the panel already assigned to that card.
 
+Inside an image, the left button runs the selected tool. The other buttons keep
+their own tools, so the display can be adjusted without changing tools: middle
+drag adjusts the window, right drag zooms, the back button pans and the forward
+button measures a length. Dragging with the length tool also records a length,
+and a display adjustment between two measurement clicks keeps the first point.
+
 The F4 multiple-series picker opens with its series list focused. Typing moves
 focus to the filter; spaces remain search text there. Press Down or click a row
 to return to the list, where Space toggles the selected series. Enter loads all
