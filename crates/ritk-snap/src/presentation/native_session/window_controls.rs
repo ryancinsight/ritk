@@ -7,6 +7,7 @@ mod series;
 use self::layout::{ChromeGeometry, ChromeLayout};
 use self::multi_series::MultiSeriesDialog;
 use super::layout::{ViewportArea, WorkspaceLayout};
+use super::pressed_buttons::PressedButtons;
 use super::series_browser::SeriesBrowser;
 use crate::app::SnapApp;
 use crate::presentation::PresentationFrame;
@@ -105,7 +106,7 @@ pub(super) struct WindowChrome {
     show_series_preview: bool,
     control_down: bool,
     pointer_owner: PointerOwner,
-    pressed_buttons: u8,
+    pressed_buttons: PressedButtons,
 }
 
 impl WindowChrome {
@@ -117,10 +118,11 @@ impl WindowChrome {
             show_series_preview: true,
             control_down: false,
             pointer_owner: PointerOwner::None,
-            pressed_buttons: 0,
+            pressed_buttons: PressedButtons::EMPTY,
         }
     }
 
+    #[cfg(test)]
     pub(super) const fn multi_series_dialog_is_open(&self) -> bool {
         self.multi_series_dialog.is_some()
     }
@@ -239,6 +241,7 @@ impl WindowChrome {
         };
         self.multi_series_dialog = Some(MultiSeriesDialog::new(browser)?);
         self.open_menu = None;
+        self.cancel_pointer_capture();
         Ok(true)
     }
 
@@ -252,7 +255,7 @@ impl WindowChrome {
 
     pub(super) fn cancel_pointer_capture(&mut self) {
         self.pointer_owner = PointerOwner::None;
-        self.pressed_buttons = 0;
+        self.pressed_buttons = PressedButtons::EMPTY;
     }
 }
 

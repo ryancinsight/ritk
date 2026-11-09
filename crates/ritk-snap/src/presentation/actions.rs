@@ -184,7 +184,7 @@ pub enum ViewerAction {
         /// Completed gesture classification.
         gesture: PointerGesture,
     },
-    /// A focus loss canceled an in-progress pointer gesture.
+    /// A focus loss, host cancellation or repeated press ended a pointer gesture.
     PointerCancelled {
         /// Canceled button.
         button: PointerButton,
@@ -264,18 +264,6 @@ pub enum ActionDispatchError {
         /// Number of entries or bytes requested.
         requested: usize,
     },
-    /// The event sequence contains two presses for one button.
-    #[error("pointer button {button:?} was pressed twice without release")]
-    DuplicatePointerPress {
-        /// Button whose state is already pressed.
-        button: PointerButton,
-    },
-    /// The event sequence releases a button that is not pressed.
-    #[error("pointer button {button:?} was released without a press")]
-    PointerReleaseWithoutPress {
-        /// Button whose state is absent.
-        button: PointerButton,
-    },
     /// A pointer coordinate or displacement is not finite.
     #[error("pointer coordinate {point:?} is not finite")]
     NonFiniteCoordinate {
@@ -338,9 +326,9 @@ impl PresentationDispatcher {
     /// retry or report the same input without a partial gesture state.
     ///
     /// # Errors
-    /// Returns [`ActionDispatchError`] for an oversized batch, malformed
-    /// pointer sequence, non-finite coordinate or displacement, overlong
-    /// composition, or bounded allocation failure.
+    /// Returns [`ActionDispatchError`] for an oversized batch, non-finite
+    /// coordinate or displacement, overlong composition, or bounded allocation
+    /// failure.
     pub fn dispatch(
         &mut self,
         events: &[PresentationEvent],

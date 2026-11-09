@@ -10,6 +10,7 @@ mod gestures;
 mod keyboard;
 #[cfg(feature = "eframe-shell")]
 mod lifecycle;
+mod pointer_bindings;
 mod wheel;
 
 fn viewport(source_size: [usize; 2]) -> ViewerViewport {

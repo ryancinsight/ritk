@@ -9,7 +9,7 @@ fn zoom_tool_drag_updates_zoom_from_pointer_delta() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Zoom;
     app.zoom = 1.0;
-    app.on_drag_start(Some(ImagePoint::new(100.0, 100.0)));
+    app.on_drag_start(app.active_tool, Some(ImagePoint::new(100.0, 100.0)));
     app.on_drag(Some(ImagePoint::new(100.0, 80.0)));
     assert!(app.zoom > 1.0, "expected drag-up zoom-in, got {}", app.zoom);
     assert!(app.status_message.starts_with("Zoom:"));
@@ -20,7 +20,7 @@ fn pan_tool_drag_updates_offset_via_ssot() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Pan;
     app.pan_offset = ViewportOffset::new(0.0, 0.0);
-    app.on_drag_start(Some(ImagePoint::new(100.0, 100.0)));
+    app.on_drag_start(app.active_tool, Some(ImagePoint::new(100.0, 100.0)));
     app.on_drag(Some(ImagePoint::new(130.0, 80.0)));
     // delta = (30.0, -20.0)
     // new_offset = (0, 0) + (30, -20) = (30, -20)
@@ -33,7 +33,7 @@ fn pan_tool_drag_with_nonzero_starting_offset() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Pan;
     app.pan_offset = ViewportOffset::new(50.0, 75.0);
-    app.on_drag_start(Some(ImagePoint::new(200.0, 150.0)));
+    app.on_drag_start(app.active_tool, Some(ImagePoint::new(200.0, 150.0)));
     app.on_drag(Some(ImagePoint::new(220.0, 130.0)));
     // delta = (20.0, -20.0)
     // new_offset = (50, 75) + (20, -20) = (70, 55)
@@ -46,7 +46,7 @@ fn pan_tool_drag_zero_delta_preserves_offset() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Pan;
     app.pan_offset = ViewportOffset::new(100.0, 100.0);
-    app.on_drag_start(Some(ImagePoint::new(200.0, 150.0)));
+    app.on_drag_start(app.active_tool, Some(ImagePoint::new(200.0, 150.0)));
     app.on_drag(Some(ImagePoint::new(200.0, 150.0)));
     // delta = (0.0, 0.0)
     // new_offset = (100, 100) + (0, 0) = (100, 100)

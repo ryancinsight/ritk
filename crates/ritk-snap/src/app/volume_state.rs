@@ -106,6 +106,7 @@ impl SnapApp {
             self.rt_dvh_cache = None;
         }
         self.tool_state = ToolState::Idle;
+        self.pointer.abandon();
         self.pan_offset = ViewportOffset::new(0.0, 0.0);
         self.zoom = 1.0;
         self.pointer_intensity = 0.0;

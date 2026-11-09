@@ -1,23 +1,43 @@
 //! Panel selection for the native presentation event stream.
 
-use super::layout::{WorkspaceLayout, MAX_GRID_PANELS};
+use super::layout::{NativeViewport, WorkspaceLayout, MAX_GRID_PANELS};
 use super::panels::PanelRouteMap;
+use super::pressed_buttons::PressedButtons;
 use super::{NativeViewerError, NativeViewerSession};
 use crate::app::action_adapter::{preflight_presentation_events, ViewerActionDisposition};
 use crate::app::viewer_viewport::ViewerViewport;
 use crate::presentation::PresentationEvent;
 use arrayvec::ArrayVec;
 
+/// Where one host event is delivered within a native batch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum EventRoute {
+    /// The pane at this index of the batch's framebuffer.
+    View(usize),
+    /// The active panel, for input that names no pane.
+    ActivePanel,
+    /// Nothing: a press outside every pane or a release no pane holds.
+    Discarded,
+}
+
+impl EventRoute {
+    pub(super) const fn view(self) -> Option<usize> {
+        match self {
+            Self::View(index) => Some(index),
+            Self::ActivePanel | Self::Discarded => None,
+        }
+    }
+}
+
 /// Input routes bound to the framebuffer visible when the host batch begins.
 pub(super) struct RoutedBatch {
     pub(super) layout: WorkspaceLayout,
-    pub(super) active_view: Option<usize>,
-    routes: ArrayVec<Option<usize>, { crate::presentation::MAX_PRESENTATION_EVENTS }>,
+    routes: ArrayVec<EventRoute, { crate::presentation::MAX_PRESENTATION_EVENTS }>,
     view_mappings: ArrayVec<ViewerViewport, MAX_GRID_PANELS>,
 }
 
 impl RoutedBatch {
-    pub(super) fn routes(&self) -> &[Option<usize>] {
+    pub(super) fn routes(&self) -> &[EventRoute] {
         &self.routes
     }
 
@@ -26,22 +46,101 @@ impl RoutedBatch {
     }
 }
 
+/// The pane receiving pointer input and the buttons holding it there.
+///
+/// The first press takes the capture. Further presses join it, and it ends
+/// only when the last held button is released, so every press and release of a
+/// multi-button sequence reaches the same pane.
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) struct PointerCapture {
+    view: Option<usize>,
+    pressed: PressedButtons,
+}
+
+impl PointerCapture {
+    /// A second press of a held button proves its release never arrived, so
+    /// that button stops holding the capture. Another held button keeps the
+    /// pane, and the press joins it; otherwise the press hit-tests afresh.
+    fn forget_lost_release(&mut self, event: &PresentationEvent) {
+        if let PresentationEvent::PointerDown { button, .. } = event
+            && self.pressed.contains(*button)
+        {
+            self.pressed.remove(*button);
+            if self.pressed.is_empty() {
+                self.view = None;
+            }
+        }
+    }
+
+    /// The pane still holding a gesture that this press has moved elsewhere.
+    fn lost_to(&self, event: &PresentationEvent, route: EventRoute) -> Option<usize> {
+        match event {
+            PresentationEvent::PointerDown { button, .. }
+                if self.pressed.contains(*button) && route.view() != self.view =>
+            {
+                self.view
+            }
+            _ => None,
+        }
+    }
+
+    fn discards(&self, event: &PresentationEvent, viewports: &[NativeViewport]) -> bool {
+        match event {
+            PresentationEvent::PointerDown { x, y, .. } => {
+                self.view.is_none() && view_at(viewports, *x, *y).is_none()
+            }
+            PresentationEvent::PointerUp { button, .. }
+            | PresentationEvent::PointerCancel { button, .. } => !self.pressed.contains(*button),
+            _ => false,
+        }
+    }
+
+    fn update(&mut self, event: &PresentationEvent, viewports: &[NativeViewport]) {
+        self.forget_lost_release(event);
+        match event {
+            PresentationEvent::PointerDown { x, y, button, .. } => {
+                if self.view.is_none() {
+                    self.pressed = PressedButtons::EMPTY;
+                    self.view = view_at(viewports, *x, *y);
+                }
+                if self.view.is_some() {
+                    self.pressed.insert(*button);
+                }
+            }
+            PresentationEvent::PointerUp { button, .. }
+            | PresentationEvent::PointerCancel { button, .. } => {
+                self.pressed.remove(*button);
+                if self.pressed.is_empty() {
+                    self.view = None;
+                }
+            }
+            PresentationEvent::FocusLost
+            | PresentationEvent::CloseRequested
+            | PresentationEvent::Destroyed => {
+                self.view = None;
+                self.pressed = PressedButtons::EMPTY;
+            }
+            _ => {}
+        }
+    }
+}
+
 /// Tracks pointer capture and keyboard fallback within one host event batch.
 pub(super) struct PanelEventRouter {
     panel: usize,
-    view: Option<usize>,
+    capture: PointerCapture,
     axis: usize,
 }
 
 impl PanelEventRouter {
     pub(super) const fn new(
         active_panel: usize,
-        active_view: Option<usize>,
+        capture: PointerCapture,
         active_axis: usize,
     ) -> Self {
         Self {
             panel: active_panel,
-            view: active_view,
+            capture,
             axis: active_axis,
         }
     }
@@ -50,18 +149,24 @@ impl PanelEventRouter {
         self.panel
     }
 
-    pub(super) const fn active_view(&self) -> Option<usize> {
-        self.view
-    }
-
     pub(super) fn route(
         &mut self,
         event: &PresentationEvent,
         layout: WorkspaceLayout,
-        viewports: &[super::layout::NativeViewport],
-    ) -> Option<usize> {
-        let selected_view =
-            event_view_index(event, self.view, self.panel, self.axis, layout, viewports);
+        viewports: &[NativeViewport],
+    ) -> EventRoute {
+        self.capture.forget_lost_release(event);
+        if self.capture.discards(event, viewports) {
+            return EventRoute::Discarded;
+        }
+        let selected_view = event_view_index(
+            event,
+            self.capture.view,
+            self.panel,
+            self.axis,
+            layout,
+            viewports,
+        );
         if let Some(index) = selected_view {
             if layout.is_grid() {
                 self.panel = index;
@@ -70,26 +175,8 @@ impl PanelEventRouter {
                 self.axis = viewport.axis();
             }
         }
-        update_active_view(&mut self.view, event, viewports);
-        selected_view
-    }
-}
-
-fn update_active_view(
-    active_view: &mut Option<usize>,
-    event: &PresentationEvent,
-    viewports: &[super::layout::NativeViewport],
-) {
-    match event {
-        PresentationEvent::PointerDown { x, y, .. } => {
-            *active_view = view_at(viewports, *x, *y).or(*active_view);
-        }
-        PresentationEvent::PointerUp { .. }
-        | PresentationEvent::PointerCancel { .. }
-        | PresentationEvent::FocusLost
-        | PresentationEvent::CloseRequested
-        | PresentationEvent::Destroyed => *active_view = None,
-        _ => {}
+        self.capture.update(event, viewports);
+        selected_view.map_or(EventRoute::ActivePanel, EventRoute::View)
     }
 }
 
@@ -99,7 +186,7 @@ fn event_view_index(
     active_panel: usize,
     active_axis: usize,
     layout: WorkspaceLayout,
-    viewports: &[super::layout::NativeViewport],
+    viewports: &[NativeViewport],
 ) -> Option<usize> {
     let candidate = match event {
         PresentationEvent::PointerDown { x, y, .. }
@@ -122,13 +209,20 @@ fn event_view_index(
     })
 }
 
-fn view_at(viewports: &[super::layout::NativeViewport], x: f64, y: f64) -> Option<usize> {
+fn view_at(viewports: &[NativeViewport], x: f64, y: f64) -> Option<usize> {
     viewports
         .iter()
         .position(|viewport| viewport.contains(x, y))
 }
 
 impl NativeViewerSession {
+    pub(super) const fn pointer_capture(&self) -> PointerCapture {
+        PointerCapture {
+            view: self.active_view,
+            pressed: self.captured_buttons,
+        }
+    }
+
     fn app_for_panel_mut(
         &mut self,
         panel_index: usize,
@@ -185,12 +279,22 @@ impl NativeViewerSession {
                 .try_push(viewport.mapping())
                 .map_err(|_| NativeViewerError::new("viewer viewport mapping capacity exceeded"))?;
         }
-        let mut route_cursor =
-            PanelEventRouter::new(self.active_panel, self.active_view, self.active_app().axis);
+        let mut route_cursor = PanelEventRouter::new(
+            self.active_panel,
+            self.pointer_capture(),
+            self.active_app().axis,
+        );
         for event in events {
-            let selected_view = route_cursor.route(event, self.workspace_layout, &self.viewports);
+            let route = route_cursor.route(event, self.workspace_layout, &self.viewports);
+            if route == EventRoute::Discarded {
+                routes
+                    .try_push(route)
+                    .map_err(|_| NativeViewerError::new("viewer event route capacity exceeded"))?;
+                continue;
+            }
             let dispatcher_index = if grid.is_some() {
-                selected_view
+                route
+                    .view()
                     .unwrap_or(route_cursor.active_panel())
                     .min(panel_count.saturating_sub(1))
             } else {
@@ -203,12 +307,11 @@ impl NativeViewerSession {
                 |error| NativeViewerError::new(format!("apply RITK presentation events: {error}")),
             )?;
             routes
-                .try_push(selected_view)
+                .try_push(route)
                 .map_err(|_| NativeViewerError::new("viewer event route capacity exceeded"))?;
         }
         Ok(RoutedBatch {
             layout: self.workspace_layout,
-            active_view: route_cursor.active_view(),
             routes,
             view_mappings,
         })
@@ -217,7 +320,7 @@ impl NativeViewerSession {
     pub(super) fn apply_events(
         &mut self,
         events: &[PresentationEvent],
-        routes: &[Option<usize>],
+        routes: &[EventRoute],
         panel_routes: &PanelRouteMap,
         view_mappings: &[ViewerViewport],
         layout: WorkspaceLayout,
@@ -230,22 +333,36 @@ impl NativeViewerSession {
         let grid = layout.grid();
         let previous_panel = self.active_panel;
         let previous_active_view = self.active_view;
-        let mut active_view = self.active_view;
+        let mut capture = self.pointer_capture();
         let mut repaint = false;
         let mut start = 0;
         while start < events.len() {
-            let selected_view = routes[start];
+            let route = routes[start];
+            if let Some(view) = capture.lost_to(&events[start], route) {
+                let stale_panel = self.panel_for_event(
+                    &events[start],
+                    EventRoute::View(view),
+                    panel_routes,
+                    grid.is_some(),
+                );
+                if let Some(panel) =
+                    stale_panel.filter(|index| panel_routes.contains_current_panel(*index))
+                {
+                    self.app_for_panel_mut(panel)?.cancel_presentation_gesture();
+                }
+            }
             let Some(panel_index) = self
-                .panel_for_event(&events[start], selected_view, panel_routes, grid.is_some())
+                .panel_for_event(&events[start], route, panel_routes, grid.is_some())
                 .filter(|index| {
                     !is_pointer_event(&events[start]) || panel_routes.contains_current_panel(*index)
                 })
             else {
+                capture.update(&events[start], &self.viewports);
                 start += 1;
                 continue;
             };
             let view_index =
-                self.event_view_mapping(&events[start], selected_view, panel_index, grid.is_some());
+                self.event_view_mapping(&events[start], route, panel_index, grid.is_some());
             let mut end = start + 1;
             while end < events.len() {
                 let Some(next_panel) = self
@@ -269,7 +386,8 @@ impl NativeViewerSession {
                     .workspace_layout
                     .grid()
                     .is_some_and(|current| panel_index < current.panel_count())
-                && selected_view.is_some()
+                && route.view().is_some()
+                && !is_release(&events[start])
             {
                 self.active_panel = panel_index;
             }
@@ -312,26 +430,30 @@ impl NativeViewerSession {
                 }
             }
             for event in &events[start..end] {
-                update_active_view(&mut active_view, event, &self.viewports);
+                capture.update(event, &self.viewports);
             }
             start = end;
         }
-        self.active_view = active_view;
+        self.active_view = capture.view;
+        self.captured_buttons = capture.pressed;
         Ok(ViewerActionDisposition::Continue { repaint })
     }
 
     fn panel_for_event(
         &self,
         event: &PresentationEvent,
-        selected_view: Option<usize>,
+        route: EventRoute,
         panel_routes: &PanelRouteMap,
         grid: bool,
     ) -> Option<usize> {
+        if route == EventRoute::Discarded {
+            return None;
+        }
         if !grid {
             return Some(0);
         }
         if is_pointer_event(event) {
-            selected_view.map_or(Some(self.active_panel), |view| {
+            route.view().map_or(Some(self.active_panel), |view| {
                 panel_routes.current_panel(view)
             })
         } else {
@@ -342,16 +464,25 @@ impl NativeViewerSession {
     fn event_view_mapping(
         &self,
         event: &PresentationEvent,
-        selected_view: Option<usize>,
+        route: EventRoute,
         panel_index: usize,
         grid: bool,
     ) -> Option<usize> {
         if grid && !is_pointer_event(event) {
             Some(panel_index)
         } else {
-            selected_view
+            route.view()
         }
     }
+}
+
+/// A release ends a gesture whose press already chose the panel, and an action
+/// may have moved the active panel since, so a release never activates one.
+fn is_release(event: &PresentationEvent) -> bool {
+    matches!(
+        event,
+        PresentationEvent::PointerUp { .. } | PresentationEvent::PointerCancel { .. }
+    )
 }
 
 pub(super) fn is_pointer_event(event: &PresentationEvent) -> bool {

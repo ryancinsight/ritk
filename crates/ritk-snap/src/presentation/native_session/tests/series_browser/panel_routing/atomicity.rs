@@ -1,4 +1,17 @@
 use super::*;
+use metis_platform::native::{AccessibilityAction, AccessibilityActionRequest};
+
+/// The presentation reducer rejects this input, so it fails in preflight.
+fn unsupported_accessibility_request() -> WindowEvent {
+    WindowEvent::AccessibilityAction {
+        request: AccessibilityActionRequest {
+            target_node: 41,
+            action: AccessibilityAction::Focus,
+            value: None,
+            delta: None,
+        },
+    }
+}
 
 #[test]
 fn rejected_comparison_batch_does_not_apply_an_earlier_panel_event() {
@@ -20,7 +33,6 @@ fn rejected_comparison_batch_does_not_apply_an_earlier_panel_event() {
     let primary_before = viewer.app.viewer_state.slice_index;
     let secondary_before = viewer.compare_panels[0].app.viewer_state.slice_index;
     let (left_x, left_y) = viewer.viewports[0].center();
-    let (right_x, right_y) = viewer.viewports[1].center();
     let error = viewer
         .handle_events(&[
             WindowEvent::PointerWheel {
@@ -30,15 +42,11 @@ fn rejected_comparison_batch_does_not_apply_an_earlier_panel_event() {
                 delta_y: -120,
                 modifiers: ModifierState::NONE,
             },
-            WindowEvent::PointerUp {
-                x: right_x,
-                y: right_y,
-                button: MouseButton::Left,
-            },
+            unsupported_accessibility_request(),
         ])
-        .expect_err("reject release without a press in the second panel");
+        .expect_err("preflight rejects the request after the wheel input");
 
-    assert!(error.to_string().contains("without a press"));
+    assert!(error.to_string().contains("accessibility"), "{error}");
     assert_eq!(viewer.app.viewer_state.slice_index, primary_before);
     assert_eq!(
         viewer.compare_panels[0].app.viewer_state.slice_index,
@@ -68,7 +76,6 @@ fn rejected_native_batch_does_not_apply_pane_events_before_toolbar_actions() {
     let primary_slice = viewer.app.viewer_state.slice_index;
     let primary_tool = viewer.app.active_tool;
     let (left_x, left_y) = viewer.viewports[0].center();
-    let (right_x, right_y) = viewer.viewports[1].center();
     let (pan_x, pan_y) = control_center(
         &viewer,
         None,
@@ -95,15 +102,11 @@ fn rejected_native_batch_does_not_apply_pane_events_before_toolbar_actions() {
                 y: pan_y,
                 button: MouseButton::Left,
             },
-            WindowEvent::PointerUp {
-                x: right_x,
-                y: right_y,
-                button: MouseButton::Left,
-            },
+            unsupported_accessibility_request(),
         ])
-        .expect_err("reject the unpressed release after all earlier inputs");
+        .expect_err("preflight rejects the request after all earlier inputs");
 
-    assert!(error.to_string().contains("without a press"));
+    assert!(error.to_string().contains("accessibility"), "{error}");
     assert_eq!(viewer.app.viewer_state.slice_index, primary_slice);
     assert_eq!(viewer.app.active_tool, primary_tool);
 }

@@ -83,10 +83,19 @@ impl PresentationDispatcher {
             }
             PresentationEvent::PointerDown { x, y, button } => {
                 let slot = button_slot(*button);
-                if self.pointers[slot].is_some() {
-                    return Err(ActionDispatchError::DuplicatePointerPress { button: *button });
-                }
                 let position = viewport_point(*x, *y)?;
+                // A second press proves the host lost the release, so the
+                // gesture it began ends where the pointer was last seen.
+                if let Some(stale) = self.pointers[slot] {
+                    Self::push_action(
+                        actions,
+                        ViewerAction::PointerCancelled {
+                            button: *button,
+                            position: stale.last,
+                        },
+                        action_limit,
+                    )?;
+                }
                 self.pointers[slot] = Some(PointerPress {
                     origin: position,
                     last: position,
@@ -128,10 +137,10 @@ impl PresentationDispatcher {
             }
             PresentationEvent::PointerUp { x, y, button } => {
                 let slot = button_slot(*button);
+                // Hosts deliver a release whose press a dialog consumed or a
+                // cancellation already ended; it has no gesture to finish.
                 let Some(press) = self.pointers[slot].take() else {
-                    return Err(ActionDispatchError::PointerReleaseWithoutPress {
-                        button: *button,
-                    });
+                    return Ok(());
                 };
                 let position = viewport_point(*x, *y)?;
                 let gesture = if press.moved || position != press.origin {
@@ -151,11 +160,9 @@ impl PresentationDispatcher {
             }
             PresentationEvent::PointerCancel { x, y, button } => {
                 let slot = button_slot(*button);
-                let Some(_press) = self.pointers[slot].take() else {
-                    return Err(ActionDispatchError::PointerReleaseWithoutPress {
-                        button: *button,
-                    });
-                };
+                if self.pointers[slot].take().is_none() {
+                    return Ok(());
+                }
                 let position = viewport_point(*x, *y)?;
                 Self::push_action(
                     actions,

@@ -104,8 +104,7 @@ impl SnapApp {
         if self.active_tool == tool {
             return Ok(false);
         }
-        self.active_tool = tool;
-        self.tool_state = crate::tools::interaction::ToolState::Idle;
+        self.select_tool(tool);
         Ok(true)
     }
 }
@@ -157,9 +156,11 @@ mod tests {
         app.tool_state = crate::tools::interaction::ToolState::MeasureLength1 {
             p1: crate::tools::interaction::ImagePoint::new(1.0, 2.0),
         };
+        app.pointer.suspended_measurement = Some(app.tool_state.clone());
         assert_eq!(app.select_browser_tool(0), Ok(true));
         assert_eq!(app.active_tool, ToolKind::Pan);
         assert!(app.tool_state.is_idle());
+        assert_eq!(app.pointer.suspended_measurement, None);
         assert_eq!(app.select_browser_tool(0), Ok(false));
         assert_eq!(SnapApp::browser_tool_name(0), Ok("Pan"));
     }

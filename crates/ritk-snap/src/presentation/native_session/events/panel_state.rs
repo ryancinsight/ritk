@@ -2,7 +2,7 @@
 
 use super::super::layout::{NativeViewport, PanelGrid, WorkspaceLayout, MAX_GRID_PANELS};
 use super::super::panels::{MaximizedPanel, PanelRouteMap};
-use super::super::routing::{is_pointer_event, PanelEventRouter};
+use super::super::routing::{is_pointer_event, EventRoute, PanelEventRouter, PointerCapture};
 use super::super::window_controls::{PanelCloseKind, WindowAction};
 use super::super::NativeViewerError;
 use crate::presentation::PresentationEvent;
@@ -23,7 +23,7 @@ impl KeyboardPanelState {
     pub(super) fn new(
         layout: WorkspaceLayout,
         active_panel: usize,
-        active_view: Option<usize>,
+        capture: PointerCapture,
         active_axis: usize,
         maximized_panel: Option<MaximizedPanel>,
         displayed_series: &[Option<usize>; MAX_GRID_PANELS],
@@ -46,7 +46,7 @@ impl KeyboardPanelState {
             panel_series,
             displayed_series: *displayed_series,
             browser_active_index,
-            input_router: PanelEventRouter::new(active_panel, active_view, active_axis),
+            input_router: PanelEventRouter::new(active_panel, capture, active_axis),
         })
     }
 
@@ -75,11 +75,14 @@ impl KeyboardPanelState {
     }
 
     pub(super) fn retain_event(&mut self, event: &PresentationEvent, viewports: &[NativeViewport]) {
-        let selected_view = self.input_router.route(event, self.batch_layout, viewports);
-        if is_pointer_event(event) && self.batch_layout.is_grid() {
-            let routed_panel = selected_view.map_or(Some(self.active_panel), |presented_panel| {
-                self.panel_routes.current_panel(presented_panel)
-            });
+        let route = self.input_router.route(event, self.batch_layout, viewports);
+        if route != EventRoute::Discarded && is_pointer_event(event) && self.batch_layout.is_grid()
+        {
+            let routed_panel = route
+                .view()
+                .map_or(Some(self.active_panel), |presented_panel| {
+                    self.panel_routes.current_panel(presented_panel)
+                });
             if let Some(panel_index) = routed_panel
                 .filter(|index| self.panel_routes.contains_current_panel(*index))
                 .filter(|index| {

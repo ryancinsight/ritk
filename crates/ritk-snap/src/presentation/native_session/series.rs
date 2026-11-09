@@ -156,6 +156,7 @@ impl NativeViewerSession {
     }
 
     pub(super) fn open_study_path(&mut self, path: &Path) -> Result<()> {
+        self.end_held_gestures();
         if path.is_dir() {
             let tree = scan_folder_for_series(path).context("discover selected RITK study")?;
             if tree.total_series() == 0 {
@@ -438,6 +439,7 @@ impl NativeViewerSession {
     }
 
     pub(super) fn open_study_from_dialog(&mut self) -> Result<bool> {
+        self.end_held_gestures();
         let selected = pick(DialogSelection::Folder).context("show native study picker")?;
         let Some(path) = selected else {
             return Ok(false);

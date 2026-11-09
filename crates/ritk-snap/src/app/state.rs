@@ -5,11 +5,9 @@ use crate::presentation::PresentationDispatcher;
 use crate::render::NamedColorMap;
 use crate::tools::interaction::{Annotation, ToolState, ViewportOffset};
 use crate::tools::kind::ToolKind;
-use crate::ui::CinePlayback;
-use crate::ui::LinkedCursor;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::ui::RoiDoseAnalytics;
-use crate::ui::ViewTransform;
+use crate::ui::{CinePlayback, LinkedCursor, ViewTransform};
 use crate::{LoadedVolume, ViewerState};
 
 /// Default opacity for the fused-overlay compare mode.
@@ -76,6 +74,8 @@ pub(crate) struct SnapApp {
     pub(crate) active_tool: ToolKind,
     /// In-progress gesture state for the active tool.
     pub(crate) tool_state: ToolState,
+    /// Pointer button assignments and the gesture in progress.
+    pub(crate) pointer: super::pointer_bindings::PointerGestures,
     /// Stateful reducer for host pointer gestures at the presentation seam.
     pub(crate) presentation_dispatcher: PresentationDispatcher,
     /// Completed measurement annotations.
@@ -313,6 +313,7 @@ impl Default for SnapApp {
             axis: 0,
             active_tool: ToolKind::WindowLevel,
             tool_state: ToolState::Idle,
+            pointer: Default::default(),
             presentation_dispatcher: PresentationDispatcher::new(),
             annotations: Vec::new(),
             label_editor: None,

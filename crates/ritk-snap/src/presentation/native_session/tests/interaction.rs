@@ -21,6 +21,36 @@ fn projection_center(session: &NativeViewerSession) -> (i32, i32) {
 }
 
 #[test]
+fn native_session_right_drag_inside_a_pane_zooms_the_presented_frame() {
+    let (mut session, _root) = session();
+    session.app.active_tool = crate::tools::kind::ToolKind::Pan;
+    let initial_zoom = session.app.zoom;
+    let initial_frame = session.framebuffer.clone();
+    let (start_x, start_y) = session.viewports[0].center();
+    session
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x: start_x,
+                y: start_y,
+                button: metis_platform::native::MouseButton::Right,
+            },
+            WindowEvent::PointerMove {
+                x: start_x,
+                y: start_y - 40,
+            },
+            WindowEvent::PointerUp {
+                x: start_x,
+                y: start_y - 40,
+                button: metis_platform::native::MouseButton::Right,
+            },
+        ])
+        .expect("a right drag is an ordinary viewer gesture");
+    assert!(session.app.zoom > initial_zoom);
+    assert_eq!(session.app.active_tool, crate::tools::kind::ToolKind::Pan);
+    assert_ne!(session.framebuffer.pixels(), initial_frame.pixels());
+}
+
+#[test]
 fn native_session_drag_updates_pan_and_presented_frame() {
     let (mut session, _root) = session();
     session.app.active_tool = crate::tools::kind::ToolKind::Pan;

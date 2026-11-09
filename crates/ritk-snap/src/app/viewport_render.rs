@@ -397,7 +397,7 @@ impl EguiApp {
         } else if response.drag_stopped() {
             // A host can end a drag after its final pointer coordinate has
             // disappeared. Clear the reducer and viewer gesture state so a
-            // later press is not rejected as a duplicate pointer.
+            // later press starts a new gesture.
             self.cancel_presentation_gesture();
         }
     }

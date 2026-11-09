@@ -11,7 +11,7 @@ use super::{ImagePoint, ViewportOffset};
 /// the resting state; every other variant represents a partially completed
 /// gesture that will either be confirmed (producing an `Annotation`) or
 /// cancelled on the next interaction event.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ToolState {
     /// No gesture in progress.
     Idle,
@@ -57,6 +57,14 @@ pub enum ToolState {
         p2: ImagePoint,
     },
 
+    /// Length measurement drag in progress.
+    LengthDrag {
+        /// Drag start in image pixel coordinates.
+        start: ImagePoint,
+        /// Current pointer position in image pixel coordinates.
+        current: ImagePoint,
+    },
+
     /// ROI drag in progress.
     RoiDrag {
         /// Drag start in image pixel coordinates `[row, col]`.
@@ -81,6 +89,26 @@ impl ToolState {
         matches!(self, ToolState::Idle)
     }
 
+    /// Returns `true` while a pointer drag owns this state.
+    pub fn is_drag_gesture(&self) -> bool {
+        matches!(
+            self,
+            ToolState::Panning { .. }
+                | ToolState::Zooming { .. }
+                | ToolState::WindowLevelDrag { .. }
+                | ToolState::RoiDrag { .. }
+                | ToolState::LengthDrag { .. }
+        )
+    }
+
+    /// Returns `true` while a multi-click measurement waits for its next anchor.
+    pub fn is_pending_measurement(&self) -> bool {
+        matches!(
+            self,
+            ToolState::MeasureLength1 { .. } | ToolState::MeasureAngle2 { .. }
+        )
+    }
+
     /// Returns the [`ToolKind`] that owns this state, or `None` when idle.
     pub fn tool_kind(&self) -> Option<ToolKind> {
         match self {
@@ -88,7 +116,9 @@ impl ToolState {
             ToolState::Panning { .. } => Some(ToolKind::Pan),
             ToolState::Zooming { .. } => Some(ToolKind::Zoom),
             ToolState::WindowLevelDrag { .. } => Some(ToolKind::WindowLevel),
-            ToolState::MeasureLength1 { .. } => Some(ToolKind::MeasureLength),
+            ToolState::MeasureLength1 { .. } | ToolState::LengthDrag { .. } => {
+                Some(ToolKind::MeasureLength)
+            }
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
             ToolState::RoiDrag {
                 kind: RoiKind::Rect,

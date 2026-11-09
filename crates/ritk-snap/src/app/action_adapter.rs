@@ -5,16 +5,18 @@
 //! viewer transitions perform all domain work. No DICOM value or parser state
 //! is part of this contract.
 
+use super::pointer_bindings::PointerGestureOwner;
 use super::state::SnapApp;
 use super::viewer_viewport::ViewerViewport;
 use crate::presentation::{
     ActionDispatchError, PointerButton, PointerGesture, PresentationDispatcher, PresentationEvent,
     ViewerAction,
 };
+use crate::tools::interaction::ToolState;
+use crate::tools::kind::ToolKind;
 use crate::ui::{should_zoom_with_scroll, tool_kind_for_virtual_key, zoom_from_scroll};
 use thiserror::Error;
 
-const PRIMARY_BUTTON: PointerButton = PointerButton::Left;
 pub(crate) const VIRTUAL_KEY_PAGE_UP: u32 = 0x21;
 pub(crate) const VIRTUAL_KEY_PAGE_DOWN: u32 = 0x22;
 pub(crate) const VIRTUAL_KEY_END: u32 = 0x23;
@@ -41,12 +43,6 @@ pub(crate) enum ViewerActionDisposition {
 /// Failure applying a host action at the RITK boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub(crate) enum ViewerActionError {
-    /// A non-primary pointer button has no RITK-SNAP transition yet.
-    #[error("pointer button {button:?} is not supported by the SnapApp adapter")]
-    UnsupportedPointerButton {
-        /// Button reported by the host.
-        button: PointerButton,
-    },
     /// A wheel delta cannot be represented by the viewer's `f32` zoom policy.
     #[error("wheel vertical delta {delta_y} exceeds the viewer precision range")]
     WheelDeltaOutOfRange {
@@ -56,17 +52,22 @@ pub(crate) enum ViewerActionError {
 }
 
 impl SnapApp {
+    fn owns_gesture(&self, button: PointerButton) -> bool {
+        self.pointer
+            .owner
+            .is_some_and(|owner| owner.button == button)
+    }
+
     /// Reduce and apply a bounded batch of format-neutral host events.
     ///
     /// The dispatcher commits pointer state only after the whole batch is
-    /// accepted. The action preflight below then rejects unsupported buttons
-    /// before mutating [`SnapApp`], preserving the batch boundary at both
-    /// presentation stages.
+    /// accepted. The action preflight below then rejects out-of-range wheel
+    /// deltas before mutating [`SnapApp`], preserving the batch boundary at
+    /// both presentation stages.
     ///
     /// # Errors
-    /// Returns [`ViewerInputError`] when the host batch is malformed, an action
-    /// uses an unsupported pointer button, or a zoom wheel delta exceeds the
-    /// viewer's finite `f32` input range.
+    /// Returns [`ViewerInputError`] when the host batch is malformed or a zoom
+    /// wheel delta exceeds the viewer's finite `f32` input range.
     pub(crate) fn apply_presentation_events(
         &mut self,
         events: &[PresentationEvent],
@@ -101,6 +102,13 @@ impl SnapApp {
         self.on_drag_end(None);
     }
 
+    /// Make `tool` the left-button tool, ending any measurement in progress.
+    pub(crate) fn select_tool(&mut self, tool: ToolKind) {
+        self.active_tool = tool;
+        self.tool_state = ToolState::Idle;
+        self.pointer.abandon();
+    }
+
     /// Apply one reduced host action to the RITK viewer state.
     ///
     /// Pointer actions require the viewport they target. Actions outside that
@@ -109,8 +117,8 @@ impl SnapApp {
     /// host loop owns surface teardown.
     ///
     /// # Errors
-    /// Returns [`ViewerActionError::UnsupportedPointerButton`] when a pointer
-    /// action uses a button without a corresponding viewer transition.
+    /// Returns [`ViewerActionError::WheelDeltaOutOfRange`] when a zoom wheel
+    /// delta exceeds the viewer's finite `f32` input range.
     pub(crate) fn apply_viewer_action(
         &mut self,
         action: &ViewerAction,
@@ -139,38 +147,43 @@ impl SnapApp {
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerPressed { button, position } => {
-                ensure_primary(*button)?;
+                if self.pointer.owner.is_some() {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                }
                 let Some(viewport) = viewport else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
                 let Some(image) = viewport.map(*position) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
-                if matches!(
-                    self.active_tool,
-                    crate::tools::kind::ToolKind::LabelPaint
-                        | crate::tools::kind::ToolKind::LabelErase
-                ) {
+                let tool = self.pointer.bindings.tool_for(*button, self.active_tool);
+                self.pointer.owner = Some(PointerGestureOwner {
+                    button: *button,
+                    tool,
+                });
+                if is_label_tool(tool) {
                     self.apply_label_at_pointer(viewport.axis(), Some(image));
                 }
-                self.on_drag_start(Some(image));
+                let places_next_anchor =
+                    *button == PointerButton::Left && self.tool_state.is_pending_measurement();
+                if !places_next_anchor {
+                    self.on_drag_start(tool, Some(image));
+                }
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerDragged {
                 button, current, ..
             } => {
-                ensure_primary(*button)?;
+                let Some(owner) = self.pointer.owner.filter(|owner| owner.button == *button) else {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                };
                 let Some(viewport) = viewport else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
                 let Some(image) = viewport.map(*current) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
-                if matches!(
-                    self.active_tool,
-                    crate::tools::kind::ToolKind::LabelPaint
-                        | crate::tools::kind::ToolKind::LabelErase
-                ) {
+                if is_label_tool(owner.tool) {
                     self.apply_label_at_pointer(viewport.axis(), Some(image));
                 }
                 self.on_drag(Some(image));
@@ -181,15 +194,19 @@ impl SnapApp {
                 position,
                 gesture,
             } => {
-                ensure_primary(*button)?;
+                if !self.owns_gesture(*button) {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                }
                 let mapped = viewport.and_then(|viewport| viewport.map(*position));
                 if *gesture == PointerGesture::Click {
-                    if let Some(viewport) = viewport
-                        && let Some(image) = mapped
-                    {
-                        self.update_linked_cursor_from_pointer(viewport.axis(), Some(image));
+                    if *button == PointerButton::Left {
+                        if let Some(viewport) = viewport
+                            && let Some(image) = mapped
+                        {
+                            self.update_linked_cursor_from_pointer(viewport.axis(), Some(image));
+                        }
+                        self.on_click(mapped);
                     }
-                    self.on_click(mapped);
                     self.on_click_end();
                 } else {
                     self.on_drag_end(mapped);
@@ -197,7 +214,9 @@ impl SnapApp {
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerCancelled { button, .. } => {
-                ensure_primary(*button)?;
+                if !self.owns_gesture(*button) {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                }
                 self.on_drag_end(None);
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
@@ -278,7 +297,10 @@ impl SnapApp {
             };
         }
         if let Some(tool) = tool_kind_for_virtual_key(virtual_key) {
-            self.active_tool = tool;
+            if repeated {
+                return ViewerActionDisposition::Continue { repaint: false };
+            }
+            self.select_tool(tool);
             return ViewerActionDisposition::Continue { repaint: true };
         }
         let (arrow_up, arrow_down, page_up, page_down, home, end) = match virtual_key {
@@ -301,7 +323,7 @@ pub(crate) enum ViewerInputError {
     /// The presentation event sequence violated its bounded contract.
     #[error("presentation event dispatch failed: {0}")]
     Dispatch(#[from] ActionDispatchError),
-    /// The reduced action had no corresponding RITK transition.
+    /// The reduced action carried a value its RITK transition cannot apply.
     #[error("viewer action application failed: {0}")]
     Action(#[from] ViewerActionError),
 }
@@ -329,9 +351,6 @@ fn reduce_presentation_events(
 }
 
 fn validate_presentation_event(event: &PresentationEvent) -> Result<(), ViewerActionError> {
-    if let Some(button) = event_button(event) {
-        ensure_primary(button)?;
-    }
     if let PresentationEvent::PointerWheel {
         delta_y, modifiers, ..
     } = event
@@ -345,33 +364,12 @@ fn validate_presentation_event(event: &PresentationEvent) -> Result<(), ViewerAc
 
 fn validate_viewer_action(action: &ViewerAction) -> Result<(), ViewerActionError> {
     match action {
-        ViewerAction::PointerPressed { button, .. }
-        | ViewerAction::PointerDragged { button, .. }
-        | ViewerAction::PointerReleased { button, .. }
-        | ViewerAction::PointerCancelled { button, .. } => ensure_primary(*button),
         ViewerAction::PointerWheel {
             delta, modifiers, ..
         } if should_zoom_with_scroll(modifiers.ctrl() || modifiers.meta()) => {
             viewer_scroll_value(delta.y()).map(|_| ())
         }
         _ => Ok(()),
-    }
-}
-
-fn event_button(event: &PresentationEvent) -> Option<PointerButton> {
-    match event {
-        PresentationEvent::PointerDown { button, .. }
-        | PresentationEvent::PointerUp { button, .. }
-        | PresentationEvent::PointerCancel { button, .. } => Some(*button),
-        _ => None,
-    }
-}
-
-fn ensure_primary(button: PointerButton) -> Result<(), ViewerActionError> {
-    if button == PRIMARY_BUTTON {
-        Ok(())
-    } else {
-        Err(ViewerActionError::UnsupportedPointerButton { button })
     }
 }
 
@@ -385,4 +383,8 @@ fn viewer_scroll_value(value: f64) -> Result<f32, ViewerActionError> {
     )]
     let value = value as f32;
     Ok(value)
+}
+
+const fn is_label_tool(tool: ToolKind) -> bool {
+    matches!(tool, ToolKind::LabelPaint | ToolKind::LabelErase)
 }

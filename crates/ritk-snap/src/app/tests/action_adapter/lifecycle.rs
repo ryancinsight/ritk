@@ -1,11 +1,9 @@
 //! Gesture lifecycle: cancellation, focus loss, and typed refusals.
 
-use crate::app::action_adapter::{ViewerActionDisposition, ViewerActionError};
+use crate::app::action_adapter::ViewerActionDisposition;
 use crate::app::viewer_viewport::{ViewerViewport, ViewerViewportError};
 use crate::app::SnapApp;
-use crate::presentation::{
-    PointerButton, PresentationDispatcher, PresentationEvent, ViewerAction, ViewportPoint,
-};
+use crate::presentation::{PointerButton, PresentationDispatcher, PresentationEvent, ViewerAction};
 use crate::tools::interaction::ToolState;
 use crate::tools::kind::ToolKind;
 use crate::ui::ViewTransform;
@@ -28,6 +26,16 @@ fn lost_pointer_cancellation_releases_dispatcher_for_the_next_press() {
     );
     app.cancel_presentation_gesture();
     assert!(app.tool_state.is_idle());
+    let held_after_cancel = app
+        .presentation_dispatcher
+        .clone()
+        .dispatch(&[PresentationEvent::PointerUp {
+            x: 2.25,
+            y: 2.75,
+            button: PointerButton::Left,
+        }])
+        .expect("a release is ordinary host input");
+    assert_eq!(held_after_cancel.as_ref(), &[]);
 
     apply_app_event(
         &mut app,
@@ -78,7 +86,7 @@ fn focus_loss_cancels_a_gesture_and_lifecycle_actions_exit() {
 }
 
 #[test]
-fn unsupported_buttons_and_invalid_viewports_are_typed_failures() {
+fn invalid_viewports_are_typed_failures() {
     let invalid_axis =
         ViewerViewport::new(3, [0.0, 0.0], [1.0, 1.0], [4, 4], ViewTransform::default());
     assert!(matches!(
@@ -91,49 +99,5 @@ fn unsupported_buttons_and_invalid_viewports_are_typed_failures() {
     assert!(matches!(
         invalid_geometry,
         Err(ViewerViewportError::InvalidScreenGeometry)
-    ));
-
-    let mut app = SnapApp::default();
-    let viewport = viewport([4, 4]);
-    let right_press = ViewerAction::PointerPressed {
-        button: PointerButton::Right,
-        position: ViewportPoint::new(1.0, 1.0),
-    };
-    assert!(matches!(
-        app.apply_viewer_action(&right_press, Some(&viewport)),
-        Err(ViewerActionError::UnsupportedPointerButton {
-            button: PointerButton::Right
-        })
-    ));
-
-    let mut app = SnapApp::default();
-    let result = app.apply_presentation_events(
-        &[PresentationEvent::PointerDown {
-            x: 1.0,
-            y: 1.0,
-            button: PointerButton::Right,
-        }],
-        Some(&viewport),
-    );
-    assert!(matches!(
-        result,
-        Err(crate::app::action_adapter::ViewerInputError::Action(
-            ViewerActionError::UnsupportedPointerButton {
-                button: PointerButton::Right
-            }
-        ))
-    ));
-    assert!(matches!(
-        app.presentation_dispatcher
-            .dispatch(&[PresentationEvent::PointerUp {
-                x: 1.0,
-                y: 1.0,
-                button: PointerButton::Right,
-            }]),
-        Err(
-            crate::presentation::ActionDispatchError::PointerReleaseWithoutPress {
-                button: PointerButton::Right
-            }
-        )
     ));
 }
