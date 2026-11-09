@@ -6,15 +6,15 @@ use crate::presentation::native_session::routing::{EventRoute, PanelEventRouter,
 use crate::presentation::native_session::NativeViewerSession;
 use crate::presentation::{PointerButton, PresentationEvent};
 
-fn down(x: i32, y: i32, button: MouseButton) -> WindowEvent {
+pub(super) fn down(x: i32, y: i32, button: MouseButton) -> WindowEvent {
     WindowEvent::PointerDown { x, y, button }
 }
 
-fn up(x: i32, y: i32, button: MouseButton) -> WindowEvent {
+pub(super) fn up(x: i32, y: i32, button: MouseButton) -> WindowEvent {
     WindowEvent::PointerUp { x, y, button }
 }
 
-fn key(virtual_key: u32) -> WindowEvent {
+pub(super) fn key(virtual_key: u32) -> WindowEvent {
     WindowEvent::KeyDown {
         virtual_key,
         repeated: false,
@@ -24,10 +24,10 @@ fn key(virtual_key: u32) -> WindowEvent {
 
 const TAB: u32 = 0x09;
 const ESCAPE: u32 = 0x1b;
-const ARROW_RIGHT: u32 = 0x27;
+pub(super) const ARROW_RIGHT: u32 = 0x27;
 const F4: u32 = 0x73;
 
-fn show_two_panels(viewer: &mut NativeViewerSession, study: &std::path::Path) {
+pub(super) fn show_two_panels(viewer: &mut NativeViewerSession, study: &std::path::Path) {
     viewer
         .open_study_path(study)
         .expect("open four-series study");
@@ -42,7 +42,7 @@ fn show_two_panels(viewer: &mut NativeViewerSession, study: &std::path::Path) {
     viewer.refresh_frame().expect("render two series");
 }
 
-fn assert_nothing_held(viewer: &NativeViewerSession) {
+pub(super) fn assert_nothing_held(viewer: &NativeViewerSession) {
     assert_eq!(viewer.active_view, None);
     assert!(viewer.captured_buttons.is_empty());
     assert_eq!(viewer.app.pointer.owner, None);
@@ -66,6 +66,50 @@ fn activating_another_panel_ends_the_gesture_held_in_the_first() {
     viewer
         .handle_events(&[up(other_x, other_y, MouseButton::Right)])
         .expect("the release has no gesture left to end");
+    assert_nothing_held(&viewer);
+    assert_eq!(viewer.active_panel, 1);
+}
+
+#[test]
+fn a_window_action_ends_the_gesture_held_in_a_secondary_panel() {
+    let (mut viewer, _root) = session();
+    let study = four_series_study();
+    show_two_panels(&mut viewer, study.path());
+    let (x, y) = viewer.viewports[1].center();
+
+    viewer
+        .handle_events(&[down(x, y, MouseButton::Right)])
+        .expect("press in the second panel");
+    assert_eq!(
+        viewer.compare_panels[0]
+            .app
+            .pointer
+            .owner
+            .map(|owner| owner.button),
+        Some(PointerButton::Right)
+    );
+
+    viewer
+        .handle_events(&[key(TAB)])
+        .expect("tab while the second panel holds a button");
+    assert_nothing_held(&viewer);
+}
+
+#[test]
+fn a_release_queued_behind_a_panel_switch_leaves_the_new_active_panel() {
+    let (mut viewer, _root) = session();
+    let study = four_series_study();
+    show_two_panels(&mut viewer, study.path());
+    let (x, y) = viewer.viewports[0].center();
+
+    viewer
+        .handle_events(&[
+            down(x, y, MouseButton::Right),
+            key(TAB),
+            up(x, y, MouseButton::Right),
+        ])
+        .expect("the batch switches panels while a button is held");
+
     assert_nothing_held(&viewer);
     assert_eq!(viewer.active_panel, 1);
 }
@@ -432,27 +476,5 @@ fn a_lost_release_repeated_between_panels_leaves_the_capture_to_the_next_press()
     viewer
         .handle_events(&[up(other_x, other_y, MouseButton::Right)])
         .expect("the release reaches the second panel");
-    assert_nothing_held(&viewer);
-}
-
-#[test]
-fn browsing_during_a_series_card_drag_abandons_the_drop() {
-    let (mut viewer, _root) = session();
-    let study = four_series_study();
-    show_two_panels(&mut viewer, study.path());
-    viewer.active_panel = 1;
-    let (card_x, card_y) = series_card_center(&viewer, 3);
-    let (x, y) = viewer.viewports[1].center();
-
-    viewer
-        .handle_events(&[down(card_x, card_y, MouseButton::Left), key(ARROW_RIGHT)])
-        .expect("browse while a series card is held");
-    let browsed = viewer.compare_panels[0].series_index;
-    assert_eq!(browsed, Some(2), "the key must browse to the next series");
-
-    viewer
-        .handle_events(&[up(x, y, MouseButton::Left)])
-        .expect("the release has no drop left to perform");
-    assert_eq!(viewer.compare_panels[0].series_index, browsed);
     assert_nothing_held(&viewer);
 }

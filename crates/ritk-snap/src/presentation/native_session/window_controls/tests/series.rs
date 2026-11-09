@@ -42,6 +42,42 @@ fn visible_workspace_places_the_series_preview_to_the_left_of_the_image_panels()
 }
 
 #[test]
+fn cancelling_one_held_button_leaves_the_chrome_the_other_holds() {
+    let app = SnapApp::default();
+    let mut browser = None;
+    let mut chrome = WindowChrome::new(true);
+    let mut send = |event: PresentationEvent| {
+        chrome
+            .handle_event(
+                &event,
+                1_280,
+                800,
+                &app,
+                &mut browser,
+                WorkspaceLayout::Orthogonal,
+                false,
+                &[],
+                &[],
+                0,
+            )
+            .expect("chrome takes pointer input")
+    };
+    let (x, y) = (100.0, 160.0);
+    let hover = PresentationEvent::PointerMove { x: 640.0, y: 400.0 };
+    for button in [PointerButton::Right, PointerButton::Middle] {
+        assert!(send(PresentationEvent::PointerDown { x, y, button }).consumed);
+    }
+
+    let button = PointerButton::Right;
+    send(PresentationEvent::PointerCancel { x, y, button });
+    assert!(send(hover.clone()).consumed);
+
+    let button = PointerButton::Middle;
+    send(PresentationEvent::PointerCancel { x, y, button });
+    assert!(!send(hover).consumed);
+}
+
+#[test]
 fn window_menu_shortcuts_match_panel_actions() {
     let app = SnapApp::default();
     let mut browser = None;

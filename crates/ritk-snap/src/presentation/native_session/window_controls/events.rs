@@ -162,6 +162,7 @@ impl WindowChrome {
         )?;
         match event {
             PresentationEvent::PointerDown { x, y, button } => {
+                self.forget_lost_release(*button);
                 if self.pointer_owner == PointerOwner::None && *button == PointerButton::Left {
                     let panel_action = (self.open_menu.is_none()
                         && (workspace_layout.is_grid() || maximized_panel))
@@ -324,15 +325,14 @@ impl WindowChrome {
                     action,
                 })
             }
-            PresentationEvent::PointerCancel { x, y, .. } => {
+            PresentationEvent::PointerCancel { x, y, button } => {
                 let consumed = match self.pointer_owner {
                     PointerOwner::Chrome => true,
                     PointerOwner::Pane => false,
                     PointerOwner::None => layout.owns_pointer(*x, *y),
                     PointerOwner::Series(_) => true,
                 };
-                self.pointer_owner = PointerOwner::None;
-                self.pressed_buttons = PressedButtons::EMPTY;
+                self.release(*button);
                 Ok(if consumed {
                     WindowChromeEvent::consumed(false)
                 } else {
@@ -413,6 +413,22 @@ impl WindowChrome {
                 })
             }
             _ => Ok(WindowChromeEvent::passed()),
+        }
+    }
+
+    /// A second press of a button the chrome holds proves its release never
+    /// arrived. A series card dragged by that button then has no drop left.
+    fn forget_lost_release(&mut self, button: PointerButton) {
+        if !self.pressed_buttons.contains(button) {
+            return;
+        }
+        match self.pointer_owner {
+            PointerOwner::Series(_) if button == PointerButton::Left => {
+                self.pointer_owner = PointerOwner::None;
+                self.pressed_buttons = PressedButtons::EMPTY;
+            }
+            PointerOwner::Series(_) | PointerOwner::Chrome => self.release(button),
+            PointerOwner::Pane | PointerOwner::None => {}
         }
     }
 

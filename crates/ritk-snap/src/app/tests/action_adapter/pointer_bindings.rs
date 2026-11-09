@@ -254,6 +254,25 @@ fn selecting_a_tool_forgets_a_measurement_suspended_by_a_gesture() {
     assert!(app.tool_state.is_idle());
 }
 
+#[test]
+fn an_auto_repeating_tool_key_keeps_the_measurement_in_progress() {
+    let mut app = app_with_window();
+    let anchor = place_length_anchor(&mut app, 1.0, 1.0);
+
+    apply_app_event(
+        &mut app,
+        &viewport(SOURCE),
+        PresentationEvent::KeyDown {
+            virtual_key: VIRTUAL_KEY_PAN,
+            repeated: true,
+            modifiers: PresentationModifiers::NONE,
+        },
+    );
+
+    assert_eq!(app.tool_state, anchor);
+    assert_eq!(app.active_tool, ToolKind::MeasureLength);
+}
+
 fn place_length_anchor(app: &mut SnapApp, x: f64, y: f64) -> ToolState {
     app.active_tool = ToolKind::MeasureLength;
     press(app, PointerButton::Left, x, y);

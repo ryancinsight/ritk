@@ -297,6 +297,9 @@ impl SnapApp {
             };
         }
         if let Some(tool) = tool_kind_for_virtual_key(virtual_key) {
+            if repeated {
+                return ViewerActionDisposition::Continue { repaint: false };
+            }
             self.select_tool(tool);
             return ViewerActionDisposition::Continue { repaint: true };
         }

@@ -387,6 +387,7 @@ impl NativeViewerSession {
                     .grid()
                     .is_some_and(|current| panel_index < current.panel_count())
                 && route.view().is_some()
+                && !is_release(&events[start])
             {
                 self.active_panel = panel_index;
             }
@@ -473,6 +474,15 @@ impl NativeViewerSession {
             route.view()
         }
     }
+}
+
+/// A release ends a gesture whose press already chose the panel, and an action
+/// may have moved the active panel since, so a release never activates one.
+fn is_release(event: &PresentationEvent) -> bool {
+    matches!(
+        event,
+        PresentationEvent::PointerUp { .. } | PresentationEvent::PointerCancel { .. }
+    )
 }
 
 pub(super) fn is_pointer_event(event: &PresentationEvent) -> bool {
