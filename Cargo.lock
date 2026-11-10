@@ -6495,11 +6495,13 @@ dependencies = [
  "anyhow",
  "bytemuck",
  "coeus-core",
+ "ritk-codecs",
  "ritk-core",
  "ritk-diffusion-scheme",
  "ritk-image",
  "ritk-spatial",
  "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

@@ -6,12 +6,13 @@
 use std::path::PathBuf;
 
 use coeus_core::SequentialBackend;
+use ritk_codecs::ImageReadBudget;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use ritk_core::alloc_probe::{peak_bytes_during, PeakTrackingAllocator};
 
-use crate::{read_mif, read_mif_series, write_mif, write_mif_series};
+use crate::{read_mif, read_mif_series, write_mif, write_mif_series, MifError};
 
 // `#[global_allocator]` is per binary, so the declaration lives here while the
 // mechanism lives in `ritk_core::alloc_probe`.
@@ -63,7 +64,7 @@ fn unique_temp_path(stem: &str, extension: &str) -> PathBuf {
     std::env::temp_dir().join(format!("{stem}_{pid}_{nanos:016x}_{seq}.{extension}"))
 }
 
-fn temp_mif_path() -> PathBuf {
+pub(super) fn temp_mif_path() -> PathBuf {
     unique_temp_path("ritk_mif_test", "mif")
 }
 
@@ -78,7 +79,7 @@ fn single_volume_round_trip_recovers_identical_voxels() {
     write_mif(&path, &image, &backend).expect("write .mif");
 
     let round_tripped: Image<f32, SequentialBackend, 3> =
-        read_mif(&path, &backend).expect("read .mif");
+        read_mif(&path, &backend, ImageReadBudget::DEFAULT).expect("read .mif");
 
     // Clean up.
     let _ = std::fs::remove_file(&path);
@@ -112,7 +113,8 @@ fn single_volume_round_trip_preserves_spatial_metadata() {
 
     let path = temp_mif_path();
     write_mif(&path, &image, &backend).expect("write .mif");
-    let rt: Image<f32, SequentialBackend, 3> = read_mif(&path, &backend).expect("read .mif");
+    let rt: Image<f32, SequentialBackend, 3> =
+        read_mif(&path, &backend, ImageReadBudget::DEFAULT).expect("read .mif");
     let _ = std::fs::remove_file(&path);
 
     for axis in 0..3 {
@@ -149,7 +151,8 @@ fn a_transform_less_header_reverses_vox_sizes_into_ritk_axis_order() {
     let payload = vec![0u8; 4 * 3 * 2 * 4];
     let path = write_raw_mif(body, &payload);
 
-    let image: Image<f32, SequentialBackend, 3> = read_mif(&path, &backend).expect("read .mif");
+    let image: Image<f32, SequentialBackend, 3> =
+        read_mif(&path, &backend, ImageReadBudget::DEFAULT).expect("read .mif");
     let _ = std::fs::remove_file(&path);
 
     assert_eq!(
@@ -207,7 +210,7 @@ fn series_round_trip_recovers_all_frames() {
     let path = temp_mif_path();
     write_mif_series(&path, &volumes, &backend).expect("write .mif series");
     let rt_volumes: Vec<Image<f32, SequentialBackend, 3>> =
-        read_mif_series(&path, &backend).expect("read .mif series");
+        read_mif_series(&path, &backend, ImageReadBudget::DEFAULT).expect("read .mif series");
     let _ = std::fs::remove_file(&path);
 
     assert_eq!(rt_volumes.len(), nframes, "frame count mismatch");
@@ -251,7 +254,8 @@ fn single_volume_reader_rejects_multi_frame_file() {
 
     let path = temp_mif_path();
     write_mif_series(&path, &volumes, &backend).expect("write .mif series");
-    let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend);
+    let result: Result<Image<f32, SequentialBackend, 3>, _> =
+        read_mif(&path, &backend, ImageReadBudget::DEFAULT);
     let _ = std::fs::remove_file(&path);
 
     let msg = result.expect_err("the call must be rejected").to_string();
@@ -271,7 +275,8 @@ fn inline_file_dot_zero_is_read_correctly() {
     let path = temp_mif_path();
     write_mif(&path, &image, &backend).expect("write .mif");
 
-    let rt: Image<f32, SequentialBackend, 3> = read_mif(&path, &backend).expect("read .mif");
+    let rt: Image<f32, SequentialBackend, 3> =
+        read_mif(&path, &backend, ImageReadBudget::DEFAULT).expect("read .mif");
     let _ = std::fs::remove_file(&path);
 
     assert_eq!(rt.shape(), image.shape());
@@ -284,7 +289,7 @@ fn inline_file_dot_zero_is_read_correctly() {
 // before this crate had no truncation or corruption coverage at all.
 
 /// Write a hand-built `.mif` and return its path.
-fn write_raw_mif(body: &str, payload: &[u8]) -> PathBuf {
+pub(super) fn write_raw_mif(body: &str, payload: &[u8]) -> PathBuf {
     let path = temp_mif_path();
     let mut bytes = body.as_bytes().to_vec();
     bytes.extend_from_slice(payload);
@@ -293,7 +298,7 @@ fn write_raw_mif(body: &str, payload: &[u8]) -> PathBuf {
 }
 
 /// A minimal well-formed header, so each test varies exactly one field.
-fn header_with(dim: &str, file_key: &str) -> String {
+pub(super) fn header_with(dim: &str, file_key: &str) -> String {
     format!(
         "mrtrix image\ndim: {dim}\nvox: 1 1 1\nlayout: +0,+1,+2\ndatatype: Float32LE\n\
          file: {file_key}\nEND\n"
@@ -316,17 +321,26 @@ fn an_overstated_file_offset_does_not_drive_allocation() {
     let backend = SequentialBackend;
     let path = write_raw_mif(&header_with("2 2 2", ". 4000000000"), &[0u8; 32]);
 
-    let (result, peak) =
-        peak_bytes_during(|| -> anyhow::Result<Image<f32, SequentialBackend, 3>> {
-            read_mif(&path, &backend)
-        });
+    let (result, peak) = peak_bytes_during(|| -> Result<Image<f32, SequentialBackend, 3>, _> {
+        read_mif(&path, &backend, ImageReadBudget::DEFAULT)
+    });
     let _ = std::fs::remove_file(&path);
 
     let err = result.expect_err("a 32-byte payload cannot satisfy a 4 GB offset");
-    let message = format!("{err:#}");
     assert!(
-        message.contains("offset"),
-        "the error should name the offset that could not be satisfied, got: {message}"
+        matches!(
+            err,
+            MifError::OffsetOverrun {
+                offset: 4_000_000_000,
+                available: 32,
+            }
+        ),
+        "got: {err}"
+    );
+    assert_eq!(
+        err.to_string(),
+        ".mif 'file' key declares offset 4000000000, but only 32 bytes follow the header",
+        "the overrun message is one sentence"
     );
     assert!(
         peak < PEAK_LIMIT,
@@ -350,7 +364,8 @@ fn a_zero_extent_on_any_axis_is_rejected() {
         ("4 4 4 0", "frame"),
     ] {
         let path = write_raw_mif(&header_with(dim, ". 0"), &[]);
-        let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend);
+        let result: Result<Image<f32, SequentialBackend, 3>, _> =
+            read_mif(&path, &backend, ImageReadBudget::DEFAULT);
         let _ = std::fs::remove_file(&path);
 
         let err = result.expect_err("a zero extent cannot describe a voxel grid");
@@ -385,7 +400,8 @@ fn a_dim_whose_counts_exceed_usize_is_rejected_at_the_overflowing_product() {
         ("4611686018427387904 1 1", "byte count overflows"),
     ] {
         let path = write_raw_mif(&header_with(dim, ". 0"), &[0u8; 16]);
-        let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend);
+        let result: Result<Image<f32, SequentialBackend, 3>, _> =
+            read_mif(&path, &backend, ImageReadBudget::DEFAULT);
         let _ = std::fs::remove_file(&path);
 
         let err = result.expect_err("a dim beyond usize cannot describe a payload");

@@ -14,10 +14,12 @@ homepage.workspace = true
 [dependencies]
 ritk-image = { path = "../ritk-image", version = "0.5.0" }
 ritk-spatial = { path = "../ritk-spatial", version = "0.4.0" }
+ritk-codecs = { path = "../ritk-codecs", version = "0.8.0" }
 ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.3.0" }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }
 bytemuck = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 ritk-core = { path = "../ritk-core", features = ["test-helpers"] }

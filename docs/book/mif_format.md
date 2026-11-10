@@ -7,9 +7,13 @@
 
 - `read_mif` reads one-volume `.mif` and rejects multi-frame input;
 - `read_mif_series` reads every frame of an acquisition or diffusion series;
+- both readers take an `ImageReadBudget` and return `MifError::Budget` when
+  `dim` implies a frame count, payload, or `f32` voxel storage above a ceiling,
+  before the payload is read;
 - `write_mif` writes one volume; `write_mif_series` writes an interleaved
   multi-frame file;
-- `MifReader` is a thin adapter whose `read` method receives the backend;
+- `MifReader` is a thin adapter whose `read` method receives the backend and
+  an `ImageReadBudget`;
 - `MifWriter` retains a backend for repeated operations.
 
 MRtrix3 documents the format in its
