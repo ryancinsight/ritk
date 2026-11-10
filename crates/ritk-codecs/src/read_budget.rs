@@ -1,3 +1,10 @@
+//! Resource ceilings that bound untrusted image headers.
+//!
+//! Codec and format readers derive allocation sizes from header fields. Checking
+//! those sizes against one [`ImageReadBudget`] before allocating keeps the
+//! ceilings identical across every reader. `dimensions` carries the older
+//! per-pixel decode caps of the JPEG and JPEG-LS decoders.
+
 use thiserror::Error;
 
 /// Finite resource ceilings for reading one image or an acquisition series.
@@ -140,3 +147,6 @@ pub enum ImageReadBudgetError {
         maximum: u64,
     },
 }
+
+#[cfg(test)]
+mod tests;

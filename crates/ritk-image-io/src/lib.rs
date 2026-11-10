@@ -10,7 +10,6 @@
 
 mod calibration;
 mod conversion;
-mod read_budget;
 mod series;
 mod volume;
 
@@ -24,7 +23,6 @@ pub use conversion::{
     ConversionPrepareError, ConversionRejection, ConversionTarget, FormatMetadataLoss,
     PreparedConversion,
 };
-pub use read_budget::{ImageReadBudget, ImageReadBudgetError, ImageReadResource};
 pub use series::{SeriesAxis, StoredSeries, StoredSeriesError};
 pub use volume::{validate_coordinate_map, validate_physical_geometry, StoredVolume, VolumeError};
 

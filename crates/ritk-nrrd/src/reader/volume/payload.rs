@@ -2,7 +2,8 @@
 
 use anyhow::{anyhow, Result};
 use ritk_codecs::{parse_usize_vec, ByteOrder, SampleType};
-use ritk_image_io::{ImageReadBudget, ImageReadResource, SeriesAxis};
+use ritk_codecs::{ImageReadBudget, ImageReadResource};
+use ritk_image_io::SeriesAxis;
 use ritk_spatial::{CoordinateMap, Direction, Point, Spacing};
 use std::io::{BufReader, Seek};
 use std::path::Path;

@@ -80,15 +80,15 @@ fn public_stored_reader_enforces_the_callers_decoded_byte_budget() -> Result<()>
     ];
     write_header(&path, &fields, &[7, 0, 8, 0])?;
     let budget =
-        ritk_image_io::ImageReadBudget::new(16, 3, 1).expect("all configured limits are nonzero");
+        ritk_codecs::ImageReadBudget::new(16, 3, 1).expect("all configured limits are nonzero");
 
     let error = crate::read_nrrd_stored(&path, budget)
         .expect_err("declared decoded bytes exceed the caller's budget");
     assert!(matches!(
         error,
         crate::NrrdStoredReadError::ReadBudget {
-            source: ritk_image_io::ImageReadBudgetError::Exceeded {
-                resource: ritk_image_io::ImageReadResource::DecodedBytes,
+            source: ritk_codecs::ImageReadBudgetError::Exceeded {
+                resource: ritk_codecs::ImageReadResource::DecodedBytes,
                 actual: 4,
                 maximum: 3,
             }
