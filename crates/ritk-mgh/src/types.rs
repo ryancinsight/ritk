@@ -16,6 +16,7 @@ pub(crate) enum VoxelType {
 }
 
 impl VoxelType {
+    /// Encoded bytes occupied by one voxel.
     pub(crate) const fn bytes_per_voxel(self) -> usize {
         match self {
             Self::UnsignedByte => 1,
