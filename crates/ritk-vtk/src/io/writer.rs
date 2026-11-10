@@ -21,7 +21,7 @@
 use super::reverse_spatial_axes;
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::{file_axes_direction, Image};
+use ritk_image::{file_axes_direction, Image, SignedAxisPermutation};
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use thiserror::Error;
@@ -33,11 +33,11 @@ pub enum VtkImageWriteError {
     /// The coordinate map is not Cartesian.
     #[error("legacy VTK structured points cannot preserve a non-Cartesian coordinate map")]
     NonCartesianCoordinateMap,
-    /// The direction is not `ritk_image::file_axes_direction()`, the only
-    /// orientation the file's X, Y, Z axes can carry.
+    /// The direction is not a signed axis permutation, so no relabeling of
+    /// the voxels puts them on the file's X, Y, Z axes.
     #[error(
-        "legacy VTK structured points cannot preserve a direction matrix other than the \
-         file-axes permutation"
+        "legacy VTK structured points cannot preserve a direction matrix that is not a \
+         signed axis permutation"
     )]
     UnsupportedDirection,
 }
@@ -165,17 +165,19 @@ pub fn encode_vtk_flat<W: Write>(
 /// - `SCALARS scalars float 1` point data
 /// - Big-endian IEEE 754 single-precision scalar values
 ///
-/// Extracts flat data and geometry from the native tensor carrier, then
-/// delegates the byte-level encode to [`encode_vtk_flat`].
+/// The file's axes are [`file_axes_direction`], the direction
+/// [`read_vtk`](super::read_vtk) returns. An image whose direction is any other
+/// signed axis permutation is relabeled onto them by
+/// [`SignedAxisPermutation`] (axis transpose, flip and origin move), so every
+/// voxel keeps its world point; the byte-level encode is [`encode_vtk_flat`].
 ///
 /// # Errors
 ///
 /// Returns an error when:
-/// - The image has a direction other than [`file_axes_direction`] (the
-///   direction [`read_vtk`](super::read_vtk) returns) or a non-Cartesian
-///   coordinate map, which legacy structured points cannot represent. The
-///   error downcasts to [`VtkImageWriteError`], and the check occurs before the
-///   destination is created or truncated.
+/// - The image's direction is not a signed axis permutation, or its coordinate
+///   map is not Cartesian, which legacy structured points cannot represent.
+///   The error downcasts to [`VtkImageWriteError`], and the check occurs before
+///   the destination is created or truncated.
 /// - The file cannot be created or written.
 /// - The tensor data cannot be extracted as `f32`.
 pub fn write_vtk<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
@@ -188,26 +190,32 @@ where
     if !image.coordinate_map().is_cartesian() {
         return Err(VtkImageWriteError::NonCartesianCoordinateMap.into());
     }
-    if image.direction() != &file_axes_direction() {
-        return Err(VtkImageWriteError::UnsupportedDirection.into());
-    }
+    let permutation = SignedAxisPermutation::between(image.direction(), &file_axes_direction())
+        .ok_or(VtkImageWriteError::UnsupportedDirection)?;
+    let values = image.data_cow_on(backend)?;
+    let grid = permutation.reexpress(
+        &values,
+        image.shape(),
+        image.origin(),
+        image.spacing(),
+        image.direction(),
+    );
 
     let file = std::fs::File::create(path)
         .with_context(|| format!("failed to create VTK file: {}", path.display()))?;
     let mut writer = BufWriter::new(file);
 
-    let dims = image.shape(); // [nz, ny, nx]
-    let origin = image.origin();
-    let spacing = image.spacing(); // RITK [Δdepth, Δrow, Δcol]
-    let origin_arr = [origin[0], origin[1], origin[2]];
     // `encode_vtk_flat` writes the X extent from `dims[2]`, so the file's X
     // size must be the *column* spacing. Reversing here keeps `DIMENSIONS` and
     // `SPACING` describing the same axis.
-    let spacing_arr = reverse_spatial_axes([spacing[0], spacing[1], spacing[2]]);
-
-    let f32_vec = image.data_cow_on(backend)?;
-
-    encode_vtk_flat(&mut writer, &f32_vec, dims, origin_arr, spacing_arr)?;
+    let spacing_arr = reverse_spatial_axes(grid.spacing.to_array());
+    encode_vtk_flat(
+        &mut writer,
+        &grid.values,
+        grid.dims,
+        grid.origin.to_array(),
+        spacing_arr,
+    )?;
 
     tracing::debug!(path = %path.display(), "VTK file written");
 
