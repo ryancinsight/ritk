@@ -1,6 +1,6 @@
 //! Native chrome composition for the viewer session.
 
-use super::layout::{crosshair_overlay, MAX_GRID_PANELS};
+use super::layout::{crosshair_overlay, measurement_overlay, MAX_GRID_PANELS};
 use super::session::NativeViewerSession;
 use anyhow::Result;
 use arrayvec::ArrayVec;
@@ -20,6 +20,33 @@ impl NativeViewerSession {
             self.app.show_crosshair,
         )?
         .render_to(&mut self.framebuffer);
+        Ok(())
+    }
+
+    /// Draw each pane's measurements.
+    pub(super) fn render_measurement_overlay(&mut self) -> Result<()> {
+        if self.workspace_layout.is_grid() {
+            for (index, viewport) in self.viewports.iter().enumerate() {
+                let (app, view) = if index == 0 {
+                    (&self.app, &self.views[0])
+                } else {
+                    let Some(panel) = self.compare_panels.get(index - 1) else {
+                        continue;
+                    };
+                    (&panel.app, panel.axial_view())
+                };
+                if app.loaded.is_none() {
+                    continue;
+                }
+                measurement_overlay(view, viewport, &app.annotations)?
+                    .render_to(&mut self.framebuffer);
+            }
+        } else if self.app.loaded.is_some() {
+            for (view, viewport) in self.views.iter().zip(&self.viewports) {
+                measurement_overlay(view, viewport, &self.app.annotations)?
+                    .render_to(&mut self.framebuffer);
+            }
+        }
         Ok(())
     }
 

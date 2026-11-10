@@ -234,5 +234,51 @@ pub(super) fn placement_geometry(
     })
 }
 
+/// Project a continuous source-image point to device coordinates in `viewport`.
+///
+/// Uses the transform that places the pane's pixels, so overlays stay on the
+/// anatomy under rotation, flip, zoom and pan.
+pub(super) fn source_point_to_screen(
+    view: &RenderedView,
+    viewport: &NativeViewport,
+    source: [f64; 2],
+) -> Result<Option<[f64; 2]>> {
+    let output_size = view.transform.output_size(view.source_size);
+    if output_size.contains(&0) {
+        return Ok(None);
+    }
+    let [output_x, output_y] = view
+        .transform
+        .source_to_output_coordinates(source, view.source_size);
+    let output_width = f64::from(u32::try_from(output_size[0])?);
+    let output_height = f64::from(u32::try_from(output_size[1])?);
+    let x = viewport.image.x + output_x / output_width * viewport.image.width;
+    let y = viewport.image.y + output_y / output_height * viewport.image.height;
+    Ok((x.is_finite() && y.is_finite()).then_some([x, y]))
+}
+
+/// The visible part of the image rectangle as `[left, top, right, bottom]`.
+pub(super) fn visible_image_bounds(viewport: &NativeViewport) -> Option<[f64; 4]> {
+    let left = viewport.image.x.max(viewport.panel.x);
+    let right =
+        (viewport.image.x + viewport.image.width).min(viewport.panel.x + viewport.panel.width);
+    let top = viewport.image.y.max(viewport.panel.y);
+    let bottom =
+        (viewport.image.y + viewport.image.height).min(viewport.panel.y + viewport.panel.height);
+    (left < right && top < bottom).then_some([left, top, right, bottom])
+}
+
+/// Round a finite device coordinate to the host's integer range.
+pub(super) fn screen_coordinate(value: f64, label: &str) -> Result<i32> {
+    if !value.is_finite() || value < f64::from(i32::MIN) || value > f64::from(i32::MAX) {
+        bail!("{label} coordinate is outside the native display range")
+    }
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "finite display coordinates are checked against the i32 host contract"
+    )]
+    Ok(value.round() as i32)
+}
+
 #[cfg(test)]
 mod tests;

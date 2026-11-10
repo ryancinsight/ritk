@@ -4,6 +4,7 @@ mod compare;
 mod composition;
 mod crosshair;
 mod geometry;
+mod measurement;
 mod overlay;
 mod responsive;
 pub(super) mod text;
@@ -19,6 +20,9 @@ pub(super) use crosshair::CROSSHAIR_COLOR;
 #[cfg(test)]
 pub(super) use geometry::VIEW_GAP_PIXELS;
 pub(super) use geometry::{NativeViewport, ViewportArea};
+pub(super) use measurement::measurement_overlay;
+#[cfg(test)]
+pub(super) use measurement::MEASUREMENT_COLOR;
 #[cfg(test)]
 pub(super) use overlay::{
     application_overlay, projection_overlay, OVERLAY_BAR_HEIGHT, OVERLAY_TEXT,
