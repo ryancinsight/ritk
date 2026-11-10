@@ -88,6 +88,14 @@ pub enum MghError {
         /// Declared frame count.
         frames: usize,
     },
+    /// The series payload size in bytes does not fit `usize`.
+    #[error("Series data size overflow: {voxels} voxels × {bytes_per_voxel} bytes")]
+    DataSizeOverflow {
+        /// Voxels in the whole series.
+        voxels: usize,
+        /// Bytes per voxel of the declared data type.
+        bytes_per_voxel: usize,
+    },
     /// A single-volume read met a multi-frame file.
     #[error(
         "MGH file declares {nframes} frames; this reader returns a 3-D Image, which represents \

@@ -241,13 +241,20 @@ fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader, MghError> {
         .checked_mul(ny)
         .and_then(|v| v.checked_mul(nz))
         .ok_or(MghError::DimensionOverflow { nx, ny, nz })?;
-    n_voxels
+    let total_voxels = n_voxels
         .checked_mul(nframes)
         .ok_or(MghError::SeriesOverflow {
             voxels: n_voxels,
             frames: nframes,
         })?;
     let voxel_type = VoxelType::try_from(mri_type)?;
+    let bytes_per_voxel = voxel_type.bytes_per_voxel();
+    total_voxels
+        .checked_mul(bytes_per_voxel)
+        .ok_or(MghError::DataSizeOverflow {
+            voxels: total_voxels,
+            bytes_per_voxel,
+        })?;
 
     Ok(MghHeader {
         dims: [nz, ny, nx],
