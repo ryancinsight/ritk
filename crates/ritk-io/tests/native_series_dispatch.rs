@@ -1,3 +1,4 @@
+use ritk_image::file_axes_direction;
 use ritk_io::{
     read_image_native, read_image_series_native, read_native_dicom_series,
     read_native_dicom_series_with_uid, write_dicom_series_native, write_image_native,
@@ -6,6 +7,10 @@ use ritk_io::{
 use ritk_spatial::{Direction, Point, Spacing};
 
 fn native_volume() -> NativeImage {
+    native_volume_with_direction(Direction::identity())
+}
+
+fn native_volume_with_direction(direction: Direction<3>) -> NativeImage {
     let dims = [2usize, 2, 3];
     let values: Vec<f32> = (0..12).map(|index| index as f32 * 0.5 - 1.0).collect();
     NativeImage::from_flat(
@@ -13,7 +18,7 @@ fn native_volume() -> NativeImage {
         dims,
         Point::new([1.0, 2.0, 3.0]),
         Spacing::new([0.5, 0.75, 1.25]),
-        Direction::identity(),
+        direction,
     )
     .expect("test image")
 }
@@ -278,7 +283,11 @@ fn cross_codec_series_differential_nifti_nrrd_mgh() {
 fn native_dispatch_rejects_unsupported_series_format() {
     let dir = tempfile::tempdir().expect("tempdir");
     let vtk_path = dir.path().join("image.vtk");
-    write_image_native(&vtk_path, &native_volume()).expect("write VTK image");
+    write_image_native(
+        &vtk_path,
+        &native_volume_with_direction(file_axes_direction()),
+    )
+    .expect("write VTK image");
     let error = read_image_series_native(&vtk_path).expect_err("VTK has no series reader");
     assert!(format!("{error:#}").contains("not yet supported"));
 }

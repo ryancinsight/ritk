@@ -18,7 +18,7 @@ pub use color::{ColorVolume, RgbVolume};
 // vocabulary in `ritk-spatial`; it is re-exported here because it appears in
 // this crate's own public signatures (`Image::coordinate_map`).
 pub use grid::{generate_grid, generate_random_points};
-pub use metadata::ImageMetadata;
+pub use metadata::{file_axes_direction, ImageMetadata};
 pub use region::{RegionRows, RowWalker, Tiles, VoxelIter, VoxelRegion};
 pub use ritk_spatial::{
     CoordinateMap, CurvilinearArray, InvalidCoordinateMap, PhasedArray3D, SliceSeries,

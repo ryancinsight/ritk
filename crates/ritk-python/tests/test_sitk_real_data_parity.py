@@ -370,12 +370,12 @@ def test_io_metadata_axis_order_matches_sitk(ext, tmp_path):
 def test_write_image_analyze_rejects_non_identity_direction(tmp_path):
     """Analyze 7.5 cannot encode direction: rejection precedes file creation.
 
-    Every Python image carries `numpy_array_direction()` (a permutation), and
+    Every Python image carries `ritk_image::file_axes_direction()` (a permutation), and
     `ritk-analyze`'s writer deliberately rejects a non-identity direction
     rather than publishing a pair whose geometry silently disagrees with the
     source (`docs/architecture.md` §23). Expecting a successful Python write is
     therefore incorrect by decision, not by defect — this mirrors the
-    legacy-VTK gate in `test_coverage_gaps.py` and the Rust-side
+    Rust-side test
     `writer_rejects_a_non_identity_direction_before_creating_files`.
 
     The pixdim-order regression this test once exercised through a Python write

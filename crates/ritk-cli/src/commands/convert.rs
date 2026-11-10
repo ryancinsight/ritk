@@ -159,7 +159,7 @@ mod tests {
     #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use ritk_core::rejection::assert_rejects;
-    use ritk_image::Image;
+    use ritk_image::{file_axes_direction, Image};
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
@@ -170,6 +170,10 @@ mod tests {
     /// Shape is [3, 4, 5] (nz=3, ny=4, nx=5).  Voxel value at flat index i is
     /// `i as f32`.  Origin and spacing are identity.
     fn make_test_image() -> Image<f32, Backend, 3> {
+        make_test_image_with_direction(Direction::identity())
+    }
+
+    fn make_test_image_with_direction(direction: Direction<3>) -> Image<f32, Backend, 3> {
         let n = 3 * 4 * 5;
         let values: Vec<f32> = (0..n).map(|i| i as f32).collect();
         Image::from_flat_on(
@@ -177,7 +181,7 @@ mod tests {
             [3, 4, 5],
             Point::new([0.0; 3]),
             Spacing::new([1.0, 1.5, 2.0]),
-            Direction::identity(),
+            direction,
             &Backend::default(),
         )
         .expect("invariant: image data matches shape")
@@ -449,7 +453,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let input = dir.path().join("input.vtk");
         let output = dir.path().join("output.nii");
-        let image = make_test_image();
+        let image = make_test_image_with_direction(file_axes_direction());
         write_image(&input, &image, ImageFormat::Vtk).unwrap();
 
         run(ConvertArgs {
@@ -470,7 +474,7 @@ mod tests {
         let input = dir.path().join("input.nii");
         let output = dir.path().join("output.vtk");
 
-        let image = make_test_image();
+        let image = make_test_image_with_direction(file_axes_direction());
         write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {

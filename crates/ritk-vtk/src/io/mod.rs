@@ -58,7 +58,7 @@ pub mod reader;
 pub mod writer;
 
 pub use reader::{read_vtk, read_vtk_flat};
-pub use writer::{encode_vtk_flat, write_vtk};
+pub use writer::{encode_vtk_flat, write_vtk, VtkImageWriteError};
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::Image;
@@ -110,6 +110,7 @@ impl<B: ComputeBackend> VtkWriter<B> {
 mod tests {
     use super::*;
     use coeus_core::SequentialBackend;
+    use ritk_image::file_axes_direction;
     use ritk_spatial::{CoordinateMap, CurvilinearArray, Direction, Point, Spacing};
     use tempfile::tempdir;
 
@@ -145,7 +146,7 @@ mod tests {
             shape,
             origin,
             spacing,
-            Direction::identity(),
+            file_axes_direction(),
             &backend,
         )
         .expect("native image");
@@ -161,7 +162,105 @@ mod tests {
         assert_eq!(loaded.data_slice().expect("contiguous image"), values);
         assert_eq!(*loaded.origin(), origin);
         assert_eq!(*loaded.spacing(), spacing);
-        assert_eq!(*loaded.direction(), Direction::identity());
+        assert_eq!(*loaded.direction(), file_axes_direction());
+    }
+
+    /// Hand-built `DIMENSIONS 2 3 4` / `SPACING 1 10 100` file with `ORIGIN` set.
+    ///
+    /// Voxel `(x, y, z)` holds `x + 2y + 6z`, so the flat buffer is the
+    /// file-order ramp `0..24`.
+    fn hand_built_volume(origin: &str) -> Vec<u8> {
+        let mut bytes = format!(
+            "# vtk DataFile Version 3.0
+hand-built
+BINARY
+             DATASET STRUCTURED_POINTS
+DIMENSIONS 2 3 4
+             ORIGIN {origin}
+SPACING 1 10 100
+             POINT_DATA 24
+SCALARS scalars float 1
+LOOKUP_TABLE default
+"
+        )
+        .into_bytes();
+        for voxel in 0..24u8 {
+            bytes.extend_from_slice(&f32::from(voxel).to_be_bytes());
+        }
+        bytes
+    }
+
+    /// File X advances world X and file Z advances world Z.
+    ///
+    /// The oracle is a file this crate did not write. Tensor index
+    /// `(depth, row, col)` is `(z, y, x)`, so index `(0, 0, 1)` is the file's
+    /// second X sample at world `(1, 0, 0)` and `(3, 0, 0)` is the fourth Z
+    /// slice at world `(0, 0, 300)`. An identity direction instead makes the
+    /// depth index advance world X.
+    #[test]
+    fn a_hand_built_vtk_axes_advance_their_world_axes() {
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("axes-oracle.vtk");
+        std::fs::write(&path, hand_built_volume("0 0 0")).expect("write hand-built VTK");
+
+        let loaded = VtkReader::new(SequentialBackend)
+            .read(&path)
+            .expect("read VTK");
+
+        assert_eq!(loaded.shape(), [4, 3, 2], "shape is [depth, row, col]");
+        assert_eq!(
+            loaded.continuous_index_to_physical_point(&Point::new([0.0, 0.0, 1.0])),
+            Point::new([1.0, 0.0, 0.0])
+        );
+        assert_eq!(
+            loaded.continuous_index_to_physical_point(&Point::new([0.0, 1.0, 0.0])),
+            Point::new([0.0, 10.0, 0.0])
+        );
+        assert_eq!(
+            loaded.continuous_index_to_physical_point(&Point::new([3.0, 0.0, 0.0])),
+            Point::new([0.0, 0.0, 300.0])
+        );
+        assert_eq!(*loaded.direction(), file_axes_direction());
+        let ramp: Vec<f32> = (0..24u8).map(f32::from).collect();
+        assert_eq!(loaded.data_slice().expect("contiguous image"), ramp);
+    }
+
+    /// Writing then reading a read image keeps every corner voxel in place.
+    #[test]
+    fn a_read_vtk_round_trip_preserves_corner_world_positions() {
+        let directory = tempdir().expect("temporary directory");
+        let source = directory.path().join("source.vtk");
+        let copy = directory.path().join("copy.vtk");
+        std::fs::write(&source, hand_built_volume("5 -7 11")).expect("write hand-built VTK");
+
+        let first = VtkReader::new(SequentialBackend)
+            .read(&source)
+            .expect("read VTK");
+        VtkWriter::new(SequentialBackend)
+            .write(&copy, &first)
+            .expect("write read image");
+        let second = VtkReader::new(SequentialBackend)
+            .read(&copy)
+            .expect("read written VTK");
+
+        assert_eq!(second.shape(), first.shape());
+        for depth in [0.0, 3.0] {
+            for row in [0.0, 2.0] {
+                for col in [0.0, 1.0] {
+                    let index = Point::new([depth, row, col]);
+                    assert_eq!(
+                        second.continuous_index_to_physical_point(&index),
+                        first.continuous_index_to_physical_point(&index),
+                        "corner ({depth}, {row}, {col})"
+                    );
+                }
+            }
+        }
+        assert_eq!(
+            second.continuous_index_to_physical_point(&Point::new([3.0, 2.0, 1.0])),
+            Point::new([6.0, 13.0, 311.0]),
+            "far corner is origin + (1, 20, 300)"
+        );
     }
 
     /// A hand-built VTK file's `SPACING` lands in RITK `[depth, row, col]` order.
@@ -225,7 +324,7 @@ mod tests {
             [2, 3, 4],
             Point::new([0.0, 0.0, 0.0]),
             Spacing::new([1.25, 0.75, 0.5]),
-            Direction::identity(),
+            file_axes_direction(),
             &backend,
         )
         .expect("native image");
@@ -247,22 +346,34 @@ mod tests {
         );
     }
 
+    /// Any direction but the file-axes permutation is refused before the file opens.
+    ///
+    /// Identity is included: it would be written as file axes and re-read with
+    /// the file-axes direction, silently moving every voxel in world space.
     #[test]
-    fn legacy_writer_rejects_non_identity_direction_before_creating_output() {
-        let direction = Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);
-        let image = native_image(direction, CoordinateMap::Cartesian);
-        let directory = tempdir().expect("temporary directory");
-        let path = directory.path().join("rotated.vtk");
+    fn legacy_writer_refuses_every_other_direction_before_creating_output() {
+        let rotated = Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);
+        for (label, direction) in [("identity", Direction::identity()), ("rotated", rotated)] {
+            let image = native_image(direction, CoordinateMap::Cartesian);
+            let directory = tempdir().expect("temporary directory");
+            let path = directory.path().join("refused.vtk");
 
-        let error = VtkWriter::new(SequentialBackend)
-            .write(&path, &image)
-            .expect_err("legacy structured points cannot encode image direction");
+            let error = VtkWriter::new(SequentialBackend)
+                .write(&path, &image)
+                .expect_err("legacy structured points cannot encode this direction");
 
-        assert_eq!(
-            error.to_string(),
-            "legacy VTK structured points cannot preserve a non-identity direction matrix"
-        );
-        assert!(!path.exists(), "rejection must happen before file creation");
+            assert!(
+                matches!(
+                    error.downcast_ref::<VtkImageWriteError>(),
+                    Some(VtkImageWriteError::UnsupportedDirection)
+                ),
+                "{label}: expected UnsupportedDirection, got {error}"
+            );
+            assert!(
+                !path.exists(),
+                "{label}: rejection must happen before file creation"
+            );
+        }
     }
 
     #[test]
@@ -270,7 +381,7 @@ mod tests {
         let geometry = CurvilinearArray::centred(1.0e-4, 0.06, 0.5_f64.to_radians(), 129)
             .expect("valid curvilinear geometry");
         let image = native_image(
-            Direction::identity(),
+            file_axes_direction(),
             CoordinateMap::CurvilinearArray(geometry),
         );
         let directory = tempdir().expect("temporary directory");
@@ -282,9 +393,12 @@ mod tests {
             .write(&path, &image)
             .expect_err("legacy structured points cannot encode a non-Cartesian map");
 
-        assert_eq!(
-            error.to_string(),
-            "legacy VTK structured points cannot preserve a non-Cartesian coordinate map"
+        assert!(
+            matches!(
+                error.downcast_ref::<VtkImageWriteError>(),
+                Some(VtkImageWriteError::NonCartesianCoordinateMap)
+            ),
+            "expected NonCartesianCoordinateMap, got {error}"
         );
         assert_eq!(
             std::fs::read(&path).expect("read prior output"),
