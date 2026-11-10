@@ -175,7 +175,7 @@ identified as `path::test` relative to `repos/ritk`; run them with
 | Direction | Analyze has no direction field; its axes are the file axes. The reader returns `file_axes_direction()`; the writer rejects any other direction before touching the file system. | other directions unrepresentable (rejected, not dropped) | `crates/ritk-analyze/src/tests/axes.rs::a_hand_built_analyze_axes_advance_their_world_axes`, `crates/ritk-analyze/src/writer.rs::writer_rejects_every_direction_but_file_axes_before_creating_files` |
 | Payload length and offset | `vox_offset` must be a finite non-negative whole byte count; the `.img` length must equal `vox_offset + voxel_count × width`. | exact | `crates/ritk-analyze/src/tests.rs::analyze_reader_requires_exact_payload_and_honors_offset`, `...::analyze_reader_rejects_non_finite_metadata_and_invalid_offsets` |
 | Format identification | A paired NIfTI-1 (`ni1\0`) header is reported as NIfTI rather than decoded as Analyze. | routed to the NIfTI reader | `crates/ritk-analyze/src/tests.rs::analyze_reader_identifies_paired_nifti_header` |
-| Dispatch contract | `ritk-io`'s `AnalyzeReader`/`AnalyzeWriter` round-trip a `[2, 3, 4]` volume under `SpatialFidelity::SpacingAndOrigin`. | shared contract parity | `crates/ritk-io/src/format/tests_native_readers.rs::native_analyze_writer_reader_contract_round_trips` |
+| Dispatch contract | `ritk-io`'s `AnalyzeReader`/`AnalyzeWriter` round-trip a `[2, 3, 4]` volume under `SpatialFidelity::FileAxes`. | shared contract parity | `crates/ritk-io/src/format/tests_native_readers.rs::native_analyze_writer_reader_contract_round_trips` |
 
 A round trip alone cannot prove the axis order, because a self-consistent
 transposition would pass it. `analyze_writer_emits_pixdim_in_file_axis_order`

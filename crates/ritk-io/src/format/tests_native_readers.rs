@@ -102,8 +102,9 @@ fn physical_point(
 /// RITK-MGH-SPATIAL-AXIS-CONVENTION-001 survived a round-trip suite. Axis-order
 /// correctness is therefore pinned by file-format oracles, not by round trips —
 /// see `ritk-mgh`'s hand-built-header and byte-layout tests, `ritk-mif`'s
-/// transform-less-header oracle, and `ritk-vtk`'s hand-built-file and
-/// `SPACING`/`DIMENSIONS` agreement oracles.
+/// transform-less-header oracle, `ritk-vtk`'s hand-built-file and
+/// `SPACING`/`DIMENSIONS` agreement oracles, and `ritk-analyze`'s hand-built
+/// header oracle in `tests/axes.rs`.
 fn assert_native_writer_reader_round_trips<W, R>(
     path: &Path,
     writer: &W,
