@@ -129,7 +129,25 @@ fn a_short_buffer_panics() {
         DIMS,
         &Point::new(ORIGIN),
         &Spacing::new(SPACING),
-        &target,
+        &Direction::identity(),
+    );
+}
+
+/// Extents whose product overflows `usize` cannot describe any buffer. These
+/// wrap to exactly 0, so a wrapping product would accept the empty buffer.
+#[test]
+#[should_panic(expected = "voxel count must match the grid extents")]
+fn overflowing_extents_panic() {
+    let target = file_axes_direction();
+    let permutation =
+        SignedAxisPermutation::between(&Direction::identity(), &target).expect("signed");
+    let values: [u32; 0] = [];
+    permutation.reexpress(
+        &values,
+        [1 << (usize::BITS - 1), 2, 1],
+        &Point::new(ORIGIN),
+        &Spacing::new(SPACING),
+        &Direction::identity(),
     );
 }
 

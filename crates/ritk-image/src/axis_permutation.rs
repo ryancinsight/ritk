@@ -94,8 +94,8 @@ impl SignedAxisPermutation {
     ///
     /// # Panics
     ///
-    /// Panics if `values.len()` is not the product of `dims`, or if that
-    /// product overflows `usize`.
+    /// Panics if `values.len()` is not the product of `dims`, or if computing
+    /// that product overflows `usize`.
     #[track_caller]
     pub fn reexpress<'a, T: Clone>(
         &self,
