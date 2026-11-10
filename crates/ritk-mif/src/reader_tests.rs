@@ -11,7 +11,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 
 use ritk_core::alloc_probe::{peak_bytes_during, PeakTrackingAllocator};
 
-use crate::{read_mif, read_mif_series, write_mif, write_mif_series};
+use crate::{read_mif, read_mif_series, write_mif, write_mif_series, MifError};
 
 // `#[global_allocator]` is per binary, so the declaration lives here while the
 // mechanism lives in `ritk_core::alloc_probe`.
@@ -316,17 +316,26 @@ fn an_overstated_file_offset_does_not_drive_allocation() {
     let backend = SequentialBackend;
     let path = write_raw_mif(&header_with("2 2 2", ". 4000000000"), &[0u8; 32]);
 
-    let (result, peak) =
-        peak_bytes_during(|| -> anyhow::Result<Image<f32, SequentialBackend, 3>> {
-            read_mif(&path, &backend)
-        });
+    let (result, peak) = peak_bytes_during(|| -> Result<Image<f32, SequentialBackend, 3>, _> {
+        read_mif(&path, &backend)
+    });
     let _ = std::fs::remove_file(&path);
 
     let err = result.expect_err("a 32-byte payload cannot satisfy a 4 GB offset");
-    let message = format!("{err:#}");
+    assert!(
+        matches!(
+            err,
+            MifError::OffsetOverrun {
+                offset: 4_000_000_000,
+                available: 32,
+            }
+        ),
+        "got: {err}"
+    );
     assert_eq!(
-        message, ".mif 'file' key declares offset 4000000000, but only 32 bytes follow the header",
-        "the overrun message is one sentence naming the offset"
+        err.to_string(),
+        ".mif 'file' key declares offset 4000000000, but only 32 bytes follow the header",
+        "the overrun message is one sentence"
     );
     assert!(
         peak < PEAK_LIMIT,

@@ -6,11 +6,10 @@
 
 use crate::decode;
 use crate::header::{
-    parse_datatype, parse_dim, parse_f64_vec, parse_layout, parse_mif_header_from_path,
-    parse_transform,
+    parse_datatype, parse_dim, parse_f64_vec, parse_layout, parse_mif_header, parse_transform,
+    HeaderValue, MifHeader,
 };
 use crate::MifError;
-use anyhow::{anyhow, Result};
 use coeus_core::ComputeBackend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing, Vector};
@@ -28,13 +27,11 @@ struct DecodedMif {
 }
 
 impl DecodedMif {
-    fn into_single_volume(mut self) -> Result<DecodedMif> {
+    fn into_single_volume(mut self) -> Result<DecodedMif, MifError> {
         if self.volumes.len() != 1 {
-            return Err(anyhow!(
-                ".mif file has {} frames; this reader returns one 3-D volume. \
-                 Use the series reader for multi-frame files.",
-                self.volumes.len()
-            ));
+            return Err(MifError::MultiFrame {
+                frames: self.volumes.len(),
+            });
         }
         self.volumes.truncate(1);
         Ok(self)
@@ -61,11 +58,16 @@ impl DecodedMif {
 /// same decomposition the other format crates use.  When no `transform` key
 /// is present, the `vox` sizes produce axis‑aligned spacing and the origin is
 /// zero.
+///
+/// # Errors
+///
+/// Returns [`MifError::MultiFrame`] for a multi-frame file, and a header variant
+/// for each malformed or missing key.
 pub fn read_mif<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
-) -> Result<Image<f32, B, 3>> {
-    let decoded = decode_mif(path)?.into_single_volume()?;
+) -> Result<Image<f32, B, 3>, MifError> {
+    let decoded = decode_mif(path.as_ref())?.into_single_volume()?;
     // Extract fields before consuming `decoded` for its data.
     let dims = decoded.dims;
     let origin = decoded.origin;
@@ -73,6 +75,7 @@ pub fn read_mif<B: ComputeBackend, P: AsRef<Path>>(
     let direction = decoded.direction;
     let data = decoded.single_volume_data();
     Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+        .map_err(|source| MifError::Image { source })
 }
 
 /// Read a `.mif` acquisition series as one image per volume.
@@ -82,37 +85,47 @@ pub fn read_mif<B: ComputeBackend, P: AsRef<Path>>(
 /// single‑frame file is a one‑volume series.
 ///
 /// Every returned image shares the file's single spatial grid.
+///
+/// # Errors
+///
+/// Returns a header variant for each malformed or missing key.
 pub fn read_mif_series<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
-) -> Result<Vec<Image<f32, B, 3>>> {
+) -> Result<Vec<Image<f32, B, 3>>, MifError> {
     let DecodedMif {
         volumes,
         dims,
         origin,
         spacing,
         direction,
-    } = decode_mif(path)?;
+    } = decode_mif(path.as_ref())?;
 
     volumes
         .into_iter()
-        .map(|data| Image::from_flat_on(data, dims, origin, spacing, direction, backend))
+        .map(|data| {
+            Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+                .map_err(|source| MifError::Image { source })
+        })
         .collect()
 }
 
 // ── Internal decode ─────────────────────────────────────────────────────
 
-fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
-    let path = path.as_ref();
-    let (header, reader) = parse_mif_header_from_path(path)?;
+fn decode_mif(path: &Path) -> Result<DecodedMif, MifError> {
+    let file = std::fs::File::open(path).map_err(|source| MifError::Open {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    let mut reader = BufReader::new(file);
+    let header = parse_mif_header(&mut reader).map_err(|source| MifError::Header { source })?;
 
     // ── Required fields ──────────────────────────────────────────────────
-    let dim_str = header
-        .entries
-        .get("dim")
-        .ok_or_else(|| anyhow!("Missing 'dim' in .mif header"))?
-        .as_line();
-    let dim = parse_dim(dim_str, 3)?;
+    let dim_str = require_entry(&header, "dim")?.as_line();
+    let dim = parse_dim(dim_str, 3).map_err(|source| MifError::InvalidField {
+        field: "dim",
+        source,
+    })?;
 
     let nx = dim[0];
     let ny = if dim.len() > 1 { dim[1] } else { 1 };
@@ -125,26 +138,27 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
     // and a truncated file satisfies that.
     for (axis, extent) in [("x", nx), ("y", ny), ("z", nz), ("frame", nframes)] {
         if extent == 0 {
-            return Err(anyhow!(
-                ".mif 'dim' declares a {axis} extent of 0; every axis must span at least one voxel"
-            ));
+            return Err(MifError::ZeroExtent { axis });
         }
     }
 
     // ── Datatype ──────────────────────────────────────────────────────────
-    let dt_str = header
-        .entries
-        .get("datatype")
-        .ok_or_else(|| anyhow!("Missing 'datatype' in .mif header"))?
-        .as_line();
-    let (elem_size, _signed, _float) = parse_datatype(dt_str)?;
+    let dt_str = require_entry(&header, "datatype")?.as_line();
+    let (elem_size, _signed, _float) =
+        parse_datatype(dt_str).map_err(|source| MifError::InvalidField {
+            field: "datatype",
+            source,
+        })?;
 
     // Determine endianness from the datatype string suffix.
     let is_big_endian = dt_str.trim().to_lowercase().ends_with("be");
 
     // ── Layout ────────────────────────────────────────────────────────────
     let layout = if let Some(layout_val) = header.entries.get("layout") {
-        parse_layout(layout_val.as_line())?
+        parse_layout(layout_val.as_line()).map_err(|source| MifError::InvalidField {
+            field: "layout",
+            source,
+        })?
     } else {
         // Default contiguous layout: [+0,+1,+2,+3] for 4-D, etc.
         let ndim = if nframes > 1 { 4 } else { 3 };
@@ -153,12 +167,12 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
 
     // ── Voxel sizes ──────────────────────────────────────────────────────
     let vox_sizes: Vec<f64> = if let Some(vox_val) = header.entries.get("vox") {
-        let v = parse_f64_vec(vox_val.as_line())?;
+        let v = parse_f64_vec(vox_val.as_line()).map_err(|source| MifError::InvalidField {
+            field: "vox",
+            source,
+        })?;
         if v.len() < 3 {
-            return Err(anyhow!(
-                ".mif 'vox' expected at least 3 spatial sizes, got {}",
-                v.len()
-            ));
+            return Err(MifError::TooFewVoxelSizes { found: v.len() });
         }
         v
     } else {
@@ -168,7 +182,11 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
     // ── Spatial metadata (transform) ─────────────────────────────────────
     let (origin, spacing, direction) = if let Some(transform_val) = header.entries.get("transform")
     {
-        let matrix = parse_transform(transform_val.as_block())?;
+        let matrix =
+            parse_transform(transform_val.as_block()).map_err(|source| MifError::InvalidField {
+                field: "transform",
+                source,
+            })?;
         decompose_transform_affine(&matrix, &vox_sizes)
     } else {
         // No transform: axis-aligned identity direction, zero origin.
@@ -191,13 +209,17 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
     let voxels_per_volume = nx
         .checked_mul(ny)
         .and_then(|plane| plane.checked_mul(nz))
-        .ok_or_else(|| anyhow!(".mif dim [{nx},{ny},{nz}] voxel count overflows usize"))?;
+        .ok_or(MifError::VoxelCountOverflow { nx, ny, nz })?;
     let total_voxels = voxels_per_volume
         .checked_mul(nframes)
-        .ok_or_else(|| anyhow!(".mif series element count overflows usize"))?;
-    let expected_bytes = total_voxels
-        .checked_mul(elem_size)
-        .ok_or_else(|| anyhow!(".mif byte count overflows usize"))?;
+        .ok_or(MifError::SeriesCountOverflow)?;
+    let expected_bytes =
+        total_voxels
+            .checked_mul(elem_size)
+            .ok_or(MifError::ByteCountOverflow {
+                count: total_voxels,
+                elem_size,
+            })?;
 
     let raw_bytes: Vec<u8> = match header.entries.get("file") {
         // Inline data right after END, read from the current reader position.
@@ -210,8 +232,7 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
             let [file_name, offset, ..] = parts.as_slice() else {
                 return Err(MifError::InvalidFileKey {
                     spec: file_spec.to_owned(),
-                }
-                .into());
+                });
             };
             let offset: u64 = offset
                 .parse()
@@ -276,6 +297,16 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
         spacing,
         direction,
     })
+}
+
+fn require_entry<'h>(
+    header: &'h MifHeader,
+    field: &'static str,
+) -> Result<&'h HeaderValue, MifError> {
+    header
+        .entries
+        .get(field)
+        .ok_or(MifError::MissingField { field })
 }
 
 /// Skips `offset` bytes of `source`, then reads exactly `expected_bytes`.
@@ -401,7 +432,7 @@ impl MifReader {
         &self,
         path: P,
         backend: &B,
-    ) -> Result<Image<f32, B, 3>> {
+    ) -> Result<Image<f32, B, 3>, MifError> {
         read_mif(path, backend)
     }
 }
