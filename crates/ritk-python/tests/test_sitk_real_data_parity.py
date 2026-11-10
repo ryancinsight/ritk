@@ -275,6 +275,52 @@ def test_ritk_write_roundtrips_metadata_through_sitk(ext, tmp_path):
     )
 
 
+@pytest.mark.parametrize(
+    "direction",
+    [
+        (0.0, 0.0, 1.0, -1.0, 0.0, 0.0, 0.0, -1.0, 0.0),
+        (0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 1.0, 0.0, 0.0),
+        (-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0),
+    ],
+)
+@pytest.mark.parametrize("ext", [".vtk", ".hdr"])
+def test_ritk_writes_permuted_directions_on_file_axes(ext, direction, tmp_path):
+    """A permuted SimpleITK direction reaches VTK and Analyze on the file axes.
+
+    Neither format stores a direction. ritk reads a SimpleITK MetaImage whose
+    direction is a signed axis permutation and writes it there; the writer
+    relabels the voxels onto the file axes, so the result is SimpleITK's own
+    `DICOMOrient(image, "LPS")` of the source: the same [Z, Y, X] array,
+    spacing and origin, with an identity direction. Power-of-two spacings and
+    an origin that is a multiple of each keep every value exact, including
+    Analyze's voxel-rounded `originator`.
+    """
+    img = sitk.GetImageFromArray(np.arange(4 * 5 * 6, dtype=np.float32).reshape(6, 5, 4))
+    img.SetDirection(direction)
+    img.SetSpacing((0.5, 2.0, 4.0))
+    img.SetOrigin((4.0, -8.0, 12.0))
+    src = str(tmp_path / "src.mha")
+    sitk.WriteImage(img, src)
+    expected = sitk.DICOMOrient(img, "LPS")
+
+    out = str(tmp_path / f"rt{ext}")
+    ritk.io.write_image(ritk.io.read_image(src), out)
+    back = ritk.io.read_image(out)
+
+    np.testing.assert_array_equal(back.to_numpy(), sitk.GetArrayFromImage(expected))
+    assert tuple(back.spacing) == expected.GetSpacing()[::-1]
+    assert tuple(back.origin) == expected.GetOrigin()[::-1]
+    assert tuple(back.direction) == expected.GetDirection()
+    if ext == ".vtk":
+        viewed = sitk.ReadImage(out)
+        np.testing.assert_array_equal(
+            sitk.GetArrayFromImage(viewed), sitk.GetArrayFromImage(expected)
+        )
+        assert viewed.GetSpacing() == expected.GetSpacing()
+        assert viewed.GetOrigin() == expected.GetOrigin()
+        assert viewed.GetDirection() == expected.GetDirection()
+
+
 @pytest.mark.parametrize("ext", [".mha", ".nrrd"])
 def test_ritk_reads_sitk_written_oblique_direction(ext, tmp_path):
     """ritk reads a SimpleITK-written volume with an axis-permuted direction and
