@@ -15,6 +15,16 @@ pub(crate) enum VoxelType {
     Float,
 }
 
+impl VoxelType {
+    pub(crate) const fn bytes_per_voxel(self) -> usize {
+        match self {
+            Self::UnsignedByte => 1,
+            Self::SignedShort => 2,
+            Self::SignedInteger | Self::Float => 4,
+        }
+    }
+}
+
 impl TryFrom<i32> for VoxelType {
     type Error = MghError;
 
