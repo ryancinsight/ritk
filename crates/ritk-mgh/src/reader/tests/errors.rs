@@ -19,11 +19,10 @@ fn test_read_invalid_version() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
-    let msg = format!("{:#}", result.unwrap_err());
+    let error = read_mgh::<TestBackend, _>(&path, &backend).expect_err("version 2 is unsupported");
     assert!(
-        msg.contains("version"),
-        "Error must mention 'version', got: {msg}"
+        matches!(error, MghError::InvalidVersion { found: 2, .. }),
+        "got: {error}"
     );
 }
 
@@ -197,8 +196,12 @@ fn test_read_non_positive_spacing_is_rejected_not_panicked() {
         );
         std::fs::write(&path, &mgh).unwrap();
 
-        let result = read_mgh::<TestBackend, _>(&path, &backend);
-        assert_rejects(result, "Invalid MGH RAS voxel spacing");
+        let error = read_mgh::<TestBackend, _>(&path, &backend)
+            .expect_err("spacing must be positive and finite");
+        assert!(
+            matches!(error, MghError::InvalidSpacing { .. }),
+            "{name}: got: {error}"
+        );
     }
 }
 
