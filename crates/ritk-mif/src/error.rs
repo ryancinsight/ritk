@@ -4,10 +4,74 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
-/// Failure to read a `.mif` data payload.
+/// Failure to read a `.mif` file.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_core::SequentialBackend;
+/// use ritk_mif::{read_mif, MifError};
+///
+/// let error = read_mif("missing.mif", &SequentialBackend)
+///     .expect_err("the file does not exist");
+/// assert!(matches!(error, MifError::Open { .. }));
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum MifError {
+    /// The header file could not be opened.
+    #[error("Cannot open .mif file {path:?}: {source}")]
+    Open {
+        /// Path supplied by the caller.
+        path: PathBuf,
+        /// Filesystem failure.
+        source: io::Error,
+    },
+    /// The text header is malformed or truncated.
+    #[error("{source:#}")]
+    Header {
+        /// Header parse failure.
+        source: anyhow::Error,
+    },
+    /// A required header key is absent.
+    #[error("Missing '{field}' in .mif header")]
+    MissingField {
+        /// Name of the absent key.
+        field: &'static str,
+    },
+    /// A header value has the wrong syntax.
+    #[error("Invalid '{field}' in .mif header: {source:#}")]
+    InvalidField {
+        /// Name of the malformed key.
+        field: &'static str,
+        /// Parse failure.
+        source: anyhow::Error,
+    },
+    /// `dim` declares an axis with no voxels.
+    #[error(".mif 'dim' declares a {axis} extent of 0; every axis must span at least one voxel")]
+    ZeroExtent {
+        /// Name of the empty axis.
+        axis: &'static str,
+    },
+    /// `vox` lists fewer than three spatial sizes.
+    #[error(".mif 'vox' expected at least 3 spatial sizes, got {found}")]
+    TooFewVoxelSizes {
+        /// Number of sizes present.
+        found: usize,
+    },
+    /// The per-volume voxel count does not fit `usize`.
+    #[error(".mif dim [{nx},{ny},{nz}] voxel count overflows usize")]
+    VoxelCountOverflow {
+        /// Declared extent along X.
+        nx: usize,
+        /// Declared extent along Y.
+        ny: usize,
+        /// Declared extent along Z.
+        nz: usize,
+    },
+    /// The series element count does not fit `usize`.
+    #[error(".mif series element count overflows usize")]
+    SeriesCountOverflow,
     /// The payload byte count does not fit `usize`.
     #[error(".mif byte count overflows usize: {count} elements of {elem_size} bytes")]
     ByteCountOverflow {
@@ -72,5 +136,20 @@ pub enum MifError {
     UnsupportedElementSize {
         /// Bytes per element.
         elem_size: usize,
+    },
+    /// A single-volume read met a multi-frame file.
+    #[error(
+        ".mif file has {frames} frames; this reader returns one 3-D volume. \
+         Use the series reader for multi-frame files."
+    )]
+    MultiFrame {
+        /// Frames in the file.
+        frames: usize,
+    },
+    /// The decoded voxels could not be assembled into an image.
+    #[error("cannot build image from .mif voxels: {source:#}")]
+    Image {
+        /// Image construction failure.
+        source: anyhow::Error,
     },
 }
