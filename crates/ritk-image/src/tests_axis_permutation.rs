@@ -211,3 +211,44 @@ fn non_permutation_directions_have_no_relabeling() {
         );
     }
 }
+
+/// `from_axes` accepts exactly the permutations of `[0, 1, 2]`.
+#[test]
+fn from_axes_accepts_only_axis_permutations() {
+    let flips = [true, false, true];
+    let built = SignedAxisPermutation::from_axes([2, 0, 1], flips).expect("a permutation");
+    assert_eq!((built.axis, built.reversed), ([2, 0, 1], flips));
+    for axis in [[0, 0, 1], [1, 2, 2], [0, 1, 3], [usize::MAX, 0, 1]] {
+        assert_eq!(
+            SignedAxisPermutation::from_axes(axis, flips),
+            None,
+            "{axis:?}"
+        );
+    }
+}
+
+/// For an oblique input the origin moves exactly as the grid geometry maps
+/// the corner voxel, so a caller that snaps to the nearest axes keeps the
+/// world point the geometry assigns that voxel, bit for bit.
+#[test]
+fn an_oblique_corner_moves_the_origin_like_the_grid_geometry() {
+    let (sin, cos) = 0.3f64.sin_cos();
+    let direction = Direction::from_rows([[cos, -sin, 0.0], [sin, cos, 0.1], [0.0, 0.2, 1.0]]);
+    let (origin, spacing) = (Point::new([3.1, -5.3, 7.7]), Spacing::new([0.7, 1.3, 2.9]));
+    let permutation =
+        SignedAxisPermutation::from_axes([2, 1, 0], [true, false, true]).expect("a permutation");
+    let values: Vec<u32> = (0..24).collect();
+    let grid = permutation.reexpress(&values, DIMS, &origin, &spacing, &direction);
+    let geometry = ritk_spatial::CartesianGridGeometry::new(
+        &origin,
+        &spacing,
+        &direction,
+        &ritk_spatial::CoordinateMap::Cartesian,
+    )
+    .expect("an invertible Cartesian grid");
+    let corner = geometry.point([1.0, 0.0, 3.0]);
+    assert_eq!(
+        grid.origin.to_array().map(f64::to_bits),
+        corner.map(f64::to_bits)
+    );
+}

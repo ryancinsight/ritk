@@ -2,6 +2,7 @@ use super::OrientImageFilter;
 use ritk_core::rejection::assert_rejects;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
 type B = coeus_core::SequentialBackend;
@@ -87,4 +88,78 @@ fn orient_invalid_codes_error() {
         .expect("infallible: validated precondition")
         .apply(&img)
         .is_ok());
+}
+
+/// World point bits → voxel value, sorted, for every voxel of `image`.
+fn world_map(image: &Image<f32, B, 3>) -> Vec<([u64; 3], u32)> {
+    let [nz, ny, nx] = image.shape();
+    let (values, _) = extract_vec_infallible(image);
+    let mut map = Vec::with_capacity(values.len());
+    let mut flat = 0;
+    for z in 0..nz {
+        for y in 0..ny {
+            for x in 0..nx {
+                let index = [z, y, x].map(|i| {
+                    f64::from(u32::try_from(i).expect("invariant: fixture index fits u32"))
+                });
+                let point = image.continuous_index_to_physical_point(&Point::new(index));
+                map.push((point.to_array().map(f64::to_bits), values[flat].to_bits()));
+                flat += 1;
+            }
+        }
+    }
+    map.sort_unstable();
+    map
+}
+
+/// Every code keeps each voxel of an axis-aligned image at its world point
+/// and sets the output direction to the code's axes.
+///
+/// Power-of-two spacings and an integer origin keep world points exact.
+#[test]
+fn axis_aligned_inputs_keep_world_points_under_every_code() {
+    let inputs = [
+        Direction::identity(),
+        Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]),
+        Direction::from_rows([[0.0, -1.0, 0.0], [0.0, 0.0, 1.0], [-1.0, 0.0, 0.0]]),
+        Direction::from_rows([[-1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, -1.0, 0.0]]),
+    ];
+    // Code letter → world column of the output direction, image axis x first.
+    let codes = [
+        ("LPS", [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),
+        (
+            "RAI",
+            [[-1.0, 0.0, 0.0], [0.0, -1.0, 0.0], [0.0, 0.0, -1.0]],
+        ),
+        ("SPL", [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]),
+        ("PIR", [[0.0, 1.0, 0.0], [0.0, 0.0, -1.0], [-1.0, 0.0, 0.0]]),
+    ];
+    for direction in inputs {
+        let image = Image::from_flat_on(
+            (0..24u8).map(f32::from).collect(),
+            [2, 3, 4],
+            Point::new([3.0, -5.0, 7.0]),
+            Spacing::new([0.5, 2.0, 4.0]),
+            direction,
+            &B::default(),
+        )
+        .expect("fixture image");
+        for (code, image_axes) in codes {
+            let out = OrientImageFilter::from_code(code)
+                .expect("a valid code")
+                .apply(&image)
+                .expect("an axis-aligned input orients");
+            assert_eq!(
+                world_map(&out),
+                world_map(&image),
+                "{code} from {direction:?}"
+            );
+            // Image axis j is tensor axis 2 − j, so its column is reversed.
+            for (j, column) in image_axes.iter().enumerate() {
+                for (row, &entry) in column.iter().enumerate() {
+                    assert_eq!(out.direction()[(row, 2 - j)], entry, "{code} axis {j}");
+                }
+            }
+        }
+    }
 }
