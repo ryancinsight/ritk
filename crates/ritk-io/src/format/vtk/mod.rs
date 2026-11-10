@@ -77,9 +77,9 @@ pub mod native {
     /// Backend-bound legacy VTK structured-points writer.
     ///
     /// The legacy representation cannot store a direction matrix or
-    /// acquisition coordinate map. Writes therefore reject non-identity
-    /// directions and non-Cartesian maps before creating or truncating the
-    /// destination.
+    /// acquisition coordinate map. Writes therefore reject directions other
+    /// than `ritk_image::file_axes_direction()` and non-Cartesian maps before
+    /// creating or truncating the destination.
     pub struct VtkWriter<B: ComputeBackend> {
         backend: B,
     }
@@ -105,7 +105,8 @@ pub mod native {
     mod tests {
         use super::*;
         use coeus_core::SequentialBackend;
-        use ritk_spatial::{Direction, Point, Spacing};
+        use ritk_image::file_axes_direction;
+        use ritk_spatial::{Point, Spacing};
         use tempfile::tempdir;
 
         #[test]
@@ -115,7 +116,7 @@ pub mod native {
                 [2, 2, 3],
                 Point::new([1.0, 2.0, 3.0]),
                 Spacing::new([0.5, 0.75, 1.25]),
-                Direction::identity(),
+                file_axes_direction(),
                 &SequentialBackend,
             )
             .expect("native VTK fixture");
@@ -130,6 +131,7 @@ pub mod native {
             assert_eq!(loaded.shape(), [2, 2, 3]);
             assert_eq!(loaded.origin(), image.origin());
             assert_eq!(loaded.spacing(), image.spacing());
+            assert_eq!(loaded.direction(), image.direction());
             assert_eq!(
                 loaded.data_slice().expect("contiguous data"),
                 image.data_slice().expect("contiguous fixture")

@@ -5,6 +5,16 @@
 
 use ritk_spatial::{Direction, Point, Spacing};
 
+/// Direction of a `[depth, row, col]` buffer whose file axes are `[X, Y, Z]`.
+///
+/// RITK tensors index `[z, y, x]` while formats such as legacy VTK and
+/// MetaImage list their axes `[x, y, z]` with X varying fastest. Direction
+/// columns follow tensor-axis order, so tensor axis 0 (file Z) advances world
+/// Z and tensor axis 2 (file X) advances world X: the anti-diagonal.
+pub const fn file_axes_direction() -> Direction<3> {
+    Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])
+}
+
 /// Image metadata containing physical space information.
 ///
 /// Metadata describes how image indices map to physical coordinates.
@@ -86,6 +96,22 @@ mod tests {
     type Point3 = Point<3>;
     type Spacing3 = Spacing<3>;
     type Direction3 = Direction<3>;
+
+    #[test]
+    fn file_axes_direction_is_the_anti_diagonal_permutation() {
+        let direction = file_axes_direction();
+        for row in 0..3 {
+            for column in 0..3 {
+                let expected = if row + column == 2 { 1.0 } else { 0.0 };
+                assert_eq!(
+                    direction[(row, column)],
+                    expected,
+                    "entry ({row}, {column})"
+                );
+            }
+        }
+        assert!(direction.is_orthogonal());
+    }
 
     #[test]
     fn test_metadata_creation() {

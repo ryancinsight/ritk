@@ -21,10 +21,26 @@
 use super::reverse_spatial_axes;
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::Image;
-use ritk_spatial::Direction;
+use ritk_image::{file_axes_direction, Image};
 use std::io::{BufWriter, Write};
 use std::path::Path;
+use thiserror::Error;
+
+/// Image geometry that legacy VTK structured points cannot preserve.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[non_exhaustive]
+pub enum VtkImageWriteError {
+    /// The coordinate map is not Cartesian.
+    #[error("legacy VTK structured points cannot preserve a non-Cartesian coordinate map")]
+    NonCartesianCoordinateMap,
+    /// The direction is not `ritk_image::file_axes_direction()`, the only
+    /// orientation the file's X, Y, Z axes can carry.
+    #[error(
+        "legacy VTK structured points cannot preserve a direction matrix other than the \
+         file-axes permutation"
+    )]
+    UnsupportedDirection,
+}
 
 /// Encode flat voxel data plus geometry as a VTK legacy structured-points
 /// stream (BINARY) into an arbitrary writer.
@@ -155,9 +171,11 @@ pub fn encode_vtk_flat<W: Write>(
 /// # Errors
 ///
 /// Returns an error when:
-/// - The image has a non-identity direction or non-Cartesian coordinate map,
-///   which legacy structured points cannot represent. This check occurs before
-///   the destination is created or truncated.
+/// - The image has a direction other than [`file_axes_direction`] (the
+///   direction [`read_vtk`](super::read_vtk) returns) or a non-Cartesian
+///   coordinate map, which legacy structured points cannot represent. The
+///   error downcasts to [`VtkImageWriteError`], and the check occurs before the
+///   destination is created or truncated.
 /// - The file cannot be created or written.
 /// - The tensor data cannot be extracted as `f32`.
 pub fn write_vtk<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
@@ -167,14 +185,12 @@ where
     P: AsRef<Path>,
 {
     let path = path.as_ref();
-    anyhow::ensure!(
-        image.coordinate_map().is_cartesian(),
-        "legacy VTK structured points cannot preserve a non-Cartesian coordinate map"
-    );
-    anyhow::ensure!(
-        image.direction() == &Direction::identity(),
-        "legacy VTK structured points cannot preserve a non-identity direction matrix"
-    );
+    if !image.coordinate_map().is_cartesian() {
+        return Err(VtkImageWriteError::NonCartesianCoordinateMap.into());
+    }
+    if image.direction() != &file_axes_direction() {
+        return Err(VtkImageWriteError::UnsupportedDirection.into());
+    }
 
     let file = std::fs::File::create(path)
         .with_context(|| format!("failed to create VTK file: {}", path.display()))?;

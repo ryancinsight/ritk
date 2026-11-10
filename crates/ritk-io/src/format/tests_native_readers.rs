@@ -2,7 +2,7 @@
 
 use crate::domain::{ImageReader, ImageWriter};
 use coeus_core::SequentialBackend;
-use ritk_image::Image as NativeImage;
+use ritk_image::{file_axes_direction, Image as NativeImage};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 
@@ -32,8 +32,20 @@ enum SpatialFidelity {
     /// Spacing and origin round-trip; direction is unrepresentable and must
     /// remain the identity the fixture writes.
     SpacingAndOrigin,
+    /// Spacing, origin, and the file-axes permutation round-trip; the format
+    /// stores no other direction.
+    FileAxes,
     /// Spacing, origin, and direction all round-trip.
     Full,
+}
+
+/// Direction the fixture writes, and the contract expects back, for `fidelity`.
+fn fixture_direction(fidelity: SpatialFidelity) -> Direction<3> {
+    match fidelity {
+        SpatialFidelity::Full => full_fidelity_direction(),
+        SpatialFidelity::FileAxes => file_axes_direction(),
+        SpatialFidelity::None | SpatialFidelity::SpacingAndOrigin => Direction::identity(),
+    }
 }
 
 /// A direction with determinant −1, no symmetry, and axis-aligned unit columns.
@@ -106,17 +118,12 @@ fn assert_native_writer_reader_round_trips<W, R>(
 {
     let n = DIMS[0] * DIMS[1] * DIMS[2];
     let voxels: Vec<f32> = (0..n).map(|i| i as f32 * 0.5 - 4.0).collect();
-    let direction = if fidelity == SpatialFidelity::Full {
-        full_fidelity_direction()
-    } else {
-        Direction::identity()
-    };
     let image = NativeImage::from_flat_on(
         voxels.clone(),
         DIMS,
         Point::new(ORIGIN),
         Spacing::new(SPACING),
-        direction,
+        fixture_direction(fidelity),
         &SequentialBackend,
     )
     .expect("native image");
@@ -138,11 +145,7 @@ fn assert_native_writer_reader_round_trips<W, R>(
     assert_geometry_close(loaded.spacing().to_array(), expected_spacing, "spacing");
     assert_geometry_close(loaded.origin().to_array(), expected_origin, "origin");
 
-    let expected_direction = if fidelity == SpatialFidelity::Full {
-        full_fidelity_direction()
-    } else {
-        Direction::identity()
-    };
+    let expected_direction = fixture_direction(fidelity);
     for row in 0..3 {
         for col in 0..3 {
             let got = loaded.direction()[(row, col)];
@@ -319,13 +322,13 @@ fn native_mif_writer_reader_contract_round_trips() {
 #[test]
 fn native_vtk_writer_reader_contract_round_trips() {
     let dir = tempfile::tempdir().expect("tempdir");
-    // Legacy VTK structured points cannot carry a direction matrix, so the
-    // contract stops at spacing and origin — exactly `SpacingAndOrigin`.
+    // Legacy VTK structured points carry no direction matrix; the file axes
+    // are fixed, so the contract is spacing, origin, and `file_axes_direction`.
     assert_native_writer_reader_round_trips(
         &dir.path().join("contract.vtk"),
         &super::vtk::native::VtkWriter::new(SequentialBackend),
         &super::vtk::native::VtkReader::new(SequentialBackend),
-        SpatialFidelity::SpacingAndOrigin,
+        SpatialFidelity::FileAxes,
     );
 }
 

@@ -57,6 +57,7 @@ pub use io::{
     write_vtp_polydata,
     write_vtu_str,
     write_vtu_unstructured_grid,
+    VtkImageWriteError,
     VtkReader,
     VtkWriter,
 };

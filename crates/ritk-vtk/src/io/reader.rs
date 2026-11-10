@@ -13,7 +13,9 @@
 //! RITK `[Δdepth, Δrow, Δcol]` by `reverse_spatial_axes`.
 //!
 //! VTK stores scalar data with X varying fastest, matching RITK's memory
-//! layout. No data permutation is required.
+//! layout. No data permutation is required. The returned direction is
+//! [`file_axes_direction`] so that tensor axis 2 (file X) advances world X and
+//! tensor axis 0 (file Z) advances world Z.
 //!
 //! ## Supported Scalar Types
 //!
@@ -23,8 +25,8 @@
 use super::reverse_spatial_axes;
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_image::{file_axes_direction, Image};
+use ritk_spatial::{Point, Spacing};
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
@@ -188,7 +190,7 @@ pub fn read_vtk<B: ComputeBackend, P: AsRef<Path>>(
     // `[Δdepth, Δrow, Δcol]`; reading it index-for-index transposes the spacing
     // against the `DIMENSIONS` line, which the same file decodes as [nz, ny, nx].
     let spacing = Spacing::new(reverse_spatial_axes(spacing_arr));
-    let direction = Direction::identity();
+    let direction = file_axes_direction();
 
     tracing::debug!(
         ?origin,

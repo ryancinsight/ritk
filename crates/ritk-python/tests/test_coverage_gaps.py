@@ -439,7 +439,7 @@ def test_read_write_image_nifti_roundtrip():
 def test_write_image_vtk_rejects_non_identity_direction(tmp_path):
     """Legacy VTK cannot encode direction: rejection precedes file creation.
 
-    Every Python image carries `numpy_array_direction()` (a permutation), and
+    Every Python image carries `ritk_image::file_axes_direction()` (a permutation), and
     the legacy structured-points writer deliberately rejects non-identity
     directions rather than silently misorienting the volume (49dcdf05). The
     round trip this test previously asserted is therefore impossible by

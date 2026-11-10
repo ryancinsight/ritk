@@ -6,7 +6,7 @@ use coeus_core::{MoiraiBackend, SequentialBackend};
 use numpy::{PyArray1, PyArray3, PyArrayMethods, PyReadonlyArray3, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::Image as NativeImage;
+use ritk_image::{file_axes_direction, Image as NativeImage};
 use std::sync::Arc;
 
 /// Native backend used throughout ritk-python scalar image bindings.
@@ -14,17 +14,6 @@ pub type Backend = MoiraiBackend;
 
 /// Native 3-D scalar image carrier used by `PyImage`.
 pub type ScalarImage = NativeImage<f32, MoiraiBackend, 3>;
-
-/// Return the native direction for NumPy's `[Z, Y, X]` storage convention.
-///
-/// Native image metadata stores direction columns in tensor-axis order, while
-/// Python and SimpleITK expose physical coordinates in `(X, Y, Z)` order. The
-/// permutation makes tensor axis 0 advance physical Z and tensor axis 2
-/// advance physical X; [`PyImage::direction`] maps it back to the public
-/// SimpleITK layout.
-pub(crate) const fn numpy_array_direction() -> Direction<3> {
-    Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])
-}
 
 /// RITK geometry for a procedural source whose parameters are sitk `(x, y, z)`.
 ///
@@ -49,7 +38,7 @@ pub(crate) fn source_geometry(
     (
         Point::new([origin_xyz.0, origin_xyz.1, origin_xyz.2]),
         Spacing::new([spacing_xyz.2, spacing_xyz.1, spacing_xyz.0]),
-        numpy_array_direction(),
+        file_axes_direction(),
     )
 }
 
@@ -81,7 +70,7 @@ impl PyImage {
             [z, y, x],
             Point::new([orig[2], orig[1], orig[0]]),
             Spacing::new(sp),
-            numpy_array_direction(),
+            file_axes_direction(),
             &MoiraiBackend,
         )
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
@@ -295,13 +284,13 @@ mod tests {
     }
 
     #[test]
-    fn numpy_array_direction_maps_tensor_axes_to_physical_axes() {
+    fn file_axes_direction_maps_tensor_axes_to_physical_axes() {
         let image = vec_to_image(
             vec![0.0; 8],
             [2, 2, 2],
             Point::origin(),
             Spacing::uniform(1.0),
-            numpy_array_direction(),
+            file_axes_direction(),
         );
 
         assert_eq!(

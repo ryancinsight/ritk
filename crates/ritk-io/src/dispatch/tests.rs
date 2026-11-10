@@ -1,8 +1,13 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
+use ritk_image::file_axes_direction;
 use ritk_spatial::{Direction, Point, Spacing};
 
 fn native_volume() -> NativeImage {
+    native_volume_with_direction(Direction::identity())
+}
+
+fn native_volume_with_direction(direction: Direction<3>) -> NativeImage {
     let dims = [2usize, 2, 3];
     let values: Vec<f32> = (0..12).map(|i| i as f32 * 0.5 - 1.0).collect();
     NativeImage::from_flat(
@@ -10,7 +15,7 @@ fn native_volume() -> NativeImage {
         dims,
         Point::new([1.0, 2.0, 3.0]),
         Spacing::new([0.5, 0.75, 1.25]),
-        Direction::identity(),
+        direction,
     )
     .expect("test image")
 }
@@ -20,8 +25,9 @@ fn native_volume() -> NativeImage {
 /// Slice-shaped on purpose: PNG's writer rejects a volume, so a volume
 /// fixture would report a shape-policy failure as a missing capability.
 /// Every other writer accepts this shape, which isolates the capability
-/// query from per-codec shape rules.
-fn slice_volume() -> NativeImage {
+/// query from per-codec shape rules. The caller picks `direction` per format,
+/// because the formats that cannot store a direction accept different ones.
+fn slice_volume(direction: Direction<3>) -> NativeImage {
     let dims = [1usize, 3, 4];
     let values: Vec<f32> = (0..12).map(|i| i as f32 * 16.0).collect();
     NativeImage::from_flat(
@@ -29,7 +35,7 @@ fn slice_volume() -> NativeImage {
         dims,
         Point::origin(),
         Spacing::uniform(1.0),
-        Direction::identity(),
+        direction,
     )
     .expect("test slice")
 }
@@ -131,7 +137,13 @@ fn native_capability_matrix_matches_dispatch() {
         let path = dir
             .path()
             .join(format!("capability.{}", canonical_extension(fmt)));
-        let image = slice_volume();
+        // Legacy VTK carries only the file-axes direction and Analyze only
+        // identity; every other writer stores either.
+        let direction = match fmt {
+            ImageFormat::Vtk => file_axes_direction(),
+            _ => Direction::identity(),
+        };
+        let image = slice_volume(direction);
 
         let written = write_image_native(&path, &image);
         assert_eq!(
@@ -174,7 +186,7 @@ fn native_dispatch_round_trips_nrrd_values() {
 fn native_dispatch_round_trips_vtk_values() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("native.vtk");
-    let image = native_volume();
+    let image = native_volume_with_direction(file_axes_direction());
 
     write_image_native(&path, &image).expect("native VTK write");
     let loaded = read_image_native(&path).expect("native VTK read");
@@ -182,6 +194,7 @@ fn native_dispatch_round_trips_vtk_values() {
     assert_eq!(loaded.data_slice().unwrap(), image.data_slice().unwrap());
     assert_eq!(loaded.origin(), image.origin());
     assert_eq!(loaded.spacing(), image.spacing());
+    assert_eq!(loaded.direction(), image.direction());
 }
 
 /// The dispatch rejects a volume written to a single PNG path.

@@ -8,9 +8,7 @@
 
 use crate::array_utils::copy_array4_to_vec;
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{
-    image_to_vec, into_py_image, numpy_array_direction, source_geometry, vec_to_image, PyImage,
-};
+use crate::image::{image_to_vec, into_py_image, source_geometry, vec_to_image, PyImage};
 use coeus_core::MoiraiBackend;
 use numpy::{PyArray1, PyArray4, PyArrayMethods, PyReadonlyArray4, PyUntypedArrayMethods};
 use pyo3::prelude::*;
@@ -21,7 +19,7 @@ use ritk_filter::{
     LabelMapContourOverlayFilter, LabelOverlayFilter, LabelToRGBFilter, MeanImageFilter,
     MedianFilter, RecursiveGaussianFilter, ScalarToRGBColormapFilter,
 };
-use ritk_image::ColorVolume;
+use ritk_image::{file_axes_direction, ColorVolume};
 use std::sync::Arc;
 
 type Rgb = ColorVolume<f32, MoiraiBackend, 3>;
@@ -59,7 +57,7 @@ impl PyColorImage {
             [z, y, x],
             Point::new([orig[2], orig[1], orig[0]]),
             Spacing::new(sp),
-            numpy_array_direction(),
+            file_axes_direction(),
             &MoiraiBackend,
         )
         .map_err(|e| RitkPyError::value(e.to_string()))?;
