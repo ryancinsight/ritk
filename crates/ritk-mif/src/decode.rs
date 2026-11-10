@@ -15,11 +15,14 @@ pub(crate) fn decode_bytes(
     expected_count: usize,
     is_big_endian: bool,
 ) -> Result<Vec<f32>> {
-    if raw.len() != expected_count * elem_size {
+    let expected_bytes = expected_count.checked_mul(elem_size).ok_or_else(|| {
+        anyhow!(".mif element count {expected_count} of {elem_size}-byte elements overflows usize")
+    })?;
+    if raw.len() != expected_bytes {
         return Err(anyhow!(
             ".mif payload size mismatch: expected {} elements ({} bytes), got {} bytes",
             expected_count,
-            expected_count * elem_size,
+            expected_bytes,
             raw.len()
         ));
     }

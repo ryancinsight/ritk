@@ -361,3 +361,51 @@ fn a_zero_extent_on_any_axis_is_rejected() {
         );
     }
 }
+
+/// A `dim` whose element or byte count exceeds `usize` is rejected with the
+/// overflowing product named, before any allocation is sized from it.
+///
+/// Each extent parses as `usize` on its own, so only the checked products in
+/// the reader can reject them; an unchecked product panics in debug builds and
+/// wraps to a small, plausible count in release builds. The `Float32LE` header
+/// has 4-byte elements, and the cases are chosen so exactly one product is the
+/// first to leave `usize` (`2^64` arithmetic below, for 64-bit `usize`):
+/// `2^32 * 2^32`, `2^32 * (2^32 - 1) * 2`, `(2^32 * (2^32 - 1)) * 2` frames,
+/// and `2^62 * 4` bytes.
+#[test]
+fn a_dim_whose_counts_exceed_usize_is_rejected_at_the_overflowing_product() {
+    let backend = SequentialBackend;
+    for (dim, product) in [
+        ("4294967296 4294967296 1", "voxel count overflows"),
+        ("4294967296 4294967295 2", "voxel count overflows"),
+        (
+            "4294967296 4294967295 1 2",
+            "series element count overflows",
+        ),
+        ("4611686018427387904 1 1", "byte count overflows"),
+    ] {
+        let path = write_raw_mif(&header_with(dim, ". 0"), &[0u8; 16]);
+        let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend);
+        let _ = std::fs::remove_file(&path);
+
+        let err = result.expect_err("a dim beyond usize cannot describe a payload");
+        let message = format!("{err:#}");
+        assert!(
+            message.contains(product),
+            "dim {dim} should fail at the '{product}' product, got: {message}"
+        );
+    }
+}
+
+/// `decode_bytes` rejects an element count whose byte length leaves `usize`
+/// rather than comparing the payload against a wrapped length.
+#[test]
+fn decode_bytes_rejects_a_byte_count_beyond_usize() {
+    let err = crate::decode::decode_bytes(&[], 4, usize::MAX / 2, false)
+        .expect_err("usize::MAX / 2 four-byte elements exceed usize bytes");
+    let message = format!("{err:#}");
+    assert!(
+        message.contains("overflows usize"),
+        "expected the overflow to be named, got: {message}"
+    );
+}
