@@ -74,3 +74,16 @@ fn length_check_applies_the_selected_ceiling() {
         })
     );
 }
+
+#[test]
+fn scaled_check_rejects_a_product_beyond_usize_under_the_widest_ceiling() {
+    let budget = ImageReadBudget::new(1, u64::MAX, 1).expect("all ceilings are positive");
+    assert_eq!(
+        budget.check_scaled(ImageReadResource::DecodedBytes, usize::MAX, 2),
+        Err(ImageReadBudgetError::Exceeded {
+            resource: ImageReadResource::DecodedBytes,
+            actual: u64::MAX,
+            maximum: u64::MAX,
+        })
+    );
+}

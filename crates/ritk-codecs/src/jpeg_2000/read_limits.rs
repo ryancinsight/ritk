@@ -21,9 +21,6 @@ pub(super) fn check_read_budget(
         .samples_per_frame()
         .context("J2K: invalid DICOM pixel layout")?;
     budget.check_len(ImageReadResource::EncodedBytes, fragment_len)?;
-    budget.check_len(
-        ImageReadResource::DecodedBytes,
-        samples.saturating_mul(size_of::<f32>()),
-    )?;
+    budget.check_scaled(ImageReadResource::DecodedBytes, samples, size_of::<f32>())?;
     Ok(())
 }

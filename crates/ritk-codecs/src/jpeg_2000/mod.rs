@@ -43,8 +43,8 @@
 //! sample counts are bounded by the caller's [`ImageReadBudget`], which limits
 //! the fragment length and the `f32` output before the codestream is parsed
 //! and replaces the fixed allocation cap of the other codecs. Tile headers are
-//! parsed by marker boundaries
-//! before output allocation; every segment must fit its byte extent,
+//! parsed by marker boundaries before output allocation; every segment must
+//! fit its byte extent,
 //! EOC is mandatory, every declared tile must be present, and every expected
 //! LRCP packet header must be consumed. Component precision is bounded by the
 //! decoder's 32-bit coefficient representation. `Psot = 0` extends to terminal
@@ -116,8 +116,7 @@ pub(crate) const SOI: u16 = 0xFFD8;
 ///
 /// Returns [`Jpeg2000DecodeError::Codestream`] if:
 /// - `fragment` does not begin with the SOC marker (0xFF4F).
-/// - SIZ or SOT geometry is invalid, outside the supported allocation bound,
-///   or identifies a tile outside the image's tile grid.
+/// - SIZ or SOT geometry is invalid, or identifies a tile outside the image's tile grid.
 /// - the stream is not single-component grayscale LRCP without coding
 ///   overrides, packed packet headers, multi-part tiles, or MCT.
 /// - packet or coefficient decoding fails.

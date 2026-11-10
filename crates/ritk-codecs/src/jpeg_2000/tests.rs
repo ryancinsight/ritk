@@ -965,6 +965,13 @@ fn assert_exceeded(
     );
 }
 
+/// Decodes a three-byte SOC-only fragment: it passes the marker check, so the
+/// result is decided by the layout and the budget alone.
+fn reject_header_only(layout: PixelLayout, budget: ImageReadBudget) -> Jpeg2000DecodeError {
+    super::decode_jpeg2000_fragment(&[0xFF, 0x4F, 0x00], layout, budget)
+        .expect_err("a header-only fragment never decodes")
+}
+
 fn four_by_four_codestream() -> Vec<u8> {
     let pixels: Vec<i32> = (0..16).collect();
     encode_grayscale_j2k(&pixels, 4, 4, 8, PixelSignedness::Unsigned, lossless(1))
@@ -998,37 +1005,20 @@ fn decode_rejects_a_fragment_above_the_encoded_byte_budget() {
 }
 
 #[test]
-fn decode_checks_the_output_budget_before_parsing_the_codestream() {
-    let error =
-        super::decode_jpeg2000_fragment(&[0xFF, 0x4F, 0x00], gray(1024, 1024), budget(GIB, 1024))
-            .expect_err("a 4 MiB output exceeds a 1 KiB budget");
-    assert_exceeded(error, ImageReadResource::DecodedBytes, 4_194_304, 1024);
-}
-
-#[test]
 fn decode_reports_a_frame_just_above_the_default_as_a_budget_error() {
-    let error = super::decode_jpeg2000_fragment(
-        &[0xFF, 0x4F, 0x00],
-        gray(16_385, 16_384),
-        ImageReadBudget::DEFAULT,
-    )
-    .expect_err("1,073,807,360 output bytes exceed the 1 GiB default");
+    let error = reject_header_only(gray(16_385, 16_384), ImageReadBudget::DEFAULT);
     assert_exceeded(error, ImageReadResource::DecodedBytes, 1_073_807_360, GIB);
 }
 
 #[test]
 fn decode_applies_a_caller_ceiling_above_one_gibibyte() {
     let ceiling = budget(u64::MAX, 2 * GIB);
-    let admitted =
-        super::decode_jpeg2000_fragment(&[0xFF, 0x4F, 0x00], gray(16_385, 16_384), ceiling)
-            .expect_err("the truncated codestream fails after the budget admits the frame");
+    let admitted = reject_header_only(gray(16_385, 16_384), ceiling);
     assert!(
         matches!(admitted, Jpeg2000DecodeError::Codestream(_)),
         "got: {admitted}"
     );
-
-    let error = super::decode_jpeg2000_fragment(&[0xFF, 0x4F, 0x00], gray(32_769, 16_384), ceiling)
-        .expect_err("2,147,549,184 output bytes exceed a 2 GiB ceiling");
+    let error = reject_header_only(gray(32_769, 16_384), ceiling);
     assert_exceeded(
         error,
         ImageReadResource::DecodedBytes,
@@ -1038,9 +1028,16 @@ fn decode_applies_a_caller_ceiling_above_one_gibibyte() {
 }
 
 #[test]
+fn decode_rejects_an_output_size_beyond_usize_under_the_widest_budget() {
+    // 2^31 x 2^31 samples are 2^62; their `f32` storage is 2^64 bytes, which no
+    // `u64` ceiling admits.
+    let error = reject_header_only(gray(1 << 31, 1 << 31), budget(u64::MAX, u64::MAX));
+    assert_exceeded(error, ImageReadResource::DecodedBytes, u64::MAX, u64::MAX);
+}
+
+#[test]
 fn decode_validates_the_layout_before_the_budget() {
-    let error = super::decode_jpeg2000_fragment(&[0xFF, 0x4F, 0x00], gray(0, 4), budget(1, 1))
-        .expect_err("a zero-row layout is invalid whatever the budget");
+    let error = reject_header_only(gray(0, 4), budget(1, 1));
     assert!(
         matches!(&error, Jpeg2000DecodeError::Codestream(_))
             && format!("{error:#}").contains("invalid DICOM pixel layout"),

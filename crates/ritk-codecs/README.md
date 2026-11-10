@@ -47,11 +47,9 @@ Callers must propagate or match the error for an explicit marker other than
 ## Read budgets
 
 `ImageReadBudget` carries the encoded-byte, decoded-byte, and series-volume
-ceilings that format readers apply to header-declared sizes before allocating.
-Its default is 1 GiB for encoded and decoded payloads and 65,536 volumes. The
-JPEG 2000 decoder takes a budget and returns `Jpeg2000DecodeError::Budget`
-when the fragment or the `f32` output it implies exceeds a ceiling, before the
-codestream is parsed.
+ceilings that format readers apply to header-declared sizes before allocating
+(default 1 GiB, 1 GiB, 65,536 volumes). The JPEG 2000 decoder returns
+`Jpeg2000DecodeError::Budget` when the fragment or its `f32` output exceeds one.
 
 ## Usage
 
