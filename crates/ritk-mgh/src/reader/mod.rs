@@ -30,11 +30,21 @@ mod voxel_decode;
 ///
 /// # Errors
 ///
-/// Returns a header variant when the version, dimensions, or data type code are
-/// invalid. Returns [`MghError::TruncatedPayload`] when the payload is shorter than the
-/// header declares, and [`MghError::MultiFrame`] when the file declares more
-/// than one frame — a multi-frame volume has no correct single-volume
-/// decoding, so it fails rather than silently yielding frame 0.
+/// - [`MghError::Open`] when the file cannot be opened.
+/// - [`MghError::Header`] when a header field cannot be read, including a stream that ends inside the header.
+/// - [`MghError::InvalidVersion`] when the header version is not the supported version.
+/// - [`MghError::InvalidDimensions`] when an extent is zero or negative.
+/// - [`MghError::InvalidFrameCount`] when the frame count is zero or negative.
+/// - [`MghError::UnsupportedDataType`] when the voxel data type code is not supported.
+/// - [`MghError::InvalidSpacing`] when the RAS voxel spacing is not positive and finite.
+/// - [`MghError::DimensionOverflow`] when the per-frame voxel count overflows `usize`.
+/// - [`MghError::SeriesOverflow`] when the voxel count times the frame count overflows `usize`.
+/// - [`MghError::DataSizeOverflow`] when the series payload size in bytes overflows `usize`.
+/// - [`MghError::MultiFrame`] when the file declares more than one frame; a multi-frame volume has no correct single-volume decoding, so it fails rather than yielding frame 0.
+/// - [`MghError::TruncatedPayload`] when the payload is shorter than the header declares, or an MGZ stream exceeds the decompression cap.
+/// - [`MghError::PayloadRead`] when the payload stream fails while being read.
+/// - [`MghError::Allocation`] when decode storage cannot be reserved.
+/// - [`MghError::Image`] when the decoded voxels cannot be assembled into an image.
 pub fn read_mgh<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
@@ -120,9 +130,20 @@ fn read_mgh_from_reader<B: ComputeBackend, R: Read>(
 ///
 /// # Errors
 ///
-/// Returns a header variant when the version, dimensions, frame count, or data
-/// type code are invalid, and [`MghError::TruncatedPayload`] when the payload is
-/// shorter than the header declares.
+/// - [`MghError::Open`] when the file cannot be opened.
+/// - [`MghError::Header`] when a header field cannot be read, including a stream that ends inside the header.
+/// - [`MghError::InvalidVersion`] when the header version is not the supported version.
+/// - [`MghError::InvalidDimensions`] when an extent is zero or negative.
+/// - [`MghError::InvalidFrameCount`] when the frame count is zero or negative.
+/// - [`MghError::UnsupportedDataType`] when the voxel data type code is not supported.
+/// - [`MghError::InvalidSpacing`] when the RAS voxel spacing is not positive and finite.
+/// - [`MghError::DimensionOverflow`] when the per-frame voxel count overflows `usize`.
+/// - [`MghError::SeriesOverflow`] when the voxel count times the frame count overflows `usize`.
+/// - [`MghError::DataSizeOverflow`] when the series payload size in bytes overflows `usize`.
+/// - [`MghError::TruncatedPayload`] when the payload is shorter than the header declares, or an MGZ stream exceeds the decompression cap.
+/// - [`MghError::PayloadRead`] when the payload stream fails while being read.
+/// - [`MghError::Allocation`] when decode storage cannot be reserved.
+/// - [`MghError::Image`] when the decoded voxels cannot be assembled into an image.
 pub fn read_mgh_series<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
@@ -306,7 +327,21 @@ impl MghReader {
     ///
     /// # Errors
     ///
-    /// See [`read_mgh`].
+    /// - [`MghError::Open`] when the file cannot be opened.
+    /// - [`MghError::Header`] when a header field cannot be read, including a stream that ends inside the header.
+    /// - [`MghError::InvalidVersion`] when the header version is not the supported version.
+    /// - [`MghError::InvalidDimensions`] when an extent is zero or negative.
+    /// - [`MghError::InvalidFrameCount`] when the frame count is zero or negative.
+    /// - [`MghError::UnsupportedDataType`] when the voxel data type code is not supported.
+    /// - [`MghError::InvalidSpacing`] when the RAS voxel spacing is not positive and finite.
+    /// - [`MghError::DimensionOverflow`] when the per-frame voxel count overflows `usize`.
+    /// - [`MghError::SeriesOverflow`] when the voxel count times the frame count overflows `usize`.
+    /// - [`MghError::DataSizeOverflow`] when the series payload size in bytes overflows `usize`.
+    /// - [`MghError::MultiFrame`] when the file declares more than one frame; a multi-frame volume has no correct single-volume decoding, so it fails rather than yielding frame 0.
+    /// - [`MghError::TruncatedPayload`] when the payload is shorter than the header declares, or an MGZ stream exceeds the decompression cap.
+    /// - [`MghError::PayloadRead`] when the payload stream fails while being read.
+    /// - [`MghError::Allocation`] when decode storage cannot be reserved.
+    /// - [`MghError::Image`] when the decoded voxels cannot be assembled into an image.
     pub fn read<B: ComputeBackend, P: AsRef<Path>>(
         path: P,
         backend: &B,
@@ -318,7 +353,20 @@ impl MghReader {
     ///
     /// # Errors
     ///
-    /// See [`read_mgh_series`].
+    /// - [`MghError::Open`] when the file cannot be opened.
+    /// - [`MghError::Header`] when a header field cannot be read, including a stream that ends inside the header.
+    /// - [`MghError::InvalidVersion`] when the header version is not the supported version.
+    /// - [`MghError::InvalidDimensions`] when an extent is zero or negative.
+    /// - [`MghError::InvalidFrameCount`] when the frame count is zero or negative.
+    /// - [`MghError::UnsupportedDataType`] when the voxel data type code is not supported.
+    /// - [`MghError::InvalidSpacing`] when the RAS voxel spacing is not positive and finite.
+    /// - [`MghError::DimensionOverflow`] when the per-frame voxel count overflows `usize`.
+    /// - [`MghError::SeriesOverflow`] when the voxel count times the frame count overflows `usize`.
+    /// - [`MghError::DataSizeOverflow`] when the series payload size in bytes overflows `usize`.
+    /// - [`MghError::TruncatedPayload`] when the payload is shorter than the header declares, or an MGZ stream exceeds the decompression cap.
+    /// - [`MghError::PayloadRead`] when the payload stream fails while being read.
+    /// - [`MghError::Allocation`] when decode storage cannot be reserved.
+    /// - [`MghError::Image`] when the decoded voxels cannot be assembled into an image.
     pub fn read_series<B: ComputeBackend, P: AsRef<Path>>(
         path: P,
         backend: &B,
