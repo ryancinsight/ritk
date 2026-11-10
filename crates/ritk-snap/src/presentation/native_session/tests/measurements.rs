@@ -1,8 +1,8 @@
 //! Native measurement line drawing and plane binding.
 
-use super::super::layout::{measurement_overlay, MEASUREMENT_COLOR};
+use super::super::layout::{measurement_overlay, MEASUREMENT_COLOR, ROI_COLOR};
 use super::*;
-use crate::tools::interaction::{Annotation, AnnotationPlane, PlacedAnnotation};
+use crate::tools::interaction::{Annotation, AnnotationPlane, PlacedAnnotation, ToolState};
 use crate::tools::kind::ToolKind;
 use metis_platform::native::MouseButton;
 use metis_ui_lang::DisplayCommand;
@@ -84,11 +84,13 @@ fn native_annotation_is_drawn_only_on_its_own_slice_and_axis() {
         slice: view.slice_index,
     };
 
-    let shown = measurement_overlay(view, viewport, &[length_on(here)]).expect("overlay");
+    let shown =
+        measurement_overlay(view, viewport, &[length_on(here)], &ToolState::Idle).expect("overlay");
     let hidden = measurement_overlay(
         view,
         viewport,
         &[length_on(other_slice), length_on(other_axis)],
+        &ToolState::Idle,
     )
     .expect("overlay");
 
@@ -106,7 +108,8 @@ fn native_annotation_endpoints_use_the_pixel_projection() {
         slice: view.slice_index,
     });
 
-    let overlay = measurement_overlay(view, viewport, &[placed]).expect("overlay");
+    let overlay =
+        measurement_overlay(view, viewport, &[placed], &ToolState::Idle).expect("overlay");
 
     let mapping = viewport.mapping();
     let image_point = |(x, y): (i32, i32)| {
@@ -127,4 +130,34 @@ fn native_annotation_endpoints_use_the_pixel_projection() {
         }
         other => panic!("expected one line, found {other:?}"),
     }
+}
+
+#[test]
+fn native_annotation_in_progress_roi_is_previewed_on_the_active_pane() {
+    let (mut session, _root) = session();
+    session.app.active_tool = ToolKind::RoiRect;
+    let (x, y) = session.viewports[0].center();
+    session
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x,
+                y,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerMove {
+                x: x + 30,
+                y: y + 20,
+            },
+        ])
+        .expect("begin ROI drag");
+
+    assert!(matches!(session.app.tool_state, ToolState::RoiDrag { .. }));
+    let overlay = measurement_overlay(
+        &session.views[0],
+        &session.viewports[0],
+        &[],
+        &session.app.tool_state,
+    )
+    .expect("overlay");
+    assert_eq!(line_colors(overlay.commands()), vec![ROI_COLOR; 4]);
 }

@@ -2,6 +2,7 @@
 
 use super::layout::{crosshair_overlay, measurement_overlay, MAX_GRID_PANELS};
 use super::session::NativeViewerSession;
+use crate::tools::interaction::ToolState;
 use anyhow::Result;
 use arrayvec::ArrayVec;
 
@@ -23,7 +24,7 @@ impl NativeViewerSession {
         Ok(())
     }
 
-    /// Draw each pane's measurements.
+    /// Draw each pane's measurements, previewing the gesture on the active pane.
     pub(super) fn render_measurement_overlay(&mut self) -> Result<()> {
         if self.workspace_layout.is_grid() {
             for (index, viewport) in self.viewports.iter().enumerate() {
@@ -38,12 +39,22 @@ impl NativeViewerSession {
                 if app.loaded.is_none() {
                     continue;
                 }
-                measurement_overlay(view, viewport, &app.annotations)?
+                let gesture = if index == self.active_panel {
+                    &app.tool_state
+                } else {
+                    &ToolState::Idle
+                };
+                measurement_overlay(view, viewport, &app.annotations, gesture)?
                     .render_to(&mut self.framebuffer);
             }
         } else if self.app.loaded.is_some() {
-            for (view, viewport) in self.views.iter().zip(&self.viewports) {
-                measurement_overlay(view, viewport, &self.app.annotations)?
+            for (index, (view, viewport)) in self.views.iter().zip(&self.viewports).enumerate() {
+                let gesture = if self.active_view == Some(index) {
+                    &self.app.tool_state
+                } else {
+                    &ToolState::Idle
+                };
+                measurement_overlay(view, viewport, &self.app.annotations, gesture)?
                     .render_to(&mut self.framebuffer);
             }
         }

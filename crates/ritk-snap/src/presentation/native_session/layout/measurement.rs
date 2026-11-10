@@ -13,11 +13,23 @@ use super::super::frame::RenderedView;
 use super::geometry::{
     screen_coordinate, source_point_to_screen, visible_image_bounds, NativeViewport,
 };
-use crate::tools::interaction::{Annotation, PlacedAnnotation};
+use crate::tools::interaction::{Annotation, PlacedAnnotation, RoiKind, ToolState};
 
 pub(crate) const MEASUREMENT_COLOR: Color = Color::rgba(255, 255, 0, 255);
+pub(crate) const ROI_COLOR: Color = Color::rgba(0, 255, 0, 255);
+const POINT_COLOR: Color = Color::rgba(0, 255, 255, 255);
+
+/// Polygon resolution of a drawn ellipse.
+///
+/// The chord of a 64-gon deviates from its circle by `r(1 - cos(pi / 64))`,
+/// which stays under one device pixel up to a radius of about 830 pixels.
+const ELLIPSE_SEGMENTS: u16 = 64;
+const POINT_MARK_HALF_WIDTH: f64 = 4.0;
 
 /// Build the line work for one pane.
+///
+/// `gesture` is the tool state to preview; panes other than the one being
+/// interacted with pass [`ToolState::Idle`].
 ///
 /// # Errors
 /// Returns an error when a projected coordinate is outside the host range or
@@ -26,6 +38,7 @@ pub(crate) fn measurement_overlay(
     view: &RenderedView,
     viewport: &NativeViewport,
     annotations: &[PlacedAnnotation],
+    gesture: &ToolState,
 ) -> Result<DisplayList> {
     let mut list = DisplayList::default();
     let Some(clip) = visible_image_bounds(viewport) else {
@@ -42,6 +55,7 @@ pub(crate) fn measurement_overlay(
     {
         pane.draw_annotation(&placed.annotation, &mut list)?;
     }
+    pane.draw_gesture(gesture, &mut list)?;
     Ok(list)
 }
 
@@ -87,19 +101,120 @@ impl Pane<'_> {
         Ok(())
     }
 
+    fn rectangle(
+        &self,
+        list: &mut DisplayList,
+        first: [f32; 2],
+        opposite: [f32; 2],
+        color: Color,
+    ) -> Result<()> {
+        let corners = [
+            first,
+            [first[0], opposite[1]],
+            opposite,
+            [opposite[0], first[1]],
+        ];
+        for (index, corner) in corners.iter().enumerate() {
+            self.image_segment(list, *corner, corners[(index + 1) % corners.len()], color)?;
+        }
+        Ok(())
+    }
+
+    fn ellipse(
+        &self,
+        list: &mut DisplayList,
+        center: [f32; 2],
+        radii: [f32; 2],
+        color: Color,
+    ) -> Result<()> {
+        let vertex = |index: u16| {
+            let angle = std::f32::consts::TAU * f32::from(index % ELLIPSE_SEGMENTS)
+                / f32::from(ELLIPSE_SEGMENTS);
+            [
+                center[0] + radii[0] * angle.sin(),
+                center[1] + radii[1] * angle.cos(),
+            ]
+        };
+        for index in 0..ELLIPSE_SEGMENTS {
+            self.image_segment(list, vertex(index), vertex(index + 1), color)?;
+        }
+        Ok(())
+    }
+
+    fn point_mark(&self, list: &mut DisplayList, image: [f32; 2], color: Color) -> Result<()> {
+        if let Some([x, y]) = self.point(image)? {
+            let half = POINT_MARK_HALF_WIDTH;
+            self.segment(list, [x - half, y], [x + half, y], color)?;
+            self.segment(list, [x, y - half], [x, y + half], color)?;
+        }
+        Ok(())
+    }
+
     fn draw_annotation(&self, annotation: &Annotation, list: &mut DisplayList) -> Result<()> {
         match annotation {
             Annotation::Length { p1, p2, .. } => {
                 self.image_segment(list, *p1, *p2, MEASUREMENT_COLOR)
             }
+            Annotation::PatientLength(_) => Ok(()),
             Annotation::Angle { p1, p2, p3, .. } => {
                 self.image_segment(list, *p1, *p2, MEASUREMENT_COLOR)?;
                 self.image_segment(list, *p2, *p3, MEASUREMENT_COLOR)
             }
-            Annotation::PatientLength(_)
-            | Annotation::RoiRect { .. }
-            | Annotation::RoiEllipse { .. }
-            | Annotation::HuPoint { .. } => Ok(()),
+            Annotation::RoiRect {
+                top_left,
+                bottom_right,
+                ..
+            } => self.rectangle(list, *top_left, *bottom_right, ROI_COLOR),
+            Annotation::RoiEllipse { center, radii, .. } => {
+                self.ellipse(list, *center, *radii, ROI_COLOR)
+            }
+            Annotation::HuPoint { pos, .. } => self.point_mark(list, *pos, POINT_COLOR),
+        }
+    }
+
+    fn draw_gesture(&self, gesture: &ToolState, lines: &mut DisplayList) -> Result<()> {
+        match gesture {
+            ToolState::LengthDrag { start, current } => self.image_segment(
+                lines,
+                [start.y(), start.x()],
+                [current.y(), current.x()],
+                MEASUREMENT_COLOR,
+            ),
+            ToolState::MeasureLength1 { p1 } => {
+                self.point_mark(lines, [p1.y(), p1.x()], MEASUREMENT_COLOR)
+            }
+            ToolState::MeasureAngle2 { p1, p2 } => {
+                self.image_segment(lines, [p1.y(), p1.x()], [p2.y(), p2.x()], MEASUREMENT_COLOR)
+            }
+            ToolState::RoiDrag {
+                start,
+                current,
+                kind: RoiKind::Rect,
+            } => self.rectangle(
+                lines,
+                [start.y(), start.x()],
+                [current.y(), current.x()],
+                ROI_COLOR,
+            ),
+            ToolState::RoiDrag {
+                start,
+                current,
+                kind: RoiKind::Ellipse,
+            } => {
+                let center = [
+                    (start.y() + current.y()) / 2.0,
+                    (start.x() + current.x()) / 2.0,
+                ];
+                let radii = [
+                    (start.y() - current.y()).abs() / 2.0,
+                    (start.x() - current.x()).abs() / 2.0,
+                ];
+                self.ellipse(lines, center, radii, ROI_COLOR)
+            }
+            ToolState::Idle
+            | ToolState::Panning { .. }
+            | ToolState::Zooming { .. }
+            | ToolState::WindowLevelDrag { .. } => Ok(()),
         }
     }
 }
