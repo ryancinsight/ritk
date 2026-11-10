@@ -3,7 +3,7 @@
 //! Codec and format readers derive allocation sizes from header fields. Checking
 //! those sizes against one [`ImageReadBudget`] before allocating keeps the
 //! ceilings identical across every reader. `dimensions` carries the older
-//! per-pixel decode caps of the JPEG and JPEG-LS decoders.
+//! per-pixel decode caps of the JPEG, JPEG-LS, and JPEG 2000 decoders.
 
 use thiserror::Error;
 
