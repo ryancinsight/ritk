@@ -66,8 +66,9 @@ fn test_read_truncated_file() {
     buf[20..24].copy_from_slice(&MRI_FLOAT.to_be_bytes());
     std::fs::write(&path, &buf).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
-    assert_rejects(result, "Failed to parse MGH file");
+    let error =
+        read_mgh::<TestBackend, _>(&path, &backend).expect_err("a header cut short must fail");
+    assert!(matches!(error, MghError::Header { .. }), "got: {error}");
 }
 
 #[test]
@@ -94,10 +95,9 @@ fn test_read_multi_frame_fails_rather_than_returning_frame_zero() {
     let err = read_mgh::<TestBackend, _>(&path, &backend)
         .expect_err("a 3-frame MGH has no 3-D representation and must not read as one");
 
-    let msg = format!("{err:#}");
     assert!(
-        msg.contains("3 frames"),
-        "error must name the declared frame count, got: {msg}"
+        matches!(err, MghError::MultiFrame { nframes: 3 }),
+        "got: {err}"
     );
 }
 
@@ -157,8 +157,18 @@ fn test_read_hostile_dims_does_not_oom() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
-    assert_rejects(result, "Failed to parse MGH file");
+    let error = read_mgh::<TestBackend, _>(&path, &backend)
+        .expect_err("16 payload bytes cannot satisfy a 1024^3 volume");
+    assert!(
+        matches!(
+            error,
+            MghError::TruncatedPayload {
+                voxel: 4,
+                voxel_count: 1_073_741_824,
+            }
+        ),
+        "got: {error}"
+    );
 }
 
 #[test]
