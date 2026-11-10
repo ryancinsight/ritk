@@ -24,8 +24,17 @@
 //! ```
 //!
 //! Both layouts produce the **same byte sequence** for equal (nx, ny, nz), so
-//! no axis permutation is required for the raw data.  The header fields are
-//! set accordingly: `dim[1]=nx`, `dim[2]=ny`, `dim[3]=nz`.
+//! an image on the file axes is written without reordering its raw data. The
+//! header fields are set accordingly: `dim[1]=nx`, `dim[2]=ny`, `dim[3]=nz`.
+//!
+//! # Direction
+//!
+//! Analyze 7.5 has no direction field: its axes are the file axes,
+//! [`file_axes_direction`], the direction [`crate::read_analyze`] returns. An
+//! image whose direction is any other signed axis permutation, identity
+//! included, is first relabeled onto them by [`SignedAxisPermutation`] (axis
+//! transpose, flip and origin move), so every voxel keeps its world point. An
+//! oblique or sheared direction has no such relabeling and is refused.
 //!
 //! # Spatial Metadata
 //!
@@ -38,7 +47,7 @@
 
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::file_axes_direction;
+use ritk_image::{file_axes_direction, SignedAxisPermutation};
 use ritk_spatial::{Point, Spacing};
 
 use crate::header::{self, AnalyzeDatatype, AnalyzeHeaderFields};
@@ -78,9 +87,9 @@ const NATIVE_DESCRIPTION: &[u8] = b"RITK";
 /// # Errors
 /// Returns an error if:
 /// - `path`'s parent directory does not exist.
-/// - The image's `direction` is not [`file_axes_direction`], the one the
-///   reader returns: Analyze 7.5 has no direction field, so writing another
-///   would silently drop it.
+/// - The image's `direction` is not a signed axis permutation, so no
+///   relabeling puts its voxels on the file axes; Analyze 7.5 has no direction
+///   field to carry it.
 /// - Any dimension is zero or exceeds `i16::MAX` (32 767).
 /// - The image storage length does not match its shape.
 /// - Spacing cannot be represented as a positive finite header `f32`, or any
@@ -93,22 +102,29 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     P: AsRef<Path>,
 {
-    // Analyze 7.5 has no direction field: its axes are the file axes. Reject
-    // any other direction before touching the file system rather than writing
-    // a dataset whose geometry silently disagrees with the source.
-    anyhow::ensure!(
-        image.direction() == &file_axes_direction(),
-        "Analyze 7.5 has no direction field; a direction other than the file-axes \
-         permutation is unrepresentable and cannot be written without silently \
-         dropping it"
-    );
+    // Analyze 7.5 has no direction field: its axes are the file axes. Relabel
+    // a signed permutation onto them, and refuse any other direction before
+    // touching the file system rather than writing a dataset whose geometry
+    // silently disagrees with the source.
+    let permutation = SignedAxisPermutation::between(image.direction(), &file_axes_direction())
+        .context(
+            "Analyze 7.5 has no direction field; a direction that is not a signed axis \
+             permutation cannot be relabeled onto the file axes",
+        )?;
     let vals = image.data_cow_on(backend)?;
+    let grid = permutation.reexpress(
+        &vals,
+        image.shape(),
+        image.origin(),
+        image.spacing(),
+        image.direction(),
+    );
     write_analyze_flat(
         path.as_ref(),
-        image.shape(),
-        image.spacing(),
-        image.origin(),
-        &vals,
+        grid.dims,
+        &grid.spacing,
+        &grid.origin,
+        &grid.values,
     )
 }
 
@@ -289,23 +305,23 @@ mod tests {
         Ok(())
     }
 
-    /// Every direction but the file-axes one is rejected before either file
-    /// is created, identity included.
+    /// A direction that is not a signed axis permutation is rejected before
+    /// either file is created.
     ///
-    /// Analyze 7.5 has no direction field. Writing such an image would produce a
-    /// dataset whose geometry silently disagrees with the source, so the writer
-    /// refuses instead. The shared round-trip harness writes only the file-axes
-    /// direction, so only a direct test can pin the rejection.
+    /// Analyze 7.5 has no direction field and no relabeling puts an oblique or
+    /// sheared grid on the file axes, so writing it would produce a dataset
+    /// whose geometry silently disagrees with the source.
     #[test]
-    fn writer_rejects_every_direction_but_file_axes_before_creating_files() -> Result<()> {
+    fn writer_rejects_oblique_directions_before_creating_files() -> Result<()> {
         use coeus_core::SequentialBackend;
         use ritk_image::Image;
 
         let directory = tempdir()?;
         let path = directory.path().join("oblique.hdr");
+        let half = std::f64::consts::FRAC_1_SQRT_2;
         for direction in [
-            Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]),
-            Direction::identity(),
+            Direction::from_rows([[half, -half, 0.0], [half, half, 0.0], [0.0, 0.0, 1.0]]),
+            Direction::from_rows([[1.0, 0.0, 0.0], [0.0, 1.0, 0.5], [0.0, 0.0, 1.0]]),
         ] {
             let image = Image::from_flat_on(
                 vec![1.0_f32; 2],
@@ -318,7 +334,7 @@ mod tests {
             .expect("fixture image");
 
             let error = super::write_analyze(&path, &image, &SequentialBackend)
-                .expect_err("only the file-axes direction is representable in Analyze 7.5");
+                .expect_err("a non-permutation direction is unrepresentable in Analyze 7.5");
             assert!(
                 error.to_string().contains("no direction field"),
                 "unexpected error for {direction:?}: {error:#}"

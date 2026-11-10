@@ -117,8 +117,8 @@ first-series fallback is used. Obtain the UID from RITK's series discovery or th
 
 Python image reads use the Atlas-native path for NIfTI, MetaImage, NRRD, PNG, DICOM
 directories, MGH/MGZ, TIFF, JPEG, Analyze, and legacy VTK.  Python image writes use the Atlas-native path
-for NIfTI, MetaImage, NRRD, MGH/MGZ, TIFF, JPEG, Analyze, and legacy VTK.  PNG and DICOM image
-writes are rejected until native writers exist.
+for NIfTI, MetaImage, NRRD, PNG, MGH/MGZ, TIFF, JPEG, Analyze, and legacy VTK.  DICOM image
+writes are rejected: a series is a directory of instances.
 
 ### Extension Points
 

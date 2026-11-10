@@ -104,7 +104,7 @@ fn physical_point(
 /// see `ritk-mgh`'s hand-built-header and byte-layout tests, `ritk-mif`'s
 /// transform-less-header oracle, `ritk-vtk`'s hand-built-file and
 /// `SPACING`/`DIMENSIONS` agreement oracles, and `ritk-analyze`'s hand-built
-/// header oracle in `tests/axes.rs`.
+/// header oracle in `crates/ritk-analyze/src/tests/axes.rs`.
 fn assert_native_writer_reader_round_trips<W, R>(
     path: &Path,
     writer: &W,
