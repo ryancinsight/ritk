@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_codecs::{ByteOrder, SampleType};
+use ritk_codecs::{ByteOrder, ImageReadBudget, SampleType};
 use ritk_image::Image;
-use ritk_image_io::{ImageReadBudget, SeriesAxis};
+use ritk_image_io::SeriesAxis;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 

@@ -5,7 +5,7 @@ use crate::reader::stored::NrrdStoredReadError;
 use anyhow::Result;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use ritk_image_io::{ImageReadBudget, ImageReadBudgetError, ImageReadResource};
+use ritk_codecs::{ImageReadBudget, ImageReadBudgetError, ImageReadResource};
 use std::io::Write;
 use tempfile::tempdir;
 

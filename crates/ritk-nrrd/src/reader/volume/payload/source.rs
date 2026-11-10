@@ -5,7 +5,7 @@
 //! `data file` references are validated to stay inside the header's
 //! directory. Neither helper retains payload bytes.
 
-use ritk_image_io::{ImageReadBudget, ImageReadResource};
+use ritk_codecs::{ImageReadBudget, ImageReadResource};
 use std::io::ErrorKind;
 use std::path::{Component, Path};
 

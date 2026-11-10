@@ -2,11 +2,9 @@ use crate::document::read_nrrd_document_from_session;
 use crate::reader::{NrrdHeaderError, NrrdReadSession, MAX_HEADER_ENTRIES};
 use crate::{read_nrrd_document, write_nrrd_document, NrrdDocument, NrrdDocumentError};
 use anyhow::Result;
-use ritk_codecs::{ByteOrder, SampleBuffer};
+use ritk_codecs::{ByteOrder, ImageReadBudget, SampleBuffer};
 use ritk_image::ImageMetadata;
-use ritk_image_io::{
-    ImageReadBudget, IntensityCalibration, SeriesAxis, StoredSeries, StoredVolume,
-};
+use ritk_image_io::{IntensityCalibration, SeriesAxis, StoredSeries, StoredVolume};
 use ritk_spatial::{CoordinateMap, Direction, Point, Spacing};
 use std::fs;
 use std::io::Write;

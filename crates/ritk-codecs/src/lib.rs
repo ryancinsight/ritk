@@ -24,6 +24,7 @@ pub mod jpeg_2000;
 pub mod jpeg_ls;
 pub mod packbits;
 pub mod pixel_layout;
+mod read_budget;
 pub mod rle;
 pub mod sample;
 
@@ -40,5 +41,6 @@ pub use pixel_layout::{
     decode_native_pixel_bytes_checked, decode_stored_pixel_frame, PixelLayout, PixelSignedness,
     StoredPixelError,
 };
+pub use read_budget::{ImageReadBudget, ImageReadBudgetError, ImageReadResource};
 pub use rle::{decode_rle_lossless_fragment, encode_rle_lossless_fragment_u16_grayscale};
 pub use sample::{Sample, SampleBuffer, SampleError, SampleExtractionError, SampleType};
