@@ -1,6 +1,6 @@
 //! Byte decoding for MRtrix `.mif` binary payloads.
 
-use anyhow::{anyhow, Result};
+use crate::MifError;
 
 /// Decode raw bytes into `f32` values.
 ///
@@ -14,17 +14,20 @@ pub(crate) fn decode_bytes(
     elem_size: usize,
     expected_count: usize,
     is_big_endian: bool,
-) -> Result<Vec<f32>> {
-    let expected_bytes = expected_count.checked_mul(elem_size).ok_or_else(|| {
-        anyhow!(".mif element count {expected_count} of {elem_size}-byte elements overflows usize")
-    })?;
+) -> Result<Vec<f32>, MifError> {
+    let expected_bytes =
+        expected_count
+            .checked_mul(elem_size)
+            .ok_or(MifError::ByteCountOverflow {
+                count: expected_count,
+                elem_size,
+            })?;
     if raw.len() != expected_bytes {
-        return Err(anyhow!(
-            ".mif payload size mismatch: expected {} elements ({} bytes), got {} bytes",
+        return Err(MifError::PayloadSizeMismatch {
             expected_count,
             expected_bytes,
-            raw.len()
-        ));
+            actual: raw.len(),
+        });
     }
 
     let mut out = Vec::with_capacity(expected_count);
@@ -68,12 +71,7 @@ pub(crate) fn decode_bytes(
                 out.push(val);
             }
         }
-        _ => {
-            return Err(anyhow!(
-                "Unsupported .mif element size {} (expected 1, 2, 4, or 8)",
-                elem_size
-            ));
-        }
+        _ => return Err(MifError::UnsupportedElementSize { elem_size }),
     }
 
     Ok(out)

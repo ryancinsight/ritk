@@ -324,9 +324,9 @@ fn an_overstated_file_offset_does_not_drive_allocation() {
 
     let err = result.expect_err("a 32-byte payload cannot satisfy a 4 GB offset");
     let message = format!("{err:#}");
-    assert!(
-        message.contains("offset"),
-        "the error should name the offset that could not be satisfied, got: {message}"
+    assert_eq!(
+        message, ".mif 'file' key declares offset 4000000000, but only 32 bytes follow the header",
+        "the overrun message is one sentence naming the offset"
     );
     assert!(
         peak < PEAK_LIMIT,

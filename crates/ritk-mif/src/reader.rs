@@ -9,11 +9,12 @@ use crate::header::{
     parse_datatype, parse_dim, parse_f64_vec, parse_layout, parse_mif_header_from_path,
     parse_transform,
 };
-use anyhow::{anyhow, bail, Context, Result};
+use crate::MifError;
+use anyhow::{anyhow, Result};
 use coeus_core::ComputeBackend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing, Vector};
-use std::io::Read;
+use std::io::{BufReader, Read};
 use std::path::Path;
 
 /// Decoded `.mif` voxel data: one flat `[Z, Y, X]` volume per frame,
@@ -103,7 +104,7 @@ pub fn read_mif_series<B: ComputeBackend, P: AsRef<Path>>(
 
 fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
     let path = path.as_ref();
-    let (header, mut reader) = parse_mif_header_from_path(path)?;
+    let (header, reader) = parse_mif_header_from_path(path)?;
 
     // ── Required fields ──────────────────────────────────────────────────
     let dim_str = header
@@ -198,82 +199,47 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
         .checked_mul(elem_size)
         .ok_or_else(|| anyhow!(".mif byte count overflows usize"))?;
 
-    // Handle detached data file.
-    let raw_bytes: Vec<u8> = if let Some(file_val) = header.entries.get("file") {
-        let file_spec = file_val.as_line();
-        // "file: . 2" means data starts at byte offset 2 in the same file.
-        // "file: sub-01_dwi.mif.dat 0" means a detached file.
-        let parts: Vec<&str> = file_spec.split_whitespace().collect();
-        if parts.len() >= 2 {
-            let fname = parts[0];
-            let offset: u64 = parts[1]
+    let raw_bytes: Vec<u8> = match header.entries.get("file") {
+        // Inline data right after END, read from the current reader position.
+        None => read_payload(reader, 0, expected_bytes, path)?,
+        Some(file_val) => {
+            // "file: . 2" means data starts at byte offset 2 after the header.
+            // "file: sub-01_dwi.mif.dat 0" means a detached file.
+            let file_spec = file_val.as_line();
+            let parts: Vec<&str> = file_spec.split_whitespace().collect();
+            let [file_name, offset, ..] = parts.as_slice() else {
+                return Err(MifError::InvalidFileKey {
+                    spec: file_spec.to_owned(),
+                }
+                .into());
+            };
+            let offset: u64 = offset
                 .parse()
-                .context("Invalid offset in .mif 'file' key")?;
-            if fname == "." {
-                // Inline data at offset — consume from the current reader.
-                // We already read the header, so we need to account for that.
-                // Actually, parse_mif_header_from_path leaves the reader
-                // positioned right after END\n, so offset 0 here means
-                // "start now".  >0 means skip additional bytes.
-                if offset > 0 {
-                    // Discard through a fixed scratch rather than allocating
-                    // the offset: it is a number on a header line, not a fact
-                    // about the file, so `vec![0u8; offset]` let
-                    // `file: . 4000000000` zero-fill 4 GB from a 300-byte input
-                    // — and succeed, which is silent exhaustion rather than a
-                    // crash. Copying to a sink is bounded by the bytes that
-                    // actually arrive, so an overstated offset fails as the
-                    // truncation it is.
-                    let skipped = std::io::copy(
-                        &mut std::io::Read::by_ref(&mut reader).take(offset),
-                        &mut std::io::sink(),
-                    )
-                    .context("Failed to skip inline data offset in .mif")?;
-                    if skipped != offset {
-                        bail!(
-                            ".mif 'file' key declares offset {offset}, but only {skipped} bytes                              follow the header"
-                        );
-                    }
-                }
-                let mut bytes = Vec::new();
-                reader
-                    .read_to_end(&mut bytes)
-                    .context("Failed to read inline .mif binary data")?;
-                bytes
+                .map_err(|source| MifError::InvalidFileOffset { source })?;
+            if *file_name == "." {
+                read_payload(reader, offset, expected_bytes, path)?
             } else {
-                let data_path = path.parent().unwrap_or_else(|| Path::new(".")).join(fname);
-                let mut bytes = std::fs::read(&data_path)
-                    .with_context(|| format!("Cannot read .mif data file {:?}", data_path))?;
-                if offset > 0 {
-                    bytes.drain(..(offset as usize).min(bytes.len()));
-                }
-                bytes
+                let data_path = path
+                    .parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .join(file_name);
+                let data_file =
+                    std::fs::File::open(&data_path).map_err(|source| MifError::PayloadRead {
+                        path: data_path.clone(),
+                        source,
+                    })?;
+                read_payload(
+                    BufReader::new(data_file),
+                    offset,
+                    expected_bytes,
+                    &data_path,
+                )?
             }
-        } else {
-            return Err(anyhow!(
-                "Invalid 'file' key in .mif header: '{}'",
-                file_spec
-            ));
         }
-    } else {
-        // Inline data right after END — read from the current reader position.
-        let mut bytes = Vec::new();
-        reader
-            .read_to_end(&mut bytes)
-            .context("Failed to read inline .mif binary data")?;
-        bytes
     };
 
-    if raw_bytes.len() < expected_bytes {
-        return Err(anyhow!(
-            ".mif payload has {} bytes but dim requires {expected_bytes}",
-            raw_bytes.len()
-        ));
-    }
-    let raw_bytes = &raw_bytes[..expected_bytes];
-
     // ── Decode to f32 ────────────────────────────────────────────────────
-    let f32_data = decode::decode_bytes(raw_bytes, elem_size, total_voxels, is_big_endian)?;
+    let f32_data = decode::decode_bytes(&raw_bytes, elem_size, total_voxels, is_big_endian)?;
 
     // ── De-interleave frames ─────────────────────────────────────────────
     // MRtrix data is stored with the fastest-varying axis determined by
@@ -310,6 +276,45 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
         spacing,
         direction,
     })
+}
+
+/// Skips `offset` bytes of `source`, then reads exactly `expected_bytes`.
+///
+/// The offset is a number on a header line, not a fact about the file, so it
+/// is discarded through a sink instead of sizing a buffer: `file: . 4000000000`
+/// in a 300-byte file once zero-filled 4 GB and succeeded. Copying is bounded
+/// by the bytes that arrive, so an overstated offset fails as
+/// [`MifError::OffsetOverrun`]. Reading stops at `expected_bytes`.
+fn read_payload(
+    mut source: impl Read,
+    offset: u64,
+    expected_bytes: usize,
+    path: &Path,
+) -> Result<Vec<u8>, MifError> {
+    let read_error = |source| MifError::PayloadRead {
+        path: path.to_path_buf(),
+        source,
+    };
+    let skipped = std::io::copy(&mut source.by_ref().take(offset), &mut std::io::sink())
+        .map_err(read_error)?;
+    if skipped != offset {
+        return Err(MifError::OffsetOverrun {
+            offset,
+            available: skipped,
+        });
+    }
+    let mut bytes = Vec::new();
+    source
+        .take(u64::try_from(expected_bytes).unwrap_or(u64::MAX))
+        .read_to_end(&mut bytes)
+        .map_err(read_error)?;
+    if bytes.len() < expected_bytes {
+        return Err(MifError::PayloadTooShort {
+            actual: bytes.len(),
+            expected: expected_bytes,
+        });
+    }
+    Ok(bytes)
 }
 
 // ── Transform decomposition ──────────────────────────────────────────────
