@@ -87,3 +87,21 @@ fn scaled_check_rejects_a_product_beyond_usize_under_the_widest_ceiling() {
         })
     );
 }
+
+#[test]
+fn scaled_check_applies_the_ceiling_to_a_product_that_fits_usize() {
+    let admitting = ImageReadBudget::new(1, 16, 1).expect("all ceilings are positive");
+    assert_eq!(
+        admitting.check_scaled(ImageReadResource::DecodedBytes, 4, 4),
+        Ok(())
+    );
+    let rejecting = ImageReadBudget::new(1, 15, 1).expect("all ceilings are positive");
+    assert_eq!(
+        rejecting.check_scaled(ImageReadResource::DecodedBytes, 4, 4),
+        Err(ImageReadBudgetError::Exceeded {
+            resource: ImageReadResource::DecodedBytes,
+            actual: 16,
+            maximum: 15,
+        })
+    );
+}
