@@ -436,23 +436,20 @@ def test_read_write_image_nifti_roundtrip():
         os.unlink(path)
 
 
-def test_write_image_vtk_rejects_non_identity_direction(tmp_path):
-    """Legacy VTK cannot encode direction: rejection precedes file creation.
-
-    Every Python image carries `ritk_image::file_axes_direction()` (a permutation), and
-    the legacy structured-points writer deliberately rejects non-identity
-    directions rather than silently misorienting the volume (49dcdf05). The
-    round trip this test previously asserted is therefore impossible by
-    decision, not by defect; what this test now proves is the fail-closed
-    behavior, including that no output file appears.
-    """
-    values = np.arange(8, dtype=np.float32).reshape(2, 2, 2)
-    img = _ritk(values)
+def test_write_image_vtk_round_trips_file_axes_geometry(tmp_path):
+    """Distinct extents and spacings per axis make an X/Z swap visible."""
+    values = np.arange(24, dtype=np.float32).reshape(2, 3, 4)
+    img = _ritk(values, spacing=(1.0, 10.0, 100.0))
     path = tmp_path / "out.vtk"
 
-    with pytest.raises(OSError, match="non-identity direction"):
-        rio.write_image(img, str(path))
-    assert not path.exists()
+    rio.write_image(img, str(path))
+    back = rio.read_image(str(path))
+
+    np.testing.assert_array_equal(back.to_numpy(), values)
+    assert back.shape == img.shape
+    assert back.spacing == img.spacing
+    assert back.origin == img.origin
+    assert back.direction == img.direction
 
 
 def test_read_write_transform_translation_roundtrip():

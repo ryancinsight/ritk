@@ -375,7 +375,7 @@ def test_write_image_analyze_rejects_non_identity_direction(tmp_path):
     rather than publishing a pair whose geometry silently disagrees with the
     source (`docs/architecture.md` §23). Expecting a successful Python write is
     therefore incorrect by decision, not by defect — this mirrors the
-    legacy-VTK gate in `test_coverage_gaps.py` and the Rust-side
+    Rust-side test
     `writer_rejects_a_non_identity_direction_before_creating_files`.
 
     The pixdim-order regression this test once exercised through a Python write
