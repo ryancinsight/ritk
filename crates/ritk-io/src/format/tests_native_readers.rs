@@ -29,9 +29,6 @@ enum SpatialFidelity {
     /// The format stores no physical-space metadata, so geometry must be the
     /// default: zero origin, unit spacing, identity direction.
     None,
-    /// Spacing and origin round-trip; direction is unrepresentable and must
-    /// remain the identity the fixture writes.
-    SpacingAndOrigin,
     /// Spacing, origin, and the file-axes permutation round-trip; the format
     /// stores no other direction.
     FileAxes,
@@ -44,7 +41,7 @@ fn fixture_direction(fidelity: SpatialFidelity) -> Direction<3> {
     match fidelity {
         SpatialFidelity::Full => full_fidelity_direction(),
         SpatialFidelity::FileAxes => file_axes_direction(),
-        SpatialFidelity::None | SpatialFidelity::SpacingAndOrigin => Direction::identity(),
+        SpatialFidelity::None => Direction::identity(),
     }
 }
 
@@ -176,7 +173,7 @@ fn native_analyze_writer_reader_contract_round_trips() {
         &dir.path().join("contract.hdr"),
         &super::analyze::AnalyzeWriter::new(SequentialBackend),
         &super::analyze::AnalyzeReader::new(SequentialBackend),
-        SpatialFidelity::SpacingAndOrigin,
+        SpatialFidelity::FileAxes,
     );
 }
 

@@ -40,7 +40,6 @@
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — blocked
 <a id="RITK-SNAP-METIS-SHARED-TEXT-001"></a>- [RITK-SNAP-METIS-SHARED-TEXT-001](backlog/RITK-SNAP-METIS-SHARED-TEXT-001.md) — Build display text from shared strings — todo
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
-<a id="RITK-VTK-ANALYZE-READ-DIRECTION-001"></a>- [RITK-VTK-ANALYZE-READ-DIRECTION-001](backlog/RITK-VTK-ANALYZE-READ-DIRECTION-001.md) — Read VTK and Analyze volumes with file axes — todo
 <a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Write permuted images to VTK and Analyze — todo
 <a id="RITK-METAIMAGE-CONVERSION-INVENTORY-001"></a>- [RITK-METAIMAGE-CONVERSION-INVENTORY-001](backlog/RITK-METAIMAGE-CONVERSION-INVENTORY-001.md) — Map MetaImage volume semantics — todo
 <a id="RITK-MGH-CONVERSION-INVENTORY-001"></a>- [RITK-MGH-CONVERSION-INVENTORY-001](backlog/RITK-MGH-CONVERSION-INVENTORY-001.md) — Map MGH volume semantics — todo

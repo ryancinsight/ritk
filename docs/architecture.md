@@ -468,7 +468,7 @@ prepare_conversion(target, source_format, series, metadata_losses)
 **Writer behaviors**: `f32` only (`DT_FLOAT`); dimensions at most `i16::MAX`; positive finite `f32` spacing; origin rounded to an `i16` voxel coordinate; identity direction implied; the header is published only after the full payload is written.
 
 **Edge cases**:
-- Analyze has no direction field: any non-identity direction is unrepresentable and must be rejected on write rather than silently dropped.
+- Analyze has no direction field: its axes are the file axes, so the reader returns `ritk_image::file_axes_direction()` and any other direction is unrepresentable and must be rejected on write rather than silently dropped.
 - The `originator` field is unreliable across writers and rounds the origin to voxel coordinates; a non-integer-representable origin is rejected or reported as loss.
 - Pair atomicity: a failure after the `.img` is written but before the `.hdr` leaves an orphan `.img`; the writer stages both or documents the recovery.
 - Datatype `2/4/8/16/64` only; `u16`, `u32`, `i64`, and `u64` are unrepresentable.

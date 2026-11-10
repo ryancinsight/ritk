@@ -5,8 +5,8 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
 use ritk_analyze::{read_analyze, write_analyze};
-use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_image::{file_axes_direction, Image};
+use ritk_spatial::{Point, Spacing};
 use std::fmt::Write as _;
 use std::fs::OpenOptions;
 use std::io::Write as _;
@@ -64,7 +64,7 @@ fn make_volume(values: Vec<f32>) -> Result<Volume> {
         SHAPE,
         Point::new([3.0, -4.5, 8.0]),
         Spacing::new([2.0, 1.5, 0.75]),
-        Direction::identity(),
+        file_axes_direction(),
         &SequentialBackend,
     )
     .context("construct deterministic Analyze example volume")
@@ -257,7 +257,7 @@ fn draw_contract_panel(
     )?;
     writeln!(
         svg,
-        "<text x=\"17\" y=\"251\" class=\"warning\">direction is identity only</text></g>"
+        "<text x=\"17\" y=\"251\" class=\"warning\">direction is file axes only</text></g>"
     )?;
     Ok(())
 }

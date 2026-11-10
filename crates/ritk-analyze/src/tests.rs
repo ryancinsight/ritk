@@ -1,7 +1,8 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use anyhow::Result;
 use coeus_core::SequentialBackend;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_image::file_axes_direction;
+use ritk_spatial::{Point, Spacing};
 use std::path::Path;
 use tempfile::tempdir;
 
@@ -10,6 +11,8 @@ use crate::{
     read_analyze, write_analyze, DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT,
     DT_UNSIGNED_CHAR,
 };
+
+mod axes;
 
 fn analyze_header(datatype: i16, bitpix: i16, shape_xyz: [i16; 3]) -> [u8; HDR_SIZE] {
     let mut header = [0u8; HDR_SIZE];
@@ -59,7 +62,7 @@ fn make_image(
         shape,
         origin,
         spacing,
-        Direction::identity(),
+        file_axes_direction(),
         backend,
     )
 }
@@ -89,7 +92,7 @@ fn analyze_roundtrip_preserves_shape_spacing_origin_and_values() -> Result<()> {
     assert_eq!(loaded.shape(), [2, 3, 4]);
     assert_eq!(*loaded.spacing(), Spacing::new([1.25, 2.5, 3.75]));
     assert_eq!(*loaded.origin(), Point::new([7.5, 5.0, 3.75]));
-    assert_eq!(*loaded.direction(), Direction::identity());
+    assert_eq!(*loaded.direction(), file_axes_direction());
     assert_eq!(loaded.data_slice()?, values.as_slice());
 
     Ok(())

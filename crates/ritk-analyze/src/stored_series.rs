@@ -14,14 +14,14 @@
 
 use anyhow::Context;
 use ritk_codecs::{ByteOrder, SampleBuffer, SampleError, SampleType};
-use ritk_image::ImageMetadata;
+use ritk_image::{file_axes_direction, ImageMetadata};
 use ritk_image_io::{
     prepare_conversion, ConversionAdapter, ConversionFeature, ConversionLocation,
     ConversionPrepareError, ConversionRejection, ConversionTarget, FormatMetadataLoss,
     IntensityCalibration, LinearCalibration, PreparedConversion, SeriesAxis, StoredSeries,
     StoredSeriesError, StoredVolume, VolumeError,
 };
-use ritk_spatial::{CoordinateMap, Direction};
+use ritk_spatial::CoordinateMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -91,8 +91,8 @@ impl ConversionAdapter for AnalyzeStoredSeriesTarget<'_> {
                 reason: coordinate_map_name(volume.coordinate_map()),
             });
         }
-        if *volume.metadata().direction() != Direction::identity() {
-            return Err(AnalyzeStoredSeriesRejection::NonIdentityDirection { volume_index: 0 });
+        if *volume.metadata().direction() != file_axes_direction() {
+            return Err(AnalyzeStoredSeriesRejection::UnsupportedDirection { volume_index: 0 });
         }
         let scale = calibration_scale(volume.calibration(), 0)?;
         let header = header::encode(&AnalyzeHeaderFields {
@@ -236,7 +236,7 @@ pub fn read_analyze_stored<P: AsRef<Path>>(
     let volume = StoredVolume::new(
         header.shape,
         samples,
-        ImageMetadata::new(header.origin, header.spacing, Direction::identity()),
+        ImageMetadata::new(header.origin, header.spacing, file_axes_direction()),
         CoordinateMap::Cartesian,
         calibration,
     )?;
@@ -352,9 +352,13 @@ pub enum AnalyzeStoredSeriesRejection {
         /// Human-readable name of the rejected coordinate map.
         reason: &'static str,
     },
-    /// Analyze has no direction field, so only an identity direction round-trips.
-    #[error("volume {volume_index} has a non-identity direction, which Analyze 7.5 cannot encode")]
-    NonIdentityDirection {
+    /// Analyze has no direction field, so only the file-axes direction
+    /// (`ritk_image::file_axes_direction()`) round-trips.
+    #[error(
+        "volume {volume_index} has a direction other than the file-axes permutation, \
+         which Analyze 7.5 cannot encode"
+    )]
+    UnsupportedDirection {
         /// The zero-based volume holding the direction.
         volume_index: usize,
     },
@@ -392,7 +396,7 @@ impl ConversionRejection for AnalyzeStoredSeriesRejection {
         match self {
             Self::UnsupportedSampleType { volume_index, .. }
             | Self::UnsupportedCoordinateMap { volume_index, .. }
-            | Self::NonIdentityDirection { volume_index }
+            | Self::UnsupportedDirection { volume_index }
             | Self::NonZeroInterceptCalibration { volume_index, .. }
             | Self::ZeroSlopeCalibration { volume_index }
             | Self::UnsupportedCalibration { volume_index, .. } => ConversionLocation::Volume {

@@ -38,7 +38,8 @@ The `.hdr` file is 348 bytes. For shape `[4, 64, 64]`, the `.img` payload is
 `4 × 64 × 64 × 4 = 65,536` bytes. The final panel reports those measured file
 sizes and the geometry that the format can reproduce under RITK's convention.
 
-Direction is identity because Analyze 7.5 has no full direction matrix. The
+Direction is `ritk_image::file_axes_direction()` because Analyze 7.5 has no
+direction matrix: its axes are the file axes, so file X advances world X. The
 chosen origin is an exact integer multiple of spacing on each physical axis;
 otherwise the `originator` convention would round it to the nearest voxel.
 
