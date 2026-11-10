@@ -1,4 +1,5 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
+use crate::MetaImageError;
 use anyhow::Result;
 use coeus_core::SequentialBackend;
 use ritk_core::rejection::assert_rejects;
@@ -23,7 +24,7 @@ fn make_image(
 // ── Helpers ───────────────────────────────────────────────────────────
 
 /// Write a minimal `.mha` file with MET_FLOAT data and identity metadata.
-fn write_minimal_mha(
+pub(super) fn write_minimal_mha(
     path: &std::path::Path,
     data: &[f32],
     nx: usize,
@@ -59,7 +60,7 @@ fn write_minimal_mha(
 /// Write a compressed `.mha` whose `DimSize` claims `nx*ny*nz` voxels but whose
 /// zlib payload inflates to `raw_payload`. Used to exercise the bounded
 /// decompression capacity hint against a hostile header.
-fn write_compressed_mha_with_dims(
+pub(super) fn write_compressed_mha_with_dims(
     path: &std::path::Path,
     raw_payload: &[u8],
     nx: usize,
@@ -253,13 +254,11 @@ fn test_round_trip_mha() -> Result<()> {
 fn test_missing_file_returns_error() {
     let backend = SequentialBackend;
     let result = crate::read_metaimage("/nonexistent/path/file.mha", &backend);
-    let msg = match result {
-        Ok(_) => panic!("missing file must fail"),
-        Err(err) => format!("{err:?}"),
-    };
+    let error = result.expect_err("missing file must fail");
     assert!(
-        msg.contains("Cannot open MetaImage file"),
-        "error must preserve file-open context, got: {msg}"
+        matches!(&error, MetaImageError::Open { source, .. }
+            if source.kind() == std::io::ErrorKind::NotFound),
+        "got: {error}"
     );
 }
 
@@ -281,13 +280,10 @@ fn test_missing_required_field_returns_error() -> Result<()> {
     }
     let backend = SequentialBackend;
     let result = crate::read_metaimage(&path, &backend);
-    let msg = match result {
-        Ok(_) => panic!("missing DimSize must fail"),
-        Err(err) => format!("{err:?}"),
-    };
+    let error = result.expect_err("missing DimSize must fail");
     assert!(
-        msg.contains("DimSize"),
-        "error must name the missing field, got: {msg}"
+        matches!(error, MetaImageError::MissingField { field: "DimSize" }),
+        "got: {error}"
     );
     Ok(())
 }
@@ -314,11 +310,11 @@ fn test_unsupported_element_type_returns_error() -> Result<()> {
     }
     let backend = SequentialBackend;
     let result = crate::read_metaimage(&path, &backend);
-    let msg = format!("{:?}", result.unwrap_err());
+    let error = result.unwrap_err();
     assert!(
-        msg.contains("MET_LONG"),
-        "Error message must name the unsupported type; got: {}",
-        msg
+        matches!(&error, MetaImageError::UnsupportedElementType { element_type }
+            if element_type == "MET_LONG"),
+        "got: {error}"
     );
     Ok(())
 }
@@ -349,12 +345,19 @@ fn test_extra_payload_bytes_return_error() -> Result<()> {
 
     let backend = SequentialBackend;
     let result = crate::read_metaimage(&path, &backend);
-    let msg = result
-        .expect_err("extra payload bytes must fail")
-        .to_string();
+    let error = result.expect_err("extra payload bytes must fail");
     assert!(
-        msg.contains("payload length mismatch") && msg.contains("expected") && msg.contains("16"),
-        "error must name the exact payload length violation; got: {msg}"
+        matches!(
+            error,
+            MetaImageError::PayloadLengthMismatch {
+                expected: 16,
+                actual: 20,
+                voxels: 4,
+                elem_size: 4,
+                ..
+            }
+        ),
+        "got: {error}"
     );
     Ok(())
 }
@@ -383,12 +386,13 @@ fn test_dim_size_overflow_returns_error() -> Result<()> {
 
     let backend = SequentialBackend;
     let result = crate::read_metaimage(&path, &backend);
-    let msg = result
-        .expect_err("overflowing DimSize must fail")
-        .to_string();
+    let error = result.expect_err("overflowing DimSize must fail");
     assert!(
-        msg.contains("voxel count overflow") && msg.contains("DimSize"),
-        "error must name the DimSize overflow; got: {msg}"
+        matches!(
+            error,
+            MetaImageError::VoxelCountOverflow { ny: 2, nz: 1, .. }
+        ),
+        "got: {error}"
     );
     Ok(())
 }
