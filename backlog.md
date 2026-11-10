@@ -93,6 +93,7 @@
 <a id="RITK-SNAP-NATIVE-ARCHIVE-001"></a>- [RITK-SNAP-NATIVE-ARCHIVE-001](backlog/RITK-SNAP-NATIVE-ARCHIVE-001.md) — Keep a local study archive — blocked
 <a id="RITK-SNAP-NATIVE-DISPLAY-001"></a>- [RITK-SNAP-NATIVE-DISPLAY-001](backlog/RITK-SNAP-NATIVE-DISPLAY-001.md) — Route display controls in the native shell — todo
 <a id="RITK-SNAP-NATIVE-DOCUMENTS-001"></a>- [RITK-SNAP-NATIVE-DOCUMENTS-001](backlog/RITK-SNAP-NATIVE-DOCUMENTS-001.md) — Display reports, PDFs and video objects — todo
+<a id="RITK-SNAP-NATIVE-DRAG-FEEDBACK-001"></a>- [RITK-SNAP-NATIVE-DRAG-FEEDBACK-001](backlog/RITK-SNAP-NATIVE-DRAG-FEEDBACK-001.md) — Keep pan and zoom drags independent of event batching — todo
 <a id="RITK-SNAP-NATIVE-DYNAMIC-001"></a>- [RITK-SNAP-NATIVE-DYNAMIC-001](backlog/RITK-SNAP-NATIVE-DYNAMIC-001.md) — Add time-intensity curves and DSA — blocked
 <a id="RITK-SNAP-NATIVE-EXPORT-001"></a>- [RITK-SNAP-NATIVE-EXPORT-001](backlog/RITK-SNAP-NATIVE-EXPORT-001.md) — Export and copy displayed images — todo
 <a id="RITK-SNAP-NATIVE-FILTERS-001"></a>- [RITK-SNAP-NATIVE-FILTERS-001](backlog/RITK-SNAP-NATIVE-FILTERS-001.md) — Apply image filters natively — todo
@@ -103,8 +104,10 @@
 <a id="RITK-SNAP-NATIVE-OPEN-001"></a>- [RITK-SNAP-NATIVE-OPEN-001](backlog/RITK-SNAP-NATIVE-OPEN-001.md) — Open files, archives and drops natively — todo
 <a id="RITK-SNAP-NATIVE-OVERLAY-TEXT-001"></a>- [RITK-SNAP-NATIVE-OVERLAY-TEXT-001](backlog/RITK-SNAP-NATIVE-OVERLAY-TEXT-001.md) — Draw clinical image overlays natively — todo
 <a id="RITK-SNAP-NATIVE-PACS-001"></a>- [RITK-SNAP-NATIVE-PACS-001](backlog/RITK-SNAP-NATIVE-PACS-001.md) — Query and receive PACS studies natively — todo
+<a id="RITK-SNAP-NATIVE-PICKER-HIDDEN-001"></a>- [RITK-SNAP-NATIVE-PICKER-HIDDEN-001](backlog/RITK-SNAP-NATIVE-PICKER-HIDDEN-001.md) — Stop the series picker confirming hidden rows — todo
 <a id="RITK-SNAP-NATIVE-POINTER-CAPTURE-001"></a>- [RITK-SNAP-NATIVE-POINTER-CAPTURE-001](backlog/RITK-SNAP-NATIVE-POINTER-CAPTURE-001.md) — End a drag released off the window — todo
 <a id="RITK-SNAP-NATIVE-PROJECTION-001"></a>- [RITK-SNAP-NATIVE-PROJECTION-001](backlog/RITK-SNAP-NATIVE-PROJECTION-001.md) — Select projections from the native menu — todo
+<a id="RITK-SNAP-NATIVE-RELEASE-ACTIVATION-001"></a>- [RITK-SNAP-NATIVE-RELEASE-ACTIVATION-001](backlog/RITK-SNAP-NATIVE-RELEASE-ACTIVATION-001.md) — Stop pointer releases activating a panel in keyboard routing — todo
 <a id="RITK-SNAP-NATIVE-RT-001"></a>- [RITK-SNAP-NATIVE-RT-001](backlog/RITK-SNAP-NATIVE-RT-001.md) — Show RT structures and dose natively — todo
 <a id="RITK-SNAP-NATIVE-SHELL-001"></a>- [RITK-SNAP-NATIVE-SHELL-001](backlog/RITK-SNAP-NATIVE-SHELL-001.md) — Finish native shell integration — todo
 <a id="RITK-SNAP-NATIVE-TAGS-001"></a>- [RITK-SNAP-NATIVE-TAGS-001](backlog/RITK-SNAP-NATIVE-TAGS-001.md) — Show searchable DICOM tags natively — todo
