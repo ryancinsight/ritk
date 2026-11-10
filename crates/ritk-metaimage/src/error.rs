@@ -2,6 +2,7 @@ use std::io;
 use std::num::ParseIntError;
 use std::path::PathBuf;
 
+use ritk_codecs::ImageReadBudgetError;
 use thiserror::Error;
 
 /// Failure to read a MetaImage file.
@@ -10,9 +11,10 @@ use thiserror::Error;
 ///
 /// ```
 /// use coeus_core::SequentialBackend;
+/// use ritk_codecs::ImageReadBudget;
 /// use ritk_metaimage::{read_metaimage, MetaImageError};
 ///
-/// let error = read_metaimage("missing.mha", &SequentialBackend)
+/// let error = read_metaimage("missing.mha", &SequentialBackend, ImageReadBudget::DEFAULT)
 ///     .expect_err("the file does not exist");
 /// assert!(matches!(error, MetaImageError::Open { .. }));
 /// ```
@@ -88,6 +90,13 @@ pub enum MetaImageError {
         voxels: usize,
         /// Bytes per voxel.
         elem_size: usize,
+    },
+    /// A header-declared or observed size exceeds the read budget.
+    #[error(transparent)]
+    Budget {
+        /// Resource ceiling rejected before the payload was read or inflated.
+        #[from]
+        source: ImageReadBudgetError,
     },
     /// The payload could not be read.
     #[error("cannot read MetaImage payload {path:?}: {source}")]

@@ -1,7 +1,10 @@
 use crate::error::MetaImageError;
 use crate::spatial::metadata_from_file_transform;
 use coeus_core::ComputeBackend;
-use ritk_codecs::{decode_bytes_to_f32, parse_f64_vec, parse_usize_vec, ByteOrder};
+use ritk_codecs::{
+    decode_bytes_to_f32, parse_f64_vec, parse_usize_vec, ByteOrder, ImageReadBudget,
+    ImageReadResource,
+};
 use ritk_image::Image;
 use ritk_spatial::Point;
 use std::collections::HashMap;
@@ -29,12 +32,18 @@ use std::path::Path;
 ///   (`ElementDataFile = LOCAL`).
 /// * `.mhd` / `.raw` — ASCII header references a separate raw file.
 ///
+/// # Read budget
+/// The encoded payload size, the inflated payload size implied by `DimSize`
+/// and `ElementType`, and the `f32` output size are checked against `budget`
+/// before the payload is read, inflated, or decoded.
+///
 /// # Errors
-/// Each [`MetaImageError`] variant names the malformed header field or failed
-/// payload operation.
+/// [`MetaImageError::Budget`] when a size exceeds `budget`; every other variant
+/// names the malformed header field or failed payload operation.
 pub fn read_metaimage<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
+    budget: ImageReadBudget,
 ) -> Result<Image<f32, B, 3>, MetaImageError> {
     let DecodedMetaImage {
         data,
@@ -42,7 +51,7 @@ pub fn read_metaimage<B: ComputeBackend, P: AsRef<Path>>(
         origin,
         spacing,
         direction,
-    } = decode_metaimage(path)?;
+    } = decode_metaimage(path, budget)?;
     Image::from_flat_on(data, dims, origin, spacing, direction, backend)
         .map_err(|source| MetaImageError::Image { source })
 }
@@ -57,7 +66,10 @@ struct DecodedMetaImage {
     direction: ritk_spatial::Direction<3>,
 }
 
-fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage, MetaImageError> {
+fn decode_metaimage<P: AsRef<Path>>(
+    path: P,
+    budget: ImageReadBudget,
+) -> Result<DecodedMetaImage, MetaImageError> {
     let path = path.as_ref();
 
     let file = std::fs::File::open(path).map_err(|source| MetaImageError::Open {
@@ -201,9 +213,19 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage, MetaIma
                 voxels: total_voxels,
                 elem_size,
             })?;
+    // The header's declared sizes bound the inflated payload and the f32
+    // output; both are checked before any payload byte is read or inflated.
+    budget.check_len(ImageReadResource::DecodedBytes, expected_payload_bytes)?;
+    budget.check_len(
+        ImageReadResource::DecodedBytes,
+        total_voxels.saturating_mul(size_of::<f32>()),
+    )?;
 
     // Read the payload bytes (still zlib-deflated when `compressed`) from the
     // inline LOCAL stream or the detached raw file, then inflate if needed.
+    // Reading stops one byte past the encoded ceiling, so an oversized file is
+    // rejected without being held in memory.
+    let encoded_limit = budget.max_encoded_bytes().saturating_add(1);
     let payload: Vec<u8> = if element_data_file.to_uppercase() == "LOCAL" {
         // Seek the BufReader to the exact position after the last header line.
         // BufReader<File> implements Seek; this discards any internal buffer
@@ -215,9 +237,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage, MetaIma
         reader
             .seek(SeekFrom::Start(byte_offset))
             .map_err(payload_error)?;
-        let mut bytes = Vec::new();
-        reader.read_to_end(&mut bytes).map_err(payload_error)?;
-        bytes
+        read_bounded(reader, encoded_limit).map_err(payload_error)?
     } else {
         // External .raw file: resolve relative to the header file's directory.
         let raw_path = path
@@ -228,13 +248,16 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage, MetaIma
             path: raw_path.clone(),
             source,
         };
-        std::fs::read(&raw_path).map_err(payload_error)?
+        let raw_file = std::fs::File::open(&raw_path).map_err(payload_error)?;
+        read_bounded(raw_file, encoded_limit).map_err(payload_error)?
     };
+    budget.check_len(ImageReadResource::EncodedBytes, payload.len())?;
 
     let raw_bytes: Vec<u8> = if compressed {
         // `read_to_end` grows the buffer to the true inflated size; `take`
         // stops it one byte past the header-declared size, which the length
-        // check below reports as a mismatch.
+        // check below reports as a mismatch. The declared size already passed
+        // the decoded-byte budget.
         let output_limit = u64::try_from(expected_payload_bytes)
             .unwrap_or(u64::MAX)
             .saturating_add(1);
@@ -315,6 +338,13 @@ fn parse_field<T>(
         .map_err(|source| MetaImageError::InvalidField { field, source })
 }
 
+/// Reads at most `limit` bytes from `source`.
+fn read_bounded(source: impl Read, limit: u64) -> std::io::Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    source.take(limit).read_to_end(&mut bytes)?;
+    Ok(bytes)
+}
+
 /// Translate a MetaImage `ElementType` name into the shared byte-decoder spec.
 fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool), MetaImageError> {
     let spec = match element_type {
@@ -348,7 +378,8 @@ impl MetaImageReader {
         &self,
         path: P,
         backend: &B,
+        budget: ImageReadBudget,
     ) -> Result<Image<f32, B, 3>, MetaImageError> {
-        read_metaimage(path, backend)
+        read_metaimage(path, backend, budget)
     }
 }

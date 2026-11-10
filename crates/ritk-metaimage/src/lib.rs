@@ -26,52 +26,16 @@
 //! `[X,Y,Z]` file-axis order. The reader/writer convert spacing and direction
 //! columns to and from RITK internal `[Z,Y,X]` image-axis order.
 
+mod dip;
 mod error;
 pub mod reader;
 mod spatial;
 pub mod writer;
 
+pub use dip::{MetaImageDipReader, MetaImageDipWriter};
 pub use error::MetaImageError;
 pub use reader::{read_metaimage, MetaImageReader};
 pub use writer::{write_metaimage, write_metaimage_with_data, MetaImageWriter};
-
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::Image;
-use std::path::Path;
-
-/// DIP boundary executing strict spatial metadata preservation over standard MetaImage datasets.
-pub struct MetaImageDipReader<B: ComputeBackend> {
-    backend: B,
-}
-
-impl<B: ComputeBackend> MetaImageDipReader<B> {
-    pub fn new(backend: B) -> Self {
-        Self { backend }
-    }
-
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> Result<Image<f32, B, 3>, MetaImageError> {
-        read_metaimage(path, &self.backend)
-    }
-}
-
-/// DIP boundary executing strict spatial metadata preservation over standard MetaImage datasets.
-pub struct MetaImageDipWriter<B: ComputeBackend> {
-    backend: B,
-}
-
-impl<B: ComputeBackend> MetaImageDipWriter<B> {
-    pub fn new(backend: B) -> Self {
-        Self { backend }
-    }
-
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> anyhow::Result<()>
-    where
-        B: Default,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        write_metaimage(path, image, &self.backend)
-    }
-}
 
 #[cfg(test)]
 mod tests;

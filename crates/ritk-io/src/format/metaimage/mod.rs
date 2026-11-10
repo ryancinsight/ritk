@@ -1,6 +1,7 @@
 use crate::domain::ImageWriter;
 use anyhow::Result;
 use coeus_core::SequentialBackend;
+use ritk_codecs::ImageReadBudget;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 
@@ -38,7 +39,8 @@ fn legacy_metadata_to_native<B: Backend>(
 
 /// Reads MetaImage through the native provider and converts at this legacy boundary.
 pub fn read_metaimage<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Image<f32, B, 3>> {
-    let native = ritk_metaimage::read_metaimage(path, &SequentialBackend)?;
+    let native =
+        ritk_metaimage::read_metaimage(path, &SequentialBackend, ImageReadBudget::DEFAULT)?;
     native_to_legacy(native, device)
 }
 
@@ -88,6 +90,7 @@ impl<B: Backend> ImageWriter<Image<f32, B, 3>> for MetaImageWriter {
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
+    use ritk_codecs::ImageReadBudget;
     use ritk_image::Image;
     use std::path::Path;
 
@@ -105,7 +108,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for MetaImageReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_metaimage::read_metaimage(path, &self.backend)
+            ritk_metaimage::read_metaimage(path, &self.backend, ImageReadBudget::DEFAULT)
                 .map_err(|error| to_io_err(error.into()))
         }
     }
