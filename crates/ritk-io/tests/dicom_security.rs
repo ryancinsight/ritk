@@ -216,7 +216,7 @@ fn test_write_analyze_path_leak() {
             tensor,
             Point::new([0.0, 0.0, 0.0]),
             Spacing::new([1.0, 1.0, 1.0]),
-            Direction::identity(),
+            ritk_image::file_axes_direction(),
         )
         .expect("invariant: fixture tensor has the declared rank")
     };

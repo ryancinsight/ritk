@@ -47,6 +47,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
+use ritk_image::file_axes_direction;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
@@ -179,13 +180,14 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     );
 
     // Spacing reverses file `[sx, sy, sz]` into core tensor-axis order
-    // `[sz, sy, sx]`; origin stays a world-space `[x, y, z]` point.
+    // `[sz, sy, sx]`; origin stays a world-space `[x, y, z]` point. The
+    // file-axes direction makes tensor axis 2 (file X) advance world X.
     Ok(DecodedAnalyze {
         data: vals,
         dims: header.shape,
         origin: header.origin,
         spacing: header.spacing,
-        direction: Direction::identity(),
+        direction: file_axes_direction(),
     })
 }
 

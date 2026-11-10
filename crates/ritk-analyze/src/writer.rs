@@ -38,7 +38,8 @@
 
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_image::file_axes_direction;
+use ritk_spatial::{Point, Spacing};
 
 use crate::header::{self, AnalyzeDatatype, AnalyzeHeaderFields};
 use std::fs::File;
@@ -77,8 +78,9 @@ const NATIVE_DESCRIPTION: &[u8] = b"RITK";
 /// # Errors
 /// Returns an error if:
 /// - `path`'s parent directory does not exist.
-/// - The image has a non-identity `direction`: Analyze 7.5 has no direction
-///   field, so writing one would silently drop it.
+/// - The image's `direction` is not [`file_axes_direction`], the one the
+///   reader returns: Analyze 7.5 has no direction field, so writing another
+///   would silently drop it.
 /// - Any dimension is zero or exceeds `i16::MAX` (32 767).
 /// - The image storage length does not match its shape.
 /// - Spacing cannot be represented as a positive finite header `f32`, or any
@@ -91,13 +93,14 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     P: AsRef<Path>,
 {
-    // Analyze 7.5 has no direction field, so a non-identity direction is
-    // unrepresentable. Reject before touching the file system rather than
-    // writing a dataset whose geometry silently disagrees with the source.
+    // Analyze 7.5 has no direction field: its axes are the file axes. Reject
+    // any other direction before touching the file system rather than writing
+    // a dataset whose geometry silently disagrees with the source.
     anyhow::ensure!(
-        image.direction() == &Direction::identity(),
-        "Analyze 7.5 has no direction field; the image's non-identity direction \
-         is unrepresentable and cannot be written without silently dropping it"
+        image.direction() == &file_axes_direction(),
+        "Analyze 7.5 has no direction field; a direction other than the file-axes \
+         permutation is unrepresentable and cannot be written without silently \
+         dropping it"
     );
     let vals = image.data_cow_on(backend)?;
     write_analyze_flat(
@@ -111,7 +114,7 @@ where
 
 /// Substrate-agnostic Analyze serialization core. Takes flat `[Z, Y, X]` voxels plus the
 /// (backend-independent) spatial metadata so header layout and byte order live
-/// in exactly one place. Analyze 7.5 has no direction field (identity implied).
+/// in exactly one place. Analyze 7.5 has no direction field (file axes implied).
 fn write_analyze_flat(
     path: &Path,
     shape: [usize; 3],
@@ -286,41 +289,46 @@ mod tests {
         Ok(())
     }
 
-    /// A non-identity direction is rejected before either file is created.
+    /// Every direction but the file-axes one is rejected before either file
+    /// is created, identity included.
     ///
     /// Analyze 7.5 has no direction field. Writing such an image would produce a
     /// dataset whose geometry silently disagrees with the source, so the writer
-    /// refuses instead. This is the case the shared round-trip harness cannot
-    /// reach: it writes an identity direction for every `SpacingAndOrigin`
-    /// codec, so only a direct test can pin the rejection.
+    /// refuses instead. The shared round-trip harness writes only the file-axes
+    /// direction, so only a direct test can pin the rejection.
     #[test]
-    fn writer_rejects_a_non_identity_direction_before_creating_files() -> Result<()> {
+    fn writer_rejects_every_direction_but_file_axes_before_creating_files() -> Result<()> {
         use coeus_core::SequentialBackend;
         use ritk_image::Image;
 
         let directory = tempdir()?;
         let path = directory.path().join("oblique.hdr");
-        let image = Image::from_flat_on(
-            vec![1.0_f32; 2],
-            [1, 1, 2],
-            Point::new([0.0; 3]),
-            Spacing::new([1.0; 3]),
+        for direction in [
             Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]),
-            &SequentialBackend,
-        )
-        .expect("fixture image");
+            Direction::identity(),
+        ] {
+            let image = Image::from_flat_on(
+                vec![1.0_f32; 2],
+                [1, 1, 2],
+                Point::new([0.0; 3]),
+                Spacing::new([1.0; 3]),
+                direction,
+                &SequentialBackend,
+            )
+            .expect("fixture image");
 
-        let error = super::write_analyze(&path, &image, &SequentialBackend)
-            .expect_err("a non-identity direction is unrepresentable in Analyze 7.5");
-        assert!(
-            error.to_string().contains("no direction field"),
-            "unexpected error: {error:#}"
-        );
-        assert!(!path.exists(), "the header must not be created");
-        assert!(
-            !path.with_extension("img").exists(),
-            "the payload must not be created"
-        );
+            let error = super::write_analyze(&path, &image, &SequentialBackend)
+                .expect_err("only the file-axes direction is representable in Analyze 7.5");
+            assert!(
+                error.to_string().contains("no direction field"),
+                "unexpected error for {direction:?}: {error:#}"
+            );
+            assert!(!path.exists(), "the header must not be created");
+            assert!(
+                !path.with_extension("img").exists(),
+                "the payload must not be created"
+            );
+        }
 
         Ok(())
     }

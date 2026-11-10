@@ -367,21 +367,14 @@ def test_io_metadata_axis_order_matches_sitk(ext, tmp_path):
     assert tuple(round(o, 5) for o in sb.GetOrigin()) == tuple(origin_xyz)
 
 
-def test_write_image_analyze_rejects_non_identity_direction(tmp_path):
-    """Analyze 7.5 cannot encode direction: rejection precedes file creation.
+def test_write_image_analyze_round_trips_file_axes_geometry(tmp_path):
+    """A Python image reaches Analyze 7.5 and reads back with its geometry.
 
-    Every Python image carries `ritk_image::file_axes_direction()` (a permutation), and
-    `ritk-analyze`'s writer deliberately rejects a non-identity direction
-    rather than publishing a pair whose geometry silently disagrees with the
-    source (`docs/architecture.md` §23). Expecting a successful Python write is
-    therefore incorrect by decision, not by defect — this mirrors the
-    Rust-side test
-    `writer_rejects_a_non_identity_direction_before_creating_files`.
-
-    The pixdim-order regression this test once exercised through a Python write
-    is covered on the Rust side, because the Python write is now fail-closed:
-    `ritk-analyze`'s `analyze_writer_emits_pixdim_in_file_axis_order` and
-    `analyze_roundtrip_preserves_shape_spacing_origin_and_values`.
+    Every Python image carries `ritk_image::file_axes_direction()`, the one
+    direction Analyze's file axes represent. Distinct extents and spacings
+    per axis make an X/Z swap change the shape, the spacing and the
+    direction; the header's `pixdim` order is pinned on the Rust side by
+    `analyze_writer_emits_pixdim_in_file_axis_order`.
     """
     nz, ny, nx = 4, 5, 6
     vol = np.arange(nz * ny * nx, dtype=np.float32).reshape(nz, ny, nx)
@@ -389,11 +382,14 @@ def test_write_image_analyze_rejects_non_identity_direction(tmp_path):
 
     ri = ritk.Image(np.ascontiguousarray(vol), spacing=spacing_xyz[::-1])
     analyze_path = tmp_path / "r.img"
-    with pytest.raises(OSError, match="no direction field"):
-        ritk.io.write_image(ri, str(analyze_path))
-    # Fail-closed: neither half of the `.hdr`/`.img` pair may appear.
-    assert not analyze_path.exists()
-    assert not (tmp_path / "r.hdr").exists()
+    ritk.io.write_image(ri, str(analyze_path))
+    back = ritk.io.read_image(str(analyze_path))
+
+    np.testing.assert_array_equal(back.to_numpy(), vol)
+    assert back.shape == ri.shape
+    assert back.spacing == ri.spacing
+    assert back.origin == ri.origin
+    assert back.direction == ri.direction
 
 
 def test_analyze_reader_rejects_a_paired_nifti_file(tmp_path):

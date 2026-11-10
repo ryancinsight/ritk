@@ -29,9 +29,6 @@ enum SpatialFidelity {
     /// The format stores no physical-space metadata, so geometry must be the
     /// default: zero origin, unit spacing, identity direction.
     None,
-    /// Spacing and origin round-trip; direction is unrepresentable and must
-    /// remain the identity the fixture writes.
-    SpacingAndOrigin,
     /// Spacing, origin, and the file-axes permutation round-trip; the format
     /// stores no other direction.
     FileAxes,
@@ -44,7 +41,7 @@ fn fixture_direction(fidelity: SpatialFidelity) -> Direction<3> {
     match fidelity {
         SpatialFidelity::Full => full_fidelity_direction(),
         SpatialFidelity::FileAxes => file_axes_direction(),
-        SpatialFidelity::None | SpatialFidelity::SpacingAndOrigin => Direction::identity(),
+        SpatialFidelity::None => Direction::identity(),
     }
 }
 
@@ -105,8 +102,9 @@ fn physical_point(
 /// RITK-MGH-SPATIAL-AXIS-CONVENTION-001 survived a round-trip suite. Axis-order
 /// correctness is therefore pinned by file-format oracles, not by round trips —
 /// see `ritk-mgh`'s hand-built-header and byte-layout tests, `ritk-mif`'s
-/// transform-less-header oracle, and `ritk-vtk`'s hand-built-file and
-/// `SPACING`/`DIMENSIONS` agreement oracles.
+/// transform-less-header oracle, `ritk-vtk`'s hand-built-file and
+/// `SPACING`/`DIMENSIONS` agreement oracles, and `ritk-analyze`'s hand-built
+/// header oracle in `tests/axes.rs`.
 fn assert_native_writer_reader_round_trips<W, R>(
     path: &Path,
     writer: &W,
@@ -176,7 +174,7 @@ fn native_analyze_writer_reader_contract_round_trips() {
         &dir.path().join("contract.hdr"),
         &super::analyze::AnalyzeWriter::new(SequentialBackend),
         &super::analyze::AnalyzeReader::new(SequentialBackend),
-        SpatialFidelity::SpacingAndOrigin,
+        SpatialFidelity::FileAxes,
     );
 }
 

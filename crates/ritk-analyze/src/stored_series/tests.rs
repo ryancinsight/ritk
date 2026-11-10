@@ -1,7 +1,7 @@
 //! Behavior tests for the Analyze stored-sample conversion.
 
 use super::*;
-use ritk_spatial::{CurvilinearArray, Point, Spacing};
+use ritk_spatial::{CurvilinearArray, Direction, Point, Spacing};
 use tempfile::tempdir;
 
 /// Depth, row, column shape shared by the fixtures.
@@ -22,7 +22,7 @@ fn metadata() -> ImageMetadata<3> {
     ImageMetadata::new(
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
-        Direction::identity(),
+        file_axes_direction(),
     )
 }
 
@@ -143,24 +143,27 @@ fn prepare_rejects_a_per_frame_calibration() {
 }
 
 #[test]
-fn prepare_rejects_a_non_identity_direction() {
-    let oblique = ImageMetadata::new(
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
+fn prepare_rejects_every_direction_but_the_file_axes_one() {
+    for direction in [
         Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]),
-    );
-    let series = single_volume(volume(
-        SHAPE,
-        SampleBuffer::from_samples(i16_values()),
-        oblique,
-        IntensityCalibration::Identity,
-    ));
+        Direction::identity(),
+    ] {
+        let series = single_volume(volume(
+            SHAPE,
+            SampleBuffer::from_samples(i16_values()),
+            ImageMetadata::new(Point::new([0.0; 3]), Spacing::new([1.0; 3]), direction),
+            IntensityCalibration::Identity,
+        ));
 
-    let error = prepare(&series).expect_err("Analyze has no direction field");
-    assert!(matches!(
-        error,
-        AnalyzeStoredSeriesRejection::NonIdentityDirection { volume_index: 0 }
-    ));
+        let error = prepare(&series).expect_err("Analyze has no direction field");
+        assert!(
+            matches!(
+                error,
+                AnalyzeStoredSeriesRejection::UnsupportedDirection { volume_index: 0 }
+            ),
+            "{direction:?}: {error:?}"
+        );
+    }
 }
 
 #[test]
@@ -275,7 +278,7 @@ fn an_i16_pair_round_trips_exact_stored_samples() {
         IntensityCalibration::Identity
     ));
     assert!(matches!(stored.coordinate_map(), CoordinateMap::Cartesian));
-    assert_eq!(stored.metadata().direction(), &Direction::identity());
+    assert_eq!(stored.metadata().direction(), &file_axes_direction());
     assert_eq!(stored.metadata().spacing().to_array(), [1.0; 3]);
     assert_eq!(stored.metadata().origin().as_slice(), [0.0; 3]);
     assert_eq!(
