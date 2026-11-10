@@ -13,3 +13,9 @@
 - evidence: prior profile claims predate backend and interpolation changes; no current-main reproduction is recorded.
 - reopen: before changing MSE or B-spline performance, collect a new exact-main profile and replace or remove the stale claim.
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
+
+<a id="RITK-MIF-OFFSET-CONVENTION-001"></a>
+## RITK-MIF-OFFSET-CONVENTION-001: `.mif` `file: . N` offset may not match MRtrix3
+- risk: the reader counts N from the `END` line and the writer emits `file: . 0`; if MRtrix3 counts from file start and refuses 0, real MRtrix files misread here and ours fail there.
+- evidence: raised from recall by the ritk#874 judge at 8081bafb6; no MRtrix source or fixture was available offline to confirm.
+- reopen: before the next `.mif` reader or writer change, read MRtrix3 `core/formats/mrtrix.cpp` at a pinned commit and file a fix item with an MRtrix-written fixture if it differs.
