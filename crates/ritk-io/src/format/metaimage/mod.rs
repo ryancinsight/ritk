@@ -38,8 +38,8 @@ fn legacy_metadata_to_native<B: Backend>(
 
 /// Reads MetaImage through the native provider and converts at this legacy boundary.
 pub fn read_metaimage<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Image<f32, B, 3>> {
-    ritk_metaimage::read_metaimage(path, &SequentialBackend)
-        .and_then(|native| native_to_legacy(native, device))
+    let native = ritk_metaimage::read_metaimage(path, &SequentialBackend)?;
+    native_to_legacy(native, device)
 }
 
 /// Writes a legacy image through the native MetaImage provider.
@@ -105,7 +105,8 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for MetaImageReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_metaimage::read_metaimage(path, &self.backend).map_err(to_io_err)
+            ritk_metaimage::read_metaimage(path, &self.backend)
+                .map_err(|error| to_io_err(error.into()))
         }
     }
 

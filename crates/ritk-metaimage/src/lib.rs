@@ -26,10 +26,12 @@
 //! `[X,Y,Z]` file-axis order. The reader/writer convert spacing and direction
 //! columns to and from RITK internal `[Z,Y,X]` image-axis order.
 
+mod error;
 pub mod reader;
 mod spatial;
 pub mod writer;
 
+pub use error::MetaImageError;
 pub use reader::{read_metaimage, MetaImageReader};
 pub use writer::{write_metaimage, write_metaimage_with_data, MetaImageWriter};
 
@@ -47,7 +49,7 @@ impl<B: ComputeBackend> MetaImageDipReader<B> {
         Self { backend }
     }
 
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<Image<f32, B, 3>> {
+    pub fn read<P: AsRef<Path>>(&self, path: P) -> Result<Image<f32, B, 3>, MetaImageError> {
         read_metaimage(path, &self.backend)
     }
 }
