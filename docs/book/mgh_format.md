@@ -150,7 +150,7 @@ The readers return `MghError` for:
 
 - unreadable files (`Open`);
 - unsupported format versions or scalar type codes (`InvalidVersion`, `UnsupportedDataType`);
-- non-positive or overflowing dimensions (`InvalidDimensions`, `InvalidFrameCount`, `DimensionOverflow`, `SeriesOverflow`);
+- non-positive or overflowing dimensions and payload sizes (`InvalidDimensions`, `InvalidFrameCount`, `DimensionOverflow`, `SeriesOverflow`, `DataSizeOverflow`);
 - frame counts other than one in a single-volume read (`MultiFrame`);
 - truncated headers or voxel payloads (`Header`, `TruncatedPayload`, `PayloadRead`);
 - invalid spatial metadata or image construction (`InvalidSpacing`, `Image`);
