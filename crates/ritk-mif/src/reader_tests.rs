@@ -418,3 +418,8 @@ fn decode_bytes_rejects_a_byte_count_beyond_usize() {
         "expected the overflow to be named, got: {message}"
     );
 }
+
+// ── Detached data path confinement ──────────────────────────────────────
+
+#[path = "reader_tests/detached_path.rs"]
+mod detached_path;
