@@ -1,6 +1,8 @@
-//! Native measurement line drawing and plane binding.
+//! Native measurement drawing and plane binding.
 
-use super::super::layout::{measurement_overlay, MEASUREMENT_COLOR, ROI_COLOR};
+use super::super::layout::{
+    measurement_label, measurement_overlay, LENGTH_LABEL_DISTANCE, MEASUREMENT_COLOR, ROI_COLOR,
+};
 use super::*;
 use crate::tools::interaction::{Annotation, AnnotationPlane, PlacedAnnotation, ToolState};
 use crate::tools::kind::ToolKind;
@@ -94,8 +96,11 @@ fn native_annotation_is_drawn_only_on_its_own_slice_and_axis() {
     )
     .expect("overlay");
 
-    assert_eq!(line_colors(shown.commands()), vec![MEASUREMENT_COLOR]);
-    assert!(line_colors(hidden.commands()).is_empty());
+    assert_eq!(line_colors(shown.lines.commands()), vec![MEASUREMENT_COLOR]);
+    assert_eq!(shown.labels.len(), 1);
+    assert_eq!(shown.labels[0].text, "2.0 mm");
+    assert!(line_colors(hidden.lines.commands()).is_empty());
+    assert!(hidden.labels.is_empty());
 }
 
 #[test]
@@ -120,7 +125,7 @@ fn native_annotation_endpoints_use_the_pixel_projection() {
             ))
             .expect("the endpoint lies inside the image")
     };
-    match overlay.commands() {
+    match overlay.lines.commands() {
         [DisplayCommand::DrawLine { start, end, .. }] => {
             for (screen, column) in [(*start, 1.0_f32), (*end, 3.0)] {
                 let image = image_point(screen);
@@ -129,6 +134,35 @@ fn native_annotation_endpoints_use_the_pixel_projection() {
             }
         }
         other => panic!("expected one line, found {other:?}"),
+    }
+}
+
+#[test]
+fn native_length_label_sits_beside_the_midpoint_of_its_line() {
+    let (session, _root) = session();
+    let view = &session.views[0];
+    let viewport = &session.viewports[0];
+    let placed = length_on(AnnotationPlane {
+        axis: view.axis,
+        slice: view.slice_index,
+    });
+
+    let overlay =
+        measurement_overlay(view, viewport, &[placed], &ToolState::Idle).expect("overlay");
+
+    // The line runs along one image row, drawn left to right, so its
+    // counter-clockwise perpendicular points down the screen. Each endpoint
+    // and the label round to whole pixels once, so each axis is within one.
+    let distance = 12_i32;
+    assert_eq!(f64::from(distance), LENGTH_LABEL_DISTANCE);
+    match (overlay.lines.commands(), overlay.labels.as_slice()) {
+        ([DisplayCommand::DrawLine { start, end, .. }], [label]) => {
+            assert_eq!(start.1, end.1, "the line is horizontal on screen");
+            assert!((label.x - (start.0 + end.0) / 2).abs() <= 1, "{label:?}");
+            assert!((label.y - (start.1 + distance)).abs() <= 1, "{label:?}");
+            assert_eq!(label.text, "2.0 mm");
+        }
+        other => panic!("expected one line and one label, found {other:?}"),
     }
 }
 
@@ -159,5 +193,30 @@ fn native_annotation_in_progress_roi_is_previewed_on_the_active_pane() {
         &session.app.tool_state,
     )
     .expect("overlay");
-    assert_eq!(line_colors(overlay.commands()), vec![ROI_COLOR; 4]);
+    assert_eq!(line_colors(overlay.lines.commands()), vec![ROI_COLOR; 4]);
+}
+
+#[test]
+fn native_annotation_labels_state_their_values() {
+    let angle = Annotation::Angle {
+        p1: [0.0, 1.0],
+        p2: [0.0, 0.0],
+        p3: [1.0, 0.0],
+        angle_deg: 90.0,
+    };
+    // The length a 3-by-4 pixel drag records at unit spacing
+    // (`a_drag_release_contributes_its_final_position`).
+    let length = Annotation::Length {
+        p1: [1.0, 1.0],
+        p2: [5.0, 4.0],
+        length_mm: 5.0,
+    };
+    let point = Annotation::HuPoint {
+        pos: [0.0, 0.0],
+        value: -1000.0,
+    };
+
+    assert_eq!(measurement_label(&length).as_deref(), Some("5.0 mm"));
+    assert_eq!(measurement_label(&angle).as_deref(), Some("90.0 deg"));
+    assert_eq!(measurement_label(&point).as_deref(), Some("-1000"));
 }

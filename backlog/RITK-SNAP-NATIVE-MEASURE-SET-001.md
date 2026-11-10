@@ -7,6 +7,6 @@
 - basis: 30b8ba098
 - status: blocked
 - blocker: Prerequisite items must merge before this item is ready.
-- needs: RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001
+- needs: none
 - milestone: M-viewer-reading
 - priority: feature

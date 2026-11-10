@@ -45,7 +45,7 @@ impl NativeViewerSession {
                     &ToolState::Idle
                 };
                 measurement_overlay(view, viewport, &app.annotations, gesture)?
-                    .render_to(&mut self.framebuffer);
+                    .render_to(&mut self.framebuffer)?;
             }
         } else if self.app.loaded.is_some() {
             for (index, (view, viewport)) in self.views.iter().zip(&self.viewports).enumerate() {
@@ -55,7 +55,7 @@ impl NativeViewerSession {
                     &ToolState::Idle
                 };
                 measurement_overlay(view, viewport, &self.app.annotations, gesture)?
-                    .render_to(&mut self.framebuffer);
+                    .render_to(&mut self.framebuffer)?;
             }
         }
         Ok(())

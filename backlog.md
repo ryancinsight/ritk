@@ -54,7 +54,6 @@
 <a id="RITK-VTK-VOLUME-CONVERSION-001"></a>- [RITK-VTK-VOLUME-CONVERSION-001](backlog/RITK-VTK-VOLUME-CONVERSION-001.md) — Preserve VTK image-volume semantics — blocked
 <a id="RITK-SNAP-OBLIQUE-SESSION-WIRING-001"></a>- [RITK-SNAP-OBLIQUE-SESSION-WIRING-001](backlog/RITK-SNAP-OBLIQUE-SESSION-WIRING-001.md) — Wire the oblique session pane — blocked
 <a id="RITK-DICOM-CALIBRATION-UNITS-001"></a>- [RITK-DICOM-CALIBRATION-UNITS-001](backlog/RITK-DICOM-CALIBRATION-UNITS-001.md) — Preserve DICOM values and units — blocked
-<a id="RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001"></a>- [RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001](backlog/RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001.md) — Present patient-space lengths — todo
 <a id="RITK-CI-MERGE-GATE-001"></a>- [RITK-CI-MERGE-GATE-001](backlog/RITK-CI-MERGE-GATE-001.md) — Gate pull requests through one CI check — todo
 <a id="RITK-REGISTRY-PUBLICATION-001"></a>- [RITK-REGISTRY-PUBLICATION-001](backlog/RITK-REGISTRY-PUBLICATION-001.md) — Publish the required registry dependency graph — blocked
 <a id="RITK-GIFTI-SURFACE-001"></a>- [RITK-GIFTI-SURFACE-001](backlog/RITK-GIFTI-SURFACE-001.md) — Preserve complete GIFTI surface documents — todo

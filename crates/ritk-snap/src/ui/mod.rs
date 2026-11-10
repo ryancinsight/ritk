@@ -49,13 +49,8 @@ pub(crate) mod histogram;
 pub mod histogram_interact;
 pub mod layout;
 pub mod live_preview;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "ratchet RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001"
-    )
-)]
+// Measurement label geometry for the Windows Métis session.
+#[cfg(any(windows, test))]
 pub(crate) mod measurements;
 pub mod mpr_cursor;
 #[cfg_attr(

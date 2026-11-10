@@ -8,5 +8,5 @@
 - basis: 3fcdc3dd
 - status: blocked
 - blocker: Prerequisite items must merge before this item is ready.
-- needs: RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001
+- needs: RITK-SNAP-OBLIQUE-ROUTING-001
 - priority: verification
