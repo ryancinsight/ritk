@@ -1,6 +1,7 @@
 //! Native image format dispatch.
 
 use crate::format;
+use ritk_codecs::ImageReadBudget;
 
 // ── Image format enumeration ──────────────────────────────────────────────────
 
@@ -393,7 +394,11 @@ pub fn read_image_series_native<P: AsRef<std::path::Path>>(
     match fmt {
         ImageFormat::NIfTI => ritk_nifti::read_nifti_series(path, &backend),
         ImageFormat::Nrrd => ritk_nrrd::read_nrrd_series(path, &backend),
-        ImageFormat::Mgh => ritk_mgh::read_mgh_series(path, &backend),
+        ImageFormat::Mgh => Ok(ritk_mgh::read_mgh_series(
+            path,
+            &backend,
+            ImageReadBudget::DEFAULT,
+        )?),
         other => Err(anyhow::anyhow!(
             "series I/O is not yet supported for {other:?} through the native \
              dispatch; use the format-specific series reader directly"

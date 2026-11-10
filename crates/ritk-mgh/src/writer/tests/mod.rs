@@ -4,6 +4,7 @@ use crate::test_support::{
 };
 use crate::{HEADER_SIZE, MRI_FLOAT, MRI_INT, MRI_SHORT, MRI_UCHAR, SINGLE_FRAME};
 use anyhow::Result;
+use ritk_codecs::ImageReadBudget;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 

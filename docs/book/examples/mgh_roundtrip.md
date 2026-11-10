@@ -25,14 +25,15 @@ The core workflow is:
 
 ```rust,ignore
 use coeus_core::SequentialBackend;
+use ritk_codecs::ImageReadBudget;
 use ritk_mgh::{read_mgh, write_mgh};
 
 let backend = SequentialBackend;
 write_mgh(&source, "brain.mgh", &backend)?;
 write_mgh(&source, "brain.mgz", &backend)?;
 
-let decoded_mgh = read_mgh("brain.mgh", &backend)?;
-let decoded_mgz = read_mgh("brain.mgz", &backend)?;
+let decoded_mgh = read_mgh("brain.mgh", &backend, ImageReadBudget::DEFAULT)?;
+let decoded_mgz = read_mgh("brain.mgz", &backend, ImageReadBudget::DEFAULT)?;
 ```
 
 Compression is selected by `.mgz` or `.mgh.gz`, matched without ASCII case

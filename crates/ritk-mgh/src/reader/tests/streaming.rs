@@ -19,7 +19,7 @@ fn assert_streamed_payload(
         [0.0, 0.0, 0.0],
         payload,
     );
-    let decoded = decode_mgh(&mut Cursor::new(bytes))?;
+    let decoded = decode_mgh(&mut Cursor::new(bytes), ImageReadBudget::DEFAULT)?;
     let volumes = decoded.volumes;
     assert_eq!(decoded.dims, [1, 1, expected.len()], "{label} shape");
     assert_eq!(volumes.len(), 1, "{label} single frame");
@@ -113,7 +113,7 @@ fn truncation_after_one_complete_chunk_names_first_incomplete_voxel() {
             [0.0, 0.0, 0.0],
             &payload,
         );
-        let error = match decode_mgh(&mut Cursor::new(bytes)) {
+        let error = match decode_mgh(&mut Cursor::new(bytes), ImageReadBudget::DEFAULT) {
             Ok(_) => panic!("one missing payload byte must reject the volume"),
             Err(error) => error,
         };
@@ -145,7 +145,7 @@ proptest! {
             [0.0, 0.0, 0.0],
             &payload,
         );
-        let result = decode_mgh(&mut Cursor::new(bytes));
+        let result = decode_mgh(&mut Cursor::new(bytes), ImageReadBudget::DEFAULT);
         if payload.len() < voxel_count {
             let error = match result {
                 Ok(_) => return Err(TestCaseError::fail("short arbitrary payload must fail")),

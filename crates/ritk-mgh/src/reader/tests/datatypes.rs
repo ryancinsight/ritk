@@ -28,7 +28,7 @@ fn test_read_float_data() -> Result<()> {
     );
     std::fs::write(&path, &mgh)?;
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
+    let image = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
     assert_eq!(image.shape(), [2, 2, 2]);
     image.data_slice().map(|loaded| {
         assert_eq!(loaded.len(), values.len());
@@ -62,7 +62,7 @@ fn test_read_byte_data() -> Result<()> {
     );
     std::fs::write(&path, &mgh)?;
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
+    let image = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
     assert_eq!(image.shape(), [2, 3, 2]);
     image.data_slice().map(|loaded| {
         assert_eq!(loaded.len(), expected.len());
@@ -101,7 +101,7 @@ fn test_read_signed_short_data() -> Result<()> {
     );
     std::fs::write(&path, &mgh)?;
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
+    let image = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
     assert_eq!(image.shape(), [2, 3, 2]);
     image.data_slice().map(|loaded| {
         assert_eq!(loaded.len(), expected.len());
@@ -141,7 +141,7 @@ fn test_read_signed_int_data() -> Result<()> {
     );
     std::fs::write(&path, &mgh)?;
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
+    let image = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
     assert_eq!(image.shape(), [2, 3, 2]);
     image.data_slice().map(|loaded| {
         assert_eq!(loaded.len(), expected.len());

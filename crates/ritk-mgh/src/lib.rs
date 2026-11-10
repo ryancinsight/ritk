@@ -63,6 +63,7 @@
 //! `MRI_SHORT` i16, `MRI_INT` i32, `MRI_FLOAT` f32), converting all
 //! to f32 for the RITK tensor.  The writer always emits `MRI_FLOAT`.
 
+mod error;
 mod reader;
 mod spatial;
 #[cfg(test)]
@@ -70,6 +71,7 @@ mod test_support;
 mod types;
 mod writer;
 
+pub use error::MghError;
 pub use reader::{read_mgh, read_mgh_series, MghReader};
 pub use writer::{write_mgh, write_mgh_series, MghWriter};
 

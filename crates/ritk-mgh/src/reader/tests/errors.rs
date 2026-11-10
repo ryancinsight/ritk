@@ -19,7 +19,7 @@ fn test_read_invalid_version() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
+    let result = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT);
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("version"),
@@ -44,7 +44,7 @@ fn test_read_unsupported_type_code() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
+    let result = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT);
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("data type"),
@@ -66,8 +66,9 @@ fn test_read_truncated_file() {
     buf[20..24].copy_from_slice(&MRI_FLOAT.to_be_bytes());
     std::fs::write(&path, &buf).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
-    assert_rejects(result, "Failed to parse MGH file");
+    let error = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)
+        .expect_err("a header cut short must fail");
+    assert!(matches!(error, MghError::Header { .. }), "got: {error}");
 }
 
 #[test]
@@ -91,13 +92,12 @@ fn test_read_multi_frame_fails_rather_than_returning_frame_zero() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let err = read_mgh::<TestBackend, _>(&path, &backend)
+    let err = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)
         .expect_err("a 3-frame MGH has no 3-D representation and must not read as one");
 
-    let msg = format!("{err:#}");
     assert!(
-        msg.contains("3 frames"),
-        "error must name the declared frame count, got: {msg}"
+        matches!(err, MghError::MultiFrame { nframes: 3 }),
+        "got: {err}"
     );
 }
 
@@ -128,7 +128,7 @@ fn test_read_single_frame_still_reads_at_the_rejection_boundary() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)
+    let image = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)
         .expect("a single-frame MGH is the accepted case");
     let loaded = image.data_slice().expect("contiguous host voxel data");
     assert_eq!(
@@ -157,8 +157,125 @@ fn test_read_hostile_dims_does_not_oom() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
-    assert_rejects(result, "Failed to parse MGH file");
+    let admits_declaration = ImageReadBudget::new(1 << 20, 1 << 40, 1).expect("nonzero ceilings");
+    let error = read_mgh::<TestBackend, _>(&path, &backend, admits_declaration)
+        .expect_err("16 payload bytes cannot satisfy a 1024^3 volume");
+    assert!(
+        matches!(
+            error,
+            MghError::TruncatedPayload {
+                voxel: 4,
+                voxel_count: 1_073_741_824,
+            }
+        ),
+        "got: {error}"
+    );
+}
+
+#[test]
+fn test_read_hostile_dims_exceeds_the_decoded_budget() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("hostile_dims_default.mgh");
+    let backend = TestBackend::default();
+    let mgh = build_mgh_bytes(
+        1,
+        [1024, 1024, 1024],
+        SINGLE_FRAME,
+        MRI_FLOAT,
+        [1.0, 1.0, 1.0],
+        IDENTITY_DIR,
+        [0.0, 0.0, 0.0],
+        &[0u8; 16],
+    );
+    std::fs::write(&path, &mgh).unwrap();
+
+    let error = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)
+        .expect_err("4 GiB of f32 voxels exceed the 1 GiB decoded budget");
+    assert!(
+        matches!(
+            error,
+            MghError::Budget {
+                source: ImageReadBudgetError::Exceeded {
+                    resource: ImageReadResource::DecodedBytes,
+                    actual: 4_294_967_296,
+                    maximum: 1_073_741_824,
+                }
+            }
+        ),
+        "got: {error}"
+    );
+}
+
+#[test]
+fn test_read_series_frame_count_above_the_volume_budget_is_rejected() {
+    // The header claims 100 frames of one tiny volume with no payload. The
+    // volume ceiling rejects the claim before any frame is decoded.
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("too_many_frames.mgh");
+    let backend = TestBackend::default();
+    let mgh = build_mgh_bytes(
+        1,
+        [1, 1, 1],
+        100,
+        MRI_UCHAR,
+        [1.0, 1.0, 1.0],
+        IDENTITY_DIR,
+        [0.0, 0.0, 0.0],
+        &[],
+    );
+    std::fs::write(&path, &mgh).unwrap();
+
+    let budget = ImageReadBudget::new(1 << 20, 1 << 20, 99).expect("nonzero ceilings");
+    let error = read_mgh_series::<TestBackend, _>(&path, &backend, budget)
+        .expect_err("100 frames exceed a 99-volume budget");
+    assert!(
+        matches!(
+            error,
+            MghError::Budget {
+                source: ImageReadBudgetError::Exceeded {
+                    resource: ImageReadResource::SeriesVolumes,
+                    actual: 100,
+                    maximum: 99,
+                }
+            }
+        ),
+        "got: {error}"
+    );
+}
+
+#[test]
+fn test_read_file_above_the_encoded_budget_is_rejected() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("encoded_budget.mgh");
+    let backend = TestBackend::default();
+    let mgh = build_mgh_bytes(
+        1,
+        [2, 2, 2],
+        SINGLE_FRAME,
+        MRI_FLOAT,
+        [1.0, 1.0, 1.0],
+        IDENTITY_DIR,
+        [0.0, 0.0, 0.0],
+        &[0u8; 2 * 2 * 2 * 4],
+    );
+    std::fs::write(&path, &mgh).unwrap();
+
+    let file_len = u64::try_from(mgh.len()).expect("invariant: usize fits u64");
+    let budget = ImageReadBudget::new(file_len - 1, 1 << 20, 1).expect("nonzero ceilings");
+    let error = read_mgh::<TestBackend, _>(&path, &backend, budget)
+        .expect_err("the file is one byte over the encoded budget");
+    assert!(
+        matches!(
+            error,
+            MghError::Budget {
+                source: ImageReadBudgetError::Exceeded {
+                    resource: ImageReadResource::EncodedBytes,
+                    ..
+                }
+            }
+        ),
+        "got: {error}"
+    );
 }
 
 #[test]
@@ -187,7 +304,7 @@ fn test_read_non_positive_spacing_is_rejected_not_panicked() {
         );
         std::fs::write(&path, &mgh).unwrap();
 
-        let result = read_mgh::<TestBackend, _>(&path, &backend);
+        let result = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT);
         assert_rejects(result, "Invalid MGH RAS voxel spacing");
     }
 }
@@ -230,7 +347,11 @@ fn test_read_overstated_nframes_does_not_drive_allocation() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let (result, peak) = peak_bytes_during(|| read_mgh_series::<TestBackend, _>(&path, &backend));
+    let admits_any_declaration =
+        ImageReadBudget::new(u64::MAX, u64::MAX, u64::MAX).expect("nonzero ceilings");
+    let (result, peak) = peak_bytes_during(|| {
+        read_mgh_series::<TestBackend, _>(&path, &backend, admits_any_declaration)
+    });
 
     assert_rejects(result, "truncated");
     assert!(
