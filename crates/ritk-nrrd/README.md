@@ -12,7 +12,7 @@ The reader bounds one header to 16 MiB and 65,536 retained entries across
 standard fields, comments, and custom key/value records. Repeated custom keys
 count as separate records. Oversized headers return a typed error before
 payload allocation.
-Stored readers also accept `ImageReadBudget`, which limits encoded bytes,
+Stored readers also accept `ritk_codecs::ImageReadBudget`, which limits encoded bytes,
 decoded sample bytes, and series volume count before allocating sample data.
 The default byte ceilings are 1 GiB and the default series limit is 65,536.
 
@@ -35,7 +35,7 @@ order. Repeated keys remain inspectable even though the effective map follows
 NRRD's last-value rule.
 
 ```rust,no_run
-use ritk_image_io::ImageReadBudget;
+use ritk_codecs::ImageReadBudget;
 use ritk_nrrd::{read_nrrd_document, write_nrrd_document};
 
 let document = read_nrrd_document("input.nrrd", ImageReadBudget::DEFAULT)?;

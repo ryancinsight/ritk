@@ -9,10 +9,9 @@ Stored-volume construction preserves every finite positive spacing and rejects
 direction-times-spacing components that overflow or underflow to zero, keeping
 format writers from emitting unrepresentable physical axes.
 
-`ImageReadBudget` provides encoded-byte, decoded-byte, and series-volume
-ceilings to format readers. Its default is 1 GiB for encoded and decoded
-payloads and 65,536 volumes; applications may construct smaller or larger
-limits for their data and memory policy.
+Format readers bound untrusted headers with `ritk_codecs::ImageReadBudget`,
+which `ritk-codecs` owns so the codecs that decode payloads can enforce the same
+ceilings.
 
 ~~~rust
 use ritk_codecs::SampleBuffer;

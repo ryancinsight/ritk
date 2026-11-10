@@ -278,6 +278,7 @@ pub fn encode_grayscale_j2k(
 mod tests {
     use super::*;
     use crate::jpeg_2000::image::{decode_j2k_fragment, is_soc};
+    use crate::ImageReadBudget;
     use crate::PixelLayout;
     use crate::PixelSignedness;
 
@@ -328,8 +329,12 @@ mod tests {
         let pixels = vec![pixel_value; 16];
         let j2k = encode_grayscale_j2k(&pixels, 4, 4, 8, PixelSignedness::Unsigned, lossless(0))
             .expect("valid image must encode");
-        let decoded = decode_j2k_fragment(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
-            .expect("round-trip decode must succeed");
+        let decoded = decode_j2k_fragment(
+            &j2k,
+            layout(4, 4, 8, PixelSignedness::Unsigned),
+            ImageReadBudget::DEFAULT,
+        )
+        .expect("round-trip decode must succeed");
         assert_eq!(decoded.len(), 16);
         for (i, &v) in decoded.iter().enumerate() {
             assert_eq!(v, pixel_value as f32, "pixel[{i}] must be exact");
@@ -341,8 +346,12 @@ mod tests {
         let pixels: Vec<i32> = (0..8).collect();
         let j2k = encode_grayscale_j2k(&pixels, 2, 4, 8, PixelSignedness::Unsigned, lossless(0))
             .expect("valid image must encode");
-        let decoded = decode_j2k_fragment(&j2k, layout(2, 4, 8, PixelSignedness::Unsigned))
-            .expect("gradient round-trip must succeed");
+        let decoded = decode_j2k_fragment(
+            &j2k,
+            layout(2, 4, 8, PixelSignedness::Unsigned),
+            ImageReadBudget::DEFAULT,
+        )
+        .expect("gradient round-trip must succeed");
         for (i, (&orig, &dec)) in pixels.iter().zip(decoded.iter()).enumerate() {
             assert_eq!(dec, orig as f32, "pixel[{i}] must be exact");
         }
@@ -353,8 +362,12 @@ mod tests {
         let pixels = vec![-4i32, -1, 0, 3];
         let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, PixelSignedness::Signed, lossless(0))
             .expect("valid image must encode");
-        let decoded = decode_j2k_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
-            .expect("signed round-trip must succeed");
+        let decoded = decode_j2k_fragment(
+            &j2k,
+            layout(2, 2, 8, PixelSignedness::Signed),
+            ImageReadBudget::DEFAULT,
+        )
+        .expect("signed round-trip must succeed");
         assert_eq!(decoded, vec![-4.0f32, -1.0, 0.0, 3.0]);
     }
 
@@ -366,7 +379,8 @@ mod tests {
         let mut lyt = layout(1, 1, 8, PixelSignedness::Unsigned);
         lyt.rescale_slope = 2.0;
         lyt.rescale_intercept = -1024.0;
-        let decoded = decode_j2k_fragment(&j2k, lyt).expect("single-pixel rescale must succeed");
+        let decoded = decode_j2k_fragment(&j2k, lyt, ImageReadBudget::DEFAULT)
+            .expect("single-pixel rescale must succeed");
         assert_eq!(decoded, vec![-824.0f32]); // 100 * 2 + (-1024) = -824
     }
 
@@ -449,8 +463,12 @@ mod tests {
         ] {
             let codestream = encode_grayscale_j2k(&pixels, 1, 2, 8, signedness, lossless(0))
                 .expect("inclusive sample boundaries must encode");
-            let decoded = decode_j2k_fragment(&codestream, layout(1, 2, 8, signedness))
-                .expect("boundary codestream must decode");
+            let decoded = decode_j2k_fragment(
+                &codestream,
+                layout(1, 2, 8, signedness),
+                ImageReadBudget::DEFAULT,
+            )
+            .expect("boundary codestream must decode");
             assert_eq!(
                 decoded,
                 pixels.map(|sample| sample as f32),
@@ -504,8 +522,12 @@ mod tests {
             .expect("encoder output must have a valid main header");
         assert_eq!(header.qcd.exponents(), &[0]);
 
-        let decoded = decode_j2k_fragment(&codestream, layout(2, 2, 12, PixelSignedness::Unsigned))
-            .expect("zero-exponent codestream must decode");
+        let decoded = decode_j2k_fragment(
+            &codestream,
+            layout(2, 2, 12, PixelSignedness::Unsigned),
+            ImageReadBudget::DEFAULT,
+        )
+        .expect("zero-exponent codestream must decode");
         assert_eq!(decoded, vec![2048.0; pixels.len()]);
     }
 
@@ -543,9 +565,12 @@ mod tests {
         );
 
         let mean_squared_error = |codestream: &[u8]| {
-            let decoded =
-                decode_j2k_fragment(codestream, layout(96, 96, 12, PixelSignedness::Unsigned))
-                    .expect("lossy codestream must decode");
+            let decoded = decode_j2k_fragment(
+                codestream,
+                layout(96, 96, 12, PixelSignedness::Unsigned),
+                ImageReadBudget::DEFAULT,
+            )
+            .expect("lossy codestream must decode");
             let sample_count =
                 u32::try_from(pixels.len()).expect("invariant: fixture sample count fits u32");
             pixels

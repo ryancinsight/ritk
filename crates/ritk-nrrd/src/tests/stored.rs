@@ -6,11 +6,9 @@ use crate::{
     NrrdStoredReadError,
 };
 use anyhow::Result;
-use ritk_codecs::{ByteOrder, SampleBuffer, SampleType};
+use ritk_codecs::{ByteOrder, ImageReadBudget, SampleBuffer, SampleType};
 use ritk_image::ImageMetadata;
-use ritk_image_io::{
-    ImageReadBudget, IntensityCalibration, SeriesAxis, StoredSeries, StoredVolume,
-};
+use ritk_image_io::{IntensityCalibration, SeriesAxis, StoredSeries, StoredVolume};
 use ritk_spatial::{CoordinateMap, Direction};
 use std::io::Write;
 use tempfile::tempdir;

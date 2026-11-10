@@ -2,11 +2,8 @@
 
 mod volumes;
 
-use ritk_codecs::SampleError;
-use ritk_image_io::{
-    ImageReadBudget, ImageReadBudgetError, SeriesAxis, StoredSeries, StoredSeriesError,
-    StoredVolume, VolumeError,
-};
+use ritk_codecs::{ImageReadBudget, ImageReadBudgetError, SampleError};
+use ritk_image_io::{SeriesAxis, StoredSeries, StoredSeriesError, StoredVolume, VolumeError};
 use std::collections::TryReserveError;
 use std::io::{self, BufReader};
 use std::num::ParseIntError;

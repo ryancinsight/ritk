@@ -40,8 +40,10 @@
 //! SIZ image/tile geometry and SOT tile-part fields are validated before packet
 //! decode. Tile buffers use the image-domain intersection defined by T.800
 //! Annex B.3 rather than the full reference tile, and both pixel and
-//! sample counts share a fixed allocation cap. Tile headers are parsed by marker
-//! boundaries before output allocation; every segment must fit its byte extent,
+//! sample counts share a fixed allocation cap, and the caller's
+//! [`ImageReadBudget`] bounds the fragment length and the `f32` output before
+//! the codestream is parsed. Tile headers are parsed by marker boundaries
+//! before output allocation; every segment must fit its byte extent,
 //! EOC is mandatory, every declared tile must be present, and every expected
 //! LRCP packet header must be consumed. Component precision is bounded by the
 //! decoder's 32-bit coefficient representation. `Psot = 0` extends to terminal
@@ -69,6 +71,7 @@
 //! them bit-for-bit, where a fixed half-step would offset every sample by `Δ/2`.
 
 pub(crate) mod codestream;
+mod decode_error;
 pub(crate) mod ebcot;
 pub mod encoder;
 pub(crate) mod image;
@@ -81,9 +84,11 @@ pub(crate) mod tag_tree;
 pub(crate) mod wavelet;
 pub(crate) mod wavelet_9_7;
 
-use anyhow::{bail, Result};
+use anyhow::anyhow;
 
-use crate::PixelLayout;
+pub use decode_error::Jpeg2000DecodeError;
+
+use crate::{ImageReadBudget, PixelLayout};
 use image::{decode_j2k_fragment, is_soc};
 
 /// J2K Start of Codestream marker (ISO 15444-1 §A.3): bytes `0xFF 0x4F`.
@@ -99,9 +104,14 @@ pub(crate) const SOI: u16 = 0xFFD8;
 /// # Arguments
 /// - `fragment`: raw bytes of the encapsulated pixel data item.
 /// - `layout`: pixel geometry and DICOM rescale parameters.
+/// - `budget`: ceilings for the encoded fragment and the decoded `f32` output.
 ///
 /// # Errors
-/// Returns an error if:
+/// Returns [`Jpeg2000DecodeError::Budget`] when the fragment length or the
+/// output storage implied by `layout` exceeds `budget`, before the codestream
+/// is parsed or any output is allocated.
+///
+/// Returns [`Jpeg2000DecodeError::Codestream`] if:
 /// - `fragment` does not begin with the SOC marker (0xFF4F).
 /// - SIZ or SOT geometry is invalid, outside the supported allocation bound,
 ///   or identifies a tile outside the image's tile grid.
@@ -111,15 +121,19 @@ pub(crate) const SOI: u16 = 0xFFD8;
 /// - a marker segment or packet is truncated, EOC or a declared tile is
 ///   missing, or decoded component metadata does not match `layout`.
 /// - component precision exceeds the decoder's 32-bit coefficient capacity.
-pub fn decode_jpeg2000_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
+pub fn decode_jpeg2000_fragment(
+    fragment: &[u8],
+    layout: PixelLayout,
+    budget: ImageReadBudget,
+) -> Result<Vec<f32>, Jpeg2000DecodeError> {
     if !is_jpeg2000_codestream(fragment) {
-        bail!(
+        return Err(Jpeg2000DecodeError::Codestream(anyhow!(
             "JPEG 2000 fragment does not begin with SOC marker 0xFF4F \
              (first 2 bytes: {:02X?})",
             &fragment[..fragment.len().min(2)]
-        );
+        )));
     }
-    decode_j2k_fragment(fragment, layout)
+    decode_j2k_fragment(fragment, layout, budget)
 }
 
 /// Returns `true` if `fragment` begins with the J2K SOC marker (`0xFF 0x4F`).

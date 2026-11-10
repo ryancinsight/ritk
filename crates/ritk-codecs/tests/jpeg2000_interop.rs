@@ -17,7 +17,7 @@
 //!   bodies and decode to exact source samples.
 
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
-use ritk_codecs::{decode_jpeg2000_fragment, PixelLayout, PixelSignedness};
+use ritk_codecs::{decode_jpeg2000_fragment, ImageReadBudget, PixelLayout, PixelSignedness};
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
@@ -180,7 +180,12 @@ fn layout(fixture: Fixture<'_>) -> PixelLayout {
 }
 
 fn decode(fixture: Fixture<'_>) -> Vec<f32> {
-    decode_jpeg2000_fragment(fixture.codestream, layout(fixture)).unwrap_or_else(|error| {
+    decode_jpeg2000_fragment(
+        fixture.codestream,
+        layout(fixture),
+        ImageReadBudget::DEFAULT,
+    )
+    .unwrap_or_else(|error| {
         panic!(
             "RITK decode failed for {:?} {}x{} precision {} levels {}: {error:#}",
             fixture.producer, fixture.rows, fixture.cols, fixture.precision, fixture.levels

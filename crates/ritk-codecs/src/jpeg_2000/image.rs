@@ -17,8 +17,9 @@ use super::packet::{
     reader::{decode_tile_part, TileCodingParams},
     WaveletTransform,
 };
+use super::Jpeg2000DecodeError;
 use crate::dimensions::{checked_pixel_count, checked_sample_count};
-use crate::{PixelLayout, PixelSignedness};
+use crate::{ImageReadBudget, ImageReadResource, PixelLayout, PixelSignedness};
 
 #[derive(Debug)]
 struct TilePartRange {
@@ -33,7 +34,37 @@ struct TilePartRange {
 /// - The fragment must start with the SOC marker (0xFF 0x4F).
 /// - DC level shift reversed for unsigned components per ISO 15444-1 §G.1.2.
 /// - Modality LUT applied: `output = stored_integer × slope + intercept`.
-pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
+///
+/// The encoded fragment length and the `f32` output storage implied by `layout`
+/// are checked against `budget` before the codestream is parsed or any output
+/// is allocated.
+///
+/// # Errors
+/// [`Jpeg2000DecodeError::Budget`] when the fragment or output exceeds
+/// `budget`; [`Jpeg2000DecodeError::Codestream`] for every other failure.
+pub fn decode_j2k_fragment(
+    fragment: &[u8],
+    layout: PixelLayout,
+    budget: ImageReadBudget,
+) -> Result<Vec<f32>, Jpeg2000DecodeError> {
+    budget.check_len(ImageReadResource::EncodedBytes, fragment.len())?;
+    // Bound the pixel count against a hostile/corrupt header before allocating
+    // the full `f32` output (defense-in-depth: SIZ must match the DICOM layout).
+    let pixels = checked_pixel_count(layout.cols, layout.rows).context("J2K image")?;
+    let total_samples =
+        checked_sample_count(pixels, layout.samples_per_pixel).context("J2K output samples")?;
+    budget.check_len(
+        ImageReadResource::DecodedBytes,
+        total_samples.saturating_mul(size_of::<f32>()),
+    )?;
+    Ok(decode_codestream_samples(fragment, layout, total_samples)?)
+}
+
+fn decode_codestream_samples(
+    fragment: &[u8],
+    layout: PixelLayout,
+    total_samples: usize,
+) -> Result<Vec<f32>> {
     layout
         .bytes_per_frame()
         .context("J2K: invalid DICOM pixel layout")?;
@@ -177,12 +208,6 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
     // The complete marker structure is validated before this allocation, so an
     // unsupported progression override or incomplete tile set cannot reserve
     // the DICOM-sized output buffer.
-    // Bound the pixel count against a hostile/corrupt header before allocating
-    // the full `f32` output (defense-in-depth: SIZ is already required to match
-    // the DICOM layout above).
-    let pixels = checked_pixel_count(layout.cols, layout.rows).context("J2K image")?;
-    let total_samples =
-        checked_sample_count(pixels, layout.samples_per_pixel).context("J2K output samples")?;
     let mut out = vec![0f32; total_samples];
 
     for tile_part in tile_parts {
@@ -416,60 +441,4 @@ fn parse_tile_header(data: &[u8], mut pos: usize, tile_end: usize) -> Result<usi
 }
 
 #[cfg(test)]
-mod tests {
-    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
-    use super::*;
-    use crate::PixelSignedness;
-
-    fn make_layout(rows: usize, cols: usize, bits: u16, signed: PixelSignedness) -> PixelLayout {
-        PixelLayout {
-            rows,
-            cols,
-            samples_per_pixel: 1,
-            bits_allocated: if bits <= 8 { 8 } else { 16 },
-            bits_stored: bits,
-            pixel_representation: signed,
-            rescale_slope: 1.0,
-            rescale_intercept: 0.0,
-        }
-    }
-
-    #[test]
-    fn is_soc_accepts_valid_prefix() {
-        assert!(is_soc(&[0xFF, 0x4F, 0x00]));
-    }
-
-    #[test]
-    fn is_soc_rejects_jpeg_baseline_prefix() {
-        assert!(!is_soc(&[0xFF, 0xD8, 0xFF, 0xE0]));
-    }
-
-    #[test]
-    fn is_soc_rejects_empty_slice() {
-        assert!(!is_soc(&[]));
-    }
-
-    #[test]
-    fn decode_j2k_fragment_rejects_non_soc() {
-        let data = [0xFF_u8, 0xD8, 0x00];
-        let err = decode_j2k_fragment(&data, make_layout(1, 1, 8, PixelSignedness::Unsigned))
-            .unwrap_err();
-        assert!(
-            format!("{err:#}").contains("SOC") || format!("{err:#}").contains("0xFF4F"),
-            "error must mention SOC; got: {err:#}"
-        );
-    }
-
-    #[test]
-    fn unsigned_dc_restoration_covers_complete_32_bit_range() {
-        assert_eq!(restore_component_sample(i32::MIN, 32, false), 0);
-        assert_eq!(
-            restore_component_sample(i32::MAX, 32, false),
-            i64::from(u32::MAX)
-        );
-        assert_eq!(
-            restore_component_sample(i32::MIN, 32, true),
-            i64::from(i32::MIN)
-        );
-    }
-}
+mod tests;

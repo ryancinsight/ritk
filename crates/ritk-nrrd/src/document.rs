@@ -3,7 +3,8 @@ use crate::stored_series::{
     build_series_header, prepare_document_header, NrrdStoredSeriesError, NrrdStoredSeriesRejection,
 };
 use crate::{NrrdStoredReadError, NrrdStoredWriteError};
-use ritk_image_io::{ConversionPrepareError, ImageReadBudget, SeriesAxis, StoredSeries};
+use ritk_codecs::ImageReadBudget;
+use ritk_image_io::{ConversionPrepareError, SeriesAxis, StoredSeries};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;

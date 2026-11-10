@@ -1,3 +1,10 @@
+//! Resource ceilings that bound untrusted image headers.
+//!
+//! Codec and format readers derive allocation sizes from header fields. Checking
+//! those sizes against one [`ImageReadBudget`] before allocating keeps the
+//! ceilings identical across every reader. `dimensions` carries the older
+//! per-pixel decode caps of the JPEG and JPEG-LS decoders.
+
 use thiserror::Error;
 
 /// Finite resource ceilings for reading one image or an acquisition series.
@@ -97,6 +104,23 @@ impl ImageReadBudget {
         }
         Ok(())
     }
+
+    /// Checks an in-memory length against the selected resource ceiling.
+    ///
+    /// `usize` fits `u64` on every supported target; a length that did not fit
+    /// would exceed every ceiling, so the conversion saturates.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ImageReadBudgetError::Exceeded`] when `actual` is greater
+    /// than the selected resource ceiling.
+    pub fn check_len(
+        self,
+        resource: ImageReadResource,
+        actual: usize,
+    ) -> Result<(), ImageReadBudgetError> {
+        self.check(resource, u64::try_from(actual).unwrap_or(u64::MAX))
+    }
 }
 
 /// A resource dimension bounded by [`ImageReadBudget`].
@@ -140,3 +164,6 @@ pub enum ImageReadBudgetError {
         maximum: u64,
     },
 }
+
+#[cfg(test)]
+mod tests;

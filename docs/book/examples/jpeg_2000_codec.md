@@ -45,7 +45,7 @@ For an unsigned grayscale image:
 
 ```rust,ignore
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
-use ritk_codecs::{decode_jpeg2000_fragment, PixelLayout, PixelSignedness};
+use ritk_codecs::{decode_jpeg2000_fragment, ImageReadBudget, PixelLayout, PixelSignedness};
 
 let codestream = encode_grayscale_j2k(
     &samples,
@@ -69,8 +69,13 @@ let reconstructed = decode_jpeg2000_fragment(
         rescale_slope: 1.0,
         rescale_intercept: 0.0,
     },
+    ImageReadBudget::DEFAULT,
 )?;
 ```
+
+The budget bounds the fragment length and the `f32` output storage the layout
+implies before the codestream is parsed; a fragment or frame above either
+ceiling returns `Jpeg2000DecodeError::Budget`.
 
 Use `Jpeg2000Encoding::Lossless` for the lossless DICOM transfer syntax. For an
 irreversible stream, construct `QuantizationStep::new(delta)` and pass it in

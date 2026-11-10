@@ -90,14 +90,14 @@ Native codec replacement changes codec internals behind `ritk-codecs` / `NativeC
 > **Theorem 6.2 (JPEG 2000 Backend Substitution)**: JPEG 2000 dependency replacement preserves the DICOM frame-decode contract when the decoded component stream is the same ordered integer sample sequence consumed by the DICOM modality LUT.
 
 **Boundary surface**:
-- `ritk-codecs::jpeg_2000` owns `decode_jpeg2000_fragment(fragment, PixelLayout) -> Vec<f32>`.
+- `ritk-codecs::jpeg_2000` owns `decode_jpeg2000_fragment(fragment, PixelLayout, ImageReadBudget) -> Result<Vec<f32>, Jpeg2000DecodeError>`; `ritk-codecs` also owns `ImageReadBudget`, the encoded-byte, decoded-byte, and series-volume ceilings that the JPEG 2000, MGH, MIF, MetaImage, and NRRD readers check against header-declared sizes before allocating.
 - Production decode is the RITK-native Rust SIZ/COD/QCD, packet, EBCOT, wavelet, and pixel-extraction path; `jpeg2k`, `openjp2`, and `openjpeg-sys` are not runtime or workspace dependencies.
 - The current pixel extractor accepts one grayscale LRCP component with default precinct and code-block styles, 64×64 nominal code-blocks, inline packet headers, one tile-part per tile, and no progression/tile overrides or MCT. Unsupported profiles are rejected before output allocation rather than replaying one component's packets or accepting an incomplete packet sequence.
 - Main and tile-header marker extents, terminal EOC, `Psot = 0` extent, and coverage of every declared tile are preflighted structurally. The boundary permits only a required one-byte DICOM zero pad after EOC. Packet and tier-1 decode require every expected LRCP header, a nonempty body for every included code-block, a valid coding-pass budget, and bounded MQ terminal fill before integer samples cross the DICOM boundary as `output = stored_integer × slope + intercept`.
 - `ritk-dicom::NativeCodecBackend` remains the only DICOM transfer-syntax dispatch point for JPEG 2000 Lossless/Lossy, so parser ownership and codec implementation ownership stay separated.
 
 **Proof obligation**:
-For any supported grayscale DICOM JPEG 2000 frame `C` and layout `L`, if native packet and inverse-transform decoding yields the ISO 15444-1 integer sample sequence `S`, then `decode_jpeg2000_fragment(C,L)[i] = S[i] × L.rescale_slope + L.rescale_intercept`. Unsupported component traversal is a typed error, never a successful approximation.
+For any supported grayscale DICOM JPEG 2000 frame `C` and layout `L`, if native packet and inverse-transform decoding yields the ISO 15444-1 integer sample sequence `S`, then `decode_jpeg2000_fragment(C,L,budget)[i] = S[i] × L.rescale_slope + L.rescale_intercept`. Unsupported component traversal is a typed error, never a successful approximation.
 
 > **Theorem 6.3 (JPEG Provider Boundary)**: DICOM JPEG decoding preserves the provider's validated encoded-grid raster while RITK alone interprets DICOM layout and modality metadata.
 

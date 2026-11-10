@@ -129,7 +129,7 @@ fn truncated_gzip_payload_returns_typed_error() -> Result<()> {
     file.write_all(&[0x1f, 0x8b, 0x08, 0x00])?;
     drop(file);
 
-    let error = crate::read_nrrd_stored(&path, ritk_image_io::ImageReadBudget::DEFAULT)
+    let error = crate::read_nrrd_stored(&path, ritk_codecs::ImageReadBudget::DEFAULT)
         .expect_err("a truncated gzip member cannot produce the declared sample");
     assert!(
         matches!(error, crate::NrrdStoredReadError::PayloadIo { .. }),
