@@ -6495,6 +6495,7 @@ dependencies = [
  "anyhow",
  "bytemuck",
  "coeus-core",
+ "ritk-codecs",
  "ritk-core",
  "ritk-diffusion-scheme",
  "ritk-image",

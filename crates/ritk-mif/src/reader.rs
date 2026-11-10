@@ -11,6 +11,7 @@ use crate::header::{
 };
 use crate::MifError;
 use coeus_core::ComputeBackend;
+use ritk_codecs::{ImageReadBudget, ImageReadResource};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 use std::io::{BufReader, Read};
@@ -59,15 +60,20 @@ impl DecodedMif {
 /// is present, the `vox` sizes produce axis‑aligned spacing and the origin is
 /// zero.
 ///
+/// The frame count, the payload size, and the `f32` voxel storage the header
+/// implies are checked against `budget` before the payload is read.
+///
 /// # Errors
 ///
-/// Returns [`MifError::MultiFrame`] for a multi-frame file, and a header variant
-/// for each malformed or missing key.
+/// Returns [`MifError::Budget`] when a declared size exceeds `budget`,
+/// [`MifError::MultiFrame`] for a multi-frame file, and a header variant for
+/// each malformed or missing key.
 pub fn read_mif<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
+    budget: ImageReadBudget,
 ) -> Result<Image<f32, B, 3>, MifError> {
-    let decoded = decode_mif(path.as_ref())?.into_single_volume()?;
+    let decoded = decode_mif(path.as_ref(), budget)?.into_single_volume()?;
     // Extract fields before consuming `decoded` for its data.
     let dims = decoded.dims;
     let origin = decoded.origin;
@@ -86,12 +92,18 @@ pub fn read_mif<B: ComputeBackend, P: AsRef<Path>>(
 ///
 /// Every returned image shares the file's single spatial grid.
 ///
+/// The frame count is checked against [`ImageReadBudget::max_series_volumes`],
+/// and the payload and `f32` voxel storage against the encoded and decoded
+/// byte ceilings, before the payload is read.
+///
 /// # Errors
 ///
-/// Returns a header variant for each malformed or missing key.
+/// Returns [`MifError::Budget`] when a declared size exceeds `budget`, and a
+/// header variant for each malformed or missing key.
 pub fn read_mif_series<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
+    budget: ImageReadBudget,
 ) -> Result<Vec<Image<f32, B, 3>>, MifError> {
     let DecodedMif {
         volumes,
@@ -99,7 +111,7 @@ pub fn read_mif_series<B: ComputeBackend, P: AsRef<Path>>(
         origin,
         spacing,
         direction,
-    } = decode_mif(path.as_ref())?;
+    } = decode_mif(path.as_ref(), budget)?;
 
     volumes
         .into_iter()
@@ -112,7 +124,7 @@ pub fn read_mif_series<B: ComputeBackend, P: AsRef<Path>>(
 
 // ── Internal decode ─────────────────────────────────────────────────────
 
-fn decode_mif(path: &Path) -> Result<DecodedMif, MifError> {
+fn decode_mif(path: &Path, budget: ImageReadBudget) -> Result<DecodedMif, MifError> {
     let file = std::fs::File::open(path).map_err(|source| MifError::Open {
         path: path.to_path_buf(),
         source,
@@ -221,6 +233,15 @@ fn decode_mif(path: &Path) -> Result<DecodedMif, MifError> {
                 elem_size,
             })?;
 
+    // `dim` and `datatype` are claims about the file, so the sizes they imply
+    // are bounded before any payload byte is read.
+    budget.check_len(ImageReadResource::SeriesVolumes, nframes)?;
+    budget.check_len(ImageReadResource::EncodedBytes, expected_bytes)?;
+    budget.check_len(
+        ImageReadResource::DecodedBytes,
+        total_voxels.saturating_mul(size_of::<f32>()),
+    )?;
+
     let raw_bytes: Vec<u8> = match header.entries.get("file") {
         // Inline data right after END, read from the current reader position.
         None => read_payload(reader, 0, expected_bytes, path)?,
@@ -315,7 +336,8 @@ fn require_entry<'h>(
 /// is discarded through a sink instead of sizing a buffer: `file: . 4000000000`
 /// in a 300-byte file once zero-filled 4 GB and succeeded. Copying is bounded
 /// by the bytes that arrive, so an overstated offset fails as
-/// [`MifError::OffsetOverrun`]. Reading stops at `expected_bytes`.
+/// [`MifError::OffsetOverrun`]. Reading stops at `expected_bytes`, which has
+/// already passed the read budget.
 fn read_payload(
     mut source: impl Read,
     offset: u64,
@@ -432,11 +454,16 @@ impl MifReader {
         &self,
         path: P,
         backend: &B,
+        budget: ImageReadBudget,
     ) -> Result<Image<f32, B, 3>, MifError> {
-        read_mif(path, backend)
+        read_mif(path, backend, budget)
     }
 }
 
 #[cfg(test)]
 #[path = "reader_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "reader_budget_tests.rs"]
+mod budget_tests;

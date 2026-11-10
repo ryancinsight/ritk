@@ -2,6 +2,7 @@ use std::io;
 use std::num::ParseIntError;
 use std::path::PathBuf;
 
+use ritk_codecs::ImageReadBudgetError;
 use thiserror::Error;
 
 /// Failure to read a `.mif` file.
@@ -10,9 +11,10 @@ use thiserror::Error;
 ///
 /// ```
 /// use coeus_core::SequentialBackend;
+/// use ritk_codecs::ImageReadBudget;
 /// use ritk_mif::{read_mif, MifError};
 ///
-/// let error = read_mif("missing.mif", &SequentialBackend)
+/// let error = read_mif("missing.mif", &SequentialBackend, ImageReadBudget::DEFAULT)
 ///     .expect_err("the file does not exist");
 /// assert!(matches!(error, MifError::Open { .. }));
 /// ```
@@ -79,6 +81,13 @@ pub enum MifError {
         count: usize,
         /// Bytes per element.
         elem_size: usize,
+    },
+    /// A header-declared size exceeds the read budget.
+    #[error(transparent)]
+    Budget {
+        /// Resource ceiling rejected before the payload was read.
+        #[from]
+        source: ImageReadBudgetError,
     },
     /// The `file` key does not name a data file and an offset.
     #[error("Invalid 'file' key in .mif header: '{spec}'")]
