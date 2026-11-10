@@ -150,7 +150,7 @@ dependencies = [
 [[package]]
 name = "aequitas"
 version = "0.3.2"
-source = "git+https://github.com/ryancinsight/aequitas#9897ccaee3e2e7b172ec40e79c6b09edb146dad0"
+source = "git+https://github.com/ryancinsight/aequitas#03cdf5ca6bc1c07dfb61e4c068e5fea37cd26e09"
 dependencies = [
  "eunomia",
  "typenum",
@@ -4192,7 +4192,7 @@ dependencies = [
 [[package]]
 name = "metis-core"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#1c985fff466e88a1a67be530d5d69f0aa90dc8c2"
+source = "git+https://github.com/ryancinsight/metis.git#729a24a98764a3d7ca27f88307508d7054c032d1"
 dependencies = [
  "moirai-crypto",
 ]
@@ -4200,7 +4200,7 @@ dependencies = [
 [[package]]
 name = "metis-frontend"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#1c985fff466e88a1a67be530d5d69f0aa90dc8c2"
+source = "git+https://github.com/ryancinsight/metis.git#729a24a98764a3d7ca27f88307508d7054c032d1"
 dependencies = [
  "iris-viz",
  "metis-core",
@@ -4212,7 +4212,7 @@ dependencies = [
 [[package]]
 name = "metis-ipc"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#1c985fff466e88a1a67be530d5d69f0aa90dc8c2"
+source = "git+https://github.com/ryancinsight/metis.git#729a24a98764a3d7ca27f88307508d7054c032d1"
 dependencies = [
  "metis-core",
  "moirai-async",
@@ -4225,7 +4225,7 @@ dependencies = [
 [[package]]
 name = "metis-platform"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#1c985fff466e88a1a67be530d5d69f0aa90dc8c2"
+source = "git+https://github.com/ryancinsight/metis.git#729a24a98764a3d7ca27f88307508d7054c032d1"
 dependencies = [
  "eunomia",
  "hermes-simd",
@@ -4239,7 +4239,7 @@ dependencies = [
 [[package]]
 name = "metis-ui-lang"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#1c985fff466e88a1a67be530d5d69f0aa90dc8c2"
+source = "git+https://github.com/ryancinsight/metis.git#729a24a98764a3d7ca27f88307508d7054c032d1"
 dependencies = [
  "consus-raster",
  "eunomia",
@@ -4253,7 +4253,7 @@ dependencies = [
 [[package]]
 name = "metis-web"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#1c985fff466e88a1a67be530d5d69f0aa90dc8c2"
+source = "git+https://github.com/ryancinsight/metis.git#729a24a98764a3d7ca27f88307508d7054c032d1"
 dependencies = [
  "metis-core",
  "metis-frontend",
@@ -4296,7 +4296,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-arena"
 version = "0.7.1"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#70af68afc8a02f55a43d1a8c256d7e7ff87ba1f0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#58805bd4d94a95382e1946753f45dd6935507e4e"
 dependencies = [
  "eunomia",
  "libc",
@@ -4309,7 +4309,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-backend"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#70af68afc8a02f55a43d1a8c256d7e7ff87ba1f0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#58805bd4d94a95382e1946753f45dd6935507e4e"
 dependencies = [
  "mnemosyne-memory-core",
 ]
@@ -4317,12 +4317,12 @@ dependencies = [
 [[package]]
 name = "mnemosyne-build-util"
 version = "0.2.1"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#70af68afc8a02f55a43d1a8c256d7e7ff87ba1f0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#58805bd4d94a95382e1946753f45dd6935507e4e"
 
 [[package]]
 name = "mnemosyne-decay"
 version = "0.3.3"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#70af68afc8a02f55a43d1a8c256d7e7ff87ba1f0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#58805bd4d94a95382e1946753f45dd6935507e4e"
 dependencies = [
  "mnemosyne-arena",
  "mnemosyne-backend",
@@ -4332,7 +4332,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-heap"
 version = "0.7.0"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#70af68afc8a02f55a43d1a8c256d7e7ff87ba1f0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#58805bd4d94a95382e1946753f45dd6935507e4e"
 dependencies = [
  "libc",
  "melinoe",
@@ -4347,7 +4347,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-local"
 version = "0.7.0"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#70af68afc8a02f55a43d1a8c256d7e7ff87ba1f0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#58805bd4d94a95382e1946753f45dd6935507e4e"
 dependencies = [
  "melinoe",
  "mnemosyne-arena",
@@ -4362,7 +4362,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-memory"
 version = "0.10.1"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#70af68afc8a02f55a43d1a8c256d7e7ff87ba1f0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#58805bd4d94a95382e1946753f45dd6935507e4e"
 dependencies = [
  "eunomia",
  "mnemosyne-arena",
@@ -4377,7 +4377,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-memory-core"
 version = "0.3.0"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#70af68afc8a02f55a43d1a8c256d7e7ff87ba1f0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#58805bd4d94a95382e1946753f45dd6935507e4e"
 dependencies = [
  "loom",
 ]
@@ -4385,7 +4385,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-prof"
 version = "0.2.1"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#70af68afc8a02f55a43d1a8c256d7e7ff87ba1f0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#58805bd4d94a95382e1946753f45dd6935507e4e"
 dependencies = [
  "backtrace",
  "mnemosyne-build-util",
@@ -7711,7 +7711,7 @@ dependencies = [
 [[package]]
 name = "themis-topology"
 version = "0.11.5"
-source = "git+https://github.com/ryancinsight/themis#ffbfa3b9e0f0d10d4b6eb0a599125b1fef65c812"
+source = "git+https://github.com/ryancinsight/themis#9198908c568879babfc839417226d11f1bbc3406"
 dependencies = [
  "libc",
  "melinoe",
