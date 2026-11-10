@@ -15,6 +15,12 @@ round trip must compare shape and physical metadata in addition to voxel values.
 Readers construct Coeus-backed images directly on the selected native backend;
 writers extract host data only at the format boundary.
 
+`ritk_metaimage::read_metaimage` takes an `ImageReadBudget`. The `DimSize`
+product and `ElementType` imply the inflated payload and the `f32` output, and
+both are checked against the decoded-byte ceiling before a zlib payload is
+inflated; the encoded payload is read through a reader bounded by the
+encoded-byte ceiling. A size above a ceiling returns `MetaImageError::Budget`.
+
 ## Example Summary
 
 | Example | Status | Focus |

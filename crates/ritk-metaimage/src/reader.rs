@@ -1,7 +1,10 @@
+use crate::error::MetaImageError;
 use crate::spatial::metadata_from_file_transform;
-use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_codecs::{decode_bytes_to_f32, parse_f64_vec, parse_usize_vec, ByteOrder};
+use ritk_codecs::{
+    decode_bytes_to_f32, parse_f64_vec, parse_usize_vec, ByteOrder, ImageReadBudget,
+    ImageReadResource,
+};
 use ritk_image::Image;
 use ritk_spatial::Point;
 use std::collections::HashMap;
@@ -28,18 +31,29 @@ use std::path::Path;
 /// * `.mha` — single file; header followed immediately by binary data
 ///   (`ElementDataFile = LOCAL`).
 /// * `.mhd` / `.raw` — ASCII header references a separate raw file.
+///
+/// # Read budget
+/// The encoded payload size, the inflated payload size implied by `DimSize`
+/// and `ElementType`, and the `f32` output size are checked against `budget`
+/// before the payload is read, inflated, or decoded.
+///
+/// # Errors
+/// [`MetaImageError::Budget`] when a size exceeds `budget`; every other variant
+/// names the malformed header field or failed payload operation.
 pub fn read_metaimage<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
-) -> Result<Image<f32, B, 3>> {
+    budget: ImageReadBudget,
+) -> Result<Image<f32, B, 3>, MetaImageError> {
     let DecodedMetaImage {
         data,
         dims,
         origin,
         spacing,
         direction,
-    } = decode_metaimage(path)?;
+    } = decode_metaimage(path, budget)?;
     Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+        .map_err(|source| MetaImageError::Image { source })
 }
 
 /// Backend-agnostic decoded MetaImage volume: voxels in `[nz, ny, nx]` order plus
@@ -52,11 +66,16 @@ struct DecodedMetaImage {
     direction: ritk_spatial::Direction<3>,
 }
 
-fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
+fn decode_metaimage<P: AsRef<Path>>(
+    path: P,
+    budget: ImageReadBudget,
+) -> Result<DecodedMetaImage, MetaImageError> {
     let path = path.as_ref();
 
-    let file = std::fs::File::open(path)
-        .with_context(|| format!("Cannot open MetaImage file {:?}", path))?;
+    let file = std::fs::File::open(path).map_err(|source| MetaImageError::Open {
+        path: path.to_path_buf(),
+        source,
+    })?;
     let mut reader = BufReader::new(file);
 
     // ── Header parsing ────────────────────────────────────────────────────
@@ -70,7 +89,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         let mut line = String::new();
         let n = reader
             .read_line(&mut line)
-            .context("Error reading MetaImage header line")?;
+            .map_err(|source| MetaImageError::HeaderRead { source })?;
         if n == 0 {
             break; // unexpected EOF before ElementDataFile
         }
@@ -95,43 +114,28 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
     }
 
     if !found_edf {
-        return Err(anyhow!(
-            "ElementDataFile key not found in MetaImage header of {:?}",
-            path
-        ));
+        return Err(MetaImageError::MissingElementDataFile {
+            path: path.to_path_buf(),
+        });
     }
 
     // ── Required fields ───────────────────────────────────────────────────
-    let ndims: usize = headers
-        .get("NDims")
-        .ok_or_else(|| anyhow!("Missing 'NDims' in MetaImage header"))?
+    let ndims: usize = require_field(&headers, "NDims")?
         .parse()
-        .context("'NDims' is not a valid integer")?;
+        .map_err(|source| MetaImageError::InvalidNDims { source })?;
 
     // 2-D images are promoted to a degenerate `[1, Y, X]` (z = 1) volume: ritk's
     // Image is `Image<f32, B, 3>`, so a 2-D file becomes a single-slice 3-D image.
     if ndims != 2 && ndims != 3 {
-        return Err(anyhow!("Expected NDims = 2 or 3, found {}", ndims));
+        return Err(MetaImageError::UnsupportedNDims { found: ndims });
     }
 
-    let dim_sizes = parse_usize_vec(
-        headers
-            .get("DimSize")
-            .ok_or_else(|| anyhow!("Missing 'DimSize' in MetaImage header"))?,
-        "DimSize",
-        ndims,
-    )?;
+    let dim_sizes = parse_field(parse_usize_vec, &headers, "DimSize", ndims)?;
     let nx = dim_sizes[0];
     let ny = dim_sizes[1];
     let nz = if ndims == 3 { dim_sizes[2] } else { 1 };
 
-    let spacing_raw = parse_f64_vec(
-        headers
-            .get("ElementSpacing")
-            .ok_or_else(|| anyhow!("Missing 'ElementSpacing' in MetaImage header"))?,
-        "ElementSpacing",
-        ndims,
-    )?;
+    let spacing_raw = parse_field(parse_f64_vec, &headers, "ElementSpacing", ndims)?;
     // Promote spacing with unit z when 2-D.
     let spacing_vals = if ndims == 3 {
         spacing_raw
@@ -142,8 +146,13 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
     let offset_str = headers
         .get("Offset")
         .or_else(|| headers.get("Position"))
-        .ok_or_else(|| anyhow!("Missing 'Offset' (or 'Position') in MetaImage header"))?;
-    let offset_raw = parse_f64_vec(offset_str, "Offset", ndims)?;
+        .ok_or(MetaImageError::MissingField { field: "Offset" })?;
+    let offset_raw = parse_f64_vec(offset_str, "Offset", ndims).map_err(|source| {
+        MetaImageError::InvalidField {
+            field: "Offset",
+            source,
+        }
+    })?;
     let offset_vals = if ndims == 3 {
         offset_raw
     } else {
@@ -162,7 +171,12 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         .get("TransformMatrix")
         .map(|s| s.as_str())
         .unwrap_or(tm_default);
-    let tm_raw = parse_f64_vec(tm_src, "TransformMatrix", ndims * ndims)?;
+    let tm_raw = parse_f64_vec(tm_src, "TransformMatrix", ndims * ndims).map_err(|source| {
+        MetaImageError::InvalidField {
+            field: "TransformMatrix",
+            source,
+        }
+    })?;
     let tm_vals = if ndims == 3 {
         tm_raw
     } else {
@@ -171,10 +185,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         ]
     };
 
-    let element_type = headers
-        .get("ElementType")
-        .ok_or_else(|| anyhow!("Missing 'ElementType' in MetaImage header"))?
-        .clone();
+    let element_type = require_field(&headers, "ElementType")?.clone();
     let (elem_size, signed, is_float) = element_type_spec(&element_type)?;
 
     // BinaryDataByteOrderMSB = True → big-endian; default is little-endian.
@@ -191,72 +202,82 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         .map(|s| s.to_uppercase() == "TRUE")
         .unwrap_or(false);
 
-    let element_data_file = headers
-        .get("ElementDataFile")
-        .ok_or_else(|| anyhow!("Missing 'ElementDataFile' in MetaImage header"))?
-        .clone();
+    let element_data_file = require_field(&headers, "ElementDataFile")?.clone();
 
     // ── Binary data ───────────────────────────────────────────────────────
     let total_voxels = checked_voxel_count(nx, ny, nz)?;
-    let expected_payload_bytes = total_voxels.checked_mul(elem_size).ok_or_else(|| {
-        anyhow!(
-            "MetaImage byte count overflow: {} voxels × {} bytes",
-            total_voxels,
-            elem_size
-        )
-    })?;
+    let expected_payload_bytes =
+        total_voxels
+            .checked_mul(elem_size)
+            .ok_or(MetaImageError::ByteCountOverflow {
+                voxels: total_voxels,
+                elem_size,
+            })?;
+    // The header's declared sizes bound the inflated payload and the f32
+    // output; both are checked before any payload byte is read or inflated.
+    budget.check_len(ImageReadResource::DecodedBytes, expected_payload_bytes)?;
+    budget.check_len(
+        ImageReadResource::DecodedBytes,
+        total_voxels.saturating_mul(size_of::<f32>()),
+    )?;
 
     // Read the payload bytes (still zlib-deflated when `compressed`) from the
     // inline LOCAL stream or the detached raw file, then inflate if needed.
+    // Reading stops one byte past the encoded ceiling, so an oversized file is
+    // rejected without being held in memory.
+    let encoded_limit = budget.max_encoded_bytes().saturating_add(1);
     let payload: Vec<u8> = if element_data_file.to_uppercase() == "LOCAL" {
         // Seek the BufReader to the exact position after the last header line.
         // BufReader<File> implements Seek; this discards any internal buffer
         // and repositions the underlying file descriptor.
+        let payload_error = |source| MetaImageError::PayloadRead {
+            path: path.to_path_buf(),
+            source,
+        };
         reader
             .seek(SeekFrom::Start(byte_offset))
-            .context("Failed to seek to binary data in .mha file")?;
-        let mut bytes = Vec::new();
-        reader
-            .read_to_end(&mut bytes)
-            .context("Failed to read binary voxel data from .mha file")?;
-        bytes
+            .map_err(payload_error)?;
+        read_bounded(reader, encoded_limit).map_err(payload_error)?
     } else {
         // External .raw file: resolve relative to the header file's directory.
         let raw_path = path
             .parent()
             .unwrap_or_else(|| Path::new("."))
             .join(&element_data_file);
-        std::fs::read(&raw_path)
-            .with_context(|| format!("Cannot read raw data file {:?}", raw_path))?
+        let payload_error = |source| MetaImageError::PayloadRead {
+            path: raw_path.clone(),
+            source,
+        };
+        let raw_file = std::fs::File::open(&raw_path).map_err(payload_error)?;
+        read_bounded(raw_file, encoded_limit).map_err(payload_error)?
     };
+    budget.check_len(ImageReadResource::EncodedBytes, payload.len())?;
 
     let raw_bytes: Vec<u8> = if compressed {
-        // Cap the decompression capacity hint: `expected_payload_bytes` derives
-        // from the header DimSize and may be hostile. `read_to_end` still grows
-        // the buffer to the true inflated size; the cap only bounds the
-        // speculative reservation against an out-of-memory abort.
+        // `read_to_end` grows the buffer to the true inflated size; `take`
+        // stops it one byte past the header-declared size, which the length
+        // check below reports as a mismatch. The declared size already passed
+        // the decoded-byte budget.
         let output_limit = u64::try_from(expected_payload_bytes)
-            .context("MetaImage payload length exceeds u64")?
-            .checked_add(1)
-            .ok_or_else(|| anyhow!("MetaImage payload read limit overflows u64"))?;
+            .unwrap_or(u64::MAX)
+            .saturating_add(1);
         let mut out = Vec::new();
         flate2::read::ZlibDecoder::new(&payload[..])
             .take(output_limit)
             .read_to_end(&mut out)
-            .context("Failed to inflate zlib-compressed MetaImage payload")?;
+            .map_err(|source| MetaImageError::Inflate { source })?;
         out
     } else {
         payload
     };
     if raw_bytes.len() != expected_payload_bytes {
-        return Err(anyhow!(
-            "MetaImage payload length mismatch: expected {} bytes from DimSize ({} voxels × {} bytes for {}), got {} bytes",
-            expected_payload_bytes,
-            total_voxels,
+        return Err(MetaImageError::PayloadLengthMismatch {
+            expected: expected_payload_bytes,
+            actual: raw_bytes.len(),
+            voxels: total_voxels,
             elem_size,
             element_type,
-            raw_bytes.len()
-        ));
+        });
     }
 
     let f32_data: Vec<f32> = decode_bytes_to_f32(
@@ -267,15 +288,8 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         byte_order,
         total_voxels,
         &element_type,
-    )?;
-
-    if f32_data.len() != total_voxels {
-        return Err(anyhow!(
-            "Voxel count mismatch: DimSize implies {} voxels but {} were decoded",
-            total_voxels,
-            f32_data.len()
-        ));
-    }
+    )
+    .map_err(|source| MetaImageError::Decode { source })?;
 
     // ── Spatial metadata ──────────────────────────────────────────────────
     // MetaImage X-fastest flat order equals row-major order for RITK [Z,Y,X].
@@ -299,21 +313,40 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
-fn checked_voxel_count(nx: usize, ny: usize, nz: usize) -> Result<usize> {
+fn checked_voxel_count(nx: usize, ny: usize, nz: usize) -> Result<usize, MetaImageError> {
     nx.checked_mul(ny)
         .and_then(|xy| xy.checked_mul(nz))
-        .ok_or_else(|| {
-            anyhow!(
-                "MetaImage voxel count overflow: DimSize = {} {} {}",
-                nx,
-                ny,
-                nz
-            )
-        })
+        .ok_or(MetaImageError::VoxelCountOverflow { nx, ny, nz })
+}
+
+fn require_field<'h>(
+    headers: &'h HashMap<String, String>,
+    field: &'static str,
+) -> Result<&'h String, MetaImageError> {
+    headers
+        .get(field)
+        .ok_or(MetaImageError::MissingField { field })
+}
+
+fn parse_field<T>(
+    parse: fn(&str, &str, usize) -> anyhow::Result<Vec<T>>,
+    headers: &HashMap<String, String>,
+    field: &'static str,
+    expected: usize,
+) -> Result<Vec<T>, MetaImageError> {
+    parse(require_field(headers, field)?, field, expected)
+        .map_err(|source| MetaImageError::InvalidField { field, source })
+}
+
+/// Reads at most `limit` bytes from `source`.
+fn read_bounded(source: impl Read, limit: u64) -> std::io::Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    source.take(limit).read_to_end(&mut bytes)?;
+    Ok(bytes)
 }
 
 /// Translate a MetaImage `ElementType` name into the shared byte-decoder spec.
-fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool)> {
+fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool), MetaImageError> {
     let spec = match element_type {
         "MET_UCHAR" => (1_usize, false, false),
         "MET_SHORT" => (2, true, false),
@@ -322,7 +355,11 @@ fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool)> {
         "MET_UINT" => (4, false, false),
         "MET_FLOAT" => (4, false, true),
         "MET_DOUBLE" => (8, false, true),
-        other => return Err(anyhow!("Unsupported MetaImage ElementType: '{}'", other)),
+        other => {
+            return Err(MetaImageError::UnsupportedElementType {
+                element_type: other.to_owned(),
+            })
+        }
     };
     Ok(spec)
 }
@@ -341,7 +378,8 @@ impl MetaImageReader {
         &self,
         path: P,
         backend: &B,
-    ) -> Result<Image<f32, B, 3>> {
-        read_metaimage(path, backend)
+        budget: ImageReadBudget,
+    ) -> Result<Image<f32, B, 3>, MetaImageError> {
+        read_metaimage(path, backend, budget)
     }
 }
