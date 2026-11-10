@@ -89,19 +89,34 @@ fn scaled_check_rejects_a_product_beyond_usize_under_the_widest_ceiling() {
 }
 
 #[test]
-fn scaled_check_applies_the_ceiling_to_a_product_that_fits_usize() {
-    let admitting = ImageReadBudget::new(1, 16, 1).expect("all ceilings are positive");
+fn scaled_check_reports_the_selected_ceiling_for_a_product_beyond_usize() {
+    let budget = ImageReadBudget::new(1, 16, 1).expect("all ceilings are positive");
     assert_eq!(
-        admitting.check_scaled(ImageReadResource::DecodedBytes, 4, 4),
-        Ok(())
-    );
-    let rejecting = ImageReadBudget::new(1, 15, 1).expect("all ceilings are positive");
-    assert_eq!(
-        rejecting.check_scaled(ImageReadResource::DecodedBytes, 4, 4),
+        budget.check_scaled(ImageReadResource::DecodedBytes, usize::MAX, 2),
         Err(ImageReadBudgetError::Exceeded {
             resource: ImageReadResource::DecodedBytes,
-            actual: 16,
-            maximum: 15,
+            actual: u64::MAX,
+            maximum: 16,
+        })
+    );
+}
+
+#[test]
+fn scaled_check_applies_the_ceiling_to_a_product_that_fits_usize() {
+    // 3 * 5 = 15 differs from 3 + 5, 3 * 3 and 5 * 5, so the product's
+    // operands are pinned. The ceilings 14 and 15 separate the resources:
+    // 15 fits the decoded ceiling and exceeds the encoded one.
+    let budget = ImageReadBudget::new(14, 15, 1).expect("all ceilings are positive");
+    assert_eq!(
+        budget.check_scaled(ImageReadResource::DecodedBytes, 3, 5),
+        Ok(())
+    );
+    assert_eq!(
+        budget.check_scaled(ImageReadResource::EncodedBytes, 3, 5),
+        Err(ImageReadBudgetError::Exceeded {
+            resource: ImageReadResource::EncodedBytes,
+            actual: 15,
+            maximum: 14,
         })
     );
 }
