@@ -14,6 +14,7 @@
     )
 )]
 pub(crate) mod action_adapter;
+mod annotation_ops;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_cine;
 #[cfg(any(target_arch = "wasm32", test))]
