@@ -1,5 +1,4 @@
 use super::*;
-use crate::reader::{read_mgh_with_limit, MAX_MGZ_UNCOMPRESSED_BYTES};
 
 #[test]
 fn test_read_mgz() -> Result<()> {
@@ -105,24 +104,42 @@ fn test_read_external_uppercase_gzip_extensions() -> Result<()> {
     Ok(())
 }
 
+/// An MGZ stream is never inflated past what its header declares: the declared
+/// volume is rejected by the decoded budget while the compressed file is tiny.
 #[test]
-#[expect(
-    clippy::unwrap_used,
-    reason = "test assertions surface failures immediately"
-)]
-fn mgz_decompression_bomb_is_rejected() {
-    let dir = tempdir().unwrap();
+fn mgz_declaring_a_volume_above_the_decoded_budget_is_rejected() -> Result<()> {
+    let dir = tempdir()?;
     let path = dir.path().join("bomb.mgz");
     let backend = TestBackend::default();
-    let _ = MAX_MGZ_UNCOMPRESSED_BYTES;
-
+    let mgh = build_mgh_bytes(
+        1,
+        [2, 2, 2],
+        SINGLE_FRAME,
+        MRI_FLOAT,
+        [1.0, 1.0, 1.0],
+        IDENTITY_DIR,
+        [0.0, 0.0, 0.0],
+        &[0u8; 2 * 2 * 2 * 4],
+    );
     let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
-    encoder.write_all(&vec![0u8; 2048]).unwrap();
-    std::fs::write(&path, encoder.finish().unwrap()).unwrap();
+    encoder.write_all(&mgh)?;
+    std::fs::write(&path, encoder.finish()?)?;
 
-    let Err(_) =
-        read_mgh_with_limit::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT, 1024)
-    else {
-        panic!("MGZ exceeding the decompression limit must be rejected");
-    };
+    let budget = ImageReadBudget::new(1 << 20, 31, 1)?;
+    let error = read_mgh::<TestBackend, _>(&path, &backend, budget)
+        .expect_err("32 declared output bytes exceed a 31-byte budget");
+    assert!(
+        matches!(
+            error,
+            MghError::Budget {
+                source: ImageReadBudgetError::Exceeded {
+                    resource: ImageReadResource::DecodedBytes,
+                    actual: 32,
+                    maximum: 31,
+                }
+            }
+        ),
+        "got: {error}"
+    );
+    Ok(())
 }

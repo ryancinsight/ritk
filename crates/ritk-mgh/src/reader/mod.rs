@@ -17,9 +17,6 @@ use ritk_image::Image;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
-/// Decompression cap for MGZ files (1 GiB).
-const MAX_MGZ_UNCOMPRESSED_BYTES: u64 = 1 << 30;
-
 #[cfg(test)]
 mod tests;
 mod voxel_decode;
@@ -45,29 +42,32 @@ pub fn read_mgh<B: ComputeBackend, P: AsRef<Path>>(
     backend: &B,
     budget: ImageReadBudget,
 ) -> Result<Image<f32, B, 3>, MghError> {
-    read_mgh_with_limit(path, backend, budget, MAX_MGZ_UNCOMPRESSED_BYTES)
+    let mut stream = open_mgh_stream(path.as_ref(), budget)?;
+    read_mgh_from_reader(&mut stream, backend, budget)
 }
 
-fn read_mgh_with_limit<B: ComputeBackend, P: AsRef<Path>>(
-    path: P,
-    backend: &B,
-    budget: ImageReadBudget,
-    limit: u64,
-) -> Result<Image<f32, B, 3>, MghError> {
-    let path = path.as_ref();
-    let file = open_file(path, budget)?;
+/// Raw or gunzipped byte stream of one MGH / MGZ file.
+enum MghStream {
+    Plain(BufReader<std::fs::File>),
+    Gzip(Box<BufReader<GzDecoder<BufReader<std::fs::File>>>>),
+}
 
-    if is_gzip_path(path) {
-        let gz = GzDecoder::new(BufReader::new(file)).take(limit);
-        let mut reader = BufReader::new(gz);
-        read_mgh_from_reader(&mut reader, backend, budget)
-    } else {
-        let mut reader = BufReader::new(file);
-        read_mgh_from_reader(&mut reader, backend, budget)
+impl Read for MghStream {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match self {
+            Self::Plain(reader) => reader.read(buf),
+            Self::Gzip(reader) => reader.read(buf),
+        }
     }
 }
 
-fn open_file(path: &Path, budget: ImageReadBudget) -> Result<std::fs::File, MghError> {
+/// Opens `path`, enforces the encoded-size budget, and selects gzip
+/// decompression for `.mgz` and `.mgh.gz` paths.
+///
+/// Decompression needs no separate cap: the header's voxel count passes the
+/// decoded-byte budget before any voxel is read, and the decoder consumes
+/// exactly the voxels it declares.
+fn open_mgh_stream(path: &Path, budget: ImageReadBudget) -> Result<MghStream, MghError> {
     let open_error = |source| MghError::Open {
         path: path.to_path_buf(),
         source,
@@ -75,7 +75,14 @@ fn open_file(path: &Path, budget: ImageReadBudget) -> Result<std::fs::File, MghE
     let file = std::fs::File::open(path).map_err(open_error)?;
     let encoded_bytes = file.metadata().map_err(open_error)?.len();
     budget.check(ImageReadResource::EncodedBytes, encoded_bytes)?;
-    Ok(file)
+
+    Ok(if is_gzip_path(path) {
+        MghStream::Gzip(Box::new(BufReader::new(GzDecoder::new(BufReader::new(
+            file,
+        )))))
+    } else {
+        MghStream::Plain(BufReader::new(file))
+    })
 }
 
 /// Decoded MGH volume(s): one entry per frame, each in `[nz, ny, nx]` order,
@@ -130,7 +137,7 @@ fn read_mgh_from_reader<B: ComputeBackend, R: Read>(
 /// an ordinary volume; [`read_mgh`] does not accept the converse, rejecting a
 /// multi-frame file rather than returning its first frame.
 ///
-/// The file size, the header frame count against
+/// The file size, the header's `nframes` against
 /// [`ImageReadBudget::max_series_volumes`], and the `f32` voxel storage of all
 /// frames against [`ImageReadBudget::max_decoded_bytes`] are checked before any
 /// voxel is decoded.
@@ -146,40 +153,14 @@ pub fn read_mgh_series<B: ComputeBackend, P: AsRef<Path>>(
     backend: &B,
     budget: ImageReadBudget,
 ) -> Result<Vec<Image<f32, B, 3>>, MghError> {
-    read_mgh_series_with_limit(path, backend, budget, MAX_MGZ_UNCOMPRESSED_BYTES)
-}
-
-fn read_mgh_series_with_limit<B: ComputeBackend, P: AsRef<Path>>(
-    path: P,
-    backend: &B,
-    budget: ImageReadBudget,
-    limit: u64,
-) -> Result<Vec<Image<f32, B, 3>>, MghError> {
-    let path = path.as_ref();
-    let file = open_file(path, budget)?;
-
-    if is_gzip_path(path) {
-        let gz = GzDecoder::new(BufReader::new(file)).take(limit);
-        let mut reader = BufReader::new(gz);
-        read_mgh_series_from_reader(&mut reader, backend, budget)
-    } else {
-        let mut reader = BufReader::new(file);
-        read_mgh_series_from_reader(&mut reader, backend, budget)
-    }
-}
-
-fn read_mgh_series_from_reader<B: ComputeBackend, R: Read>(
-    reader: &mut R,
-    backend: &B,
-    budget: ImageReadBudget,
-) -> Result<Vec<Image<f32, B, 3>>, MghError> {
+    let mut stream = open_mgh_stream(path.as_ref(), budget)?;
     let DecodedMgh {
         volumes,
         dims,
         origin,
         spacing,
         direction,
-    } = decode_mgh(reader, budget)?;
+    } = decode_mgh(&mut stream, budget)?;
 
     volumes
         .into_iter()
@@ -273,9 +254,9 @@ fn read_mgh_header<R: Read>(
         })?;
     let voxel_type = VoxelType::try_from(mri_type)?;
 
-    // The header counts are claims about the file, so they are bounded before
-    // any frame is decoded. Decoded storage is the `f32` output, which is never
-    // smaller than the stored voxels.
+    // The header's counts are claims about the file, so they are bounded
+    // before any frame is decoded. Decoded storage is the `f32` output, which
+    // is never smaller than the stored voxels.
     budget.check_len(ImageReadResource::SeriesVolumes, nframes)?;
     budget.check_len(
         ImageReadResource::DecodedBytes,
