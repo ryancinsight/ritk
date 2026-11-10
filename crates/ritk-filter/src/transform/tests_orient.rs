@@ -38,6 +38,16 @@ fn orient(code: &str, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 
         }
         (Err(legacy), Err(native)) => {
             assert_eq!(legacy.to_string(), native.to_string(), "{code}");
+            // The same typed refusal, or the same untyped one, from both.
+            assert_eq!(
+                legacy
+                    .downcast_ref()
+                    .map(std::mem::discriminant::<NonCartesianGrid>),
+                native
+                    .downcast_ref()
+                    .map(std::mem::discriminant::<NonCartesianGrid>),
+                "{code}: the paths refuse with different error types"
+            );
         }
         _ => panic!("{code}: one path refused and the other did not"),
     }
