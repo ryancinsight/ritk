@@ -1,6 +1,7 @@
 use crate::domain::ImageWriter;
 use anyhow::Result;
 use coeus_core::SequentialBackend;
+use ritk_codecs::ImageReadBudget;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 
@@ -9,7 +10,7 @@ use std::path::Path;
 
 /// Reads MGH/MGZ through the native provider and converts at this legacy boundary.
 pub fn read_mgh<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Image<f32, B, 3>> {
-    let native = ritk_mgh::read_mgh(path, &SequentialBackend)?;
+    let native = ritk_mgh::read_mgh(path, &SequentialBackend, ImageReadBudget::DEFAULT)?;
     let values = native.data_cow_on(&SequentialBackend)?;
     let tensor = Tensor::<f32, B>::from_slice_on(native.shape(), values.as_ref(), device)?;
     Image::new(
@@ -25,7 +26,7 @@ pub fn read_mgh_series<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B,
 ) -> Result<Vec<Image<f32, B, 3>>> {
-    let natives = ritk_mgh::read_mgh_series(path, &SequentialBackend)?;
+    let natives = ritk_mgh::read_mgh_series(path, &SequentialBackend, ImageReadBudget::DEFAULT)?;
     natives
         .into_iter()
         .map(|native| {
@@ -82,6 +83,7 @@ impl<B: Backend> ImageWriter<Image<f32, B, 3>> for MghWriter {
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
+    use ritk_codecs::ImageReadBudget;
     use ritk_image::Image;
     use std::path::Path;
 
@@ -99,7 +101,8 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for MghReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_mgh::read_mgh(path, &self.backend).map_err(|error| to_io_err(error.into()))
+            ritk_mgh::read_mgh(path, &self.backend, ImageReadBudget::DEFAULT)
+                .map_err(|error| to_io_err(error.into()))
         }
     }
 

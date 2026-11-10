@@ -11,6 +11,7 @@
 
 use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, Criterion};
+use ritk_codecs::ImageReadBudget;
 use ritk_image::Image;
 use ritk_mgh::{read_mgh, write_mgh};
 use ritk_spatial::{Direction, Point, Spacing};
@@ -63,16 +64,24 @@ fn bench_reader(criterion: &mut Criterion) {
     group.bench_function("uncompressed", |bencher| {
         bencher.iter(|| {
             black_box(
-                read_mgh(black_box(&mgh_path), &SequentialBackend)
-                    .expect("benchmark MGH fixture must decode"),
+                read_mgh(
+                    black_box(&mgh_path),
+                    &SequentialBackend,
+                    ImageReadBudget::DEFAULT,
+                )
+                .expect("benchmark MGH fixture must decode"),
             )
         });
     });
     group.bench_function("gzip", |bencher| {
         bencher.iter(|| {
             black_box(
-                read_mgh(black_box(&mgz_path), &SequentialBackend)
-                    .expect("benchmark MGZ fixture must decode"),
+                read_mgh(
+                    black_box(&mgz_path),
+                    &SequentialBackend,
+                    ImageReadBudget::DEFAULT,
+                )
+                .expect("benchmark MGZ fixture must decode"),
             )
         });
     });

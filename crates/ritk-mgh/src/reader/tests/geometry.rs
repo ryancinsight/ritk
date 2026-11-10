@@ -31,7 +31,7 @@ fn test_read_nondefault_spatial() -> Result<()> {
     );
     std::fs::write(&path, &mgh)?;
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
+    let image = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
     assert_eq!(image.shape(), [2, 3, 4]);
     // The header stores spacing in `[x, y, z]` order; RITK spacing is
     // `[Δdepth, Δrow, Δcol] = [Δz, Δy, Δx]`, its reverse
@@ -100,7 +100,7 @@ fn test_read_good_ras_flag_zero() -> Result<()> {
     buf.extend_from_slice(&data_bytes);
     std::fs::write(&path, &buf)?;
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
+    let image = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
     assert_eq!(image.shape(), [2, 2, 2]);
     assert_eq!(image.spacing()[0], 1.0);
     assert_eq!(image.spacing()[1], 1.0);

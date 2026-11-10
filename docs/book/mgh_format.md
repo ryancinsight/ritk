@@ -6,8 +6,12 @@ inside gzip compression. RITK exposes both through the `ritk-mgh` crate:
 - `read_mgh` reads one-volume `.mgh`, `.mgz`, and `.mgh.gz` files, with
   ASCII case-insensitive suffix matching, and rejects multi-frame input;
 - `read_mgh_series` reads every frame of an acquisition or time series;
+- both readers take an `ImageReadBudget` and return `MghError::Budget` when the
+  file size, the header's `nframes`, or the `f32` voxel storage it implies
+  exceeds a ceiling, before any voxel is decoded;
 - `write_mgh` writes the representation selected by the path extension;
-- `MghReader` is a stateless adapter whose `read` method receives the backend;
+- `MghReader` is a stateless adapter whose `read` method receives the backend
+  and an `ImageReadBudget`;
 - `MghWriter` retains a backend for repeated operations.
 
 FreeSurfer describes MGH as an internal format whose field contract is defined

@@ -23,7 +23,7 @@ fn test_read_mgz() -> Result<()> {
     encoder.write_all(&mgh)?;
     std::fs::write(&path, encoder.finish()?)?;
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
+    let image = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
     assert_eq!(image.shape(), [2, 2, 2]);
     image.data_slice().map(|loaded| {
         assert_eq!(loaded.len(), values.len());
@@ -60,7 +60,7 @@ fn test_read_mgh_gz_extension() -> Result<()> {
     encoder.write_all(&mgh)?;
     std::fs::write(&path, encoder.finish()?)?;
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
+    let image = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
     image.data_slice().map(|loaded| {
         for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
             assert_eq!(got, expected, "voxel[{i}]");
@@ -95,7 +95,7 @@ fn test_read_external_uppercase_gzip_extensions() -> Result<()> {
         encoder.write_all(&mgh)?;
         std::fs::write(&path, encoder.finish()?)?;
 
-        let image = read_mgh::<TestBackend, _>(&path, &backend)?;
+        let image = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
         image.data_slice().map(|loaded| {
             for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
                 assert_eq!(got.to_bits(), expected.to_bits(), "{name} voxel[{i}]");
@@ -120,7 +120,9 @@ fn mgz_decompression_bomb_is_rejected() {
     encoder.write_all(&vec![0u8; 2048]).unwrap();
     std::fs::write(&path, encoder.finish().unwrap()).unwrap();
 
-    let Err(_) = read_mgh_with_limit::<TestBackend, _>(&path, &backend, 1024) else {
+    let Err(_) =
+        read_mgh_with_limit::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT, 1024)
+    else {
         panic!("MGZ exceeding the decompression limit must be rejected");
     };
 }

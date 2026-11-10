@@ -2,6 +2,7 @@ use std::collections::TryReserveError;
 use std::io;
 use std::path::PathBuf;
 
+use ritk_codecs::ImageReadBudgetError;
 use ritk_spatial::InvalidSpacing;
 use thiserror::Error;
 
@@ -11,9 +12,10 @@ use thiserror::Error;
 ///
 /// ```
 /// use coeus_core::SequentialBackend;
+/// use ritk_codecs::ImageReadBudget;
 /// use ritk_mgh::{read_mgh, MghError};
 ///
-/// let error = read_mgh("missing.mgh", &SequentialBackend)
+/// let error = read_mgh("missing.mgh", &SequentialBackend, ImageReadBudget::DEFAULT)
 ///     .expect_err("the file does not exist");
 /// assert!(matches!(error, MghError::Open { .. }));
 /// ```
@@ -87,6 +89,13 @@ pub enum MghError {
         voxels: usize,
         /// Declared frame count.
         frames: usize,
+    },
+    /// A header-declared size exceeds the read budget.
+    #[error(transparent)]
+    Budget {
+        /// Resource ceiling rejected before the payload was decoded.
+        #[from]
+        source: ImageReadBudgetError,
     },
     /// A single-volume read met a multi-frame file.
     #[error(

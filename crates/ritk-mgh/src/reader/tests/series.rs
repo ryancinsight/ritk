@@ -58,7 +58,7 @@ fn series_round_trips_through_mgh() -> Result<()> {
     let expected = series_fixture(5, [2, 3, 4]);
 
     write_mgh_series(&path, &expected, &backend)?;
-    let actual = read_mgh_series::<TestBackend, _>(&path, &backend)?;
+    let actual = read_mgh_series::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
 
     assert_series_matches(&actual, &expected);
     Ok(())
@@ -72,7 +72,7 @@ fn series_round_trips_through_mgz() -> Result<()> {
     let expected = series_fixture(4, [2, 2, 3]);
 
     write_mgh_series(&path, &expected, &backend)?;
-    let actual = read_mgh_series::<TestBackend, _>(&path, &backend)?;
+    let actual = read_mgh_series::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
 
     assert_series_matches(&actual, &expected);
     Ok(())
@@ -90,7 +90,7 @@ fn single_frame_series_writes_nframes_one() -> Result<()> {
 
     write_mgh_series(&path, &expected, &backend)?;
 
-    let single = read_mgh::<TestBackend, _>(&path, &backend)?;
+    let single = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
     assert_eq!(
         single.data_slice().expect("contiguous host voxels"),
         expected[0].data_slice().expect("contiguous host voxels"),
@@ -109,7 +109,7 @@ fn single_frame_file_reads_as_a_one_volume_series() -> Result<()> {
     let image = series_fixture(1, [2, 2, 2]).remove(0);
 
     write_mgh(&image, &path, &backend)?;
-    let series = read_mgh_series::<TestBackend, _>(&path, &backend)?;
+    let series = read_mgh_series::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
 
     assert_eq!(series.len(), 1);
     assert_eq!(
@@ -129,7 +129,7 @@ fn multi_frame_series_round_trips_voxel_order() -> Result<()> {
     let expected = series_fixture(3, [2, 2, 2]);
 
     write_mgh_series(&path, &expected, &backend)?;
-    let actual = read_mgh_series::<TestBackend, _>(&path, &backend)?;
+    let actual = read_mgh_series::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
 
     assert_series_matches(&actual, &expected);
     Ok(())
@@ -144,7 +144,7 @@ fn single_volume_reader_rejects_multi_frame_rather_than_returning_frame_zero() -
     let backend = TestBackend::default();
     write_mgh_series(&path, &series_fixture(6, [2, 2, 2]), &backend)?;
 
-    let err = read_mgh::<TestBackend, _>(&path, &backend)
+    let err = read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)
         .expect_err("a 6-frame series has no single-volume representation");
     let message = format!("{err:#}");
 
@@ -204,7 +204,7 @@ fn truncated_series_payload_is_rejected() -> Result<()> {
     let one_frame_end = full.len() - 3 * 8 * std::mem::size_of::<f32>();
     std::fs::write(&path, &full[..one_frame_end])?;
 
-    let err = read_mgh_series::<TestBackend, _>(&path, &backend)
+    let err = read_mgh_series::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)
         .expect_err("a truncated series payload must fail");
     assert!(
         format!("{err:#}").contains("truncated"),
@@ -269,7 +269,11 @@ fn multi_frame_supports_all_voxel_types() -> Result<()> {
         );
         std::fs::write(&path, &bytes)?;
 
-        let series = read_mgh_series::<TestBackend, _>(&path, &TestBackend::default())?;
+        let series = read_mgh_series::<TestBackend, _>(
+            &path,
+            &TestBackend::default(),
+            ImageReadBudget::DEFAULT,
+        )?;
         let n_voxels = (nx * ny * nz) as usize;
         assert_eq!(series.len(), nframes as usize);
         for (frame, image) in series.iter().enumerate() {

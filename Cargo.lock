@@ -6481,6 +6481,7 @@ dependencies = [
  "flate2",
  "image 0.24.9",
  "proptest",
+ "ritk-codecs",
  "ritk-core",
  "ritk-image",
  "ritk-spatial",

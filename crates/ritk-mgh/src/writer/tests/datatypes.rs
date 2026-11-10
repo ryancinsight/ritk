@@ -79,7 +79,7 @@ fn test_all_four_data_types_readable() -> Result<()> {
         &data_bytes,
     );
     std::fs::write(&path, &mgh)?;
-    let image = crate::read_mgh::<TestBackend, _>(&path, &backend)?;
+    let image = crate::read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT)?;
     image.data_slice().map(|loaded| {
         for (i, (&got, &expected)) in loaded.iter().zip(vals.iter()).enumerate() {
             assert_eq!(
@@ -109,7 +109,7 @@ fn test_invalid_version_rejected() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = crate::read_mgh::<TestBackend, _>(&path, &backend);
+    let result = crate::read_mgh::<TestBackend, _>(&path, &backend, ImageReadBudget::DEFAULT);
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("version"),
@@ -123,7 +123,7 @@ fn assert_read_values(
     expected: &[f32],
     label: &str,
 ) -> Result<()> {
-    let image = crate::read_mgh::<TestBackend, _>(path, backend)?;
+    let image = crate::read_mgh::<TestBackend, _>(path, backend, ImageReadBudget::DEFAULT)?;
     image.data_slice().map(|loaded| {
         assert_eq!(loaded.len(), expected.len());
         for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
