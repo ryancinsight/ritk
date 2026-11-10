@@ -1,6 +1,5 @@
 use anyhow::{bail, Context, Result};
 
-use crate::dimensions::checked_pixel_count;
 use crate::jpeg_2000::ebcot::decode_code_block;
 use crate::jpeg_2000::quantization::{dequantize, step_size};
 use crate::jpeg_2000::subband::{resolution_band_range, subband_layout, Subband};
@@ -180,7 +179,7 @@ pub struct TileCodingParams<'a> {
 /// multiple quality layers (per-code-block pass accumulation).
 ///
 /// # Errors
-/// Returns an error when the tile dimensions exceed the shared decode bound,
+/// Returns an error when the tile dimensions overflow `usize`,
 /// a packet header is truncated or carries an unsupported length width, a
 /// signalled packet-body length exceeds the available tile data, or the
 /// inverse DWT geometry is inconsistent.
@@ -190,8 +189,9 @@ pub fn decode_tile_part(
     height: usize,
     coding: TileCodingParams<'_>,
 ) -> Result<TileComponentSamples> {
-    let sample_count =
-        checked_pixel_count(width, height).context("J2K tile-component dimensions")?;
+    let sample_count = width
+        .checked_mul(height)
+        .context("J2K tile-component dimensions overflow usize")?;
     let bands = subband_layout(width, height, coding.num_decomp_levels);
     let cblks: Vec<CblkRef> = bands
         .iter()

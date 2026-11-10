@@ -107,8 +107,7 @@ impl ImageReadBudget {
 
     /// Checks an in-memory length against the selected resource ceiling.
     ///
-    /// `usize` fits `u64` on every supported target; a length that did not fit
-    /// would exceed every ceiling, so the conversion saturates.
+    /// `usize` fits `u64` on every supported target, so the conversion is exact.
     ///
     /// # Errors
     ///
@@ -119,7 +118,10 @@ impl ImageReadBudget {
         resource: ImageReadResource,
         actual: usize,
     ) -> Result<(), ImageReadBudgetError> {
-        self.check(resource, u64::try_from(actual).unwrap_or(u64::MAX))
+        self.check(
+            resource,
+            u64::try_from(actual).expect("invariant: usize fits u64 on supported targets"),
+        )
     }
 }
 

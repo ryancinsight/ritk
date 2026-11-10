@@ -42,6 +42,6 @@ pub enum Jpeg2000DecodeError {
     ///
     /// The codestream parser reports its failures as `anyhow` chains; the chain
     /// is preserved here until each parser stage has its own variants.
-    #[error("{0:#}")]
+    #[error(transparent)]
     Codestream(#[from] anyhow::Error),
 }

@@ -40,9 +40,10 @@
 //! SIZ image/tile geometry and SOT tile-part fields are validated before packet
 //! decode. Tile buffers use the image-domain intersection defined by T.800
 //! Annex B.3 rather than the full reference tile, and both pixel and
-//! sample counts share a fixed allocation cap, and the caller's
-//! [`ImageReadBudget`] bounds the fragment length and the `f32` output before
-//! the codestream is parsed. Tile headers are parsed by marker boundaries
+//! sample counts are bounded by the caller's [`ImageReadBudget`], which limits
+//! the fragment length and the `f32` output before the codestream is parsed
+//! and replaces the fixed allocation cap of the other codecs. Tile headers are
+//! parsed by marker boundaries
 //! before output allocation; every segment must fit its byte extent,
 //! EOC is mandatory, every declared tile must be present, and every expected
 //! LRCP packet header must be consumed. Component precision is bounded by the
