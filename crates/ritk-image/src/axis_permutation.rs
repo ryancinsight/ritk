@@ -8,11 +8,12 @@
 //! point `p = origin + D · diag(spacing) · index`. The decode is exact: an
 //! entry one rounding step from `0` or `±1` is not a signed permutation, so a
 //! caller that cannot store an oblique direction refuses it instead of
-//! snapping it.
+//! snapping it. A caller that does snap an oblique direction to its nearest
+//! axes builds the relabeling with [`SignedAxisPermutation::from_axes`].
 
 use std::borrow::Cow;
 
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing, Vector};
 
 /// Relabeling of a `[z, y, x]` grid's tensor axes, each possibly reversed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -82,15 +83,50 @@ impl SignedAxisPermutation {
         Some(Self { axis, reversed })
     }
 
+    /// The relabeling whose output tensor axis `o` reads input tensor axis
+    /// `axis[o]`, walked from its last index when `reversed[o]`.
+    ///
+    /// Returns `None` unless `axis` is a permutation of `[0, 1, 2]`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ritk_image::SignedAxisPermutation;
+    /// use ritk_spatial::Direction;
+    ///
+    /// let identity = Direction::<3>::identity();
+    /// assert_eq!(
+    ///     SignedAxisPermutation::from_axes([0, 1, 2], [false; 3]),
+    ///     SignedAxisPermutation::between(&identity, &identity),
+    /// );
+    /// // Two output axes cannot read one input axis.
+    /// assert_eq!(SignedAxisPermutation::from_axes([0, 0, 1], [false; 3]), None);
+    /// ```
+    pub fn from_axes(axis: [usize; 3], reversed: [bool; 3]) -> Option<Self> {
+        let mut seen = [false; 3];
+        for &input in &axis {
+            let slot = seen.get_mut(input)?;
+            if *slot {
+                return None;
+            }
+            *slot = true;
+        }
+        Some(Self { axis, reversed })
+    }
+
     /// Whether every output axis reads the same input axis forward.
     fn is_identity(&self) -> bool {
         self.axis == [0, 1, 2] && self.reversed == [false; 3]
     }
 
-    /// Re-express a grid whose direction is the `from` of [`Self::between`].
+    /// Re-express a grid under this relabeling.
     ///
     /// `values` is the flat `[z, y, x]` buffer of extents `dims`; `origin`,
-    /// `spacing` and `direction` are the input geometry.
+    /// `spacing` and `direction` are the input geometry, which need not be a
+    /// signed permutation. The output origin is the world point of the input
+    /// voxel that becomes output `(0, 0, 0)`, evaluated as
+    /// `origin + D · (S · index)` in the same operation order as
+    /// [`ritk_spatial::CartesianGridGeometry::point`].
     ///
     /// # Panics
     ///
@@ -120,13 +156,11 @@ impl SignedAxisPermutation {
                 corner[input] = dims[input].saturating_sub(1);
             }
         }
-        let mut out_origin = origin.to_array();
+        let mut scaled = Vector::zeros();
         for (input, &index) in corner.iter().enumerate() {
-            let step = spacing[input] * <f64 as eunomia::FloatElement>::from_count(index);
-            for (row, coordinate) in out_origin.iter_mut().enumerate() {
-                *coordinate += direction[(row, input)] * step;
-            }
+            scaled[input] = <f64 as eunomia::FloatElement>::from_count(index) * spacing[input];
         }
+        let out_origin = *origin + *direction * scaled;
 
         let values = if self.is_identity() {
             Cow::Borrowed(values)
@@ -136,7 +170,7 @@ impl SignedAxisPermutation {
         PermutedGrid {
             values,
             dims: out_dims,
-            origin: Point::new(out_origin),
+            origin: out_origin,
             spacing: out_spacing,
         }
     }
