@@ -4,7 +4,7 @@
 //! | Extension(s)          | Read | Write | Backend              |
 //! |-----------------------|------|-------|----------------------|
 //! | `.nii`, `.nii.gz`     | ✓    | ✓     | ritk-io NIfTI        |
-//! | `.png`                | ✓    | ✗     | ritk-io PNG          |
+//! | `.png`                | ✓    | ✓     | ritk-io PNG          |
 //! | directory (DICOM)     | ✓    | ✗     | ritk-io DICOM        |
 //! | `.mha`, `.mhd`        | ✓    | ✓     | ritk-io MetaImage    |
 //! | `.nrrd`               | ✓    | ✓     | ritk-io NRRD         |
@@ -84,7 +84,7 @@ pub fn read_image(
 
 /// Write a medical image to file.  Format inferred from extension.
 ///
-/// Supported: .nii, .nii.gz, .mha, .mhd, .nrrd, .tif, .tiff,
+/// Supported: .nii, .nii.gz, .png, .mha, .mhd, .nrrd, .tif, .tiff,
 /// .vtk, .mgh, .mgz, .hdr, .img, .jpg, .jpeg.
 ///
 /// Raises:

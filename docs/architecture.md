@@ -466,16 +466,14 @@ prepare_conversion(target, source_format, series, metadata_losses)
 
 **Reader behaviors**: little-endian only; big-endian and paired NIfTI-1 (`ni1\0`) rejected; `dim[0] ∈ {3,4}` with `dim[4] == 1`; datatype `2/4/8/16/64`; `bitpix` must match the datatype; `pixdim[1..=3] ≤ 0` falls back to unit spacing; `funused1` (`0 → 1`) is the scale; `vox_offset` must be a whole byte count; origin reconstructed from the `originator` voxel coordinates times spacing; the `.img` length must equal `vox_offset + voxel_count × width`.
 
-**Writer behaviors**: `f32` only (`DT_FLOAT`); dimensions at most `i16::MAX`; positive finite `f32` spacing; origin rounded to an `i16` voxel coordinate; file-axes direction implied, any other refused before either file is created; the header is published only after the full payload is written.
+**Writer behaviors**: `f32` only (`DT_FLOAT`); dimensions at most `i16::MAX`; positive finite `f32` spacing; origin rounded to an `i16` voxel coordinate; file-axes direction implied, any other signed axis permutation relabeled onto it and an oblique direction refused before either file is created (the stored writer `write_analyze_stored` refuses every direction but the file-axes one); the header is published only after the full payload is written.
 
 **Edge cases**:
-- Analyze has no direction field: its axes are the file axes, so the reader returns `ritk_image::file_axes_direction()` and any other direction is unrepresentable and must be rejected on write rather than silently dropped.
+- Analyze has no direction field: its axes are the file axes, so the reader returns `ritk_image::file_axes_direction()`. A signed axis permutation is relabeled onto the file axes on write; an oblique direction is unrepresentable and is rejected rather than silently dropped.
 - The `originator` field is unreliable across writers and rounds the origin to voxel coordinates; a non-integer-representable origin is rejected or reported as loss.
 - Pair atomicity: a failure after the `.img` is written but before the `.hdr` leaves an orphan `.img`; the writer stages both or documents the recovery.
 - Datatype `2/4/8/16/64` only; `u16`, `u32`, `i64`, and `u64` are unrepresentable.
-- The current reader decodes to `f32` and applies `funused1`, discarding the stored type and separating values from calibration. Completing the capability requires a stored read that returns the source `SampleType` and carries `funused1` as `LinearCalibration`.
-
-**Gap**: no stored read/write and no adapter yet (RITK-ANALYZE-CONVERSION-001, RITK-ANALYZE-CONVERSION-INVENTORY-001).
+- The `f32` reader decodes and applies `funused1`; the stored read (`read_analyze_stored`) keeps the source `SampleType` and carries `funused1` as `LinearCalibration`, and `write_analyze_stored` writes it back.
 
 ### 24. DICOM Stored Conversion Boundary
 
