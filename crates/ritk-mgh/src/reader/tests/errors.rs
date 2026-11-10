@@ -324,3 +324,28 @@ fn test_decode_series_byte_count_beyond_usize_is_rejected_in_the_header() {
     };
     assert_eq!((voxels, bytes_per_voxel), (1 << 63, 4));
 }
+
+#[test]
+fn volume_reader_rejects_the_smallest_multi_frame_file() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("two_frames.mgh");
+    let backend = TestBackend::default();
+    let mgh = build_mgh_bytes(
+        VERSION,
+        [2, 2, 2],
+        2,
+        MRI_FLOAT,
+        [1.0, 1.0, 1.0],
+        IDENTITY_DIR,
+        [0.0, 0.0, 0.0],
+        &[0u8; 2 * 2 * 2 * 4 * 2],
+    );
+    std::fs::write(&path, &mgh).unwrap();
+
+    let error = read_mgh::<TestBackend, _>(&path, &backend)
+        .expect_err("a two-frame file has no 3-D representation");
+    assert!(
+        matches!(error, MghError::MultiFrame { nframes: 2 }),
+        "got: {error}"
+    );
+}
