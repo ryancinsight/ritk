@@ -5,18 +5,19 @@
 //!
 //! ## Coordinate Convention
 //!
-//! RITK tensor shape is **[nz, ny, nx]** (Z varies slowest, X varies fastest).
-//! VTK `DIMENSIONS` expects **[nx, ny, nz]** order, so the first and last
-//! tensor dimensions are swapped when emitting the header. The file's X axis
-//! is therefore RITK's *column* axis.
+//! [`encode_vtk_flat`] takes a `[nz, ny, nx]` buffer on the file axes
+//! (`ritk_image::file_axes_direction()`): VTK `DIMENSIONS` expects
+//! **[nx, ny, nz]**, so the first and last tensor extents are swapped in the
+//! header, and the file's X axis is the buffer's *column* axis. X varies
+//! fastest in both, so the encoder copies the buffer as is.
 //!
 //! `ORIGIN` is a scanner-space position, matching RITK's `Point` directly.
 //! `SPACING` is per-axis metadata in **[X, Y, Z]** order, so the file's X size
-//! is RITK `spacing[2]` (the column spacing); the triple is reversed by
-//! `reverse_spatial_axes` before it reaches this encoder.
+//! is the column spacing; the triple is reversed by `reverse_spatial_axes`
+//! before it reaches the encoder.
 //!
-//! VTK stores scalar data with X varying fastest, matching RITK's memory
-//! layout. No data permutation is required.
+//! [`write_vtk`] accepts any signed axis permutation and first relabels the
+//! image onto the file axes, permuting the voxels when its direction differs.
 
 use super::reverse_spatial_axes;
 use anyhow::{Context, Result};

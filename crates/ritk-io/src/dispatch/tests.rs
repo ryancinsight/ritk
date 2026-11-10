@@ -137,8 +137,8 @@ fn native_capability_matrix_matches_dispatch() {
         let path = dir
             .path()
             .join(format!("capability.{}", canonical_extension(fmt)));
-        // Legacy VTK and Analyze carry only the file-axes direction; every
-        // other writer stores either.
+        // Analyze writes only the file-axes direction, and legacy VTK reads
+        // back only that one; every other writer stores either.
         let direction = match fmt {
             ImageFormat::Vtk | ImageFormat::Analyze => file_axes_direction(),
             _ => Direction::identity(),

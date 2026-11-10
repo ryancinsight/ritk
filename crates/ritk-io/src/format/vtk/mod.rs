@@ -76,10 +76,11 @@ pub mod native {
 
     /// Backend-bound legacy VTK structured-points writer.
     ///
-    /// The legacy representation cannot store a direction matrix or
-    /// acquisition coordinate map. Writes therefore reject directions other
-    /// than `ritk_image::file_axes_direction()` and non-Cartesian maps before
-    /// creating or truncating the destination.
+    /// The legacy representation stores no direction matrix: its axes are
+    /// `ritk_image::file_axes_direction()`. Writes relabel any other signed
+    /// axis permutation onto those axes, keeping every voxel's world point,
+    /// and reject an oblique direction or a non-Cartesian map before creating
+    /// or truncating the destination.
     pub struct VtkWriter<B: ComputeBackend> {
         backend: B,
     }

@@ -39,6 +39,9 @@ pub(crate) mod read_helpers;
 pub(crate) mod xml_helpers;
 pub mod xml_write_attr;
 
+#[cfg(test)]
+mod permuted_write_tests;
+
 /// Reverse a three-component spatial vector between RITK `[depth, row, col]`
 /// and VTK's `[X, Y, Z]` file order.
 ///
@@ -50,9 +53,6 @@ pub mod xml_write_attr;
 ///
 /// The map is its own inverse, so the reader and writer share it. `ORIGIN` is
 /// a scanner-space position with no per-axis metadata and is never reversed.
-#[cfg(test)]
-mod permuted_write_tests;
-
 pub(crate) const fn reverse_spatial_axes(vector: [f64; 3]) -> [f64; 3] {
     [vector[2], vector[1], vector[0]]
 }
