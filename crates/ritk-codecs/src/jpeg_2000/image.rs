@@ -17,6 +17,7 @@ use super::packet::{
     reader::{decode_tile_part, TileCodingParams},
     WaveletTransform,
 };
+use super::Jpeg2000DecodeError;
 use crate::{PixelLayout, PixelSignedness};
 
 #[derive(Debug)]
@@ -179,10 +180,14 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
     // The output size is the layout's sample count, which SIZ is required to
     // match and which `decode_jpeg2000_fragment` has checked against the
     // caller's read budget.
-    let total_samples = layout
+    let samples = layout
         .samples_per_frame()
         .context("J2K: invalid DICOM pixel layout")?;
-    let mut out = vec![0f32; total_samples];
+    let mut out = Vec::new();
+    out.try_reserve_exact(samples).map_err(|source| {
+        anyhow::Error::new(Jpeg2000DecodeError::OutputAllocation { samples, source })
+    })?;
+    out.resize(samples, 0f32);
 
     for tile_part in tile_parts {
         let isot = tile_part.isot;

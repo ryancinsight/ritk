@@ -38,6 +38,15 @@ pub enum Jpeg2000DecodeError {
         #[from]
         source: ImageReadBudgetError,
     },
+    /// The allocator cannot reserve the `f32` output frame the budget admitted.
+    #[error("JPEG 2000 output of {samples} samples cannot be allocated")]
+    OutputAllocation {
+        /// Samples in the output frame.
+        samples: usize,
+        /// Allocator refusal.
+        #[source]
+        source: std::collections::TryReserveError,
+    },
     /// The codestream is malformed, truncated, or outside the supported profile.
     ///
     /// The codestream parser reports its failures as `anyhow` chains; the chain

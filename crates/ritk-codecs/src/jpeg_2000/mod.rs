@@ -114,6 +114,9 @@ pub(crate) const SOI: u16 = 0xFFD8;
 /// output storage implied by `layout` exceeds `budget`, before the codestream
 /// is parsed or any output is allocated.
 ///
+/// Returns [`Jpeg2000DecodeError::OutputAllocation`] when the allocator cannot
+/// reserve the output frame the budget admitted.
+///
 /// Returns [`Jpeg2000DecodeError::Codestream`] if:
 /// - `fragment` does not begin with the SOC marker (0xFF4F).
 /// - SIZ or SOT geometry is invalid, or identifies a tile outside the image's tile grid.
@@ -136,7 +139,11 @@ pub fn decode_jpeg2000_fragment(
         )));
     }
     check_read_budget(fragment.len(), layout, budget)?;
-    Ok(decode_j2k_fragment(fragment, layout)?)
+    decode_j2k_fragment(fragment, layout).map_err(|error| {
+        error
+            .downcast()
+            .unwrap_or_else(Jpeg2000DecodeError::Codestream)
+    })
 }
 
 /// Returns `true` if `fragment` begins with the J2K SOC marker (`0xFF 0x4F`).

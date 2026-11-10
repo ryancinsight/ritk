@@ -1035,6 +1035,28 @@ fn decode_rejects_an_output_size_beyond_usize_under_the_widest_budget() {
     assert_exceeded(error, ImageReadResource::DecodedBytes, u64::MAX, u64::MAX);
 }
 
+#[cfg(target_pointer_width = "64")]
+#[test]
+fn decode_reports_output_storage_beyond_isize_as_an_allocation_error() {
+    // 2^61 samples are 2^63 `f32` bytes: within the budget, above `isize::MAX`.
+    let mut j2k = single_pixel_codestream();
+    let siz = j2k
+        .windows(2)
+        .position(|window| window == [0xFF, 0x51])
+        .expect("encoder output must contain SIZ");
+    let (columns, rows) = (1u32 << 31, 1u32 << 30);
+    for (offset, extent) in [(6, columns), (10, rows), (22, columns), (26, rows)] {
+        j2k[siz + offset..siz + offset + 4].copy_from_slice(&extent.to_be_bytes());
+    }
+    let layout = gray(1 << 30, 1 << 31);
+    let error = super::decode_jpeg2000_fragment(&j2k, layout, budget(u64::MAX, 1 << 63))
+        .expect_err("2^63 output bytes exceed the allocation limit");
+    assert!(
+        matches!(&error, Jpeg2000DecodeError::OutputAllocation { samples, .. } if *samples == 1 << 61),
+        "got: {error}"
+    );
+}
+
 #[test]
 fn decode_validates_the_layout_before_the_budget() {
     let error = reject_header_only(gray(0, 4), budget(1, 1));
