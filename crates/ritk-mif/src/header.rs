@@ -26,7 +26,7 @@
 //! After `END`, raw binary voxel data follows directly in the stream.
 
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
+use std::io::BufRead;
 
 use anyhow::{anyhow, Context, Result};
 
@@ -170,21 +170,6 @@ fn collect_logical_lines<R: BufRead>(reader: &mut R) -> Result<Vec<String>> {
             logical.push(std::mem::take(&mut current));
         }
     }
-}
-
-/// Parse a `.mif` header from a file path.
-///
-/// Opens `path`, wraps in a `BufReader`, and delegates to
-/// [`parse_mif_header`].  The returned reader consumes the header;
-/// the caller can continue reading binary data from it.
-pub(crate) fn parse_mif_header_from_path(
-    path: &std::path::Path,
-) -> Result<(MifHeader, BufReader<std::fs::File>)> {
-    let file =
-        std::fs::File::open(path).with_context(|| format!("Cannot open .mif file {:?}", path))?;
-    let mut reader = BufReader::new(file);
-    let header = parse_mif_header(&mut reader)?;
-    Ok((header, reader))
 }
 
 // ── Key extractors used by the reader ────────────────────────────────────

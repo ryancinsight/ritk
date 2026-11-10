@@ -30,7 +30,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for MifReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_mif::read_mif(path, &self.backend).map_err(to_io_err)
+            ritk_mif::read_mif(path, &self.backend).map_err(|error| to_io_err(error.into()))
         }
     }
 

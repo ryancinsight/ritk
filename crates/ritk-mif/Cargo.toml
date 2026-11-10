@@ -18,6 +18,7 @@ ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.3.0" }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }
 bytemuck = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 ritk-core = { path = "../ritk-core", features = ["test-helpers"] }
