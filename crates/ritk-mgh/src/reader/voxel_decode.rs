@@ -1,7 +1,7 @@
 //! Bounded streaming conversion of big-endian MGH voxels.
 
 use crate::types::VoxelType;
-use anyhow::{bail, Context, Result};
+use crate::MghError;
 use std::io::{ErrorKind, Read};
 
 /// Fixed input scratch for streaming voxel conversion.
@@ -15,7 +15,7 @@ pub(super) fn decode_voxels<R: Read>(
     reader: &mut R,
     voxel_type: VoxelType,
     voxel_count: usize,
-) -> Result<Vec<f32>> {
+) -> Result<Vec<f32>, MghError> {
     match voxel_type {
         VoxelType::UnsignedByte => {
             decode_stream::<1, _, _>(reader, voxel_count, decode_unsigned_byte)
@@ -35,7 +35,7 @@ pub(super) fn decode_volumes<R: Read>(
     voxel_type: VoxelType,
     voxels_per_volume: usize,
     volume_count: usize,
-) -> Result<Vec<Vec<f32>>> {
+) -> Result<Vec<Vec<f32>>, MghError> {
     // `volume_count` is the header's `nframes`: a claim about the file, not a
     // fact about it. Reserving the table from the claim let a 90-byte header
     // demand a multi-gigabyte `Vec<Vec<f32>>` before a single volume decoded.
@@ -43,12 +43,11 @@ pub(super) fn decode_volumes<R: Read>(
     // growing the table only as volumes genuinely decode bounds it by the real
     // payload while keeping the allocation failure graceful.
     let mut volumes = Vec::new();
-    for volume in 0..volume_count {
-        let values = decode_voxels(reader, voxel_type, voxels_per_volume)
-            .with_context(|| format!("failed to decode MGH volume {volume} of {volume_count}"))?;
+    for _ in 0..volume_count {
+        let values = decode_voxels(reader, voxel_type, voxels_per_volume)?;
         volumes
             .try_reserve(1)
-            .context("cannot allocate MGH volume table")?;
+            .map_err(|source| MghError::Allocation { source })?;
         volumes.push(values);
     }
     Ok(volumes)
@@ -58,7 +57,7 @@ fn decode_stream<const BYTES_PER_VOXEL: usize, R: Read, F>(
     reader: &mut R,
     voxel_count: usize,
     mut decode_chunk: F,
-) -> Result<Vec<f32>>
+) -> Result<Vec<f32>, MghError>
 where
     F: FnMut(&[u8], &mut Vec<f32>),
 {
@@ -68,9 +67,7 @@ where
 
     while output.len() < voxel_count {
         let chunk_voxels = (voxel_count - output.len()).min(voxels_per_chunk);
-        let chunk_bytes = chunk_voxels
-            .checked_mul(BYTES_PER_VOXEL)
-            .context("MGH decode chunk byte count overflows usize")?;
+        let chunk_bytes = chunk_voxels * BYTES_PER_VOXEL;
         let voxel_offset = output.len();
 
         read_encoded_chunk::<BYTES_PER_VOXEL, _>(
@@ -93,30 +90,23 @@ fn read_encoded_chunk<const BYTES_PER_VOXEL: usize, R: Read>(
     input: &mut [u8],
     voxel_offset: usize,
     voxel_count: usize,
-) -> Result<()> {
+) -> Result<(), MghError> {
     let mut bytes_read = 0usize;
     while bytes_read < input.len() {
         match reader.read(&mut input[bytes_read..]) {
             Ok(0) => {
-                let incomplete_voxel = voxel_offset + bytes_read / BYTES_PER_VOXEL;
-                bail!(
-                    "MGH voxel payload is truncated at voxel {incomplete_voxel} \
-                     of {voxel_count}"
-                );
+                return Err(MghError::TruncatedPayload {
+                    voxel: voxel_offset + bytes_read / BYTES_PER_VOXEL,
+                    voxel_count,
+                });
             }
-            Ok(read) => {
-                bytes_read = bytes_read
-                    .checked_add(read)
-                    .context("confirmed MGH payload byte count overflows usize")?;
-            }
+            Ok(read) => bytes_read += read,
             Err(error) if error.kind() == ErrorKind::Interrupted => {}
-            Err(error) => {
-                let incomplete_voxel = voxel_offset + bytes_read / BYTES_PER_VOXEL;
-                return Err(error).with_context(|| {
-                    format!(
-                        "failed to read MGH voxel {incomplete_voxel} \
-                         of {voxel_count}"
-                    )
+            Err(source) => {
+                return Err(MghError::PayloadRead {
+                    voxel: voxel_offset + bytes_read / BYTES_PER_VOXEL,
+                    voxel_count,
+                    source,
                 });
             }
         }
@@ -128,11 +118,8 @@ fn reserve_from_confirmed_input(
     output: &mut Vec<f32>,
     chunk_voxels: usize,
     voxel_count: usize,
-) -> Result<()> {
-    let confirmed = output
-        .len()
-        .checked_add(chunk_voxels)
-        .context("confirmed MGH voxel count overflows usize")?;
+) -> Result<(), MghError> {
+    let confirmed = output.len() + chunk_voxels;
     if confirmed > output.capacity() {
         let growth_target = output
             .capacity()
@@ -142,12 +129,7 @@ fn reserve_from_confirmed_input(
             .min(voxel_count);
         output
             .try_reserve_exact(growth_target - output.len())
-            .with_context(|| {
-                format!(
-                    "cannot allocate decoded MGH output for {growth_target} \
-                     confirmed voxels"
-                )
-            })?;
+            .map_err(|source| MghError::Allocation { source })?;
     }
     Ok(())
 }
