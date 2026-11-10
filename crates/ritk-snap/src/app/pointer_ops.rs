@@ -196,7 +196,7 @@ impl SnapApp {
                     let b = [p2.y(), p2.x()];
                     let c = [pos.y(), pos.x()];
                     let angle_deg = Annotation::compute_angle(a, b, c);
-                    self.annotations.push(Annotation::Angle {
+                    self.place_annotation(Annotation::Angle {
                         p1: a,
                         p2: b,
                         p3: c,
@@ -216,10 +216,10 @@ impl SnapApp {
                     let row = pos.y() as usize;
                     let col = pos.x() as usize;
                     let (pixels, width, _height) =
-                        vol.extract_slice(self.axis, self.viewer_state.slice_index);
+                        vol.extract_slice(self.axis, self.axis_slice_info(self.axis).0);
                     let idx = row * width + col;
                     let value = if idx < pixels.len() { pixels[idx] } else { 0.0 };
-                    self.annotations.push(Annotation::HuPoint {
+                    self.place_annotation(Annotation::HuPoint {
                         pos: [pos.y(), pos.x()],
                         value,
                     });

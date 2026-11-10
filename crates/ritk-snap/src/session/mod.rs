@@ -11,7 +11,7 @@
 //! JSON serialization logic appears outside this module.
 
 use crate::render::NamedColorMap;
-use crate::tools::interaction::Annotation;
+use crate::tools::interaction::PlacedAnnotation;
 use crate::tools::kind::ToolKind;
 use crate::ui::sidebar::SidebarTab;
 use crate::ViewerState;
@@ -83,7 +83,7 @@ pub struct ViewerSessionSnapshot {
     /// millimetre endpoints and derive their three-dimensional distance, so
     /// that measurement remains meaningful without the volume loaded.
     #[serde(default)]
-    pub annotations: Vec<Annotation>,
+    pub annotations: Vec<PlacedAnnotation>,
 }
 
 impl ViewerSessionSnapshot {

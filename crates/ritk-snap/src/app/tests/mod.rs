@@ -69,3 +69,13 @@ pub(crate) fn test_volume(shape: [usize; 3]) -> LoadedVolume {
         decay_correction: None,
     }
 }
+
+impl SnapApp {
+    /// Completed annotations without their plane binding.
+    pub(crate) fn annotation_values(&self) -> Vec<crate::tools::interaction::Annotation> {
+        self.annotations
+            .iter()
+            .map(|placed| placed.annotation.clone())
+            .collect()
+    }
+}

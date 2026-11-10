@@ -29,26 +29,29 @@ impl SnapApp {
             .iter()
             .position(|tool| *tool == self.active_tool)
             .expect("invariant: active tool belongs to ToolKind::all");
-        let last_annotation = self.annotations.last().map(|annotation| match annotation {
-            Annotation::Length { length_mm, .. } => {
-                AnnotationSummary::new(AnnotationKind::Length, f64::from(*length_mm))
-            }
-            Annotation::PatientLength(measurement) => {
-                AnnotationSummary::new(AnnotationKind::PatientLength, measurement.length_mm())
-            }
-            Annotation::Angle { angle_deg, .. } => {
-                AnnotationSummary::new(AnnotationKind::Angle, f64::from(*angle_deg))
-            }
-            Annotation::RoiRect { area_mm2, .. } => {
-                AnnotationSummary::new(AnnotationKind::RoiRect, f64::from(*area_mm2))
-            }
-            Annotation::RoiEllipse { area_mm2, .. } => {
-                AnnotationSummary::new(AnnotationKind::RoiEllipse, f64::from(*area_mm2))
-            }
-            Annotation::HuPoint { value, .. } => {
-                AnnotationSummary::new(AnnotationKind::HuPoint, f64::from(*value))
-            }
-        });
+        let last_annotation = self
+            .annotations
+            .last()
+            .map(|placed| match &placed.annotation {
+                Annotation::Length { length_mm, .. } => {
+                    AnnotationSummary::new(AnnotationKind::Length, f64::from(*length_mm))
+                }
+                Annotation::PatientLength(measurement) => {
+                    AnnotationSummary::new(AnnotationKind::PatientLength, measurement.length_mm())
+                }
+                Annotation::Angle { angle_deg, .. } => {
+                    AnnotationSummary::new(AnnotationKind::Angle, f64::from(*angle_deg))
+                }
+                Annotation::RoiRect { area_mm2, .. } => {
+                    AnnotationSummary::new(AnnotationKind::RoiRect, f64::from(*area_mm2))
+                }
+                Annotation::RoiEllipse { area_mm2, .. } => {
+                    AnnotationSummary::new(AnnotationKind::RoiEllipse, f64::from(*area_mm2))
+                }
+                Annotation::HuPoint { value, .. } => {
+                    AnnotationSummary::new(AnnotationKind::HuPoint, f64::from(*value))
+                }
+            });
         PresentationSnapshot::from_parts(
             self.visual_revision,
             self.loaded.is_some(),

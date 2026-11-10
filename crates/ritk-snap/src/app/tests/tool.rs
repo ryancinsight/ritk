@@ -207,3 +207,42 @@ fn tool_shortcut_b_selects_label_paint() {
     }
     assert_eq!(app.active_tool, ToolKind::LabelPaint);
 }
+
+#[test]
+fn an_roi_on_a_coronal_pane_reads_the_coronal_slice() {
+    let mut volume = test_volume([3, 4, 4]);
+    // The value of each voxel equals its coronal (row) index times ten.
+    volume.data = std::sync::Arc::new(
+        (0..3 * 4 * 4_u16)
+            .map(|index| f32::from(index / 4 % 4 * 10))
+            .collect(),
+    );
+    let mut app = SnapApp::default();
+    app.loaded = Some(volume);
+    app.axis = 1;
+    app.coronal_slice = 2;
+    app.viewer_state.slice_index = 0;
+    app.active_tool = ToolKind::RoiRect;
+
+    app.on_drag_start(app.active_tool, Some(ImagePoint::new(0.0, 0.0)));
+    app.on_drag(Some(ImagePoint::new(2.0, 1.0)));
+    app.on_drag_end(Some(ImagePoint::new(2.0, 1.0)));
+
+    match app.annotations.as_slice() {
+        [placed] => {
+            assert_eq!(
+                placed.plane,
+                Some(crate::tools::interaction::AnnotationPlane { axis: 1, slice: 2 })
+            );
+            match placed.annotation {
+                crate::tools::interaction::Annotation::RoiRect { mean, min, max, .. } => {
+                    assert_eq!(mean, 20.0);
+                    assert_eq!(min, 20.0);
+                    assert_eq!(max, 20.0);
+                }
+                ref other => panic!("expected a rectangle ROI, found {other:?}"),
+            }
+        }
+        other => panic!("expected one annotation, found {other:?}"),
+    }
+}

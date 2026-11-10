@@ -110,7 +110,7 @@ fn point_click_actions_record_a_ritk_annotation() {
     );
 
     assert!(matches!(
-        app.annotations.as_slice(),
+        app.annotation_values().as_slice(),
         [crate::tools::interaction::Annotation::HuPoint { pos, value }]
             if *pos == [2.0, 1.0] && *value == 0.0
     ));
@@ -146,7 +146,7 @@ fn length_measurement_clicks_advance_and_complete_through_the_adapter() {
 
     assert!(app.tool_state.is_idle());
     assert!(matches!(
-        app.annotations.as_slice(),
+        app.annotation_values().as_slice(),
         [crate::tools::interaction::Annotation::Length {
             p1,
             p2,
@@ -187,7 +187,7 @@ fn angle_measurement_clicks_advance_and_complete_through_the_adapter() {
 
     assert!(app.tool_state.is_idle());
     assert!(matches!(
-        app.annotations.as_slice(),
+        app.annotation_values().as_slice(),
         [crate::tools::interaction::Annotation::Angle { angle_deg, .. }]
             if (*angle_deg - 90.0).abs() < 1e-5
     ));

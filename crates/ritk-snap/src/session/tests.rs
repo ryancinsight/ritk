@@ -1,7 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::geometry::PatientPointMm;
-use crate::tools::interaction::{Annotation, PatientLength};
+use crate::tools::interaction::{Annotation, AnnotationPlane, PatientLength, PlacedAnnotation};
 use ritk_core::rejection::assert_rejects;
 use std::path::PathBuf;
 
@@ -136,7 +136,10 @@ fn session_snapshot_json_round_trip_preserves_values_no_annotations() {
 #[test]
 fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
     let mut snapshot = canonical_snapshot_no_annotations();
-    snapshot.annotations = all_annotation_variants();
+    snapshot.annotations = all_annotation_variants()
+        .into_iter()
+        .map(PlacedAnnotation::from)
+        .collect();
     assert_eq!(
         snapshot.annotations.len(),
         6,
@@ -150,7 +153,7 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
     assert_eq!(recovered.annotations.len(), 6);
 
     // Verify Length annotation values round-trip exactly.
-    match &recovered.annotations[0] {
+    match &recovered.annotations[0].annotation {
         Annotation::Length { p1, p2, length_mm } => {
             assert_eq!(*p1, [0.0f32, 0.0f32]);
             assert_eq!(*p2, [3.0f32, 4.0f32]);
@@ -160,7 +163,7 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
     }
 
     // Verify patient-space endpoints and derived distance round-trip exactly.
-    match &recovered.annotations[1] {
+    match &recovered.annotations[1].annotation {
         Annotation::PatientLength(measurement) => {
             assert_eq!(measurement.start_mm().coordinates(), [1.0, 2.0, 3.0]);
             assert_eq!(measurement.end_mm().coordinates(), [4.0, 6.0, 3.0]);
@@ -170,7 +173,7 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
     }
 
     // Verify Angle annotation values round-trip exactly.
-    match &recovered.annotations[2] {
+    match &recovered.annotations[2].annotation {
         Annotation::Angle {
             p1,
             p2,
@@ -186,7 +189,7 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
     }
 
     // Verify HU point annotation round-trips negative value exactly.
-    match &recovered.annotations[5] {
+    match &recovered.annotations[5].annotation {
         Annotation::HuPoint { pos, value } => {
             assert_eq!(*pos, [5.0f32, 8.0f32]);
             assert_eq!(*value, -150.0f32);
@@ -234,7 +237,10 @@ fn session_snapshot_json_annotations_field_defaults_to_empty_when_absent() {
 #[test]
 fn save_to_file_and_load_from_file_round_trip_with_annotations() {
     let mut snapshot = canonical_snapshot_no_annotations();
-    snapshot.annotations = all_annotation_variants();
+    snapshot.annotations = all_annotation_variants()
+        .into_iter()
+        .map(PlacedAnnotation::from)
+        .collect();
 
     let path = unique_temp_path("ritk_snap_session_test_round_trip", "json");
 
@@ -260,10 +266,13 @@ fn save_to_file_and_load_from_file_round_trip_with_annotations() {
 #[test]
 fn save_to_file_produces_valid_json_with_annotations_key() {
     let mut snapshot = ViewerSessionSnapshot::default();
-    snapshot.annotations.push(Annotation::HuPoint {
-        pos: [1.0, 2.0],
-        value: 100.0,
-    });
+    snapshot.annotations.push(
+        Annotation::HuPoint {
+            pos: [1.0, 2.0],
+            value: 100.0,
+        }
+        .into(),
+    );
 
     let path = unique_temp_path("ritk_snap_session_test_annotations_key", "json");
 
@@ -327,6 +336,7 @@ fn session_formats_preserve_values_and_reject_unknown_versions() {
     snapshot.annotations = all_annotation_variants()
         .into_iter()
         .filter(|annotation| !matches!(annotation, Annotation::PatientLength(_)))
+        .map(PlacedAnnotation::from)
         .collect();
     let unversioned: serde_json::Value =
         serde_json::from_str(include_str!("../../tests/fixtures/session-v1.json"))
@@ -374,4 +384,40 @@ fn session_formats_preserve_values_and_reject_unknown_versions() {
     assert!(error
         .to_string()
         .contains("unsupported viewer session format version"));
+}
+
+#[test]
+fn placed_annotation_round_trips_its_plane_beside_the_measurement_fields() {
+    let placed = PlacedAnnotation::on_plane(
+        AnnotationPlane { axis: 1, slice: 7 },
+        Annotation::HuPoint {
+            pos: [1.0, 2.0],
+            value: 40.0,
+        },
+    );
+
+    let json = serde_json::to_string(&placed).unwrap();
+    let recovered: PlacedAnnotation = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(recovered, placed);
+    assert!(recovered.is_visible_on(1, 7));
+    assert!(!recovered.is_visible_on(1, 8));
+    assert!(!recovered.is_visible_on(0, 7));
+}
+
+#[test]
+fn an_annotation_saved_without_a_plane_loads_and_shows_on_every_slice() {
+    let saved = r#"{"HuPoint":{"pos":[1.0,2.0],"value":40.0}}"#;
+
+    let recovered: PlacedAnnotation = serde_json::from_str(saved).unwrap();
+
+    assert_eq!(recovered.plane, None);
+    assert_eq!(
+        recovered.annotation,
+        Annotation::HuPoint {
+            pos: [1.0, 2.0],
+            value: 40.0,
+        }
+    );
+    assert!(recovered.is_visible_on(2, 99));
 }

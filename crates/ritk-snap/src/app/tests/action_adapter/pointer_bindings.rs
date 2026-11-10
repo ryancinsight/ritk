@@ -104,7 +104,7 @@ fn forward_drag_records_the_length_between_its_endpoints() {
 
     drag(&mut app, PointerButton::X2, [1.0, 1.0], [4.0, 5.0]);
 
-    match app.annotations.as_slice() {
+    match app.annotation_values().as_slice() {
         [Annotation::Length { p1, p2, length_mm }] => {
             assert_eq!(*p1, [1.0, 1.0]);
             assert_eq!(*p2, [5.0, 4.0]);
@@ -156,7 +156,7 @@ fn a_display_gesture_between_anchors_keeps_the_pending_measurement() {
     release(&mut app, PointerButton::Left, 4.0, 5.0);
 
     assert!(matches!(
-        app.annotations.as_slice(),
+        app.annotation_values().as_slice(),
         [Annotation::Length { length_mm, .. }] if *length_mm == 5.0
     ));
     assert!(app.tool_state.is_idle());
@@ -170,7 +170,7 @@ fn a_left_drag_with_the_length_tool_records_a_length() {
     drag(&mut app, PointerButton::Left, [1.0, 1.0], [4.0, 5.0]);
 
     assert!(matches!(
-        app.annotations.as_slice(),
+        app.annotation_values().as_slice(),
         [Annotation::Length { length_mm, .. }] if *length_mm == 5.0
     ));
 }
@@ -294,7 +294,7 @@ fn forward_drag_uses_the_physical_spacing_of_the_displayed_plane() {
     // Axial rows use the 2 mm spacing and columns the 3 mm spacing. The
     // operands are exact, so one rounding of the root bounds the result.
     let expected = 145.0_f32.sqrt();
-    match app.annotations.as_slice() {
+    match app.annotation_values().as_slice() {
         [Annotation::Length { length_mm, .. }] => {
             assert!((length_mm - expected).abs() <= f32::EPSILON * expected);
         }
@@ -311,7 +311,7 @@ fn forward_drag_between_anchors_records_and_keeps_the_anchor() {
 
     assert_eq!(app.tool_state, anchor);
     assert!(matches!(
-        app.annotations.as_slice(),
+        app.annotation_values().as_slice(),
         [Annotation::Length { length_mm, .. }] if *length_mm == 5.0
     ));
 }
@@ -407,7 +407,7 @@ fn a_drag_release_contributes_its_final_position() {
     release(&mut app, PointerButton::X2, 4.0, 5.0);
 
     assert!(matches!(
-        app.annotations.as_slice(),
+        app.annotation_values().as_slice(),
         [Annotation::Length { length_mm, .. }] if *length_mm == 5.0
     ));
 }

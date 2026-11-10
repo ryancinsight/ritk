@@ -1,9 +1,19 @@
-//! Completed measurements: computing their values and recording them.
+//! Completed measurements: computing their values and recording their plane.
 
 use super::state::SnapApp;
-use crate::tools::interaction::{Annotation, ImagePoint};
+use crate::tools::interaction::{Annotation, AnnotationPlane, ImagePoint, PlacedAnnotation};
 
 impl SnapApp {
+    /// Record a completed annotation on the plane currently being measured.
+    pub(super) fn place_annotation(&mut self, annotation: Annotation) {
+        let plane = AnnotationPlane {
+            axis: self.axis,
+            slice: self.axis_slice_info(self.axis).0,
+        };
+        self.annotations
+            .push(PlacedAnnotation::on_plane(plane, annotation));
+    }
+
     /// Record the patient-space length between two image points.
     pub(super) fn record_length(&mut self, start: ImagePoint, end: ImagePoint) {
         let p1 = [start.y(), start.x()];
@@ -13,8 +23,7 @@ impl SnapApp {
             .and_then(|spacing| Annotation::compute_length_checked(p1, p2, spacing));
         match measured {
             Ok(length_mm) => {
-                self.annotations
-                    .push(Annotation::Length { p1, p2, length_mm });
+                self.place_annotation(Annotation::Length { p1, p2, length_mm });
                 self.status_message = format!("Length: {length_mm:.2} mm");
             }
             Err(error) => {
@@ -36,7 +45,8 @@ impl SnapApp {
         let Some(vol) = &self.loaded else { return };
         let p1 = [start.y(), start.x()];
         let p2 = [end.y(), end.x()];
-        let (pixels, width, height) = vol.extract_slice(self.axis, self.viewer_state.slice_index);
+        let (pixels, width, height) =
+            vol.extract_slice(self.axis, self.axis_slice_info(self.axis).0);
         let (mean, std_dev, min, max, area_mm2) = match Annotation::compute_roi_rect_stats_checked(
             p1, p2, &pixels, width, height, spacing,
         ) {
@@ -46,7 +56,7 @@ impl SnapApp {
                 return;
             }
         };
-        self.annotations.push(Annotation::RoiRect {
+        self.place_annotation(Annotation::RoiRect {
             top_left: [p1[0].min(p2[0]), p1[1].min(p2[1])],
             bottom_right: [p1[0].max(p2[0]), p1[1].max(p2[1])],
             mean,
@@ -70,7 +80,8 @@ impl SnapApp {
         let Some(vol) = &self.loaded else { return };
         let p1 = [start.y(), start.x()];
         let p2 = [end.y(), end.x()];
-        let (pixels, width, height) = vol.extract_slice(self.axis, self.viewer_state.slice_index);
+        let (pixels, width, height) =
+            vol.extract_slice(self.axis, self.axis_slice_info(self.axis).0);
         let (center, radii, mean, std_dev, min, max, area_mm2) =
             match Annotation::compute_roi_ellipse_stats_checked(
                 p1, p2, &pixels, width, height, spacing,
@@ -81,7 +92,7 @@ impl SnapApp {
                     return;
                 }
             };
-        self.annotations.push(Annotation::RoiEllipse {
+        self.place_annotation(Annotation::RoiEllipse {
             center,
             radii,
             mean,

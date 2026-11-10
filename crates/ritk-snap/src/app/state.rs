@@ -3,7 +3,7 @@ use super::volume_input::VolumeInput;
 use crate::label::LabelEditor;
 use crate::presentation::PresentationDispatcher;
 use crate::render::NamedColorMap;
-use crate::tools::interaction::{Annotation, ToolState, ViewportOffset};
+use crate::tools::interaction::{PlacedAnnotation, ToolState, ViewportOffset};
 use crate::tools::kind::ToolKind;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::ui::RoiDoseAnalytics;
@@ -95,7 +95,7 @@ pub(crate) struct SnapApp {
     )]
     pub(crate) presentation_dispatcher: PresentationDispatcher,
     /// Completed measurement annotations.
-    pub(crate) annotations: Vec<Annotation>,
+    pub(crate) annotations: Vec<PlacedAnnotation>,
     /// Segmentation label editor for the currently loaded volume.
     pub(crate) label_editor: Option<LabelEditor>,
     /// Brush radius in voxels for paint/erase tools.

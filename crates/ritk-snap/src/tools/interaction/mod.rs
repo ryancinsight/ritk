@@ -11,6 +11,7 @@
 //! See sub-module documentation for mathematical specifications.
 
 mod annotation;
+mod placed;
 mod point;
 mod tool_state;
 
@@ -18,5 +19,6 @@ mod tool_state;
 mod tests;
 
 pub use annotation::{Annotation, MeasurementError, PatientLength};
+pub use placed::{AnnotationPlane, PlacedAnnotation};
 pub use point::{ImagePoint, ViewportOffset};
 pub use tool_state::{RoiKind, ToolState};

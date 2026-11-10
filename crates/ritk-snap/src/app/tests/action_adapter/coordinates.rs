@@ -36,7 +36,7 @@ fn hu_point(display_size: [f64; 2], point: [f64; 2]) -> [f32; 2] {
     ] {
         apply_app_event(&mut app, &viewport, event);
     }
-    match app.annotations.as_slice() {
+    match app.annotation_values().as_slice() {
         // HuPoint persists positions as [row, column]; expose [x, y] here to
         // compare the ViewerViewport mapping in ImagePoint coordinates.
         [crate::tools::interaction::Annotation::HuPoint { pos, .. }] => [pos[1], pos[0]],
@@ -171,7 +171,7 @@ fn fractional_client_coordinates_reach_image_mapping_unchanged() {
     );
 
     assert!(matches!(
-        app.annotations.as_slice(),
+        app.annotation_values().as_slice(),
         [crate::tools::interaction::Annotation::HuPoint { pos, .. }]
             if *pos == [1.5, 1.5]
     ));
@@ -285,7 +285,7 @@ fn transformed_browser_viewport_maps_pointer_to_presented_pixel() {
     }
 
     assert!(matches!(
-        app.annotations.as_slice(),
+        app.annotation_values().as_slice(),
         [crate::tools::interaction::Annotation::HuPoint { pos, .. }]
             if *pos == [0.75, 1.25]
     ));
@@ -359,7 +359,7 @@ fn large_client_coordinates_subtract_before_image_narrowing() {
     );
 
     assert!(matches!(
-        app.annotations.as_slice(),
+        app.annotation_values().as_slice(),
         [crate::tools::interaction::Annotation::HuPoint { pos, .. }]
             if *pos == [1.0, 1.0]
     ));
