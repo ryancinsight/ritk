@@ -2,7 +2,6 @@
 use crate::MetaImageError;
 use anyhow::Result;
 use coeus_core::SequentialBackend;
-use ritk_core::rejection::assert_rejects;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
@@ -92,17 +91,26 @@ pub(super) fn write_compressed_mha_with_dims(
 #[test]
 fn test_compressed_hostile_dimsize_errors_without_oom() {
     // DimSize claims a 1024^3 float volume (~4.3 GiB) but the zlib payload
-    // inflates to 16 bytes. The capped capacity hint must avoid a multi-GiB
-    // reservation; the post-inflation length check then rejects the file.
+    // inflates to 16 bytes. The inflated output is capped one byte past the
+    // declared size, so no multi-GiB reservation occurs; the post-inflation
+    // length check then rejects the file.
     let dir = tempdir().unwrap();
     let path = dir.path().join("hostile_compressed.mha");
     write_compressed_mha_with_dims(&path, &[0u8; 16], 1024, 1024, 1024);
 
     let backend = SequentialBackend;
-    let result = crate::read_metaimage(&path, &backend);
-    assert_rejects(
-        result,
-        "MetaImage payload length mismatch: expected 4294967296",
+    let error = crate::read_metaimage(&path, &backend)
+        .expect_err("a 16-byte payload cannot satisfy a 1024^3 float volume");
+    assert!(
+        matches!(
+            error,
+            MetaImageError::PayloadLengthMismatch {
+                expected: 4_294_967_296,
+                actual: 16,
+                ..
+            }
+        ),
+        "got: {error}"
     );
 }
 

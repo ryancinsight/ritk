@@ -49,6 +49,10 @@ impl<B: ComputeBackend> MetaImageDipReader<B> {
         Self { backend }
     }
 
+    ///
+    /// # Errors
+    ///
+    /// See [`read_metaimage`].
     pub fn read<P: AsRef<Path>>(&self, path: P) -> Result<Image<f32, B, 3>, MetaImageError> {
         read_metaimage(path, &self.backend)
     }

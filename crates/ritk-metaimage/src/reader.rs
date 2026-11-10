@@ -134,7 +134,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage, MetaIma
     let offset_str = headers
         .get("Offset")
         .or_else(|| headers.get("Position"))
-        .ok_or(MetaImageError::MissingField { field: "Offset" })?;
+        .ok_or(MetaImageError::MissingOffset)?;
     let offset_raw = parse_f64_vec(offset_str, "Offset", ndims).map_err(|source| {
         MetaImageError::InvalidField {
             field: "Offset",
@@ -266,7 +266,10 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage, MetaIma
         total_voxels,
         &element_type,
     )
-    .map_err(|source| MetaImageError::Decode { source })?;
+    .expect(
+        "invariant: raw_bytes.len() equals total_voxels * elem_size by the length check above, \
+         and element_type_spec yields only (size, signedness, float) combinations the decoder supports",
+    );
 
     // ── Spatial metadata ──────────────────────────────────────────────────
     // MetaImage X-fastest flat order equals row-major order for RITK [Z,Y,X].
@@ -344,6 +347,10 @@ pub struct MetaImageReader;
 
 impl MetaImageReader {
     /// Read a MetaImage file at `path` into an [`Image`] on `device`.
+    ///
+    /// # Errors
+    ///
+    /// See [`read_metaimage`].
     pub fn read<B: ComputeBackend, P: AsRef<Path>>(
         &self,
         path: P,

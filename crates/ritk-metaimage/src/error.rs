@@ -20,7 +20,7 @@ use thiserror::Error;
 #[non_exhaustive]
 pub enum MetaImageError {
     /// The header file could not be opened.
-    #[error("cannot open MetaImage file {path:?}: {source}")]
+    #[error("cannot open MetaImage file {path:?}")]
     Open {
         /// Header path supplied by the caller.
         path: PathBuf,
@@ -28,7 +28,7 @@ pub enum MetaImageError {
         source: io::Error,
     },
     /// A header line could not be read.
-    #[error("cannot read MetaImage header line: {source}")]
+    #[error("cannot read MetaImage header line")]
     HeaderRead {
         /// Stream failure.
         source: io::Error,
@@ -45,8 +45,11 @@ pub enum MetaImageError {
         /// Name of the absent key.
         field: &'static str,
     },
+    /// Neither `Offset` nor its alias `Position` is present.
+    #[error("missing 'Offset' (or 'Position') in MetaImage header")]
+    MissingOffset,
     /// `NDims` is not an integer.
-    #[error("'NDims' is not a valid integer: {source}")]
+    #[error("'NDims' is not a valid integer")]
     InvalidNDims {
         /// Integer parse failure.
         source: ParseIntError,
@@ -58,7 +61,7 @@ pub enum MetaImageError {
         found: usize,
     },
     /// A numeric header value has the wrong syntax or element count.
-    #[error("invalid MetaImage header field '{field}': {source:#}")]
+    #[error("invalid MetaImage header field '{field}'")]
     InvalidField {
         /// Name of the malformed key.
         field: &'static str,
@@ -90,7 +93,7 @@ pub enum MetaImageError {
         elem_size: usize,
     },
     /// The payload could not be read.
-    #[error("cannot read MetaImage payload {path:?}: {source}")]
+    #[error("cannot read MetaImage payload {path:?}")]
     PayloadRead {
         /// File holding the payload.
         path: PathBuf,
@@ -98,7 +101,7 @@ pub enum MetaImageError {
         source: io::Error,
     },
     /// The zlib payload could not be inflated.
-    #[error("failed to inflate zlib-compressed MetaImage payload: {source}")]
+    #[error("failed to inflate zlib-compressed MetaImage payload")]
     Inflate {
         /// Decompression failure.
         source: io::Error,
@@ -120,14 +123,8 @@ pub enum MetaImageError {
         /// Declared element type.
         element_type: String,
     },
-    /// The payload bytes could not be converted to `f32` samples.
-    #[error("cannot decode MetaImage samples: {source:#}")]
-    Decode {
-        /// Sample conversion failure.
-        source: anyhow::Error,
-    },
     /// The decoded samples could not be assembled into an image.
-    #[error("cannot build image from MetaImage samples: {source:#}")]
+    #[error("cannot build image from MetaImage samples")]
     Image {
         /// Image construction failure.
         source: anyhow::Error,
