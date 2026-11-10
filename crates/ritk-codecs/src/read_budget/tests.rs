@@ -90,15 +90,22 @@ fn scaled_check_rejects_a_product_beyond_usize_under_the_widest_ceiling() {
 
 #[test]
 fn scaled_check_reports_the_selected_ceiling_for_a_product_beyond_usize() {
-    let budget = ImageReadBudget::new(1, 16, 1).expect("all ceilings are positive");
-    assert_eq!(
-        budget.check_scaled(ImageReadResource::DecodedBytes, usize::MAX, 2),
-        Err(ImageReadBudgetError::Exceeded {
-            resource: ImageReadResource::DecodedBytes,
-            actual: u64::MAX,
-            maximum: 16,
-        })
-    );
+    // Each resource has its own ceiling, so reporting a fixed resource or
+    // another resource's ceiling fails one of the two cases.
+    let budget = ImageReadBudget::new(14, 15, 1).expect("all ceilings are positive");
+    for (resource, maximum) in [
+        (ImageReadResource::EncodedBytes, 14),
+        (ImageReadResource::DecodedBytes, 15),
+    ] {
+        assert_eq!(
+            budget.check_scaled(resource, usize::MAX, 2),
+            Err(ImageReadBudgetError::Exceeded {
+                resource,
+                actual: u64::MAX,
+                maximum,
+            })
+        );
+    }
 }
 
 #[test]
