@@ -2,7 +2,7 @@
 //!
 //! # Sub-modules
 //! - [`series_tree`] — flat `SeriesEntry` records and the patient→study→series
-//!   tree used by the series browser sidebar.
+//!   tree that lists a study's series.
 //! - [`loader`]      — volume loading from DICOM folders and NIfTI files;
 //!   wraps `ritk-io` and produces [`crate::LoadedVolume`] values.
 //! - [`metadata_table`] — presentation-neutral DICOM tag inspector rows.

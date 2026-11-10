@@ -1,8 +1,7 @@
 //! Tool keyboard shortcut SSOT.
 //!
 //! Defines single-key access to viewer interaction tools, allowing users to
-//! activate measurement, segmentation, and navigation tools without clicking
-//! the toolbar.
+//! activate measurement, segmentation, and navigation tools from the keyboard.
 //!
 //! # Shortcut design
 //!
@@ -13,7 +12,7 @@
 //! - **E**   → ROI Ellipse (elliptical region of interest)
 //! - **H**   → HU Point (single-point intensity readout)
 //! - **P**   → Pan (drag to scroll viewport without changing zoom/W&L)
-//! - **Z**   → Zoom (scroll wheel or drag to zoom)
+//! - **Z**   → Zoom (drag to zoom; Ctrl or Cmd with the wheel zooms under any tool)
 //! - **W**   → Window/Level (adjust display intensity mapping)
 //! - **B**   → LabelPaint (paint segmentation labels)
 //!

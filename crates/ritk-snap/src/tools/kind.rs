@@ -5,7 +5,7 @@
 //! and in serialised session snapshots.
 //!
 //! # Invariants
-//! - [`ToolKind::all()`] returns every variant exactly once, in toolbar display order.
+//! - [`ToolKind::all()`] returns every variant exactly once, in a fixed order.
 //! - [`ToolKind::label()`], [`ToolKind::tooltip()`], and [`ToolKind::icon()`]
 //!   return non-empty `&'static str` values for every variant.
 

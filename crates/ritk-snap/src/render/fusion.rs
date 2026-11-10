@@ -1,7 +1,7 @@
 //! Primary/secondary fused slice rendering in patient coordinates.
 //!
-//! This module is the single implementation for compare blending used by the
-//! application shell. A fused pixel is sampled from the secondary volume only
+//! This module is the single implementation for compare blending. A fused
+//! pixel is sampled from the secondary volume only
 //! after the two validated affine grids have been shown to describe parallel
 //! patient-space planes in the same frame of reference.
 //!

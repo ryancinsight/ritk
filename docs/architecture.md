@@ -307,7 +307,7 @@ For any RGB TIFF page stack with depth `d`, height `h`, width `w`, and decoded i
 - A presentation frame swaps its completed storage with the scratch value, so the next render writes into the storage returned by the previous frame.
 - `apply_to_rgba_into` writes the orientation transform (flip/rotate) into caller-owned storage and leaves it untouched for the identity.
 
-**Capacity invariant**: `Vec::capacity` is monotone non-decreasing for each scratch field across equal or smaller frames.
+**Capacity invariant**: `capacity()` is monotone non-decreasing for each scratch field across equal or smaller frames.
 
 **Evidence**: `frame_scratch_capacity_does_not_fall_across_smaller_frames` in `render/tests_frame_scratch.rs` and `test_apply_to_rgba_into_reuses_storage_for_every_transform` in `ui/view_transform/tests.rs`.
 

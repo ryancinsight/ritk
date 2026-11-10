@@ -1,7 +1,7 @@
 //! Dropped-input routing policy for viewer ingestion.
 //!
 //! This module is the SSOT for deciding how a batch of dropped files should be
-//! handled by the app shell.
+//! handled.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

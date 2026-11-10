@@ -526,10 +526,10 @@ target\debug\ritk-snap.exe
 Moirai opens the bounded native folder picker and returns only the selected
 path to Metis. RITK then scans that folder, applies its DICOM series contract,
 decodes the stored pixels, and renders the selected study. Cancelling the
-picker returns an error before a window is created. A folder containing more
-than one acquisition must use the explicit path and
-`--series-instance-uid` command above; the picker path never selects a series
-implicitly.
+picker returns an error before a window is created. A scripted capture of a
+folder containing more than one acquisition must use the explicit path and
+`--series-instance-uid` command above; the picker path starts on the first
+series and lists the others in the series browser.
 
 The Windows picker was exercised on 2026-09-14 with the saved public MRI-DIR
 T2 study: launch without PATH, navigate to its parent directory, click `DICOM`,
@@ -1042,8 +1042,8 @@ requests a new presentation only when a frame boundary is reached; the same
 host-neutral transition is used by the browser animation-frame loop. A newly
 loaded study starts paused.
 When cine is active, press `+` or `=` to increase the rate by one frame per
-second, or `-` to decrease it. The native Métis footer shows the current rate
-and these controls; the value is bounded to 1–60 FPS, repeated key-down events
+second, or `-` to decrease it. The native status bar shows whether cine is
+playing and reports each new rate; the value is bounded to 1–60 FPS, repeated key-down events
 are ignored, and a rate change reanchors the host clock so stale elapsed time
 does not create a burst of slice advances. The browser canvas adapter accepts
 the same controls: browser `Equal` and `Minus` codes map through
@@ -1083,13 +1083,13 @@ in two independent image panels. The left preview bar shows decoded
 thumbnails, per-series image-count badges, and panel assignments. Each panel
 displays the image number and count, window width and centre, and source pixel
 dimensions in its image corners.
-These readouts track the active series render state. Scanned image counts
-include the frames declared by `NumberOfFrames`; a file without that attribute
-counts as one image. The MRI-DIR phantom series shown here are single-frame,
+These readouts track the active series render state. The image count in a
+panel corner includes the frames of a multi-frame file, while a series card
+counts files. The MRI-DIR phantom series shown here are single-frame,
 so their image counts match their DICOM file counts.
 
 To compare series, open the folder that contains them, then choose **Split
-screen** or **Panel layout...** from **Window**. The picker maps all 20
+screen** on the toolbar or **Panel layout...** from **Window**. The picker maps all 20
 column-and-row combinations from 1×1 through 5×4. Click a destination panel
 and select a series card in the left preview bar, or drag the card into its
 destination. Ctrl-clicking a series opens it in the next available panel,
@@ -1115,9 +1115,9 @@ and a display adjustment between two measurement clicks keeps the first point.
 
 The F4 multiple-series picker opens with its series list focused. Typing moves
 focus to the filter; spaces remain search text there. Press Down or click a row
-to return to the list, where Space toggles the selected series. Enter loads all
-selected rows, or the first visible result when no row is selected. A filter
-with no results cannot load a hidden selection and leaves the picker open.
+to return to the list, where Space toggles the selected series and Enter loads
+all selected rows, or the first visible result when no row is selected. Enter
+in a filter holding text opens the first match alone. A filter with no results cannot load a hidden selection and leaves the picker open.
 
 The shareable captures use the public phantom and contain no clinical patient
 identifiers. The preview rail groups each study with separate patient and
@@ -1199,8 +1199,8 @@ capture launches the app with both series UIDs to make the displayed result
 repeatable; it does not depict the picker interaction. To open the same series
 through the viewer, open their folder, press F4 or choose **Open multiple
 series** from **Window**, select MR T2 and CT, then press Enter or click
-**Open**. Enter opens every selected row; with no selection, it opens the
-first filtered match. Each panel has independent image navigation and
+**Open**. With the list focused, Enter opens every selected row; with no
+selection, it opens the first filtered match. Each panel has independent image navigation and
 window-level state. The left series bar groups studies into patient/study
 headers, then shows decoded series thumbnails, image counts and panel
 assignments. Each panel title bar exposes
@@ -2573,7 +2573,7 @@ error.
 Scalar readouts use “value” because this carrier does not establish physical
 intensity units. The PET SUV readout keeps its explicit SUV label and returns
 to the native shell with `RITK-SNAP-NATIVE-FUSION-001`. The native shell draws
-no annotation text until `RITK-SNAP-NATIVE-OVERLAY-TEXT-001` lands.
+corner text on compare panels only until `RITK-SNAP-NATIVE-OVERLAY-TEXT-001` lands.
 
 Secondary images use their own sampling distances. A fused image keeps the
 primary output grid, then maps each primary voxel centre through the physical

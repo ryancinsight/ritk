@@ -1,4 +1,4 @@
-//! Bounded background volume loads for the viewer shell.
+//! Bounded background volume loads.
 //!
 //! The task owns only a [`VolumeInput`] and returns a decoded RITK
 //! [`LoadedVolume`].  A generation and cooperative cancellation token are

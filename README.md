@@ -81,7 +81,7 @@ Windows.
 opens Moirai's bounded native folder picker; RITK scans, decodes, and renders
 the selected saved study. A scripted capture of a multi-series folder requires
 `--series-instance-uid` so RITK never chooses an acquisition implicitly; the
-interactive shell loads the first readable series and offers the rest.
+interactive shell starts on the first series and lists the rest in its browser.
 
 Current viewer capabilities include DICOM series browsing, axial/coronal/
 sagittal MPR layout, measurement and ROI tools,
@@ -103,7 +103,7 @@ drawn measurements, segmentation label editing with undo and redo, label and
 DICOM overlays, patient-orientation labels, cursor HU and LPS readouts,
 Ctrl/Cmd+0 zoom-to-fit, PNG slice and full MPR export, RT-STRUCT contour overlays, the series tag listing, and JSON viewer sessions holding the
 source path, slice indices, window/level, colormap, active tool, layout flags,
-overlay flags, pan, and zoom.
+overlay flags, sidebar tab, pan, and zoom.
 
 The rendering domain also exposes a validated `ReslicePlane` contract for
 anisotropic and oblique scalar planes. It carries patient-space basis vectors,

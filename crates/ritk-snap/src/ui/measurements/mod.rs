@@ -1,4 +1,4 @@
-//! Measurement annotation geometry shared by native overlays.
+//! Measurement annotation geometry.
 
 /// Offset of `distance` perpendicular to the line `p1 → p2`, in `[x, y]`.
 ///

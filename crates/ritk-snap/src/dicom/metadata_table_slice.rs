@@ -1,4 +1,4 @@
-//! First-slice DICOM metadata rows for the viewer tag inspector.
+//! First-slice DICOM metadata rows.
 
 use ritk_io::DicomSliceMetadata;
 

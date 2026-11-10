@@ -1,6 +1,6 @@
 //! Cine playback timing state for slice navigation.
 //!
-//! Keeps frame-rate timing logic isolated from app-shell rendering code.
+//! Keeps frame-rate timing logic isolated from rendering code.
 
 /// Playback state for cine loop over the active axis.
 #[derive(Debug, Clone, PartialEq)]

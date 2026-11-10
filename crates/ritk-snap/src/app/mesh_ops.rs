@@ -1,12 +1,11 @@
 //! Surface mesh overlay operations for [`SnapApp`].
 //!
-//! Provides three capabilities wired to the 3D-MIP viewport:
+//! Provides three capabilities for a 3D pane:
 //!
 //! - [`SnapApp::load_mesh_file`] — dispatch by extension, store in
 //!   [`SnapApp::loaded_mesh`].
 //! - [`SnapApp::auto_camera_for_poly`] — AABB-fitted pinhole camera.
-//! - [`SnapApp::render_mesh_overlay`] — Phong-rasterize to RGBA bytes for the
-//!   3D viewport.
+//! - [`SnapApp::render_mesh_overlay`] — Phong-rasterize to RGBA bytes.
 
 use super::state::SnapApp;
 use crate::render::mesh_render::{

@@ -7,7 +7,7 @@
 //! # SSOT file I/O
 //!
 //! [`save_to_file`] and [`load_from_file`] are the canonical implementations
-//! for session serialization.  `app.rs` delegates to these functions; no
+//! for session serialization.  `app/io_ops/session.rs` delegates to these functions; no
 //! JSON serialization logic appears outside this module.
 
 use crate::render::NamedColorMap;

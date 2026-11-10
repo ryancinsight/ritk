@@ -5,7 +5,7 @@
 //! | Module           | Contents                                                |
 //! |------------------|---------------------------------------------------------|
 //! | `layout`       | `LayoutMode` and `ViewportId` enumerations.        |
-//! | `sidebar`      | `SidebarTab` — active sidebar tab state.              |
+//! | `sidebar`      | `SidebarTab` — sidebar tab stored in saved sessions.  |
 //! | `tool_shortcuts` | Tool keyboard shortcuts SSOT (L=length, A=angle, etc.). |
 //! | `annotation_csv` | Annotation CSV export and row labels. |
 //! | `histogram` | Log-scaled bar height and W/L x-position geometry. |
@@ -28,7 +28,7 @@
 //! | `window_level` | W/L drag mapping SSOT and sensitivity constant.          |
 //! | `window_presets` | `WindowPreset` with standard CT/MR presets.         |
 //! | `view_transform` | `ViewTransform` viewport flip/rotate state + pixel transforms. |
-//! | `dropped_input` | Dropped-file routing SSOT for app-shell ingestion decisions. |
+//! | `dropped_input` | Dropped-file routing SSOT for ingestion decisions. |
 
 pub mod anatomical_plane;
 #[cfg_attr(
