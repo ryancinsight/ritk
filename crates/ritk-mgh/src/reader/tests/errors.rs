@@ -315,8 +315,12 @@ fn test_decode_series_byte_count_beyond_usize_is_rejected_in_the_header() {
         &[0u8; 16],
     );
     let error = decode_mgh(&mut mgh.as_slice()).err();
-    let Some(MghError::DataSizeOverflow { voxels, .. }) = error else {
+    let Some(MghError::DataSizeOverflow {
+        voxels,
+        bytes_per_voxel,
+    }) = error
+    else {
         panic!("expected DataSizeOverflow, got: {error:?}");
     };
-    assert_eq!(voxels, 1 << 63);
+    assert_eq!((voxels, bytes_per_voxel), (1 << 63, 4));
 }
