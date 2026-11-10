@@ -1,24 +1,14 @@
 //! Signed axis permutations between two orientations of one `[z, y, x]` grid.
 //!
 //! A direction whose columns are each a signed world basis vector (one entry
-//! exactly `±1.0`, the others exactly `0.0`) is a signed axis permutation. Two
-//! such directions describe the same physical voxels under different index
-//! parameterizations. [`SignedAxisPermutation::between`] finds the relabeling
-//! from one to the other, and [`SignedAxisPermutation::reexpress`] applies it
-//! to the voxel buffer, shape, spacing and origin together, so every voxel keeps
-//! its world position:
-//!
-//! ```text
-//! p = origin + D · diag(spacing) · index
-//! ```
-//!
-//! Output tensor axis `o` reads input tensor axis `axis[o]`, reversed when
-//! `reversed[o]`. The output origin is the world point of the input voxel that
-//! becomes output index `(0, 0, 0)`.
-//!
-//! The decode is exact: a direction with any other entry, even one rounding
-//! step away from `0` or `±1`, is not a signed permutation, so callers that
-//! cannot store an oblique direction refuse it instead of snapping it.
+//! exactly `±1.0`, the others exactly `0.0`) is a signed axis permutation.
+//! [`SignedAxisPermutation::between`] finds the relabeling between two such
+//! directions and [`SignedAxisPermutation::reexpress`] applies it to the voxel
+//! buffer, shape, spacing and origin together, so every voxel keeps its world
+//! point `p = origin + D · diag(spacing) · index`. The decode is exact: an
+//! entry one rounding step from `0` or `±1` is not a signed permutation, so a
+//! caller that cannot store an oblique direction refuses it instead of
+//! snapping it.
 
 use std::borrow::Cow;
 
@@ -93,7 +83,7 @@ impl SignedAxisPermutation {
     }
 
     /// Whether every output axis reads the same input axis forward.
-    pub fn is_identity(&self) -> bool {
+    fn is_identity(&self) -> bool {
         self.axis == [0, 1, 2] && self.reversed == [false; 3]
     }
 
@@ -104,7 +94,8 @@ impl SignedAxisPermutation {
     ///
     /// # Panics
     ///
-    /// Panics if `values.len()` is not the product of `dims`.
+    /// Panics if `values.len()` is not the product of `dims`, or if that
+    /// product overflows `usize`.
     #[track_caller]
     pub fn reexpress<'a, T: Clone>(
         &self,
@@ -115,8 +106,9 @@ impl SignedAxisPermutation {
         direction: &Direction<3>,
     ) -> PermutedGrid<'a, T> {
         assert_eq!(
-            values.len(),
-            dims.iter().product::<usize>(),
+            dims.iter()
+                .try_fold(1usize, |count, &extent| count.checked_mul(extent)),
+            Some(values.len()),
             "voxel count must match the grid extents"
         );
         let out_dims = self.axis.map(|input| dims[input]);
@@ -151,6 +143,10 @@ impl SignedAxisPermutation {
 
     /// Gather `values` into output order, walking the output buffer once.
     fn reindex<T: Clone>(&self, values: &[T], dims: [usize; 3], out_dims: [usize; 3]) -> Vec<T> {
+        if values.is_empty() {
+            // Past here every extent is at least 1, so `extent - 1` cannot underflow.
+            return Vec::new();
+        }
         let stride = [dims[1] * dims[2], dims[2], 1];
         // Input offset of output index (0, 0, 0) and the signed input step per
         // output axis.
@@ -159,7 +155,7 @@ impl SignedAxisPermutation {
         for (output, &input) in self.axis.iter().enumerate() {
             forward[output] = stride[input];
             if self.reversed[output] {
-                start += dims[input].saturating_sub(1) * stride[input];
+                start += (dims[input] - 1) * stride[input];
             }
         }
         let offset = |output: usize, index: usize, base: usize| {
