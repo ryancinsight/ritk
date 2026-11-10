@@ -4,6 +4,7 @@
 //! tensor backend.
 
 pub mod access;
+pub mod axis_permutation;
 pub mod color;
 pub mod grid;
 pub mod metadata;
@@ -13,6 +14,7 @@ pub mod test_support;
 pub mod transform;
 pub mod types;
 
+pub use axis_permutation::{PermutedGrid, SignedAxisPermutation};
 pub use color::{ColorVolume, RgbVolume};
 // The coordinate map is pure geometry and lives with the rest of the spatial
 // vocabulary in `ritk-spatial`; it is re-exported here because it appears in
