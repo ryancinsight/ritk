@@ -39,6 +39,9 @@ pub(crate) mod read_helpers;
 pub(crate) mod xml_helpers;
 pub mod xml_write_attr;
 
+#[cfg(test)]
+mod permuted_write_tests;
+
 /// Reverse a three-component spatial vector between RITK `[depth, row, col]`
 /// and VTK's `[X, Y, Z]` file order.
 ///
@@ -346,14 +349,15 @@ LOOKUP_TABLE default
         );
     }
 
-    /// Any direction but the file-axes permutation is refused before the file opens.
-    ///
-    /// Identity is included: it would be written as file axes and re-read with
-    /// the file-axes direction, silently moving every voxel in world space.
+    /// A direction that is not a signed axis permutation is refused before the
+    /// file opens: no relabeling puts its voxels on the file axes.
     #[test]
-    fn legacy_writer_refuses_every_other_direction_before_creating_output() {
-        let rotated = Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);
-        for (label, direction) in [("identity", Direction::identity()), ("rotated", rotated)] {
+    fn legacy_writer_refuses_oblique_directions_before_creating_output() {
+        let half = std::f64::consts::FRAC_1_SQRT_2;
+        let oblique =
+            Direction::from_rows([[half, -half, 0.0], [half, half, 0.0], [0.0, 0.0, 1.0]]);
+        let sheared = Direction::from_rows([[1.0, 0.0, 0.0], [0.0, 1.0, 0.5], [0.0, 0.0, 1.0]]);
+        for (label, direction) in [("oblique", oblique), ("sheared", sheared)] {
             let image = native_image(direction, CoordinateMap::Cartesian);
             let directory = tempdir().expect("temporary directory");
             let path = directory.path().join("refused.vtk");

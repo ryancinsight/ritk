@@ -116,10 +116,9 @@ first-series fallback is used. Obtain the UID from RITK's series discovery or th
 ### Native image I/O coverage
 
 Python image reads use the Atlas-native path for NIfTI, MetaImage, NRRD, PNG, DICOM
-directories, MGH/MGZ, TIFF, JPEG, and Analyze.  Python image writes use the Atlas-native path
-for NIfTI, MetaImage, NRRD, MGH/MGZ, TIFF, JPEG, and Analyze.  PNG, DICOM, and VTK image writes
-are rejected until native writers exist; VTK image reads are rejected until the VTK image reader
-migrates to the native substrate.
+directories, MGH/MGZ, TIFF, JPEG, Analyze, and legacy VTK.  Python image writes use the Atlas-native path
+for NIfTI, MetaImage, NRRD, MGH/MGZ, TIFF, JPEG, Analyze, and legacy VTK.  PNG and DICOM image
+writes are rejected until native writers exist.
 
 ### Extension Points
 

@@ -16,9 +16,11 @@ count and shared scalar samples. `to_vtk_image_data` is an explicit copy
 boundary for legacy serializers and filters whose attribute arrays own a
 `Vec<f32>`.
 
-The legacy structured-points writer represents only Cartesian images with the
-file-axes direction the reader returns, and rejects any other direction or map
-before creating or truncating the output path.
+The legacy structured-points writer stores Cartesian images on the file axes
+the reader returns (`ritk_image::file_axes_direction()`). An image with any
+other signed axis permutation, identity included, is relabeled onto them so
+every voxel keeps its world point; an oblique direction or a non-Cartesian map
+is rejected before the output path is created or truncated.
 
 ## Usage
 
