@@ -42,10 +42,12 @@
 //! directly when reading a DWI series.
 
 pub(crate) mod decode;
+mod error;
 pub mod header;
 pub mod reader;
 pub mod writer;
 
+pub use error::MifError;
 pub use reader::{read_mif, read_mif_series, MifReader};
 pub use writer::{write_mif, write_mif_series, MifWriter};
 
