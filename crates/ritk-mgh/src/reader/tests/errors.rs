@@ -250,3 +250,48 @@ fn test_read_overstated_nframes_does_not_drive_allocation() {
         mgh.len()
     );
 }
+
+/// Reads a header-only file through both readers and returns their errors.
+fn header_errors(dims: [i32; 3], nframes: i32) -> [MghError; 2] {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("header_only.mgh");
+    let backend = TestBackend::default();
+    let mgh = build_mgh_bytes(
+        VERSION,
+        dims,
+        nframes,
+        MRI_FLOAT,
+        [1.0, 1.0, 1.0],
+        IDENTITY_DIR,
+        [0.0, 0.0, 0.0],
+        &[],
+    );
+    std::fs::write(&path, &mgh).unwrap();
+    [
+        read_mgh::<TestBackend, _>(&path, &backend).expect_err("volume reader"),
+        read_mgh_series::<TestBackend, _>(&path, &backend).expect_err("series reader"),
+    ]
+}
+
+#[test]
+fn malformed_header_counts_are_rejected_with_typed_errors() {
+    use MghError::{DimensionOverflow, InvalidDimensions, InvalidFrameCount, SeriesOverflow};
+    const AXIS: usize = 2_147_483_647;
+    // 2^21 per axis is 2^63 voxels, which fits `usize`; two frames do not.
+    const VOXELS: usize = 1 << 63;
+    type Check = fn(&MghError) -> bool;
+    #[rustfmt::skip]
+    let rows: [([i32; 3], i32, Check); 6] = [
+        ([0, 2, 2], 1, |e| matches!(e, InvalidDimensions { width: 0, height: 2, depth: 2 })),
+        ([2, -1, 2], 1, |e| matches!(e, InvalidDimensions { width: 2, height: -1, depth: 2 })),
+        ([2, 2, 2], 0, |e| matches!(e, InvalidFrameCount { nframes: 0 })),
+        ([2, 2, 2], -1, |e| matches!(e, InvalidFrameCount { nframes: -1 })),
+        ([i32::MAX; 3], 1, |e| matches!(e, DimensionOverflow { nx: AXIS, ny: AXIS, nz: AXIS })),
+        ([1 << 21; 3], 2, |e| matches!(e, SeriesOverflow { voxels: VOXELS, frames: 2 })),
+    ];
+    for (dims, nframes, check) in rows {
+        for error in header_errors(dims, nframes) {
+            assert!(check(&error), "{dims:?} x {nframes} frames: got {error:?}");
+        }
+    }
+}
