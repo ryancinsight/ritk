@@ -27,7 +27,9 @@ mod jpeg_fixture;
 use jpeg_fixture::baseline_fixture;
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
 use ritk_codecs::jpeg_ls::encoder::encode_grayscale_jpeg_ls;
-use ritk_codecs::{decode_jpeg2000_fragment, decode_jpeg_fragment, decode_jpeg_ls_fragment};
+use ritk_codecs::{
+    decode_jpeg2000_fragment, decode_jpeg_fragment, decode_jpeg_ls_fragment, ImageReadBudget,
+};
 use ritk_codecs::{PixelLayout, PixelSignedness};
 use std::hint::black_box;
 
@@ -131,6 +133,7 @@ fn bench_jpeg_2000(c: &mut Criterion) {
             black_box(decode_jpeg2000_fragment(
                 black_box(&stream),
                 layout(rows, cols, 16),
+                ImageReadBudget::DEFAULT,
             ))
         })
     });
@@ -174,6 +177,7 @@ fn bench_jpeg_2000_full(c: &mut Criterion) {
             black_box(decode_jpeg2000_fragment(
                 black_box(&stream),
                 layout(rows, cols, 16),
+                ImageReadBudget::DEFAULT,
             ))
         })
     });

@@ -104,6 +104,23 @@ impl ImageReadBudget {
         }
         Ok(())
     }
+
+    /// Checks an in-memory length against the selected resource ceiling.
+    ///
+    /// `usize` fits `u64` on every supported target; a length that did not fit
+    /// would exceed every ceiling, so the conversion saturates.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ImageReadBudgetError::Exceeded`] when `actual` is greater
+    /// than the selected resource ceiling.
+    pub fn check_len(
+        self,
+        resource: ImageReadResource,
+        actual: usize,
+    ) -> Result<(), ImageReadBudgetError> {
+        self.check(resource, u64::try_from(actual).unwrap_or(u64::MAX))
+    }
 }
 
 /// A resource dimension bounded by [`ImageReadBudget`].

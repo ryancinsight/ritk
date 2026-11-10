@@ -1,6 +1,6 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
-use crate::PixelSignedness;
+use crate::{ImageReadBudget, ImageReadBudgetError, ImageReadResource, PixelSignedness};
 use encoder::{encode_grayscale_j2k, Jpeg2000Encoding, QuantizationStep};
 
 const fn lossless(decomposition_levels: u8) -> Jpeg2000Encoding {
@@ -28,6 +28,13 @@ fn layout(rows: usize, cols: usize, bits: u16, signed: PixelSignedness) -> Pixel
         rescale_slope: 1.0,
         rescale_intercept: 0.0,
     }
+}
+
+fn decode_with_default_budget(
+    fragment: &[u8],
+    layout: PixelLayout,
+) -> Result<Vec<f32>, Jpeg2000DecodeError> {
+    decode_jpeg2000_fragment(fragment, layout, ImageReadBudget::DEFAULT)
 }
 
 fn single_pixel_codestream() -> Vec<u8> {
@@ -116,7 +123,7 @@ fn is_jpeg2000_codestream_rejects_empty_and_single_byte() {
 #[test]
 fn decode_returns_error_for_non_soc_prefix() {
     let fragment = [0xFF_u8, 0xD8, 0xFF, 0xF7, 0x00, 0x0B];
-    let err = decode_jpeg2000_fragment(&fragment, layout(2, 2, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&fragment, layout(2, 2, 8, PixelSignedness::Unsigned))
         .unwrap_err();
     let msg = format!("{:#}", err);
     assert!(
@@ -128,7 +135,7 @@ fn decode_returns_error_for_non_soc_prefix() {
 #[test]
 fn decode_returns_error_for_truncated_codestream() {
     let truncated = [0xFF_u8, 0x4F, 0x00];
-    let err = decode_jpeg2000_fragment(&truncated, layout(4, 4, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&truncated, layout(4, 4, 8, PixelSignedness::Unsigned))
         .unwrap_err();
     let msg = format!("{:#}", err);
     assert!(
@@ -152,7 +159,7 @@ fn decode_rejects_out_of_range_sot_before_packet_decode() {
         .expect("encoder output must contain SOT");
     j2k[sot + 4..sot + 6].copy_from_slice(&1u16.to_be_bytes());
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("single-tile image must reject Isot=1");
     let msg = format!("{err:#}");
     assert!(msg.contains("Isot=1"), "got: {msg}");
@@ -170,7 +177,7 @@ fn decode_rejects_tile_part_length_beyond_codestream() {
         .expect("encoder output must contain SOT");
     j2k[sot + 6..sot + 10].copy_from_slice(&u32::MAX.to_be_bytes());
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("Psot beyond the codestream must fail");
     let msg = format!("{err:#}");
     assert!(msg.contains("Psot=4294967295"), "got: {msg}");
@@ -183,7 +190,7 @@ fn decode_rejects_missing_eoc_after_complete_tile() {
     assert_eq!(j2k.pop(), Some(0xD9));
     assert_eq!(j2k.pop(), Some(0xFF));
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("a complete tile without EOC must not return partial output");
     let message = format!("{err:#}");
     assert!(message.contains("EOC"), "got: {message}");
@@ -195,7 +202,7 @@ fn decode_rejects_truncated_marker_length_after_complete_tile() {
     let mut j2k = single_pixel_codestream();
     insert_before_eoc(&mut j2k, &[0xFF, 0x64]);
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("a COM marker without a usable Lcom must not parse successfully");
     let message = format!("{err:#}");
     assert!(message.contains("0xFF64"), "got: {message}");
@@ -207,7 +214,7 @@ fn decode_rejects_marker_length_beyond_codestream() {
     let mut j2k = single_pixel_codestream();
     insert_before_eoc(&mut j2k, &[0xFF, 0x64, 0x00, 0x08, 0x01]);
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("a marker segment extending beyond the codestream must fail");
     let message = format!("{err:#}");
     assert!(message.contains("0xFF64"), "got: {message}");
@@ -219,7 +226,7 @@ fn decode_rejects_marker_length_smaller_than_field() {
     let mut j2k = single_pixel_codestream();
     insert_before_eoc(&mut j2k, &[0xFF, 0x64, 0x00, 0x01]);
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("a marker length smaller than its length field must fail");
     let message = format!("{err:#}");
     assert!(message.contains("invalid length 1"), "got: {message}");
@@ -244,7 +251,7 @@ fn decode_rejects_multicomponent_stream_before_packet_decode() {
 
     let mut rgb_layout = layout(1, 1, 8, PixelSignedness::Unsigned);
     rgb_layout.samples_per_pixel = 3;
-    let err = decode_jpeg2000_fragment(&j2k, rgb_layout)
+    let err = decode_with_default_budget(&j2k, rgb_layout)
         .expect_err("unsupported component packet traversal must not duplicate channel zero");
     let message = format!("{err:#}");
     assert!(
@@ -263,7 +270,7 @@ fn decode_rejects_component_precision_beyond_coefficient_capacity() {
         .expect("encoder output must contain SIZ");
     j2k[siz + 40] = 32;
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("33-bit component coefficients must be rejected before entropy decode");
     let message = format!("{err:#}");
     assert!(message.contains("precision 33"), "got: {message}");
@@ -283,7 +290,7 @@ fn decode_rejects_unsupported_progression_and_component_transform() {
 
     let mut progression = j2k.clone();
     progression[cod + 5] = 1;
-    let err = decode_jpeg2000_fragment(&progression, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&progression, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("non-LRCP progression must not be decoded as LRCP");
     assert!(
         format!("{err:#}").contains("progression order 0"),
@@ -292,7 +299,7 @@ fn decode_rejects_unsupported_progression_and_component_transform() {
 
     let mut mct = j2k;
     mct[cod + 8] = 1;
-    let err = decode_jpeg2000_fragment(&mct, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&mct, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("MCT codestream must not bypass inverse component transformation");
     assert!(format!("{err:#}").contains("MCT=1"), "got: {err:#}");
 }
@@ -309,7 +316,7 @@ fn decode_rejects_unsupported_cod_packet_profiles() {
     custom_precincts.insert(cod + 2 + usize::from(old_length), 0xFF);
     custom_precincts[cod + 2..cod + 4].copy_from_slice(&(old_length + 1).to_be_bytes());
     custom_precincts[cod + 4] = 0x01;
-    let err = decode_jpeg2000_fragment(
+    let err = decode_with_default_budget(
         &custom_precincts,
         layout(1, 1, 8, PixelSignedness::Unsigned),
     )
@@ -327,7 +334,7 @@ fn decode_rejects_unsupported_cod_packet_profiles() {
     for &(offset, replacement, expected) in cases {
         let mut j2k = source.clone();
         j2k[cod + offset..cod + offset + replacement.len()].copy_from_slice(replacement);
-        let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+        let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
             .expect_err("unsupported COD profile must not enter packet decode");
         let message = format!("{err:#}");
         assert!(
@@ -342,7 +349,7 @@ fn decode_rejects_main_header_progression_change() {
     let mut j2k = single_pixel_codestream();
     insert_before_first_sot(&mut j2k, &[0xFF, 0x5F, 0x00, 0x02]);
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("POC must not override the validated LRCP order");
     let message = format!("{err:#}");
     assert!(message.contains("0xFF5F"), "got: {message}");
@@ -355,7 +362,7 @@ fn decode_rejects_tile_header_coding_and_progression_overrides() {
         let mut j2k = single_pixel_codestream();
         insert_tile_header_segment(&mut j2k, &marker);
 
-        let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+        let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
             .expect_err("tile-header coding overrides must not reach LRCP packet decode");
         let message = format!("{err:#}");
         assert!(
@@ -370,7 +377,7 @@ fn decode_validates_tile_header_segments_instead_of_scanning_payload_bytes() {
     let mut j2k = single_pixel_codestream();
     insert_tile_header_segment(&mut j2k, &[0xFF, 0x64, 0x00, 0x06, 0xFF, 0x93, 0x00, 0x00]);
 
-    let decoded = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let decoded = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect("SOD bytes inside a valid COM payload must be skipped structurally");
     assert_eq!(decoded, vec![17.0]);
 }
@@ -385,7 +392,7 @@ fn decode_psot_zero_uses_terminal_eoc_after_structural_tile_header() {
         .expect("encoder output must contain SOT");
     j2k[sot + 6..sot + 10].copy_from_slice(&0u32.to_be_bytes());
 
-    let decoded = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let decoded = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect("Psot=0 must extend past marker-looking COM payload bytes to terminal EOC");
     assert_eq!(decoded, vec![17.0]);
 }
@@ -395,7 +402,7 @@ fn decode_rejects_payload_after_eoc() {
     let mut j2k = single_pixel_codestream();
     j2k.extend_from_slice(&[0x12, 0x34]);
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("payload after EOC must not be ignored");
     assert!(format!("{err:#}").contains("EOC must terminate"));
 }
@@ -415,7 +422,7 @@ fn decode_accepts_only_required_dicom_zero_padding_after_eoc() {
     let (mut j2k, expected) = odd_codestream.expect("test corpus must contain an odd codestream");
     j2k.push(0);
 
-    let decoded = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let decoded = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect("one zero byte may pad an odd DICOM fragment value to even length");
     assert_eq!(decoded, vec![expected as f32]);
 }
@@ -440,13 +447,13 @@ fn decode_rejects_unrequired_or_multiple_dicom_zero_padding() {
 
     let mut odd = odd_codestream.expect("test corpus must contain an odd codestream");
     odd.extend_from_slice(&[0, 0]);
-    let err = decode_jpeg2000_fragment(&odd, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&odd, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("only one DICOM pad byte is permitted after an odd codestream");
     assert!(format!("{err:#}").contains("EOC must terminate"));
 
     let mut even = even_codestream.expect("test corpus must contain an even codestream");
     even.push(0);
-    let err = decode_jpeg2000_fragment(&even, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&even, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("an even codestream does not require a DICOM pad byte");
     assert!(format!("{err:#}").contains("EOC must terminate"));
 }
@@ -468,7 +475,7 @@ fn decode_rejects_sod_straddling_tile_part_boundary() {
     let psot = u32::try_from(sod + 1 - sot).expect("test tile-part length must fit u32");
     j2k[sot + 6..sot + 10].copy_from_slice(&psot.to_be_bytes());
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("both SOD marker bytes must fit inside the tile-part");
     let message = format!("{err:#}");
     assert!(message.contains("tile-header marker"), "got: {message}");
@@ -480,7 +487,7 @@ fn decode_rejects_tile_header_segment_beyond_tile_part() {
     let mut j2k = single_pixel_codestream();
     insert_tile_header_segment(&mut j2k, &[0xFF, 0x64, 0xFF, 0xFF]);
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("tile-header marker length must stay inside Psot");
     let message = format!("{err:#}");
     assert!(message.contains("0xFF64"), "got: {message}");
@@ -504,7 +511,7 @@ fn decode_rejects_empty_packet_data_even_with_eoc() {
     j2k.drain(sod + 2..old_end);
     j2k[sot + 6..sot + 10].copy_from_slice(&14u32.to_be_bytes());
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("EOC cannot make an absent LRCP packet complete");
     let message = format!("{err:#}");
     assert!(message.contains("LRCP packet header"), "got: {message}");
@@ -519,7 +526,7 @@ fn decode_rejects_declared_multiple_tile_parts() {
         .expect("encoder output must contain SOT");
     j2k[sot + 11] = 2;
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("multi-part tiles must be rejected until accumulation is implemented");
     let message = format!("{err:#}");
     assert!(message.contains("one tile-part per tile"), "got: {message}");
@@ -535,7 +542,7 @@ fn decode_rejects_missing_siz_declared_tile() {
         .expect("encoder output must contain SIZ");
     j2k[siz + 6..siz + 10].copy_from_slice(&2u32.to_be_bytes());
 
-    let err = decode_jpeg2000_fragment(&j2k, layout(1, 2, 8, PixelSignedness::Unsigned))
+    let err = decode_with_default_budget(&j2k, layout(1, 2, 8, PixelSignedness::Unsigned))
         .expect_err("EOC must not accept an omitted second tile");
     let message = format!("{err:#}");
     assert!(message.contains("tile 1 of 2"), "got: {message}");
@@ -565,7 +572,7 @@ fn decode_jpeg2000_lossless_round_trip_4x4_uniform() {
         &j2k[..j2k.len().min(4)]
     );
 
-    let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
+    let decoded = decode_with_default_budget(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
         .expect("lossless JPEG 2000 round-trip must succeed");
 
     assert_eq!(decoded.len(), (rows * cols) as usize);
@@ -592,7 +599,7 @@ fn decode_jpeg2000_lossless_round_trip_gradient_2x4() {
     )
     .expect("valid image must encode");
 
-    let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 4, 8, PixelSignedness::Unsigned))
+    let decoded = decode_with_default_budget(&j2k, layout(2, 4, 8, PixelSignedness::Unsigned))
         .expect("gradient round-trip must succeed");
 
     assert_eq!(decoded.len(), pixels.len());
@@ -607,7 +614,7 @@ fn decode_jpeg2000_signed_samples_round_trip() {
     let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, PixelSignedness::Signed, lossless(0))
         .expect("valid image must encode");
 
-    let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
+    let decoded = decode_with_default_budget(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
         .expect("signed lossless JPEG 2000 round-trip must succeed");
 
     assert_eq!(decoded, vec![-4.0f32, -1.0, 0.0, 3.0]);
@@ -620,7 +627,7 @@ fn decode_jpeg2000_rejects_precision_larger_than_dicom_container() {
     let mut invalid_layout = layout(1, 1, 12, PixelSignedness::Unsigned);
     invalid_layout.bits_allocated = 8;
 
-    let error = decode_jpeg2000_fragment(&j2k, invalid_layout)
+    let error = decode_with_default_budget(&j2k, invalid_layout)
         .expect_err("BitsStored cannot exceed BitsAllocated");
     let message = format!("{error:#}");
 
@@ -635,7 +642,7 @@ fn decode_jpeg2000_rejects_codestream_signedness_mismatch() {
     let j2k = encode_grayscale_j2k(&[-1], 1, 1, 8, PixelSignedness::Signed, lossless(0))
         .expect("valid signed image must encode");
 
-    let error = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+    let error = decode_with_default_budget(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
         .expect_err("codestream and DICOM signedness must agree");
 
     assert!(
@@ -653,7 +660,7 @@ fn decode_jpeg2000_lossless_rescale_applied_correctly() {
     pixel_layout.rescale_slope = 2.0;
     pixel_layout.rescale_intercept = -1024.0;
 
-    let decoded = decode_jpeg2000_fragment(&j2k, pixel_layout)
+    let decoded = decode_with_default_budget(&j2k, pixel_layout)
         .expect("single-pixel rescale test must succeed");
 
     assert_eq!(decoded, vec![-824.0f32]); // 100 × 2 + (−1024) = −824
@@ -666,7 +673,7 @@ fn decode_jpeg2000_lossless_round_trip_unsigned_16bit() {
     ];
     let j2k = encode_grayscale_j2k(&pixels, 4, 4, 16, PixelSignedness::Unsigned, lossless(0))
         .expect("valid image must encode");
-    let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 16, PixelSignedness::Unsigned))
+    let decoded = decode_with_default_budget(&j2k, layout(4, 4, 16, PixelSignedness::Unsigned))
         .expect("16-bit lossless round-trip must succeed");
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
     assert_eq!(decoded, expected, "16-bit samples must round-trip exactly");
@@ -712,7 +719,7 @@ proptest::proptest! {
             lossless(num_decomp_levels),
         )
             .expect("generated valid image must encode");
-        let decoded = decode_jpeg2000_fragment(
+        let decoded = decode_with_default_budget(
             &j2k,
             layout(rows as usize, cols as usize, precision as u16, signedness),
         )
@@ -749,7 +756,7 @@ fn decode_jpeg2000_multi_codeblock_zero_levels() {
         lossless(0),
     )
     .expect("valid image must encode");
-    let decoded = decode_jpeg2000_fragment(&j2k, layout(70, 130, 8, PixelSignedness::Unsigned))
+    let decoded = decode_with_default_budget(&j2k, layout(70, 130, 8, PixelSignedness::Unsigned))
         .expect("multi-code-block LL0 round-trip must succeed");
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
     assert_eq!(decoded, expected, "multi-code-block LL0 must be lossless");
@@ -768,7 +775,7 @@ fn decode_jpeg2000_multi_codeblock_two_levels_16bit() {
         lossless(2),
     )
     .expect("valid image must encode");
-    let decoded = decode_jpeg2000_fragment(&j2k, layout(100, 150, 16, PixelSignedness::Unsigned))
+    let decoded = decode_with_default_budget(&j2k, layout(100, 150, 16, PixelSignedness::Unsigned))
         .expect("multi-code-block 2-level round-trip must succeed");
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
     assert_eq!(decoded, expected, "multi-code-block DWT must be lossless");
@@ -788,7 +795,7 @@ fn decode_jpeg2000_lossless_round_trip_two_dwt_levels_16bit() {
         lossless(2),
     )
     .expect("valid image must encode");
-    let decoded = decode_jpeg2000_fragment(&j2k, layout(8, 12, 16, PixelSignedness::Unsigned))
+    let decoded = decode_with_default_budget(&j2k, layout(8, 12, 16, PixelSignedness::Unsigned))
         .expect("2-level DWT lossless round-trip must succeed");
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
     assert_eq!(decoded, expected, "2-level DWT samples must be exact");
@@ -801,7 +808,7 @@ fn decode_jpeg2000_lossless_round_trip_three_dwt_levels_signed_odd_dims() {
     let pixels: Vec<i32> = (0..63).map(|i| ((i * 37) % 256) - 128).collect();
     let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Signed, lossless(3))
         .expect("valid image must encode");
-    let decoded = decode_jpeg2000_fragment(&j2k, layout(7, 9, 8, PixelSignedness::Signed))
+    let decoded = decode_with_default_budget(&j2k, layout(7, 9, 8, PixelSignedness::Signed))
         .expect("3-level DWT signed odd-dims round-trip must succeed");
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
     assert_eq!(decoded, expected, "3-level DWT samples must be exact");
@@ -812,7 +819,7 @@ fn ritk_native_decoder_replaces_openjp2_backend() {
     let pixels: Vec<i32> = (0..16i32).map(|v| v * 10).collect();
     let j2k = encode_grayscale_j2k(&pixels, 4, 4, 8, PixelSignedness::Unsigned, lossless(0))
         .expect("valid image must encode");
-    let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
+    let decoded = decode_with_default_budget(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
         .expect("native codec round-trip must succeed");
     let max_err = pixels
         .iter()
@@ -853,7 +860,7 @@ fn decode_jpeg2000_lossy_9_7_round_trip_structured_8bit() {
     )
     .expect("valid image must encode");
 
-    let decoded = decode_jpeg2000_fragment(
+    let decoded = decode_with_default_budget(
         &j2k,
         layout(rows as usize, cols as usize, 8, PixelSignedness::Unsigned),
     )
@@ -900,7 +907,7 @@ fn decode_jpeg2000_lossy_9_7_round_trip_signed_16bit() {
         lossy(1, 1.0),
     )
     .expect("valid image must encode");
-    let decoded = decode_jpeg2000_fragment(
+    let decoded = decode_with_default_budget(
         &j2k,
         layout(rows as usize, cols as usize, 16, PixelSignedness::Signed),
     )
@@ -921,7 +928,98 @@ fn lossy_zero_level_coarse_step_reconstructs_bin_midpoints() {
     let pixels = [4, 5, 7, 8];
     let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, PixelSignedness::Signed, lossy(0, 4.0))
         .expect("valid zero-level lossy image must encode");
-    let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
+    let decoded = decode_with_default_budget(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
         .expect("zero-level lossy stream must decode");
     assert_eq!(decoded, vec![6.0, 6.0, 6.0, 10.0]);
+}
+
+// ── Read-budget tests ────────────────────────────────────────────────────
+
+fn budget(encoded: u64, decoded: u64) -> ImageReadBudget {
+    ImageReadBudget::new(encoded, decoded, 1).expect("test ceilings are nonzero")
+}
+
+fn encoded_len(fragment: &[u8]) -> u64 {
+    u64::try_from(fragment.len()).expect("invariant: usize fits u64 on supported targets")
+}
+
+fn four_by_four_codestream() -> Vec<u8> {
+    let pixels: Vec<i32> = (0..16).collect();
+    encode_grayscale_j2k(&pixels, 4, 4, 8, PixelSignedness::Unsigned, lossless(1))
+        .expect("valid 4x4 image must encode")
+}
+
+#[test]
+fn decode_accepts_a_budget_equal_to_the_output_and_fragment_sizes() {
+    let j2k = four_by_four_codestream();
+    let exact = budget(encoded_len(&j2k), 16 * 4);
+    let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned), exact)
+        .expect("a budget equal to the sizes admits the frame");
+    let expected: Vec<f32> = (0..16_u8).map(f32::from).collect();
+    assert_eq!(decoded, expected);
+}
+
+#[test]
+fn decode_rejects_output_storage_above_the_decoded_byte_budget() {
+    let j2k = four_by_four_codestream();
+    let error = decode_jpeg2000_fragment(
+        &j2k,
+        layout(4, 4, 8, PixelSignedness::Unsigned),
+        budget(u64::MAX, 16 * 4 - 1),
+    )
+    .expect_err("64 output bytes exceed a 63-byte budget");
+    assert!(matches!(
+        error,
+        Jpeg2000DecodeError::Budget {
+            source: ImageReadBudgetError::Exceeded {
+                resource: ImageReadResource::DecodedBytes,
+                actual: 64,
+                maximum: 63,
+            }
+        }
+    ));
+}
+
+#[test]
+fn decode_rejects_a_fragment_above_the_encoded_byte_budget() {
+    let j2k = four_by_four_codestream();
+    let error = decode_jpeg2000_fragment(
+        &j2k,
+        layout(4, 4, 8, PixelSignedness::Unsigned),
+        budget(encoded_len(&j2k) - 1, u64::MAX),
+    )
+    .expect_err("the fragment is one byte over the encoded budget");
+    assert!(matches!(
+        error,
+        Jpeg2000DecodeError::Budget {
+            source: ImageReadBudgetError::Exceeded {
+                resource: ImageReadResource::EncodedBytes,
+                ..
+            }
+        }
+    ));
+}
+
+#[test]
+fn decode_checks_the_output_budget_before_parsing_the_codestream() {
+    let truncated = [0xFF_u8, 0x4F, 0x00];
+    let error = decode_jpeg2000_fragment(
+        &truncated,
+        layout(1024, 1024, 8, PixelSignedness::Unsigned),
+        budget(u64::MAX, 1024),
+    )
+    .expect_err("a 4 MiB output exceeds a 1 KiB budget");
+    assert!(
+        matches!(
+            error,
+            Jpeg2000DecodeError::Budget {
+                source: ImageReadBudgetError::Exceeded {
+                    resource: ImageReadResource::DecodedBytes,
+                    actual: 4_194_304,
+                    maximum: 1024,
+                }
+            }
+        ),
+        "got: {error}"
+    );
 }

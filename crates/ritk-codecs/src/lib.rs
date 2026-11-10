@@ -32,8 +32,8 @@ pub use byte_decode::{
     decode_bytes_to_f32, parse_f64_vec, parse_floats, parse_usize_vec, require_bytes, ByteOrder,
 };
 pub use jpeg::{decode_jpeg_fragment, encode_jpeg_fragment};
-pub use jpeg_2000::decode_jpeg2000_fragment;
 pub use jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
+pub use jpeg_2000::{decode_jpeg2000_fragment, Jpeg2000DecodeError};
 pub use jpeg_ls::decode_jpeg_ls_fragment;
 pub use jpeg_ls::encoder::encode_grayscale_jpeg_ls;
 pub use packbits::{packbits_decode, packbits_encode};

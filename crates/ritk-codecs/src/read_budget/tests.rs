@@ -60,3 +60,17 @@ fn budget_accepts_limits_and_reports_each_resource_overrun() {
         })
     );
 }
+
+#[test]
+fn length_check_applies_the_selected_ceiling() {
+    let budget = ImageReadBudget::new(8, 16, 2).expect("all ceilings are positive");
+    assert_eq!(budget.check_len(ImageReadResource::EncodedBytes, 8), Ok(()));
+    assert_eq!(
+        budget.check_len(ImageReadResource::DecodedBytes, 17),
+        Err(ImageReadBudgetError::Exceeded {
+            resource: ImageReadResource::DecodedBytes,
+            actual: 17,
+            maximum: 16,
+        })
+    );
+}

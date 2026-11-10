@@ -44,6 +44,15 @@ the stored-sample ownership and conversion boundary.
 Callers must propagate or match the error for an explicit marker other than
 `big` or `little`; unknown markers no longer select little-endian implicitly.
 
+## Read budgets
+
+`ImageReadBudget` carries the encoded-byte, decoded-byte, and series-volume
+ceilings that format readers apply to header-declared sizes before allocating.
+Its default is 1 GiB for encoded and decoded payloads and 65,536 volumes. The
+JPEG 2000 decoder takes a budget and returns `Jpeg2000DecodeError::Budget`
+when the fragment or the `f32` output it implies exceeds a ceiling, before the
+codestream is parsed.
+
 ## Usage
 
 ```toml
