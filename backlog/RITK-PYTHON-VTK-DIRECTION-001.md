@@ -1,12 +1,13 @@
 <a id="RITK-PYTHON-VTK-DIRECTION-001"></a>
 
-## RITK-PYTHON-VTK-DIRECTION-001 — Python images cannot be written to a no-direction format (legacy VTK, Analyze 7.5) — todo
-- outcome: a Python-created image reaches a legacy-VTK or Analyze 7.5 file with its geometry intact, or the restriction is a recorded, accepted product decision rather than a silent dead path. Both formats store no direction field, so an axis-permuted image is either re-expressed (a pure axis permutation, no resampling needed) or refused before a destination opens.
-- acceptance: either `rio.write_image` handles the permutation direction `numpy_array_direction()` produces and a roundtrip test proves values + geometry survive, or the restriction is documented at the `write_image` contract with the typed errors asserted by `test_write_image_vtk_rejects_non_identity_direction` (legacy VTK) and `test_write_image_analyze_rejects_non_identity_direction` (Analyze 7.5).
-- scope: `crates/ritk-python/src/image.rs` (constructor direction), `crates/ritk-vtk/src/io/writer.rs` and `crates/ritk-analyze/src/writer.rs` (representability checks), `crates/ritk-python/tests/test_coverage_gaps.py`, `crates/ritk-python/tests/test_sitk_real_data_parity.py`.
-- next: decide whether the legacy VTK and Analyze writers gain permutation support or the Python surface gains a direction parameter; until then the rejection tests (not roundtrips) are the correct gates.
-- risk: silent axis misorientation in medical images; the fail-closed rejections exist precisely to prevent it, so any writer change must preserve them for genuinely unrepresentable geometry.
-- basis: 49dcdf05, f5c77f56c
+## RITK-PYTHON-VTK-DIRECTION-001 — Write permuted images to VTK and Analyze — todo
+- outcome: Any image whose direction is a signed axis permutation reaches a legacy VTK or Analyze 7.5 file with its geometry intact; a non-permutation direction is still refused before a destination opens.
+- acceptance: the writers treat the anti-diagonal direction (the file-faithful mapping of a `[z, y, x]` buffer, `numpy_array_direction()` in ritk-python) as canonical, and re-express any other signed permutation to it by axis transpose, flip and origin move, including an identity-tagged image. Tests: (1) all 48 signed 3-D permutations round-trip values and world positions through each writer and reader; (2) a Python image written and read back keeps `to_numpy()` in `[Z, Y, X]` and its SimpleITK direction; (3) the existing non-permutation rejection tests stay.
+- scope: crates/ritk-vtk/src/io/writer.rs, crates/ritk-analyze/src/writer.rs, the ritk-image permutation routine, crates/ritk-python/tests/test_coverage_gaps.py, crates/ritk-python/tests/test_sitk_real_data_parity.py.
+- next: after RITK-VTK-ANALYZE-READ-DIRECTION-001, re-express in each writer through the shared routine.
+- risk: re-expressing to identity instead would write X and Z swapped for SimpleITK, VTK and ParaView, while in-memory round trips still pass because the readers undo the same swap.
+- basis: 8daf17c7a5c98016a6bf541e11efc5f64fb7d62c
+- milestone: M-viewer-reading
 - status: todo
-- needs: none
+- needs: RITK-VTK-ANALYZE-READ-DIRECTION-001
 - priority: correctness
