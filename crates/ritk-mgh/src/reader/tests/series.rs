@@ -146,11 +146,10 @@ fn single_volume_reader_rejects_multi_frame_rather_than_returning_frame_zero() -
 
     let err = read_mgh::<TestBackend, _>(&path, &backend)
         .expect_err("a 6-frame series has no single-volume representation");
-    let message = format!("{err:#}");
 
     assert!(
-        message.contains("6 frames"),
-        "error must name the declared frame count, got: {message}"
+        matches!(err, MghError::MultiFrame { nframes: 6 }),
+        "got: {err}"
     );
     Ok(())
 }
@@ -207,8 +206,8 @@ fn truncated_series_payload_is_rejected() -> Result<()> {
     let err = read_mgh_series::<TestBackend, _>(&path, &backend)
         .expect_err("a truncated series payload must fail");
     assert!(
-        format!("{err:#}").contains("truncated"),
-        "error must name the truncation"
+        matches!(err, MghError::TruncatedPayload { .. }),
+        "got: {err}"
     );
     Ok(())
 }

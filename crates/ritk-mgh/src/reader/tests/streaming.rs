@@ -117,11 +117,11 @@ fn truncation_after_one_complete_chunk_names_first_incomplete_voxel() {
             Ok(_) => panic!("one missing payload byte must reject the volume"),
             Err(error) => error,
         };
-        let message = format!("{error:#}");
         let first_incomplete_voxel = chunk_voxels + 2;
         assert!(
-            message.contains(&format!("voxel {first_incomplete_voxel}")),
-            "{label} error must name the first unconfirmed voxel; got {message}"
+            matches!(&error, MghError::TruncatedPayload { voxel, .. }
+                if *voxel == first_incomplete_voxel),
+            "{label} error must name the first unconfirmed voxel; got {error}"
         );
     }
 }
@@ -152,7 +152,7 @@ proptest! {
                 Err(error) => error,
             };
             prop_assert!(
-                format!("{error:#}").contains("truncated"),
+                matches!(error, MghError::TruncatedPayload { .. }),
                 "short-payload error must identify truncation"
             );
         } else {

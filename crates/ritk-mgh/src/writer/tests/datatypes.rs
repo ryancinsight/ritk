@@ -109,11 +109,11 @@ fn test_invalid_version_rejected() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = crate::read_mgh::<TestBackend, _>(&path, &backend);
-    let msg = format!("{:#}", result.unwrap_err());
+    let error =
+        crate::read_mgh::<TestBackend, _>(&path, &backend).expect_err("version 99 is unsupported");
     assert!(
-        msg.contains("version"),
-        "Error must mention 'version', got: {msg}"
+        matches!(error, crate::MghError::InvalidVersion { found: 99, .. }),
+        "got: {error}"
     );
 }
 
