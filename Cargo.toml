@@ -45,6 +45,9 @@ members = [
   "xtask",
 ]
 resolver = "3"
+[workspace.metadata.atlas]
+documentation-phase = "pre-merge"
+
 [workspace.package]
 edition = "2024"
 license = "MIT OR Apache-2.0"

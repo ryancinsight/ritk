@@ -65,7 +65,7 @@ jobs:
             if ! printf '%s\n' "$changed" | grep -qE '^(crates/ritk-python/|Cargo\.lock$|Cargo\.toml$|\.github/workflows/)'; then
               python=false
             fi
-            if ! printf '%s\n' "$changed" | grep -qE '^(crates/|Cargo\.lock$|Cargo\.toml$|xtask/|scripts/|rust-toolchain\.toml$|\.github/workflows/)'; then
+            if ! printf '%s\n' "$changed" | grep -qE '^(crates/|Cargo\.lock$|Cargo\.toml$|xtask/|scripts/|rust-toolchain(\.toml)?$|\.cargo/config(\.toml)?$|\.github/workflows/)'; then
               rust=false
             fi
           fi
@@ -393,6 +393,8 @@ jobs:
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
           PR_DRAFT: ${{ github.event.pull_request.draft }}
+          RUST_CHANGE: ${{ needs.changes.outputs.rust }}
+          RUSTDOC_RESULT: ${{ needs.rustdoc.result }}
         run: |
           set -euo pipefail
           if [[ "$PR_DRAFT" == "true" ]]; then
@@ -405,3 +407,10 @@ jobs:
             printf '%s\n' "$failures"
             exit 1
           fi
+          case "$RUST_CHANGE:$RUSTDOC_RESULT" in
+            false:*|true:success) ;;
+            *)
+              echo "Required Rustdoc did not complete successfully."
+              exit 1
+              ;;
+          esac
