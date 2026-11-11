@@ -3,7 +3,7 @@
 //! Codec and format readers derive allocation sizes from header fields. Checking
 //! those sizes against one [`ImageReadBudget`] before allocating keeps the
 //! ceilings identical across every reader. `dimensions` carries the older
-//! per-pixel decode caps of the JPEG, JPEG-LS, and JPEG 2000 decoders.
+//! per-pixel decode caps of the JPEG and JPEG-LS decoders.
 
 use thiserror::Error;
 
@@ -90,11 +90,7 @@ impl ImageReadBudget {
         resource: ImageReadResource,
         actual: u64,
     ) -> Result<(), ImageReadBudgetError> {
-        let maximum = match resource {
-            ImageReadResource::EncodedBytes => self.encoded_bytes,
-            ImageReadResource::DecodedBytes => self.decoded_bytes,
-            ImageReadResource::SeriesVolumes => self.series_volumes,
-        };
+        let maximum = self.maximum(resource);
         if actual > maximum {
             return Err(ImageReadBudgetError::Exceeded {
                 resource,
@@ -103,6 +99,58 @@ impl ImageReadBudget {
             });
         }
         Ok(())
+    }
+
+    const fn maximum(self, resource: ImageReadResource) -> u64 {
+        match resource {
+            ImageReadResource::EncodedBytes => self.encoded_bytes,
+            ImageReadResource::DecodedBytes => self.decoded_bytes,
+            ImageReadResource::SeriesVolumes => self.series_volumes,
+        }
+    }
+
+    /// Checks `count * element_bytes` against the selected resource ceiling.
+    ///
+    /// A product beyond `usize` exceeds every ceiling, `u64::MAX` included,
+    /// and reports `actual` as `u64::MAX`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ImageReadBudgetError::Exceeded`] when the product is greater
+    /// than the selected resource ceiling.
+    pub fn check_scaled(
+        self,
+        resource: ImageReadResource,
+        count: usize,
+        element_bytes: usize,
+    ) -> Result<(), ImageReadBudgetError> {
+        match count.checked_mul(element_bytes) {
+            Some(bytes) => self.check_len(resource, bytes),
+            None => Err(ImageReadBudgetError::Exceeded {
+                resource,
+                actual: u64::MAX,
+                maximum: self.maximum(resource),
+            }),
+        }
+    }
+
+    /// Checks an in-memory length against the selected resource ceiling.
+    ///
+    /// `usize` fits `u64` on every supported target, so the conversion is exact.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ImageReadBudgetError::Exceeded`] when `actual` is greater
+    /// than the selected resource ceiling.
+    pub fn check_len(
+        self,
+        resource: ImageReadResource,
+        actual: usize,
+    ) -> Result<(), ImageReadBudgetError> {
+        self.check(
+            resource,
+            u64::try_from(actual).expect("invariant: usize fits u64 on supported targets"),
+        )
     }
 }
 
