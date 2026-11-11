@@ -29,11 +29,15 @@
 //! where `c_a` is the input index of the output `(0,0,0)` voxel along tensor axis
 //! `a` (`dim_a − 1` if that axis is reversed, else `0`). Float-exact to
 //! `sitk.DICOMOrient` (axis-aligned input directions).
+//!
+//! The snapping is this filter's own; the relabeling of voxels, spacing and
+//! origin is [`SignedAxisPermutation::reexpress`], shared with the legacy VTK
+//! and Analyze writers.
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use ritk_image::tensor::Backend;
-use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_image::{Image, SignedAxisPermutation};
+use ritk_spatial::Direction;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_metadata};
 
 /// Reorient a 3-D image to a target DICOM orientation code.
@@ -75,102 +79,69 @@ impl OrientImageFilter {
         Ok(Self { target })
     }
 
-    /// Apply the reorientation.
-    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
-        let (vals, dims) = extract_vec_infallible(image);
-        let dir = image.direction();
-        let sp_in = image.spacing();
-        let geometry = image.grid_geometry()?;
-
-        // For each output tensor axis o (0=z, 1=y, 2=x), the corresponding image
-        // axis is j = 2 - o; the target letter at j gives the world unit vector.
-        // Find the input tensor axis most parallel to it.
-        let mut perm = [0usize; 3]; // perm[o] = input tensor axis
-        let mut flip = [false; 3]; // reverse that axis?
+    /// The relabeling that snaps `direction` onto this code, and the code's
+    /// output direction.
+    ///
+    /// Output tensor axis `o` (0 = z, 1 = y, 2 = x) is image axis `j = 2 − o`,
+    /// whose letter gives a target world unit vector `v`. The input tensor axis
+    /// most parallel to `±v` supplies it, reversed when antiparallel.
+    fn relabeling(
+        &self,
+        direction: &Direction<3>,
+    ) -> Result<(SignedAxisPermutation, Direction<3>)> {
+        let mut axis = [0usize; 3];
+        let mut reversed = [false; 3];
         let mut out_dir = Direction::zeros();
         for o in 0..3 {
-            let j = 2 - o;
-            let (world_axis, sign) = self.target[j];
+            let (world_axis, sign) = self.target[2 - o];
             let mut v = [0.0f64; 3];
             v[world_axis] = sign;
 
             let (mut best_a, mut best_abs, mut best_sigma) = (0usize, -1.0f64, 1.0f64);
             for a in 0..3 {
-                let dot = (0..3).map(|c| dir[(c, a)] * v[c]).sum::<f64>();
+                let dot = (0..3).map(|c| direction[(c, a)] * v[c]).sum::<f64>();
                 if dot.abs() > best_abs {
                     best_abs = dot.abs();
                     best_a = a;
                     best_sigma = if dot >= 0.0 { 1.0 } else { -1.0 };
                 }
             }
-            perm[o] = best_a;
-            flip[o] = best_sigma < 0.0;
+            axis[o] = best_a;
+            reversed[o] = best_sigma < 0.0;
             // Output tensor-axis o points toward the target world vector v.
             for (c, &vc) in v.iter().enumerate() {
                 out_dir[(c, o)] = vc;
             }
         }
+        // Two output axes snapping to one input axis leave no bijection.
+        let permutation = SignedAxisPermutation::from_axes(axis, reversed)
+            .context("input direction is not axis-aligned; cannot DICOM-orient")?;
+        Ok((permutation, out_dir))
+    }
 
-        // Permutation must be a bijection (axis-aligned input guarantees this).
-        let mut seen = [false; 3];
-        for &a in &perm {
-            if seen[a] {
-                bail!("input direction is not axis-aligned; cannot DICOM-orient");
-            }
-            seen[a] = true;
-        }
-
-        let [nz, ny, nx] = dims;
-        let in_dims = [nz, ny, nx];
-        let out_dims = [in_dims[perm[0]], in_dims[perm[1]], in_dims[perm[2]]];
-        let (onz, ony, onx) = (out_dims[0], out_dims[1], out_dims[2]);
-
-        let in_stride = [ny * nx, nx, 1usize];
-        let mut out = vec![0.0f32; onz * ony * onx];
-        let mut out_idx = [0usize; 3];
-        for oz in 0..onz {
-            out_idx[0] = oz;
-            for oy in 0..ony {
-                out_idx[1] = oy;
-                for ox in 0..onx {
-                    out_idx[2] = ox;
-                    // Map output tensor coords → input tensor coords.
-                    let mut in_lin = 0usize;
-                    for o in 0..3 {
-                        let a = perm[o];
-                        let i = if flip[o] {
-                            in_dims[a] - 1 - out_idx[o]
-                        } else {
-                            out_idx[o]
-                        };
-                        in_lin += i * in_stride[a];
-                    }
-                    let dst = (oz * ony + oy) * onx + ox;
-                    out[dst] = vals[in_lin];
-                }
-            }
-        }
-
-        // Spacing follows the permutation (core spacing is tensor [z, y, x]).
-        let sp_out = Spacing::new([sp_in[perm[0]], sp_in[perm[1]], sp_in[perm[2]]]);
-
-        // Origin = world position of the output (0,0,0) voxel. Its input index
-        // along tensor axis a = perm[o] is (dim_a − 1) if reversed, else 0.
-        let mut corner = [0usize; 3];
-        for o in 0..3 {
-            corner[perm[o]] = if flip[o] { in_dims[perm[o]] - 1 } else { 0 };
-        }
-        let org_out = geometry.point(corner.map(|k| k as f64));
-
+    /// Apply the reorientation.
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
+        // Only a Cartesian grid has a corner voxel at an affine world point.
+        image.grid_geometry()?;
+        let (permutation, out_dir) = self.relabeling(image.direction())?;
+        let (vals, dims) = extract_vec_infallible(image);
+        let grid = permutation.reexpress(
+            &vals,
+            dims,
+            image.origin(),
+            image.spacing(),
+            image.direction(),
+        );
         Ok(rebuild_with_metadata(
-            out,
-            out_dims,
-            Point::new(org_out),
-            sp_out,
+            grid.values.into_owned(),
+            grid.dims,
+            grid.origin,
+            grid.spacing,
             out_dir,
             image,
         ))
     }
+
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
@@ -181,96 +152,21 @@ impl OrientImageFilter {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
+        image.grid_geometry()?;
+        let (permutation, out_dir) = self.relabeling(image.direction())?;
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
-        let dir = image.direction();
-        let sp_in = image.spacing();
-        let geometry = image.grid_geometry()?;
-
-        // For each output tensor axis o (0=z, 1=y, 2=x), the corresponding image
-        // axis is j = 2 - o; the target letter at j gives the world unit vector.
-        // Find the input tensor axis most parallel to it.
-        let mut perm = [0usize; 3]; // perm[o] = input tensor axis
-        let mut flip = [false; 3]; // reverse that axis?
-        let mut out_dir = Direction::zeros();
-        for o in 0..3 {
-            let j = 2 - o;
-            let (world_axis, sign) = self.target[j];
-            let mut v = [0.0f64; 3];
-            v[world_axis] = sign;
-
-            let (mut best_a, mut best_abs, mut best_sigma) = (0usize, -1.0f64, 1.0f64);
-            for a in 0..3 {
-                let dot = (0..3).map(|c| dir[(c, a)] * v[c]).sum::<f64>();
-                if dot.abs() > best_abs {
-                    best_abs = dot.abs();
-                    best_a = a;
-                    best_sigma = if dot >= 0.0 { 1.0 } else { -1.0 };
-                }
-            }
-            perm[o] = best_a;
-            flip[o] = best_sigma < 0.0;
-            // Output tensor-axis o points toward the target world vector v.
-            for (c, &vc) in v.iter().enumerate() {
-                out_dir[(c, o)] = vc;
-            }
-        }
-
-        // Permutation must be a bijection (axis-aligned input guarantees this).
-        let mut seen = [false; 3];
-        for &a in &perm {
-            if seen[a] {
-                bail!("input direction is not axis-aligned; cannot DICOM-orient");
-            }
-            seen[a] = true;
-        }
-
-        let [nz, ny, nx] = dims;
-        let in_dims = [nz, ny, nx];
-        let out_dims = [in_dims[perm[0]], in_dims[perm[1]], in_dims[perm[2]]];
-        let (onz, ony, onx) = (out_dims[0], out_dims[1], out_dims[2]);
-
-        let in_stride = [ny * nx, nx, 1usize];
-        let mut out = vec![0.0f32; onz * ony * onx];
-        let mut out_idx = [0usize; 3];
-        for oz in 0..onz {
-            out_idx[0] = oz;
-            for oy in 0..ony {
-                out_idx[1] = oy;
-                for ox in 0..onx {
-                    out_idx[2] = ox;
-                    // Map output tensor coords → input tensor coords.
-                    let mut in_lin = 0usize;
-                    for o in 0..3 {
-                        let a = perm[o];
-                        let i = if flip[o] {
-                            in_dims[a] - 1 - out_idx[o]
-                        } else {
-                            out_idx[o]
-                        };
-                        in_lin += i * in_stride[a];
-                    }
-                    let dst = (oz * ony + oy) * onx + ox;
-                    out[dst] = vals[in_lin];
-                }
-            }
-        }
-
-        // Spacing follows the permutation (core spacing is tensor [z, y, x]).
-        let sp_out = Spacing::new([sp_in[perm[0]], sp_in[perm[1]], sp_in[perm[2]]]);
-
-        // Origin = world position of the output (0,0,0) voxel. Its input index
-        // along tensor axis a = perm[o] is (dim_a − 1) if reversed, else 0.
-        let mut corner = [0usize; 3];
-        for o in 0..3 {
-            corner[perm[o]] = if flip[o] { in_dims[perm[o]] - 1 } else { 0 };
-        }
-        let org_out = geometry.point(corner.map(|k| k as f64));
-
+        let grid = permutation.reexpress(
+            &vals,
+            dims,
+            image.origin(),
+            image.spacing(),
+            image.direction(),
+        );
         crate::native_support::rebuild_with_metadata(
-            out,
-            out_dims,
-            Point::new(org_out),
-            sp_out,
+            grid.values.into_owned(),
+            grid.dims,
+            grid.origin,
+            grid.spacing,
             out_dir,
             image,
             backend,
