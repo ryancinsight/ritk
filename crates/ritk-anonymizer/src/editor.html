@@ -24,13 +24,20 @@
 const form=document.getElementById('editor');
 const status=document.getElementById('status');
 let busy=false;
-function send(message){if(busy)return;window.chrome.webview.postMessage(message)}
+const bridge=window.chrome?.webview;
+function showError(message){busy=false;status.className='error';status.textContent=message}
+function send(message){
+ if(busy)return;
+ if(!bridge){showError('Folder selection requires ritk-anonymizer.exe on Windows. This browser preview cannot open native folders.');return}
+ try{bridge.postMessage(message)}catch(error){showError('Unable to contact the Windows host. Close and reopen ritk-anonymizer.exe.')}
+}
 document.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>send({action:button.dataset.action})));
 form.addEventListener('submit',event=>{event.preventDefault();if(!form.reportValidity()||busy)return;send({action:'export',fields:Object.fromEntries(new FormData(form))})});
-window.chrome.webview.addEventListener('message',event=>{
+if(bridge) bridge.addEventListener('message',event=>{
  const {kind,message}=event.data;
- if(kind==='input'||kind==='output'){document.getElementById(kind).textContent=message;return}
+ if(kind==='input'||kind==='output'){document.getElementById(kind).textContent=message;status.className='';status.textContent=kind==='input'?'Input folder selected.':'Export folder selected.';return}
  busy=kind==='busy';document.querySelectorAll('button,input,select').forEach(control=>control.disabled=busy);
  status.className=kind==='error'?'error':'';status.textContent=message;
 });
+if(!bridge)showError('Browser preview only: open ritk-anonymizer.exe on Windows to select folders and export.');
 </script></body></html>

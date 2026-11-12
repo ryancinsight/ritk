@@ -134,16 +134,24 @@ pub fn run() -> Result<()> {
                         }
                         match command {
                             Command::Input => {
-                                if let Some(path) = pick(DialogSelection::Folder)? {
-                                    notify(&mut surface, "input", &path.to_string_lossy())?;
-                                    input = Some(path);
+                                match pick(DialogSelection::Folder) {
+                                    Ok(Some(path)) => {
+                                        notify(&mut surface, "input", &path.to_string_lossy())?;
+                                        input = Some(path);
+                                    }
+                                    Ok(None) => notify(&mut surface, "info", "Input selection cancelled; previous selection unchanged.")?,
+                                    Err(error) => notify(&mut surface, "error", &format!("Cannot open input folder picker: {error}"))?,
                                 }
                             }
                             Command::Output => {
-                                if let Some(path) = pick(DialogSelection::Folder)? {
-                                    let path = path.join("RITK-anonymized");
-                                    notify(&mut surface, "output", &path.to_string_lossy())?;
-                                    output = Some(path);
+                                match pick(DialogSelection::Folder) {
+                                    Ok(Some(path)) => {
+                                        let path = path.join("RITK-anonymized");
+                                        notify(&mut surface, "output", &path.to_string_lossy())?;
+                                        output = Some(path);
+                                    }
+                                    Ok(None) => notify(&mut surface, "info", "Export folder selection cancelled; previous selection unchanged.")?,
+                                    Err(error) => notify(&mut surface, "error", &format!("Cannot open export folder picker: {error}"))?,
                                 }
                             }
                             Command::Close => {

@@ -19,6 +19,8 @@ jobs:
       - name: Install repository Rust toolchain
         shell: pwsh
         run: rustup show
+      - name: Test editor bridge and preview diagnostics
+        run: node crates/ritk-anonymizer/tests/editor-bridge.cjs
       - name: Test metadata export and existing anonymization
         run: cargo test --locked -p ritk-io --lib format::dicom::anonymize
       - name: Build Windows editor
