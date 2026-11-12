@@ -1,6 +1,8 @@
-# DICOM metadata editor: bounded Windows host and copy-only export
+# ADR 0059: DICOM metadata editor with copy-only export
 
-Status: implementation candidate; native Windows validation pending.
+- Status: Proposed
+
+## Context
 
 The requested fields mirror the existing DICOM Editor 1.0.0.7 screenshots.
 RITK owns tag validation, profile application and serialization. Métis supplies

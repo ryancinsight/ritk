@@ -121,4 +121,4 @@ Candidate adds the 11-field copy-only RITK/Métis editor requested 2026-11-12.
 Backend and anonymization regression suite passes (72 tests, including 8 new).
 Windows packaging/runtime acceptance remains open; cross-compilation on macOS
 stops in aws-lc-sys C dependencies, not a verified Windows app build. See
-`crates/ritk-anonymizer/README.md` and `docs/adr/dicom-metadata-editor.md`.
+`crates/ritk-anonymizer/README.md` and `docs/adr/0059-dicom-metadata-editor.md`.

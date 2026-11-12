@@ -67,3 +67,4 @@
 | [0056](0056-viewer-crate-returns-to-the-workspace.md) | The viewer crate returns to the workspace | Accepted |
 | [0057](0057-viewer-release-scope.md) | Viewer release scope | Proposed |
 | [0058](0058-read-budget-ownership.md) | Read budgets are owned by `ritk-codecs` | Accepted |
+| [0059](0059-dicom-metadata-editor.md) | DICOM metadata editor with copy-only export | Proposed |

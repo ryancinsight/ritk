@@ -8,6 +8,9 @@ on:
       - ".github/workflows/dicom-editor.yml"
 permissions:
   contents: read
+concurrency:
+  group: dicom-editor-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   windows-candidate:
     runs-on: windows-latest
