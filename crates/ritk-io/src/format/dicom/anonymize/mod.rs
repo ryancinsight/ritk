@@ -21,6 +21,7 @@
 //! - A step that cannot complete aborts the run with [`AnonymizeError`]; the
 //!   object it would have described is never returned as a success.
 
+pub mod editor;
 mod profile;
 #[cfg(test)]
 mod tests_anonymize;

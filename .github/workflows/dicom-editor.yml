@@ -1,0 +1,30 @@
+name: DICOM editor Windows candidate
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "crates/ritk-anonymizer/**"
+      - "crates/ritk-io/src/format/dicom/anonymize/**"
+      - ".github/workflows/dicom-editor.yml"
+permissions:
+  contents: read
+jobs:
+  windows-candidate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install repository Rust toolchain
+        shell: pwsh
+        run: rustup show
+      - name: Test metadata export and existing anonymization
+        run: cargo test --locked -p ritk-io --lib format::dicom::anonymize
+      - name: Build Windows editor
+        run: cargo build --locked --release -p ritk-anonymizer
+      - name: Upload unreleased candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: ritk-dicom-editor-windows-candidate
+          path: |
+            target/release/ritk-anonymizer.exe
+            crates/ritk-anonymizer/README.md
+          if-no-files-found: error

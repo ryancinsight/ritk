@@ -1,0 +1,1 @@
+{"schema":1,"id":"org.ritk.anonymizer","name":"RITK DICOM Metadata Editor","version":"0.1.0","manufacturer":"RITK","cargo_manifest":"../../Cargo.toml","entry":"ritk-anonymizer","binaries":[{"package":"ritk-anonymizer","bin":"ritk-anonymizer"}],"resources":[],"arguments":[]}

@@ -114,3 +114,11 @@
 <a id="RITK-SNAP-NATIVE-SEGMENTATION-001"></a>- [RITK-SNAP-NATIVE-SEGMENTATION-001](backlog/RITK-SNAP-NATIVE-SEGMENTATION-001.md) — Draw and edit label maps natively — todo
 <a id="SEC-MIF-DETACHED-DEVICE-NAME-001"></a>- [SEC-MIF-DETACHED-DEVICE-NAME-001](backlog/SEC-MIF-DETACHED-DEVICE-NAME-001.md) — Refuse device names as .mif detached data and pin the check's order — todo
 <a id="RITK-MGH-ERROR-TEST-PINS-001"></a>- [RITK-MGH-ERROR-TEST-PINS-001](backlog/RITK-MGH-ERROR-TEST-PINS-001.md) — Pin the MGH error fields and limits that mutants survive — todo
+
+## RITK-DICOM-EDITOR-001 — Windows metadata editor
+
+Candidate adds the 11-field copy-only RITK/Métis editor requested 2026-11-12.
+Backend and anonymization regression suite passes (72 tests, including 8 new).
+Windows packaging/runtime acceptance remains open; cross-compilation on macOS
+stops in aws-lc-sys C dependencies, not a verified Windows app build. See
+`crates/ritk-anonymizer/README.md` and `docs/adr/dicom-metadata-editor.md`.

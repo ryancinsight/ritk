@@ -9508,3 +9508,10 @@ Verification and completion sprint. Comprehensive feature coverage achieved acro
 [0.5.0]: https://github.com/ryancinsight/ritk/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ryancinsight/ritk/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ryancinsight/ritk/compare/v0.2.0...v0.3.0
+
+## Unreleased — DICOM metadata editor candidate
+
+- Adds a Windows RITK/Métis metadata pseudonymization form for patient and study
+  tags, with copy-only export, field validation, UID remapping and output reparse
+  checks. This is an unreleased candidate pending Windows compilation and UI
+  acceptance, not a complete de-identification certificate.
