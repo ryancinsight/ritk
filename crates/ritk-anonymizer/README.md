@@ -65,3 +65,7 @@ The PR-triggered or manually dispatched `DICOM editor Windows candidate` workflo
 unreleased Windows artifact and runs backend tests on Windows. It performs no
 release, deployment or package publication. Its executable still requires native
 interaction/privacy acceptance before use with clinical data.
+
+## User manual
+
+See the [illustrated user manual](https://github.com/ryancinsight/ritk/blob/feat/dicom-anonymizer-editor/crates/ritk-anonymizer/docs/user-manual.md) for setup, field entry, export, troubleshooting and screenshot limitations.
