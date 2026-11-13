@@ -1033,9 +1033,21 @@ def test_cmake_dilate_object_morphology_on_upstream_data():
     r = np.squeeze(
         np.asarray(ritk.filter.grayscale_dilation(rm, 2).to_numpy(), np.float64)
     )
-    s = sitk.GetArrayFromImage(
-        sitk.DilateObjectMorphology(sm, [2, 2, 2], sitk.sitkBox, 1.0)
-    ).astype(np.float64)
+    # SimpleITK 2.5.x (ITK 5.4.6-5.4.8) copies input to output per thread region
+    # in ObjectMorphologyImageFilter::DynamicThreadedGenerateData, while other
+    # threads paint structuring-element footprints across region borders. The
+    # copy skips pixels already at the object value, so only its check-then-set
+    # window can lose a Dilate paint (ITK issue 4969, fixed on ITK main by PR
+    # 4988, absent from those releases). The reference runs with 1 thread, as
+    # in the Erode test.
+    old_threads = sitk.ProcessObject.GetGlobalDefaultNumberOfThreads()
+    try:
+        sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
+        s = sitk.GetArrayFromImage(
+            sitk.DilateObjectMorphology(sm, [2, 2, 2], sitk.sitkBox, 1.0)
+        ).astype(np.float64)
+    finally:
+        sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(old_threads)
     assert np.array_equal(r, s), "DilateObjectMorphology differs from sitk"
 
 
