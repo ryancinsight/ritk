@@ -69,7 +69,9 @@ jobs:
               rust=false
             fi
           fi
-          ubuntu="{\"os\":\"ubuntu-latest\",\"timeout_minutes\":30,\"run\":$rust}"
+          # ubuntu-latest is Ubuntu 26.04; this cell links ritk-python against the
+          # image Python before setup-python runs (see hephaestus run 43478624177).
+          ubuntu="{\"os\":\"ubuntu-24.04\",\"timeout_minutes\":30,\"run\":$rust}"
           if [[ "$event" == "schedule" || "$event" == "workflow_dispatch" ]]; then
             matrix="{\"include\":[$ubuntu,{\"os\":\"macos-latest\",\"timeout_minutes\":30,\"run\":true},{\"os\":\"windows-latest\",\"timeout_minutes\":40,\"run\":true}]}"
           else
