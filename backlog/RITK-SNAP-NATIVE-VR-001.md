@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/render/gpu_volume/`, `crates/ritk-snap/src/render/mip_vr.rs`, `crates/ritk-snap/src/presentation/native_session/`, `crates/ritk-snap/src/app/mesh_ops*`
 - next: Route the existing renderer into a native pane.
 - basis: 30b8ba098
-- status: blocked
 - blocker: Prerequisite items must merge before this item is ready.
 - needs: RITK-SNAP-NATIVE-LOAD-001
 - milestone: M-viewer-advanced

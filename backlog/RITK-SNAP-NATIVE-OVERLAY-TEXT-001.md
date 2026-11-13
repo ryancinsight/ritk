@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/layout/{overlay,compare}.rs`, `crates/ritk-snap/src/ui/overlay`, `crates/ritk-snap/src/app/pointer_ops.rs`
 - next: Port `ui/overlay` to the native layout. The spacing line, axis table and overflow disclosure are in `414da7491:crates/ritk-snap/src/ui/overlay/details.rs`.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-reading
 - priority: feature

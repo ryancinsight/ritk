@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/{projection,window_actions}.rs`
 - next: Add runtime layout and thickness actions.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-compare
 - priority: feature

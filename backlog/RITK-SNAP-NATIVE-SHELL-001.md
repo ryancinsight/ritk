@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/window_controls/events.rs`, `crates/ritk-snap/src/launch.rs`
 - next: Move the key table behind a binding map.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-advanced
 - priority: feature

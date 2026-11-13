@@ -6,7 +6,6 @@
 - scope: crates/ritk-image-io/, crates/ritk-io/, listed format crates, conversion tests, and the RITK manual
 - next: Deliver capability and NIfTI/NRRD stored-sample slices first, then continue by the dependency graph.
 - basis: 4ebc650d6e25a7a6775910ba23bc35c8c7cb78e4
-- status: blocked
 - blocker: RITK-NRRD-NIFTI-001 must merge before this item is ready.
 - needs: RITK-NRRD-NIFTI-001, RITK-DICOM-CONVERSION-001, RITK-METAIMAGE-CONVERSION-001, RITK-MINC-CONVERSION-001, RITK-MIF-CONVERSION-001, RITK-MGH-CONVERSION-001, RITK-VTK-VOLUME-CONVERSION-001, RITK-RASTER-CONVERSION-001, RITK-GIFTI-SURFACE-001, RITK-MESH-CONVERSION-001, RITK-TRACTOGRAM-CONVERSION-001
 - priority: architecture

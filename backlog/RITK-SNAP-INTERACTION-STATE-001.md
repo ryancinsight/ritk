@@ -6,7 +6,6 @@
 - scope: `crates/ritk-snap/src/tools/interaction/tests.rs`, `tools/interaction/tests/state.rs`
 - next: move the state cases after measurement tests.
 - basis: 3fcdc3dd
-- status: blocked
 - blocker: Prerequisite items must merge before this item is ready.
 - needs: RITK-SNAP-INTERACTION-MEASUREMENTS-001
 - priority: tightening

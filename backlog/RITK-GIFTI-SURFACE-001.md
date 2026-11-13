@@ -6,6 +6,5 @@
 - scope: crates/ritk-gifti/, crates/ritk-io/, surface model, tests and manual
 - next: replace first-array extraction as the conversion contract with a complete typed surface document.
 - basis: 4ebc650d6e25a7a6775910ba23bc35c8c7cb78e4
-- status: todo
 - needs: none
 - priority: architecture

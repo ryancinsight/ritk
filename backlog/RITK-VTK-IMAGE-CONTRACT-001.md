@@ -6,6 +6,5 @@
 - scope: crates/ritk-vtk/src/domain/vtk_data_object/volume.rs, VTK image I/O, tests, and manual
 - next: Compare VTK image models and existing round trips against the stored-volume contract.
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
-- status: todo
 - needs: none
 - priority: correctness

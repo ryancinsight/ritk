@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/app/pointer_bindings.rs`, `crates/ritk-snap/src/presentation/native_session/window_controls/`, `crates/ritk-snap/src/presentation/{events,native,actions}.rs`, `crates/ritk-snap/src/app/pointer_bindings.rs`
 - next: Add assignment actions over `PointerBindings`.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-reading
 - priority: feature

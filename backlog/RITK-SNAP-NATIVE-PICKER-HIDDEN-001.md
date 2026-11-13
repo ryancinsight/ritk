@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/window_controls/multi_series.rs`, `crates/ritk-snap/src/presentation/native_session/window_controls/multi_series/tests.rs`
 - next: `rebuild_matches` keeps `selected` when the filter hides it, and Enter in the list and the Open button then confirm it. Confirm only rows present in `matches`.
 - basis: 13d8176bc
-- status: todo
 - needs: none
 - milestone: M-viewer-reading
 - priority: correctness

@@ -6,7 +6,6 @@
 - scope: `crates/ritk-snap/src/tools/interaction/tests.rs`, `tools/interaction/tests/window_level.rs`
 - next: move the remaining window-level cases and leave no implementation in the test manifest.
 - basis: 3fcdc3dd
-- status: blocked
 - blocker: Prerequisite items must merge before this item is ready.
 - needs: RITK-SNAP-INTERACTION-STATE-001
 - priority: tightening

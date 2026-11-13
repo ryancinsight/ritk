@@ -87,7 +87,7 @@
 <a id="RITK-SNAP-RADIANT-UI-001"></a>- [RITK-SNAP-RADIANT-UI-001](backlog/RITK-SNAP-RADIANT-UI-001.md) — Organize a multi-series DICOM viewer workspace — todo
 <a id="RITK-SNAP-OBLIQUE-ROUTING-001"></a>- [RITK-SNAP-OBLIQUE-ROUTING-001](backlog/RITK-SNAP-OBLIQUE-ROUTING-001.md) — Route native oblique input — blocked
 <a id="RITK-BROWSER-TOOL-TRACE-001"></a>- [RITK-BROWSER-TOOL-TRACE-001](backlog/RITK-BROWSER-TOOL-TRACE-001.md) — Publish ROI results in the browser journey — todo
-<a id="RITK-SNAP-EFRAME-REMOVAL-001"></a>- [RITK-SNAP-EFRAME-REMOVAL-001](backlog/RITK-SNAP-EFRAME-REMOVAL-001.md) — Remove the eframe shell — todo
+<a id="RITK-SNAP-EFRAME-REMOVAL-001"></a>- [RITK-SNAP-EFRAME-REMOVAL-001](backlog/RITK-SNAP-EFRAME-REMOVAL-001.md) — Remove the eframe shell — blocked
 <a id="RITK-SNAP-NATIVE-ARCHIVE-001"></a>- [RITK-SNAP-NATIVE-ARCHIVE-001](backlog/RITK-SNAP-NATIVE-ARCHIVE-001.md) — Keep a local study archive — blocked
 <a id="RITK-SNAP-NATIVE-DISPLAY-001"></a>- [RITK-SNAP-NATIVE-DISPLAY-001](backlog/RITK-SNAP-NATIVE-DISPLAY-001.md) — Route display controls in the native shell — todo
 <a id="RITK-SNAP-NATIVE-DOCUMENTS-001"></a>- [RITK-SNAP-NATIVE-DOCUMENTS-001](backlog/RITK-SNAP-NATIVE-DOCUMENTS-001.md) — Display reports, PDFs and video objects — todo
@@ -114,3 +114,7 @@
 <a id="RITK-SNAP-NATIVE-SEGMENTATION-001"></a>- [RITK-SNAP-NATIVE-SEGMENTATION-001](backlog/RITK-SNAP-NATIVE-SEGMENTATION-001.md) — Draw and edit label maps natively — todo
 <a id="SEC-MIF-DETACHED-DEVICE-NAME-001"></a>- [SEC-MIF-DETACHED-DEVICE-NAME-001](backlog/SEC-MIF-DETACHED-DEVICE-NAME-001.md) — Refuse device names as .mif detached data and pin the check's order — todo
 <a id="RITK-MGH-ERROR-TEST-PINS-001"></a>- [RITK-MGH-ERROR-TEST-PINS-001](backlog/RITK-MGH-ERROR-TEST-PINS-001.md) — Pin the MGH error fields and limits that mutants survive — todo
+<a id="RITK-SNAP-EFRAME-DELETE-001"></a>- [RITK-SNAP-EFRAME-DELETE-001](backlog/RITK-SNAP-EFRAME-DELETE-001.md) — Delete the eframe entry points — todo
+<a id="RITK-SNAP-EFRAME-PORT-001"></a>- [RITK-SNAP-EFRAME-PORT-001](backlog/RITK-SNAP-EFRAME-PORT-001.md) — Port smoothing and segmentation filter ranges — todo
+<a id="RITK-SNAP-EFRAME-PORT-002"></a>- [RITK-SNAP-EFRAME-PORT-002](backlog/RITK-SNAP-EFRAME-PORT-002.md) — Port morphology, geometry, CPR and pointwise filter ranges — todo
+<a id="RITK-SNAP-EFRAME-PORT-003"></a>- [RITK-SNAP-EFRAME-PORT-003](backlog/RITK-SNAP-EFRAME-PORT-003.md) — Port filter labels and starting parameters — todo

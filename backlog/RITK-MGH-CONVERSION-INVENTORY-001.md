@@ -6,6 +6,5 @@
 - scope: crates/ritk-mgh/, crates/ritk-io/src/format/mgh/, tests, and manual
 - next: Compare the declared header, reader, series, and writer behavior against the typed conversion contract.
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
-- status: todo
 - needs: none
 - priority: correctness

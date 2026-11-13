@@ -6,6 +6,5 @@
 - scope: `.github/workflows/`, `scripts/tests/`, `docs/adr/`, and the main merge ruleset
 - next: claim the item, map the required-check and reusable-workflow graph, then record the single-pipeline design in an indexed ADR before changing workflows.
 - basis: bf589f94b9826be8b4b05c85e5da31c338f01bab
-- status: todo
 - needs: none
 - priority: architecture

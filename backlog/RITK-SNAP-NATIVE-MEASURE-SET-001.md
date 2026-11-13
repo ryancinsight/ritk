@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/tools/**`, `crates/ritk-snap/src/app/pointer_ops.rs`, `crates/ritk-snap/src/presentation/native_session/layout/`
 - next: Extend `Annotation` and `ToolKind` one tool per increment.
 - basis: 30b8ba098
-- status: blocked
 - blocker: Prerequisite items must merge before this item is ready.
 - needs: RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001
 - milestone: M-viewer-reading

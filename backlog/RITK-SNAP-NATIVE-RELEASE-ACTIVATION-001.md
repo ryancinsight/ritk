@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/events/panel_state.rs`, `crates/ritk-snap/src/presentation/native_session/events.rs`, `crates/ritk-snap/src/presentation/native_session/tests/`
 - next: `retain_event` activates on every routed pointer event through `is_pointer_event`, while `apply_events` skips releases through `is_release`. Use one predicate for both.
 - basis: 13d8176bc
-- status: todo
 - needs: none
 - milestone: M-viewer-reading
 - priority: correctness

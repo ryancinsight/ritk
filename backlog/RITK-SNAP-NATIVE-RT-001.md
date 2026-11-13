@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/app/rt_overlay.rs`, `crates/ritk-snap/src/ui/rtdose_overlay.rs`, `crates/ritk-snap/src/ui/rtstruct_overlay.rs`, `crates/ritk-snap/src/presentation/native_session/layout/`, `crates/ritk-snap/src/app/rt_struct_export.rs`
 - next: Draw projected contours through the measurement overlay's display list.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-advanced
 - priority: feature

@@ -6,6 +6,5 @@
 - scope: crates/ritk-vtk/, crates/ritk-io/, mesh tests and manual
 - next: compare each mesh codec model and write a generic value-level conformance suite.
 - basis: 4ebc650d6e25a7a6775910ba23bc35c8c7cb78e4
-- status: todo
 - needs: none
 - priority: architecture

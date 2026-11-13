@@ -8,6 +8,5 @@
 - risk: re-expressing to identity instead would write X and Z swapped for SimpleITK, VTK and ParaView, while in-memory round trips still pass because the readers undo the same swap.
 - basis: 729bbd78254c1eada68211225f350ecfebaa3666
 - milestone: M-viewer-reading
-- status: todo
 - needs: none
 - priority: correctness

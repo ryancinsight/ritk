@@ -6,7 +6,6 @@
 - scope: RITK browser presentation, Metis file boundary, and cross-engine replay
 - next: Reopen when hosted WebKit permits bounded Blob reads.
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
-- status: blocked
 - blocker: Safari 26.6.2 accepts all files but rejects the first bounded Blob.arrayBuffer read; run 35759891764 records the failure.
 - needs: none
 - priority: verification

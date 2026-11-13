@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/{series,startup,events}.rs`, `crates/ritk-snap/src/app/load_tasks.rs`
 - next: Move the load task out of the eframe gate.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-compare
 - priority: tightening

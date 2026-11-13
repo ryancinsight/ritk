@@ -6,6 +6,5 @@
 - scope: crates/ritk-snap/src/presentation/native_session/, Cargo.toml, Cargo.lock, and tests
 - next: Advance the first-party lock selection and update every affected constructor and comparison.
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
-- status: todo
 - needs: none
 - priority: correctness
