@@ -6,7 +6,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/layout/`, `crates/ritk-snap/src/tools/interaction/`, `crates/ritk-snap/src/session/`
 - next: Record each annotation's plane, then project endpoints through the crosshair mapping. Label formats and bisector placement are in `414da7491:crates/ritk-snap/src/app/viewport_render.rs`.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-reading
 - priority: correctness

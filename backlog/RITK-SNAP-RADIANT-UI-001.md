@@ -6,7 +6,6 @@
 - scope: crates/ritk-snap/src/{app,presentation,session,ui/coordinate_system.rs}, integration tests, manual, and image provenance
 - next: Wire or remove `ui::coordinate_system`, then capture the full shell with its menus, browser, and panes.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-reading
 - priority: feature

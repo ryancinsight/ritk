@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/` new dynamic module, `crates/ritk-snap/src/presentation/native_session/`
 - next: Specify the frame-time model from DICOM attributes.
 - basis: 30b8ba098
-- status: blocked
 - blocker: Prerequisite items must merge before this item is ready.
 - needs: RITK-SNAP-NATIVE-MEASURE-SET-001
 - milestone: M-viewer-advanced

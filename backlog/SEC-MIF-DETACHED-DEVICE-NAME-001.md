@@ -7,6 +7,5 @@
 - next: establish from Microsoft's file-naming documentation which reserved names still resolve to devices inside a directory path on the supported Windows versions; choose the ordering observable (a Unix FIFO or an opener seam).
 - basis: 729bbd78254c1eada68211225f350ecfebaa3666
 - milestone: M-viewer-reading
-- status: todo
 - needs: none
 - priority: correctness

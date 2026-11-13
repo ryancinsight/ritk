@@ -6,7 +6,6 @@
 - scope: `crates/ritk-snap/src/app/tests/action_adapter/oblique.rs`
 - next: add rotated, edge, and invalid-input cases.
 - basis: 3fcdc3dd
-- status: blocked
 - blocker: Prerequisite items must merge before this item is ready.
 - needs: RITK-SNAP-OBLIQUE-APP-ADAPTER-001
 - priority: verification

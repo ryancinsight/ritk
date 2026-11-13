@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/{compare,panels,events}.rs`, `crates/ritk-snap/src/presentation/native_session/layout/crosshair.rs`
 - next: Add a patient-position sync model over `ComparePanel`.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-compare
 - priority: feature

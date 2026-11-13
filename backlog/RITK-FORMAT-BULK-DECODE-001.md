@@ -6,6 +6,5 @@
 - scope: `crates/ritk-codecs/src/byte_decode.rs`, `crates/ritk-vtk/src/io/reader.rs`, `crates/ritk-mif/src/writer.rs`, `crates/ritk-nifti/src/header/types.rs`, `crates/ritk-analyze/src/reader.rs`, `crates/ritk-codecs/src/jpeg_2000/codestream.rs`
 - next: profile these call sites and route the required bulk operations through the locked `EndianScalar` API; keep any conversion to `f32` explicit at the image boundary.
 - basis: fb1ff642dcc2ce722780dc9b051cb0796897ca25
-- status: todo
 - needs: none
 - priority: tightening

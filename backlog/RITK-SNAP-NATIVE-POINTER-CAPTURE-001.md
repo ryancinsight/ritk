@@ -5,7 +5,6 @@
 - scope: `repos/moirai` window callback, `repos/metis` host events, `crates/ritk-snap/src/presentation/native_session/routing.rs`
 - next: Add `SetCapture`/`ReleaseCapture` to the Moirai window callback, then advance Métis and RITK in dependency order.
 - basis: 414da7491
-- status: todo
 - needs: none
 - milestone: M-viewer-reading
 - priority: correctness

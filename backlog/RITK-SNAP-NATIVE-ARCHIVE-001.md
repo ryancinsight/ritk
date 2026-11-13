@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/` new archive module, `crates/ritk-snap/src/presentation/native_session/window_controls/`
 - next: Specify the storage layout in an ADR first.
 - basis: 30b8ba098
-- status: blocked
 - blocker: Prerequisite items must merge before this item is ready.
 - needs: RITK-SNAP-NATIVE-OPEN-001
 - milestone: M-viewer-access

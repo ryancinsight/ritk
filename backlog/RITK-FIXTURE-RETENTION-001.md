@@ -6,7 +6,6 @@
 - scope: test_data/, payload manifest, and fixture documentation
 - next: After the provenance inventory, ask the owner about each unresolved row; keep all bytes until answered.
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
-- status: blocked
 - blocker: The exact affected files and consumer uses must be inventoried before requesting a retention decision.
 - needs: RITK-GAP-2026-08-20-04
 - priority: verification

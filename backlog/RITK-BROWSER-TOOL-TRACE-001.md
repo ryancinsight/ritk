@@ -5,7 +5,6 @@
 - scope: `scripts/browser_gallery_tool_trace.py`, `crates/ritk-snap/src/app/browser_tool.rs`, `crates/ritk-snap/src/browser_trace/`
 - next: Reproduce the ROI publication failure against the run's bundle artifact.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-compare
 - priority: verification

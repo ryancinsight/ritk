@@ -5,7 +5,6 @@
 - scope: `crates/ritk-io/src/format/dicom/`, `crates/ritk-snap/src/dicom/loader/`, `crates/ritk-snap/src/presentation/native_session/`
 - next: Classify non-image SOP classes at series discovery.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-advanced
 - priority: feature

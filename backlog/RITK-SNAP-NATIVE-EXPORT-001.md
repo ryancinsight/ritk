@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/{composition,window_actions}.rs`, metis clipboard image write, `crates/ritk-snap/src/presentation/native_session/window_actions.rs`, encoder provider decision in an ADR, `crates/ritk-snap/src/session/`, `crates/ritk-snap/src/presentation/native_session/window_actions.rs`, `crates/ritk-snap/src/ui/annotation_csv.rs`, `crates/ritk-snap/src/app/clinical_distribution*`, `crates/ritk-snap/src/app/surface_export*`, `crates/ritk-snap/src/app/io_ops/`
 - next: Route the capture path through a save dialog.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-access
 - priority: feature

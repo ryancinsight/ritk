@@ -6,7 +6,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/tests/oblique/`
 - next: add rendering and startup cases against manufactured volumes.
 - basis: 3fcdc3dd
-- status: blocked
 - blocker: Prerequisite items must merge before this item is ready.
 - needs: RITK-SNAP-OBLIQUE-SESSION-WIRING-001
 - priority: verification

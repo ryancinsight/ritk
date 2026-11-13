@@ -6,7 +6,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/routing.rs`, `events.rs`
 - next: implement the bounded event state machine and user-visible controls.
 - basis: 3fcdc3dd
-- status: blocked
 - blocker: Prerequisite items must merge before this item is ready.
 - needs: RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-APP-TESTS-001
 - priority: feature

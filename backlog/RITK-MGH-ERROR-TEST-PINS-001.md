@@ -7,6 +7,5 @@
 - next: write `InvalidVersion { expected: 1, found: 2 }` at `reader/tests/errors.rs` and `writer/tests/datatypes.rs`, then add the multi-frame fixture.
 - basis: cd8a829ce11bc0adc097dc3b1f5cf950751ee5ec
 - milestone: M-viewer-reading
-- status: todo
 - needs: none
 - priority: verification

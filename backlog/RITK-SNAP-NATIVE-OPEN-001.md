@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/series.rs`, `crates/ritk-snap/src/launch.rs`, `crates/ritk-snap/src/dicom/input_path.rs`, metis host drop events
 - next: Confirm the Métis file-dialog and drop surface, then route it.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-access
 - priority: feature

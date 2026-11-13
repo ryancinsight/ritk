@@ -6,7 +6,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/{composition,session,events}.rs`
 - next: connect the plane lifecycle to native session state.
 - basis: 3fcdc3dd
-- status: blocked
 - blocker: Prerequisite items must merge before this item is ready.
 - needs: RITK-SNAP-OBLIQUE-SESSION-MODULES-001
 - priority: correctness

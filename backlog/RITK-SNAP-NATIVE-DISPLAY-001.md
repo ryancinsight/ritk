@@ -5,7 +5,6 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/window_controls/**`, `crates/ritk-snap/src/presentation/native_session/window_actions.rs`, `crates/ritk-snap/src/ui/window_presets/`, `crates/ritk-snap/src/presentation/native_session/window_actions.rs`, `crates/ritk-snap/src/presentation/native_session/window_controls/layout/construction.rs`, `crates/ritk-snap/src/ui/histogram.rs`
 - next: Add `WindowAction` variants over the existing preset library. Deleted shell source: `414da7491:crates/ritk-snap/src/ui/colorbar.rs`, `414da7491:crates/ritk-snap/src/ui/preset_panel.rs`, `414da7491:crates/ritk-snap/src/app/shortcuts.rs`, `414da7491:crates/ritk-snap/src/app/panels.rs`.
 - basis: 30b8ba098
-- status: todo
 - needs: none
 - milestone: M-viewer-reading
 - priority: feature
