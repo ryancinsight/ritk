@@ -101,6 +101,21 @@ impl SignedAxisPermutation {
     /// `axis[o]`, walked from its last index when `reversed[o]`.
     ///
     /// Returns `None` unless `axis` is a permutation of `[0, 1, 2]`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ritk_image::SignedAxisPermutation;
+    /// use ritk_spatial::Direction;
+    ///
+    /// let identity = Direction::<3>::identity();
+    /// assert_eq!(
+    ///     SignedAxisPermutation::from_axes([0, 1, 2], [false; 3]),
+    ///     SignedAxisPermutation::between(&identity, &identity),
+    /// );
+    /// // Two output axes cannot read one input axis.
+    /// assert_eq!(SignedAxisPermutation::from_axes([0, 0, 1], [false; 3]), None);
+    /// ```
     pub fn from_axes(axis: [usize; 3], reversed: [bool; 3]) -> Option<Self> {
         let mut seen = [false; 3];
         for &input in &axis {

@@ -1,5 +1,5 @@
 use super::*;
-use crate::reader::{read_mgh_with_limit, MAX_MGZ_UNCOMPRESSED_BYTES};
+use crate::reader::read_mgh_with_limit;
 
 #[test]
 fn test_read_mgz() -> Result<()> {
@@ -106,21 +106,42 @@ fn test_read_external_uppercase_gzip_extensions() -> Result<()> {
 }
 
 #[test]
-#[expect(
-    clippy::unwrap_used,
-    reason = "test assertions surface failures immediately"
-)]
-fn mgz_decompression_bomb_is_rejected() {
-    let dir = tempdir().unwrap();
-    let path = dir.path().join("bomb.mgz");
+fn mgz_decompression_cap_admits_exactly_the_decompressed_length() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("capped.mgz");
     let backend = TestBackend::default();
-    let _ = MAX_MGZ_UNCOMPRESSED_BYTES;
-
+    let values = [0.5f32, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5];
+    let payload: Vec<u8> = values.iter().flat_map(|v| v.to_be_bytes()).collect();
+    let mgh = build_mgh_bytes(
+        VERSION,
+        [2, 2, 2],
+        SINGLE_FRAME,
+        MRI_FLOAT,
+        [1.0, 1.0, 1.0],
+        IDENTITY_DIR,
+        [0.0, 0.0, 0.0],
+        &payload,
+    );
     let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
-    encoder.write_all(&vec![0u8; 2048]).unwrap();
-    std::fs::write(&path, encoder.finish().unwrap()).unwrap();
+    encoder.write_all(&mgh)?;
+    std::fs::write(&path, encoder.finish()?)?;
+    let length = u64::try_from(mgh.len())?;
+    let read = |limit| read_mgh_with_limit::<TestBackend, _>(&path, &backend, limit);
 
-    let Err(_) = read_mgh_with_limit::<TestBackend, _>(&path, &backend, 1024) else {
-        panic!("MGZ exceeding the decompression limit must be rejected");
-    };
+    let error = read(u64::try_from(HEADER_SIZE)? - 1).expect_err("the header is cut off");
+    assert!(matches!(error, MghError::Header { .. }), "got: {error}");
+
+    let error = read(length - 1).expect_err("the last payload byte is cut off");
+    assert!(
+        matches!(error, MghError::TruncatedPayload { voxel, voxel_count }
+            if voxel == values.len() - 1 && voxel_count == values.len()),
+        "got: {error}"
+    );
+
+    read(length)?.data_slice().map(|loaded| {
+        let bits: Vec<u32> = loaded.iter().map(|v| v.to_bits()).collect();
+        let expected: Vec<u32> = values.iter().map(|v| v.to_bits()).collect();
+        assert_eq!(bits, expected);
+    })?;
+    Ok(())
 }

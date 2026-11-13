@@ -11,7 +11,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
 use ritk_image::Image;
-use ritk_mgh::{read_mgh, write_mgh};
+use ritk_mgh::{read_mgh, write_mgh, MghError};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -288,9 +288,8 @@ fn verify_multi_frame_rejection(single_frame_path: &Path, output_path: &Path) ->
     let error = read_mgh(output_path, &SequentialBackend)
         .err()
         .context("two-frame MGH was accepted as a three-dimensional image")?;
-    let message = format!("{error:#}");
-    if !message.contains("2 frames") {
-        bail!("multi-frame rejection does not name the frame count: {message}");
+    if !matches!(error, MghError::MultiFrame { nframes: 2 }) {
+        bail!("multi-frame rejection does not name the frame count: {error}");
     }
     Ok(())
 }

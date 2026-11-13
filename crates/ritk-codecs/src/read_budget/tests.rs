@@ -60,3 +60,70 @@ fn budget_accepts_limits_and_reports_each_resource_overrun() {
         })
     );
 }
+
+#[test]
+fn length_check_applies_the_selected_ceiling() {
+    let budget = ImageReadBudget::new(8, 16, 2).expect("all ceilings are positive");
+    assert_eq!(budget.check_len(ImageReadResource::EncodedBytes, 8), Ok(()));
+    assert_eq!(
+        budget.check_len(ImageReadResource::DecodedBytes, 17),
+        Err(ImageReadBudgetError::Exceeded {
+            resource: ImageReadResource::DecodedBytes,
+            actual: 17,
+            maximum: 16,
+        })
+    );
+}
+
+#[test]
+fn scaled_check_rejects_a_product_beyond_usize_under_the_widest_ceiling() {
+    let budget = ImageReadBudget::new(1, u64::MAX, 1).expect("all ceilings are positive");
+    assert_eq!(
+        budget.check_scaled(ImageReadResource::DecodedBytes, usize::MAX, 2),
+        Err(ImageReadBudgetError::Exceeded {
+            resource: ImageReadResource::DecodedBytes,
+            actual: u64::MAX,
+            maximum: u64::MAX,
+        })
+    );
+}
+
+#[test]
+fn scaled_check_reports_the_selected_ceiling_for_a_product_beyond_usize() {
+    // Each resource has its own ceiling, so reporting a fixed resource or
+    // another resource's ceiling fails one of the two cases.
+    let budget = ImageReadBudget::new(14, 15, 1).expect("all ceilings are positive");
+    for (resource, maximum) in [
+        (ImageReadResource::EncodedBytes, 14),
+        (ImageReadResource::DecodedBytes, 15),
+    ] {
+        assert_eq!(
+            budget.check_scaled(resource, usize::MAX, 2),
+            Err(ImageReadBudgetError::Exceeded {
+                resource,
+                actual: u64::MAX,
+                maximum,
+            })
+        );
+    }
+}
+
+#[test]
+fn scaled_check_applies_the_ceiling_to_a_product_that_fits_usize() {
+    // 3 * 5 = 15 differs from 3 + 5, 3 * 3 and 5 * 5, so the product's
+    // operands are pinned. The ceilings 14 and 15 separate the resources:
+    // 15 fits the decoded ceiling and exceeds the encoded one.
+    let budget = ImageReadBudget::new(14, 15, 1).expect("all ceilings are positive");
+    assert_eq!(
+        budget.check_scaled(ImageReadResource::DecodedBytes, 3, 5),
+        Ok(())
+    );
+    assert_eq!(
+        budget.check_scaled(ImageReadResource::EncodedBytes, 3, 5),
+        Err(ImageReadBudgetError::Exceeded {
+            resource: ImageReadResource::EncodedBytes,
+            actual: 15,
+            maximum: 14,
+        })
+    );
+}

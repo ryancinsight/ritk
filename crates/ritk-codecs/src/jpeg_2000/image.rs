@@ -17,7 +17,7 @@ use super::packet::{
     reader::{decode_tile_part, TileCodingParams},
     WaveletTransform,
 };
-use crate::dimensions::{checked_pixel_count, checked_sample_count};
+use super::Jpeg2000DecodeError;
 use crate::{PixelLayout, PixelSignedness};
 
 #[derive(Debug)]
@@ -177,13 +177,17 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
     // The complete marker structure is validated before this allocation, so an
     // unsupported progression override or incomplete tile set cannot reserve
     // the DICOM-sized output buffer.
-    // Bound the pixel count against a hostile/corrupt header before allocating
-    // the full `f32` output (defense-in-depth: SIZ is already required to match
-    // the DICOM layout above).
-    let pixels = checked_pixel_count(layout.cols, layout.rows).context("J2K image")?;
-    let total_samples =
-        checked_sample_count(pixels, layout.samples_per_pixel).context("J2K output samples")?;
-    let mut out = vec![0f32; total_samples];
+    // The output size is the layout's sample count, which SIZ is required to
+    // match and which `decode_jpeg2000_fragment` has checked against the
+    // caller's read budget.
+    let samples = layout
+        .samples_per_frame()
+        .context("J2K: invalid DICOM pixel layout")?;
+    let mut out = Vec::new();
+    out.try_reserve_exact(samples).map_err(|source| {
+        anyhow::Error::new(Jpeg2000DecodeError::OutputAllocation { samples, source })
+    })?;
+    out.resize(samples, 0f32);
 
     for tile_part in tile_parts {
         let isot = tile_part.isot;

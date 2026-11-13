@@ -14,7 +14,7 @@ use coeus_core::ComputeBackend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 use std::io::{BufReader, Read};
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 /// Decoded `.mif` voxel data: one flat `[Z, Y, X]` volume per frame,
 /// sharing one spatial grid.
@@ -61,8 +61,18 @@ impl DecodedMif {
 ///
 /// # Errors
 ///
-/// Returns [`MifError::MultiFrame`] for a multi-frame file, and a header variant
-/// for each malformed or missing key.
+/// Returns [`MifError::MultiFrame`] for a multi-frame file,
+/// [`MifError::DetachedPathNotConfined`] for a detached `file:` name that is
+/// absolute or contains `..`, and a header variant for each malformed or
+/// missing key.
+///
+/// # Detached data
+///
+/// A `file:` name other than `.` is read relative to the header's directory
+/// and must stay inside it: it may be a sibling name or a path of plain
+/// subdirectories (`data/volume.dat`), and may not carry a drive or UNC
+/// prefix, a root, or a `..` component. The check is lexical; it does not
+/// resolve symbolic links.
 pub fn read_mif<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
@@ -88,7 +98,9 @@ pub fn read_mif<B: ComputeBackend, P: AsRef<Path>>(
 ///
 /// # Errors
 ///
-/// Returns a header variant for each malformed or missing key.
+/// Returns [`MifError::DetachedPathNotConfined`] for a detached `file:` name
+/// that is absolute or contains `..` (see [`read_mif`]), and a header variant
+/// for each malformed or missing key.
 pub fn read_mif_series<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
@@ -111,6 +123,28 @@ pub fn read_mif_series<B: ComputeBackend, P: AsRef<Path>>(
 }
 
 // ── Internal decode ─────────────────────────────────────────────────────
+
+/// Resolve a detached `file:` name against the directory holding the header.
+///
+/// The name is header content, not caller input, and `Path::join` discards its
+/// base when the argument is absolute. Only [`Component::Normal`] and
+/// [`Component::CurDir`] components keep the result inside the header's
+/// directory; a drive or UNC prefix, a root, and `..` each leave it.
+fn detached_data_path(header_path: &Path, name: &str) -> Result<PathBuf, MifError> {
+    let name = Path::new(name);
+    let confined = name
+        .components()
+        .all(|component| matches!(component, Component::Normal(_) | Component::CurDir));
+    if !confined {
+        return Err(MifError::DetachedPathNotConfined {
+            path: name.to_path_buf(),
+        });
+    }
+    Ok(header_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(name))
+}
 
 fn decode_mif(path: &Path) -> Result<DecodedMif, MifError> {
     let file = std::fs::File::open(path).map_err(|source| MifError::Open {
@@ -240,10 +274,7 @@ fn decode_mif(path: &Path) -> Result<DecodedMif, MifError> {
             if *file_name == "." {
                 read_payload(reader, offset, expected_bytes, path)?
             } else {
-                let data_path = path
-                    .parent()
-                    .unwrap_or_else(|| Path::new("."))
-                    .join(file_name);
+                let data_path = detached_data_path(path, file_name)?;
                 let data_file =
                     std::fs::File::open(&data_path).map_err(|source| MifError::PayloadRead {
                         path: data_path.clone(),

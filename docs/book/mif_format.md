@@ -3,7 +3,11 @@
 `.mif` is MRtrix3's container format: a plain-text header terminated by a bare
 `END` line, followed directly by raw binary voxel data in the same file
 (inline), or in a sidecar `.mif.dat` named by the header's `file:` key
-(detached). RITK exposes both layouts through the `ritk-mif` crate:
+(detached). A detached name is read relative to the header's directory and
+must stay inside it: an absolute name, or one with a `..` component, is
+rejected with `MifError::DetachedPathNotConfined` before any data file opens.
+The check is lexical and does not resolve symbolic links. RITK exposes both
+layouts through the `ritk-mif` crate:
 
 - `read_mif` reads one-volume `.mif` and rejects multi-frame input;
 - `read_mif_series` reads every frame of an acquisition or diffusion series;

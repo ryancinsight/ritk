@@ -2,13 +2,56 @@ use super::OrientImageFilter;
 use ritk_core::rejection::assert_rejects;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, NonCartesianGrid, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
 type B = coeus_core::SequentialBackend;
 
 fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
     ts::make_image::<f32, B, 3>(data, dims)
+}
+
+/// A `[2, 3, 4]` image of distinct voxels with the given direction.
+fn with_direction(direction: Direction<3>) -> Image<f32, B, 3> {
+    Image::from_flat_on(
+        (0..24u8).map(f32::from).collect(),
+        [2, 3, 4],
+        Point::new([3.0, -5.0, 7.0]),
+        Spacing::new([0.5, 2.0, 4.0]),
+        direction,
+        &B::default(),
+    )
+    .expect("fixture image")
+}
+
+/// Orient `image` through both application paths, which must agree on the
+/// output's world map and direction, or on the refusal.
+fn orient(code: &str, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
+    let filter = OrientImageFilter::from_code(code).expect("a valid code");
+    let legacy = filter.apply(image);
+    let native = filter.apply_native(image, &B::default());
+    match (&legacy, &native) {
+        (Ok(legacy), Ok(native)) => {
+            assert_eq!(legacy.shape(), native.shape(), "{code}");
+            assert_eq!(legacy.direction(), native.direction(), "{code}");
+            assert_eq!(world_map(legacy), world_map(native), "{code}");
+        }
+        (Err(legacy), Err(native)) => {
+            assert_eq!(legacy.to_string(), native.to_string(), "{code}");
+            // The same typed refusal, or the same untyped one, from both.
+            assert_eq!(
+                legacy
+                    .downcast_ref()
+                    .map(std::mem::discriminant::<NonCartesianGrid>),
+                native
+                    .downcast_ref()
+                    .map(std::mem::discriminant::<NonCartesianGrid>),
+                "{code}: the paths refuse with different error types"
+            );
+        }
+        _ => panic!("{code}: one path refused and the other did not"),
+    }
+    native
 }
 
 /// With an identity direction, the image's own orientation code is "SPL"
@@ -135,20 +178,9 @@ fn axis_aligned_inputs_keep_world_points_under_every_code() {
         ("PIR", [[0.0, 1.0, 0.0], [0.0, 0.0, -1.0], [-1.0, 0.0, 0.0]]),
     ];
     for direction in inputs {
-        let image = Image::from_flat_on(
-            (0..24u8).map(f32::from).collect(),
-            [2, 3, 4],
-            Point::new([3.0, -5.0, 7.0]),
-            Spacing::new([0.5, 2.0, 4.0]),
-            direction,
-            &B::default(),
-        )
-        .expect("fixture image");
+        let image = with_direction(direction);
         for (code, image_axes) in codes {
-            let out = OrientImageFilter::from_code(code)
-                .expect("a valid code")
-                .apply(&image)
-                .expect("an axis-aligned input orients");
+            let out = orient(code, &image).expect("an axis-aligned input orients");
             assert_eq!(
                 world_map(&out),
                 world_map(&image),
@@ -162,4 +194,56 @@ fn axis_aligned_inputs_keep_world_points_under_every_code() {
             }
         }
     }
+}
+
+/// Only a Cartesian grid with an invertible direction has a corner voxel at
+/// an affine world point; both paths refuse any other grid under every code.
+#[test]
+fn grids_without_an_affine_corner_are_refused() {
+    let singular = with_direction(Direction::from_rows([
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0],
+    ]));
+    for code in ["LPS", "RAI", "SPL", "PIR"] {
+        let Err(beam) = orient(code, &ts::phased_array_image()) else {
+            panic!("{code}: a beam-space image must not orient");
+        };
+        assert!(
+            matches!(
+                beam.downcast_ref(),
+                Some(NonCartesianGrid::CoordinateMap(_))
+            ),
+            "{code}: {beam:#}"
+        );
+        let Err(flat) = orient(code, &singular) else {
+            panic!("{code}: a singular direction must not orient");
+        };
+        assert!(
+            matches!(
+                flat.downcast_ref(),
+                Some(NonCartesianGrid::SingularDirection)
+            ),
+            "{code}: {flat:#}"
+        );
+    }
+}
+
+/// A 45-degree in-plane rotation is equally close to two world axes, so two
+/// output axes snap to one input axis and no relabeling exists.
+#[test]
+fn a_direction_whose_axes_collide_is_refused() {
+    let h = std::f64::consts::FRAC_1_SQRT_2;
+    let image = with_direction(Direction::from_rows([
+        [h, -h, 0.0],
+        [h, h, 0.0],
+        [0.0, 0.0, 1.0],
+    ]));
+    let Err(error) = orient("LPS", &image) else {
+        panic!("colliding axes must not orient");
+    };
+    assert_eq!(
+        error.to_string(),
+        "input direction is not axis-aligned; cannot DICOM-orient"
+    );
 }

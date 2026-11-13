@@ -1,6 +1,5 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
-use ritk_core::rejection::assert_rejects;
 
 #[test]
 fn test_read_invalid_version() {
@@ -19,11 +18,10 @@ fn test_read_invalid_version() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
-    let msg = format!("{:#}", result.unwrap_err());
+    let error = read_mgh::<TestBackend, _>(&path, &backend).expect_err("version 2 is unsupported");
     assert!(
-        msg.contains("version"),
-        "Error must mention 'version', got: {msg}"
+        matches!(error, MghError::InvalidVersion { found: 2, .. }),
+        "got: {error}"
     );
 }
 
@@ -44,11 +42,10 @@ fn test_read_unsupported_type_code() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
-    let msg = format!("{:#}", result.unwrap_err());
+    let error = read_mgh::<TestBackend, _>(&path, &backend).expect_err("type 99 is unsupported");
     assert!(
-        msg.contains("data type"),
-        "Error must mention 'data type', got: {msg}"
+        matches!(error, MghError::UnsupportedDataType { code: 99 }),
+        "got: {error}"
     );
 }
 
@@ -66,8 +63,9 @@ fn test_read_truncated_file() {
     buf[20..24].copy_from_slice(&MRI_FLOAT.to_be_bytes());
     std::fs::write(&path, &buf).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
-    assert_rejects(result, "Failed to parse MGH file");
+    let error =
+        read_mgh::<TestBackend, _>(&path, &backend).expect_err("a header cut short must fail");
+    assert!(matches!(error, MghError::Header { .. }), "got: {error}");
 }
 
 #[test]
@@ -94,10 +92,9 @@ fn test_read_multi_frame_fails_rather_than_returning_frame_zero() {
     let err = read_mgh::<TestBackend, _>(&path, &backend)
         .expect_err("a 3-frame MGH has no 3-D representation and must not read as one");
 
-    let msg = format!("{err:#}");
     assert!(
-        msg.contains("3 frames"),
-        "error must name the declared frame count, got: {msg}"
+        matches!(err, MghError::MultiFrame { nframes: 3 }),
+        "got: {err}"
     );
 }
 
@@ -157,8 +154,18 @@ fn test_read_hostile_dims_does_not_oom() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
-    assert_rejects(result, "Failed to parse MGH file");
+    let error = read_mgh::<TestBackend, _>(&path, &backend)
+        .expect_err("16 payload bytes cannot satisfy a 1024^3 volume");
+    assert!(
+        matches!(
+            error,
+            MghError::TruncatedPayload {
+                voxel: 4,
+                voxel_count: 1_073_741_824,
+            }
+        ),
+        "got: {error}"
+    );
 }
 
 #[test]
@@ -187,8 +194,12 @@ fn test_read_non_positive_spacing_is_rejected_not_panicked() {
         );
         std::fs::write(&path, &mgh).unwrap();
 
-        let result = read_mgh::<TestBackend, _>(&path, &backend);
-        assert_rejects(result, "Invalid MGH RAS voxel spacing");
+        let error = read_mgh::<TestBackend, _>(&path, &backend)
+            .expect_err("spacing must be positive and finite");
+        assert!(
+            matches!(error, MghError::InvalidSpacing { .. }),
+            "{name}: got: {error}"
+        );
     }
 }
 
@@ -232,11 +243,109 @@ fn test_read_overstated_nframes_does_not_drive_allocation() {
 
     let (result, peak) = peak_bytes_during(|| read_mgh_series::<TestBackend, _>(&path, &backend));
 
-    assert_rejects(result, "truncated");
+    let error = result.expect_err("the second declared volume is absent");
+    assert!(
+        matches!(error, MghError::TruncatedPayload { voxel: 0, .. }),
+        "got: {error}"
+    );
     assert!(
         peak < PEAK_LIMIT,
         "reading a {}-byte file peaked at {peak} live bytes, above the {PEAK_LIMIT}-byte limit; \
          the header's frame count is driving allocation",
         mgh.len()
+    );
+}
+
+/// Reads a header-only file through both readers and returns their errors.
+fn header_errors(dims: [i32; 3], nframes: i32) -> [MghError; 2] {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("header_only.mgh");
+    let backend = TestBackend::default();
+    let mgh = build_mgh_bytes(
+        VERSION,
+        dims,
+        nframes,
+        MRI_FLOAT,
+        [1.0, 1.0, 1.0],
+        IDENTITY_DIR,
+        [0.0, 0.0, 0.0],
+        &[],
+    );
+    std::fs::write(&path, &mgh).unwrap();
+    [
+        read_mgh::<TestBackend, _>(&path, &backend).expect_err("volume reader"),
+        read_mgh_series::<TestBackend, _>(&path, &backend).expect_err("series reader"),
+    ]
+}
+
+#[test]
+fn malformed_header_counts_are_rejected_with_typed_errors() {
+    use MghError::{DimensionOverflow, InvalidDimensions, InvalidFrameCount, SeriesOverflow};
+    const AXIS: usize = 2_147_483_647;
+    // 2^21 per axis is 2^63 voxels, which fits `usize`; two frames do not.
+    const VOXELS: usize = 1 << 63;
+    type Check = fn(&MghError) -> bool;
+    #[rustfmt::skip]
+    let rows: [([i32; 3], i32, Check); 6] = [
+        ([0, 2, 2], 1, |e| matches!(e, InvalidDimensions { width: 0, height: 2, depth: 2 })),
+        ([2, -1, 2], 1, |e| matches!(e, InvalidDimensions { width: 2, height: -1, depth: 2 })),
+        ([2, 2, 2], 0, |e| matches!(e, InvalidFrameCount { nframes: 0 })),
+        ([2, 2, 2], -1, |e| matches!(e, InvalidFrameCount { nframes: -1 })),
+        ([i32::MAX; 3], 1, |e| matches!(e, DimensionOverflow { nx: AXIS, ny: AXIS, nz: AXIS })),
+        ([1 << 21; 3], 2, |e| matches!(e, SeriesOverflow { voxels: VOXELS, frames: 2 })),
+    ];
+    for (dims, nframes, check) in rows {
+        for error in header_errors(dims, nframes) {
+            assert!(check(&error), "{dims:?} x {nframes} frames: got {error:?}");
+        }
+    }
+}
+
+#[test]
+fn test_decode_series_byte_count_beyond_usize_is_rejected_in_the_header() {
+    // 2^21 per axis is 2^63 voxels: the count fits `usize`, its payload does not.
+    let mgh = build_mgh_bytes(
+        VERSION,
+        [2_097_152; 3],
+        SINGLE_FRAME,
+        MRI_FLOAT,
+        [1.0; 3],
+        IDENTITY_DIR,
+        [0.0; 3],
+        &[0u8; 16],
+    );
+    let error = decode_mgh(&mut mgh.as_slice()).err();
+    let Some(MghError::DataSizeOverflow {
+        voxels,
+        bytes_per_voxel,
+    }) = error
+    else {
+        panic!("expected DataSizeOverflow, got: {error:?}");
+    };
+    assert_eq!((voxels, bytes_per_voxel), (1 << 63, 4));
+}
+
+#[test]
+fn volume_reader_rejects_the_smallest_multi_frame_file() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("two_frames.mgh");
+    let backend = TestBackend::default();
+    let mgh = build_mgh_bytes(
+        VERSION,
+        [2, 2, 2],
+        2,
+        MRI_FLOAT,
+        [1.0, 1.0, 1.0],
+        IDENTITY_DIR,
+        [0.0, 0.0, 0.0],
+        &[0u8; 2 * 2 * 2 * 4 * 2],
+    );
+    std::fs::write(&path, &mgh).unwrap();
+
+    let error = read_mgh::<TestBackend, _>(&path, &backend)
+        .expect_err("a two-frame file has no 3-D representation");
+    assert!(
+        matches!(error, MghError::MultiFrame { nframes: 2 }),
+        "got: {error}"
     );
 }

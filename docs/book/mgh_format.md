@@ -146,14 +146,15 @@ claim the same percentage for every host.
 
 ## Failure behavior
 
-The reader returns errors for:
+The readers return `MghError` for:
 
-- unsupported format versions or scalar type codes;
-- non-positive or overflowing dimensions;
-- frame counts other than one;
-- truncated headers or voxel payloads;
-- invalid spatial metadata or image construction;
-- allocation failure.
+- unreadable files (`Open`);
+- unsupported format versions or scalar type codes (`InvalidVersion`, `UnsupportedDataType`);
+- non-positive or overflowing dimensions and payload sizes (`InvalidDimensions`, `InvalidFrameCount`, `DimensionOverflow`, `SeriesOverflow`, `DataSizeOverflow`);
+- frame counts other than one in a single-volume read (`MultiFrame`);
+- truncated headers or voxel payloads (`Header`, `TruncatedPayload`, `PayloadRead`);
+- invalid spatial metadata or image construction (`InvalidSpacing`, `Image`);
+- allocation failure (`Allocation`).
 
 Truncation errors name the first voxel whose complete encoded value could not
 be confirmed. MGZ decompression errors retain their gzip context.

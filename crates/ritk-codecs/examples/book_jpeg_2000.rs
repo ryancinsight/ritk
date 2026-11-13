@@ -10,7 +10,7 @@ use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding, QuantizationStep};
-use ritk_codecs::{decode_jpeg2000_fragment, PixelLayout, PixelSignedness};
+use ritk_codecs::{decode_jpeg2000_fragment, ImageReadBudget, PixelLayout, PixelSignedness};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -84,7 +84,7 @@ fn encode_decode(source: &[i32], encoding: Jpeg2000Encoding) -> Result<(Vec<u8>,
         encoding,
     )
     .context("encode native JPEG 2000 codestream")?;
-    let reconstruction = decode_jpeg2000_fragment(&codestream, layout())
+    let reconstruction = decode_jpeg2000_fragment(&codestream, layout(), ImageReadBudget::DEFAULT)
         .context("decode native JPEG 2000 codestream")?;
     Ok((codestream, reconstruction))
 }

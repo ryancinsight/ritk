@@ -11,7 +11,7 @@ and direction metadata, with index-to-physical and physical-to-index transforms.
 |---|---|
 | `Image<T, B, D>` | Scalar volume over a Coeus backend with physical metadata |
 | `RgbVolume` / `ColorVolume` | Multi-channel color volumes |
-| `SignedAxisPermutation` | Relabels an axis-aligned grid to another signed axis permutation, keeping each voxel's world point |
+| `SignedAxisPermutation` | Relabels a grid's tensor axes, each possibly reversed; between two signed axis permutations every voxel keeps its world point |
 
 Depends on `ritk-spatial` for spatial types and the Coeus tensor contracts for
 storage. Carries no I/O, filtering, or registration logic.

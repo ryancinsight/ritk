@@ -45,7 +45,6 @@
 <a id="RITK-MGH-CONVERSION-INVENTORY-001"></a>- [RITK-MGH-CONVERSION-INVENTORY-001](backlog/RITK-MGH-CONVERSION-INVENTORY-001.md) — Map MGH volume semantics — todo
 <a id="RITK-VTK-IMAGE-CONTRACT-001"></a>- [RITK-VTK-IMAGE-CONTRACT-001](backlog/RITK-VTK-IMAGE-CONTRACT-001.md) — Separate VTK image semantics — todo
 <a id="SEC-446-05"></a>- [SEC-446-05](backlog/SEC-446-05.md) — Bound parser header counts by ImageReadBudget — todo
-<a id="SEC-MIF-DETACHED-PATH-001"></a>- [SEC-MIF-DETACHED-PATH-001](backlog/SEC-MIF-DETACHED-PATH-001.md) — Confine a .mif detached data path to the header's directory — todo
 <a id="RITK-NRRD-NIFTI-001"></a>- [RITK-NRRD-NIFTI-001](backlog/RITK-NRRD-NIFTI-001.md) — Convert NRRD and NIfTI volumes — blocked
 <a id="RITK-METAIMAGE-CONVERSION-001"></a>- [RITK-METAIMAGE-CONVERSION-001](backlog/RITK-METAIMAGE-CONVERSION-001.md) — Preserve MetaImage volume semantics — blocked
 <a id="RITK-MINC-CONVERSION-001"></a>- [RITK-MINC-CONVERSION-001](backlog/RITK-MINC-CONVERSION-001.md) — Preserve MINC volume semantics — blocked
@@ -88,7 +87,6 @@
 <a id="RITK-SNAP-RADIANT-UI-001"></a>- [RITK-SNAP-RADIANT-UI-001](backlog/RITK-SNAP-RADIANT-UI-001.md) — Organize a multi-series DICOM viewer workspace — todo
 <a id="RITK-SNAP-OBLIQUE-ROUTING-001"></a>- [RITK-SNAP-OBLIQUE-ROUTING-001](backlog/RITK-SNAP-OBLIQUE-ROUTING-001.md) — Route native oblique input — blocked
 <a id="RITK-BROWSER-TOOL-TRACE-001"></a>- [RITK-BROWSER-TOOL-TRACE-001](backlog/RITK-BROWSER-TOOL-TRACE-001.md) — Publish ROI results in the browser journey — todo
-<a id="RITK-DEPS-MOIRAI-09-COEVOLUTION-001"></a>- [RITK-DEPS-MOIRAI-09-COEVOLUTION-001](backlog/RITK-DEPS-MOIRAI-09-COEVOLUTION-001.md) — Advance ritk past the moirai 0.9 / metis 0.4 provider bumps — blocked
 <a id="RITK-SNAP-EFRAME-REMOVAL-001"></a>- [RITK-SNAP-EFRAME-REMOVAL-001](backlog/RITK-SNAP-EFRAME-REMOVAL-001.md) — Remove the eframe shell — todo
 <a id="RITK-SNAP-NATIVE-ARCHIVE-001"></a>- [RITK-SNAP-NATIVE-ARCHIVE-001](backlog/RITK-SNAP-NATIVE-ARCHIVE-001.md) — Keep a local study archive — blocked
 <a id="RITK-SNAP-NATIVE-DISPLAY-001"></a>- [RITK-SNAP-NATIVE-DISPLAY-001](backlog/RITK-SNAP-NATIVE-DISPLAY-001.md) — Route display controls in the native shell — todo
@@ -114,3 +112,5 @@
 <a id="RITK-SNAP-NATIVE-VR-001"></a>- [RITK-SNAP-NATIVE-VR-001](backlog/RITK-SNAP-NATIVE-VR-001.md) — Render volumes in the native shell — blocked
 <a id="RITK-SNAP-RADIANT-INPUT-001"></a>- [RITK-SNAP-RADIANT-INPUT-001](backlog/RITK-SNAP-RADIANT-INPUT-001.md) — Let readers reassign mouse buttons — todo
 <a id="RITK-SNAP-NATIVE-SEGMENTATION-001"></a>- [RITK-SNAP-NATIVE-SEGMENTATION-001](backlog/RITK-SNAP-NATIVE-SEGMENTATION-001.md) — Draw and edit label maps natively — todo
+<a id="SEC-MIF-DETACHED-DEVICE-NAME-001"></a>- [SEC-MIF-DETACHED-DEVICE-NAME-001](backlog/SEC-MIF-DETACHED-DEVICE-NAME-001.md) — Refuse device names as .mif detached data and pin the check's order — todo
+<a id="RITK-MGH-ERROR-TEST-PINS-001"></a>- [RITK-MGH-ERROR-TEST-PINS-001](backlog/RITK-MGH-ERROR-TEST-PINS-001.md) — Pin the MGH error fields and limits that mutants survive — todo

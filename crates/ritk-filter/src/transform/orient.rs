@@ -121,16 +121,17 @@ impl OrientImageFilter {
 
     /// Apply the reorientation.
     pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
-        // Only a Cartesian grid has a corner voxel at an affine world point.
-        image.grid_geometry()?;
-        let (permutation, out_dir) = self.relabeling(image.direction())?;
+        // Only a Cartesian grid has a corner voxel at an affine world point, so
+        // the relabeling reads its geometry from that grid and nowhere else.
+        let geometry = image.grid_geometry()?;
+        let (permutation, out_dir) = self.relabeling(geometry.direction())?;
         let (vals, dims) = extract_vec_infallible(image);
         let grid = permutation.reexpress(
             &vals,
             dims,
-            image.origin(),
-            image.spacing(),
-            image.direction(),
+            geometry.origin(),
+            geometry.spacing(),
+            geometry.direction(),
         );
         Ok(rebuild_with_metadata(
             grid.values.into_owned(),
@@ -152,15 +153,15 @@ impl OrientImageFilter {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        image.grid_geometry()?;
-        let (permutation, out_dir) = self.relabeling(image.direction())?;
+        let geometry = image.grid_geometry()?;
+        let (permutation, out_dir) = self.relabeling(geometry.direction())?;
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
         let grid = permutation.reexpress(
             &vals,
             dims,
-            image.origin(),
-            image.spacing(),
-            image.direction(),
+            geometry.origin(),
+            geometry.spacing(),
+            geometry.direction(),
         );
         crate::native_support::rebuild_with_metadata(
             grid.values.into_owned(),

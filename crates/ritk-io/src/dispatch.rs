@@ -393,7 +393,7 @@ pub fn read_image_series_native<P: AsRef<std::path::Path>>(
     match fmt {
         ImageFormat::NIfTI => ritk_nifti::read_nifti_series(path, &backend),
         ImageFormat::Nrrd => ritk_nrrd::read_nrrd_series(path, &backend),
-        ImageFormat::Mgh => ritk_mgh::read_mgh_series(path, &backend),
+        ImageFormat::Mgh => Ok(ritk_mgh::read_mgh_series(path, &backend)?),
         other => Err(anyhow::anyhow!(
             "series I/O is not yet supported for {other:?} through the native \
              dispatch; use the format-specific series reader directly"

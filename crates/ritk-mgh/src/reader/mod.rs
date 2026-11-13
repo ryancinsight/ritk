@@ -8,10 +8,9 @@
 
 use crate::spatial::{ImageGeometry, MghRasBlock, RasValidity};
 use crate::types::VoxelType;
-use crate::{is_gzip_path, GOOD_RAS_VALID, PADDING_LEN, VERSION};
-use anyhow::{bail, Context, Result};
+use crate::{is_gzip_path, MghError, GOOD_RAS_VALID, PADDING_LEN, VERSION};
 use coeus_core::ComputeBackend;
-use consus_core::{read_from, ByteOrder};
+use consus_core::{read_from, ByteOrder, EndianScalar};
 use flate2::read::GzDecoder;
 use ritk_image::Image;
 use std::io::{BufReader, Read};
@@ -31,14 +30,25 @@ mod voxel_decode;
 ///
 /// # Errors
 ///
-/// Returns an error when the header version, dimensions, or data type code are
-/// invalid, when the payload is shorter than the header declares, or when the
-/// file declares more than one frame — a multi-frame volume has no correct
-/// single-volume decoding, so it fails rather than silently yielding frame 0.
+/// - [`MghError::Open`] when the file cannot be opened.
+/// - [`MghError::Header`] when a header field cannot be read, including a stream that ends inside the header.
+/// - [`MghError::InvalidVersion`] when the header version is not the supported version.
+/// - [`MghError::InvalidDimensions`] when an extent is zero or negative.
+/// - [`MghError::InvalidFrameCount`] when the frame count is zero or negative.
+/// - [`MghError::UnsupportedDataType`] when the voxel data type code is not supported.
+/// - [`MghError::InvalidSpacing`] when the RAS voxel spacing is not positive and finite.
+/// - [`MghError::DimensionOverflow`] when the per-frame voxel count overflows `usize`.
+/// - [`MghError::SeriesOverflow`] when the voxel count times the frame count overflows `usize`.
+/// - [`MghError::DataSizeOverflow`] when the series payload size in bytes overflows `usize`.
+/// - [`MghError::MultiFrame`] when the file declares more than one frame; a multi-frame volume has no correct single-volume decoding, so it fails rather than yielding frame 0.
+/// - [`MghError::TruncatedPayload`] when the payload is shorter than the header declares, or an MGZ stream exceeds the decompression cap.
+/// - [`MghError::PayloadRead`] when the payload stream fails while being read.
+/// - [`MghError::Allocation`] when decode storage cannot be reserved.
+/// - [`MghError::Image`] when the decoded voxels cannot be assembled into an image.
 pub fn read_mgh<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
-) -> Result<Image<f32, B, 3>> {
+) -> Result<Image<f32, B, 3>, MghError> {
     read_mgh_with_limit(path, backend, MAX_MGZ_UNCOMPRESSED_BYTES)
 }
 
@@ -46,21 +56,25 @@ fn read_mgh_with_limit<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
     limit: u64,
-) -> Result<Image<f32, B, 3>> {
+) -> Result<Image<f32, B, 3>, MghError> {
     let path = path.as_ref();
-    let file = std::fs::File::open(path)
-        .with_context(|| format!("Cannot open MGH/MGZ file {:?}", path))?;
+    let file = open_file(path)?;
 
     if is_gzip_path(path) {
         let gz = GzDecoder::new(BufReader::new(file)).take(limit);
         let mut reader = BufReader::new(gz);
         read_mgh_from_reader(&mut reader, backend)
-            .with_context(|| format!("Failed to parse MGZ file {:?}", path))
     } else {
         let mut reader = BufReader::new(file);
         read_mgh_from_reader(&mut reader, backend)
-            .with_context(|| format!("Failed to parse MGH file {:?}", path))
     }
+}
+
+fn open_file(path: &Path) -> Result<std::fs::File, MghError> {
+    std::fs::File::open(path).map_err(|source| MghError::Open {
+        path: path.to_path_buf(),
+        source,
+    })
 }
 
 /// Decoded MGH volume(s): one entry per frame, each in `[nz, ny, nx]` order,
@@ -81,19 +95,17 @@ struct MghHeader {
     voxel_type: VoxelType,
     voxels_per_frame: usize,
     nframes: usize,
-    data_size: usize,
 }
 
 fn read_mgh_from_reader<B: ComputeBackend, R: Read>(
     reader: &mut R,
     backend: &B,
-) -> Result<Image<f32, B, 3>> {
+) -> Result<Image<f32, B, 3>, MghError> {
     let header = read_mgh_header(reader)?;
     if header.nframes != 1 {
-        bail!(
-            "MGH file declares {} frames; this reader returns a 3-D Image, which represents exactly one frame. Use read_mgh_series for this acquisition.",
-            header.nframes
-        );
+        return Err(MghError::MultiFrame {
+            nframes: header.nframes,
+        });
     }
     let DecodedMgh {
         mut volumes,
@@ -106,6 +118,7 @@ fn read_mgh_from_reader<B: ComputeBackend, R: Read>(
         .pop()
         .expect("invariant: single-frame header produces one decoded volume");
     Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+        .map_err(|source| MghError::Image { source })
 }
 
 /// Read an MGH or MGZ acquisition series as one image per frame.
@@ -117,13 +130,24 @@ fn read_mgh_from_reader<B: ComputeBackend, R: Read>(
 ///
 /// # Errors
 ///
-/// Returns an error when the header version, dimensions, or data type code are
-/// invalid, when the payload is shorter than the header declares, or when the
-/// file contains zero frames.
+/// - [`MghError::Open`] when the file cannot be opened.
+/// - [`MghError::Header`] when a header field cannot be read, including a stream that ends inside the header.
+/// - [`MghError::InvalidVersion`] when the header version is not the supported version.
+/// - [`MghError::InvalidDimensions`] when an extent is zero or negative.
+/// - [`MghError::InvalidFrameCount`] when the frame count is zero or negative.
+/// - [`MghError::UnsupportedDataType`] when the voxel data type code is not supported.
+/// - [`MghError::InvalidSpacing`] when the RAS voxel spacing is not positive and finite.
+/// - [`MghError::DimensionOverflow`] when the per-frame voxel count overflows `usize`.
+/// - [`MghError::SeriesOverflow`] when the voxel count times the frame count overflows `usize`.
+/// - [`MghError::DataSizeOverflow`] when the series payload size in bytes overflows `usize`.
+/// - [`MghError::TruncatedPayload`] when the payload is shorter than the header declares, or an MGZ stream exceeds the decompression cap.
+/// - [`MghError::PayloadRead`] when the payload stream fails while being read.
+/// - [`MghError::Allocation`] when decode storage cannot be reserved.
+/// - [`MghError::Image`] when the decoded voxels cannot be assembled into an image.
 pub fn read_mgh_series<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
-) -> Result<Vec<Image<f32, B, 3>>> {
+) -> Result<Vec<Image<f32, B, 3>>, MghError> {
     read_mgh_series_with_limit(path, backend, MAX_MGZ_UNCOMPRESSED_BYTES)
 }
 
@@ -131,27 +155,24 @@ fn read_mgh_series_with_limit<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
     limit: u64,
-) -> Result<Vec<Image<f32, B, 3>>> {
+) -> Result<Vec<Image<f32, B, 3>>, MghError> {
     let path = path.as_ref();
-    let file = std::fs::File::open(path)
-        .with_context(|| format!("Cannot open MGH/MGZ file {:?}", path))?;
+    let file = open_file(path)?;
 
     if is_gzip_path(path) {
         let gz = GzDecoder::new(BufReader::new(file)).take(limit);
         let mut reader = BufReader::new(gz);
         read_mgh_series_from_reader(&mut reader, backend)
-            .with_context(|| format!("Failed to parse MGZ series {:?}", path))
     } else {
         let mut reader = BufReader::new(file);
         read_mgh_series_from_reader(&mut reader, backend)
-            .with_context(|| format!("Failed to parse MGH series {:?}", path))
     }
 }
 
 fn read_mgh_series_from_reader<B: ComputeBackend, R: Read>(
     reader: &mut R,
     backend: &B,
-) -> Result<Vec<Image<f32, B, 3>>> {
+) -> Result<Vec<Image<f32, B, 3>>, MghError> {
     let DecodedMgh {
         volumes,
         dims,
@@ -162,60 +183,66 @@ fn read_mgh_series_from_reader<B: ComputeBackend, R: Read>(
 
     volumes
         .into_iter()
-        .map(|data| Image::from_flat_on(data, dims, origin, spacing, direction, backend))
+        .map(|data| {
+            Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+                .map_err(|source| MghError::Image { source })
+        })
         .collect()
 }
 
-fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader> {
-    let version = read_from::<i32, _>(reader, ByteOrder::BigEndian)?;
+fn read_be<T: EndianScalar, R: Read>(reader: &mut R) -> Result<T, MghError> {
+    read_from::<T, _>(reader, ByteOrder::BigEndian).map_err(|source| MghError::Header { source })
+}
+
+fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader, MghError> {
+    let version = read_be::<i32, _>(reader)?;
     if version != VERSION {
-        bail!(
-            "Invalid MGH version: expected {}, found {}",
-            VERSION,
-            version
-        );
+        return Err(MghError::InvalidVersion {
+            expected: VERSION,
+            found: version,
+        });
     }
 
-    let width = read_from::<i32, _>(reader, ByteOrder::BigEndian)?;
-    let height = read_from::<i32, _>(reader, ByteOrder::BigEndian)?;
-    let depth = read_from::<i32, _>(reader, ByteOrder::BigEndian)?;
-    let nframes = read_from::<i32, _>(reader, ByteOrder::BigEndian)?;
-    let mri_type = read_from::<i32, _>(reader, ByteOrder::BigEndian)?;
-    let _dof = read_from::<i32, _>(reader, ByteOrder::BigEndian)?;
+    let width = read_be::<i32, _>(reader)?;
+    let height = read_be::<i32, _>(reader)?;
+    let depth = read_be::<i32, _>(reader)?;
+    let declared_frames = read_be::<i32, _>(reader)?;
+    let mri_type = read_be::<i32, _>(reader)?;
+    let _dof = read_be::<i32, _>(reader)?;
 
-    if width <= 0 || height <= 0 || depth <= 0 {
-        bail!(
-            "Invalid MGH dimensions: width={}, height={}, depth={}",
+    let positive = |value: i32| usize::try_from(value).ok().filter(|&extent| extent > 0);
+    let (Some(nx), Some(ny), Some(nz)) = (positive(width), positive(height), positive(depth))
+    else {
+        return Err(MghError::InvalidDimensions {
             width,
             height,
-            depth
-        );
-    }
-    if nframes <= 0 {
-        bail!("Invalid MGH nframes: {}", nframes);
-    }
+            depth,
+        });
+    };
+    let Some(nframes) = positive(declared_frames) else {
+        return Err(MghError::InvalidFrameCount {
+            nframes: declared_frames,
+        });
+    };
 
-    let good_ras_flag = read_from::<i16, _>(reader, ByteOrder::BigEndian)?;
+    let good_ras_flag = read_be::<i16, _>(reader)?;
     let spacing_xyz = [
-        read_from::<f32, _>(reader, ByteOrder::BigEndian)?,
-        read_from::<f32, _>(reader, ByteOrder::BigEndian)?,
-        read_from::<f32, _>(reader, ByteOrder::BigEndian)?,
+        read_be::<f32, _>(reader)?,
+        read_be::<f32, _>(reader)?,
+        read_be::<f32, _>(reader)?,
     ];
     let direction_columns = read_direction_columns(reader)?;
     let c_ras = [
-        read_from::<f32, _>(reader, ByteOrder::BigEndian)?,
-        read_from::<f32, _>(reader, ByteOrder::BigEndian)?,
-        read_from::<f32, _>(reader, ByteOrder::BigEndian)?,
+        read_be::<f32, _>(reader)?,
+        read_be::<f32, _>(reader)?,
+        read_be::<f32, _>(reader)?,
     ];
 
     let mut padding = [0u8; PADDING_LEN];
     reader
         .read_exact(&mut padding)
-        .context("Failed to read MGH header padding")?;
+        .map_err(|source| MghError::Header { source })?;
 
-    let nx = width as usize;
-    let ny = height as usize;
-    let nz = depth as usize;
     let ImageGeometry {
         spacing,
         direction,
@@ -229,21 +256,26 @@ fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader> {
             },
             [nx, ny, nz],
         )
-        .context("Invalid MGH RAS voxel spacing")?;
+        .map_err(|source| MghError::InvalidSpacing { source })?;
 
-    let nframes = nframes as usize;
     let n_voxels = nx
         .checked_mul(ny)
         .and_then(|v| v.checked_mul(nz))
-        .ok_or_else(|| anyhow::anyhow!("Volume dimensions overflow: {}x{}x{}", nx, ny, nz))?;
-    let total_voxels = n_voxels.checked_mul(nframes).ok_or_else(|| {
-        anyhow::anyhow!("Series voxel count overflow: {n_voxels} voxels × {nframes} frames")
-    })?;
+        .ok_or(MghError::DimensionOverflow { nx, ny, nz })?;
+    let total_voxels = n_voxels
+        .checked_mul(nframes)
+        .ok_or(MghError::SeriesOverflow {
+            voxels: n_voxels,
+            frames: nframes,
+        })?;
     let voxel_type = VoxelType::try_from(mri_type)?;
-    let bpv = voxel_type.bytes_per_voxel();
-    let data_size = total_voxels.checked_mul(bpv).ok_or_else(|| {
-        anyhow::anyhow!("Data size overflow: {total_voxels} voxels × {bpv} bytes")
-    })?;
+    let bytes_per_voxel = voxel_type.bytes_per_voxel();
+    total_voxels
+        .checked_mul(bytes_per_voxel)
+        .ok_or(MghError::DataSizeOverflow {
+            voxels: total_voxels,
+            bytes_per_voxel,
+        })?;
 
     Ok(MghHeader {
         dims: [nz, ny, nx],
@@ -253,23 +285,21 @@ fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader> {
         voxel_type,
         voxels_per_frame: n_voxels,
         nframes,
-        data_size,
     })
 }
 
-fn decode_mgh_payload<R: Read>(reader: &mut R, header: MghHeader) -> Result<DecodedMgh> {
+fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh, MghError> {
+    let header = read_mgh_header(reader)?;
+    decode_mgh_payload(reader, header)
+}
+
+fn decode_mgh_payload<R: Read>(reader: &mut R, header: MghHeader) -> Result<DecodedMgh, MghError> {
     let volumes = voxel_decode::decode_volumes(
         reader,
         header.voxel_type,
         header.voxels_per_frame,
         header.nframes,
-    )
-    .with_context(|| {
-        format!(
-            "Failed to decode {} bytes of MGH voxel data",
-            header.data_size
-        )
-    })?;
+    )?;
     Ok(DecodedMgh {
         volumes,
         dims: header.dims,
@@ -279,16 +309,11 @@ fn decode_mgh_payload<R: Read>(reader: &mut R, header: MghHeader) -> Result<Deco
     })
 }
 
-fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
-    let header = read_mgh_header(reader)?;
-    decode_mgh_payload(reader, header)
-}
-
-fn read_direction_columns<R: Read>(reader: &mut R) -> Result<[[f32; 3]; 3]> {
+fn read_direction_columns<R: Read>(reader: &mut R) -> Result<[[f32; 3]; 3], MghError> {
     let mut columns = [[0.0f32; 3]; 3];
     for column in &mut columns {
         for value in column {
-            *value = read_from(reader, ByteOrder::BigEndian)?;
+            *value = read_be(reader)?;
         }
     }
     Ok(columns)
@@ -299,18 +324,53 @@ pub struct MghReader;
 
 impl MghReader {
     /// Read an MGH or MGZ file into a 3-D `Image`.
+    ///
+    /// # Errors
+    ///
+    /// - [`MghError::Open`] when the file cannot be opened.
+    /// - [`MghError::Header`] when a header field cannot be read, including a stream that ends inside the header.
+    /// - [`MghError::InvalidVersion`] when the header version is not the supported version.
+    /// - [`MghError::InvalidDimensions`] when an extent is zero or negative.
+    /// - [`MghError::InvalidFrameCount`] when the frame count is zero or negative.
+    /// - [`MghError::UnsupportedDataType`] when the voxel data type code is not supported.
+    /// - [`MghError::InvalidSpacing`] when the RAS voxel spacing is not positive and finite.
+    /// - [`MghError::DimensionOverflow`] when the per-frame voxel count overflows `usize`.
+    /// - [`MghError::SeriesOverflow`] when the voxel count times the frame count overflows `usize`.
+    /// - [`MghError::DataSizeOverflow`] when the series payload size in bytes overflows `usize`.
+    /// - [`MghError::MultiFrame`] when the file declares more than one frame; a multi-frame volume has no correct single-volume decoding, so it fails rather than yielding frame 0.
+    /// - [`MghError::TruncatedPayload`] when the payload is shorter than the header declares, or an MGZ stream exceeds the decompression cap.
+    /// - [`MghError::PayloadRead`] when the payload stream fails while being read.
+    /// - [`MghError::Allocation`] when decode storage cannot be reserved.
+    /// - [`MghError::Image`] when the decoded voxels cannot be assembled into an image.
     pub fn read<B: ComputeBackend, P: AsRef<Path>>(
         path: P,
         backend: &B,
-    ) -> Result<Image<f32, B, 3>> {
+    ) -> Result<Image<f32, B, 3>, MghError> {
         read_mgh(path, backend)
     }
 
     /// Read an MGH or MGZ acquisition series as one image per frame.
+    ///
+    /// # Errors
+    ///
+    /// - [`MghError::Open`] when the file cannot be opened.
+    /// - [`MghError::Header`] when a header field cannot be read, including a stream that ends inside the header.
+    /// - [`MghError::InvalidVersion`] when the header version is not the supported version.
+    /// - [`MghError::InvalidDimensions`] when an extent is zero or negative.
+    /// - [`MghError::InvalidFrameCount`] when the frame count is zero or negative.
+    /// - [`MghError::UnsupportedDataType`] when the voxel data type code is not supported.
+    /// - [`MghError::InvalidSpacing`] when the RAS voxel spacing is not positive and finite.
+    /// - [`MghError::DimensionOverflow`] when the per-frame voxel count overflows `usize`.
+    /// - [`MghError::SeriesOverflow`] when the voxel count times the frame count overflows `usize`.
+    /// - [`MghError::DataSizeOverflow`] when the series payload size in bytes overflows `usize`.
+    /// - [`MghError::TruncatedPayload`] when the payload is shorter than the header declares, or an MGZ stream exceeds the decompression cap.
+    /// - [`MghError::PayloadRead`] when the payload stream fails while being read.
+    /// - [`MghError::Allocation`] when decode storage cannot be reserved.
+    /// - [`MghError::Image`] when the decoded voxels cannot be assembled into an image.
     pub fn read_series<B: ComputeBackend, P: AsRef<Path>>(
         path: P,
         backend: &B,
-    ) -> Result<Vec<Image<f32, B, 3>>> {
+    ) -> Result<Vec<Image<f32, B, 3>>, MghError> {
         read_mgh_series(path, backend)
     }
 }

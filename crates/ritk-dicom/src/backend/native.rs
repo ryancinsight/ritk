@@ -4,6 +4,7 @@
 //! `ritk-dicom`. External DICOM object libraries stay outside this module.
 
 use anyhow::{bail, Result};
+use ritk_codecs::ImageReadBudget;
 
 use crate::backend::{
     DecodeFrameRequest, DecodedFrame, EncapsulatedFrameSource, PixelDecodeBackend,
@@ -33,7 +34,7 @@ where
             }
             TransferSyntaxKind::Jpeg2000Lossless | TransferSyntaxKind::Jpeg2000Lossy => {
                 let fragment = object.encapsulated_frame(request.frame_index)?;
-                decode_jpeg2000_fragment(&fragment, request.layout)?
+                decode_jpeg2000_fragment(&fragment, request.layout, ImageReadBudget::DEFAULT)?
             }
             TransferSyntaxKind::RleLossless => {
                 let fragment = object.encapsulated_frame(request.frame_index)?;

@@ -26,22 +26,16 @@ fn bit_plane_budget_saturates_at_zero() {
 }
 
 #[test]
-fn tile_decode_rejects_oversized_dimensions_before_allocation() {
-    let result = decode_tile_part(
-        &[],
-        crate::dimensions::MAX_DECODED_PIXELS + 1,
-        1,
-        reversible_coding(),
-    );
+fn tile_decode_rejects_overflowing_dimensions_before_allocation() {
+    let result = decode_tile_part(&[], usize::MAX, 2, reversible_coding());
     let Err(err) = result else {
-        panic!("oversized tile dimensions must fail");
+        panic!("overflowing tile dimensions must fail");
     };
 
     assert!(
-        format!("{err:#}").contains("J2K tile-component dimensions"),
+        format!("{err:#}").contains("J2K tile-component dimensions overflow"),
         "got: {err:#}"
     );
-    assert!(format!("{err:#}").contains("decode limit"), "got: {err:#}");
 }
 
 #[test]

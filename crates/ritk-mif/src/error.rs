@@ -86,6 +86,15 @@ pub enum MifError {
         /// Value of the key.
         spec: String,
     },
+    /// The `file` name is absolute or contains `..`, so it leaves the header's directory.
+    #[error(
+        ".mif 'file' key names {path:?}, which leaves the header's directory \
+         (absolute and '..' paths are rejected)"
+    )]
+    DetachedPathNotConfined {
+        /// Data file name as written in the header.
+        path: PathBuf,
+    },
     /// The `file` offset is not an integer.
     #[error("Invalid offset in .mif 'file' key: {source}")]
     InvalidFileOffset {
