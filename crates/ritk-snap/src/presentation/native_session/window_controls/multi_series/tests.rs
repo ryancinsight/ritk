@@ -86,6 +86,131 @@ fn enter_does_not_confirm_a_hidden_selection_when_the_filter_has_no_matches() {
     assert!(dialog.selected.is_empty());
 }
 
+fn key_down(virtual_key: u32) -> PresentationEvent {
+    PresentationEvent::KeyDown {
+        virtual_key,
+        repeated: false,
+        modifiers: crate::presentation::PresentationModifiers::NONE,
+    }
+}
+
+fn dialog_hiding_its_selection() -> (MultiSeriesDialog, SeriesBrowser, tempfile::TempDir) {
+    let (mut dialog, browser, root) = dialog_with_series(2);
+    dialog.set_single(0);
+    for character in "no matching series".chars() {
+        dialog
+            .handle_event(
+                &PresentationEvent::TextInput { character },
+                1_280,
+                800,
+                &browser,
+                false,
+            )
+            .expect("type the filter");
+    }
+    assert!(dialog.matches.is_empty());
+    assert_eq!(dialog.selected.as_slice(), &[0]);
+    (dialog, browser, root)
+}
+
+#[test]
+fn keyboard_confirmation_ignores_a_selection_the_filter_hides() {
+    let (mut dialog, browser, _root) = dialog_hiding_its_selection();
+    assert_eq!(dialog.focus, DialogFocus::Search);
+    dialog
+        .handle_event(&key_down(0x28), 1_280, 800, &browser, false)
+        .expect("move focus to the list");
+    assert_eq!(dialog.focus, DialogFocus::SeriesList);
+
+    let event = dialog
+        .handle_event(&key_down(0x0d), 1_280, 800, &browser, false)
+        .expect("refuse to open a hidden series");
+
+    assert_eq!(event.action, None);
+    assert!(dialog.selected().is_empty());
+}
+
+#[test]
+fn open_button_ignores_a_selection_the_filter_hides() {
+    let (mut dialog, browser, _root) = dialog_hiding_its_selection();
+    let open = DialogGeometry::new(1_280, 800)
+        .expect("series picker geometry")
+        .expect("window can display picker")
+        .open;
+
+    let event = dialog
+        .handle_event(
+            &PresentationEvent::PointerDown {
+                x: f64::from(open.x + 1),
+                y: f64::from(open.y + 1),
+                button: PointerButton::Left,
+            },
+            1_280,
+            800,
+            &browser,
+            false,
+        )
+        .expect("refuse to open a hidden series");
+
+    assert_eq!(event.action, None);
+    assert!(dialog.selected().is_empty());
+}
+
+#[test]
+fn open_button_is_not_primary_while_the_filter_hides_every_row() {
+    let (dialog, browser, _root) = dialog_hiding_its_selection();
+    let mut framebuffer = Framebuffer::new(1_280, 800).expect("series picker framebuffer");
+    let open = DialogGeometry::new(1_280, 800)
+        .expect("series picker geometry")
+        .expect("window can display picker")
+        .open;
+
+    dialog
+        .render(&mut framebuffer, &browser)
+        .expect("draw the filtered series picker");
+
+    assert_eq!(framebuffer.get_pixel(open.x + 1, open.y + 1), ROW);
+}
+
+#[test]
+fn confirmation_opens_only_the_selected_rows_the_filter_lists() {
+    let (mut dialog, browser, _root) = dialog_with_series(3);
+    dialog.filter.try_push_str("CT").expect("fit filter text");
+    dialog.rebuild_matches(&browser).expect("filter series");
+    let listed = dialog.matches[0];
+    let hidden = (0..browser.len())
+        .find(|index| !dialog.matches.contains(index))
+        .expect("the CT filter hides at least one series");
+    dialog.toggle(hidden);
+    dialog.toggle(listed);
+    assert_eq!(dialog.selected.as_slice(), &[hidden, listed]);
+
+    let event = dialog
+        .handle_event(&key_down(0x0d), 1_280, 800, &browser, false)
+        .expect("confirm the listed selection");
+
+    assert_eq!(event.action, Some(DialogAction::Confirm));
+    assert_eq!(dialog.selected().as_slice(), &[listed]);
+}
+
+#[test]
+fn confirmation_opens_the_first_listed_row_when_only_hidden_rows_are_selected() {
+    let (mut dialog, browser, _root) = dialog_with_series(3);
+    dialog.filter.try_push_str("CT").expect("fit filter text");
+    dialog.rebuild_matches(&browser).expect("filter series");
+    let hidden = (0..browser.len())
+        .find(|index| !dialog.matches.contains(index))
+        .expect("the CT filter hides at least one series");
+    dialog.set_single(hidden);
+
+    let event = dialog
+        .handle_event(&key_down(0x0d), 1_280, 800, &browser, false)
+        .expect("confirm the first listed series");
+
+    assert_eq!(event.action, Some(DialogAction::Confirm));
+    assert_eq!(dialog.selected().as_slice(), &[dialog.matches[0]]);
+}
+
 #[test]
 fn plain_click_selects_one_and_ctrl_click_extends_the_selection() {
     let (mut dialog, browser, _root) = dialog_with_series(3);
