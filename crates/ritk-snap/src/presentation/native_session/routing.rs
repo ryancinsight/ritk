@@ -387,7 +387,7 @@ impl NativeViewerSession {
                     .grid()
                     .is_some_and(|current| panel_index < current.panel_count())
                 && route.view().is_some()
-                && !is_release(&events[start])
+                && activates_panel(&events[start])
             {
                 self.active_panel = panel_index;
             }
@@ -476,13 +476,15 @@ impl NativeViewerSession {
     }
 }
 
-/// A release ends a gesture whose press already chose the panel, and an action
-/// may have moved the active panel since, so a release never activates one.
-fn is_release(event: &PresentationEvent) -> bool {
-    matches!(
-        event,
-        PresentationEvent::PointerUp { .. } | PresentationEvent::PointerCancel { .. }
-    )
+/// Whether the event activates the panel it routes to. A release never does:
+/// its press chose the panel, and an action may have moved it since. Keyboard
+/// routing and event reduction share this predicate.
+pub(super) fn activates_panel(event: &PresentationEvent) -> bool {
+    is_pointer_event(event)
+        && !matches!(
+            event,
+            PresentationEvent::PointerUp { .. } | PresentationEvent::PointerCancel { .. }
+        )
 }
 
 pub(super) fn is_pointer_event(event: &PresentationEvent) -> bool {

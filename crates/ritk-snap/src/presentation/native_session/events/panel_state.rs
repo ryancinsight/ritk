@@ -2,7 +2,7 @@
 
 use super::super::layout::{NativeViewport, PanelGrid, WorkspaceLayout, MAX_GRID_PANELS};
 use super::super::panels::{MaximizedPanel, PanelRouteMap};
-use super::super::routing::{is_pointer_event, EventRoute, PanelEventRouter, PointerCapture};
+use super::super::routing::{activates_panel, EventRoute, PanelEventRouter, PointerCapture};
 use super::super::window_controls::{PanelCloseKind, WindowAction};
 use super::super::NativeViewerError;
 use crate::presentation::PresentationEvent;
@@ -76,8 +76,7 @@ impl KeyboardPanelState {
 
     pub(super) fn retain_event(&mut self, event: &PresentationEvent, viewports: &[NativeViewport]) {
         let route = self.input_router.route(event, self.batch_layout, viewports);
-        if route != EventRoute::Discarded && is_pointer_event(event) && self.batch_layout.is_grid()
-        {
+        if route != EventRoute::Discarded && activates_panel(event) && self.batch_layout.is_grid() {
             let routed_panel = route
                 .view()
                 .map_or(Some(self.active_panel), |presented_panel| {
