@@ -1273,7 +1273,9 @@ workflow.
 Left and Right browse the previous or next series in the active panel. A
 horizontal wheel browses relative to the series shown in the panel under the
 pointer and replaces only that panel's series. Activating a series card still
-switches to the panel already assigned to that card.
+switches to the panel already assigned to that card. Releasing a button never
+changes the active panel, so a key pressed after a release acts on the panel
+that was active before it, even when the release lands over another panel.
 
 Inside an image, the left button runs the selected tool. The other buttons keep
 their own tools, so the display can be adjusted without changing tools: middle
