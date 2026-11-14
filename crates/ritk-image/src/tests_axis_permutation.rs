@@ -151,6 +151,27 @@ fn overflowing_extents_panic() {
     );
 }
 
+/// A zero extent makes the grid empty wherever it sits, including behind
+/// extents whose running product would overflow before reaching it.
+#[test]
+fn an_empty_grid_is_accepted_in_any_extent_order() {
+    let target = file_axes_direction();
+    let permutation =
+        SignedAxisPermutation::between(&Direction::identity(), &target).expect("signed");
+    let values: [u32; 0] = [];
+    for dims in [[usize::MAX, 2, 0], [0, usize::MAX, 2], [2, 0, usize::MAX]] {
+        let grid = permutation.reexpress(
+            &values,
+            dims,
+            &Point::new(ORIGIN),
+            &Spacing::new(SPACING),
+            &Direction::identity(),
+        );
+        assert_eq!(grid.dims, [dims[2], dims[1], dims[0]], "extents {dims:?}");
+        assert!(grid.values.is_empty(), "extents {dims:?}");
+    }
+}
+
 /// The file axes reach themselves without copying the buffer.
 #[test]
 fn the_file_axes_permutation_borrows_the_buffer() {

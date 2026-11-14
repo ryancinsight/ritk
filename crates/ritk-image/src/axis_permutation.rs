@@ -64,6 +64,20 @@ fn signed_columns(direction: &Direction<3>) -> Option<[(usize, bool); 3]> {
     Some(columns)
 }
 
+/// Voxel count of a grid with extents `dims`, or `None` when it exceeds
+/// `usize`.
+///
+/// A zero extent makes the grid empty, so the count is zero before any
+/// product is formed; a running product would otherwise overflow or not
+/// depending on where the zero sits.
+fn voxel_count(dims: [usize; 3]) -> Option<usize> {
+    if dims.contains(&0) {
+        return Some(0);
+    }
+    dims.iter()
+        .try_fold(1usize, |count, &extent| count.checked_mul(extent))
+}
+
 impl SignedAxisPermutation {
     /// The relabeling that turns a grid with direction `from` into the same
     /// physical grid with direction `to`.
@@ -130,8 +144,10 @@ impl SignedAxisPermutation {
     ///
     /// # Panics
     ///
-    /// Panics if `values.len()` is not the product of `dims`, or if computing
-    /// that product overflows `usize`.
+    /// Panics if `values.len()` is not the product of `dims`, or if no extent
+    /// is zero and computing that product overflows `usize`. A grid with a
+    /// zero extent is empty, so its product is zero whatever its other
+    /// extents are.
     #[track_caller]
     pub fn reexpress<'a, T: Clone>(
         &self,
@@ -142,8 +158,7 @@ impl SignedAxisPermutation {
         direction: &Direction<3>,
     ) -> PermutedGrid<'a, T> {
         assert_eq!(
-            dims.iter()
-                .try_fold(1usize, |count, &extent| count.checked_mul(extent)),
+            voxel_count(dims),
             Some(values.len()),
             "voxel count must match the grid extents"
         );

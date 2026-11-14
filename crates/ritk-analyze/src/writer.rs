@@ -39,7 +39,8 @@
 //! # Spatial Metadata
 //!
 //! RITK's core `spacing` is per tensor axis `[z, y, x]`, while Analyze `pixdim`
-//! is file-axis `[x, y, z]`; the writer reverses the columns
+//! is file-axis `[x, y, z]`; the writer reverses the columns of the relabeled
+//! grid
 //! (`pixdim[1]=sx=spacing[2]`, `pixdim[2]=sy=spacing[1]`, `pixdim[3]=sz=spacing[0]`).
 //! The core `origin` is already a world-space `[x, y, z]` point and is written
 //! to the `originator` field as five little-endian `i16` values encoding voxel
