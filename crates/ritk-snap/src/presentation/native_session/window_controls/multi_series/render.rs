@@ -296,7 +296,7 @@ impl MultiSeriesDialog {
         }
         let primary_button_style = text_style(Color::rgb(255, 255, 255), 12)?;
         draw_button(framebuffer, geometry.cancel, "Cancel", regular, false);
-        let open_enabled = !self.matches.is_empty() || !self.selected.is_empty();
+        let open_enabled = !self.matches.is_empty();
         let open_style = if open_enabled {
             primary_button_style
         } else {

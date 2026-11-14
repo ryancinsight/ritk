@@ -104,10 +104,8 @@ impl MultiSeriesDialog {
                         if let Some(index) = self.matches.first().copied() {
                             self.set_single(index);
                         }
-                    } else if self.selected.is_empty()
-                        && let Some(index) = self.matches.first().copied()
-                    {
-                        self.set_single(index);
+                    } else {
+                        self.confine_selection_to_matches();
                     }
                     if self.selected.is_empty() {
                         Ok(changed(false))
@@ -179,9 +177,7 @@ impl MultiSeriesDialog {
                     }
                     Ok(changed(true))
                 } else if rect_contains(geometry.open, *x, *y) {
-                    if self.selected.is_empty() && !self.matches.is_empty() {
-                        self.toggle(self.matches[0]);
-                    }
+                    self.confine_selection_to_matches();
                     Ok(if self.selected.is_empty() {
                         changed(false)
                     } else {
@@ -226,6 +222,22 @@ impl MultiSeriesDialog {
             self.selection_limit_reached = false;
         } else {
             self.selection_limit_reached = self.selected.try_push(series_index).is_err();
+        }
+    }
+
+    /// Keeps only the selected rows the filter still lists, falling back to
+    /// the first listed row when none remain, so a confirmation never loads a
+    /// row the reader cannot see. With no listed row the selection empties
+    /// and nothing confirms.
+    fn confine_selection_to_matches(&mut self) {
+        let Some(first) = self.matches.first().copied() else {
+            self.selected.clear();
+            return;
+        };
+        let matches = &self.matches;
+        self.selected.retain(|index| matches.contains(index));
+        if self.selected.is_empty() {
+            self.set_single(first);
         }
     }
 
