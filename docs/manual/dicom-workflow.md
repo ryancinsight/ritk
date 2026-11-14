@@ -1283,9 +1283,12 @@ and a display adjustment between two measurement clicks keeps the first point.
 
 The F4 multiple-series picker opens with its series list focused. Typing moves
 focus to the filter; spaces remain search text there. Press Down or click a row
-to return to the list, where Space toggles the selected series. Enter loads all
-selected rows, or the first visible result when no row is selected. A filter
-with no results cannot load a hidden selection and leaves the picker open.
+to return to the list, where Space toggles the selected series. Enter in the
+list, or **Open**, loads the selected rows the filter lists and drops any
+selected row it hides; when no listed row is selected, it loads the first
+listed row. Enter in a non-empty filter loads only the first listed row. A
+filter with no results clears the selection, loads nothing and leaves the
+picker open.
 
 The shareable captures use the public phantom and contain no clinical patient
 identifiers. The preview rail groups each study with separate patient and
@@ -1369,9 +1372,10 @@ capture launches the app with both series UIDs to make the displayed result
 repeatable; it does not depict the picker interaction. To open the same series
 through the viewer, open their folder, press F4 or choose **Open multiple
 series** from **Window**, select MR T2 and CT, then press Enter or click
-**Open**. Enter opens every selected row; with no selection, it opens the
-first filtered match. Each panel has independent image navigation and
-window-level state. The left series bar groups studies into patient/study
+**Open**. Both open the selected rows the filter lists; when no listed row is
+selected, they open the first listed row. Each panel has independent image
+navigation and window-level state. The left series bar groups studies into
+patient/study
 headers, then shows decoded series thumbnails, image counts and panel
 assignments. Each panel title bar exposes
 maximize/restore and close controls. Ctrl-click or drag a preview card to
