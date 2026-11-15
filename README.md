@@ -273,11 +273,15 @@ metadata from silently shipping to a destination PACS:
   pixel-data / private-tag cleaning.
 - `anonymize::verify` — the export gate:
   - re-parse check (the exported file must open as a conformant Part 10 object),
-  - UID presence, DICOM-conformant format, and cross-file Study/Series
-    consistency with unique SOPInstanceUIDs,
+  - Study/Series/SOP Instance UID presence, DICOM-conformant format (Frame
+    of Reference UID where present), and cross-file Study/Series consistency
+    with unique SOPInstanceUIDs,
   - geometry coherence (`Rows × Columns × Samples × BytesPerPixel` vs.
     PixelData length),
-  - prohibited-value leak scan for the exact identifiers the pipeline scrubbed.
+  - prohibited-value leak scan for the exact identifiers the pipeline scrubbed,
+    through nested sequence items, matching each identifier as a whole word,
+  - `verify_dicom_instances` for an export spanning several series: unique
+    SOPInstanceUIDs and one study per series.
 - `anonymize_dicom_file_verified` / `anonymize_dicom_directory_verified` —
   run anonymization and the export gate as one operation, failing closed on
   any defect.
