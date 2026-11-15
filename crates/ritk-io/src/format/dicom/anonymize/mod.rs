@@ -22,6 +22,8 @@
 //!   object it would have described is never returned as a success.
 
 mod profile;
+#[cfg(not(target_arch = "wasm32"))]
+mod salt;
 #[cfg(test)]
 mod tests_anonymize;
 #[cfg(test)]
@@ -39,6 +41,8 @@ mod tests_verify;
 pub mod verify;
 
 pub use profile::{AnonymizationProfile, TagAction};
+#[cfg(not(target_arch = "wasm32"))]
+pub use salt::SaltError;
 
 /// Controls whether an anonymization step is applied.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
