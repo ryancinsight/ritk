@@ -3,6 +3,7 @@ mod codec;
 mod color;
 mod color_common;
 mod color_multiframe;
+mod export_tree;
 /// Conformant Part 10 file-set index construction for consumers' tests.
 ///
 /// Always available to this crate's own tests; consumers opt in through
@@ -31,6 +32,7 @@ pub use anonymize::{
     anonymize_dicom_file_verified, anonymize_object, verify, AnonymizationProfile, AnonymizeError,
     AnonymizeOptions, AnonymizeResult, AnonymizeStats, CleaningPolicy, TagAction,
 };
+pub use export_tree::ExportTreeError;
 pub use color::{is_rgb_dicom_series, load_color_volume_flat, load_color_volume_flat_from_path};
 pub use color_multiframe::{
     load_atlas_color_multiframe, load_color_multiframe_flat, load_color_multiframe_flat_from_bytes,
