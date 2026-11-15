@@ -60,6 +60,7 @@ arrayvec = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 reqwest = { workspace = true }
+getrandom = { workspace = true }
 dicom-pixeldata = { workspace = true, features = ["native"] }
 dicom-transfer-syntax-registry = { workspace = true, features = ["native", "jpegxl"] }
 
