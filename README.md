@@ -286,6 +286,10 @@ metadata from silently shipping to a destination PACS:
 - `anonymize_dicom_file_verified` / `anonymize_dicom_directory_verified` —
   run anonymization and the export gate as one operation, failing closed on
   any defect.
+- `anonymize_dicom_study` — de-identifies every instance under a study folder
+  into a separate empty folder, mirroring the layout, then runs the export
+  gate over the whole set with the source patient names and IDs prohibited;
+  any failure removes everything the run wrote.
 
 See `crates/ritk-io/examples/anonymize_pacs_export.rs` for the complete
 PACS-bound export pipeline.
