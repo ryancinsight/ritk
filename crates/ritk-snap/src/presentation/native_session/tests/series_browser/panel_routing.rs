@@ -8,4 +8,5 @@ mod keyboard_sequence;
 mod layout;
 mod panel_ownership;
 mod queued_input;
+mod release_activation;
 mod unpaired_presses;
