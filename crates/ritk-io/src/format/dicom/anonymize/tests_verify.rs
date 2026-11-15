@@ -268,3 +268,164 @@ fn ensure_clean_errors_on_first_issue() {
     let err = ensure_dicom_file_clean(&path, &VerifyOptions::default()).unwrap_err();
     assert!(err.to_string().contains("verification failed"));
 }
+
+fn leak_options(values: &[&str]) -> VerifyOptions {
+    VerifyOptions {
+        prohibited_values: values.iter().map(|value| (*value).to_owned()).collect(),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn a_prohibited_value_inside_a_sequence_item_is_reported() {
+    let mut item = InMemDicomObject::new_empty();
+    item.put(DataElement::new(
+        Tag(0x0040, 0xA123),
+        VR::PN,
+        PrimitiveValue::from("Doe^John"),
+    ));
+    let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
+    obj.put(DataElement::new(
+        Tag(0x0040, 0xA730),
+        VR::SQ,
+        dicom::core::value::DataSetSequence::from(vec![item]),
+    ));
+    let path = write_to_temp(&obj, "nested.dcm");
+
+    let report = verify_dicom_file(&path, &leak_options(&["Doe^John"])).unwrap();
+
+    assert_eq!(
+        report.issues,
+        [VerifyIssue::PatientLeak {
+            value: "Doe^John".to_owned()
+        }]
+    );
+}
+
+#[test]
+fn a_short_identifier_is_found_as_a_word_and_not_inside_uids_or_numbers() {
+    let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x103E),
+        VR::LO,
+        PrimitiveValue::from("series 17 axial 740"),
+    ));
+    let path = write_to_temp(&obj, "short.dcm");
+
+    for inside in ["7", "74", "40"] {
+        let report = verify_dicom_file(&path, &leak_options(&[inside])).unwrap();
+        assert_eq!(
+            report.issues,
+            [],
+            "{inside} adjoins a digit wherever it occurs"
+        );
+    }
+
+    let word = verify_dicom_file(&path, &leak_options(&["17"])).unwrap();
+    assert_eq!(
+        word.issues,
+        [VerifyIssue::PatientLeak {
+            value: "17".to_owned()
+        }]
+    );
+}
+
+#[test]
+fn an_empty_prohibited_value_matches_nothing() {
+    let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
+    // Between the space and the hyphen an empty string has no letter or digit
+    // on either side, so only the emptiness rule keeps it from matching.
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x103E),
+        VR::LO,
+        PrimitiveValue::from("ward - 7"),
+    ));
+    let path = write_to_temp(&obj, "empty.dcm");
+    let report = verify_dicom_file(&path, &leak_options(&[""])).unwrap();
+    assert_eq!(report.issues, []);
+}
+
+#[test]
+fn a_missing_frame_of_reference_passes_and_a_malformed_one_is_reported() {
+    let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
+    obj.remove_element(Tag(0x0020, 0x0052));
+    let absent = write_to_temp(&obj, "no_frame.dcm");
+    assert_eq!(
+        verify_dicom_file(&absent, &VerifyOptions::default())
+            .unwrap()
+            .issues,
+        []
+    );
+
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x0052),
+        VR::UI,
+        PrimitiveValue::from("1.02.3"),
+    ));
+    let malformed = write_to_temp(&obj, "bad_frame.dcm");
+    assert_eq!(
+        verify_dicom_file(&malformed, &VerifyOptions::default())
+            .unwrap()
+            .issues,
+        [VerifyIssue::InvalidUid {
+            tag: "FrameOfReferenceUID".to_owned(),
+            value: "1.02.3".to_owned()
+        }]
+    );
+}
+
+#[test]
+fn an_occurrence_overlapping_a_rejected_one_is_still_found() {
+    let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x103E),
+        VR::LO,
+        PrimitiveValue::from("112-12-12"),
+    ));
+    let path = write_to_temp(&obj, "overlap.dcm");
+
+    let report = verify_dicom_file(&path, &leak_options(&["12-12"])).unwrap();
+
+    assert_eq!(
+        report.issues,
+        [VerifyIssue::PatientLeak {
+            value: "12-12".to_owned()
+        }]
+    );
+}
+
+#[test]
+fn a_uid_or_date_is_leaked_only_as_a_whole_value() {
+    let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
+    obj.put(DataElement::new(
+        Tag(0x0010, 0x0030),
+        VR::DA,
+        PrimitiveValue::from("19750101"),
+    ));
+    let path = write_to_temp(&obj, "values.dcm");
+
+    for whole in ["19750101", "1.2.3.4.5.7"] {
+        let report = verify_dicom_file(&path, &leak_options(&[whole])).unwrap();
+        assert_eq!(
+            report.issues,
+            [VerifyIssue::PatientLeak {
+                value: whole.to_owned()
+            }]
+        );
+    }
+    for part in ["7", "1975", "1.2.3"] {
+        let report = verify_dicom_file(&path, &leak_options(&[part])).unwrap();
+        assert_eq!(report.issues, [], "{part} is only part of a value");
+    }
+}
+
+#[test]
+fn optional_uids_keep_their_format_unchecked() {
+    let obj = build_object("1.02.3", "1.2.3.4.5.7", "1.2.3.4.5.8");
+    let path = write_to_temp(&obj, "optional.dcm");
+    let options = VerifyOptions {
+        require_uids: false,
+        ..Default::default()
+    };
+    assert_eq!(verify_dicom_file(&path, &options).unwrap().issues, []);
+}
