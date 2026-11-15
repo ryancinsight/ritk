@@ -32,12 +32,12 @@ pub use anonymize::{
     anonymize_dicom_file_verified, anonymize_object, verify, AnonymizationProfile, AnonymizeError,
     AnonymizeOptions, AnonymizeResult, AnonymizeStats, CleaningPolicy, TagAction,
 };
-pub use export_tree::ExportTreeError;
 pub use color::{is_rgb_dicom_series, load_color_volume_flat, load_color_volume_flat_from_path};
 pub use color_multiframe::{
     load_atlas_color_multiframe, load_color_multiframe_flat, load_color_multiframe_flat_from_bytes,
     load_color_multiframe_flat_from_bytes_with_budget, ColorMultiFrameVolume,
 };
+pub use export_tree::ExportTreeError;
 pub use inventory::dicom_metadata_losses;
 pub use multiframe::{
     load_dicom_multiframe, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,

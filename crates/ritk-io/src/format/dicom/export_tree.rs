@@ -1,9 +1,10 @@
 //! Plan a copy of a study folder tree into a separate output folder.
 //!
-//! Tools that rewrite a study never modify their source. [`ExportTree::plan`] establishes that before any file is written:
-//! the output folder may not be the source, lie inside it, or contain it, and
-//! must be empty, so no source file can be overwritten and nothing already in
-//! the output is mistaken for part of the export.
+//! Tools that rewrite a study never modify their source. [`ExportTree::plan`]
+//! checks that before any file is written: the output folder may not be the
+//! source, lie inside it, or contain it, and must be empty. The check holds
+//! for the file system as it was when the plan was made; nothing guards
+//! against the output folder changing between planning and writing.
 
 #![cfg_attr(
     not(test),
@@ -55,13 +56,20 @@ pub(crate) fn io_error(
     }
 }
 
+/// One source file and the path it is written to.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct ExportEntry {
+    /// Resolved source file.
+    pub(crate) source: PathBuf,
+    /// Its path below the output folder.
+    pub(crate) target: PathBuf,
+}
+
 /// The regular files of a source and where each lands in the output folder.
 #[derive(Debug)]
 pub(crate) struct ExportTree {
     source: PathBuf,
-    root: PathBuf,
-    destination: PathBuf,
-    files: Vec<PathBuf>,
+    entries: Vec<ExportEntry>,
 }
 
 impl ExportTree {
@@ -83,7 +91,9 @@ impl ExportTree {
                 output: destination,
             });
         }
-        if destination.exists()
+        if destination
+            .try_exists()
+            .map_err(io_error("inspect", &destination))?
             && std::fs::read_dir(&destination)
                 .map_err(io_error("read", &destination))?
                 .next()
@@ -91,18 +101,28 @@ impl ExportTree {
         {
             return Err(ExportTreeError::OutputNotEmpty(destination));
         }
-        let root = if source.is_file() {
-            source.parent().unwrap_or(&source).to_path_buf()
-        } else {
-            source.clone()
+        let outside = |path: &Path| ExportTreeError::Io {
+            action: "place",
+            path: path.to_path_buf(),
+            source: std::io::ErrorKind::InvalidInput.into(),
         };
-        let files = source_files(&source)?;
-        Ok(Self {
-            source,
-            root,
-            destination,
-            files,
-        })
+        let root = if source.is_file() {
+            source.parent().ok_or_else(|| outside(&source))?
+        } else {
+            source.as_path()
+        };
+        let entries = source_files(&source)?
+            .into_iter()
+            .map(|file| {
+                let below = file.strip_prefix(root).map_err(|_| outside(&file))?;
+                let target = destination.join(below);
+                Ok(ExportEntry {
+                    source: file,
+                    target,
+                })
+            })
+            .collect::<Result<Vec<_>, ExportTreeError>>()?;
+        Ok(Self { source, entries })
     }
 
     /// The resolved source path.
@@ -110,22 +130,18 @@ impl ExportTree {
         &self.source
     }
 
-    /// Source files in path order.
-    pub(crate) fn files(&self) -> &[PathBuf] {
-        &self.files
-    }
-
-    /// Where `file` lands: its path below the source, below the output folder.
-    pub(crate) fn target(&self, file: &Path) -> PathBuf {
-        self.destination
-            .join(file.strip_prefix(&self.root).unwrap_or(file))
+    /// Source files in path order, each with the path it is written to: its
+    /// path below the source folder, or its own name for a single-file source,
+    /// joined below the output folder.
+    pub(crate) fn entries(&self) -> &[ExportEntry] {
+        &self.entries
     }
 }
 
 /// Resolve `output` without creating it: an existing folder is canonicalized,
 /// a missing one is placed under its canonicalized parent.
 fn resolve_output(output: &Path) -> Result<PathBuf, ExportTreeError> {
-    if output.exists() {
+    if output.try_exists().map_err(io_error("inspect", output))? {
         return output.canonicalize().map_err(io_error("resolve", output));
     }
     let parent = output
@@ -167,7 +183,7 @@ fn source_files(source: &Path) -> Result<Vec<PathBuf>, ExportTreeError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ExportTree, ExportTreeError};
+    use super::{ExportEntry, ExportTree, ExportTreeError};
     use std::path::Path;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -175,6 +191,7 @@ mod tests {
     fn tree(root: &Path) -> std::io::Result<()> {
         std::fs::create_dir_all(root.join("b/deep"))?;
         std::fs::write(root.join("b/deep/two"), "2")?;
+        std::fs::write(root.join("c"), "3")?;
         std::fs::write(root.join("a"), "1")
     }
 
@@ -188,13 +205,15 @@ mod tests {
         let plan = ExportTree::plan(source.path(), &output)?;
 
         let root = source.path().canonicalize()?;
-        assert_eq!(plan.source(), root);
-        assert_eq!(plan.files(), [root.join("a"), root.join("b/deep/two")]);
         let destination = parent.path().canonicalize()?.join("export");
-        assert_eq!(
-            plan.target(&plan.files()[1]),
-            destination.join("b/deep/two")
-        );
+        assert_eq!(plan.source(), root);
+        // A directory walk yields `a`, `c`, then `b/deep/two`; path order
+        // places the nested file between them.
+        let expected = ["a", "b/deep/two", "c"].map(|file| ExportEntry {
+            source: root.join(file),
+            target: destination.join(file),
+        });
+        assert_eq!(plan.entries(), expected);
         assert!(!output.exists(), "planning creates nothing");
         Ok(())
     }
@@ -208,10 +227,12 @@ mod tests {
 
         let plan = ExportTree::plan(&file, output.path())?;
 
-        assert_eq!(plan.files(), [file.canonicalize()?]);
         assert_eq!(
-            plan.target(&plan.files()[0]),
-            output.path().canonicalize()?.join("a")
+            plan.entries(),
+            [ExportEntry {
+                source: file.canonicalize()?,
+                target: output.path().canonicalize()?.join("a"),
+            }]
         );
         Ok(())
     }
