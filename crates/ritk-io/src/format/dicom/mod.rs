@@ -3,6 +3,7 @@ mod codec;
 mod color;
 mod color_common;
 mod color_multiframe;
+mod export_tree;
 /// Conformant Part 10 file-set index construction for consumers' tests.
 ///
 /// Always available to this crate's own tests; consumers opt in through
@@ -36,6 +37,7 @@ pub use color_multiframe::{
     load_atlas_color_multiframe, load_color_multiframe_flat, load_color_multiframe_flat_from_bytes,
     load_color_multiframe_flat_from_bytes_with_budget, ColorMultiFrameVolume,
 };
+pub use export_tree::ExportTreeError;
 pub use inventory::dicom_metadata_losses;
 pub use multiframe::{
     load_dicom_multiframe, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
