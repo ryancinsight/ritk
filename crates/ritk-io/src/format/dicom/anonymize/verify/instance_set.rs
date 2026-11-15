@@ -8,7 +8,7 @@ use std::path::PathBuf;
 ///
 /// Every instance passes through [`verify_dicom_file`]. Across the set, each
 /// SOP Instance UID must be unique and every series must belong to one study;
-/// unlike [`verify_dicom_directory`], several series and studies may be
+/// unlike [`verify_dicom_directory`](super::verify_dicom_directory), several series and studies may be
 /// present. Issues are returned with the path they were found in, in input
 /// order; an empty result means the set passed.
 #[must_use]

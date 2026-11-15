@@ -130,16 +130,16 @@ pub struct VerifyOptions {
     /// Defaults to `true`. Set to `false` for multi-frame or compressed
     /// transfer syntaxes where the flat-frame invariant does not apply.
     pub validate_pixel_geometry: bool,
-    /// Raw patient-identifying values that must not appear anywhere in the
-    /// object after anonymization. This is a belt-and-suspenders scan for the
-    /// specific values the pipeline scrubbed (e.g. `["Doe^John", "PAT001"]`).
+    /// Raw patient-identifying values that must not survive anonymization
+    /// (e.g. `["Doe^John", "PAT001"]`), scanned for in every data set, nested
+    /// sequence items included.
     ///
-    /// The scan visits every data set, nested sequence items included, and
-    /// reads the text-bearing value representations (AE, CS, LO, LT, PN, SH,
-    /// ST, UC, UT) plus UN, whose bytes are read as text. A value counts as
-    /// leaked when it occurs with no letter or digit directly before or after
-    /// it, so a patient ID of `7` is found in `ward 7` and not in `1.2.740` or
-    /// `1975`. Empty entries are ignored.
+    /// In free text (AE, CS, LO, LT, PN, SH, ST, UC, UT, and UN bytes read as
+    /// text) a value is leaked when it occurs with no letter or digit directly
+    /// before or after it: a patient ID of `7` is found in `ward 7` and not in
+    /// `17`, and `PAT001` is not found in `PAT001A`. In UI, DA, DT and UR
+    /// elements a value is leaked when it equals one of the element's values.
+    /// Numeric and binary elements are not read. Empty entries are ignored.
     pub prohibited_values: Vec<String>,
 }
 
@@ -237,22 +237,13 @@ pub fn verify_dicom_file(
     };
 
     // ── 1. UID presence + format ──────────────────────────────────────────
-    for (name, tag, required) in [
-        (
-            "StudyInstanceUID",
-            Tag(0x0020, 0x000D),
-            options.require_uids,
-        ),
-        (
-            "SeriesInstanceUID",
-            Tag(0x0020, 0x000E),
-            options.require_uids,
-        ),
-        ("SOPInstanceUID", Tag(0x0008, 0x0018), options.require_uids),
-        ("FrameOfReferenceUID", Tag(0x0020, 0x0052), false),
+    for (name, tag) in [
+        ("StudyInstanceUID", Tag(0x0020, 0x000D)),
+        ("SeriesInstanceUID", Tag(0x0020, 0x000E)),
+        ("SOPInstanceUID", Tag(0x0008, 0x0018)),
     ] {
         let value = tag_uid(&obj, tag);
-        if required {
+        if options.require_uids {
             match &value {
                 Some(v) => {
                     report.uids.push((name.to_owned(), v.clone()));
@@ -268,14 +259,19 @@ pub fn verify_dicom_file(
                 }),
             }
         } else if let Some(v) = value {
-            if options.validate_uid_format && !uid_is_valid(&v) {
-                report.issues.push(VerifyIssue::InvalidUid {
-                    tag: name.to_owned(),
-                    value: v.clone(),
-                });
-            }
             report.uids.push((name.to_owned(), v));
         }
+    }
+    // Never required: the verifier does not resolve the IOD, and an object
+    // without a spatial frame carries no Frame of Reference UID.
+    if let Some(v) = tag_uid(&obj, Tag(0x0020, 0x0052)) {
+        if options.validate_uid_format && !uid_is_valid(&v) {
+            report.issues.push(VerifyIssue::InvalidUid {
+                tag: "FrameOfReferenceUID".to_owned(),
+                value: v.clone(),
+            });
+        }
+        report.uids.push(("FrameOfReferenceUID".to_owned(), v));
     }
 
     // ── 2. Geometry coherence ─────────────────────────────────────────────

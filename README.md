@@ -279,7 +279,8 @@ metadata from silently shipping to a destination PACS:
   - geometry coherence (`Rows × Columns × Samples × BytesPerPixel` vs.
     PixelData length),
   - prohibited-value leak scan for the exact identifiers the pipeline scrubbed,
-    through nested sequence items, matching each identifier as a whole word,
+    through nested sequence items: as a whole word in text, as a whole value
+    in UIDs and dates,
   - `verify_dicom_instances` for an export spanning several series: unique
     SOPInstanceUIDs and one study per series.
 - `anonymize_dicom_file_verified` / `anonymize_dicom_directory_verified` —
