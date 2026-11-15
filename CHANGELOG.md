@@ -22,6 +22,16 @@
 
 ### Changed
 
+- [patch] Advance the Moirai and Leto provider contracts. The Moirai runtime
+  and Moirai-pal requirements move from 0.11.0 to 0.12.0 and the Leto and
+  Leto-ops requirements widen to `>=0.47.1, <0.49.0` so the 0.48 line
+  resolves. The lock is regenerated outside the Atlas dependency overlay and
+  names one revision per provider repository, with every provider row at its
+  repository's current default head. Moirai 0.12.0 removes the required
+  `StateWord::get_mut` method, which RITK neither implements nor calls, and
+  RITK re-exports no Moirai or Eunomia type, so the public RITK surface is
+  unchanged.
+
 - [patch] Follow the Consus provider to 0.4.0. `consus-core`, `consus-hdf5`,
   `consus-compression`, `consus-io`, `consus-onnx`, and `consus-raster` move
   from 0.3.0 to 0.4.0 and the lock resolves them at the published 0.4.0
