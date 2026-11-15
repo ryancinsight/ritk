@@ -1,6 +1,7 @@
 <a id="RITK-MGH-CONVERSION-INVENTORY-001"></a>
 
 ## RITK-MGH-CONVERSION-INVENTORY-001 — Map MGH volume semantics — todo
+- milestone: M-viewer-reading
 - outcome: Map MGH/MGZ headers, geometry, samples, and packaging to RITK volume fields or typed loss.
 - acceptance: A checked matrix covers RAS geometry, affine, scalar types, gzip, and .mgh/.mgz routes with value-test references.
 - scope: crates/ritk-mgh/, crates/ritk-io/src/format/mgh/, tests, and manual

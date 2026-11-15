@@ -1,6 +1,7 @@
 <a id="RITK-SNAP-OBLIQUE-MANUAL-001"></a>
 
 ## RITK-SNAP-OBLIQUE-MANUAL-001 — Demonstrate oblique MPR in the user manual — blocked
+- milestone: M-viewer-compare
 - outcome: document native launch and controls with a genuine public MRI-DIR phantom capture.
 - acceptance: CLI, README, and manual show the 94-file public phantom in a complete app window with working menus or toolbar controls, pane controls, and all four anatomical panes; provenance identifies the exact capture revision.
 - scope: `crates/ritk-snap/src/{launch.rs,main.rs}`, crate README, `docs/manual/`, provenance tests

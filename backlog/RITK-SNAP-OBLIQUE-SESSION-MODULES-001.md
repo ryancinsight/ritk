@@ -1,6 +1,7 @@
 <a id="RITK-SNAP-OBLIQUE-SESSION-MODULES-001"></a>
 
 ## RITK-SNAP-OBLIQUE-SESSION-MODULES-001 — Separate native oblique session concerns — blocked
+- milestone: M-viewer-compare
 - outcome: place plane rendering and gesture reduction in cohesive session modules.
 - acceptance: extraction preserves rendered frames, retained-valid-frame behavior, and event outcomes.
 - scope: `crates/ritk-snap/src/presentation/native_session/oblique.rs`

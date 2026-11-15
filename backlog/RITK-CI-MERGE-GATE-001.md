@@ -1,6 +1,7 @@
 <a id="RITK-CI-MERGE-GATE-001"></a>
 
 ## RITK-CI-MERGE-GATE-001 — Gate pull requests through one CI check — todo
+- milestone: M-viewer-access
 - outcome: preserve an accurate required gate across draft and ready pull requests.
 - acceptance: one aggregate check covers verification jobs; draft pull requests run no heavy jobs and fail the aggregate; `ready_for_review` runs affected checks; the main ruleset requires only the aggregate; workflow contracts and hosted runs verify Rust, Python, docs, and board-only changes.
 - scope: `.github/workflows/`, `scripts/tests/`, `docs/adr/`, and the main merge ruleset

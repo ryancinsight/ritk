@@ -1,6 +1,7 @@
 <a id="RITK-SNAP-OBLIQUE-NATIVE-001"></a>
 
 ## RITK-SNAP-OBLIQUE-NATIVE-001 — Native oblique MPR — blocked
+- milestone: M-viewer-compare
 - outcome: deliver a native four-plane oblique viewer with patient-space navigation and measurement.
 - acceptance: all child items land; invalid geometry is rejected; the public phantom capture shows one complete, uncropped app window with visible menus or toolbar buttons and all four anatomical panes; native visual and value-semantic gates pass.
 - scope: `crates/ritk-snap/src/{app,presentation,render,tools/interaction,session}/`, `crates/ritk-snap/src/main.rs`, crate README, ADRs, manual, and provenance.

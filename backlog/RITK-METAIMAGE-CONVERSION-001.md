@@ -1,6 +1,7 @@
 <a id="RITK-METAIMAGE-CONVERSION-001"></a>
 
 ## RITK-METAIMAGE-CONVERSION-001 — Preserve MetaImage volume semantics — blocked
+- milestone: M-viewer-reading
 - outcome: convert MetaImage volumes through RITK without silent sample or metadata loss.
 - acceptance: supported MHA/MHD element types, byte order, geometry, and calibration round-trip; unsupported semantics fail preflight before output changes.
 - scope: crates/ritk-metaimage/, crates/ritk-io/, MetaImage tests and manual

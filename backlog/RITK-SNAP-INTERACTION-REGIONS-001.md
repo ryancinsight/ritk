@@ -1,6 +1,7 @@
 <a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>
 
 ## RITK-SNAP-INTERACTION-REGIONS-001 — Separate region interaction tests — todo
+- milestone: M-viewer-compare
 - outcome: give region tools one test module without changing behavior.
 - acceptance: every moved test remains present and passes with the same assertions.
 - scope: `crates/ritk-snap/src/tools/interaction/tests.rs`, `tools/interaction/tests/regions.rs`

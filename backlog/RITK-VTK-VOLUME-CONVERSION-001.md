@@ -1,6 +1,7 @@
 <a id="RITK-VTK-VOLUME-CONVERSION-001"></a>
 
 ## RITK-VTK-VOLUME-CONVERSION-001 — Preserve VTK image-volume semantics — blocked
+- milestone: M-viewer-reading
 - outcome: convert VTK image-data files through RITK while retaining scalar arrays and physical geometry.
 - acceptance: supported scalar types, origin, spacing, direction, and array layout round-trip or return typed loss before output changes.
 - scope: crates/ritk-vtk/, crates/ritk-io/, VTK image-data tests and manual

@@ -1,6 +1,7 @@
 <a id="RITK-MINC-CONVERSION-001"></a>
 
 ## RITK-MINC-CONVERSION-001 — Preserve MINC volume semantics — blocked
+- milestone: M-viewer-reading
 - outcome: Route MINC volumes through stored models and shared image-format dispatch.
 - acceptance: Real MINC reads and writes preserve supported samples, geometry, units, calibration, and axes or return typed loss before output changes; hostile dimensions stay bounded.
 - scope: crates/ritk-minc/, crates/ritk-io/src/format/minc/, conversion tests, and guide
