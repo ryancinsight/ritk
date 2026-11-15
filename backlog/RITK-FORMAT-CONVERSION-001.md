@@ -1,6 +1,7 @@
 <a id="RITK-FORMAT-CONVERSION-001"></a>
 
 ## RITK-FORMAT-CONVERSION-001 — Convert supported formats through RITK — blocked
+- milestone: M-viewer-reading
 - outcome: Keep medical and scientific readers, writers, and conversions in RITK behind typed models and explicit capabilities.
 - acceptance: DICOM, NIfTI, NRRD, MetaImage, MINC, MIF, MGH/MGZ, Analyze, VTK, PNG, TIFF, JPEG, GIFTI, mesh, and tractogram routes preserve represented samples and semantics or report typed loss before output changes; Métis contains no parser or converter.
 - scope: crates/ritk-image-io/, crates/ritk-io/, listed format crates, conversion tests, and the RITK manual

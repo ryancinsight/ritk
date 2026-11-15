@@ -1,6 +1,7 @@
 <a id="RITK-SNAP-OBLIQUE-SESSION-WIRING-001"></a>
 
 ## RITK-SNAP-OBLIQUE-SESSION-WIRING-001 — Wire the oblique session pane — blocked
+- milestone: M-viewer-compare
 - outcome: initialize and update the fourth pane from the active volume and patient cursor.
 - acceptance: source replacement rebuilds the plane and presents current pixels; failure keeps the last valid frame and surfaces the error.
 - scope: `crates/ritk-snap/src/presentation/native_session/{composition,session,events}.rs`

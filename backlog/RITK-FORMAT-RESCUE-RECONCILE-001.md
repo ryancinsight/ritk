@@ -1,6 +1,7 @@
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>
 
 ## RITK-FORMAT-RESCUE-RECONCILE-001 — Rehome format work from stale rescue branches — blocked
+- milestone: M-viewer-reading
 - outcome: Re-derive preserved format changes under their current RITK owners.
 - acceptance: Every stale format rescue's unique work is delivered through its owner item or remains explicitly preserved there; close rescue PRs only after exact landed-work proof.
 - scope: format rescue PRs and their owning RITK codec, adapter, and test paths

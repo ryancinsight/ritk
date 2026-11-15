@@ -1,6 +1,7 @@
 <a id="RITK-SNAP-INTERACTION-STATE-001"></a>
 
 ## RITK-SNAP-INTERACTION-STATE-001 — Separate interaction state tests — blocked
+- milestone: M-viewer-compare
 - outcome: give tool-state transitions one test module without changing behavior.
 - acceptance: moved transition tests preserve valid and invalid state outcomes and pass.
 - scope: `crates/ritk-snap/src/tools/interaction/tests.rs`, `tools/interaction/tests/state.rs`

@@ -1,6 +1,7 @@
 <a id="RITK-REGISTRY-PUBLICATION-001"></a>
 
 ## RITK-REGISTRY-PUBLICATION-001 — Publish the required registry dependency graph — blocked
+- milestone: M-viewer-access
 
 - outcome: registry consumers can install the corrected registration version after verified prerequisites and release gates succeed.
 - existing failure: main `8af30a9a` release run [38645859355](https://github.com/ryancinsight/ritk/actions/runs/38645859355) fails package verification before authentication. Registry Coeus 0.10 resolves Leto 0.42.0, whose `Quantity::in_unit` calls at `application/stencil.rs:121–122` lack the required `UnitScalar` bound. The working Git lock instead uses Coeus `89cb08b0`, Leto 0.45.0 `03d636a8` and Eunomia 0.9.1 `ee7c6911`.

@@ -1,6 +1,7 @@
 <a id="RITK-SNAP-INTERACTION-MEASUREMENTS-001"></a>
 
 ## RITK-SNAP-INTERACTION-MEASUREMENTS-001 — Separate measurement tests — blocked
+- milestone: M-viewer-compare
 - outcome: give measurement tools one test module without changing behavior.
 - acceptance: moved measurement tests preserve their existing value oracles and pass.
 - scope: `crates/ritk-snap/src/tools/interaction/tests.rs`, `tools/interaction/tests/measurements.rs`
