@@ -6,14 +6,6 @@
 //! for the file system as it was when the plan was made; nothing guards
 //! against the output folder changing between planning and writing.
 
-#![cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "ratchet RITK-DICOM-ANONYMIZE-STUDY-001: the study anonymizer is the first caller"
-    )
-)]
-
 use std::path::{Path, PathBuf};
 
 /// Why an export could not be planned.
