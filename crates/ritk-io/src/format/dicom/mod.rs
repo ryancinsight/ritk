@@ -16,7 +16,7 @@ mod multiframe;
 pub mod networking;
 mod object_model;
 mod reader;
-mod repair;
+pub mod repair;
 mod rt_dose;
 mod rt_plan;
 mod rt_struct;
