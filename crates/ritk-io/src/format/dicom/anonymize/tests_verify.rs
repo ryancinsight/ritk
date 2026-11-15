@@ -7,8 +7,7 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::super::anonymize::verify::{
-    ensure_dicom_file_clean, verify_dicom_directory, verify_dicom_file, verify_dicom_instances,
-    VerifyIssue, VerifyOptions,
+    ensure_dicom_file_clean, verify_dicom_directory, verify_dicom_file, VerifyIssue, VerifyOptions,
 };
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::{meta::FileMetaTableBuilder, FileDicomObject, InMemDicomObject};
@@ -372,47 +371,6 @@ fn a_missing_frame_of_reference_passes_and_a_malformed_one_is_reported() {
             tag: "FrameOfReferenceUID".to_owned(),
             value: "1.02.3".to_owned()
         }]
-    );
-}
-
-#[test]
-fn an_instance_set_spanning_two_series_and_studies_passes() {
-    let paths = [
-        write_to_temp(&build_object("1.2.1", "1.2.1.1", "1.2.1.1.1"), "a.dcm"),
-        write_to_temp(&build_object("1.2.1", "1.2.1.2", "1.2.1.2.1"), "b.dcm"),
-        write_to_temp(&build_object("1.2.2", "1.2.2.1", "1.2.2.1.1"), "c.dcm"),
-    ];
-    assert_eq!(
-        verify_dicom_instances(&paths, &VerifyOptions::default()),
-        []
-    );
-}
-
-#[test]
-fn an_instance_set_reports_a_repeated_sop_uid_and_a_series_in_two_studies() {
-    let paths = [
-        write_to_temp(&build_object("1.2.1", "1.2.1.1", "1.2.1.1.1"), "a.dcm"),
-        write_to_temp(&build_object("1.2.1", "1.2.1.1", "1.2.1.1.1"), "b.dcm"),
-        write_to_temp(&build_object("1.2.9", "1.2.1.1", "1.2.1.1.2"), "c.dcm"),
-    ];
-    assert_eq!(
-        verify_dicom_instances(&paths, &VerifyOptions::default()),
-        [
-            (
-                paths[1].clone(),
-                VerifyIssue::DuplicateSopInstanceUid {
-                    value: "1.2.1.1.1".to_owned()
-                }
-            ),
-            (
-                paths[2].clone(),
-                VerifyIssue::UidMismatch {
-                    tag: "StudyInstanceUID".to_owned(),
-                    expected: "1.2.1".to_owned(),
-                    found: "1.2.9".to_owned()
-                }
-            ),
-        ]
     );
 }
 

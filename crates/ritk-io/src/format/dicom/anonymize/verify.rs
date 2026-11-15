@@ -58,10 +58,8 @@ use dicom::object::{open_file, FileDicomObject, InMemDicomObject};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-mod instance_set;
 mod leak_scan;
 
-pub use instance_set::verify_dicom_instances;
 use leak_scan::scan_prohibited_values;
 
 /// A single verification finding.
