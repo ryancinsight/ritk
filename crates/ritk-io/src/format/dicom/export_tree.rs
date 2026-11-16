@@ -61,6 +61,7 @@ pub(crate) struct ExportEntry {
 #[derive(Debug)]
 pub(crate) struct ExportTree {
     source: PathBuf,
+    destination: PathBuf,
     entries: Vec<ExportEntry>,
 }
 
@@ -114,12 +115,21 @@ impl ExportTree {
                 })
             })
             .collect::<Result<Vec<_>, ExportTreeError>>()?;
-        Ok(Self { source, entries })
+        Ok(Self {
+            source,
+            destination,
+            entries,
+        })
     }
 
     /// The resolved source path.
     pub(crate) fn source(&self) -> &Path {
         &self.source
+    }
+
+    /// The resolved output folder.
+    pub(crate) fn destination(&self) -> &Path {
+        &self.destination
     }
 
     /// Source files in path order, each with the path it is written to: its
@@ -199,6 +209,7 @@ mod tests {
         let root = source.path().canonicalize()?;
         let destination = parent.path().canonicalize()?.join("export");
         assert_eq!(plan.source(), root);
+        assert_eq!(plan.destination(), destination);
         // A directory walk yields `a`, `c`, then `b/deep/two`; path order
         // places the nested file between them.
         let expected = ["a", "b/deep/two", "c"].map(|file| ExportEntry {

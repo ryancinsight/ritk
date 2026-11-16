@@ -195,9 +195,12 @@ series, acquisition and content dates and times and the study and series
 descriptions; strict empties those dates and times and removes those
 descriptions.
 
-Pixel data and folder and file names are copied unchanged, so a patient name in
-a folder name or burned into the pixels stays in the copy. Files that do not
-open as DICOM, and a DICOMDIR index, are left out. After writing, RITK re-reads
+The copy is flat: instances are written as `000001.dcm`, `000002.dcm`, ... in
+the order their source paths sort, so no source folder or file name reaches it.
+The file meta group loses its application entity titles and private
+information. Pixel data is copied unchanged, so a patient name burned into the
+pixels stays in the copy. Files that do not open as DICOM, and a DICOMDIR index,
+are left out and take no number. After writing, RITK re-reads
 every exported file and scans it for each source patient name and ID that
 differs from its replacement; if that check or any earlier step fails, RITK removes the files it wrote and the status line shows the error.
 Folders it created may remain, and a file it could not remove stays and is
