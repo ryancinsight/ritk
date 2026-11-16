@@ -6,6 +6,9 @@
 //! - The run is all-or-nothing: an instance that cannot be de-identified, or
 //!   an exported instance that fails verification, removes every file the run
 //!   wrote before the error is returned.
+//! - No source folder or file name is copied: exported instances are named
+//!   `000001.dcm`, `000002.dcm`, ... in the order their sources sort by path,
+//!   directly in the output folder.
 //! - Each patient name and patient ID read from the source is a prohibited
 //!   value for the verification of every exported instance.
 //! - A DICOMDIR is not exported: its records name the source files and repeat
@@ -18,7 +21,7 @@ use crate::format::dicom::export_source::{read_source, remove_written, Source};
 use crate::format::dicom::export_tree::{io_error, ExportTree, ExportTreeError};
 use dicom::core::Tag;
 use dicom::object::{FileDicomObject, InMemDicomObject};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 const PATIENT_NAME: Tag = Tag(0x0010, 0x0010);
@@ -62,7 +65,8 @@ pub enum StudyAnonymizeError {
         #[source]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
-    /// Exported instances failed the export gate.
+    /// Exported instances failed the export gate; each issue is paired with
+    /// the source instance whose export raised it.
     #[error("{} verification issue(s) in the export", .0.len())]
     Verification(Vec<(PathBuf, VerifyIssue)>),
     /// The run failed and some of the files it wrote could not be removed.
@@ -124,15 +128,18 @@ fn export_instance(
 
 /// De-identify every DICOM instance under `input` into the empty folder `output`.
 ///
-/// `input` is a study folder or a single instance. The folder layout below
-/// `input` is mirrored below `output`, which is created when missing. The
-/// export then passes [`verify_dicom_instances`] with the source patient
-/// names and patient IDs as prohibited values.
+/// `input` is a study folder or a single instance. `output` is created when
+/// missing, which requires its parent folder to exist, and receives the instances as `000001.dcm`, `000002.dcm`, ...,
+/// numbered in the order their source paths sort; the source's folder and
+/// file names are not copied. The export then passes
+/// [`verify_dicom_instances`] with the source patient names and patient IDs
+/// as prohibited values.
 ///
 /// # Errors
-/// Returns [`StudyAnonymizeError`] when the output folder overlaps the source
-/// or is not empty, when the source holds no instance, when an instance cannot
-/// be de-identified or written, or when verification finds an issue.
+/// Returns [`StudyAnonymizeError`] when a path cannot be resolved or listed,
+/// when the output folder overlaps the source or is not empty, when the source
+/// holds no instance, when an instance cannot be de-identified or written, or
+/// when verification finds an issue.
 pub fn anonymize_dicom_study(
     input: impl AsRef<Path>,
     output: impl AsRef<Path>,
@@ -141,9 +148,10 @@ pub fn anonymize_dicom_study(
     let tree = ExportTree::plan(input.as_ref(), output.as_ref())?;
     let mut report = StudyAnonymizeReport::default();
     let mut written: Vec<PathBuf> = Vec::new();
+    let mut sources: BTreeMap<PathBuf, &Path> = BTreeMap::new();
     let mut prohibited: BTreeSet<String> = BTreeSet::new();
     for entry in tree.entries() {
-        let (path, target) = (entry.source.as_path(), entry.target.as_path());
+        let path = entry.source.as_path();
         let object = match read_source(path) {
             Source::Instance(object) => *object,
             Source::Index => {
@@ -167,8 +175,12 @@ pub fn anonymize_dicom_study(
         );
         // The target joins the removal list before the write so a truncated
         // file left by a failed write is removed with the rest.
-        written.push(target.to_path_buf());
-        if let Err(cause) = export_instance(object, path, target, options, &mut report) {
+        let target = tree
+            .destination()
+            .join(format!("{:06}.dcm", written.len() + 1));
+        written.push(target.clone());
+        sources.insert(target.clone(), path);
+        if let Err(cause) = export_instance(object, path, &target, options, &mut report) {
             return Err(failed(cause, &written));
         }
     }
@@ -184,6 +196,15 @@ pub fn anonymize_dicom_study(
     };
     let issues = verify_dicom_instances(&written, &gate);
     if !issues.is_empty() {
+        let issues = issues
+            .into_iter()
+            .map(|(target, issue)| {
+                let source = sources
+                    .get(&target)
+                    .map_or(target, |source| source.to_path_buf());
+                (source, issue)
+            })
+            .collect();
         return Err(failed(StudyAnonymizeError::Verification(issues), &written));
     }
     report.instances_written = written.len();

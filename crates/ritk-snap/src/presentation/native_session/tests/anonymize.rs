@@ -18,14 +18,22 @@ fn instances(root: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-/// The prohibited values the export gate finds under `root`, one per leaking
+/// The three instances of an export of the fixture study.
+fn exported(root: &Path) -> Vec<PathBuf> {
+    ["000001.dcm", "000002.dcm", "000003.dcm"]
+        .iter()
+        .map(|name| root.join(name))
+        .collect()
+}
+
+/// The prohibited values the export gate finds in `files`, one per leaking
 /// element; any other issue appears as its message.
-fn leaks(root: &Path, values: &[&str]) -> Vec<String> {
+fn leaks(files: &[PathBuf], values: &[&str]) -> Vec<String> {
     let options = VerifyOptions {
         prohibited_values: values.iter().map(|value| (*value).to_owned()).collect(),
         ..VerifyOptions::default()
     };
-    verify_dicom_instances(&instances(root), &options)
+    verify_dicom_instances(files, &options)
         .into_iter()
         .map(|(_, issue)| match issue {
             VerifyIssue::PatientLeak { value } => value,
@@ -52,7 +60,7 @@ fn native_anonymize_basic_replaces_identifiers_and_instance_uids() {
     let source_bytes = std::fs::read(&source).expect("read source instance");
     let identifiers = ["FIXTURE^PATIENT", "RITK-TEST-001", fixtures::SERIES_UID];
     assert_eq!(
-        leaks(root.path(), &identifiers),
+        leaks(&instances(root.path()), &identifiers),
         identifiers.repeat(3),
         "the gate must see the source identifiers"
     );
@@ -61,8 +69,8 @@ fn native_anonymize_basic_replaces_identifiers_and_instance_uids() {
         .anonymize_study_to(&output, Deidentification::Basic)
         .expect("export a de-identified copy");
 
-    assert_eq!(leaks(&output, &identifiers), [""; 0]);
-    assert_eq!(leaks(&output, &[STUDY_DATE]), [STUDY_DATE; 3]);
+    assert_eq!(leaks(&exported(&output), &identifiers), [""; 0]);
+    assert_eq!(leaks(&exported(&output), &[STUDY_DATE]), [STUDY_DATE; 3]);
     assert_eq!(
         session.app.status_message,
         format!(
@@ -88,7 +96,10 @@ fn native_anonymize_strict_also_empties_the_study_date() {
         .expect("export a strictly de-identified copy");
 
     assert_eq!(
-        leaks(&output, &["FIXTURE^PATIENT", "RITK-TEST-001", STUDY_DATE]),
+        leaks(
+            &exported(&output),
+            &["FIXTURE^PATIENT", "RITK-TEST-001", STUDY_DATE]
+        ),
         [""; 0]
     );
     assert_eq!(

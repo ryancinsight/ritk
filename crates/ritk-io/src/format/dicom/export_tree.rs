@@ -48,19 +48,23 @@ pub(crate) fn io_error(
     }
 }
 
-/// One source file and the path it is written to.
+/// One source file and its mirrored path below the output folder.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ExportEntry {
     /// Resolved source file.
     pub(crate) source: PathBuf,
-    /// Its path below the output folder.
+    /// The output folder joined with the file's path below the source
+    /// folder, or with its own name for a single-file source. A caller that
+    /// names its outputs otherwise ignores it.
     pub(crate) target: PathBuf,
 }
 
-/// The regular files of a source and where each lands in the output folder.
+/// The regular files of a source, the resolved output folder, and each
+/// file's mirrored path below it.
 #[derive(Debug)]
 pub(crate) struct ExportTree {
     source: PathBuf,
+    destination: PathBuf,
     entries: Vec<ExportEntry>,
 }
 
@@ -114,7 +118,11 @@ impl ExportTree {
                 })
             })
             .collect::<Result<Vec<_>, ExportTreeError>>()?;
-        Ok(Self { source, entries })
+        Ok(Self {
+            source,
+            destination,
+            entries,
+        })
     }
 
     /// The resolved source path.
@@ -122,7 +130,12 @@ impl ExportTree {
         &self.source
     }
 
-    /// Source files in path order, each with the path it is written to: its
+    /// The resolved output folder.
+    pub(crate) fn destination(&self) -> &Path {
+        &self.destination
+    }
+
+    /// Source files in path order, each with its mirrored target: its
     /// path below the source folder, or its own name for a single-file source,
     /// joined below the output folder.
     pub(crate) fn entries(&self) -> &[ExportEntry] {
@@ -199,6 +212,7 @@ mod tests {
         let root = source.path().canonicalize()?;
         let destination = parent.path().canonicalize()?.join("export");
         assert_eq!(plan.source(), root);
+        assert_eq!(plan.destination(), destination);
         // A directory walk yields `a`, `c`, then `b/deep/two`; path order
         // places the nested file between them.
         let expected = ["a", "b/deep/two", "c"].map(|file| ExportEntry {

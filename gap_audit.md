@@ -32,12 +32,6 @@
 - evidence: filed findings of the ritk#876 judge at fa9c3d733, by reading; no near-cap decode was run. The same verdict filed, in the files that PR touched: `decode_jpeg2000_fragment` omits the invalid-layout `Codestream` error under `# Errors`, `mod.rs` keeps an `# Arguments` section, `jpeg_2000/tests.rs` is 1206 lines with a banner comment, the encoder tests call the two-argument decode past the budget, and the regression test is 64-bit only.
 - reopen: at the next change under `crates/ritk-codecs/src/jpeg_2000/`, or when the backlog has room, file the item: measure one admitted frame's peak allocation with dhat, then make the tile buffers reserve with `try_reserve_exact`.
 
-<a id="RITK-DICOM-ANONYMIZE-OUTSIDE-DATASET-001"></a>
-## RITK-DICOM-ANONYMIZE-OUTSIDE-DATASET-001: a de-identified export keeps identifiers outside the data set
-- risk: `anonymize_dicom_study` mirrors source folder and file names, so `DOE^JOHN/<StudyUID>/<SeriesUID>_a.dcm` keeps the patient name and source UIDs in output paths the leak scan never reads; file meta (0002,0016), (0002,0017), (0002,0018), (0002,0100) and (0002,0102) keep their source values.
-- evidence: mirroring is the documented layout of ritk#920; both witnesses cited by the judge of ritk#922; no test reproduces it yet.
-- reopen: before the viewer's de-identified export is called complete; file the correctness item with a failing test, then choose neutral output names or a path-component scan in the export gate.
-
 <a id="RITK-DICOM-VERIFY-PACKED-BITS-001"></a>
 ## RITK-DICOM-VERIFY-PACKED-BITS-001: the export gate sizes a 1-bit frame at one byte per sample
 - risk: `check_geometry` in `anonymize/verify.rs` expects `Rows * Columns * SamplesPerPixel * ceil(BitsAllocated / 8)` bytes, so a single-frame object with BitsAllocated 1 and bit-packed PixelData (a segmentation) is reported short and removes a whole de-identified export.

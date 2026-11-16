@@ -69,6 +69,25 @@ fn value(path: &Path, tag: Tag) -> Result<String, Box<dyn std::error::Error>> {
         .to_owned())
 }
 
+/// Every file and folder below `root`, relative to it with `/` separators,
+/// sorted as strings.
+fn listing(root: &Path) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut names = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(folder) = pending.pop() {
+        for entry in std::fs::read_dir(&folder)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                pending.push(entry.path());
+            }
+            let below = entry.path().strip_prefix(root)?.to_path_buf();
+            names.push(below.to_string_lossy().replace('\\', "/"));
+        }
+    }
+    names.sort();
+    Ok(names)
+}
+
 fn options() -> AnonymizeOptions {
     AnonymizeOptions {
         profile: AnonymizationProfile::BasicReplaceUids,
@@ -97,7 +116,7 @@ fn study_tree(root: &Path) -> TestResult {
 }
 
 #[test]
-fn a_study_tree_is_mirrored_with_identifiers_replaced_and_series_kept_together() -> TestResult {
+fn a_study_tree_is_exported_under_neutral_names_with_series_kept_together() -> TestResult {
     let source = tempfile::tempdir()?;
     let parent = tempfile::tempdir()?;
     let output = parent.path().join("export");
@@ -109,21 +128,23 @@ fn a_study_tree_is_mirrored_with_identifiers_replaced_and_series_kept_together()
     assert_eq!(report.instances_written, 3);
     assert_eq!(report.non_dicom_skipped, 1);
     assert_eq!(report.indexes_omitted, 1);
-    for file in ["s1/a.dcm", "s1/b.dcm", "s2/deep/c.dcm"] {
+    // Sources sort as DICOMDIR, notes.txt, s1/a.dcm, s1/b.dcm, s2/deep/c.dcm;
+    // the first two are left out and take no number.
+    let exported = ["000001.dcm", "000002.dcm", "000003.dcm"];
+    assert_eq!(listing(&output)?, exported);
+    for file in exported {
         assert_eq!(value(&output.join(file), PATIENT_NAME)?, "ANONYMOUS");
         assert_eq!(value(&output.join(file), PATIENT_ID)?, "ANON001");
     }
-    let first = value(&output.join("s1/a.dcm"), SERIES_UID)?;
-    assert_eq!(first, value(&output.join("s1/b.dcm"), SERIES_UID)?);
+    let first = value(&output.join("000001.dcm"), SERIES_UID)?;
+    assert_eq!(first, value(&output.join("000002.dcm"), SERIES_UID)?);
     assert_ne!(first, "1.2.3.10");
-    assert_ne!(first, value(&output.join("s2/deep/c.dcm"), SERIES_UID)?);
-    let exported = open_file(output.join("s1/a.dcm"))?;
+    assert_ne!(first, value(&output.join("000003.dcm"), SERIES_UID)?);
+    let exported = open_file(output.join("000001.dcm"))?;
     let meta_uid = exported.meta().media_storage_sop_instance_uid();
-    let data_set_uid = value(&output.join("s1/a.dcm"), Tag(0x0008, 0x0018))?;
+    let data_set_uid = value(&output.join("000001.dcm"), Tag(0x0008, 0x0018))?;
     assert_eq!(meta_uid, data_set_uid);
     assert_ne!(data_set_uid, "1.2.3.10.1");
-    assert!(!output.join("notes.txt").exists());
-    assert!(!output.join("DICOMDIR").exists());
     assert_eq!(std::fs::read(source.path().join("s1/a.dcm"))?, original);
     Ok(())
 }
@@ -172,16 +193,64 @@ fn a_patient_name_surviving_in_an_unlisted_element_removes_the_whole_export() ->
         return Err(format!("expected a verification failure, got {error}").into());
     };
     assert_eq!(issues.len(), 1);
-    assert!(issues[0].0.ends_with("z.dcm"));
+    assert_eq!(
+        issues[0].0,
+        source.path().canonicalize()?.join("s1").join("z.dcm")
+    );
     assert_eq!(
         issues[0].1,
         VerifyIssue::PatientLeak {
             value: String::from("Doe^John")
         }
     );
-    for file in ["s1/a.dcm", "s1/b.dcm", "s1/z.dcm", "s2/deep/c.dcm"] {
-        assert!(!output.path().join(file).exists(), "{file} was left behind");
+    assert_eq!(listing(output.path())?, [""; 0]);
+    Ok(())
+}
+
+#[test]
+fn identifiers_in_source_folder_and_file_names_do_not_reach_the_export() -> TestResult {
+    let root = tempfile::tempdir()?;
+    let named = root.path().join("Doe^John").join("PAT001");
+    for (file, sop) in [
+        ("1.2.3.10.2.dcm", "1.2.3.10.2"),
+        ("1.2.3.10.1", "1.2.3.10.1"),
+    ] {
+        write(
+            &instance("1.2.3.10", sop, CT_IMAGE_STORAGE)?,
+            &named.join("1.2.3.10").join(file),
+        )?;
     }
+
+    let folder = root.path().join("from-folder");
+    let report = anonymize_dicom_study(root.path().join("Doe^John"), &folder, &options())?;
+    assert_eq!(report.instances_written, 2);
+    assert_eq!(listing(&folder)?, ["000001.dcm", "000002.dcm"]);
+    // `1.2.3.10.1` sorts before `1.2.3.10.2.dcm`.
+    let salted = |sop: &str| {
+        let source = instance("1.2.3.10", sop, CT_IMAGE_STORAGE)?;
+        let (anonymized, _) = super::anonymize_object(source, &options())?;
+        Ok::<_, Box<dyn std::error::Error>>(
+            anonymized
+                .element(Tag(0x0008, 0x0018))?
+                .to_str()?
+                .trim_end_matches(['\0', ' '])
+                .to_owned(),
+        )
+    };
+    assert_eq!(
+        value(&folder.join("000001.dcm"), Tag(0x0008, 0x0018))?,
+        salted("1.2.3.10.1")?
+    );
+    assert_eq!(
+        value(&folder.join("000002.dcm"), Tag(0x0008, 0x0018))?,
+        salted("1.2.3.10.2")?
+    );
+
+    let single = root.path().join("from-file");
+    let source = named.join("1.2.3.10").join("1.2.3.10.2.dcm");
+    let report = anonymize_dicom_study(&source, &single, &options())?;
+    assert_eq!(report.instances_written, 1);
+    assert_eq!(listing(&single)?, ["000001.dcm"]);
     Ok(())
 }
 
@@ -208,16 +277,24 @@ fn an_object_without_pixel_data_is_exported_with_the_images() -> TestResult {
     let report = anonymize_dicom_study(&input, &output, &options())?;
 
     assert_eq!(report.instances_written, 2);
+    // `image.dcm` sorts first, so the report is the second export.
     assert_eq!(
-        value(&output.join("report.dcm"), PATIENT_NAME)?,
+        [
+            value(&output.join("000001.dcm"), Tag(0x0008, 0x0016))?,
+            value(&output.join("000002.dcm"), Tag(0x0008, 0x0016))?,
+        ],
+        [CT_IMAGE_STORAGE, "1.2.840.10008.5.1.4.1.1.88.11"]
+    );
+    assert_eq!(
+        value(&output.join("000002.dcm"), PATIENT_NAME)?,
         "ANONYMOUS"
     );
-    assert_eq!(value(&output.join("report.dcm"), PATIENT_ID)?, "ANON001");
-    let exported_series = value(&output.join("report.dcm"), SERIES_UID)?;
+    assert_eq!(value(&output.join("000002.dcm"), PATIENT_ID)?, "ANON001");
+    let exported_series = value(&output.join("000002.dcm"), SERIES_UID)?;
     assert_ne!(exported_series, "1.2.3.40");
     assert_ne!(
         exported_series,
-        value(&output.join("image.dcm"), SERIES_UID)?
+        value(&output.join("000001.dcm"), SERIES_UID)?
     );
     Ok(())
 }
