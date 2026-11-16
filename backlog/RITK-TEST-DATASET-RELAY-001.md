@@ -1,6 +1,7 @@
 <a id="RITK-TEST-DATASET-RELAY-001"></a>
 
 ## RITK-TEST-DATASET-RELAY-001 — Externalize large public test datasets — blocked
+- milestone: M-viewer-reading
 - outcome: Keep small analytical goldens in Git and fetch larger public datasets through the existing checksummed external-data path.
 - acceptance: Every fetch verifies a trusted SHA-256; all test consumers resolve the migrated inputs; a committed fixture-byte budget is enforced; unknown or identifying datasets remain untouched.
 - scope: test_data/, externals/, xtask/src/datasets/, consuming tests, and dataset documentation

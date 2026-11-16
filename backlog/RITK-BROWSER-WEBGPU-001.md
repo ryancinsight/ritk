@@ -1,6 +1,7 @@
 <a id="RITK-BROWSER-WEBGPU-001"></a>
 
 ## RITK-BROWSER-WEBGPU-001 — Demonstrate browser WebGPU presentation — blocked
+- milestone: M-viewer-compare
 - outcome: Render the public MRI-DIR study through the RITK WebGPU canvas path.
 - acceptance: The hosted browser obtains an adapter, presents all study canvases, records PNGs and semantic attributes, and tears down within the session budget.
 - scope: crates/ritk-snap/src/render/gpu_volume/, browser gallery, and provenance

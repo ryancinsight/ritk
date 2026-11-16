@@ -1,6 +1,7 @@
 <a id="RITK-FIXTURE-RETENTION-001"></a>
 
 ## RITK-FIXTURE-RETENTION-001 — Decide imaging fixture retention — blocked
+- milestone: M-viewer-reading
 - outcome: Preserve identifiable or unique imaging data until its owner records a retention decision.
 - acceptance: Each inventory row with unknown provenance, license, or identifying metadata has an explicit owner decision before removal or redistribution.
 - scope: test_data/, payload manifest, and fixture documentation

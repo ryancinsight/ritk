@@ -1,6 +1,7 @@
 <a id="RITK-NRRD-NIFTI-001"></a>
 
 ## RITK-NRRD-NIFTI-001 — Convert NRRD and NIfTI volumes — blocked
+- milestone: M-viewer-reading
 - outcome: Convert representable NRRD and NIfTI volumes without changing sample bits or physical meaning.
 - acceptance: Both directions preserve exact samples, LPS millimeter geometry, calibration, and axis semantics; unknown fields or unsupported units yield typed loss before output changes.
 - scope: crates/ritk-io/, crates/ritk-nrrd/, crates/ritk-nifti/, pair tests, and manual

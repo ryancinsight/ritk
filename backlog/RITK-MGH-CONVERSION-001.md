@@ -1,6 +1,7 @@
 <a id="RITK-MGH-CONVERSION-001"></a>
 
 ## RITK-MGH-CONVERSION-001 — Preserve MGH and MGZ volume semantics — blocked
+- milestone: M-viewer-reading
 - outcome: convert MGH/MGZ volumes through RITK without changing represented samples or geometry.
 - acceptance: supported scalar types, affine geometry, calibration, and compressed/uncompressed packaging round-trip or return typed loss before output changes.
 - scope: crates/ritk-mgh/, crates/ritk-io/, MGH tests and manual

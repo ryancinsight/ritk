@@ -1,6 +1,7 @@
 <a id="RITK-MIF-CONVERSION-001"></a>
 
 ## RITK-MIF-CONVERSION-001 — Preserve MRtrix image semantics — blocked
+- milestone: M-viewer-reading
 - outcome: Connect MIF read/write operations to stored models and shared dispatch.
 - acceptance: Supported samples, geometry, units, calibration, diffusion metadata, and axes survive or yield scoped typed loss before output changes.
 - scope: crates/ritk-mif/, crates/ritk-io/src/format/mif/, conversion tests, and guide

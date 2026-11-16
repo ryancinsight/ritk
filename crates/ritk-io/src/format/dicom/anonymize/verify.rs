@@ -19,11 +19,14 @@
 //!
 //! 1. **Part 10 re-parse** — the exported file must open and parse as a valid
 //!    DICOM object (catches truncated or structurally corrupt writes).
-//! 2. **UID referential integrity** — StudyInstanceUID, SeriesInstanceUID,
-//!    SOPInstanceUID and FrameOfReferenceUID must all be present, non-empty,
-//!    DICOM-conformant, and identical across every file in the same series
-//!    (except SOPInstanceUID, which must be unique per instance). A missing or
-//!    mutated Study/Series UID breaks study reassembly at the destination.
+//! 2. **UID referential integrity** — StudyInstanceUID, SeriesInstanceUID and
+//!    SOPInstanceUID must all be present, non-empty, DICOM-conformant, and
+//!    identical across every file in the same series (except SOPInstanceUID,
+//!    which must be unique per instance). A missing or mutated Study/Series
+//!    UID breaks study reassembly at the destination. FrameOfReferenceUID is
+//!    checked for conformance where present and never required: the verifier
+//!    does not resolve the object's IOD, and an object without a spatial
+//!    frame carries none.
 //! 3. **De-identification completeness** — when a profile is supplied, every
 //!    tag the profile targets must either be absent or carry its replacement
 //!    value; the raw patient-identifying values that were scrubbed must not
@@ -54,6 +57,12 @@ use dicom::core::Tag;
 use dicom::object::{open_file, FileDicomObject, InMemDicomObject};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+
+mod instance_set;
+mod leak_scan;
+
+pub use instance_set::verify_dicom_instances;
+use leak_scan::scan_prohibited_values;
 
 /// A single verification finding.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -111,7 +120,7 @@ impl std::fmt::Display for VerifyIssue {
 /// Options controlling verification strictness.
 #[derive(Debug, Clone)]
 pub struct VerifyOptions {
-    /// Whether Study/Series/FrameOfReference UIDs must be present on every file.
+    /// Whether Study, Series and SOP Instance UIDs must be present on every file.
     /// Defaults to `true`.
     pub require_uids: bool,
     /// Whether UIDs must match the DICOM UID charset (`^[0-9.]+$`, no leading
@@ -121,9 +130,16 @@ pub struct VerifyOptions {
     /// Defaults to `true`. Set to `false` for multi-frame or compressed
     /// transfer syntaxes where the flat-frame invariant does not apply.
     pub validate_pixel_geometry: bool,
-    /// Raw patient-identifying values that must not appear anywhere in the
-    /// object after anonymization. This is a belt-and-suspenders scan for the
-    /// specific values the pipeline scrubbed (e.g. `["Doe^John", "PAT001"]`).
+    /// Raw patient-identifying values that must not survive anonymization
+    /// (e.g. `["Doe^John", "PAT001"]`), scanned for in every data set, nested
+    /// sequence items included.
+    ///
+    /// In free text (AE, CS, LO, LT, PN, SH, ST, UC, UT, and UN bytes read as
+    /// text) a value is leaked when it occurs with no letter or digit directly
+    /// before or after it: a patient ID of `7` is found in `ward 7` and not in
+    /// `17`, and `PAT001` is not found in `PAT001A`. In UI, DA, DT and UR
+    /// elements a value is leaked when it equals one of the element's values.
+    /// Numeric and binary elements are not read. Empty entries are ignored.
     pub prohibited_values: Vec<String>,
 }
 
@@ -225,7 +241,6 @@ pub fn verify_dicom_file(
         ("StudyInstanceUID", Tag(0x0020, 0x000D)),
         ("SeriesInstanceUID", Tag(0x0020, 0x000E)),
         ("SOPInstanceUID", Tag(0x0008, 0x0018)),
-        ("FrameOfReferenceUID", Tag(0x0020, 0x0052)),
     ] {
         let value = tag_uid(&obj, tag);
         if options.require_uids {
@@ -246,6 +261,17 @@ pub fn verify_dicom_file(
         } else if let Some(v) = value {
             report.uids.push((name.to_owned(), v));
         }
+    }
+    // Never required: the verifier does not resolve the IOD, and an object
+    // without a spatial frame carries no Frame of Reference UID.
+    if let Some(v) = tag_uid(&obj, Tag(0x0020, 0x0052)) {
+        if options.validate_uid_format && !uid_is_valid(&v) {
+            report.issues.push(VerifyIssue::InvalidUid {
+                tag: "FrameOfReferenceUID".to_owned(),
+                value: v.clone(),
+            });
+        }
+        report.uids.push(("FrameOfReferenceUID".to_owned(), v));
     }
 
     // ── 2. Geometry coherence ─────────────────────────────────────────────
@@ -310,24 +336,6 @@ fn check_geometry(obj: &FileDicomObject<InMemDicomObject>, report: &mut FileVeri
                      (rows={rows} cols={cols} samples={samples} bits={bits})"
             ),
         });
-    }
-}
-
-fn scan_prohibited_values(
-    obj: &FileDicomObject<InMemDicomObject>,
-    prohibited: &[String],
-    report: &mut FileVerifyReport,
-) {
-    for element in obj.iter() {
-        let Ok(text) = element.to_str() else {
-            continue;
-        };
-        let value = text.into_owned();
-        if let Some(hit) = prohibited.iter().find(|p| value.contains(p.as_str())) {
-            report
-                .issues
-                .push(VerifyIssue::PatientLeak { value: hit.clone() });
-        }
     }
 }
 

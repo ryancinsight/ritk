@@ -1,6 +1,7 @@
 <a id="RITK-VTK-IMAGE-CONTRACT-001"></a>
 
 ## RITK-VTK-IMAGE-CONTRACT-001 — Separate VTK image semantics — todo
+- milestone: M-viewer-reading
 - outcome: Define the VTK image-data contract independently of mesh and scene formats.
 - acceptance: Value cases distinguish scalar arrays, origin, spacing, direction, and layout from mesh and scene data for VTI and legacy image data.
 - scope: crates/ritk-vtk/src/domain/vtk_data_object/volume.rs, VTK image I/O, tests, and manual

@@ -1,6 +1,7 @@
 <a id="RITK-METAIMAGE-CONVERSION-INVENTORY-001"></a>
 
 ## RITK-METAIMAGE-CONVERSION-INVENTORY-001 — Map MetaImage volume semantics — todo
+- milestone: M-viewer-reading
 - outcome: Map MetaImage headers and stored samples to RITK volume fields or typed loss.
 - acceptance: A checked matrix covers dimension, type, byte order, compression, origin, spacing, direction, detached payload, and calibration with value-test references.
 - scope: crates/ritk-metaimage/, crates/ritk-io/src/format/metaimage/, tests, and manual

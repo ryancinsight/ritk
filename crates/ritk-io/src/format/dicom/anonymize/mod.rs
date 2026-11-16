@@ -22,6 +22,9 @@
 //!   object it would have described is never returned as a success.
 
 mod profile;
+#[cfg(not(target_arch = "wasm32"))]
+mod salt;
+mod study;
 #[cfg(test)]
 mod tests_anonymize;
 #[cfg(test)]
@@ -34,11 +37,16 @@ mod tests_anonymize_stats;
 #[path = "tests_recursion.rs"]
 mod tests_recursion;
 #[cfg(test)]
+mod tests_study;
+#[cfg(test)]
 #[path = "tests_verify.rs"]
 mod tests_verify;
 pub mod verify;
 
 pub use profile::{AnonymizationProfile, TagAction};
+#[cfg(not(target_arch = "wasm32"))]
+pub use salt::SaltError;
+pub use study::{anonymize_dicom_study, StudyAnonymizeError, StudyAnonymizeReport};
 
 /// Controls whether an anonymization step is applied.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
