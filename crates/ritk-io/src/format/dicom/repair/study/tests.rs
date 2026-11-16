@@ -1,6 +1,7 @@
 //! A repaired copy of a study folder.
 
-use super::{repair_dicom_study, StudyRepairReport};
+use super::{repair_dicom_study, StudyRepairError, StudyRepairReport};
+use crate::format::dicom::export_tree::ExportTreeError;
 use crate::format::dicom::repair::RepairSummary;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::{meta::FileMetaTableBuilder, open_file, InMemDicomObject};
@@ -199,5 +200,87 @@ fn a_study_copy_is_repaired_and_the_source_is_untouched() -> TestResult {
             "10:20:30"
         ]
     );
+    Ok(())
+}
+
+#[test]
+fn invalid_class_and_instance_uids_leave_the_file_meta_group_as_stored() -> TestResult {
+    let root = tempfile::tempdir()?;
+    let (input, output) = (root.path().join("study"), root.path().join("copy"));
+    write(
+        &input.join("a.dcm"),
+        (MR_IMAGE_STORAGE, "1.2.3.9"),
+        &[
+            (SOP_CLASS_UID, VR::UI, "1..5"),
+            (SOP_INSTANCE_UID, VR::UI, "1..2"),
+        ],
+    )?;
+
+    let report = repair_dicom_study(&input, &output)?;
+
+    assert_eq!(
+        report,
+        StudyRepairReport {
+            instances_written: 1,
+            ..StudyRepairReport::default()
+        }
+    );
+    assert_eq!(
+        stored(&output.join("a.dcm"), &[SOP_INSTANCE_UID])?,
+        [MR_IMAGE_STORAGE, "1.2.3.9", "1..2"]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_folder_without_instances_produces_no_copy() -> TestResult {
+    let root = tempfile::tempdir()?;
+    let (input, output) = (root.path().join("study"), root.path().join("copy"));
+    std::fs::create_dir_all(&input)?;
+    std::fs::write(input.join("notes.txt"), "not DICOM")?;
+
+    let error = repair_dicom_study(&input, &output).expect_err("nothing to repair");
+
+    assert!(
+        matches!(&error, StudyRepairError::NoInstances(path) if path.ends_with("study")),
+        "{error:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_missing_source_and_an_output_inside_the_study_are_refused() -> TestResult {
+    let root = tempfile::tempdir()?;
+    let input = root.path().join("study");
+
+    let missing = repair_dicom_study(&input, root.path().join("copy"))
+        .expect_err("the source does not exist");
+    assert!(
+        matches!(
+            &missing,
+            StudyRepairError::Tree(ExportTreeError::Io { action: "resolve", path, .. })
+                if path == &input
+        ),
+        "{missing:?}"
+    );
+
+    write(
+        &input.join("a.dcm"),
+        (CT_IMAGE_STORAGE, "1.2.3.4"),
+        &[
+            (SOP_CLASS_UID, VR::UI, CT_IMAGE_STORAGE),
+            (SOP_INSTANCE_UID, VR::UI, "1.2.3.4"),
+        ],
+    )?;
+    let overlapping =
+        repair_dicom_study(&input, input.join("copy")).expect_err("overlapping output");
+    assert!(
+        matches!(
+            overlapping,
+            StudyRepairError::Tree(ExportTreeError::OutputOverlapsInput { .. })
+        ),
+        "{overlapping:?}"
+    );
+    assert!(!input.join("copy").exists());
     Ok(())
 }
