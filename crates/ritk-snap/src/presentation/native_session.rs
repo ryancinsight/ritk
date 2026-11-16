@@ -23,6 +23,7 @@ mod frame;
 mod layout;
 mod pressed_buttons;
 mod projection;
+mod repair;
 mod routing;
 mod series;
 mod series_browser;

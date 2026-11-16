@@ -282,7 +282,7 @@ fn menu_tab_geometry(menu: Menu) -> u32 {
 
 fn menu_item_count(menu: Menu, workspace_layout: WorkspaceLayout) -> usize {
     match menu {
-        Menu::File => 4,
+        Menu::File => 5,
         Menu::View => {
             if workspace_layout.is_grid() {
                 3
@@ -318,7 +318,8 @@ fn menu_item(
                 WindowAction::AnonymizeStudy(Deidentification::Strict),
                 false,
             )),
-            3 => Ok(("Exit", WindowAction::Exit, false)),
+            3 => Ok(("Repair Study Copy...", WindowAction::RepairStudy, false)),
+            4 => Ok(("Exit", WindowAction::Exit, false)),
             _ => Err(anyhow!("native File menu row is outside its items")),
         },
         Menu::View if workspace_layout.is_grid() => match index {

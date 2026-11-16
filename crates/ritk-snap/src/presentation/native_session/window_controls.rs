@@ -30,6 +30,7 @@ pub(super) enum WindowAction {
     OpenMenu(Menu),
     OpenStudy,
     AnonymizeStudy(Deidentification),
+    RepairStudy,
     OpenSeriesPicker,
     LoadSelectedSeries,
     Exit,

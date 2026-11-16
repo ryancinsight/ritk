@@ -2,7 +2,7 @@ use super::*;
 use crate::presentation::{PointerButton, PresentationEvent};
 
 #[test]
-fn file_menu_routes_study_open_anonymize_and_exit_commands() {
+fn file_menu_routes_study_open_anonymize_repair_and_exit_commands() {
     let app = SnapApp::default();
     let layout = ChromeLayout::new(
         1_280,
@@ -27,6 +27,10 @@ fn file_menu_routes_study_open_anonymize_and_exit_commands() {
     );
     assert_eq!(
         layout.action_at(20.0, 128.0, None),
+        Some(WindowAction::RepairStudy)
+    );
+    assert_eq!(
+        layout.action_at(20.0, 156.0, None),
         Some(WindowAction::Exit)
     );
 }
