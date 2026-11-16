@@ -1,4 +1,11 @@
-//! The file meta copy of the SOP Instance UID.
+//! The file meta group of a de-identified object.
+//!
+//! PS3.10 Table 7.1-1 lets the group name the application entities a file
+//! passed through, (0002,0016), (0002,0017) and (0002,0018), and carry
+//! private information under a creator UID, (0002,0100) and (0002,0102).
+//! These describe the source site, so a de-identified object carries none.
+//! A file whose group length (0002,0000) ends early hands its remaining
+//! group 0002 elements to the data set reader; they are removed there too.
 //!
 //! PS3.10 Table 7.1-1 defines Media Storage SOP Instance UID (0002,0003) as
 //! the SOP Instance UID of the data set the file holds. A de-identified data
@@ -44,6 +51,28 @@ pub(in crate::format::dicom) fn align_media_storage_uid(
     let named_another = object.meta().media_storage_sop_instance_uid() != uid;
     object.update_meta(|meta| meta.media_storage_sop_instance_uid = uid);
     named_another
+}
+
+/// Remove Source, Sending and Receiving Application Entity Title, Private
+/// Information Creator UID and Private Information from the file meta group
+/// and recompute the group length (0002,0000). Every top-level data set
+/// element of group 0002 is removed as well, whatever its element number.
+pub(super) fn remove_origin(object: &mut FileDicomObject<InMemDicomObject>) {
+    let misplaced: Vec<Tag> = object
+        .iter()
+        .map(|element| element.header().tag)
+        .filter(|tag| tag.group() == 0x0002)
+        .collect();
+    for tag in misplaced {
+        object.remove_element(tag);
+    }
+    object.update_meta(|meta| {
+        meta.source_application_entity_title = None;
+        meta.sending_application_entity_title = None;
+        meta.receiving_application_entity_title = None;
+        meta.private_information_creator_uid = None;
+        meta.private_information = None;
+    });
 }
 
 /// The issue raised when the file meta group names another instance than the

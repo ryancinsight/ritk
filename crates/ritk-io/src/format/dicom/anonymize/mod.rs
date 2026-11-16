@@ -12,9 +12,12 @@
 //! - Non-DICOM files in directory mode are skipped silently.
 //! - Tag actions and private-tag removal are applied at every sequence nesting
 //!   level, not only to top-level elements.
-//! - The file meta group keeps its transfer syntax and SOP class; its Media
-//!   Storage SOP Instance UID is set to the data set's SOPInstanceUID when
-//!   that is a single conformant UID, and is otherwise left as it was.
+//! - The file meta group keeps its transfer syntax, SOP class and
+//!   implementation identifiers; its Media Storage SOP Instance UID is set to
+//!   the data set's SOPInstanceUID when that is a single conformant UID, and
+//!   is otherwise left as it was; its application entity titles and private
+//!   information are removed, as is every top-level group 0002 element of
+//!   the data set.
 //! - `clean_pixel_data = CleaningPolicy::Skip` (default) never touches pixel data.
 //! - Same `(original_uid, salt)` always produces the same replacement UID.
 //! - Every count in [`AnonymizeResult`] is taken from the mutation that produced
@@ -470,8 +473,11 @@ fn anonymize_dataset(
 /// (via `DerefMut`), and descends into every nested sequence so that
 /// identifying attributes below the top level are acted on as well. In the file
 /// meta group Media Storage SOP Instance UID is set to the data set's
-/// SOPInstanceUID when that is a single conformant UID, and the group length
-/// is recomputed; no other file meta element changes. Returns
+/// SOPInstanceUID when that is a single conformant UID; Source, Sending and
+/// Receiving Application Entity Title, Private Information Creator UID and
+/// Private Information are removed; the group length is recomputed; no other
+/// file meta element changes. Top-level data set elements of group 0002 are
+/// removed. Returns
 /// `AnonymizeResult` with per-operation statistics and the UID
 /// cross-reference map.
 ///
@@ -526,6 +532,7 @@ pub fn anonymize_object(
     }
 
     file_meta::align_media_storage_uid(&mut obj);
+    file_meta::remove_origin(&mut obj);
     result.uid_map = uid_map;
     Ok((obj, result))
 }
