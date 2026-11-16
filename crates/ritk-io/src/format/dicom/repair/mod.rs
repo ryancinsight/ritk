@@ -11,6 +11,8 @@
 //! and are not read.
 
 mod data_set;
+mod study;
 mod value;
 
 pub use data_set::{repair_values, RepairError, RepairSummary};
+pub use study::{repair_dicom_study, StudyRepairError, StudyRepairReport};

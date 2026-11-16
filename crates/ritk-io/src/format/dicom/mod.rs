@@ -3,6 +3,7 @@ mod codec;
 mod color;
 mod color_common;
 mod color_multiframe;
+mod export_source;
 mod export_tree;
 /// Conformant Part 10 file-set index construction for consumers' tests.
 ///
