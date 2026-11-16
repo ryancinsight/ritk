@@ -38,11 +38,11 @@
 - evidence: mirroring is the documented layout of ritk#920; both witnesses cited by the judge of ritk#922; no test reproduces it yet.
 - reopen: before the viewer's de-identified export is called complete; file the correctness item with a failing test, then choose neutral output names or a path-component scan in the export gate.
 
-<a id="RITK-DICOM-ANONYMIZE-NONIMAGE-001"></a>
-## RITK-DICOM-ANONYMIZE-NONIMAGE-001: a study holding SR, KO or PR objects may fail the export gate whole
-- risk: the default geometry check rejects an instance without image geometry, and one rejected instance removes the entire de-identified export.
-- evidence: raised by the judge of ritk#920 from reading `anonymize/verify.rs`; not reproduced with a fixture.
-- reopen: with the next change to `anonymize/study.rs` or `anonymize/verify.rs`, export one image plus one SR without pixel data; file the correctness item if it is rejected, delete this risk if it passes.
+<a id="RITK-DICOM-VERIFY-PACKED-BITS-001"></a>
+## RITK-DICOM-VERIFY-PACKED-BITS-001: the export gate sizes a 1-bit frame at one byte per sample
+- risk: `check_geometry` in `anonymize/verify.rs` expects `Rows * Columns * SamplesPerPixel * ceil(BitsAllocated / 8)` bytes, so a single-frame object with BitsAllocated 1 and bit-packed PixelData (a segmentation) is reported short and removes a whole de-identified export.
+- evidence: filed by the judge of ritk#931 from reading; the packing rule was recalled from PS3.5, not looked up, and no fixture reproduces it.
+- reopen: at the next change to `check_geometry`; read PS3.5 section 8.1.1, then export one 1-bit single-frame object and file the correctness item if it is rejected.
 
 <a id="RITK-DICOM-ANONYMIZE-STUDY-002"></a>
 ## RITK-DICOM-ANONYMIZE-STUDY-002: study export failures lose their cause, and filed judge findings are open

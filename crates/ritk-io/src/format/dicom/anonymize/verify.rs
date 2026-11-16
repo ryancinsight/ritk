@@ -34,10 +34,16 @@
 //!    value; the raw patient-identifying values that were scrubbed must not
 //!    resurface. This is checked against the *expected* post-anonymization
 //!    state, not by scanning for arbitrary strings.
-//! 4. **Geometry coherence** — Rows/Columns/BitsAllocated must be present and
-//!    the PixelData byte length must match `Rows * Columns * BytesPerPixel`
-//!    (per-frame), catching metadata/pixel drift that PACS viewers tolerate
-//!    silently but that corrupts quantitative analysis.
+//! 4. **Geometry coherence** — an object holding Float Pixel Data
+//!    (7FE0,0008), Double Float Pixel Data (7FE0,0009) or Pixel Data
+//!    (7FE0,0010) must carry non-zero Rows/Columns/BitsAllocated, and native
+//!    Pixel Data must hold at least one frame of
+//!    `Rows * Columns * SamplesPerPixel * BytesPerSample`, catching
+//!    metadata/pixel drift that PACS viewers tolerate silently but that
+//!    corrupts quantitative analysis. The length of float, double float and
+//!    encapsulated pixel data is not checked. An object holding none of the
+//!    three elements (a structured report, a key object selection, a
+//!    presentation state) is not checked.
 //! 5. **Cross-file consistency** — in directory mode, all files must share one
 //!    StudyInstanceUID and one SeriesInstanceUID (for a single-series export),
 //!    and SOPInstanceUIDs must be unique.
@@ -130,9 +136,8 @@ pub struct VerifyOptions {
     /// Whether UIDs must match the DICOM UID charset (`^[0-9.]+$`, no leading
     /// zeros per component). Defaults to `true`.
     pub validate_uid_format: bool,
-    /// Whether PixelData length must exactly match `Rows*Cols*BytesPerPixel`.
-    /// Defaults to `true`. Set to `false` for multi-frame or compressed
-    /// transfer syntaxes where the flat-frame invariant does not apply.
+    /// Whether the geometry coherence check of the module documentation
+    /// runs. Defaults to `true`.
     pub validate_pixel_geometry: bool,
     /// Raw patient-identifying values that must not survive anonymization
     /// (e.g. `["Doe^John", "PAT001"]`), scanned for in every data set, nested
@@ -294,7 +299,20 @@ pub fn verify_dicom_file(
     Ok(report)
 }
 
+/// Float Pixel Data, Double Float Pixel Data and Pixel Data.
+const PIXEL_DATA_ELEMENTS: [Tag; 3] = [
+    Tag(0x7FE0, 0x0008),
+    Tag(0x7FE0, 0x0009),
+    Tag(0x7FE0, 0x0010),
+];
+
 fn check_geometry(obj: &FileDicomObject<InMemDicomObject>, report: &mut FileVerifyReport) {
+    if PIXEL_DATA_ELEMENTS
+        .iter()
+        .all(|tag| obj.element(*tag).is_err())
+    {
+        return;
+    }
     let rows = obj
         .element(Tag(0x0028, 0x0010))
         .ok()

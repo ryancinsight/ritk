@@ -10,7 +10,8 @@
 //! The export gate checks, per file:
 //! - the file re-parses as a conformant Part 10 DICOM object;
 //! - Study/Series/SOPInstance/FrameOfReference UIDs are present and conformant;
-//! - Rows/Columns/BitsAllocated match the PixelData payload;
+//! - an object holding pixel data carries Rows/Columns/BitsAllocated, and
+//!   native PixelData holds at least one frame of that size;
 //! - none of the `prohibited_values` (the raw identifiers that were scrubbed)
 //!   appear anywhere in the object.
 //!
