@@ -8,9 +8,22 @@
 use crate::presentation::PointerButton;
 use crate::tools::interaction::ToolState;
 use crate::tools::kind::ToolKind;
+use thiserror::Error;
+
+/// Failure reassigning a pointer button to a viewer tool.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub(crate) enum PointerBindingError {
+    /// The left button always runs the selected tool.
+    #[error("the left button runs the selected tool and cannot be reassigned")]
+    LeftButton,
+}
 
 /// Tools assigned to the buttons other than the left button.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// The assignments serialize to the host settings store so a reader's layout
+/// survives a restart. [`ToolKind`] already carries the serde representation;
+/// the struct order is the stored order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct PointerBindings {
     middle: ToolKind,
     right: ToolKind,
@@ -40,6 +53,37 @@ impl PointerBindings {
             PointerButton::X2 => self.forward,
         }
     }
+
+    /// Assign `tool` to a non-primary button.
+    ///
+    /// # Errors
+    /// Returns [`PointerBindingError::LeftButton`] when `button` is
+    /// [`PointerButton::Left`], which always runs the selected tool.
+    pub(crate) fn assign(
+        &mut self,
+        button: PointerButton,
+        tool: ToolKind,
+    ) -> Result<(), PointerBindingError> {
+        match button {
+            PointerButton::Left => Err(PointerBindingError::LeftButton),
+            PointerButton::Middle => {
+                self.middle = tool;
+                Ok(())
+            }
+            PointerButton::Right => {
+                self.right = tool;
+                Ok(())
+            }
+            PointerButton::X1 => {
+                self.back = tool;
+                Ok(())
+            }
+            PointerButton::X2 => {
+                self.forward = tool;
+                Ok(())
+            }
+        }
+    }
 }
 
 /// The button and tool that own a gesture from press to release.
@@ -47,6 +91,12 @@ impl PointerBindings {
 pub(crate) struct PointerGestureOwner {
     pub(crate) button: PointerButton,
     pub(crate) tool: ToolKind,
+    /// The gesture runs a modifier override rather than the selected tool.
+    ///
+    /// A modified left press behaves like the equivalent non-primary button
+    /// gesture: it never places measurement anchors and its release never runs
+    /// the click path of the still-selected tool.
+    pub(crate) modified: bool,
 }
 
 /// Pointer state of one viewer panel.

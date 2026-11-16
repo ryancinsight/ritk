@@ -161,7 +161,12 @@ impl WindowChrome {
             workspace_layout,
         )?;
         match event {
-            PresentationEvent::PointerDown { x, y, button } => {
+            PresentationEvent::PointerDown {
+                x,
+                y,
+                button,
+                modifiers: PresentationModifiers::NONE,
+            } => {
                 self.forget_lost_release(*button);
                 if self.pointer_owner == PointerOwner::None && *button == PointerButton::Left {
                     let panel_action = (self.open_menu.is_none()

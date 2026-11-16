@@ -5,7 +5,7 @@
 //! viewer transitions perform all domain work. No DICOM value or parser state
 //! is part of this contract.
 
-use super::pointer_bindings::PointerGestureOwner;
+use super::pointer_bindings::{PointerBindingError, PointerGestureOwner};
 use super::state::SnapApp;
 use super::viewer_viewport::ViewerViewport;
 use crate::presentation::{
@@ -109,6 +109,22 @@ impl SnapApp {
         self.pointer.abandon();
     }
 
+    /// Assign `tool` to a non-primary pointer button.
+    ///
+    /// A host menu calls this when the reader rebinds a mouse button, then
+    /// persists [`Self::pointer_bindings`] in its settings store.
+    ///
+    /// # Errors
+    /// Returns [`PointerBindingError::LeftButton`] when `button` is
+    /// [`PointerButton::Left`], which always runs the selected tool.
+    pub(crate) fn assign_pointer_tool(
+        &mut self,
+        button: PointerButton,
+        tool: ToolKind,
+    ) -> Result<(), PointerBindingError> {
+        self.pointer.bindings.assign(button, tool)
+    }
+
     /// Apply one reduced host action to the RITK viewer state.
     ///
     /// Pointer actions require the viewport they target. Actions outside that
@@ -146,7 +162,11 @@ impl SnapApp {
                 self.update_pointer_intensity(viewport.axis(), Some(image));
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
-            ViewerAction::PointerPressed { button, position } => {
+            ViewerAction::PointerPressed {
+                button,
+                position,
+                modifiers,
+            } => {
                 if self.pointer.owner.is_some() {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 }
@@ -156,16 +176,35 @@ impl SnapApp {
                 let Some(image) = viewport.map(*position) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
-                let tool = self.pointer.bindings.tool_for(*button, self.active_tool);
+                // A modified left press runs a display gesture without leaving
+                // the selected tool: Control adjusts window/level and Shift
+                // pans, matching the RadiAnt 2D modifier table. Control wins
+                // when both modifiers are held.
+                let override_tool = if *button == PointerButton::Left {
+                    if modifiers.ctrl() {
+                        Some(ToolKind::WindowLevel)
+                    } else if modifiers.shift() {
+                        Some(ToolKind::Pan)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                let modified = override_tool.is_some();
+                let tool = override_tool
+                    .unwrap_or_else(|| self.pointer.bindings.tool_for(*button, self.active_tool));
                 self.pointer.owner = Some(PointerGestureOwner {
                     button: *button,
                     tool,
+                    modified,
                 });
                 if is_label_tool(tool) {
                     self.apply_label_at_pointer(viewport.axis(), Some(image));
                 }
-                let places_next_anchor =
-                    *button == PointerButton::Left && self.tool_state.is_pending_measurement();
+                let places_next_anchor = *button == PointerButton::Left
+                    && !modified
+                    && self.tool_state.is_pending_measurement();
                 if !places_next_anchor {
                     self.on_drag_start(tool, Some(image));
                 }
@@ -194,12 +233,14 @@ impl SnapApp {
                 position,
                 gesture,
             } => {
-                if !self.owns_gesture(*button) {
+                let Some(owner) = self.pointer.owner.filter(|owner| owner.button == *button) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
-                }
+                };
                 let mapped = viewport.and_then(|viewport| viewport.map(*position));
                 if *gesture == PointerGesture::Click {
-                    if *button == PointerButton::Left {
+                    // A modified left release ends a display gesture: it never
+                    // runs the selected tool's click path.
+                    if *button == PointerButton::Left && !owner.modified {
                         if let Some(viewport) = viewport
                             && let Some(image) = mapped
                         {

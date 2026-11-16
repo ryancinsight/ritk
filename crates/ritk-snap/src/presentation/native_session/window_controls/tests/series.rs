@@ -65,7 +65,15 @@ fn cancelling_one_held_button_leaves_the_chrome_the_other_holds() {
     let (x, y) = (100.0, 160.0);
     let hover = PresentationEvent::PointerMove { x: 640.0, y: 400.0 };
     for button in [PointerButton::Right, PointerButton::Middle] {
-        assert!(send(PresentationEvent::PointerDown { x, y, button }).consumed);
+        assert!(
+            send(PresentationEvent::PointerDown {
+                x,
+                y,
+                button,
+                modifiers: crate::presentation::PresentationModifiers::NONE
+            })
+            .consumed
+        );
     }
 
     let button = PointerButton::Right;
@@ -260,6 +268,7 @@ fn grouped_series_cards_route_selection_and_consume_viewer_input() {
         x: f64::from(second_card.0),
         y: f64::from(second_card.1),
         button: PointerButton::Left,
+        modifiers: crate::presentation::PresentationModifiers::NONE,
     };
 
     assert_eq!(
@@ -324,6 +333,7 @@ fn vertical_scrollbar_pages_through_the_discovered_series() {
                     x: 270.0,
                     y: 750.0,
                     button: PointerButton::Left,
+                    modifiers: crate::presentation::PresentationModifiers::NONE,
                 },
                 1_280,
                 800,

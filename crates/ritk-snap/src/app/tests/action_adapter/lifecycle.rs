@@ -22,6 +22,7 @@ fn lost_pointer_cancellation_releases_dispatcher_for_the_next_press() {
             x: 2.25,
             y: 2.75,
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
     );
     app.cancel_presentation_gesture();
@@ -44,6 +45,7 @@ fn lost_pointer_cancellation_releases_dispatcher_for_the_next_press() {
             x: 3.5,
             y: 3.5,
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
     );
     assert!(matches!(app.tool_state, ToolState::Panning { .. }));
@@ -63,6 +65,7 @@ fn focus_loss_cancels_a_gesture_and_lifecycle_actions_exit() {
             x: 2.0,
             y: 2.0,
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
     );
     assert!(matches!(app.tool_state, ToolState::Panning { .. }));

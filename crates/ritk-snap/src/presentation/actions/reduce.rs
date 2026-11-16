@@ -81,7 +81,12 @@ impl PresentationDispatcher {
                 }
                 Ok(())
             }
-            PresentationEvent::PointerDown { x, y, button } => {
+            PresentationEvent::PointerDown {
+                x,
+                y,
+                button,
+                modifiers,
+            } => {
                 let slot = button_slot(*button);
                 let position = viewport_point(*x, *y)?;
                 // A second press proves the host lost the release, so the
@@ -106,6 +111,7 @@ impl PresentationDispatcher {
                     ViewerAction::PointerPressed {
                         button: *button,
                         position,
+                        modifiers: *modifiers,
                     },
                     action_limit,
                 )

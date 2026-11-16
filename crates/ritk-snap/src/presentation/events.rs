@@ -184,6 +184,12 @@ pub enum PresentationEvent {
         y: f64,
         /// Pressed button.
         button: PointerButton,
+        /// Modifier keys held when the press event was received.
+        ///
+        /// Hosts whose window event carries no press modifiers report
+        /// [`PresentationModifiers::NONE`]; the viewer treats such a press as
+        /// an unmodified gesture.
+        modifiers: PresentationModifiers,
     },
     /// A pointer button was released in client coordinates.
     PointerUp {

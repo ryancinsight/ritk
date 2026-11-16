@@ -49,6 +49,7 @@ mod tests {
                 x,
                 y,
                 button: PointerButton::Left,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             }])
             .expect("valid pointer press");
         assert_eq!(
@@ -56,6 +57,7 @@ mod tests {
             &[ViewerAction::PointerPressed {
                 button: PointerButton::Left,
                 position: ViewportPoint::new(0.25, 0.75),
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             }]
         );
         let [x, y] = content_fraction([40.25, 90.5625], [161.0, 120.75])

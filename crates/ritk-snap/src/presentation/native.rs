@@ -119,6 +119,11 @@ pub fn translate_native_events(events: &[WindowEvent]) -> Result<Box<[Presentati
                 x: f64::from(*x),
                 y: f64::from(*y),
                 button: translate_pointer_button(*button),
+                // The native window event carries no press modifiers yet, so
+                // the viewer treats every native press as unmodified. Threading
+                // the real modifier snapshot needs `ModifierState` on the
+                // provider `WindowEvent::PointerDown` first.
+                modifiers: PresentationModifiers::NONE,
             },
             WindowEvent::PointerUp { x, y, button } => PresentationEvent::PointerUp {
                 x: f64::from(*x),

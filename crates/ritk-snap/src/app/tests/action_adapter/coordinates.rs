@@ -27,6 +27,7 @@ fn hu_point(display_size: [f64; 2], point: [f64; 2]) -> [f32; 2] {
             x: point[0],
             y: point[1],
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
         PresentationEvent::PointerUp {
             x: point[0],
@@ -115,6 +116,7 @@ fn content_local_click_selects_same_voxel_on_every_plane() {
                     x,
                     y,
                     button: PointerButton::Left,
+                    modifiers: crate::presentation::PresentationModifiers::NONE,
                 },
                 PresentationEvent::PointerUp {
                     x,
@@ -158,6 +160,7 @@ fn fractional_client_coordinates_reach_image_mapping_unchanged() {
             x: 10.625,
             y: 21.25,
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
     );
     apply_app_event(
@@ -274,6 +277,7 @@ fn transformed_browser_viewport_maps_pointer_to_presented_pixel() {
             x: 1.5,
             y: 0.5,
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
         PresentationEvent::PointerUp {
             x: 1.5,
@@ -312,6 +316,7 @@ fn transformed_browser_viewport_rejects_pointer_over_panned_black_edge() {
             x: 0.25,
             y: 0.5,
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
         PresentationEvent::PointerUp {
             x: 0.25,
@@ -346,6 +351,7 @@ fn large_client_coordinates_subtract_before_image_narrowing() {
             x: 16_777_217.0,
             y: 1.0,
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
     );
     apply_app_event(
@@ -398,6 +404,7 @@ fn large_client_coordinates_feed_image_space_consumers() {
             x: 16_777_217.0,
             y: 2.0,
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
         PresentationEvent::PointerUp {
             x: 16_777_217.0,
@@ -424,6 +431,7 @@ fn large_client_coordinates_feed_image_space_consumers() {
             x: 16_777_217.0,
             y: 2.0,
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
     );
     let labels = label_app.label_editor.expect("label editor");

@@ -130,7 +130,12 @@ fn cancelling_one_button_leaves_the_pane_the_other_holds() {
     let layout = viewer.workspace_layout;
     let mut router = PanelEventRouter::new(0, PointerCapture::default(), 0);
     for button in [PointerButton::Right, PointerButton::Middle] {
-        let press = PresentationEvent::PointerDown { x, y, button };
+        let press = PresentationEvent::PointerDown {
+            x,
+            y,
+            button,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
+        };
         assert_eq!(
             router.route(&press, layout, &viewports),
             EventRoute::View(0)

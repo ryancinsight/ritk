@@ -357,6 +357,7 @@ impl EguiApp {
                     x: pointer.x(),
                     y: pointer.y(),
                     button: PointerButton::Left,
+                    modifiers: map_input_modifiers(input_modifiers),
                 });
             }
             if response.dragged() {
@@ -376,6 +377,7 @@ impl EguiApp {
                     x: pointer.x(),
                     y: pointer.y(),
                     button: PointerButton::Left,
+                    modifiers: map_input_modifiers(input_modifiers),
                 });
                 events.push(PresentationEvent::PointerUp {
                     x: pointer.x(),

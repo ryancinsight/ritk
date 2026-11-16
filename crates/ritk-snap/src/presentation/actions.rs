@@ -163,6 +163,8 @@ pub enum ViewerAction {
         button: PointerButton,
         /// Press position.
         position: ViewportPoint,
+        /// Modifier keys held when the press event was received.
+        modifiers: PresentationModifiers,
     },
     /// A pressed pointer button moved by a non-zero checked displacement.
     PointerDragged {

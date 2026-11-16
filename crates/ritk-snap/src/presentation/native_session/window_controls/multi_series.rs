@@ -159,6 +159,7 @@ impl MultiSeriesDialog {
                 x,
                 y,
                 button: PointerButton::Left,
+                ..
             } => {
                 if rect_contains(geometry.filter, *x, *y) {
                     let focus_changed = self.focus != DialogFocus::Search;

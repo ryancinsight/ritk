@@ -1,6 +1,7 @@
 //! Default tool assignment for the non-primary pointer buttons.
 
 use super::super::test_volume;
+use crate::app::pointer_bindings::PointerBindings;
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
 use crate::tools::interaction::{Annotation, ToolState, ViewportOffset};
@@ -16,7 +17,12 @@ fn press(app: &mut SnapApp, button: PointerButton, x: f64, y: f64) {
     apply_app_event(
         app,
         &viewport(SOURCE),
-        PresentationEvent::PointerDown { x, y, button },
+        PresentationEvent::PointerDown {
+            x,
+            y,
+            button,
+            modifiers: PresentationModifiers::NONE,
+        },
     );
 }
 
@@ -423,4 +429,70 @@ fn a_drag_returned_to_its_origin_records_no_length() {
 
     assert!(app.annotations.is_empty());
     assert!(app.tool_state.is_idle());
+}
+
+#[test]
+fn an_assigned_button_runs_its_tool_instead_of_the_default() {
+    let mut app = app_with_window();
+    app.assign_pointer_tool(PointerButton::Middle, ToolKind::Zoom)
+        .expect("a non-primary button is reassignable");
+    let expected = zoom_from_drag_delta(app.zoom, -16.0);
+
+    drag(&mut app, PointerButton::Middle, [20.0, 30.0], [20.0, 14.0]);
+
+    assert_eq!(app.zoom, expected);
+    assert!(app.tool_state.is_idle());
+}
+
+#[test]
+fn every_non_primary_button_runs_its_assigned_tool() {
+    let mut app = app_with_window();
+    for (button, tool) in [
+        (PointerButton::Middle, ToolKind::Pan),
+        (PointerButton::Right, ToolKind::MeasureAngle),
+        (PointerButton::X1, ToolKind::Crosshair),
+        (PointerButton::X2, ToolKind::PointHu),
+    ] {
+        app.assign_pointer_tool(button, tool)
+            .expect("each non-primary button is reassignable");
+        assert_eq!(app.pointer.bindings.tool_for(button, ToolKind::Zoom), tool);
+    }
+}
+
+#[test]
+fn the_left_button_keeps_the_selected_tool_and_rejects_reassignment() {
+    let mut app = app_with_window();
+    app.assign_pointer_tool(PointerButton::Left, ToolKind::Zoom)
+        .expect_err("the left button always runs the selected tool");
+
+    assert_eq!(
+        app.pointer
+            .bindings
+            .tool_for(PointerButton::Left, ToolKind::MeasureLength),
+        ToolKind::MeasureLength
+    );
+}
+
+#[test]
+fn assignments_survive_an_encode_decode_restart() {
+    let mut bindings = PointerBindings::default();
+    bindings
+        .assign(PointerButton::Middle, ToolKind::Zoom)
+        .expect("a non-primary button is reassignable");
+    bindings
+        .assign(PointerButton::X2, ToolKind::RoiRect)
+        .expect("a non-primary button is reassignable");
+
+    let stored = serde_json::to_string(&bindings).expect("bindings serialize to the host store");
+    let restored: PointerBindings =
+        serde_json::from_str(&stored).expect("stored bindings deserialize at startup");
+
+    for (button, tool) in [
+        (PointerButton::Middle, ToolKind::Zoom),
+        (PointerButton::Right, ToolKind::Zoom),
+        (PointerButton::X1, ToolKind::Pan),
+        (PointerButton::X2, ToolKind::RoiRect),
+    ] {
+        assert_eq!(restored.tool_for(button, ToolKind::MeasureLength), tool);
+    }
 }

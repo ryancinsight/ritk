@@ -137,6 +137,14 @@ impl NativeViewerSession {
                 self.active_app_mut().select_tool(tool);
                 Ok(true)
             }
+            WindowAction::AssignPointerTool { button, tool } => {
+                if let Err(error) = self.active_app_mut().assign_pointer_tool(button, tool) {
+                    self.active_app_mut().status_message = format!(
+                        "Pointer button reassignment failed; the default layout remains: {error:#}"
+                    );
+                }
+                Ok(true)
+            }
             WindowAction::ToggleCrosshair => {
                 if self.workspace_layout.is_grid() {
                     return Ok(false);
