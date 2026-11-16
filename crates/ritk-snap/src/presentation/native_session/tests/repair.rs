@@ -1,7 +1,8 @@
 //! Repaired copy of the open study from the native shell.
 
 use super::*;
-use ritk_io::format::dicom::repair::StudyRepairError;
+use crate::presentation::native_session::repair::repair_status;
+use ritk_io::format::dicom::repair::{StudyRepairError, StudyRepairReport};
 use ritk_io::format::dicom::ExportTreeError;
 use std::path::{Path, PathBuf};
 
@@ -71,9 +72,28 @@ fn native_repair_writes_a_corrected_copy_and_leaves_the_source() {
         session.app.status_message,
         format!(
             "Wrote 3 instance(s) to {}; 1 changed: 1 date(s), 0 time(s) and 0 UID(s) rewritten, \
-             0 file meta UID(s) aligned.",
+             file meta UIDs aligned in 0 instance(s).",
             output.display()
         )
+    );
+}
+
+#[test]
+fn native_repair_status_reports_each_count_under_its_own_name() {
+    let mut report = StudyRepairReport::default();
+    report.instances_written = 9;
+    report.instances_repaired = 8;
+    report.values.dates = 7;
+    report.values.times = 6;
+    report.values.uids = 5;
+    report.file_meta_uids_aligned = 4;
+    report.non_dicom_skipped = 2;
+    report.indexes_omitted = 1;
+
+    assert_eq!(
+        repair_status(report, Path::new("out")),
+        "Wrote 9 instance(s) to out; 8 changed: 7 date(s), 6 time(s) and 5 UID(s) rewritten, \
+         file meta UIDs aligned in 4 instance(s). 3 file(s) left out (not DICOM, or a DICOMDIR)."
     );
 }
 

@@ -207,7 +207,8 @@ counted in that error.
 
 File > Repair Study Copy writes a copy of the open study to a folder you pick,
 with these encoding defects corrected in every instance: ACR-NEMA dates
-(`YYYY.MM.DD`) and times (`HH:MM:SS`) rewritten to the DICOM forms, UIDs with
+(`YYYY.MM.DD`) and times (`HH:MM`, `HH:MM:SS`, `HH:MM:SS.frac`) rewritten to the
+DICOM forms, UIDs with
 surrounding spaces or leading zeros in a component rewritten, and the file meta
 Media Storage SOP Class UID and SOP Instance UID set to the data set's SOP Class
 UID and SOP Instance UID where those are conformant UIDs. A value with no known

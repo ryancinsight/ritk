@@ -10,7 +10,7 @@ use metis_platform::native::{pick, DialogSelection};
 use ritk_io::format::dicom::repair::{repair_dicom_study, StudyRepairReport};
 use std::path::Path;
 
-fn repair_status(report: StudyRepairReport, output: &Path) -> String {
+pub(super) fn repair_status(report: StudyRepairReport, output: &Path) -> String {
     let left_out = report.non_dicom_skipped + report.indexes_omitted;
     let omitted = if left_out == 0 {
         String::new()
@@ -19,7 +19,7 @@ fn repair_status(report: StudyRepairReport, output: &Path) -> String {
     };
     format!(
         "Wrote {} instance(s) to {}; {} changed: {} date(s), {} time(s) and {} UID(s) rewritten, \
-         {} file meta UID(s) aligned.{omitted}",
+         file meta UIDs aligned in {} instance(s).{omitted}",
         report.instances_written,
         output.display(),
         report.instances_repaired,
