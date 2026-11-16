@@ -58,7 +58,10 @@
   `NonCartesianGrid::SingularDirection` for these invalid directions instead
   of retaining a transform pair with corrupt index/world coordinates. The
   pivot threshold and elimination order are unchanged; exact pivoted shears
-  and representable extreme reciprocals remain accepted.
+  and representable extreme reciprocals remain accepted. Coverage includes 42
+  non-finite entry cases across ranks one through three, normalization and
+  working/inverse-only elimination overflow, and both sides of the singular
+  threshold.
 
 - [patch] Python CI restores build caches on every ref and saves them only from
   main, matching native CI. Branch validation avoids optional gigabyte cache
