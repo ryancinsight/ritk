@@ -26,7 +26,8 @@
 //!    UID breaks study reassembly at the destination. FrameOfReferenceUID is
 //!    checked for conformance where present and never required: the verifier
 //!    does not resolve the object's IOD, and an object without a spatial
-//!    frame carries none.
+//!    frame carries none. The file meta Media Storage SOP Instance UID must
+//!    equal the data set's SOPInstanceUID (PS3.10 Table 7.1-1).
 //! 3. **De-identification completeness** — when a profile is supplied, every
 //!    tag the profile targets must either be absent or carry its replacement
 //!    value; the raw patient-identifying values that were scrubbed must not
@@ -273,6 +274,9 @@ pub fn verify_dicom_file(
         }
         report.uids.push(("FrameOfReferenceUID".to_owned(), v));
     }
+    report
+        .issues
+        .extend(super::file_meta::media_storage_uid_issue(&obj));
 
     // ── 2. Geometry coherence ─────────────────────────────────────────────
     if options.validate_pixel_geometry {

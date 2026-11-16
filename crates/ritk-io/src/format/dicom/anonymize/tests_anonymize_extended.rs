@@ -205,6 +205,13 @@ fn anonymize_object_replace_uids_changes_sop_uid() {
         new_uid.starts_with("2.25."),
         "Replaced UID must use ISO 9834-8 UUID arc root 2.25., got: {new_uid}"
     );
+    assert_eq!(
+        anon.meta()
+            .media_storage_sop_instance_uid()
+            .trim_end_matches('\0'),
+        new_uid,
+        "the file meta group must name the same instance as the data set"
+    );
 }
 
 #[test]
