@@ -100,7 +100,8 @@ fn patient_length_snapshot_preserves_f64_precision_through_app() {
     )
     .expect("finite patient-space length");
     let mut app = SnapApp::default();
-    app.annotations.push(Annotation::PatientLength(length));
+    app.annotations
+        .push(Annotation::PatientLength { plane: 0, length });
 
     let summary = app
         .presentation_snapshot()

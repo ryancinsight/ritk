@@ -77,6 +77,10 @@ pub enum MeasurementError {
 pub enum Annotation {
     /// Straight-line distance between two image points.
     Length {
+        /// Orthogonal pane axis (`0` axial, `1` coronal, `2` sagittal) the
+        /// gesture was placed on; the overlay draws the length on that pane.
+        #[serde(default)]
+        plane: usize,
         /// Start point as `[row, col]` in image pixels.
         p1: [f32; 2],
         /// End point as `[row, col]` in image pixels.
@@ -86,7 +90,14 @@ pub enum Annotation {
     },
 
     /// Straight-line distance between two points in DICOM patient space.
-    PatientLength(PatientLength),
+    PatientLength {
+        /// Orthogonal pane axis the measurement belongs to; the overlay
+        /// projects the patient endpoints onto that pane.
+        #[serde(default)]
+        plane: usize,
+        /// Validated patient-space endpoints and distance.
+        length: PatientLength,
+    },
 
     /// Angle at vertex `p2` between the rays `p2→p1` and `p2→p3`.
     Angle {

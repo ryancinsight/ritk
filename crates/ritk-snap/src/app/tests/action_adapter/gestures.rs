@@ -152,10 +152,12 @@ fn length_measurement_clicks_advance_and_complete_through_the_adapter() {
     assert!(matches!(
         app.annotations.as_slice(),
         [crate::tools::interaction::Annotation::Length {
+            plane,
             p1,
             p2,
             length_mm,
-        }] if *p1 == [0.5, 0.5]
+        }] if *plane == 0
+            && *p1 == [0.5, 0.5]
             && *p2 == [0.5, 3.25]
             && (*length_mm - 2.75).abs() < 1e-6
     ));

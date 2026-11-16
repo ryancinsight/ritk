@@ -33,8 +33,8 @@ impl SnapApp {
             Annotation::Length { length_mm, .. } => {
                 AnnotationSummary::new(AnnotationKind::Length, f64::from(*length_mm))
             }
-            Annotation::PatientLength(measurement) => {
-                AnnotationSummary::new(AnnotationKind::PatientLength, measurement.length_mm())
+            Annotation::PatientLength { length, .. } => {
+                AnnotationSummary::new(AnnotationKind::PatientLength, length.length_mm())
             }
             Annotation::Angle { angle_deg, .. } => {
                 AnnotationSummary::new(AnnotationKind::Angle, f64::from(*angle_deg))
