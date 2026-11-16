@@ -116,3 +116,21 @@ fn the_conformant_date_and_time_grammars_are_recognised_exactly() {
         assert_eq!(time_is_valid(input), valid, "time {input:?}");
     }
 }
+
+#[test]
+fn every_month_ends_on_its_gregorian_last_day() {
+    let lengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    for (year, february) in [(1994, 28), (1996, 29), (1900, 28), (2000, 29)] {
+        for (month, length) in (1..).zip(lengths) {
+            let last = if month == 2 { february } else { length };
+            let on = format!("{year}.{month:02}.{last:02}");
+            let past = format!("{year}.{month:02}.{:02}", last + 1);
+            assert_eq!(date(&on), Some(on.replace('.', "")), "date {on:?}");
+            assert_eq!(date(&past), None, "date {past:?}");
+            assert!(date_is_valid(&on.replace('.', "")), "valid {on:?}");
+            assert!(!date_is_valid(&past.replace('.', "")), "valid {past:?}");
+        }
+    }
+    assert_eq!(date("1994.+7.21"), None);
+    assert!(!date_is_valid("1994+721"));
+}
