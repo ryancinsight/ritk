@@ -286,11 +286,12 @@ See `crates/ritk-io/examples/anonymize_pacs_export.rs` for the complete
 PACS-bound export pipeline.
 
 **Repair (`ritk-io::format::dicom::repair`)**:
-- `repair_values` — rewrites date, time and UID values spelled outside their
-  value representation's grammar (ACR-NEMA `YYYY.MM.DD` and `HH:MM:SS.frac`,
-  UIDs with surrounding spaces or leading zeros) in a data set and every
-  nested item, and reports how many values changed. Values with no known
-  rewrite are left as they are.
+- `repair_values` — rewrites date, time and UID text values spelled outside
+  their value representation's grammar (ACR-NEMA `YYYY.MM.DD`, `HH:MM`,
+  `HH:MM:SS` and `HH:MM:SS.frac`; UIDs with surrounding spaces or leading
+  zeros) in a data set and every nested item, and reports how many values
+  changed. Values with no known rewrite are left as they are; a data set
+  nesting deeper than 254 sequences is refused unchanged.
 
 
 ### Registration (`ritk-registration`)

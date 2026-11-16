@@ -5,8 +5,10 @@
 //! outside their value representation's grammar but still denote one value:
 //! the ACR-NEMA date `YYYY.MM.DD`, the ACR-NEMA time `HH:MM:SS.frac`, and UIDs
 //! with surrounding spaces or leading zeros in a component (PS3.5 Table 6.2-1
-//! and section 9.1). A value with no known rewrite is left as it is; nothing
-//! is guessed, removed or invented.
+//! and section 9.1). A value with no known rewrite is left byte for byte as it
+//! is; nothing is guessed, removed or invented. Values the element holds as
+//! parsed dates or times, rather than text, are conformant by construction
+//! and are not read.
 
 mod value;
 
@@ -48,7 +50,7 @@ pub enum RepairError {
 /// The rewrite of one element's value and how many of its values changed.
 struct Rewrite {
     selector: AttributeSelector,
-    text: String,
+    value: PrimitiveValue,
     values: usize,
     count: Count,
 }
@@ -57,23 +59,35 @@ struct Rewrite {
 type Count = fn(&mut RepairSummary) -> &mut usize;
 type Repair = fn(&str) -> Option<String>;
 
-/// Rewrite each backslash-separated value `repair` has a spelling for.
-fn rewritten(text: &str, padding: char, repair: Repair) -> Option<(String, usize)> {
+/// Rewrite each text value of `stored` that `repair` has a spelling for and
+/// keep its multiplicity: joined text stays joined, separate values stay
+/// separate.
+fn rewritten(
+    stored: &PrimitiveValue,
+    padding: char,
+    repair: Repair,
+) -> Option<(PrimitiveValue, usize)> {
     let mut changed = 0;
-    let values: Vec<String> = text
-        .split('\\')
-        .map(|raw| {
-            let bare = raw.trim_end_matches(padding);
-            repair(bare).map_or_else(
-                || bare.to_owned(),
-                |repaired| {
-                    changed += 1;
-                    repaired
-                },
-            )
-        })
-        .collect();
-    (changed > 0).then(|| (values.join("\\"), changed))
+    let mut spelled = |raw: &str| {
+        repair(raw.trim_end_matches(padding)).map_or_else(
+            || raw.to_owned(),
+            |repaired| {
+                changed += 1;
+                repaired
+            },
+        )
+    };
+    let value = match stored {
+        PrimitiveValue::Str(text) => {
+            let values: Vec<String> = text.split('\\').map(&mut spelled).collect();
+            PrimitiveValue::Str(values.join("\\"))
+        }
+        PrimitiveValue::Strs(values) => {
+            PrimitiveValue::Strs(values.iter().map(|raw| spelled(raw)).collect())
+        }
+        _ => return None,
+    };
+    (changed > 0).then_some((value, changed))
 }
 
 /// Walk `object` and every nested item and list the rewrites its DA, TM and
@@ -104,21 +118,22 @@ fn planned(object: &InMemDicomObject) -> Result<Vec<Rewrite>, RepairError> {
                 VR::UI => ('\0', value::uid, |summary| &mut summary.uids),
                 _ => continue,
             };
-            let Ok(text) = element.to_str() else {
-                continue;
-            };
-            let Some((text, values)) = rewritten(&text, padding, repair) else {
+            let Some((value, values)) = element
+                .value()
+                .primitive()
+                .and_then(|stored| rewritten(stored, padding, repair))
+            else {
                 continue;
             };
             let steps = path
                 .iter()
-                .cloned()
+                .copied()
                 .chain([AttributeSelectorStep::Tag(tag)]);
             let selector = AttributeSelector::new(steps)
                 .expect("invariant: the steps end in a tag step and are not empty");
             rewrites.push(Rewrite {
                 selector,
-                text,
+                value,
                 values,
                 count,
             });
@@ -129,6 +144,11 @@ fn planned(object: &InMemDicomObject) -> Result<Vec<Rewrite>, RepairError> {
 
 /// Rewrite the nonconformant date, time and UID values of `object` and of
 /// every item nested in it.
+///
+/// Only DA, TM and UI elements holding text are read. Trailing padding (space
+/// for DA and TM, NUL for UI) is ignored when a value is matched and dropped
+/// from a value that is rewritten. An element keeps its value representation
+/// and its number of values.
 ///
 /// A UID rewrite changes the bytes other objects use to refer to this one, so
 /// the objects of a study are repaired together; equal inputs always get the
@@ -159,13 +179,13 @@ pub fn repair_values(object: &mut InMemDicomObject) -> Result<RepairSummary, Rep
     for rewrite in planned(object)? {
         let Rewrite {
             selector,
-            text,
+            value,
             values,
             count,
         } = rewrite;
         object
-            .update_value_at(selector, |value| {
-                *value = Value::Primitive(PrimitiveValue::from(text.as_str()));
+            .update_value_at(selector, |stored| {
+                *stored = Value::Primitive(value.clone());
             })
             .expect("invariant: the selector was read from this object, unchanged since");
         *count(&mut summary) += values;
