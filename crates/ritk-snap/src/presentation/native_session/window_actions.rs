@@ -28,6 +28,14 @@ impl NativeViewerSession {
                     Ok(true)
                 }
             },
+            WindowAction::RepairStudy => match self.repair_study_from_dialog() {
+                Ok(changed) => Ok(changed),
+                Err(error) => {
+                    self.active_app_mut().status_message =
+                        format!("Repaired copy failed: {error:#}");
+                    Ok(true)
+                }
+            },
             WindowAction::OpenSeriesPicker => {
                 self.restore_maximized_panel()
                     .map_err(NativeViewerError::from)?;

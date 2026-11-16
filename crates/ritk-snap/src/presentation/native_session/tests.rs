@@ -14,6 +14,7 @@ mod anonymize;
 mod display;
 mod interaction;
 mod pointer_capture;
+mod repair;
 mod series_browser;
 mod support;
 mod window_controls;
