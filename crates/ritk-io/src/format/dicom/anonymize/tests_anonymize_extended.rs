@@ -363,6 +363,79 @@ fn anonymize_object_enhanced_removes_private_tags() {
 }
 
 #[test]
+fn anonymize_object_removes_the_file_meta_origin_and_keeps_the_rest() {
+    let mut source = make_test_object();
+    source.update_meta(|meta| {
+        meta.source_application_entity_title = Some("SITE_SCANNER".to_owned());
+        meta.sending_application_entity_title = Some("SITE_PACS".to_owned());
+        meta.receiving_application_entity_title = Some("SITE_ARCHIVE".to_owned());
+        meta.private_information_creator_uid = Some("1.2.3.777".to_owned());
+        meta.private_information = Some(b"MRN PAT001".to_vec());
+    });
+    let source_dir = tempfile::tempdir().expect("tempdir");
+    let source_path = source_dir.path().join("source.dcm");
+    source
+        .write_to_file(&source_path)
+        .expect("write the source");
+    let source = dicom::object::open_file(&source_path).expect("re-read the source");
+    let stored = source.meta().clone();
+    let unpadded = |text: &Option<String>| {
+        text.as_deref()
+            .map(|text| text.trim_end_matches([' ', ' ']).to_owned())
+    };
+    assert_eq!(
+        [
+            unpadded(&stored.source_application_entity_title),
+            unpadded(&stored.sending_application_entity_title),
+            unpadded(&stored.receiving_application_entity_title),
+            unpadded(&stored.private_information_creator_uid),
+        ],
+        ["SITE_SCANNER", "SITE_PACS", "SITE_ARCHIVE", "1.2.3.777"]
+            .map(|text| Some(text.to_owned()))
+    );
+    assert_eq!(
+        stored.private_information.as_deref(),
+        Some(b"MRN PAT001".as_slice())
+    );
+
+    let (anon, _result) = super::anonymize_object(source, &AnonymizeOptions::default())
+        .expect("anonymize_object must succeed");
+    let path = source_dir.path().join("anonymized.dcm");
+    anon.write_to_file(&path).expect("write the object");
+    let meta = dicom::object::open_file(&path)
+        .expect("the written file must re-read")
+        .meta()
+        .clone();
+
+    assert_eq!(meta.source_application_entity_title, None);
+    assert_eq!(meta.sending_application_entity_title, None);
+    assert_eq!(meta.receiving_application_entity_title, None);
+    assert_eq!(meta.private_information_creator_uid, None);
+    assert_eq!(meta.private_information, None);
+    assert_eq!(meta.transfer_syntax, stored.transfer_syntax);
+    assert_eq!(
+        meta.media_storage_sop_class_uid,
+        stored.media_storage_sop_class_uid
+    );
+    assert_eq!(
+        meta.implementation_class_uid,
+        stored.implementation_class_uid
+    );
+    assert_eq!(
+        meta.implementation_version_name,
+        stored.implementation_version_name
+    );
+    let bytes = std::fs::read(&path).expect("read the written bytes");
+    for needle in [b"SITE_".as_slice(), b"1.2.3.777", b"MRN PAT001"] {
+        assert!(
+            !bytes.windows(needle.len()).any(|window| window == needle),
+            "{}",
+            String::from_utf8_lossy(needle)
+        );
+    }
+}
+
+#[test]
 fn anonymize_object_keeps_a_readable_file_meta_uid_when_the_data_set_has_none_to_copy() {
     let opts = AnonymizeOptions {
         profile: AnonymizationProfile::Basic,
