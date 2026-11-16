@@ -2,7 +2,7 @@ use super::*;
 use crate::presentation::{PointerButton, PresentationEvent};
 
 #[test]
-fn file_menu_routes_study_open_anonymize_repair_and_exit_commands() {
+fn file_menu_routes_study_open_repair_and_exit_commands() {
     let app = SnapApp::default();
     let layout = ChromeLayout::new(
         1_280,
@@ -19,20 +19,40 @@ fn file_menu_routes_study_open_anonymize_repair_and_exit_commands() {
     );
     assert_eq!(
         layout.action_at(20.0, 72.0, None),
-        Some(WindowAction::AnonymizeStudy(Deidentification::Basic))
-    );
-    assert_eq!(
-        layout.action_at(20.0, 100.0, None),
-        Some(WindowAction::AnonymizeStudy(Deidentification::Strict))
-    );
-    assert_eq!(
-        layout.action_at(20.0, 128.0, None),
         Some(WindowAction::RepairStudy)
     );
     assert_eq!(
-        layout.action_at(20.0, 156.0, None),
+        layout.action_at(20.0, 100.0, None),
         Some(WindowAction::Exit)
     );
+}
+
+#[test]
+fn anonymize_menu_routes_both_scopes_and_profiles() {
+    let layout = ChromeLayout::new(
+        1_280,
+        800,
+        Some(Menu::Anonymize),
+        &SnapApp::default(),
+        true,
+        WorkspaceLayout::Orthogonal,
+    )
+    .expect("Anonymize menu layout");
+    assert_eq!(
+        layout.action_at(280.0, 14.0, None),
+        Some(WindowAction::OpenMenu(Menu::Anonymize))
+    );
+    for (y, scope, profile) in [
+        (44.0, AnonymizationScope::Study, Deidentification::Basic),
+        (72.0, AnonymizationScope::Study, Deidentification::Strict),
+        (100.0, AnonymizationScope::Series, Deidentification::Basic),
+        (128.0, AnonymizationScope::Series, Deidentification::Strict),
+    ] {
+        assert_eq!(
+            layout.action_at(280.0, y, None),
+            Some(WindowAction::Anonymize(scope, profile))
+        );
+    }
 }
 
 #[test]
