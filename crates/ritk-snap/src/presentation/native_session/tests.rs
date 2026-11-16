@@ -10,6 +10,7 @@ use crate::ui::{RotationSteps, ViewTransform};
 use metis_platform::native::{ModifierState, NativeApplication, NativeFlow, WindowEvent};
 use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::time::{Duration, Instant};
+mod anonymize;
 mod display;
 mod interaction;
 mod pointer_capture;

@@ -20,6 +20,12 @@ delivered through the four milestones in `backlog/milestones.md`. Each milestone
 closes on runnable exit checks. Behavior is matched from that manual; RadiAnt's
 name, artwork and text are not reproduced in the application.
 
+Beyond that list, 1.0 includes two study tools reached from the File menu:
+a de-identified export of the open study, and (item
+`RITK-DICOM-REPAIR-OBJECT-001` onward) a repaired export correcting common
+encoding defects. Both write a copy to a folder the reader picks and never
+modify the displayed study.
+
 Excluded from 1.0: encrypted ZIP archives, optical-disc import beyond reading a
 mounted folder, the DCMTK send add-on, Windows 7/8 and 32-bit targets, and
 translations beyond English.
@@ -28,6 +34,11 @@ Métis is the viewer's only shell. The eframe shell, its feature and its
 egui, eframe and rfd dependencies are removed rather than maintained beside
 it. Métis remains format-neutral: it supplies host capabilities
 (dialogs, drop events, clipboard), while DICOM semantics stay in RITK.
+
+Revised 2026-11-15: added the de-identification and repair tools and the
+`native_anonymize` exit check of M-viewer-access. Evidence: the user asked on
+that date for "useful tools such as anonymization and correction of common
+dicom issues", a widening this record's overturning evidence names.
 
 ## Alternatives
 

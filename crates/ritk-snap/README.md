@@ -110,6 +110,20 @@ workspace remains the three-plane MPR view. Comparison panels display the image
 number and count, window width and centre, and source pixel dimensions in
 the RadiAnt-clone image corners.
 
+### De-identified export
+
+File > Anonymize exports a de-identified copy of the open study to a folder you
+pick. The folder must be empty and outside the study; the displayed study is
+never modified. "Keep dates" replaces the patient name and ID and every
+study, series and instance UID with values derived from a salt drawn fresh for
+each export, so two exports of one study cannot be linked; dates and
+descriptions stay. "Strict" also empties dates, drops descriptions and removes
+private elements. The export is verified before it is kept: if the source
+patient name or ID survives anywhere in a text element, or any instance fails
+to re-read, nothing is left in the folder and the status line says why. Files
+that are not DICOM and a DICOMDIR index are left out. Text burned into the
+pixels is not detected or removed.
+
 On Windows the same command works without `--metis-native`; the flag remains an
 explicit spelling for scripts and existing workflows. The separately named
 `ritk-snap-eframe` executable selects the compatibility shell without activating
