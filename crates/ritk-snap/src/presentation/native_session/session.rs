@@ -21,6 +21,7 @@ use super::projection::{
 use super::series_browser::SeriesBrowser;
 use super::{frame, WindowChrome, INITIAL_HEIGHT, INITIAL_WIDTH};
 use crate::app::SnapApp;
+use crate::geometry::affine::AffineTransform;
 use crate::launch::NativePresentationSelection;
 use crate::render::FrameRenderScratch;
 use crate::tools::interaction::{ToolState, ViewportOffset};
@@ -36,6 +37,15 @@ use std::time::Instant;
 
 fn viewport_offset(app: &SnapApp) -> ViewportOffset {
     app.pan_offset
+}
+
+/// Validated patient-space affine for the loaded volume, when one is present.
+///
+/// Patient-space annotations project through this transform onto their
+/// recorded plane; volumes whose geometry cannot invert skip that projection.
+fn volume_affine(app: &SnapApp) -> Option<AffineTransform> {
+    let volume = app.loaded.as_ref()?;
+    AffineTransform::from_parts(volume.origin, volume.direction, volume.spacing).ok()
 }
 
 /// Clinical overlay content for the composed panes, when a volume is loaded.
@@ -141,6 +151,8 @@ impl NativeViewerSession {
             app.cine.fps,
             app.show_overlay || capture_application,
             clinical.as_ref(),
+            &app.annotations,
+            volume_affine(&app),
         )?;
         let mut viewports = ArrayVec::new();
         for viewport in initial_viewports {
@@ -358,6 +370,8 @@ impl NativeViewerSession {
                 self.app.cine.fps,
                 self.app.show_overlay || self.capture_application,
                 clinical.as_ref(),
+                &self.app.annotations,
+                volume_affine(&self.app),
             )?;
             let mut viewports = ArrayVec::new();
             for viewport in composition_viewports {

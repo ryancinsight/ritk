@@ -111,9 +111,10 @@ fn forward_drag_records_the_length_between_its_endpoints() {
     drag(&mut app, PointerButton::X2, [1.0, 1.0], [4.0, 5.0]);
 
     match app.annotations.as_slice() {
-        [Annotation::Length { p1, p2, length_mm }] => {
-            assert_eq!(*p1, [1.0, 1.0]);
-            assert_eq!(*p2, [5.0, 4.0]);
+        [Annotation::Length {
+            p1, p2, length_mm, ..
+        }] => {
+            assert_eq!((*p1, *p2), ([1.0, 1.0], [5.0, 4.0]));
             assert_eq!(*length_mm, 5.0);
         }
         other => panic!("expected one length annotation, found {other:?}"),

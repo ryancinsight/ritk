@@ -11,6 +11,8 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::*;
+use crate::tools::interaction::{Annotation, ImagePoint};
+use crate::tools::kind::ToolKind;
 use arrayvec::ArrayString;
 
 /// Constructs an anisotropic volume with spacing [dz=2.0, dy=3.0, dx=5.0]
@@ -127,6 +129,40 @@ fn measurement_img_to_screen_analytical() {
 }
 
 /// `img_to_screen` at image origin maps to screen origin.
+/// Completing a length on the sagittal axis records that plane on the annotation.
+#[test]
+fn measurement_length_completion_records_active_axis_as_plane() {
+    let mut app = SnapApp::default();
+    app.load_volume(make_anisotropic_volume(), "fixture".to_owned());
+    app.axis = 2;
+    app.active_tool = ToolKind::MeasureLength;
+    app.on_click(Some(ImagePoint::new(0.0, 0.0)));
+    app.on_click(Some(ImagePoint::new(4.0, 3.0)));
+    assert_eq!(
+        app.annotations.len(),
+        1,
+        "two anchored clicks must complete one length"
+    );
+    match &app.annotations[0] {
+        Annotation::Length {
+            plane,
+            p1,
+            p2,
+            length_mm,
+        } => {
+            assert_eq!(*plane, 2, "length must record its placement plane");
+            assert_eq!(*p1, [0.0, 0.0], "stored start must keep image order");
+            assert_eq!(*p2, [3.0, 4.0], "stored end must keep image order");
+            let expected = 180.0_f32.sqrt();
+            assert!(
+                (length_mm - expected).abs() < 1e-4,
+                "sagittal length must use [dz, dy] spacing: got {length_mm}, want {expected}"
+            );
+        }
+        other => panic!("expected a completed Length, got {other:?}"),
+    }
+}
+
 #[test]
 fn measurement_img_to_screen_origin_maps_to_rect_min() {
     let origin = egui::pos2(50.0, 75.0);

@@ -83,8 +83,8 @@ pub fn csv_for(annotations: &[Annotation]) -> String {
             Annotation::Length { length_mm, .. } => {
                 format!("{i},Length,{length_mm:.2},mm,\n")
             }
-            Annotation::PatientLength(measurement) => {
-                let length_mm = measurement.length_mm();
+            Annotation::PatientLength { length, .. } => {
+                let length_mm = length.length_mm();
                 format!("{i},Patient Length,{length_mm:.2},mm,\n")
             }
             Annotation::Angle { angle_deg, .. } => {
@@ -123,8 +123,8 @@ fn annotation_label(i: usize, ann: &Annotation) -> String {
         Annotation::Length { length_mm, .. } => {
             format!("#{i}  Length: {length_mm:.1} mm")
         }
-        Annotation::PatientLength(measurement) => {
-            let length_mm = measurement.length_mm();
+        Annotation::PatientLength { length, .. } => {
+            let length_mm = length.length_mm();
             format!("#{i}  Patient length: {length_mm:.1} mm")
         }
         Annotation::Angle { angle_deg, .. } => {

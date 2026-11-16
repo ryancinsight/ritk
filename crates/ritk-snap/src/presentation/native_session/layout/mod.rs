@@ -6,6 +6,7 @@ mod crosshair;
 mod geometry;
 mod overlay;
 mod overlay_clinical;
+mod overlay_measurements;
 mod responsive;
 pub(super) mod text;
 
@@ -21,6 +22,7 @@ pub(super) use crosshair::CROSSHAIR_COLOR;
 pub(super) use geometry::VIEW_GAP_PIXELS;
 pub(super) use geometry::{NativeViewport, ViewportArea};
 pub(super) use overlay::ClinicalOverlay;
+pub(super) use overlay::OverlayCommands;
 #[cfg(test)]
 pub(super) use overlay::{
     application_overlay, clinical_labels_for_view, projection_overlay, OVERLAY_BAR_HEIGHT,
@@ -28,5 +30,6 @@ pub(super) use overlay::{
 };
 #[cfg(test)]
 pub(super) use overlay_clinical::scale_bar_for_scale;
+pub(super) use overlay_measurements::append_measurement_overlay;
 pub(super) use responsive::surface_frames_responsive;
 pub(super) use text::{draw_text, text_style, TextStyle};

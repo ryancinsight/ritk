@@ -79,7 +79,7 @@ impl MeasurementLayer {
                 // Patient-space annotations require the reslice plane that
                 // created them. Orthogonal views must not project them as if
                 // their endpoints were two-dimensional image coordinates.
-                Annotation::PatientLength(_) => {}
+                Annotation::PatientLength { .. } => {}
                 Annotation::Angle {
                     p1,
                     p2,

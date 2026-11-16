@@ -47,17 +47,19 @@ fn canonical_snapshot_no_annotations() -> ViewerSessionSnapshot {
 fn all_annotation_variants() -> Vec<Annotation> {
     vec![
         Annotation::Length {
+            plane: 0,
             p1: [0.0, 0.0],
             p2: [3.0, 4.0],
             length_mm: 5.0,
         },
-        Annotation::PatientLength(
-            PatientLength::try_new(
+        Annotation::PatientLength {
+            plane: 2,
+            length: PatientLength::try_new(
                 PatientPointMm::try_new([1.0, 2.0, 3.0]).expect("finite patient point"),
                 PatientPointMm::try_new([4.0, 6.0, 3.0]).expect("finite patient point"),
             )
             .expect("3-4-5 segment is representable"),
-        ),
+        },
         Annotation::Angle {
             p1: [0.0, 1.0],
             p2: [0.0, 0.0],
@@ -151,7 +153,13 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
 
     // Verify Length annotation values round-trip exactly.
     match &recovered.annotations[0] {
-        Annotation::Length { p1, p2, length_mm } => {
+        Annotation::Length {
+            plane,
+            p1,
+            p2,
+            length_mm,
+        } => {
+            assert_eq!(*plane, 0);
             assert_eq!(*p1, [0.0f32, 0.0f32]);
             assert_eq!(*p2, [3.0f32, 4.0f32]);
             assert_eq!(*length_mm, 5.0f32, "5-4-3 right triangle: length = 5 mm");
@@ -161,10 +169,11 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
 
     // Verify patient-space endpoints and derived distance round-trip exactly.
     match &recovered.annotations[1] {
-        Annotation::PatientLength(measurement) => {
-            assert_eq!(measurement.start_mm().coordinates(), [1.0, 2.0, 3.0]);
-            assert_eq!(measurement.end_mm().coordinates(), [4.0, 6.0, 3.0]);
-            assert_eq!(measurement.length_mm(), 5.0);
+        Annotation::PatientLength { plane, length } => {
+            assert_eq!(*plane, 2, "non-default plane round-trips");
+            assert_eq!(length.start_mm().coordinates(), [1.0, 2.0, 3.0]);
+            assert_eq!(length.end_mm().coordinates(), [4.0, 6.0, 3.0]);
+            assert_eq!(length.length_mm(), 5.0);
         }
         other => panic!("expected PatientLength, got {:?}", other),
     }
@@ -326,7 +335,7 @@ fn session_formats_preserve_values_and_reject_unknown_versions() {
     let mut snapshot = canonical_snapshot_no_annotations();
     snapshot.annotations = all_annotation_variants()
         .into_iter()
-        .filter(|annotation| !matches!(annotation, Annotation::PatientLength(_)))
+        .filter(|annotation| !matches!(annotation, Annotation::PatientLength { .. }))
         .collect();
     let unversioned: serde_json::Value =
         serde_json::from_str(include_str!("../../tests/fixtures/session-v1.json"))

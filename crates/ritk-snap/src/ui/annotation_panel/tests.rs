@@ -5,9 +5,10 @@ use crate::tools::interaction::{Annotation, PatientLength};
 fn patient_length() -> Annotation {
     let start = PatientPointMm::try_new([0.0, 0.0, 0.0]).expect("finite point");
     let end = PatientPointMm::try_new([3.0, 4.0, 0.0]).expect("finite point");
-    Annotation::PatientLength(
-        PatientLength::try_new(start, end).expect("3-4-5 segment is representable"),
-    )
+    Annotation::PatientLength {
+        plane: 0,
+        length: PatientLength::try_new(start, end).expect("3-4-5 segment is representable"),
+    }
 }
 
 // ── CSV determinism ───────────────────────────────────────────────────────
@@ -37,6 +38,7 @@ fn csv_header_row_is_canonical() {
 fn csv_row_count_equals_annotation_count_plus_header() {
     let annotations = vec![
         Annotation::Length {
+            plane: 0,
             p1: [0.0, 0.0],
             p2: [3.0, 4.0],
             length_mm: 5.0,
@@ -60,6 +62,7 @@ fn csv_length_row_analytical() {
     // Analytical ground truth: length_mm = 5.0, index = 0
     // Expected: "0,Length,5.00,mm,"
     let ann = Annotation::Length {
+        plane: 0,
         p1: [0.0, 0.0],
         p2: [3.0, 4.0],
         length_mm: 5.0,
@@ -160,6 +163,7 @@ fn csv_multi_annotation_indices_are_sequential() {
     // Analytical: three annotations → data rows must carry indices 0, 1, 2
     let annotations = vec![
         Annotation::Length {
+            plane: 0,
             p1: [0.0, 0.0],
             p2: [1.0, 0.0],
             length_mm: 1.0,
@@ -222,6 +226,7 @@ fn action_clear_all_is_distinct_from_delete() {
 #[test]
 fn action_export_csv_payload_matches_csv_for() {
     let annotations = vec![Annotation::Length {
+        plane: 0,
         p1: [0.0, 0.0],
         p2: [3.0, 4.0],
         length_mm: 5.0,
@@ -244,6 +249,7 @@ fn action_export_csv_payload_matches_csv_for() {
 #[test]
 fn label_length_format() {
     let ann = Annotation::Length {
+        plane: 0,
         p1: [0.0, 0.0],
         p2: [3.0, 4.0],
         length_mm: 5.0,
