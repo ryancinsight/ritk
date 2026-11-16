@@ -3,6 +3,7 @@
 #[cfg(test)]
 use super::super::layout::ViewportArea;
 mod construction;
+mod construction_menus;
 mod geometry;
 mod render;
 use super::super::series_browser::SeriesBrowser;
