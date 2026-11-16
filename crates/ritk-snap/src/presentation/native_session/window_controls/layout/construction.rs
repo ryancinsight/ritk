@@ -4,7 +4,7 @@ use super::{
     ChromeControl, ChromeGeometry, ChromeLayout, ControlKind, ToolbarSeparator, CONTROL_CAPACITY,
 };
 use crate::app::SnapApp;
-use crate::presentation::native_session::deidentify::Deidentification;
+use crate::presentation::native_session::deidentify::{AnonymizationScope, Deidentification};
 use crate::presentation::PointerButton;
 use crate::tools::kind::ToolKind;
 use anyhow::{anyhow, Result};
@@ -36,12 +36,24 @@ const POINTER_BUTTON_ROWS: [(&str, PointerButton); 4] = [
     ("Bind forward button", PointerButton::X2),
 ];
 
-const MENU_TABS: [(Menu, &str, u32); 4] = [
+const MENU_TABS: [(Menu, &str, u32); 5] = [
     (Menu::File, "File", 54),
     (Menu::View, "View", 58),
     (Menu::Tools, "Tools", 66),
     (Menu::Window, "Window", 78),
+    (Menu::Anonymize, "Anonymize", 102),
 ];
+
+const ANONYMIZE_ITEMS: [(&str, AnonymizationScope, Deidentification); 4] = {
+    use AnonymizationScope::{Series, Study};
+    use Deidentification::{Basic, Strict};
+    [
+        ("Active study (Basic)...", Study, Basic),
+        ("Active study (Strict)...", Study, Strict),
+        ("Active series (Basic)...", Series, Basic),
+        ("Active series (Strict)...", Series, Strict),
+    ]
+};
 
 const TOOLBAR_ITEMS: [(&str, u32, WindowAction, &str); 11] = [
     ("Open Study...", 114, WindowAction::OpenStudy, "Study"),
@@ -294,7 +306,8 @@ fn menu_tab_geometry(menu: Menu) -> u32 {
 
 fn menu_item_count(menu: Menu, workspace_layout: WorkspaceLayout) -> usize {
     match menu {
-        Menu::File => 5,
+        Menu::File => 3,
+        Menu::Anonymize => ANONYMIZE_ITEMS.len(),
         Menu::View => {
             if workspace_layout.is_grid() {
                 3
@@ -323,20 +336,16 @@ fn menu_item(
     match menu {
         Menu::File => match index {
             0 => Ok(("Open Study...", WindowAction::OpenStudy, false)),
-            1 => Ok((
-                "Anonymize (basic)...",
-                WindowAction::AnonymizeStudy(Deidentification::Basic),
-                false,
-            )),
-            2 => Ok((
-                "Anonymize (strict)...",
-                WindowAction::AnonymizeStudy(Deidentification::Strict),
-                false,
-            )),
-            3 => Ok(("Repair Study Copy...", WindowAction::RepairStudy, false)),
-            4 => Ok(("Exit", WindowAction::Exit, false)),
+            1 => Ok(("Repair Study Copy...", WindowAction::RepairStudy, false)),
+            2 => Ok(("Exit", WindowAction::Exit, false)),
             _ => Err(anyhow!("native File menu row is outside its items")),
         },
+        Menu::Anonymize => {
+            let &(label, scope, level) = ANONYMIZE_ITEMS
+                .get(index)
+                .ok_or_else(|| anyhow!("native Anonymize menu row is outside its items"))?;
+            Ok((label, WindowAction::Anonymize(scope, level), false))
+        }
         Menu::View if workspace_layout.is_grid() => match index {
             0 => Ok((
                 "Toggle series browser",
