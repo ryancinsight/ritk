@@ -209,8 +209,9 @@ File > Repair Study Copy writes a copy of the open study to a folder you pick,
 with these encoding defects corrected in every instance: ACR-NEMA dates
 (`YYYY.MM.DD`) and times (`HH:MM:SS`) rewritten to the DICOM forms, UIDs with
 surrounding spaces or leading zeros in a component rewritten, and the file meta
-Media Storage SOP Instance UID set to the data set's SOP Instance UID. A value
-with no known rewrite is copied as stored. The folder must be empty and outside
+Media Storage SOP Class UID and SOP Instance UID set to the data set's SOP Class
+UID and SOP Instance UID where those are conformant UIDs. A value with no known
+rewrite is copied as stored. The folder must be empty and outside
 the study, and the displayed study is not modified. Files that do not open as
 DICOM, a data set stored without the Part 10 header among them, and a DICOMDIR
 index are left out. The status line reports how many instances were written and
