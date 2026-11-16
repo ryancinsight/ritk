@@ -22,6 +22,15 @@
 
 ### Changed
 
+- [patch] Admit the Leto 0.50 line. The Leto and Leto-ops requirements widen
+  from `>=0.47.1, <0.49.0` to `>=0.47.1, <0.51.0`. The lock moves Leto and
+  Leto-ops from 0.48.0 to 0.50.0 at `6483eac3`, the eight Coeus rows to
+  `7e1ded59`, the Apollo rows (`apollo-fft`, `apollo-sht`,
+  `apollo-leto-interop`, `apollo-dctdst-core`, `apollo-fft-macros`) to
+  `b7bffe1c`, and `gaia-mesh` to `bbd8f087`, each the revision that admits the
+  Leto 0.50 line; no other row changes. Leto 0.50.0 removes the unsafe
+  `VecStorage::uninit`, which no RITK source calls, so no source changes.
+
 - [patch] Advance the Moirai and Leto provider contracts. The Moirai runtime
   and Moirai-pal requirements move from 0.11.0 to 0.12.0 and the Leto and
   Leto-ops requirements widen to `>=0.47.1, <0.49.0` so the 0.48 line
