@@ -5,7 +5,9 @@
 //! viewer transitions perform all domain work. No DICOM value or parser state
 //! is part of this contract.
 
-use super::pointer_bindings::{PointerBindingError, PointerGestureOwner};
+#[cfg(any(windows, test))]
+use super::pointer_bindings::PointerBindingError;
+use super::pointer_bindings::PointerGestureOwner;
 use super::state::SnapApp;
 use super::viewer_viewport::ViewerViewport;
 use crate::presentation::{
@@ -111,12 +113,13 @@ impl SnapApp {
 
     /// Assign `tool` to a non-primary pointer button.
     ///
-    /// A host menu calls this when the reader rebinds a mouse button, then
-    /// persists [`Self::pointer_bindings`] in its settings store.
+    /// A host menu calls this when the reader rebinds a mouse button; the
+    /// settings store persists the resulting bindings.
     ///
     /// # Errors
     /// Returns [`PointerBindingError::LeftButton`] when `button` is
     /// [`PointerButton::Left`], which always runs the selected tool.
+    #[cfg(any(windows, test))]
     pub(crate) fn assign_pointer_tool(
         &mut self,
         button: PointerButton,

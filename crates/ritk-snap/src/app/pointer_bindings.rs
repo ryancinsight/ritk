@@ -11,6 +11,11 @@ use crate::tools::kind::ToolKind;
 use thiserror::Error;
 
 /// Failure reassigning a pointer button to a viewer tool.
+///
+/// The assignment surface exists where a host drives it (today the native
+/// shell) and in tests everywhere, mirroring the host-gated presentation
+/// modules that consume it.
+#[cfg(any(windows, test))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub(crate) enum PointerBindingError {
     /// The left button always runs the selected tool.
@@ -59,6 +64,7 @@ impl PointerBindings {
     /// # Errors
     /// Returns [`PointerBindingError::LeftButton`] when `button` is
     /// [`PointerButton::Left`], which always runs the selected tool.
+    #[cfg(any(windows, test))]
     pub(crate) fn assign(
         &mut self,
         button: PointerButton,
