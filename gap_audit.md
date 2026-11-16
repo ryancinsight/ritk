@@ -38,12 +38,6 @@
 - evidence: mirroring is the documented layout of ritk#920; both witnesses cited by the judge of ritk#922; no test reproduces it yet.
 - reopen: before the viewer's de-identified export is called complete; file the correctness item with a failing test, then choose neutral output names or a path-component scan in the export gate.
 
-<a id="RITK-DICOM-ANONYMIZE-NONIMAGE-001"></a>
-## RITK-DICOM-ANONYMIZE-NONIMAGE-001: a study holding SR, KO or PR objects may fail the export gate whole
-- risk: the default geometry check rejects an instance without image geometry, and one rejected instance removes the entire de-identified export.
-- evidence: raised by the judge of ritk#920 from reading `anonymize/verify.rs`; not reproduced with a fixture.
-- reopen: with the next change to `anonymize/study.rs` or `anonymize/verify.rs`, export one image plus one SR without pixel data; file the correctness item if it is rejected, delete this risk if it passes.
-
 <a id="RITK-DICOM-ANONYMIZE-STUDY-002"></a>
 ## RITK-DICOM-ANONYMIZE-STUDY-002: study export failures lose their cause, and filed judge findings are open
 - risk: an unreadable DICOM file counts as non-DICOM without its path; a `create_dir_all` failure returns `Tree`; `exists()` hides metadata errors; `Retained` has no `#[source]`; `Instance` boxes `dyn Error`; emptied folders stay after a failed run; the verifier module doc claims a profile-completeness check no code performs; `examples/anonymize_pacs_export.rs` lines 12 to 15 are stale.
