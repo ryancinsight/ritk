@@ -1,7 +1,7 @@
 //! Tests for the hoisted Cartesian index/world transform pair.
 
 use super::CartesianGridGeometry;
-use crate::{CoordinateMap, CurvilinearArray, Direction, Point, Spacing};
+use crate::{CoordinateMap, CurvilinearArray, Direction, NonCartesianGrid, Point, Spacing};
 
 /// A quarter-turn fixture keeps every transform operation exactly representable.
 ///
@@ -139,6 +139,28 @@ fn a_beam_space_acquisition_is_rejected_rather_than_mapped_affinely() {
         error.to_string().contains("Cartesian coordinate map"),
         "error should name the coordinate map, got {error}"
     );
+}
+
+#[test]
+fn a_non_finite_direction_is_reported_as_a_singular_direction() {
+    for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        let _case = tracing::info_span!("case", invalid).entered();
+        let direction = tracing::info_span!("arrange")
+            .in_scope(|| Direction::from_rows([[1.0, invalid], [0.0, 1.0]]));
+        let error = tracing::info_span!("act").in_scope(|| {
+            CartesianGridGeometry::new(
+                &Point::origin(),
+                &Spacing::try_new([1.0, 1.0]).expect("invariant: fixture spacing is positive"),
+                &direction,
+                &CoordinateMap::Cartesian,
+            )
+            .expect_err("a non-finite direction must be rejected")
+        });
+        tracing::info_span!("assert").in_scope(|| {
+            assert!(matches!(error, NonCartesianGrid::SingularDirection));
+            assert_eq!(error.to_string(), "image direction matrix is singular");
+        });
+    }
 }
 
 #[test]

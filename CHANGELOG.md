@@ -52,6 +52,14 @@
 
 ### Fixed
 
+- [patch] `ritk-spatial`'s `Direction::try_inverse` now rejects non-finite
+  input and any normalization or elimination result outside the finite range.
+  `CartesianGridGeometry::new` reports its existing
+  `NonCartesianGrid::SingularDirection` for these invalid directions instead
+  of retaining a transform pair with corrupt index/world coordinates. The
+  pivot threshold and elimination order are unchanged; exact pivoted shears
+  and representable extreme reciprocals remain accepted.
+
 - [patch] Python CI restores build caches on every ref and saves them only from
   main, matching native CI. Branch validation avoids optional gigabyte cache
   archives while preserving the full test matrix and 30-minute job bound.
