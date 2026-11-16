@@ -10,6 +10,7 @@ fn click_and_drag_actions_preserve_positions_and_gesture() {
                 x: 10.0,
                 y: 20.0,
                 button: PointerButton::Left,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             PresentationEvent::PointerUp {
                 x: 10.0,
@@ -24,6 +25,7 @@ fn click_and_drag_actions_preserve_positions_and_gesture() {
             ViewerAction::PointerPressed {
                 button: PointerButton::Left,
                 position: ViewportPoint::new(10.0, 20.0),
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             ViewerAction::PointerReleased {
                 button: PointerButton::Left,
@@ -39,6 +41,7 @@ fn click_and_drag_actions_preserve_positions_and_gesture() {
                 x: 1.0,
                 y: 2.0,
                 button: PointerButton::Right,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             PresentationEvent::PointerMove { x: 4.0, y: 7.0 },
             PresentationEvent::PointerUp {
@@ -54,6 +57,7 @@ fn click_and_drag_actions_preserve_positions_and_gesture() {
             ViewerAction::PointerPressed {
                 button: PointerButton::Right,
                 position: ViewportPoint::new(1.0, 2.0),
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             ViewerAction::PointerMoved {
                 position: ViewportPoint::new(4.0, 7.0),
@@ -82,11 +86,13 @@ fn simultaneous_button_drags_have_fixed_order() {
                 x: 0.0,
                 y: 0.0,
                 button: PointerButton::Right,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             PresentationEvent::PointerDown {
                 x: 0.0,
                 y: 0.0,
                 button: PointerButton::Left,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             PresentationEvent::PointerMove { x: 2.0, y: 3.0 },
         ])
@@ -119,6 +125,7 @@ fn focus_loss_cancels_pressed_buttons_and_clears_state() {
                 x: 5.0,
                 y: 6.0,
                 button: PointerButton::X2,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             PresentationEvent::FocusLost,
         ])
@@ -129,6 +136,7 @@ fn focus_loss_cancels_pressed_buttons_and_clears_state() {
             ViewerAction::PointerPressed {
                 button: PointerButton::X2,
                 position: ViewportPoint::new(5.0, 6.0),
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             ViewerAction::FocusChanged { focused: false },
             ViewerAction::PointerCancelled {
@@ -156,6 +164,7 @@ fn pointer_cancel_clears_one_pressed_button_without_releasing_a_click() {
                 x: 2.0,
                 y: 3.0,
                 button: PointerButton::Left,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             PresentationEvent::PointerCancel {
                 x: 7.0,
@@ -170,6 +179,7 @@ fn pointer_cancel_clears_one_pressed_button_without_releasing_a_click() {
             ViewerAction::PointerPressed {
                 button: PointerButton::Left,
                 position: ViewportPoint::new(2.0, 3.0),
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             ViewerAction::PointerCancelled {
                 button: PointerButton::Left,
@@ -195,6 +205,7 @@ fn malformed_batch_is_atomic_and_composition_is_bounded() {
             x: f64::MIN,
             y: 0.0,
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
         PresentationEvent::PointerMove {
             x: f64::MAX,
@@ -235,12 +246,14 @@ fn a_repeated_press_ends_the_gesture_whose_release_was_lost() {
                 x: 1.0,
                 y: 1.0,
                 button: PointerButton::Middle,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             PresentationEvent::PointerMove { x: 4.0, y: 5.0 },
             PresentationEvent::PointerDown {
                 x: 2.0,
                 y: 2.0,
                 button: PointerButton::Middle,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
         ])
         .expect("a lost release is ordinary host input");
@@ -250,6 +263,7 @@ fn a_repeated_press_ends_the_gesture_whose_release_was_lost() {
             ViewerAction::PointerPressed {
                 button: PointerButton::Middle,
                 position: ViewportPoint::new(1.0, 1.0),
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             ViewerAction::PointerMoved {
                 position: ViewportPoint::new(4.0, 5.0),
@@ -269,6 +283,7 @@ fn a_repeated_press_ends_the_gesture_whose_release_was_lost() {
             ViewerAction::PointerPressed {
                 button: PointerButton::Middle,
                 position: ViewportPoint::new(2.0, 2.0),
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
         ]
     );

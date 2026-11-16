@@ -25,6 +25,7 @@ fn pan_actions_update_viewer_state_without_gui_coordinates() {
             x: 10.0,
             y: 10.0,
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
     );
     apply_events(
@@ -66,6 +67,7 @@ fn window_level_actions_use_the_existing_sensitivity_mapping() {
             x: 20.0,
             y: 20.0,
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
     );
     apply_events(
@@ -96,6 +98,7 @@ fn point_click_actions_record_a_ritk_annotation() {
             x: 1.0,
             y: 2.0,
             button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
     );
     apply_events(
@@ -131,6 +134,7 @@ fn length_measurement_clicks_advance_and_complete_through_the_adapter() {
                 x,
                 y,
                 button: PointerButton::Left,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
         );
         apply_app_event(
@@ -172,6 +176,7 @@ fn angle_measurement_clicks_advance_and_complete_through_the_adapter() {
                 x,
                 y,
                 button: PointerButton::Left,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
         );
         apply_app_event(

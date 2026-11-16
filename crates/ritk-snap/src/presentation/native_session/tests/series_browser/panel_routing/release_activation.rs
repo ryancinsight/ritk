@@ -76,7 +76,12 @@ fn only_pointer_input_that_presses_moves_or_wheels_activates_a_panel() {
     let (x, y) = (10.0, 20.0);
     let button = PointerButton::Right;
     let activating = [
-        PresentationEvent::PointerDown { x, y, button },
+        PresentationEvent::PointerDown {
+            x,
+            y,
+            button,
+            modifiers: PresentationModifiers::NONE,
+        },
         PresentationEvent::PointerMove { x, y },
         PresentationEvent::PointerWheel {
             x,

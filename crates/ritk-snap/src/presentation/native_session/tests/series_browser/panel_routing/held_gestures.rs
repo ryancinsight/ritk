@@ -225,6 +225,7 @@ fn a_press_between_panels_reaches_no_panel() {
         x: f64::from(gap_x),
         y: f64::from(y),
         button: PointerButton::Right,
+        modifiers: crate::presentation::PresentationModifiers::NONE,
     };
     assert_eq!(
         router.route(&press, layout, &viewports),

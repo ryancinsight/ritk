@@ -212,7 +212,12 @@ fn translate_pointer(
         CanvasPointerPhase::Down | CanvasPointerPhase::Up => button(pointer.button())?,
     };
     Ok(Some(match pointer.phase() {
-        CanvasPointerPhase::Down => PresentationEvent::PointerDown { x, y, button },
+        CanvasPointerPhase::Down => PresentationEvent::PointerDown {
+            x,
+            y,
+            button,
+            modifiers: modifiers(pointer.modifiers()),
+        },
         CanvasPointerPhase::Move => PresentationEvent::PointerMove { x, y },
         CanvasPointerPhase::Up => PresentationEvent::PointerUp { x, y, button },
         CanvasPointerPhase::Cancel => PresentationEvent::PointerCancel { x, y, button },

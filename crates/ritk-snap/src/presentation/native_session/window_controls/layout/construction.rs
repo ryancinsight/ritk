@@ -5,6 +5,7 @@ use super::{
 };
 use crate::app::SnapApp;
 use crate::presentation::native_session::deidentify::Deidentification;
+use crate::presentation::PointerButton;
 use crate::tools::kind::ToolKind;
 use anyhow::{anyhow, Result};
 use arrayvec::ArrayVec;
@@ -23,6 +24,17 @@ const GRID_POPUP_HEIGHT: u32 = GRID_POPUP_PADDING * 2
     + GRID_POPUP_HEADER_HEIGHT
     + MAX_GRID_ROWS * GRID_CELL_HEIGHT
     + (MAX_GRID_ROWS - 1) * GRID_CELL_GAP;
+
+/// Reassignable pointer buttons in Tools-menu row order with static labels.
+///
+/// Selecting a row binds the currently selected tool to that button, so the
+/// labels stay static while the action carries the tool chosen at click time.
+const POINTER_BUTTON_ROWS: [(&str, PointerButton); 4] = [
+    ("Bind middle button", PointerButton::Middle),
+    ("Bind right button", PointerButton::Right),
+    ("Bind back button", PointerButton::X1),
+    ("Bind forward button", PointerButton::X2),
+];
 
 const MENU_TABS: [(Menu, &str, u32); 4] = [
     (Menu::File, "File", 54),
@@ -290,10 +302,13 @@ fn menu_item_count(menu: Menu, workspace_layout: WorkspaceLayout) -> usize {
                 4
             }
         }
-        Menu::Tools => ToolKind::all()
-            .iter()
-            .filter(|tool| !(workspace_layout.is_grid() && **tool == ToolKind::Crosshair))
-            .count(),
+        Menu::Tools => {
+            ToolKind::all()
+                .iter()
+                .filter(|tool| !(workspace_layout.is_grid() && **tool == ToolKind::Crosshair))
+                .count()
+                + POINTER_BUTTON_ROWS.len()
+        }
         Menu::Window => 6,
         Menu::GridPicker => 0,
     }
@@ -356,16 +371,34 @@ fn menu_item(
             _ => Err(anyhow!("native View menu row is outside its items")),
         },
         Menu::Tools => {
-            let tool = ToolKind::all()
+            let tool_rows = ToolKind::all()
                 .iter()
                 .copied()
                 .filter(|tool| !(workspace_layout.is_grid() && *tool == ToolKind::Crosshair))
-                .nth(index)
+                .count();
+            if index < tool_rows {
+                let tool = ToolKind::all()
+                    .iter()
+                    .copied()
+                    .filter(|tool| !(workspace_layout.is_grid() && *tool == ToolKind::Crosshair))
+                    .nth(index)
+                    .ok_or_else(|| anyhow!("native Tools menu row is outside its items"))?;
+                return Ok((
+                    tool.label(),
+                    WindowAction::SelectTool(tool),
+                    app.active_tool == tool,
+                ));
+            }
+            let (label, button) = POINTER_BUTTON_ROWS
+                .get(index - tool_rows)
                 .ok_or_else(|| anyhow!("native Tools menu row is outside its items"))?;
             Ok((
-                tool.label(),
-                WindowAction::SelectTool(tool),
-                app.active_tool == tool,
+                label,
+                WindowAction::AssignPointerTool {
+                    button: *button,
+                    tool: app.active_tool,
+                },
+                app.pointer.bindings.tool_for(*button, app.active_tool) == app.active_tool,
             ))
         }
         Menu::Window => match index {

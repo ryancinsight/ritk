@@ -11,7 +11,7 @@ use super::layout::{ViewportArea, WorkspaceLayout};
 use super::pressed_buttons::PressedButtons;
 use super::series_browser::SeriesBrowser;
 use crate::app::SnapApp;
-use crate::presentation::PresentationFrame;
+use crate::presentation::{PointerButton, PresentationFrame};
 use crate::tools::kind::ToolKind;
 use anyhow::Result;
 use metis_platform::Framebuffer;
@@ -55,6 +55,10 @@ pub(super) enum WindowAction {
         panel_index: usize,
     },
     SelectTool(ToolKind),
+    AssignPointerTool {
+        button: PointerButton,
+        tool: ToolKind,
+    },
     ToggleSeriesPreview,
     SetLayout(WorkspaceLayout),
     ToggleCrosshair,

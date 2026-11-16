@@ -210,6 +210,7 @@ fn out_of_range_wheel_keeps_the_dispatcher_transactional() {
                     x: 2.0,
                     y: 2.0,
                     button: PointerButton::Left,
+                    modifiers: PresentationModifiers::NONE,
                 },
                 PresentationEvent::PointerWheel {
                     x: 2.0,

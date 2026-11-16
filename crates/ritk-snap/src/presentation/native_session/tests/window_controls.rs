@@ -202,3 +202,45 @@ fn pane_gestures_finish_when_the_pointer_releases_over_window_chrome() {
         crate::tools::interaction::ToolState::Idle
     ));
 }
+
+#[test]
+fn pointer_button_reassignment_changes_the_resolved_gesture_tool() {
+    use crate::presentation::PointerButton;
+    use crate::tools::kind::ToolKind;
+
+    let (mut session, _root) = session();
+    session
+        .apply_window_action(WindowAction::AssignPointerTool {
+            button: PointerButton::X2,
+            tool: ToolKind::Zoom,
+        })
+        .expect("forward button accepts a tool assignment");
+    assert_eq!(
+        session
+            .app
+            .pointer
+            .bindings
+            .tool_for(PointerButton::X2, ToolKind::MeasureLength),
+        ToolKind::Zoom
+    );
+
+    session
+        .apply_window_action(WindowAction::AssignPointerTool {
+            button: PointerButton::Left,
+            tool: ToolKind::Zoom,
+        })
+        .expect("left-button rejection still reports through the action");
+    assert_eq!(
+        session
+            .app
+            .pointer
+            .bindings
+            .tool_for(PointerButton::Left, ToolKind::MeasureLength),
+        ToolKind::MeasureLength
+    );
+    assert!(
+        session.app.status_message.contains("reassignment failed"),
+        "unexpected status: {}",
+        session.app.status_message
+    );
+}

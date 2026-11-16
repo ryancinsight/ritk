@@ -77,6 +77,7 @@ fn native_events_preserve_provider_values() {
                 x: 1.0,
                 y: 2.0,
                 button: PointerButton::X1,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             PresentationEvent::PointerUp {
                 x: 3.0,

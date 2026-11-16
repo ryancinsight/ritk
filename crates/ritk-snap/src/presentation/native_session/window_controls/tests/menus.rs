@@ -165,6 +165,44 @@ fn tools_menu_hit_tests_each_ritk_tool() {
 }
 
 #[test]
+fn tools_menu_hit_tests_pointer_button_assignment_rows() {
+    use crate::tools::kind::ToolKind;
+
+    let mut app = SnapApp::default();
+    app.active_tool = ToolKind::MeasureLength;
+    let layout = ChromeLayout::new(
+        1_280,
+        800,
+        Some(Menu::Tools),
+        &app,
+        true,
+        WorkspaceLayout::Orthogonal,
+    )
+    .expect("Tools menu layout");
+    let tool_rows = ToolKind::all().len();
+    for (row, button) in [
+        PointerButton::Middle,
+        PointerButton::Right,
+        PointerButton::X1,
+        PointerButton::X2,
+    ]
+    .iter()
+    .copied()
+    .enumerate()
+    {
+        let y =
+            44.0 + f64::from(u32::try_from(tool_rows + row).expect("bounded menu index")) * 28.0;
+        assert_eq!(
+            layout.action_at(130.0, y, None),
+            Some(WindowAction::AssignPointerTool {
+                button,
+                tool: ToolKind::MeasureLength,
+            })
+        );
+    }
+}
+
+#[test]
 fn panel_layout_hides_crosshair_controls_that_are_not_rendered() {
     let app = SnapApp::default();
     let workspace = WorkspaceLayout::Panels(PanelGrid::new(2, 1).expect("two-panel layout"));
@@ -212,6 +250,7 @@ fn tools_popup_consumes_pointer_without_changing_series_selection() {
                 x: 160.0,
                 y: 156.0,
                 button: PointerButton::Left,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
             1_280,
             800,
@@ -297,6 +336,7 @@ fn native_menu_event_toggles_the_series_preview() {
         x: 80.0,
         y: 12.0,
         button: PointerButton::Left,
+        modifiers: crate::presentation::PresentationModifiers::NONE,
     };
     let menu_up = PresentationEvent::PointerUp {
         x: 80.0,
@@ -335,6 +375,7 @@ fn native_menu_event_toggles_the_series_preview() {
         x: 80.0,
         y: 44.0,
         button: PointerButton::Left,
+        modifiers: crate::presentation::PresentationModifiers::NONE,
     };
 
     assert_eq!(
