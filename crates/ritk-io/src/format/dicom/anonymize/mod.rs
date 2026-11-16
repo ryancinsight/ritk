@@ -23,7 +23,7 @@
 //! - A step that cannot complete aborts the run with [`AnonymizeError`]; the
 //!   object it would have described is never returned as a success.
 
-mod file_meta;
+pub(in crate::format::dicom) mod file_meta;
 mod profile;
 #[cfg(not(target_arch = "wasm32"))]
 mod salt;

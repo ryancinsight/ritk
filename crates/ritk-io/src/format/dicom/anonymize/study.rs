@@ -14,15 +14,13 @@
 
 use super::verify::{verify_dicom_instances, VerifyIssue, VerifyOptions};
 use super::{anonymize_object, AnonymizeOptions};
+use crate::format::dicom::export_source::{read_source, remove_written, Source};
 use crate::format::dicom::export_tree::{io_error, ExportTree, ExportTreeError};
 use dicom::core::Tag;
-use dicom::object::{open_file, FileDicomObject, InMemDicomObject};
+use dicom::object::{FileDicomObject, InMemDicomObject};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-/// Media Storage Directory Storage, the SOP class a DICOMDIR declares; the
-/// value the file-set index fixture writes.
-const MEDIA_STORAGE_DIRECTORY: &str = "1.2.840.10008.1.3.10";
 const PATIENT_NAME: Tag = Tag(0x0010, 0x0010);
 const PATIENT_ID: Tag = Tag(0x0010, 0x0020);
 
@@ -84,12 +82,8 @@ fn identifier(object: &FileDicomObject<InMemDicomObject>, tag: Tag) -> Option<St
     (!value.is_empty()).then(|| value.to_owned())
 }
 
-fn remove_written(cause: StudyAnonymizeError, written: &[PathBuf]) -> StudyAnonymizeError {
-    let paths: Vec<PathBuf> = written
-        .iter()
-        .filter(|path| path.exists() && std::fs::remove_file(path).is_err())
-        .cloned()
-        .collect();
+fn failed(cause: StudyAnonymizeError, written: &[PathBuf]) -> StudyAnonymizeError {
+    let paths = remove_written(written);
     if paths.is_empty() {
         cause
     } else {
@@ -150,15 +144,17 @@ pub fn anonymize_dicom_study(
     let mut prohibited: BTreeSet<String> = BTreeSet::new();
     for entry in tree.entries() {
         let (path, target) = (entry.source.as_path(), entry.target.as_path());
-        let Ok(object) = open_file(path) else {
-            report.non_dicom_skipped += 1;
-            continue;
+        let object = match read_source(path) {
+            Source::Instance(object) => *object,
+            Source::Index => {
+                report.indexes_omitted += 1;
+                continue;
+            }
+            Source::NotDicom => {
+                report.non_dicom_skipped += 1;
+                continue;
+            }
         };
-        let sop_class = object.meta().media_storage_sop_class_uid();
-        if sop_class.trim_end_matches(['\0', ' ']) == MEDIA_STORAGE_DIRECTORY {
-            report.indexes_omitted += 1;
-            continue;
-        }
         prohibited.extend(
             [
                 (PATIENT_NAME, options.patient_name.as_str()),
@@ -173,7 +169,7 @@ pub fn anonymize_dicom_study(
         // file left by a failed write is removed with the rest.
         written.push(target.to_path_buf());
         if let Err(cause) = export_instance(object, path, target, options, &mut report) {
-            return Err(remove_written(cause, &written));
+            return Err(failed(cause, &written));
         }
     }
     if written.is_empty() {
@@ -188,10 +184,7 @@ pub fn anonymize_dicom_study(
     };
     let issues = verify_dicom_instances(&written, &gate);
     if !issues.is_empty() {
-        return Err(remove_written(
-            StudyAnonymizeError::Verification(issues),
-            &written,
-        ));
+        return Err(failed(StudyAnonymizeError::Verification(issues), &written));
     }
     report.instances_written = written.len();
     Ok(report)
