@@ -245,6 +245,8 @@ fn responsive_native_layout_selects_single_dual_and_quad_panes() {
             session.app.cine.fps,
             false,
             None,
+            &[],
+            None,
         )
         .expect("responsive layout");
         assert_eq!(layout.pane_count(), expected_visible);
@@ -305,6 +307,8 @@ fn native_session_mip_application_overlay_labels_the_fourth_panel() {
         session.app.cine.fps,
         true,
         None,
+        &[],
+        None,
     )
     .expect("MIP application capture");
     let has_overlay_text =
@@ -329,6 +333,8 @@ fn native_application_capture_adds_bounded_ritk_overlays() {
         session.app.cine.fps,
         false,
         None,
+        &[],
+        None,
     )
     .expect("content capture");
     let (application, _) = surface_frames(
@@ -341,6 +347,8 @@ fn native_application_capture_adds_bounded_ritk_overlays() {
         false,
         session.app.cine.fps,
         true,
+        None,
+        &[],
         None,
     )
     .expect("application capture");
@@ -362,6 +370,8 @@ fn native_overlay_is_emitted_as_metis_display_commands() {
         &session.viewports,
         false,
         session.app.cine.fps,
+        None,
+        &[],
         None,
     )
     .expect("Métis overlay display list")

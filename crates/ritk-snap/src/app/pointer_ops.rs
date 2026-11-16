@@ -242,8 +242,12 @@ impl SnapApp {
             .and_then(|spacing| Annotation::compute_length_checked(p1, p2, spacing));
         match measured {
             Ok(length_mm) => {
-                self.annotations
-                    .push(Annotation::Length { p1, p2, length_mm });
+                self.annotations.push(Annotation::Length {
+                    plane: self.axis,
+                    p1,
+                    p2,
+                    length_mm,
+                });
                 self.status_message = format!("Length: {length_mm:.2} mm");
             }
             Err(error) => {

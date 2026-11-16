@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 mod anonymize;
 mod display;
 mod interaction;
+mod measurement_overlay;
 mod overlay_text;
 mod pointer_capture;
 mod repair;
@@ -418,6 +419,8 @@ fn native_session_cine_rate_controls_repaint_and_bound_overlay() {
         &session.viewports,
         true,
         session.app.cine.fps,
+        None,
+        &[],
         None,
     )
     .expect("active cine overlay")

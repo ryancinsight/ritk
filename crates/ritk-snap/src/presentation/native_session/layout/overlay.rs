@@ -1,5 +1,6 @@
 //! Labels and controls rendered over native viewer panes.
 
+use super::append_measurement_overlay;
 use super::overlay_clinical::{append_clinical_corners, append_scale_bar};
 
 use anyhow::{anyhow, Result};
@@ -12,6 +13,8 @@ use super::super::projection::RenderedProjection;
 use super::crosshair::screen_coordinate;
 use super::geometry::NativeViewport;
 use super::text::{text_command, text_style, PANEL_DETAIL_SIZE, PANEL_TITLE_SIZE};
+use crate::geometry::affine::AffineTransform;
+use crate::tools::interaction::Annotation;
 use crate::ui::coordinate_system::OrientationLabels;
 use crate::ui::coordinate_system::{edge_slot, orientation_labels, remap_labels_by_slots};
 use crate::ui::ViewTransform;
@@ -89,6 +92,8 @@ pub(crate) fn application_overlay(
     cine_enabled: bool,
     cine_fps: f32,
     clinical: Option<&ClinicalOverlay<'_>>,
+    annotations: &[Annotation],
+    affine: Option<AffineTransform>,
 ) -> Result<OverlayCommands> {
     let mut overlay = OverlayCommands::with_capacity(views.len() * 4)?;
     for (view, viewport) in views.iter().zip(viewports) {
@@ -166,6 +171,7 @@ pub(crate) fn application_overlay(
             )?;
         }
     }
+    append_measurement_overlay(&mut overlay, views, viewports, annotations, affine)?;
     Ok(overlay)
 }
 
@@ -284,7 +290,7 @@ pub(crate) struct OverlayCommands {
 
 impl OverlayCommands {
     /// Reserves room for `capacity` commands before any is written.
-    fn with_capacity(capacity: usize) -> Result<Self> {
+    pub(crate) fn with_capacity(capacity: usize) -> Result<Self> {
         let mut commands = Vec::new();
         commands
             .try_reserve(capacity)

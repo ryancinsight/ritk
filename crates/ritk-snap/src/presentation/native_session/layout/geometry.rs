@@ -40,7 +40,7 @@ pub(crate) struct NativeViewport {
     pub(in crate::presentation::native_session) panel_y: u32,
     pub(in crate::presentation::native_session) panel_width: u32,
     pub(in crate::presentation::native_session) panel_height: u32,
-    pub(super) image: ScreenRect,
+    pub(in crate::presentation::native_session) image: ScreenRect,
     pub(super) mapping: ViewerViewport,
 }
 
@@ -107,15 +107,15 @@ impl NativeViewport {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct ScreenRect {
-    pub(super) x: f64,
-    pub(super) y: f64,
-    pub(super) width: f64,
-    pub(super) height: f64,
+pub(in crate::presentation::native_session) struct ScreenRect {
+    pub(in crate::presentation::native_session) x: f64,
+    pub(in crate::presentation::native_session) y: f64,
+    pub(in crate::presentation::native_session) width: f64,
+    pub(in crate::presentation::native_session) height: f64,
 }
 
 impl ScreenRect {
-    pub(super) fn contains(self, x: f64, y: f64) -> bool {
+    pub(in crate::presentation::native_session) fn contains(self, x: f64, y: f64) -> bool {
         x.is_finite()
             && y.is_finite()
             && x >= self.x

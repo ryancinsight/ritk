@@ -6,9 +6,10 @@ use super::layout::{
     ViewportArea,
 };
 use super::projection::RenderedProjection;
+use crate::geometry::affine::AffineTransform;
 use crate::launch::{NativePresentationMode, NativePresentationSelection};
 use crate::presentation::PaneLayout;
-use crate::tools::interaction::ViewportOffset;
+use crate::tools::interaction::{Annotation, ViewportOffset};
 use anyhow::{anyhow, Context, Result};
 use metis_platform::Framebuffer;
 use std::path::Path;
@@ -28,6 +29,8 @@ pub(super) fn compose_frames(
     cine_fps: f32,
     show_application_overlay: bool,
     clinical: Option<&ClinicalOverlay<'_>>,
+    annotations: &[Annotation],
+    affine: Option<AffineTransform>,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     match (presentation_mode, projection) {
         (NativePresentationSelection::Responsive, Some(projection)) => surface_frames_responsive(
@@ -43,6 +46,8 @@ pub(super) fn compose_frames(
             cine_fps,
             show_application_overlay,
             clinical,
+            annotations,
+            affine,
         ),
         (NativePresentationSelection::Fixed(NativePresentationMode::Orthogonal), None) => {
             surface_frames(
@@ -56,6 +61,8 @@ pub(super) fn compose_frames(
                 cine_fps,
                 show_application_overlay,
                 clinical,
+                annotations,
+                affine,
             )
         }
         (
@@ -81,6 +88,8 @@ pub(super) fn compose_frames(
             cine_fps,
             show_application_overlay,
             clinical,
+            annotations,
+            affine,
         ),
         (NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithMip), None)
         | (NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithMinip), None)
