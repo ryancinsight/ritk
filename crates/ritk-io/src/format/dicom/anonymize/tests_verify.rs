@@ -471,3 +471,21 @@ fn optional_uids_keep_their_format_unchecked() {
     };
     assert_eq!(verify_dicom_file(&path, &options).unwrap().issues, []);
 }
+
+#[test]
+fn a_file_meta_uid_naming_another_instance_is_reported() {
+    let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
+    obj.update_meta(|meta| meta.media_storage_sop_instance_uid = "1.2.3.4.5.99".to_owned());
+    let path = write_to_temp(&obj, "stale-meta.dcm");
+
+    let report = verify_dicom_file(&path, &VerifyOptions::default()).unwrap();
+
+    assert_eq!(
+        report.issues,
+        [VerifyIssue::UidMismatch {
+            tag: "MediaStorageSOPInstanceUID".to_owned(),
+            expected: "1.2.3.4.5.8".to_owned(),
+            found: "1.2.3.4.5.99".to_owned(),
+        }]
+    );
+}

@@ -26,7 +26,9 @@
 //!    UID breaks study reassembly at the destination. FrameOfReferenceUID is
 //!    checked for conformance where present and never required: the verifier
 //!    does not resolve the object's IOD, and an object without a spatial
-//!    frame carries none.
+//!    frame carries none. When the data set has a non-empty SOPInstanceUID,
+//!    the file meta Media Storage SOP Instance UID must equal it (PS3.10
+//!    Table 7.1-1).
 //! 3. **De-identification completeness** — when a profile is supplied, every
 //!    tag the profile targets must either be absent or carry its replacement
 //!    value; the raw patient-identifying values that were scrubbed must not
@@ -73,7 +75,9 @@ pub enum VerifyIssue {
     MissingUid { tag: String },
     /// A UID value is present but not DICOM-conformant.
     InvalidUid { tag: String, value: String },
-    /// A UID differs from the series-level expectation (study/series/FoR).
+    /// A UID differs from the value it must repeat: the series-level
+    /// expectation (study/series/FoR), or the data set's SOPInstanceUID for
+    /// the file meta Media Storage SOP Instance UID.
     UidMismatch {
         tag: String,
         expected: String,
@@ -273,6 +277,9 @@ pub fn verify_dicom_file(
         }
         report.uids.push(("FrameOfReferenceUID".to_owned(), v));
     }
+    report
+        .issues
+        .extend(super::file_meta::media_storage_uid_issue(&obj));
 
     // ── 2. Geometry coherence ─────────────────────────────────────────────
     if options.validate_pixel_geometry {

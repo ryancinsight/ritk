@@ -278,6 +278,8 @@ metadata from silently shipping to a destination PACS:
     with unique SOPInstanceUIDs,
   - geometry coherence (`Rows × Columns × Samples × BytesPerPixel` vs.
     PixelData length),
+  - the file meta Media Storage SOP Instance UID equal to the data set's
+    SOPInstanceUID, when the data set has one,
   - prohibited-value leak scan for the exact identifiers the pipeline scrubbed,
     through nested sequence items: as a whole word in text, as a whole value
     in UIDs and dates,
