@@ -3,38 +3,40 @@
 //! The viewer never rewrites the study it displays: the copy goes to a folder
 //! the reader picks, and RITK refuses a folder that overlaps the source or
 //! already holds files. Pixel data is copied as stored, so text burned into
-//! the image survives; the status line says so after every export.
+//! the image survives; the status line says so after every completed export.
 
 use super::NativeViewerSession;
 use anyhow::{anyhow, Context, Result};
 use metis_platform::native::{pick, DialogSelection};
 use ritk_io::format::dicom::anonymize::{
-    anonymize_dicom_study, AnonymizationProfile, AnonymizeOptions, StudyAnonymizeReport,
+    anonymize_dicom_study, AnonymizationProfile, AnonymizeOptions, StudyAnonymizeError,
+    StudyAnonymizeReport,
 };
 use std::path::Path;
 
-/// How much descriptive metadata a de-identified export keeps.
+/// Which RITK anonymization profile a de-identified export applies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::presentation::native_session) enum Deidentification {
-    /// Replace patient identifiers and instance UIDs; keep dates and
-    /// descriptions.
-    KeepDates,
-    /// Also empty dates, drop descriptions and remove private elements.
+    /// [`AnonymizationProfile::BasicReplaceUids`]: study, series, acquisition
+    /// and content dates and times and the study and series descriptions stay.
+    Basic,
+    /// [`AnonymizationProfile::Enhanced`]: those dates and times are emptied
+    /// and the study and series descriptions are removed.
     Strict,
 }
 
 impl Deidentification {
     const fn profile(self) -> AnonymizationProfile {
         match self {
-            Self::KeepDates => AnonymizationProfile::BasicReplaceUids,
+            Self::Basic => AnonymizationProfile::BasicReplaceUids,
             Self::Strict => AnonymizationProfile::Enhanced,
         }
     }
 
     const fn summary(self) -> &'static str {
         match self {
-            Self::KeepDates => "dates and descriptions kept",
-            Self::Strict => "dates, descriptions and private elements removed",
+            Self::Basic => "study dates and descriptions kept",
+            Self::Strict => "study dates emptied, study and series descriptions removed",
         }
     }
 }
@@ -44,14 +46,30 @@ fn export_status(level: Deidentification, report: StudyAnonymizeReport, output: 
     let omitted = if left_out == 0 {
         String::new()
     } else {
-        format!(" {left_out} non-image file(s) left out.")
+        format!(" {left_out} file(s) that are not DICOM instances left out.")
     };
     format!(
-        "De-identified {} image(s) to {} ({}).{omitted} Text burned into pixels is not removed.",
+        "De-identified {} instance(s) to {} ({}).{omitted} Text burned into pixels is not removed.",
         report.instances_written,
         output.display(),
         level.summary(),
     )
+}
+
+/// The status line for a failed export; a verification failure names its
+/// first issue and the file that raised it.
+pub(super) fn failure_status(error: &anyhow::Error) -> String {
+    let first = match error.downcast_ref::<StudyAnonymizeError>() {
+        Some(StudyAnonymizeError::Verification(issues)) => issues.first(),
+        _ => None,
+    };
+    match first {
+        Some((path, issue)) => format!(
+            "De-identified export failed: {error:#}; first: {issue} in {}",
+            path.display()
+        ),
+        None => format!("De-identified export failed: {error:#}"),
+    }
 }
 
 impl NativeViewerSession {

@@ -24,7 +24,8 @@
 
 <a id="M-viewer-access"></a>
 ## M-viewer-access — 0.4.0 — get studies in and images out
-- exit: `cargo nextest run -p ritk-snap -E 'test(native_open) or test(native_tags) or test(native_export) or test(native_session_round_trip) or test(native_pacs) or test(native_archive) or test(native_anonymize)'`
+- exit: `cargo nextest run -p ritk-snap -E 'test(native_open) or test(native_tags) or test(native_export) or test(native_session_round_trip) or test(native_pacs) or test(native_archive)'`
+- exit: `cargo nextest run -p ritk-snap -E 'test(=presentation::native_session::tests::anonymize::native_anonymize_basic_replaces_identifiers_and_instance_uids)'` (export a de-identified study copy)
 - needs: M-viewer-compare
 - non-goals: cloud storage
 

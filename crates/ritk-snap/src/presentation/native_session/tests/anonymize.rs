@@ -1,7 +1,7 @@
 //! De-identified export of the open study from the native shell.
 
 use super::*;
-use crate::presentation::native_session::deidentify::Deidentification;
+use crate::presentation::native_session::deidentify::{failure_status, Deidentification};
 use ritk_io::format::dicom::anonymize::verify::{
     verify_dicom_instances, VerifyIssue, VerifyOptions,
 };
@@ -44,7 +44,7 @@ fn session_on_study() -> (NativeViewerSession, tempfile::TempDir) {
 }
 
 #[test]
-fn native_anonymize_keeping_dates_replaces_identifiers_and_instance_uids() {
+fn native_anonymize_basic_replaces_identifiers_and_instance_uids() {
     let (mut session, root) = session_on_study();
     let parent = tempfile::tempdir().expect("export parent");
     let output = parent.path().join("export");
@@ -58,7 +58,7 @@ fn native_anonymize_keeping_dates_replaces_identifiers_and_instance_uids() {
     );
 
     session
-        .anonymize_study_to(&output, Deidentification::KeepDates)
+        .anonymize_study_to(&output, Deidentification::Basic)
         .expect("export a de-identified copy");
 
     assert_eq!(leaks(&output, &identifiers), [""; 0]);
@@ -66,7 +66,7 @@ fn native_anonymize_keeping_dates_replaces_identifiers_and_instance_uids() {
     assert_eq!(
         session.app.status_message,
         format!(
-            "De-identified 3 image(s) to {} (dates and descriptions kept). \
+            "De-identified 3 instance(s) to {} (study dates and descriptions kept). \
              Text burned into pixels is not removed.",
             output.display()
         )
@@ -94,7 +94,7 @@ fn native_anonymize_strict_also_empties_the_study_date() {
     assert_eq!(
         session.app.status_message,
         format!(
-            "De-identified 3 image(s) to {} (dates, descriptions and private elements removed). \
+            "De-identified 3 instance(s) to {} (study dates emptied, study and series descriptions removed). \
              Text burned into pixels is not removed.",
             output.display()
         )
@@ -107,7 +107,7 @@ fn native_anonymize_refuses_an_output_folder_inside_the_study() {
     let shape = session.app.loaded.as_ref().expect("open study").shape;
 
     let error = session
-        .anonymize_study_to(&root.path().join("export"), Deidentification::KeepDates)
+        .anonymize_study_to(&root.path().join("export"), Deidentification::Basic)
         .expect_err("an output inside the source overlaps it");
 
     assert!(matches!(
@@ -129,7 +129,7 @@ fn native_anonymize_without_a_study_folder_says_so_and_opens_no_dialog() {
     assert_eq!(session.study_root, None);
 
     let changed = session
-        .anonymize_study_from_dialog(Deidentification::KeepDates)
+        .anonymize_study_from_dialog(Deidentification::Basic)
         .expect("report the missing study folder");
 
     assert!(changed);
@@ -149,4 +149,26 @@ fn native_anonymize_source_follows_the_study_that_is_displayed() {
         .expect_err("an empty folder holds no study");
 
     assert_eq!(session.study_root.as_deref(), Some(root.path()));
+}
+
+#[test]
+fn native_anonymize_failure_names_the_first_issue_and_its_file() {
+    let missing = |tag: &str| VerifyIssue::MissingUid {
+        tag: tag.to_owned(),
+    };
+    let gate = anyhow::Error::from(StudyAnonymizeError::Verification(vec![
+        (PathBuf::from("a.dcm"), missing("SOPInstanceUID")),
+        (PathBuf::from("b.dcm"), missing("StudyInstanceUID")),
+    ]));
+    let tree = anyhow::Error::from(StudyAnonymizeError::NoInstances(PathBuf::from("study")));
+
+    assert_eq!(
+        failure_status(&gate),
+        "De-identified export failed: 2 verification issue(s) in the export; \
+         first: missing required UID tag SOPInstanceUID in a.dcm"
+    );
+    assert_eq!(
+        failure_status(&tree),
+        "De-identified export failed: no DICOM instance found under \"study\""
+    );
 }

@@ -19,7 +19,7 @@ fn file_menu_routes_study_open_anonymize_and_exit_commands() {
     );
     assert_eq!(
         layout.action_at(20.0, 72.0, None),
-        Some(WindowAction::AnonymizeStudy(Deidentification::KeepDates))
+        Some(WindowAction::AnonymizeStudy(Deidentification::Basic))
     );
     assert_eq!(
         layout.action_at(20.0, 100.0, None),

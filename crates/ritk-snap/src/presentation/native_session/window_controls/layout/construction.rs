@@ -309,8 +309,8 @@ fn menu_item(
         Menu::File => match index {
             0 => Ok(("Open Study...", WindowAction::OpenStudy, false)),
             1 => Ok((
-                "Anonymize (keep dates)...",
-                WindowAction::AnonymizeStudy(Deidentification::KeepDates),
+                "Anonymize (basic)...",
+                WindowAction::AnonymizeStudy(Deidentification::Basic),
                 false,
             )),
             2 => Ok((

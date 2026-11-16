@@ -21,8 +21,7 @@ closes on runnable exit checks. Behavior is matched from that manual; RadiAnt's
 name, artwork and text are not reproduced in the application.
 
 Beyond that list, 1.0 includes two study tools reached from the File menu:
-a de-identified export of the open study, and (item
-`RITK-DICOM-REPAIR-OBJECT-001` onward) a repaired export correcting common
+a de-identified export of the open study, and a repaired export correcting common
 encoding defects. Both write a copy to a folder the reader picks and never
 modify the displayed study.
 

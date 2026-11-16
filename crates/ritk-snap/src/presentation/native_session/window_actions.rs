@@ -24,7 +24,7 @@ impl NativeViewerSession {
                 Ok(changed) => Ok(changed),
                 Err(error) => {
                     self.active_app_mut().status_message =
-                        format!("De-identified export failed; nothing was kept: {error:#}");
+                        super::deidentify::failure_status(&error);
                     Ok(true)
                 }
             },
