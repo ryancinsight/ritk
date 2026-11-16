@@ -4,7 +4,12 @@ use super::{repair_values, RepairError, RepairSummary};
 use crate::format::dicom::anonymize::file_meta::align_media_storage_uid;
 use crate::format::dicom::export_source::{read_source, remove_written, Source};
 use crate::format::dicom::export_tree::{io_error, ExportTree, ExportTreeError};
+use crate::format::dicom::identity::uid_is_valid;
+use dicom::core::Tag;
+use dicom::object::{FileDicomObject, InMemDicomObject};
 use std::path::PathBuf;
+
+const SOP_CLASS_UID: Tag = Tag(0x0008, 0x0016);
 
 /// What a completed repair export wrote, corrected and left out.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -12,12 +17,12 @@ use std::path::PathBuf;
 pub struct StudyRepairReport {
     /// Instances written to the output folder.
     pub instances_written: usize,
-    /// Written instances that differ from their source in at least one value.
+    /// Written instances with a rewritten value or a realigned file meta UID.
     pub instances_repaired: usize,
     /// Date, time and UID values rewritten across all instances.
     pub values: RepairSummary,
-    /// Instances whose file meta Media Storage SOP Instance UID was set to
-    /// the data set's SOPInstanceUID.
+    /// Instances whose file meta group named another SOP class or SOP
+    /// instance than the data set and was set to the data set's.
     pub file_meta_uids_aligned: usize,
     /// Source files that do not open as DICOM and were not copied.
     pub non_dicom_skipped: usize,
@@ -29,7 +34,8 @@ pub struct StudyRepairReport {
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum StudyRepairError {
-    /// The output folder cannot receive the export.
+    /// The source cannot be resolved or listed, or the output folder
+    /// cannot receive the export.
     #[error(transparent)]
     Tree(#[from] ExportTreeError),
     /// The source holds no DICOM instance.
@@ -76,25 +82,45 @@ fn failed(cause: StudyRepairError, written: &[PathBuf]) -> StudyRepairError {
     }
 }
 
+/// Set Media Storage SOP Class UID (0002,0002) to the data set's SOPClassUID
+/// when that is a single conformant UID naming another class (PS3.10 Table
+/// 7.1-1); returns whether the file meta group changed.
+fn align_media_storage_class(object: &mut FileDicomObject<InMemDicomObject>) -> bool {
+    let class = object
+        .element(SOP_CLASS_UID)
+        .ok()
+        .and_then(|element| element.to_str().ok())
+        .map(|text| text.trim_end_matches(['\0', ' ']).to_owned())
+        .filter(|uid| uid_is_valid(uid));
+    let Some(class) = class else {
+        return false;
+    };
+    if object.meta().media_storage_sop_class_uid() == class {
+        return false;
+    }
+    object.update_meta(|meta| meta.media_storage_sop_class_uid = class);
+    true
+}
+
 /// Write a repaired copy of every DICOM instance under `input` into the empty
 /// folder `output`.
 ///
 /// `input` is a study folder or a single instance; its layout is mirrored
 /// below `output`, which is created when missing, and the source is never
-/// modified. Each instance gets the value rewrites of [`repair_values`] and
-/// its file meta Media Storage SOP Instance UID set to the data set's
-/// SOPInstanceUID (PS3.10 Table 7.1-1); an instance needing neither is copied
-/// as parsed. All instances are repaired together, so a rewritten UID changes
-/// identically wherever the study refers to it. Files that do not open as
-/// DICOM Part 10, a data set stored without the Part 10 header among them,
-/// are counted and not copied; a DICOMDIR is counted and left out, because
-/// its records name the source files.
+/// modified. Each instance gets the value rewrites of [`repair_values`];
+/// then its file meta Media Storage SOP Class UID and SOP Instance UID are set
+/// to the data set's SOPClassUID and SOPInstanceUID (PS3.10 Table 7.1-1), each
+/// only when the data set value is a single conformant UID. Files that do not open as DICOM Part 10,
+/// a data set stored without the Part 10 header among them, are counted and
+/// not copied; a DICOMDIR is counted and left out, because its records name
+/// the source files.
 ///
 /// # Errors
-/// Returns [`StudyRepairError`] when the output folder overlaps the source or
-/// is not empty, when the source holds no instance, or when an instance cannot
-/// be repaired or written. Every file the run wrote is removed first; files
-/// that resist removal are named by [`StudyRepairError::Retained`].
+/// Returns [`StudyRepairError`] when the source cannot be resolved or listed,
+/// when the output folder overlaps the source or is not empty, when the source
+/// holds no instance, or when an instance cannot be repaired or written. Every
+/// file the run wrote is removed first; files that resist removal are named by
+/// [`StudyRepairError::Retained`].
 pub fn repair_dicom_study(
     input: impl AsRef<std::path::Path>,
     output: impl AsRef<std::path::Path>,
@@ -124,7 +150,8 @@ pub fn repair_dicom_study(
                 ));
             }
         };
-        let aligned = align_media_storage_uid(&mut object);
+        let class_aligned = align_media_storage_class(&mut object);
+        let aligned = align_media_storage_uid(&mut object) || class_aligned;
         // The target joins the removal list before the write so a truncated
         // file left by a failed write is removed with the rest.
         written.push(entry.target.clone());
