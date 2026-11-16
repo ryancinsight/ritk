@@ -169,8 +169,20 @@ impl<const D: usize> Direction<D> {
     }
 
     /// Try to compute the inverse of the direction matrix.
+    ///
+    /// Returns [`None`] when the matrix is numerically singular, when any
+    /// entry of the input is non-finite, and when the pivoted elimination
+    /// produces a non-finite entry — a pivot, a normalized row, or an updated
+    /// row of the working matrix or of the inverse. That last case is how
+    /// overflow surfaces: `MAX + MAX` becomes an infinity and any later
+    /// `inf - inf` a NaN, so an entry leaving the finite range is rejected the
+    /// moment it does, rather than returned as a plausible-looking inverse.
+    /// The pivot threshold and the elimination order are unchanged.
     pub fn try_inverse(&self) -> Option<Self> {
         let mut matrix = self.0.into_rows();
+        if !matrix.iter().flatten().all(|value| value.is_finite()) {
+            return None;
+        }
         let mut inverse = FixedMatrix::<f64, D, D>::identity().into_rows();
 
         for column in 0..D {
@@ -184,7 +196,7 @@ impl<const D: usize> Direction<D> {
                 }
             }
 
-            if pivot_value < PIVOT_SINGULARITY_THRESHOLD {
+            if !pivot_value.is_finite() || pivot_value < PIVOT_SINGULARITY_THRESHOLD {
                 return None;
             }
 
@@ -197,6 +209,9 @@ impl<const D: usize> Direction<D> {
             for col in 0..D {
                 matrix[column][col] /= pivot;
                 inverse[column][col] /= pivot;
+                if !matrix[column][col].is_finite() || !inverse[column][col].is_finite() {
+                    return None;
+                }
             }
 
             for row in 0..D {
@@ -207,6 +222,9 @@ impl<const D: usize> Direction<D> {
                 for col in 0..D {
                     matrix[row][col] -= factor * matrix[column][col];
                     inverse[row][col] -= factor * inverse[column][col];
+                    if !matrix[row][col].is_finite() || !inverse[row][col].is_finite() {
+                        return None;
+                    }
                 }
             }
         }
@@ -370,5 +388,97 @@ mod tests {
         assert_eq!(direction.to_row_major(), row_major);
         assert_eq!(direction.to_column_major(), column_major);
         assert_eq!(Direction3::from_column_major(column_major), direction);
+    }
+
+    /// Every non-finite value at every entry of ranks one through three is
+    /// refused: 3 ranks of 1, 4 and 9 entries against NaN and both infinities
+    /// is the 42 cases the item names.
+    #[test]
+    fn try_inverse_rejects_non_finite_input_at_every_entry() {
+        for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let mut rank_one = [[1.0_f64; 1]; 1];
+            rank_one[0][0] = bad;
+            assert!(
+                Direction::<1>::from_rows(rank_one).try_inverse().is_none(),
+                "rank 1 must refuse {bad}"
+            );
+
+            for index in 0..4 {
+                let mut rank_two = [[0.0_f64; 2]; 2];
+                rank_two[0][0] = 1.0;
+                rank_two[1][1] = 1.0;
+                rank_two[index / 2][index % 2] = bad;
+                assert!(
+                    Direction::<2>::from_rows(rank_two).try_inverse().is_none(),
+                    "rank 2 entry {index} must refuse {bad}"
+                );
+            }
+
+            for index in 0..9 {
+                let mut rank_three = [[0.0_f64; 3]; 3];
+                rank_three[0][0] = 1.0;
+                rank_three[1][1] = 1.0;
+                rank_three[2][2] = 1.0;
+                rank_three[index / 3][index % 3] = bad;
+                assert!(
+                    Direction::<3>::from_rows(rank_three)
+                        .try_inverse()
+                        .is_none(),
+                    "rank 3 entry {index} must refuse {bad}"
+                );
+            }
+        }
+    }
+
+    /// Overflow while normalizing the pivot row leaves the finite range, so the
+    /// inverse is refused instead of being returned with an infinity in it.
+    #[test]
+    fn try_inverse_rejects_overflow_during_normalization() {
+        // Column 0's pivot is the 1e-9 it sits on, and normalizing the row
+        // divides 1e300 by it: 1e309 overflows to an infinity.
+        let direction = Direction::<2>::from_rows([[1e-9, 1e300], [0.0, 1.0]]);
+        assert!(direction.try_inverse().is_none());
+    }
+
+    /// A pivoted, non-orthonormal matrix with an exactly representable inverse
+    /// is still accepted: the guard rejects non-finite arithmetic, not shape.
+    #[test]
+    fn try_inverse_accepts_an_exact_pivoted_shear() {
+        let direction = Direction::<2>::from_rows([[0.0, 1.0], [1.0, 0.0]]);
+        let inverse = direction
+            .try_inverse()
+            .expect("invariant: the swap fixture is its own inverse");
+        assert_eq!(inverse, direction);
+    }
+
+    /// The widest exactly representable diagonal whose every pivot clears the
+    /// unchanged singularity threshold still inverts, and its inverse is the
+    /// exact reciprocal triple with no overflow.
+    #[test]
+    fn try_inverse_accepts_the_extreme_dyadic_diagonal() {
+        let direction = Direction::<3>::from_rows([
+            [2f64.powi(1023), 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 2f64.powi(-9)],
+        ]);
+        let inverse = direction
+            .try_inverse()
+            .expect("invariant: dyadic diagonal clears the pivot threshold");
+        assert_eq!(inverse[(0, 0)].to_bits(), 2f64.powi(-1023).to_bits());
+        assert_eq!(inverse[(1, 1)].to_bits(), 1.0_f64.to_bits());
+        assert_eq!(inverse[(2, 2)].to_bits(), 2f64.powi(9).to_bits());
+    }
+
+    /// A diagonal entry below the unchanged pivot threshold is refused as
+    /// singular — including the smallest subnormal-scale dyadic — so the
+    /// finiteness guard never has to launder an overflow into a "valid" answer.
+    #[test]
+    fn try_inverse_refuses_a_diagonal_below_the_pivot_threshold() {
+        let direction = Direction::<3>::from_rows([
+            [2f64.powi(1023), 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 2f64.powi(-1023)],
+        ]);
+        assert!(direction.try_inverse().is_none());
     }
 }

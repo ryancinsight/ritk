@@ -1,6 +1,6 @@
 //! Tests for the hoisted Cartesian index/world transform pair.
 
-use super::CartesianGridGeometry;
+use super::{CartesianGridGeometry, NonCartesianGrid};
 use crate::{CoordinateMap, CurvilinearArray, Direction, Point, Spacing};
 
 /// A quarter-turn fixture keeps every transform operation exactly representable.
@@ -155,4 +155,24 @@ fn a_singular_direction_is_reported_rather_than_panicking() {
         error.to_string().contains("singular"),
         "error should name the singular direction, got {error}"
     );
+}
+
+/// A direction carrying a non-finite entry has no inverse, so the geometry is
+/// refused with the singular-direction variant rather than keeping an
+/// index/world pair that would propagate NaN into every coordinate it maps.
+#[test]
+fn a_non_finite_direction_is_a_singular_direction() {
+    for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        let direction = Direction::from_rows([[bad, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]);
+        let result = CartesianGridGeometry::new(
+            &Point::origin(),
+            &Spacing::try_new([1.0, 1.0, 1.0]).expect("invariant: unit spacing is positive"),
+            &direction,
+            &CoordinateMap::Cartesian,
+        );
+        assert!(
+            matches!(result, Err(NonCartesianGrid::SingularDirection)),
+            "a direction containing {bad} must report SingularDirection"
+        );
+    }
 }

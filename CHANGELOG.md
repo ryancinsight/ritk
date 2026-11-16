@@ -8,6 +8,25 @@
 
 # CHANGELOG
 
+## ritk-spatial 0.4.1
+
+### Fixed
+
+- `Direction::try_inverse` returns `None` for a matrix with a non-finite
+  entry, and whenever the pivoted elimination produces a non-finite pivot, a
+  non-finite normalized row entry, or a non-finite updated entry of the working
+  matrix or of the inverse. Previously only a pivot below
+  `PIVOT_SINGULARITY_THRESHOLD` was refused, and a NaN pivot made that
+  comparison false, so the routine returned `Some` of a NaN-filled matrix;
+  arithmetic that overflowed mid-elimination likewise surfaced as a
+  plausible-looking inverse. `CartesianGridGeometry::new` therefore reports its
+  existing `NonCartesianGrid::SingularDirection` instead of keeping an
+  index/world pair that maps NaN into every coordinate. The pivot threshold and
+  the elimination order are unchanged, so a diagonal below the threshold is
+  still refused as singular. Covered by 42 non-finite input cases across ranks
+  one to three, an overflow-during-normalization case, an exact pivoted shear,
+  and the widest dyadic diagonal that clears the threshold.
+
 ## ritk-registration 0.55.1
 
 ### Fixed
