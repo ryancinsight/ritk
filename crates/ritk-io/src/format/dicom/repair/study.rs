@@ -125,7 +125,7 @@ pub fn repair_dicom_study(
     input: impl AsRef<std::path::Path>,
     output: impl AsRef<std::path::Path>,
 ) -> Result<StudyRepairReport, StudyRepairError> {
-    let tree = ExportTree::plan(input.as_ref(), output.as_ref())?;
+    let tree = ExportTree::plan(input.as_ref(), output.as_ref(), None)?;
     let mut report = StudyRepairReport::default();
     let mut written: Vec<PathBuf> = Vec::new();
     for entry in tree.entries() {

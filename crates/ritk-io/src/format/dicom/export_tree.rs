@@ -72,13 +72,18 @@ impl ExportTree {
     /// Resolve `input` and `output` and list the source files in path order.
     ///
     /// `input` is a folder or a single file. `output` is not created; a
-    /// missing output folder must have an existing parent. Symbolic links
-    /// below `input` are not followed.
+    /// missing output folder must have an existing parent. A selection
+    /// requires a directory input and resolves every selected file inside it.
+    /// Unrestricted traversal does not follow symbolic links below `input`.
     ///
     /// # Errors
     /// Returns [`ExportTreeError`] when a path cannot be resolved or read,
     /// when the two overlap, or when the output folder holds entries.
-    pub(crate) fn plan(input: &Path, output: &Path) -> Result<Self, ExportTreeError> {
+    pub(crate) fn plan(
+        input: &Path,
+        output: &Path,
+        selected: Option<&[&Path]>,
+    ) -> Result<Self, ExportTreeError> {
         let source = input.canonicalize().map_err(io_error("resolve", input))?;
         let destination = resolve_output(output)?;
         if destination.starts_with(&source) || source.starts_with(&destination) {
@@ -103,11 +108,18 @@ impl ExportTree {
             source: std::io::ErrorKind::InvalidInput.into(),
         };
         let root = if source.is_file() {
+            if selected.is_some() {
+                return Err(outside(&source));
+            }
             source.parent().ok_or_else(|| outside(&source))?
         } else {
             source.as_path()
         };
-        let entries = source_files(&source)?
+        let files = match selected {
+            Some(selected) => selected_files(selected)?,
+            None => source_files(&source)?,
+        };
+        let entries = files
             .into_iter()
             .map(|file| {
                 let below = file.strip_prefix(root).map_err(|_| outside(&file))?;
@@ -141,6 +153,25 @@ impl ExportTree {
     pub(crate) fn entries(&self) -> &[ExportEntry] {
         &self.entries
     }
+}
+
+fn selected_files(selected: &[&Path]) -> Result<Vec<PathBuf>, ExportTreeError> {
+    let mut files = Vec::with_capacity(selected.len());
+    for &path in selected {
+        let file = path.canonicalize().map_err(io_error("resolve", path))?;
+        if !std::fs::metadata(&file)
+            .map_err(io_error("inspect", &file))?
+            .is_file()
+        {
+            return Err(io_error("read selected file", &file)(
+                std::io::ErrorKind::InvalidInput.into(),
+            ));
+        }
+        files.push(file);
+    }
+    files.sort_unstable();
+    files.dedup();
+    Ok(files)
 }
 
 /// Resolve `output` without creating it: an existing folder is canonicalized,
@@ -207,7 +238,7 @@ mod tests {
         tree(source.path())?;
         let output = parent.path().join("export");
 
-        let plan = ExportTree::plan(source.path(), &output)?;
+        let plan = ExportTree::plan(source.path(), &output, None)?;
 
         let root = source.path().canonicalize()?;
         let destination = parent.path().canonicalize()?.join("export");
@@ -231,7 +262,7 @@ mod tests {
         tree(source.path())?;
         let file = source.path().join("a");
 
-        let plan = ExportTree::plan(&file, output.path())?;
+        let plan = ExportTree::plan(&file, output.path(), None)?;
 
         assert_eq!(
             plan.entries(),
@@ -249,7 +280,7 @@ mod tests {
         tree(source.path())?;
         let output = source.path().join("export");
 
-        let error = ExportTree::plan(source.path(), &output)
+        let error = ExportTree::plan(source.path(), &output, None)
             .expect_err("invariant: an output inside the source overlaps it");
 
         assert!(matches!(error, ExportTreeError::OutputOverlapsInput { .. }));
@@ -264,7 +295,7 @@ mod tests {
         tree(&source)?;
 
         for output in [parent.path(), source.as_path()] {
-            let error = ExportTree::plan(&source, output)
+            let error = ExportTree::plan(&source, output, None)
                 .expect_err("invariant: the output contains or is the source");
             assert!(matches!(error, ExportTreeError::OutputOverlapsInput { .. }));
         }
@@ -278,7 +309,7 @@ mod tests {
         tree(source.path())?;
         std::fs::write(output.path().join("keep"), "keep")?;
 
-        let error = ExportTree::plan(source.path(), output.path())
+        let error = ExportTree::plan(source.path(), output.path(), None)
             .expect_err("invariant: the output folder holds a file");
 
         let expected = output.path().canonicalize()?;
@@ -291,7 +322,7 @@ mod tests {
         let output = tempfile::tempdir()?;
         let missing = output.path().join("absent");
 
-        let error = ExportTree::plan(&missing, output.path())
+        let error = ExportTree::plan(&missing, output.path(), None)
             .expect_err("invariant: the source does not exist");
 
         assert!(matches!(

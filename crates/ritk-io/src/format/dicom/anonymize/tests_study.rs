@@ -1,7 +1,10 @@
 //! Study-level de-identification over a folder tree.
 
 use super::verify::VerifyIssue;
-use super::{anonymize_dicom_study, AnonymizationProfile, AnonymizeOptions, StudyAnonymizeError};
+use super::{
+    anonymize_dicom_selection, anonymize_dicom_study, AnonymizationProfile, AnonymizeOptions,
+    StudyAnonymizeError,
+};
 use crate::format::dicom::export_tree::ExportTreeError;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::{meta::FileMetaTableBuilder, open_file, FileDicomObject, InMemDicomObject};
@@ -146,6 +149,45 @@ fn a_study_tree_is_exported_under_neutral_names_with_series_kept_together() -> T
     assert_eq!(meta_uid, data_set_uid);
     assert_ne!(data_set_uid, "1.2.3.10.1");
     assert_eq!(std::fs::read(source.path().join("s1/a.dcm"))?, original);
+    Ok(())
+}
+
+#[test]
+fn a_failed_selected_instance_removes_the_completed_files() -> TestResult {
+    let source = tempfile::tempdir()?;
+    let output = tempfile::tempdir()?;
+    study_tree(source.path())?;
+    let broken = source.path().join("z.dcm");
+    std::fs::write(&broken, "invalid DICOM")?;
+    let error = anonymize_dicom_selection(
+        source.path(),
+        &[&source.path().join("s1/a.dcm"), &broken],
+        output.path(),
+        &options(),
+    )
+    .expect_err("an unreadable selected file must abort the export");
+    assert!(
+        matches!(error, StudyAnonymizeError::SelectedInstance(path) if path == broken.canonicalize()?)
+    );
+    assert_eq!(listing(output.path())?, Vec::<String>::new());
+    Ok(())
+}
+
+#[test]
+fn a_selected_instance_outside_the_source_is_rejected() -> TestResult {
+    let source = tempfile::tempdir()?;
+    let other = tempfile::tempdir()?;
+    let output = tempfile::tempdir()?;
+    study_tree(other.path())?;
+    let outside = other.path().join("s1/a.dcm");
+    let error = anonymize_dicom_selection(source.path(), &[&outside], output.path(), &options())
+        .expect_err("an outside file must abort the export");
+    assert!(
+        matches!(error, StudyAnonymizeError::Tree(ExportTreeError::Io {
+        action: "place", path, ..
+    }) if path == outside.canonicalize()?)
+    );
+    assert_eq!(listing(output.path())?, Vec::<String>::new());
     Ok(())
 }
 

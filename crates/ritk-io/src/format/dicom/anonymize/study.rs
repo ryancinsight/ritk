@@ -53,6 +53,9 @@ pub enum StudyAnonymizeError {
     /// The output folder cannot receive the export.
     #[error(transparent)]
     Tree(#[from] ExportTreeError),
+    /// A selected file could not be read as a DICOM instance.
+    #[error("selected file {0:?} is not a readable DICOM instance")]
+    SelectedInstance(PathBuf),
     /// The source holds no DICOM instance to export.
     #[error("no DICOM instance found under {0:?}")]
     NoInstances(PathBuf),
@@ -145,7 +148,51 @@ pub fn anonymize_dicom_study(
     output: impl AsRef<Path>,
     options: &AnonymizeOptions,
 ) -> Result<StudyAnonymizeReport, StudyAnonymizeError> {
-    let tree = ExportTree::plan(input.as_ref(), output.as_ref())?;
+    export(input.as_ref(), output.as_ref(), options, None)
+}
+
+/// De-identify the selected DICOM instance files into a separate empty folder.
+///
+/// Each path must resolve to a regular file within `input_root`. Files are
+/// deduplicated and numbered in resolved path order. All instances share one
+/// UID mapping and pass the same verification as [`anonymize_dicom_study`].
+///
+/// # Examples
+/// ```no_run
+/// use ritk_io::format::dicom::anonymize::{anonymize_dicom_selection, AnonymizeOptions};
+/// use std::path::Path;
+///
+/// let instances = [Path::new("study/image.dcm")];
+/// let report = anonymize_dicom_selection("study", &instances, "export", &AnonymizeOptions::default())?;
+/// assert_eq!(report.instances_written, 1);
+/// # Ok::<(), ritk_io::format::dicom::anonymize::StudyAnonymizeError>(())
+/// ```
+///
+/// # Errors
+/// Returns an error if the selection is empty or contains an unreadable,
+/// out-of-root, or non-instance file, if the destination overlaps the input
+/// or is nonempty, or if export or verification fails.
+pub fn anonymize_dicom_selection(
+    input_root: impl AsRef<Path>,
+    instances: &[&Path],
+    output: impl AsRef<Path>,
+    options: &AnonymizeOptions,
+) -> Result<StudyAnonymizeReport, StudyAnonymizeError> {
+    export(
+        input_root.as_ref(),
+        output.as_ref(),
+        options,
+        Some(instances),
+    )
+}
+
+fn export(
+    input: &Path,
+    output: &Path,
+    options: &AnonymizeOptions,
+    selected: Option<&[&Path]>,
+) -> Result<StudyAnonymizeReport, StudyAnonymizeError> {
+    let tree = ExportTree::plan(input, output, selected)?;
     let mut report = StudyAnonymizeReport::default();
     let mut written: Vec<PathBuf> = Vec::new();
     let mut sources: BTreeMap<PathBuf, &Path> = BTreeMap::new();
@@ -154,6 +201,12 @@ pub fn anonymize_dicom_study(
         let path = entry.source.as_path();
         let object = match read_source(path) {
             Source::Instance(object) => *object,
+            Source::Index | Source::NotDicom if selected.is_some() => {
+                return Err(failed(
+                    StudyAnonymizeError::SelectedInstance(path.to_path_buf()),
+                    &written,
+                ));
+            }
             Source::Index => {
                 report.indexes_omitted += 1;
                 continue;
