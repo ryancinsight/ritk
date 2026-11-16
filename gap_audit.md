@@ -34,15 +34,33 @@
 
 <a id="RITK-DICOM-VERIFY-PACKED-BITS-001"></a>
 ## RITK-DICOM-VERIFY-PACKED-BITS-001: the export gate sizes a 1-bit frame at one byte per sample
-- risk: `check_geometry` in `anonymize/verify.rs` expects `Rows * Columns * SamplesPerPixel * ceil(BitsAllocated / 8)` bytes, so a single-frame object with BitsAllocated 1 and bit-packed PixelData (a segmentation) is reported short and removes a whole de-identified export.
+- risk: `check_geometry` in `anonymize/verify/geometry.rs` expects `Rows * Columns * SamplesPerPixel * ceil(BitsAllocated / 8)` bytes, so a single-frame object with BitsAllocated 1 and bit-packed PixelData of three or more samples is reported short and removes a whole de-identified export.
 - evidence: filed by the judge of ritk#931 from reading; the packing rule was recalled from PS3.5, not looked up, and no fixture reproduces it.
 - reopen: at the next change to `check_geometry`; read PS3.5 section 8.1.1, then export one 1-bit single-frame object and file the correctness item if it is rejected.
 
 <a id="RITK-DICOM-ANONYMIZE-STUDY-002"></a>
 ## RITK-DICOM-ANONYMIZE-STUDY-002: study export failures lose their cause, and filed judge findings are open
-- risk: an unreadable DICOM file counts as non-DICOM without its path; a `create_dir_all` failure returns `Tree`; `exists()` hides metadata errors; `Retained` has no `#[source]`; `Instance` boxes `dyn Error`; emptied folders stay after a failed run; the verifier module doc claims a profile-completeness check no code performs; `examples/anonymize_pacs_export.rs` lines 12 to 15 are stale.
+- risk: an unreadable DICOM file counts as non-DICOM without its path; a `create_dir_all` failure returns `Tree`; `exists()` hides metadata errors; `Retained` has no `#[source]`; `Instance` boxes `dyn Error`; emptied folders stay after a failed run; the verifier module doc claims a profile-completeness check no code performs; `examples/anonymize_pacs_export.rs` line 12 says FrameOfReferenceUID must be present and its geometry line omits SamplesPerPixel.
 - evidence: filed findings of the judges of ritk#914, #917, #919, #920 and #921, in each PR's verdict comment.
 - reopen: at the next change under `crates/ritk-io/src/format/dicom/anonymize/` or `export_tree.rs`, or when the backlog has room (998 of 1,000 lines at d247fada9).
+
+<a id="RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001"></a>
+## RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001: directory-mode de-identification copies source file names
+- risk: `anonymize_dicom_directory` and its verified wrapper write each instance under its source file name, so a patient name or source UID in a file name reaches the output; the Python binding calls this mode. `anonymize_dicom_study` numbers its outputs since ritk#933.
+- evidence: read in `anonymize/mod.rs` (`output_dir.join(file_name)`) and `crates/ritk-python/src/io/anonymize.rs`; no fixture reproduces it.
+- reopen: before the Python de-identification API is called complete; file the correctness item with a failing test, then number the outputs or route directory mode through the study export.
+
+<a id="RITK-DICOM-ANONYMIZE-NESTED-META-001"></a>
+## RITK-DICOM-ANONYMIZE-NESTED-META-001: group 0002 elements inside sequence items survive de-identification
+- risk: `file_meta::remove_origin` removes top-level data set elements of group 0002 only; one nested in a sequence item stays. A file whose group length ends before (0002,0012) is read with dicom-rs default implementation identifiers, and the misplaced real ones are then deleted.
+- evidence: filed by the judges of ritk#932 from reading ritk-io and dicom-object 0.10.1; neither input was built.
+- reopen: at the next change to `anonymize/file_meta.rs` or `anonymize_dataset`; build both inputs as byte streams and file the correctness item for each that leaks or loses a value.
+
+<a id="RITK-DICOM-ANONYMIZE-EXPORT-003"></a>
+## RITK-DICOM-ANONYMIZE-EXPORT-003: filed judge findings on the numbered export and the gate are open
+- risk: `anonymize/study.rs` keeps a `map_or(target, ..)` fallback no input reaches; export names past 999,999 stop sorting numerically; the source-path mapping is tested for `PatientLeak` only; the non-image study test does not assert the report's StudyInstanceUID and SOPInstanceUID were replaced; the root README says a failed run removes everything it wrote, but a created output folder stays; `tests_verify.rs` line 6 still lists geometry drift, moved to `tests_verify_geometry.rs`; the misplaced-element fixture uses Implicit VR and does not assert the stray values.
+- evidence: filed findings in the judge verdict comments on ritk#931, #932, #933 and #934.
+- reopen: at the next change under `crates/ritk-io/src/format/dicom/anonymize/`.
 
 <a id="RITK-DICOM-REPAIR-STUDY-002"></a>
 ## RITK-DICOM-REPAIR-STUDY-002: filed judge findings on the repair export and viewer tools are open
