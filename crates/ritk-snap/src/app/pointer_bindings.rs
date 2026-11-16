@@ -8,6 +8,7 @@
 use crate::presentation::PointerButton;
 use crate::tools::interaction::ToolState;
 use crate::tools::kind::ToolKind;
+#[cfg(any(windows, test))]
 use thiserror::Error;
 
 /// Failure reassigning a pointer button to a viewer tool.
