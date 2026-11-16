@@ -6,6 +6,7 @@ mod multi_series;
 mod series;
 use self::layout::{ChromeGeometry, ChromeLayout};
 use self::multi_series::MultiSeriesDialog;
+use super::deidentify::Deidentification;
 use super::layout::{ViewportArea, WorkspaceLayout};
 use super::pressed_buttons::PressedButtons;
 use super::series_browser::SeriesBrowser;
@@ -28,6 +29,7 @@ pub(super) enum Menu {
 pub(super) enum WindowAction {
     OpenMenu(Menu),
     OpenStudy,
+    AnonymizeStudy(Deidentification),
     OpenSeriesPicker,
     LoadSelectedSeries,
     Exit,
