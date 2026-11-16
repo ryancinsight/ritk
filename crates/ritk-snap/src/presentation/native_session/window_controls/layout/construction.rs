@@ -4,6 +4,7 @@ use super::{
     ChromeControl, ChromeGeometry, ChromeLayout, ControlKind, ToolbarSeparator, CONTROL_CAPACITY,
 };
 use crate::app::SnapApp;
+use crate::presentation::native_session::deidentify::Deidentification;
 use crate::tools::kind::ToolKind;
 use anyhow::{anyhow, Result};
 use arrayvec::ArrayVec;
@@ -281,7 +282,7 @@ fn menu_tab_geometry(menu: Menu) -> u32 {
 
 fn menu_item_count(menu: Menu, workspace_layout: WorkspaceLayout) -> usize {
     match menu {
-        Menu::File => 2,
+        Menu::File => 4,
         Menu::View => {
             if workspace_layout.is_grid() {
                 3
@@ -307,7 +308,17 @@ fn menu_item(
     match menu {
         Menu::File => match index {
             0 => Ok(("Open Study...", WindowAction::OpenStudy, false)),
-            1 => Ok(("Exit", WindowAction::Exit, false)),
+            1 => Ok((
+                "Anonymize (basic)...",
+                WindowAction::AnonymizeStudy(Deidentification::Basic),
+                false,
+            )),
+            2 => Ok((
+                "Anonymize (strict)...",
+                WindowAction::AnonymizeStudy(Deidentification::Strict),
+                false,
+            )),
+            3 => Ok(("Exit", WindowAction::Exit, false)),
             _ => Err(anyhow!("native File menu row is outside its items")),
         },
         Menu::View if workspace_layout.is_grid() => match index {

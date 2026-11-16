@@ -17,6 +17,7 @@ use std::time::Duration;
 
 mod compare;
 mod composition;
+mod deidentify;
 mod events;
 mod frame;
 mod layout;
@@ -155,7 +156,7 @@ fn run_native_viewer_with_browser(
     )?;
 
     let observation = Arc::new(NativeViewerObservation::default());
-    let session = NativeViewerSession::new_with_browser(
+    let mut session = NativeViewerSession::new_with_browser(
         app,
         Arc::clone(&observation),
         capture.is_some(),
@@ -164,6 +165,7 @@ fn run_native_viewer_with_browser(
         series_browser,
         comparison_series_uid,
     )?;
+    session.study_root = Some(initial_path.to_path_buf());
     let config = WindowConfig::with_visibility(
         NATIVE_TITLE,
         INITIAL_WIDTH,
