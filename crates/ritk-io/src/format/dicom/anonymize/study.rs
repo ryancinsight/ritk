@@ -129,16 +129,17 @@ fn export_instance(
 /// De-identify every DICOM instance under `input` into the empty folder `output`.
 ///
 /// `input` is a study folder or a single instance. `output` is created when
-/// missing and receives the instances as `000001.dcm`, `000002.dcm`, ...,
+/// missing, which requires its parent folder to exist, and receives the instances as `000001.dcm`, `000002.dcm`, ...,
 /// numbered in the order their source paths sort; the source's folder and
 /// file names are not copied. The export then passes
 /// [`verify_dicom_instances`] with the source patient names and patient IDs
 /// as prohibited values.
 ///
 /// # Errors
-/// Returns [`StudyAnonymizeError`] when the output folder overlaps the source
-/// or is not empty, when the source holds no instance, when an instance cannot
-/// be de-identified or written, or when verification finds an issue.
+/// Returns [`StudyAnonymizeError`] when a path cannot be resolved or listed,
+/// when the output folder overlaps the source or is not empty, when the source
+/// holds no instance, when an instance cannot be de-identified or written, or
+/// when verification finds an issue.
 pub fn anonymize_dicom_study(
     input: impl AsRef<Path>,
     output: impl AsRef<Path>,

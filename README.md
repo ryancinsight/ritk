@@ -289,7 +289,8 @@ metadata from silently shipping to a destination PACS:
   run anonymization and the export gate as one operation, failing closed on
   any defect.
 - `anonymize_dicom_study` — de-identifies every instance under a study folder
-  into a separate empty folder, mirroring the layout, then runs the export
+  into a separate empty folder as `000001.dcm`, `000002.dcm`, ..., copying
+  no source folder or file name, then runs the export
   gate over the whole set with the source patient names and IDs prohibited;
   any failure removes everything the run wrote.
 

@@ -69,7 +69,8 @@ fn value(path: &Path, tag: Tag) -> Result<String, Box<dyn std::error::Error>> {
         .to_owned())
 }
 
-/// Every file and folder below `root`, relative to it, in path order.
+/// Every file and folder below `root`, relative to it with `/` separators,
+/// sorted as strings.
 fn listing(root: &Path) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut names = Vec::new();
     let mut pending = vec![root.to_path_buf()];
@@ -276,7 +277,14 @@ fn an_object_without_pixel_data_is_exported_with_the_images() -> TestResult {
     let report = anonymize_dicom_study(&input, &output, &options())?;
 
     assert_eq!(report.instances_written, 2);
-    // `image.dcm` sorts first.
+    // `image.dcm` sorts first, so the report is the second export.
+    assert_eq!(
+        [
+            value(&output.join("000001.dcm"), Tag(0x0008, 0x0016))?,
+            value(&output.join("000002.dcm"), Tag(0x0008, 0x0016))?,
+        ],
+        [CT_IMAGE_STORAGE, "1.2.840.10008.5.1.4.1.1.88.11"]
+    );
     assert_eq!(
         value(&output.join("000002.dcm"), PATIENT_NAME)?,
         "ANONYMOUS"

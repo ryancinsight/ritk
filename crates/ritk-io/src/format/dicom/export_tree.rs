@@ -48,16 +48,19 @@ pub(crate) fn io_error(
     }
 }
 
-/// One source file and the path it is written to.
+/// One source file and its mirrored path below the output folder.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ExportEntry {
     /// Resolved source file.
     pub(crate) source: PathBuf,
-    /// Its path below the output folder.
+    /// The output folder joined with the file's path below the source
+    /// folder, or with its own name for a single-file source. A caller that
+    /// names its outputs otherwise ignores it.
     pub(crate) target: PathBuf,
 }
 
-/// The regular files of a source and where each lands in the output folder.
+/// The regular files of a source, the resolved output folder, and each
+/// file's mirrored path below it.
 #[derive(Debug)]
 pub(crate) struct ExportTree {
     source: PathBuf,
@@ -132,7 +135,7 @@ impl ExportTree {
         &self.destination
     }
 
-    /// Source files in path order, each with the path it is written to: its
+    /// Source files in path order, each with its mirrored target: its
     /// path below the source folder, or its own name for a single-file source,
     /// joined below the output folder.
     pub(crate) fn entries(&self) -> &[ExportEntry] {
