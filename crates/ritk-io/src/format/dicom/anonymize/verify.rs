@@ -34,10 +34,13 @@
 //!    value; the raw patient-identifying values that were scrubbed must not
 //!    resurface. This is checked against the *expected* post-anonymization
 //!    state, not by scanning for arbitrary strings.
-//! 4. **Geometry coherence** — Rows/Columns/BitsAllocated must be present and
-//!    the PixelData byte length must match `Rows * Columns * BytesPerPixel`
-//!    (per-frame), catching metadata/pixel drift that PACS viewers tolerate
-//!    silently but that corrupts quantitative analysis.
+//! 4. **Geometry coherence** — an object holding PixelData must carry
+//!    Rows/Columns/BitsAllocated, and native PixelData must hold at least one
+//!    frame of `Rows * Columns * SamplesPerPixel * BytesPerSample`, catching
+//!    metadata/pixel drift that PACS viewers tolerate silently but that
+//!    corrupts quantitative analysis. An object without PixelData (a
+//!    structured report, a key object selection, a presentation state) has
+//!    no geometry and is not checked.
 //! 5. **Cross-file consistency** — in directory mode, all files must share one
 //!    StudyInstanceUID and one SeriesInstanceUID (for a single-series export),
 //!    and SOPInstanceUIDs must be unique.
@@ -295,6 +298,9 @@ pub fn verify_dicom_file(
 }
 
 fn check_geometry(obj: &FileDicomObject<InMemDicomObject>, report: &mut FileVerifyReport) {
+    if obj.element(Tag(0x7FE0, 0x0010)).is_err() {
+        return;
+    }
     let rows = obj
         .element(Tag(0x0028, 0x0010))
         .ok()

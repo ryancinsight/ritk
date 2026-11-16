@@ -184,3 +184,37 @@ fn a_patient_name_surviving_in_an_unlisted_element_removes_the_whole_export() ->
     }
     Ok(())
 }
+
+#[test]
+fn an_object_without_pixel_data_is_exported_with_the_images() -> TestResult {
+    let root = tempfile::tempdir()?;
+    let (input, output) = (root.path().join("study"), root.path().join("export"));
+    write(
+        &instance("1.2.3.10", "1.2.3.10.1", CT_IMAGE_STORAGE)?,
+        &input.join("image.dcm"),
+    )?;
+    let mut report_object = instance("1.2.3.40", "1.2.3.40.1", "1.2.840.10008.5.1.4.1.1.88.11")?;
+    for tag in [
+        Tag(0x0028, 0x0010),
+        Tag(0x0028, 0x0011),
+        Tag(0x0028, 0x0100),
+        Tag(0x0028, 0x0002),
+        Tag(0x7FE0, 0x0010),
+    ] {
+        assert!(report_object.remove_element(tag));
+    }
+    write(&report_object, &input.join("report.dcm"))?;
+
+    let report = anonymize_dicom_study(&input, &output, &options())?;
+
+    assert_eq!(report.instances_written, 2);
+    assert_eq!(
+        value(&output.join("report.dcm"), PATIENT_NAME)?,
+        "ANONYMOUS"
+    );
+    assert_eq!(value(&output.join("report.dcm"), PATIENT_ID)?, "ANON001");
+    assert!(open_file(output.join("report.dcm"))?
+        .element(Tag(0x7FE0, 0x0010))
+        .is_err());
+    Ok(())
+}

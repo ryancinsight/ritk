@@ -179,6 +179,41 @@ fn geometry_pixel_mismatch_reported() {
 }
 
 #[test]
+fn geometry_is_required_of_pixel_data_and_of_nothing_else() {
+    let geometry = [
+        Tag(0x0028, 0x0010),
+        Tag(0x0028, 0x0011),
+        Tag(0x0028, 0x0100),
+    ];
+    let mut report_like = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
+    let mut image = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.9");
+    for tag in geometry {
+        assert!(report_like.remove_element(tag));
+        assert!(image.remove_element(tag));
+    }
+    assert!(report_like.remove_element(Tag(0x7FE0, 0x0010)));
+
+    let without_pixels = verify_dicom_file(
+        write_to_temp(&report_like, "no-pixels.dcm"),
+        &VerifyOptions::default(),
+    )
+    .unwrap();
+    let with_pixels = verify_dicom_file(
+        write_to_temp(&image, "pixels-without-geometry.dcm"),
+        &VerifyOptions::default(),
+    )
+    .unwrap();
+
+    assert_eq!(without_pixels.issues, []);
+    assert_eq!(
+        with_pixels.issues,
+        [VerifyIssue::GeometryMismatch {
+            detail: "Rows/Columns/BitsAllocated must all be present".to_owned(),
+        }]
+    );
+}
+
+#[test]
 fn prohibited_value_leak_reported() {
     let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
     obj.put(DataElement::new(
