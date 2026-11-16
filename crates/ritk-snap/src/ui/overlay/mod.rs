@@ -14,25 +14,17 @@
 //! └─────────────────────────────────────────┘
 //! ```
 //!
-//! # Orientation label convention
-//!
-//! For each axis the displayed labels are derived from the direction cosine
-//! matrix columns:
-//!
-//! | Axis | Fixed index | Left edge | Right edge | Top edge | Bottom edge |
-//! |------|-------------|-----------|------------|----------|-------------|
-//! | 0    | depth d     | R or L    | L or R     | A or P   | P or A      |
-//! | 1    | row r       | R or L    | L or R     | S or I   | I or S      |
-//! | 2    | col c       | A or P    | P or A     | S or I   | I or S      |
-//!
-//! Labels are determined by the dominant component of the relevant direction
-//! cosine column.
+//! Orientation letters follow the convention documented on
+//! [`crate::ui::coordinate_system::orientation_labels`].
 
 use egui::{Align2, Color32, FontId, Painter, Pos2, Rect};
 
 mod details;
 
 use super::anatomical_label_for_axis;
+use super::coordinate_system::{
+    edge_slot, orientation_labels, remap_labels_by_slots, OrientationLabels,
+};
 use crate::render::WindowLevel;
 use crate::ui::{axis_slice_dimensions, ViewTransform};
 use crate::LoadedVolume;
@@ -339,35 +331,6 @@ impl OverlayRenderer {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct OrientationLabels {
-    left: &'static str,
-    right: &'static str,
-    top: &'static str,
-    bottom: &'static str,
-}
-
-fn orientation_labels(axis: usize, direction: &[f64; 9]) -> OrientationLabels {
-    let col = |j: usize| -> [f64; 3] { [direction[j], direction[3 + j], direction[6 + j]] };
-
-    let depth_axis = col(0);
-    let row_axis = col(1);
-    let col_axis = col(2);
-
-    let (horiz, vert) = match axis {
-        0 => (col_axis, row_axis),
-        1 => (col_axis, depth_axis),
-        _ => (row_axis, depth_axis),
-    };
-
-    OrientationLabels {
-        left: lps_label(horiz, false),
-        right: lps_label(horiz, true),
-        top: lps_label(vert, false),
-        bottom: lps_label(vert, true),
-    }
-}
-
 fn orientation_labels_for_transform(
     axis: usize,
     direction: &[f64; 9],
@@ -383,52 +346,20 @@ fn orientation_labels_for_transform(
     }
     let source_size = [width, height];
     let output_size = transform.output_size(source_size);
+    let width_f = f64::from(u32::try_from(width).unwrap_or(u32::MAX));
+    let height_f = f64::from(u32::try_from(height).unwrap_or(u32::MAX));
     let source_edges = [
-        (labels.left, egui::pos2(0.0, height as f32 * 0.5)),
-        (labels.right, egui::pos2(width as f32, height as f32 * 0.5)),
-        (labels.top, egui::pos2(width as f32 * 0.5, 0.0)),
-        (labels.bottom, egui::pos2(width as f32 * 0.5, height as f32)),
+        [0.0, height_f * 0.5],
+        [width_f, height_f * 0.5],
+        [width_f * 0.5, 0.0],
+        [width_f * 0.5, height_f],
     ];
-    let mut mapped = [None; 4];
-    for (label, point) in source_edges {
-        let output = transform.source_to_output(point, source_size);
-        let slot = if output.x <= 0.5 {
-            0
-        } else if output.x >= output_size[0] as f32 - 0.5 {
-            1
-        } else if output.y <= 0.5 {
-            2
-        } else {
-            3
-        };
-        mapped[slot] = Some(label);
+    let mut slots = [0; 4];
+    for (slot, point) in slots.iter_mut().zip(source_edges) {
+        let output = transform.source_to_output_coordinates(point, source_size);
+        *slot = edge_slot(output, output_size);
     }
-    OrientationLabels {
-        left: mapped[0].unwrap_or(labels.left),
-        right: mapped[1].unwrap_or(labels.right),
-        top: mapped[2].unwrap_or(labels.top),
-        bottom: mapped[3].unwrap_or(labels.bottom),
-    }
-}
-
-fn lps_label(v: [f64; 3], positive: bool) -> &'static str {
-    let v = if positive { v } else { [-v[0], -v[1], -v[2]] };
-    let abs = [v[0].abs(), v[1].abs(), v[2].abs()];
-    let max_idx = if abs[0] >= abs[1] && abs[0] >= abs[2] {
-        0
-    } else if abs[1] >= abs[2] {
-        1
-    } else {
-        2
-    };
-    match (max_idx, v[max_idx] >= 0.0) {
-        (0, true) => "L",
-        (0, false) => "R",
-        (1, true) => "P",
-        (1, false) => "A",
-        (2, true) => "S",
-        _ => "I",
-    }
+    remap_labels_by_slots(labels, slots)
 }
 
 // ── Pure display-string helpers (testable) ────────────────────────────────────

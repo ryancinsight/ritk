@@ -88,6 +88,11 @@ fn native_menus_and_toolbar_drive_the_existing_viewer_actions() {
         .expect("toggle linked crosshair from the menu");
     assert_eq!(session.app.show_crosshair, !initial_crosshair);
 
+    let (cine_menu_x, cine_menu_y) = control_center(
+        &session,
+        Some(super::super::window_controls::Menu::View),
+        WindowAction::ToggleCine,
+    );
     session
         .handle_events(&[
             WindowEvent::PointerDown {
@@ -101,13 +106,13 @@ fn native_menus_and_toolbar_drive_the_existing_viewer_actions() {
                 button: metis_platform::native::MouseButton::Left,
             },
             WindowEvent::PointerDown {
-                x: 80,
-                y: 100,
+                x: cine_menu_x,
+                y: cine_menu_y,
                 button: metis_platform::native::MouseButton::Left,
             },
             WindowEvent::PointerUp {
-                x: 80,
-                y: 100,
+                x: cine_menu_x,
+                y: cine_menu_y,
                 button: metis_platform::native::MouseButton::Left,
             },
         ])

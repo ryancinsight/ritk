@@ -215,6 +215,8 @@ fn panel_layout_hides_crosshair_controls_that_are_not_rendered() {
 
     for (menu, action) in [
         (Menu::View, WindowAction::ToggleCrosshair),
+        (Menu::View, WindowAction::ToggleOverlay),
+        (Menu::View, WindowAction::ToggleAnonymizedOverlay),
         (Menu::Tools, WindowAction::SelectTool(ToolKind::Crosshair)),
     ] {
         let layout = ChromeLayout::new(1_280, 800, Some(menu), &app, true, workspace)
@@ -222,9 +224,21 @@ fn panel_layout_hides_crosshair_controls_that_are_not_rendered() {
         assert_eq!(layout.action_center(action), None);
     }
 
-    let view_menu = ChromeLayout::new(1_280, 800, Some(Menu::View), &app, true, workspace)
-        .expect("comparison View menu layout");
-    for action in [WindowAction::ToggleCine, WindowAction::ResetView] {
+    let view_menu = ChromeLayout::new(
+        1_280,
+        800,
+        Some(Menu::View),
+        &app,
+        true,
+        WorkspaceLayout::Orthogonal,
+    )
+    .expect("orthogonal View menu layout");
+    for action in [
+        WindowAction::ToggleOverlay,
+        WindowAction::ToggleAnonymizedOverlay,
+        WindowAction::ToggleCine,
+        WindowAction::ResetView,
+    ] {
         let (x, y) = view_menu
             .action_center(action)
             .expect("View menu action has a visible hit target");

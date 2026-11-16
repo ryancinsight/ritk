@@ -10,7 +10,7 @@ use super::geometry::{
     placement_geometry, placement_with_bounds, NativeViewport, ScreenRect, ViewportArea,
     VIEW_GAP_PIXELS,
 };
-use super::overlay::{application_overlay, projection_overlay};
+use super::overlay::{application_overlay, projection_overlay, ClinicalOverlay};
 use crate::presentation::{PaneLayout, PaneRole};
 use crate::tools::interaction::ViewportOffset;
 
@@ -27,6 +27,7 @@ pub(crate) fn surface_frames_responsive(
     cine_enabled: bool,
     cine_fps: f32,
     show_application_overlay: bool,
+    clinical: Option<&ClinicalOverlay<'_>>,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     if !zoom.is_finite() || zoom <= 0.0 {
         bail!("native viewer zoom must be finite and positive");
@@ -106,7 +107,7 @@ pub(crate) fn surface_frames_responsive(
         }
     }
     if show_application_overlay {
-        let mut overlay = application_overlay(views, &viewports, cine_enabled, cine_fps)?;
+        let mut overlay = application_overlay(views, &viewports, cine_enabled, cine_fps, clinical)?;
         if let Some((projection, pane_x, pane_y, pane_width, pane_height)) = projection_panel {
             overlay.extend(projection_overlay(
                 projection,

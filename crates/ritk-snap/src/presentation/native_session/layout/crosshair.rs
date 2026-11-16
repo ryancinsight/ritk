@@ -82,7 +82,7 @@ pub(crate) fn crosshair_overlay(
     Ok(overlay)
 }
 
-fn screen_coordinate(value: f64, label: &str) -> Result<i32> {
+pub(super) fn screen_coordinate(value: f64, label: &str) -> Result<i32> {
     if !value.is_finite() || value < f64::from(i32::MIN) || value > f64::from(i32::MAX) {
         bail!("{label} coordinate is outside the native display range")
     }

@@ -3,6 +3,7 @@
 //! Painter shapes are inspected without a GPU; native capture verifies raster output.
 
 use super::*;
+use crate::ui::coordinate_system::{lps_label, orientation_labels, OrientationLabels};
 use crate::ui::{RotationSteps, ViewTransform};
 
 /// `anchor_pos` for LEFT_TOP must return (min.x + MARGIN, min.y + MARGIN).

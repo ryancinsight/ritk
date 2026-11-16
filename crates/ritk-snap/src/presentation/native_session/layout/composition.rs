@@ -9,7 +9,7 @@ use super::geometry::{
     placement_geometry, placement_with_bounds, NativeViewport, ScreenRect, ViewportArea,
     VIEW_GAP_PIXELS,
 };
-use super::overlay::{application_overlay, projection_overlay};
+use super::overlay::{application_overlay, projection_overlay, ClinicalOverlay};
 use crate::presentation::PresentationFrame;
 use crate::tools::interaction::ViewportOffset;
 
@@ -24,6 +24,7 @@ pub(crate) fn surface_frames(
     cine_enabled: bool,
     cine_fps: f32,
     show_application_overlay: bool,
+    clinical: Option<&ClinicalOverlay<'_>>,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     if surface_width == 0 || surface_height == 0 {
         bail!("native surface dimensions must be nonzero while rendering");
@@ -104,7 +105,7 @@ pub(crate) fn surface_frames(
         )?;
     }
     if show_application_overlay {
-        let overlay = application_overlay(views, &viewports, cine_enabled, cine_fps)?;
+        let overlay = application_overlay(views, &viewports, cine_enabled, cine_fps, clinical)?;
         overlay.into_display_list().render_to(&mut framebuffer);
     }
     Ok((framebuffer, viewports))
@@ -122,6 +123,7 @@ pub(crate) fn surface_frames_with_projection(
     cine_enabled: bool,
     cine_fps: f32,
     show_application_overlay: bool,
+    clinical: Option<&ClinicalOverlay<'_>>,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     let mut composition = compose_four_panel(
         views,
@@ -132,8 +134,13 @@ pub(crate) fn surface_frames_with_projection(
         PaneNavigation { zoom, pan_offset },
     )?;
     if show_application_overlay {
-        let mut overlay =
-            application_overlay(views, &composition.viewports, cine_enabled, cine_fps)?;
+        let mut overlay = application_overlay(
+            views,
+            &composition.viewports,
+            cine_enabled,
+            cine_fps,
+            clinical,
+        )?;
         overlay.extend(projection_overlay(
             projection,
             composition.fourth_panel.x,

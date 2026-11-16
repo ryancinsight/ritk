@@ -335,6 +335,27 @@ fn draw_control_icon(framebuffer: &mut Framebuffer, control: &ChromeControl, cin
             icon_bar(framebuffer, x + 1, y + 6, 12, 2, color);
             icon_bar(framebuffer, x + 4, y + 4, 6, 6, color);
         }
+        WindowAction::ToggleOverlay => {
+            icon_bar(framebuffer, x + 1, y + 1, 5, 2, color);
+            icon_bar(framebuffer, x + 1, y + 1, 2, 5, color);
+            icon_bar(framebuffer, x + 10, y + 1, 5, 2, color);
+            icon_bar(framebuffer, x + 13, y + 1, 2, 5, color);
+            icon_bar(framebuffer, x + 1, y + 11, 5, 2, color);
+            icon_bar(framebuffer, x + 1, y + 8, 2, 5, color);
+            icon_bar(framebuffer, x + 10, y + 11, 5, 2, color);
+            icon_bar(framebuffer, x + 13, y + 8, 2, 5, color);
+        }
+        WindowAction::ToggleAnonymizedOverlay => {
+            icon_bar(framebuffer, x + 1, y + 1, 5, 2, color);
+            icon_bar(framebuffer, x + 1, y + 1, 2, 5, color);
+            icon_bar(framebuffer, x + 10, y + 1, 5, 2, color);
+            icon_bar(framebuffer, x + 13, y + 1, 2, 5, color);
+            icon_bar(framebuffer, x + 1, y + 11, 5, 2, color);
+            icon_bar(framebuffer, x + 1, y + 8, 2, 5, color);
+            icon_bar(framebuffer, x + 10, y + 11, 5, 2, color);
+            icon_bar(framebuffer, x + 13, y + 8, 2, 5, color);
+            icon_bar(framebuffer, x + 5, y + 5, 5, 5, color);
+        }
         WindowAction::ToggleCine => {
             if cine_enabled {
                 icon_bar(framebuffer, x + 3, y + 2, 3, 10, color);

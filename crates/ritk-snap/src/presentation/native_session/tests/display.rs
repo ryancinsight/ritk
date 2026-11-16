@@ -12,7 +12,7 @@ fn orthogonal_overlay_uses_embedded_typeface_and_composites_exact_rgba() {
         (1_280, 800)
     );
 
-    let overlay = application_overlay(&session.views, &session.viewports, false, 30.0)
+    let overlay = application_overlay(&session.views, &session.viewports, false, 30.0, None)
         .expect("compose the RITK overlay commands")
         .into_display_list();
     assert_eq!(overlay.commands().len(), 12);
