@@ -110,10 +110,10 @@ fn align_media_storage_class(object: &mut FileDicomObject<InMemDicomObject>) -> 
 /// modified. Each instance gets the value rewrites of [`repair_values`];
 /// then its file meta Media Storage SOP Class UID and SOP Instance UID are set
 /// to the data set's SOPClassUID and SOPInstanceUID (PS3.10 Table 7.1-1), each
-/// only when the data set value is a single conformant UID. Files that do not open as DICOM Part 10,
-/// a data set stored without the Part 10 header among them, are counted and
-/// not copied; a DICOMDIR is counted and left out, because its records name
-/// the source files.
+/// only when the data set value is a single conformant UID. Files that do not
+/// open as DICOM Part 10, a data set stored without the Part 10 header among
+/// them, are counted and not copied; a DICOMDIR is counted and left out,
+/// because its records name the source files.
 ///
 /// # Errors
 /// Returns [`StudyRepairError`] when the source cannot be resolved or listed,

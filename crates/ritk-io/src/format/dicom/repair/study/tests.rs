@@ -9,6 +9,7 @@ use std::path::Path;
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 const CT_IMAGE_STORAGE: &str = "1.2.840.10008.5.1.4.1.1.2";
+const MR_IMAGE_STORAGE: &str = "1.2.840.10008.5.1.4.1.1.4";
 const MEDIA_STORAGE_DIRECTORY: &str = "1.2.840.10008.1.3.10";
 const SOP_CLASS_UID: Tag = Tag(0x0008, 0x0016);
 const SOP_INSTANCE_UID: Tag = Tag(0x0008, 0x0018);
@@ -37,8 +38,11 @@ fn write(
             .media_storage_sop_class_uid(meta_class)
             .transfer_syntax("1.2.840.10008.1.2.1"),
     )?;
-    // `with_meta` takes the instance UID from the data set.
-    file.update_meta(|meta| meta.media_storage_sop_instance_uid = meta_sop.to_owned());
+    // `with_meta` takes the class and instance UIDs from the data set.
+    file.update_meta(|meta| {
+        meta.media_storage_sop_class_uid = meta_class.to_owned();
+        meta.media_storage_sop_instance_uid = meta_sop.to_owned();
+    });
     file.write_to_file(path)?;
     Ok(())
 }
@@ -96,16 +100,21 @@ fn a_study_copy_is_repaired_and_the_source_is_untouched() -> TestResult {
             (SERIES_UID, VR::UI, "1.2.03.7"),
         ],
     )?;
-    // Nothing to repair.
-    write(
-        &input.join("s2/d.dcm"),
-        (CT_IMAGE_STORAGE, "1.2.3.5"),
-        &[
-            (SOP_CLASS_UID, VR::UI, CT_IMAGE_STORAGE),
-            (SOP_INSTANCE_UID, VR::UI, "1.2.3.5"),
-            (STUDY_DATE, VR::DA, "19940721"),
-        ],
-    )?;
+    // A stale file meta class only, then an instance with nothing to repair.
+    for (name, meta_class, sop) in [
+        ("s2/d.dcm", MR_IMAGE_STORAGE, "1.2.3.5"),
+        ("s2/e.dcm", CT_IMAGE_STORAGE, "1.2.3.8"),
+    ] {
+        write(
+            &input.join(name),
+            (meta_class, sop),
+            &[
+                (SOP_CLASS_UID, VR::UI, CT_IMAGE_STORAGE),
+                (SOP_INSTANCE_UID, VR::UI, sop),
+                (STUDY_DATE, VR::DA, "19940721"),
+            ],
+        )?;
+    }
     write(
         &input.join("DICOMDIR"),
         (MEDIA_STORAGE_DIRECTORY, "1.2.3.6"),
@@ -120,14 +129,14 @@ fn a_study_copy_is_repaired_and_the_source_is_untouched() -> TestResult {
     assert_eq!(
         report,
         StudyRepairReport {
-            instances_written: 4,
-            instances_repaired: 3,
+            instances_written: 5,
+            instances_repaired: 4,
             values: RepairSummary {
                 dates: 3,
                 times: 1,
                 uids: 4,
             },
-            file_meta_uids_aligned: 2,
+            file_meta_uids_aligned: 3,
             non_dicom_skipped: 2,
             indexes_omitted: 1,
         }
@@ -170,10 +179,12 @@ fn a_study_copy_is_repaired_and_the_source_is_untouched() -> TestResult {
             "1.2.3.7"
         ]
     );
-    assert_eq!(
-        stored(&output.join("s2/d.dcm"), &[SOP_INSTANCE_UID, STUDY_DATE])?,
-        [CT_IMAGE_STORAGE, "1.2.3.5", "1.2.3.5", "19940721"]
-    );
+    for (name, sop) in [("s2/d.dcm", "1.2.3.5"), ("s2/e.dcm", "1.2.3.8")] {
+        assert_eq!(
+            stored(&output.join(name), &[SOP_INSTANCE_UID, STUDY_DATE])?,
+            [CT_IMAGE_STORAGE, sop, sop, "19940721"]
+        );
+    }
     for left_out in ["DICOMDIR", "notes.txt", "s1/report.txt"] {
         assert!(!output.join(left_out).exists(), "{left_out}");
     }
