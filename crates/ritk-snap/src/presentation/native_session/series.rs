@@ -155,7 +155,15 @@ impl NativeViewerSession {
         self.assign_series_to_panel(index, target)
     }
 
+    /// Replace the displayed study with the one at `path` and remember where
+    /// it came from. A study that cannot be opened leaves both as they were.
     pub(super) fn open_study_path(&mut self, path: &Path) -> Result<()> {
+        self.load_study_path(path)?;
+        self.study_root = Some(path.to_path_buf());
+        Ok(())
+    }
+
+    fn load_study_path(&mut self, path: &Path) -> Result<()> {
         self.end_held_gestures();
         if path.is_dir() {
             let tree = scan_folder_for_series(path).context("discover selected RITK study")?;

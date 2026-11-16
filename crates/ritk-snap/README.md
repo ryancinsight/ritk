@@ -182,6 +182,27 @@ implied by this contract.
 
 API reference: `cargo doc --locked -p ritk-snap --no-deps`.
 
+### De-identified export
+
+File > Anonymize (basic) and File > Anonymize (strict) write a de-identified
+copy of the open study to a folder you pick. The folder must be empty and
+outside the study; the displayed study is never modified. Both apply a `ritk-io`
+anonymization profile (`BasicReplaceUids` and `Enhanced`; the elements each acts
+on are listed in `ritk-io`'s `anonymize/profile.rs`): the patient name and ID
+are replaced, and the study, series and SOP instance UIDs are replaced with
+values derived from a salt drawn fresh for each export. Basic keeps the study,
+series, acquisition and content dates and times and the study and series
+descriptions; strict empties those dates and times and removes those
+descriptions.
+
+Pixel data and folder and file names are copied unchanged, so a patient name in
+a folder name or burned into the pixels stays in the copy. Files that do not
+open as DICOM, and a DICOMDIR index, are left out. After writing, RITK re-reads
+every exported file and scans it for each source patient name and ID that
+differs from its replacement; if that check or any earlier step fails, RITK removes the files it wrote and the status line shows the error.
+Folders it created may remain, and a file it could not remove stays and is
+counted in that error.
+
 ## Browser host
 
 The WASM entrypoint composes the generic Métis HTML5/CSS host with the RITK

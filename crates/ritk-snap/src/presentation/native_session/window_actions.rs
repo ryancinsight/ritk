@@ -20,6 +20,14 @@ impl NativeViewerSession {
                     Ok(true)
                 }
             },
+            WindowAction::AnonymizeStudy(level) => match self.anonymize_study_from_dialog(level) {
+                Ok(changed) => Ok(changed),
+                Err(error) => {
+                    self.active_app_mut().status_message =
+                        super::deidentify::failure_status(&error);
+                    Ok(true)
+                }
+            },
             WindowAction::OpenSeriesPicker => {
                 self.restore_maximized_panel()
                     .map_err(NativeViewerError::from)?;

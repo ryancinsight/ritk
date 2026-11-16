@@ -29,6 +29,7 @@ use anyhow::{anyhow, Result};
 use arrayvec::{ArrayString, ArrayVec};
 use frame::{render_orthogonal_views, render_orthogonal_views_into, RenderedView};
 use metis_platform::Framebuffer;
+use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Instant;
@@ -57,6 +58,9 @@ pub(super) struct NativeViewerSession {
     pub(super) observation: Arc<NativeViewerObservation>,
     pub(super) clock_start: Instant,
     pub(super) series_browser: Option<SeriesBrowser>,
+    /// The folder or file the displayed study was read from; the source of
+    /// study-level exports.
+    pub(super) study_root: Option<PathBuf>,
     pub(super) primary_series_index: Option<usize>,
     pub(super) compare_panels: ArrayVec<ComparePanel, MAX_COMPARISON_PANELS>,
     pub(super) workspace_layout: WorkspaceLayout,
@@ -152,6 +156,7 @@ impl NativeViewerSession {
             observation,
             clock_start: Instant::now(),
             series_browser,
+            study_root: None,
             primary_series_index,
             compare_panels: ArrayVec::new(),
             workspace_layout: WorkspaceLayout::Orthogonal,
