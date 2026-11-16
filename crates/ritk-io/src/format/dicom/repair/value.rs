@@ -24,12 +24,32 @@ fn in_range(text: &str, low: u8, high: u8) -> bool {
         .is_ok_and(|number| (low..=high).contains(&number))
 }
 
-/// `YYYYMMDD` with a month of 01 to 12 and a day of 01 to 31.
+/// Days in `month` of `year` in the Gregorian calendar, the calendar PS3.5
+/// Table 6.2-1 fixes for DA; zero for a month outside 1 to 12.
+fn days_in_month(year: u16, month: u8) -> u8 {
+    let leap = year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400));
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => 0,
+    }
+}
+
+/// `YYYYMMDD` naming a day of the Gregorian calendar.
 pub(super) fn date_is_valid(value: &str) -> bool {
-    value.len() == 8
-        && digits(value)
-        && in_range(&value[4..6], 1, 12)
-        && in_range(&value[6..8], 1, 31)
+    if value.len() != 8 || !digits(value) {
+        return false;
+    }
+    let (Ok(year), Ok(month), Ok(day)) = (
+        value[..4].parse::<u16>(),
+        value[4..6].parse::<u8>(),
+        value[6..].parse::<u8>(),
+    ) else {
+        return false;
+    };
+    (1..=days_in_month(year, month)).contains(&day)
 }
 
 /// `HH`, `HHMM`, `HHMMSS` or `HHMMSS.F` with one to six fraction digits;
@@ -51,9 +71,6 @@ pub(super) fn time_is_valid(value: &str) -> bool {
 
 /// `YYYY.MM.DD` as `YYYYMMDD`.
 pub(super) fn date(value: &str) -> Option<String> {
-    if date_is_valid(value) {
-        return None;
-    }
     let mut parts = value.split('.');
     let (year, month, day) = (parts.next()?, parts.next()?, parts.next()?);
     let lengths_fit = year.len() == 4 && month.len() == 2 && day.len() == 2;
@@ -63,7 +80,7 @@ pub(super) fn date(value: &str) -> Option<String> {
 
 /// `HH:MM`, `HH:MM:SS` or `HH:MM:SS.frac` without the colons.
 pub(super) fn time(value: &str) -> Option<String> {
-    if time_is_valid(value) || !value.contains(':') {
+    if !value.contains(':') {
         return None;
     }
     let (clock, fraction) = match value.split_once('.') {
