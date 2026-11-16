@@ -54,7 +54,9 @@ pub mod verify;
 pub use profile::{AnonymizationProfile, TagAction};
 #[cfg(not(target_arch = "wasm32"))]
 pub use salt::SaltError;
-pub use study::{anonymize_dicom_study, StudyAnonymizeError, StudyAnonymizeReport};
+pub use study::{
+    anonymize_dicom_selection, anonymize_dicom_study, StudyAnonymizeError, StudyAnonymizeReport,
+};
 
 /// Controls whether an anonymization step is applied.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
