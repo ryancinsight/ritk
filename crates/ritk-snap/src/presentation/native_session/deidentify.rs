@@ -1,18 +1,26 @@
-//! Export a de-identified copy of the open study from the native shell.
+//! Export a de-identified copy of the study or series in the active pane.
 //!
 //! The viewer never rewrites the study it displays: the copy goes to a folder
 //! the reader picks, and RITK refuses a folder that overlaps the source or
 //! already holds files. Pixel data is copied as stored, so text burned into
 //! the image survives; the status line says so after every completed export.
 
+use super::series_browser::{SeriesBrowser, SeriesChoice};
 use super::NativeViewerSession;
+use crate::dicom::input_path::classify_dicom_input_path;
 use anyhow::{anyhow, Context, Result};
 use metis_platform::native::{pick, DialogSelection};
 use ritk_io::format::dicom::anonymize::{
-    anonymize_dicom_study, verify::VerifyIssue, AnonymizationProfile, AnonymizeOptions,
-    StudyAnonymizeError, StudyAnonymizeReport,
+    anonymize_dicom_selection, verify::VerifyIssue, AnonymizationProfile, AnonymizeOptions,
+    StudyAnonymizeError,
 };
 use std::path::{Path, PathBuf};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum AnonymizationScope {
+    Study,
+    Series,
+}
 
 /// Which RITK anonymization profile a de-identified export applies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,27 +41,12 @@ impl Deidentification {
         }
     }
 
-    const fn summary(self) -> &'static str {
+    const fn label(self) -> &'static str {
         match self {
-            Self::Basic => "profile BasicReplaceUids",
-            Self::Strict => "profile Enhanced",
+            Self::Basic => "Basic",
+            Self::Strict => "Strict",
         }
     }
-}
-
-fn export_status(level: Deidentification, report: StudyAnonymizeReport, output: &Path) -> String {
-    let left_out = report.non_dicom_skipped + report.indexes_omitted;
-    let omitted = if left_out == 0 {
-        String::new()
-    } else {
-        format!(" {left_out} file(s) left out (not DICOM, or a DICOMDIR).")
-    };
-    format!(
-        "De-identified {} instance(s) to {} ({}).{omitted} Text burned into pixels is not removed.",
-        report.instances_written,
-        output.display(),
-        level.summary(),
-    )
 }
 
 /// The first issue of a verification failure, also when a failed cleanup
@@ -81,15 +74,26 @@ pub(super) fn failure_status(error: &anyhow::Error) -> String {
     }
 }
 
+fn selected_paths<'a>(choices: impl IntoIterator<Item = &'a SeriesChoice>) -> Vec<&'a Path> {
+    choices
+        .into_iter()
+        .flat_map(|choice| choice.acquisition.file_paths.iter().map(PathBuf::as_path))
+        .collect()
+}
+
 impl NativeViewerSession {
-    /// Ask for an output folder and export the open study into it.
+    /// Ask for an output folder and export the active DICOM selection into it.
     ///
     /// Returns whether the session changed; a cancelled dialog changes nothing.
-    pub(super) fn anonymize_study_from_dialog(&mut self, level: Deidentification) -> Result<bool> {
+    pub(super) fn anonymize_from_dialog(
+        &mut self,
+        scope: AnonymizationScope,
+        level: Deidentification,
+    ) -> Result<bool> {
         self.end_held_gestures();
-        if self.study_root.is_none() {
+        if self.anonymization_selection().is_none() {
             self.active_app_mut().status_message =
-                "Open a study from disk before exporting a de-identified copy.".to_owned();
+                "Open a DICOM study from disk and select a series or a populated pane.".to_owned();
             return Ok(true);
         }
         let selected =
@@ -97,24 +101,56 @@ impl NativeViewerSession {
         let Some(output) = selected else {
             return Ok(false);
         };
-        self.anonymize_study_to(&output, level)?;
+        self.anonymize_to(&output, scope, level)?;
         Ok(true)
     }
 
-    /// Export a de-identified copy of the open study into `output`.
-    pub(super) fn anonymize_study_to(
+    /// Export the cataloged instances of the active DICOM selection.
+    pub(super) fn anonymize_to(
         &mut self,
         output: &Path,
+        scope: AnonymizationScope,
         level: Deidentification,
     ) -> Result<()> {
-        let source = self
-            .study_root
-            .as_deref()
-            .ok_or_else(|| anyhow!("no study folder is open"))?;
+        let (path, browser, choice) = self
+            .anonymization_selection()
+            .context("no cataloged DICOM series is active")?;
+        let input = classify_dicom_input_path(path);
+        let source = match input.dicom_root() {
+            Some(root) if root.as_os_str().is_empty() => Path::new("."),
+            Some(root) => root,
+            None => return Err(anyhow!("no DICOM source is open")),
+        };
+        let (label, instances) = match scope {
+            AnonymizationScope::Study => {
+                let uid = choice
+                    .study_uid
+                    .as_deref()
+                    .context("active series has no DICOM study UID")?;
+                ("Active study", selected_paths(browser.study_choices(uid)))
+            }
+            AnonymizationScope::Series => ("Active series", selected_paths([choice])),
+        };
         let options = AnonymizeOptions::with_fresh_salt(level.profile())
             .context("draw a UID salt from the operating system")?;
-        let report = anonymize_dicom_study(source, output, &options)?;
-        self.active_app_mut().status_message = export_status(level, report, output);
+        let report = anonymize_dicom_selection(source, &instances, output, &options)?;
+        self.active_app_mut().status_message = format!(
+            "{label} ({}): {} DICOM instance(s) exported. Burned-in text remains. Destination {}",
+            level.label(),
+            report.instances_written,
+            output.display(),
+        );
         Ok(())
+    }
+
+    fn anonymization_selection(&self) -> Option<(&Path, &SeriesBrowser, &SeriesChoice)> {
+        let path = self.study_root.as_deref()?;
+        let browser = self.series_browser.as_ref()?;
+        let index = if self.workspace_layout.is_grid() && self.active_panel > 0 {
+            self.compare_panels.get(self.active_panel - 1)?.series_index
+        } else {
+            self.primary_series_index
+        }?;
+        Some((path, browser, browser.choice(index)?))
     }
 }

@@ -370,6 +370,20 @@ root directory handle and returns the handle RITK reads. The Moirai PAL tests
 reject parent traversal and intermediate/final links; browser file entries use
 the DOM provider because the native path contract is unsupported on WebAssembly.
 
+## Export a de-identified study or series
+
+1. In the Windows viewer, click a series card or a populated image panel.
+2. In **Anonymize**, choose **Active study** for all cataloged series in the
+   selected study or **Active series** for the selected image set.
+3. Choose **Basic** or **Strict**. Both replace the patient name and ID and
+   remap study, series and instance identifiers. **Basic** keeps study, series,
+   acquisition and content dates and times, plus study and series descriptions.
+   **Strict** clears those fields.
+4. Pick an empty destination folder outside the source folder. The status bar
+   reports how many DICOM instances the viewer wrote to the copy.
+
+Both profiles retain the original pixel data, including burned-in text.
+
 ## Select a saved DICOM series from Python
 
 The Python binding uses the same RITK-owned scanner and native loader. Pass

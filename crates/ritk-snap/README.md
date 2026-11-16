@@ -184,9 +184,12 @@ API reference: `cargo doc --locked -p ritk-snap --no-deps`.
 
 ### De-identified export
 
-File > Anonymize (basic) and File > Anonymize (strict) write a de-identified
-copy of the open study to a folder you pick. The folder must be empty and
-outside the study; the displayed study is never modified. Both apply a `ritk-io`
+In the native viewer, select a series in the Series Browser or click a populated
+pane. From the **Anonymize** menu, choose **Active study** to export all cataloged
+series in that study, or **Active series** to export only the chosen image set.
+Choose **Basic** or **Strict** for either scope. Pick an empty destination folder
+outside the source folder. The viewer writes a separate copy and keeps the
+source files untouched. Both profiles use `ritk-io`
 anonymization profile (`BasicReplaceUids` and `Enhanced`; the elements each acts
 on are listed in `ritk-io`'s `anonymize/profile.rs`): the patient name and ID
 are replaced, and the study, series and SOP instance UIDs are replaced with
@@ -199,8 +202,8 @@ The copy is flat: instances are written as `000001.dcm`, `000002.dcm`, ... in
 the order their source paths sort, so no source folder or file name reaches it.
 The file meta group loses its application entity titles and private
 information. Pixel data is copied unchanged, so a patient name burned into the
-pixels stays in the copy. Files that do not open as DICOM, and a DICOMDIR index,
-are left out and take no number. After writing, RITK re-reads
+pixels stays in the copy. The selection comes from the Series Browser catalog,
+which uses the referenced instances when it opens a DICOMDIR. After writing, RITK re-reads
 every exported file and scans it for each source patient name and ID that
 differs from its replacement; if that check or any earlier step fails, RITK removes the files it wrote and the status line shows the error.
 Folders it created may remain, and a file it could not remove stays and is

@@ -1,7 +1,9 @@
 //! De-identified export of the open study from the native shell.
 
 use super::*;
-use crate::presentation::native_session::deidentify::{failure_status, Deidentification};
+use crate::presentation::native_session::deidentify::{
+    failure_status, AnonymizationScope, Deidentification,
+};
 use ritk_io::format::dicom::anonymize::verify::{
     verify_dicom_instances, VerifyIssue, VerifyOptions,
 };
@@ -66,7 +68,7 @@ fn native_anonymize_basic_replaces_identifiers_and_instance_uids() {
     );
 
     session
-        .anonymize_study_to(&output, Deidentification::Basic)
+        .anonymize_to(&output, AnonymizationScope::Study, Deidentification::Basic)
         .expect("export a de-identified copy");
 
     assert_eq!(leaks(&exported(&output), &identifiers), [""; 0]);
@@ -74,8 +76,7 @@ fn native_anonymize_basic_replaces_identifiers_and_instance_uids() {
     assert_eq!(
         session.app.status_message,
         format!(
-            "De-identified 3 instance(s) to {} (profile BasicReplaceUids). \
-             Text burned into pixels is not removed.",
+            "Active study (Basic): 3 DICOM instance(s) exported. Burned-in text remains. Destination {}",
             output.display()
         )
     );
@@ -92,7 +93,7 @@ fn native_anonymize_strict_also_empties_the_study_date() {
     let output = parent.path().join("export");
 
     session
-        .anonymize_study_to(&output, Deidentification::Strict)
+        .anonymize_to(&output, AnonymizationScope::Study, Deidentification::Strict)
         .expect("export a strictly de-identified copy");
 
     assert_eq!(
@@ -105,11 +106,105 @@ fn native_anonymize_strict_also_empties_the_study_date() {
     assert_eq!(
         session.app.status_message,
         format!(
-            "De-identified 3 instance(s) to {} (profile Enhanced). \
-             Text burned into pixels is not removed.",
+            "Active study (Strict): 3 DICOM instance(s) exported. Burned-in text remains. Destination {}",
             output.display()
         )
     );
+}
+
+#[test]
+fn native_anonymize_uses_active_pane_series_and_its_study() {
+    let (mut session, root) = session();
+    let mr_uid = "2.25.20260905002";
+    let mr_files = fixtures::write_study(root.path(), "MR", mr_uid, &fixtures::SAMPLES)
+        .expect("write a second series in the same study");
+    for path in instances(root.path())
+        .into_iter()
+        .chain(mr_files.iter().map(|(name, _)| root.path().join(name)))
+    {
+        let mut bytes = std::fs::read(&path).expect("read synthetic series instance");
+        let id = b"RITK-TEST-001";
+        let start = bytes
+            .windows(id.len())
+            .position(|value| value == id)
+            .expect("synthetic PatientID is present");
+        bytes[start..start + id.len()].fill(b' ');
+        std::fs::write(path, bytes).expect("write a DICOM instance with a blank PatientID");
+    }
+    let unrelated = root.path().join("another-study");
+    fixtures::write_grayscale_presentation(&unrelated, "MONOCHROME2", None)
+        .expect("write an instance in a different study");
+    session
+        .open_study_path(root.path())
+        .expect("open both studies");
+    let browser = session.series_browser.as_ref().expect("DICOM browser");
+    let ct = browser
+        .index_for_uid(fixtures::SERIES_UID)
+        .expect("CT series");
+    let mr = browser.index_for_uid(mr_uid).expect("MR series");
+    assert_eq!(
+        [ct, mr].map(|index| browser
+            .choice(index)
+            .and_then(|choice| choice.study_uid.as_deref())),
+        [Some("2.25.20260905"); 2]
+    );
+    session
+        .open_selected_series(&[ct, mr])
+        .expect("load both panes");
+    assert!(session.activate_next_panel().expect("activate MR pane"));
+
+    let parent = tempfile::tempdir().expect("export parent");
+    let composition = |output: &Path| {
+        let catalog = ritk_io::DicomStudyCatalog::scan(output).expect("scan exported images");
+        let mut series: Vec<_> = catalog
+            .series()
+            .iter()
+            .map(|series| (series.modality().to_owned(), series.instance_count()))
+            .collect();
+        series.sort_unstable();
+        series
+    };
+
+    let series_output = parent.path().join("series");
+    session
+        .anonymize_to(
+            &series_output,
+            AnonymizationScope::Series,
+            Deidentification::Basic,
+        )
+        .expect("export the active comparison series");
+    assert_eq!(composition(&series_output), [("MR".to_owned(), 3)]);
+
+    let study_output = parent.path().join("study");
+    session
+        .anonymize_to(
+            &study_output,
+            AnonymizationScope::Study,
+            Deidentification::Strict,
+        )
+        .expect("export all cataloged series of the active study");
+    assert_eq!(
+        composition(&study_output),
+        [("CT".to_owned(), 3), ("MR".to_owned(), 3)]
+    );
+}
+
+#[test]
+fn native_anonymize_recovers_the_series_when_started_from_an_instance() {
+    let (mut session, root) = session();
+    let mr_uid = "2.25.20260905002";
+    let files = fixtures::write_study(root.path(), "MR", mr_uid, &fixtures::SAMPLES)
+        .expect("write a second series");
+    let input = root.path().join(&files[0].0);
+    let browser =
+        super::super::startup::prepare_initial_study(&mut session.app, &input, None, false)
+            .expect("open the selected MR instance as a series")
+            .expect("DICOM catalog");
+    let active = browser
+        .choice(browser.active_index())
+        .expect("active series");
+    assert_eq!(active.acquisition.series_instance_uid(), mr_uid);
+    assert_eq!(active.image_count, files.len());
 }
 
 #[test]
@@ -118,7 +213,11 @@ fn native_anonymize_refuses_an_output_folder_inside_the_study() {
     let shape = session.app.loaded.as_ref().expect("open study").shape;
 
     let error = session
-        .anonymize_study_to(&root.path().join("export"), Deidentification::Basic)
+        .anonymize_to(
+            &root.path().join("export"),
+            AnonymizationScope::Study,
+            Deidentification::Basic,
+        )
         .expect_err("an output inside the source overlaps it");
 
     assert!(matches!(
@@ -140,13 +239,13 @@ fn native_anonymize_without_a_study_folder_says_so_and_opens_no_dialog() {
     assert_eq!(session.study_root, None);
 
     let changed = session
-        .anonymize_study_from_dialog(Deidentification::Basic)
+        .anonymize_from_dialog(AnonymizationScope::Study, Deidentification::Basic)
         .expect("report the missing study folder");
 
     assert!(changed);
     assert_eq!(
         session.app.status_message,
-        "Open a study from disk before exporting a de-identified copy."
+        "Open a DICOM study from disk and select a series or a populated pane."
     );
 }
 
