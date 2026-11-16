@@ -192,6 +192,24 @@ fn geometry_is_required_of_pixel_data_and_of_nothing_else() {
         assert!(image.remove_element(tag));
     }
     assert!(report_like.remove_element(Tag(0x7FE0, 0x0010)));
+    let missing = [VerifyIssue::GeometryMismatch {
+        detail: "Rows/Columns/BitsAllocated must all be present".to_owned(),
+    }];
+    let pixel_elements = [
+        (Tag(0x7FE0, 0x0008), VR::OF, vec![0_u8; 4]),
+        (Tag(0x7FE0, 0x0009), VR::OD, vec![0_u8; 8]),
+        (Tag(0x7FE0, 0x0010), VR::OB, Vec::new()),
+    ];
+    for (tag, vr, bytes) in pixel_elements {
+        let mut object = report_like.clone();
+        object.put(DataElement::new(tag, vr, PrimitiveValue::from(bytes)));
+        let found = verify_dicom_file(
+            write_to_temp(&object, "pixel-element-without-geometry.dcm"),
+            &VerifyOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(found.issues, missing, "{tag}");
+    }
 
     let without_pixels = verify_dicom_file(
         write_to_temp(&report_like, "no-pixels.dcm"),
@@ -205,12 +223,7 @@ fn geometry_is_required_of_pixel_data_and_of_nothing_else() {
     .unwrap();
 
     assert_eq!(without_pixels.issues, []);
-    assert_eq!(
-        with_pixels.issues,
-        [VerifyIssue::GeometryMismatch {
-            detail: "Rows/Columns/BitsAllocated must all be present".to_owned(),
-        }]
-    );
+    assert_eq!(with_pixels.issues, missing);
 }
 
 #[test]

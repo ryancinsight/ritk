@@ -213,8 +213,11 @@ fn an_object_without_pixel_data_is_exported_with_the_images() -> TestResult {
         "ANONYMOUS"
     );
     assert_eq!(value(&output.join("report.dcm"), PATIENT_ID)?, "ANON001");
-    assert!(open_file(output.join("report.dcm"))?
-        .element(Tag(0x7FE0, 0x0010))
-        .is_err());
+    let exported_series = value(&output.join("report.dcm"), SERIES_UID)?;
+    assert_ne!(exported_series, "1.2.3.40");
+    assert_ne!(
+        exported_series,
+        value(&output.join("image.dcm"), SERIES_UID)?
+    );
     Ok(())
 }
