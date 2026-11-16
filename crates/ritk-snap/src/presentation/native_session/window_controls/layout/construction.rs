@@ -299,7 +299,7 @@ fn menu_item_count(menu: Menu, workspace_layout: WorkspaceLayout) -> usize {
             if workspace_layout.is_grid() {
                 3
             } else {
-                4
+                6
             }
         }
         Menu::Tools => {
@@ -363,11 +363,23 @@ fn menu_item(
                 app.show_crosshair,
             )),
             2 => Ok((
+                "Toggle clinical overlay",
+                WindowAction::ToggleOverlay,
+                app.show_overlay,
+            )),
+            // Chrome-level state is invisible to the menu layout, so the row
+            // never shows checked; see ToggleSeriesPreview above.
+            3 => Ok((
+                "Toggle anonymized overlay",
+                WindowAction::ToggleAnonymizedOverlay,
+                false,
+            )),
+            4 => Ok((
                 "Toggle cine playback",
                 WindowAction::ToggleCine,
                 app.cine.enabled,
             )),
-            3 => Ok(("Reset view", WindowAction::ResetView, false)),
+            5 => Ok(("Reset view", WindowAction::ResetView, false)),
             _ => Err(anyhow!("native View menu row is outside its items")),
         },
         Menu::Tools => {

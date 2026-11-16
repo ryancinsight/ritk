@@ -9,8 +9,8 @@
 use super::compare::ComparePanel;
 use super::composition::compose_frames;
 use super::layout::{
-    surface_frames_grid, GridPanel, NativeViewport, WorkspaceLayout, MAX_COMPARISON_PANELS,
-    MAX_GRID_PANELS,
+    surface_frames_grid, ClinicalOverlay, GridPanel, NativeViewport, WorkspaceLayout,
+    MAX_COMPARISON_PANELS, MAX_GRID_PANELS,
 };
 use super::observation::{record_state, NativeViewerObservation};
 use super::panels::MaximizedPanel;
@@ -38,6 +38,29 @@ fn viewport_offset(app: &SnapApp) -> ViewportOffset {
     app.pan_offset
 }
 
+/// Clinical overlay content for the composed panes, when a volume is loaded.
+///
+/// Resolves the linked-cursor voxel intensity beside the demographics so each
+/// pane reads out the value under the cursor.
+fn clinical_overlay(app: &SnapApp, anonymize: bool) -> Option<ClinicalOverlay<'_>> {
+    let volume = app.loaded.as_ref()?;
+    let cursor_value = app
+        .linked_cursor
+        .map(|cursor| crate::ui::intensity_at_voxel(volume, cursor.voxel()));
+    Some(ClinicalOverlay {
+        direction: volume.direction,
+        patient_name: volume.patient_name.as_deref(),
+        patient_id: volume.patient_id.as_deref(),
+        series_description: volume.series_description.as_deref(),
+        modality: volume.modality.as_deref(),
+        study_date: volume.study_date.as_deref(),
+        spacing: volume.spacing,
+        zoom: app.zoom,
+        cursor_value,
+        anonymize,
+    })
+}
+
 pub(super) struct NativeViewerSession {
     pub(super) app: SnapApp,
     pub(super) views: [RenderedView; 3],
@@ -55,6 +78,7 @@ pub(super) struct NativeViewerSession {
     pub(super) minimized: bool,
     pub(super) capture_after_idle: bool,
     pub(super) capture_application: bool,
+    pub(super) anonymize_overlay: bool,
     pub(super) observation: Arc<NativeViewerObservation>,
     pub(super) clock_start: Instant,
     pub(super) series_browser: Option<SeriesBrowser>,
@@ -103,6 +127,7 @@ impl NativeViewerSession {
         };
         let window_chrome = WindowChrome::new(!capture_after_idle);
         let viewport_area = window_chrome.viewport_area(INITIAL_WIDTH, INITIAL_HEIGHT)?;
+        let clinical = clinical_overlay(&app, false);
         let (framebuffer, initial_viewports) = compose_frames(
             &views,
             projection.as_ref(),
@@ -114,7 +139,8 @@ impl NativeViewerSession {
             viewport_offset(&app),
             app.cine.enabled,
             app.cine.fps,
-            capture_application,
+            app.show_overlay || capture_application,
+            clinical.as_ref(),
         )?;
         let mut viewports = ArrayVec::new();
         for viewport in initial_viewports {
@@ -153,6 +179,7 @@ impl NativeViewerSession {
             minimized: false,
             capture_after_idle,
             capture_application,
+            anonymize_overlay: false,
             observation,
             clock_start: Instant::now(),
             series_browser,
@@ -317,6 +344,7 @@ impl NativeViewerSession {
             )?;
             (composition.framebuffer, composition.viewports)
         } else {
+            let clinical = clinical_overlay(&self.app, self.anonymize_overlay);
             let (framebuffer, composition_viewports) = compose_frames(
                 &self.views,
                 self.projection.as_ref(),
@@ -328,7 +356,8 @@ impl NativeViewerSession {
                 viewport_offset(&self.app),
                 self.app.cine.enabled,
                 self.app.cine.fps,
-                self.capture_application,
+                self.app.show_overlay || self.capture_application,
+                clinical.as_ref(),
             )?;
             let mut viewports = ArrayVec::new();
             for viewport in composition_viewports {

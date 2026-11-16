@@ -13,6 +13,8 @@ use anyhow::{anyhow, Context, Result};
 use metis_platform::Framebuffer;
 use std::path::Path;
 
+use super::layout::ClinicalOverlay;
+
 pub(super) fn compose_frames(
     views: &[RenderedView; 3],
     projection: Option<&RenderedProjection>,
@@ -25,6 +27,7 @@ pub(super) fn compose_frames(
     cine_enabled: bool,
     cine_fps: f32,
     show_application_overlay: bool,
+    clinical: Option<&ClinicalOverlay<'_>>,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     match (presentation_mode, projection) {
         (NativePresentationSelection::Responsive, Some(projection)) => surface_frames_responsive(
@@ -39,6 +42,7 @@ pub(super) fn compose_frames(
             cine_enabled,
             cine_fps,
             show_application_overlay,
+            clinical,
         ),
         (NativePresentationSelection::Fixed(NativePresentationMode::Orthogonal), None) => {
             surface_frames(
@@ -51,6 +55,7 @@ pub(super) fn compose_frames(
                 cine_enabled,
                 cine_fps,
                 show_application_overlay,
+                clinical,
             )
         }
         (
@@ -75,6 +80,7 @@ pub(super) fn compose_frames(
             cine_enabled,
             cine_fps,
             show_application_overlay,
+            clinical,
         ),
         (NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithMip), None)
         | (NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithMinip), None)

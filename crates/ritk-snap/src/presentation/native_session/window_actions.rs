@@ -153,6 +153,15 @@ impl NativeViewerSession {
                 app.show_crosshair = !app.show_crosshair;
                 Ok(true)
             }
+            WindowAction::ToggleOverlay => {
+                let app = self.active_app_mut();
+                app.show_overlay = !app.show_overlay;
+                Ok(true)
+            }
+            WindowAction::ToggleAnonymizedOverlay => {
+                self.anonymize_overlay = !self.anonymize_overlay;
+                Ok(true)
+            }
             WindowAction::ToggleCine => {
                 self.active_app_mut().toggle_cine();
                 Ok(true)

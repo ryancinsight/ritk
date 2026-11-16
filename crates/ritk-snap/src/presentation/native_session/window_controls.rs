@@ -62,6 +62,8 @@ pub(super) enum WindowAction {
     ToggleSeriesPreview,
     SetLayout(WorkspaceLayout),
     ToggleCrosshair,
+    ToggleOverlay,
+    ToggleAnonymizedOverlay,
     ToggleCine,
     ResetView,
 }

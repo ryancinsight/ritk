@@ -177,8 +177,8 @@ pub(crate) struct SnapApp {
     #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     /// Axis assignment for compare layout: [primary_axis, secondary_axis].
     pub(crate) compare_axes: [usize; 2],
-    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     /// `true` when the DICOM 4-corner overlay is drawn on viewports.
+    /// Both shells honor this flag.
     pub(crate) show_overlay: bool,
     /// `true` when crosshair lines are drawn on viewports.
     pub(crate) show_crosshair: bool,
@@ -371,7 +371,6 @@ impl Default for SnapApp {
             dual_axes: [0, 1],
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             compare_axes: [0, 0],
-            #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             show_overlay: true,
             show_crosshair: false,
             linked_cursor: None,
