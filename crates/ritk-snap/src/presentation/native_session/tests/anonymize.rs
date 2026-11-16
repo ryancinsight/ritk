@@ -66,7 +66,7 @@ fn native_anonymize_basic_replaces_identifiers_and_instance_uids() {
     assert_eq!(
         session.app.status_message,
         format!(
-            "De-identified 3 instance(s) to {} (study dates and descriptions kept). \
+            "De-identified 3 instance(s) to {} (profile BasicReplaceUids). \
              Text burned into pixels is not removed.",
             output.display()
         )
@@ -94,7 +94,7 @@ fn native_anonymize_strict_also_empties_the_study_date() {
     assert_eq!(
         session.app.status_message,
         format!(
-            "De-identified 3 instance(s) to {} (study dates emptied, study and series descriptions removed). \
+            "De-identified 3 instance(s) to {} (profile Enhanced). \
              Text burned into pixels is not removed.",
             output.display()
         )
@@ -161,11 +161,24 @@ fn native_anonymize_failure_names_the_first_issue_and_its_file() {
         (PathBuf::from("b.dcm"), missing("StudyInstanceUID")),
     ]));
     let tree = anyhow::Error::from(StudyAnonymizeError::NoInstances(PathBuf::from("study")));
+    let retained = anyhow::Error::from(StudyAnonymizeError::Retained {
+        cause: Box::new(StudyAnonymizeError::Verification(vec![(
+            PathBuf::from("c.dcm"),
+            missing("SeriesInstanceUID"),
+        )])),
+        paths: vec![PathBuf::from("c.dcm")],
+    });
 
     assert_eq!(
         failure_status(&gate),
         "De-identified export failed: 2 verification issue(s) in the export; \
          first: missing required UID tag SOPInstanceUID in a.dcm"
+    );
+    assert_eq!(
+        failure_status(&retained),
+        "De-identified export failed: 1 verification issue(s) in the export; \
+         1 written file(s) could not be removed; \
+         first: missing required UID tag SeriesInstanceUID in c.dcm"
     );
     assert_eq!(
         failure_status(&tree),

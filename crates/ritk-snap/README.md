@@ -115,27 +115,6 @@ explicit spelling for scripts and existing workflows. The separately named
 `ritk-snap-eframe` executable selects the compatibility shell without activating
 the legacy graph in the default package.
 
-### De-identified export
-
-File > Anonymize (basic) and File > Anonymize (strict) write a de-identified
-copy of the open study to a folder you pick. The folder must be empty and
-outside the study; the displayed study is never modified. Both apply a `ritk-io`
-anonymization profile (`BasicReplaceUids` and `Enhanced`; the elements each acts
-on are listed in `ritk-io`'s `anonymize/profile.rs`): the patient name and ID
-are replaced, and the study, series and SOP instance UIDs are replaced with
-values derived from a salt drawn fresh for each export. Basic keeps the study,
-series, acquisition and content dates and times and the study and series
-descriptions; strict empties those dates and times and removes those
-descriptions.
-
-Elements outside the profile, pixel data, and folder and file names are copied
-unchanged, so a patient name in a folder name or burned into the pixels stays in
-the copy. Files that are not DICOM instances, and a DICOMDIR index, are left
-out. After writing, RITK re-reads every exported file and scans it for the
-patient names and IDs read from the source; if that check or any earlier step
-fails, RITK removes the files it wrote (folders it created may remain) and the
-status line shows the error.
-
 The Métis session owns the HWND, bounded event wait, framebuffer presentation,
 resize/minimize and terminal cleanup. RITK owns DICOM opening, decoded volume
 state, slice rendering, window/level and viewer actions. A deterministic hidden
@@ -202,6 +181,27 @@ duplicating voxel indexing. Oblique resampling and GPU slab dispatch are not
 implied by this contract.
 
 API reference: `cargo doc --locked -p ritk-snap --no-deps`.
+
+### De-identified export
+
+File > Anonymize (basic) and File > Anonymize (strict) write a de-identified
+copy of the open study to a folder you pick. The folder must be empty and
+outside the study; the displayed study is never modified. Both apply a `ritk-io`
+anonymization profile (`BasicReplaceUids` and `Enhanced`; the elements each acts
+on are listed in `ritk-io`'s `anonymize/profile.rs`): the patient name and ID
+are replaced, and the study, series and SOP instance UIDs are replaced with
+values derived from a salt drawn fresh for each export. Basic keeps the study,
+series, acquisition and content dates and times and the study and series
+descriptions; strict empties those dates and times and removes those
+descriptions.
+
+Pixel data and folder and file names are copied unchanged, so a patient name in
+a folder name or burned into the pixels stays in the copy. Files that do not
+open as DICOM, and a DICOMDIR index, are left out. After writing, RITK re-reads
+every exported file and scans it for each source patient name and ID that
+differs from its replacement; if that check or any earlier step fails, RITK removes the files it wrote and the status line shows the error.
+Folders it created may remain, and a file it could not remove stays and is
+counted in that error.
 
 ## Browser host
 

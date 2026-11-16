@@ -9,10 +9,10 @@ use super::NativeViewerSession;
 use anyhow::{anyhow, Context, Result};
 use metis_platform::native::{pick, DialogSelection};
 use ritk_io::format::dicom::anonymize::{
-    anonymize_dicom_study, AnonymizationProfile, AnonymizeOptions, StudyAnonymizeError,
-    StudyAnonymizeReport,
+    anonymize_dicom_study, verify::VerifyIssue, AnonymizationProfile, AnonymizeOptions,
+    StudyAnonymizeError, StudyAnonymizeReport,
 };
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Which RITK anonymization profile a de-identified export applies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,8 +35,8 @@ impl Deidentification {
 
     const fn summary(self) -> &'static str {
         match self {
-            Self::Basic => "study dates and descriptions kept",
-            Self::Strict => "study dates emptied, study and series descriptions removed",
+            Self::Basic => "profile BasicReplaceUids",
+            Self::Strict => "profile Enhanced",
         }
     }
 }
@@ -46,7 +46,7 @@ fn export_status(level: Deidentification, report: StudyAnonymizeReport, output: 
     let omitted = if left_out == 0 {
         String::new()
     } else {
-        format!(" {left_out} file(s) that are not DICOM instances left out.")
+        format!(" {left_out} file(s) left out (not DICOM, or a DICOMDIR).")
     };
     format!(
         "De-identified {} instance(s) to {} ({}).{omitted} Text burned into pixels is not removed.",
@@ -56,13 +56,22 @@ fn export_status(level: Deidentification, report: StudyAnonymizeReport, output: 
     )
 }
 
-/// The status line for a failed export; a verification failure names its
-/// first issue and the file that raised it.
-pub(super) fn failure_status(error: &anyhow::Error) -> String {
-    let first = match error.downcast_ref::<StudyAnonymizeError>() {
-        Some(StudyAnonymizeError::Verification(issues)) => issues.first(),
+/// The first issue of a verification failure, also when a failed cleanup
+/// wraps that failure.
+fn first_issue(error: &StudyAnonymizeError) -> Option<&(PathBuf, VerifyIssue)> {
+    match error {
+        StudyAnonymizeError::Verification(issues) => issues.first(),
+        StudyAnonymizeError::Retained { cause, .. } => first_issue(cause),
         _ => None,
-    };
+    }
+}
+
+/// The status line for a failed export: the error, followed by the first
+/// verification issue and its file when the error holds one.
+pub(super) fn failure_status(error: &anyhow::Error) -> String {
+    let first = error
+        .downcast_ref::<StudyAnonymizeError>()
+        .and_then(first_issue);
     match first {
         Some((path, issue)) => format!(
             "De-identified export failed: {error:#}; first: {issue} in {}",
