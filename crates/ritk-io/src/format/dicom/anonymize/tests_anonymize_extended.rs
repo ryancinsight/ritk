@@ -378,6 +378,7 @@ fn anonymize_object_removes_the_file_meta_origin_and_keeps_the_rest() {
     });
     // A file whose group length ends early leaves these to the data set.
     let misplaced = [
+        (Tag(0x0002, 0x0003), VR::UI, "1.2.3.999"),
         (Tag(0x0002, 0x0016), VR::AE, "SITE_STRAY"),
         (Tag(0x0002, 0x0017), VR::AE, "SITE_OTHER"),
     ];
@@ -453,7 +454,12 @@ fn anonymize_object_removes_the_file_meta_origin_and_keeps_the_rest() {
         stored.implementation_version_name
     );
     let bytes = std::fs::read(&path).expect("read the written bytes");
-    for needle in [b"SITE_".as_slice(), b"1.2.3.777", b"MRN PAT001"] {
+    for needle in [
+        b"SITE_".as_slice(),
+        b"1.2.3.777",
+        b"1.2.3.999",
+        b"MRN PAT001",
+    ] {
         assert!(
             !bytes.windows(needle.len()).any(|window| window == needle),
             "{}",

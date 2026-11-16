@@ -16,8 +16,8 @@
 //!   implementation identifiers; its Media Storage SOP Instance UID is set to
 //!   the data set's SOPInstanceUID when that is a single conformant UID, and
 //!   is otherwise left as it was; its application entity titles and private
-//!   information are removed, as is every group 0002 element of the data
-//!   set.
+//!   information are removed, as is every top-level group 0002 element of
+//!   the data set.
 //! - `clean_pixel_data = CleaningPolicy::Skip` (default) never touches pixel data.
 //! - Same `(original_uid, salt)` always produces the same replacement UID.
 //! - Every count in [`AnonymizeResult`] is taken from the mutation that produced
