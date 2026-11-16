@@ -15,6 +15,7 @@
 //! 8. anonymize_object_configurable_patient_name
 //! 9. anonymize_object_accession_number_emptied
 //! 10. anonymize_object_enhanced_removes_private_tags
+//! 11. anonymize_object_keeps_a_readable_file_meta_uid_when_the_data_set_has_none_to_copy
 
 use super::{AnonymizationProfile, AnonymizeOptions};
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
@@ -206,9 +207,7 @@ fn anonymize_object_replace_uids_changes_sop_uid() {
         "Replaced UID must use ISO 9834-8 UUID arc root 2.25., got: {new_uid}"
     );
     assert_eq!(
-        anon.meta()
-            .media_storage_sop_instance_uid()
-            .trim_end_matches('\0'),
+        anon.meta().media_storage_sop_instance_uid(),
         new_uid,
         "the file meta group must name the same instance as the data set"
     );

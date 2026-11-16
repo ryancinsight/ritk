@@ -13,7 +13,8 @@
 //! - Tag actions and private-tag removal are applied at every sequence nesting
 //!   level, not only to top-level elements.
 //! - The file meta group keeps its transfer syntax and SOP class; its Media
-//!   Storage SOP Instance UID follows the data set's SOPInstanceUID.
+//!   Storage SOP Instance UID is set to the data set's SOPInstanceUID when
+//!   that is a single conformant UID, and is otherwise left as it was.
 //! - `clean_pixel_data = CleaningPolicy::Skip` (default) never touches pixel data.
 //! - Same `(original_uid, salt)` always produces the same replacement UID.
 //! - Every count in [`AnonymizeResult`] is taken from the mutation that produced
@@ -468,9 +469,11 @@ fn anonymize_dataset(
 /// Iterates the `options.profile` tag-action list, mutating `obj` in place
 /// (via `DerefMut`), and descends into every nested sequence so that
 /// identifying attributes below the top level are acted on as well. In the file
-/// meta group only Media Storage SOP Instance UID changes: it is set to the
-/// data set's SOPInstanceUID when that is a conformant UID. Returns `AnonymizeResult` with per-operation
-/// statistics and the UID cross-reference map.
+/// meta group Media Storage SOP Instance UID is set to the data set's
+/// SOPInstanceUID when that is a single conformant UID, and the group length
+/// is recomputed; no other file meta element changes. Returns
+/// `AnonymizeResult` with per-operation statistics and the UID
+/// cross-reference map.
 ///
 /// When `options.clean_pixel_data` is `CleaningPolicy::Clean`, the
 /// `PixelData` element `(7FE0,0010)` is overwritten with an equal-length

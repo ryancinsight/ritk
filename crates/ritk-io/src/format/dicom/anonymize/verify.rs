@@ -26,8 +26,9 @@
 //!    UID breaks study reassembly at the destination. FrameOfReferenceUID is
 //!    checked for conformance where present and never required: the verifier
 //!    does not resolve the object's IOD, and an object without a spatial
-//!    frame carries none. The file meta Media Storage SOP Instance UID must
-//!    equal the data set's SOPInstanceUID (PS3.10 Table 7.1-1).
+//!    frame carries none. When the data set has a non-empty SOPInstanceUID,
+//!    the file meta Media Storage SOP Instance UID must equal it (PS3.10
+//!    Table 7.1-1).
 //! 3. **De-identification completeness** — when a profile is supplied, every
 //!    tag the profile targets must either be absent or carry its replacement
 //!    value; the raw patient-identifying values that were scrubbed must not

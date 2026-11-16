@@ -120,7 +120,7 @@ fn a_study_tree_is_mirrored_with_identifiers_replaced_and_series_kept_together()
     let exported = open_file(output.join("s1/a.dcm"))?;
     let meta_uid = exported.meta().media_storage_sop_instance_uid();
     let data_set_uid = value(&output.join("s1/a.dcm"), Tag(0x0008, 0x0018))?;
-    assert_eq!(meta_uid.trim_end_matches('\0'), data_set_uid);
+    assert_eq!(meta_uid, data_set_uid);
     assert_ne!(data_set_uid, "1.2.3.10.1");
     assert!(!output.join("notes.txt").exists());
     assert!(!output.join("DICOMDIR").exists());
