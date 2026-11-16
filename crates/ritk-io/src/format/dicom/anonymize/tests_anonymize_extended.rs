@@ -1,7 +1,7 @@
 //! Extended integration tests for DICOM anonymization (PS 3.15 Annex E).
 //!
-//! This file covers `anonymize_object` core integration tests and the
-//! Enhanced profile private tag removal scenario. File roundtrip, statistics,
+//! This file covers `anonymize_object` core integration tests, the Enhanced
+//! profile private tag removal scenario and the file meta group. Statistics
 //! and clean_private_tags tests are in `tests_anonymize_stats.rs`.
 //!
 //! # Test Coverage Index (this file)
@@ -15,7 +15,8 @@
 //! 8. anonymize_object_configurable_patient_name
 //! 9. anonymize_object_accession_number_emptied
 //! 10. anonymize_object_enhanced_removes_private_tags
-//! 11. anonymize_object_keeps_a_readable_file_meta_uid_when_the_data_set_has_none_to_copy
+//! 11. anonymize_object_removes_the_file_meta_origin_and_keeps_the_rest
+//! 12. anonymize_object_keeps_a_readable_file_meta_uid_when_the_data_set_has_none_to_copy
 
 use super::{AnonymizationProfile, AnonymizeOptions};
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
@@ -371,7 +372,18 @@ fn anonymize_object_removes_the_file_meta_origin_and_keeps_the_rest() {
         meta.receiving_application_entity_title = Some("SITE_ARCHIVE".to_owned());
         meta.private_information_creator_uid = Some("1.2.3.777".to_owned());
         meta.private_information = Some(b"MRN PAT001".to_vec());
+        meta.transfer_syntax = "1.2.840.10008.1.2".to_owned();
+        meta.implementation_class_uid = "1.2.3.888".to_owned();
+        meta.implementation_version_name = Some("FIXTURE_WRITER".to_owned());
     });
+    // A file whose group length ends early leaves these to the data set.
+    let misplaced = [
+        (Tag(0x0002, 0x0016), VR::AE, "SITE_STRAY"),
+        (Tag(0x0002, 0x0017), VR::AE, "SITE_OTHER"),
+    ];
+    for (tag, vr, value) in misplaced {
+        source.put(DataElement::new(tag, vr, PrimitiveValue::from(value)));
+    }
     let source_dir = tempfile::tempdir().expect("tempdir");
     let source_path = source_dir.path().join("source.dcm");
     source
@@ -381,7 +393,7 @@ fn anonymize_object_removes_the_file_meta_origin_and_keeps_the_rest() {
     let stored = source.meta().clone();
     let unpadded = |text: &Option<String>| {
         text.as_deref()
-            .map(|text| text.trim_end_matches([' ', ' ']).to_owned())
+            .map(|text| text.trim_end_matches(['\0', ' ']).to_owned())
     };
     assert_eq!(
         [
@@ -397,15 +409,30 @@ fn anonymize_object_removes_the_file_meta_origin_and_keeps_the_rest() {
         stored.private_information.as_deref(),
         Some(b"MRN PAT001".as_slice())
     );
+    assert_eq!(
+        [
+            unpadded(&Some(stored.transfer_syntax.clone())),
+            unpadded(&Some(stored.implementation_class_uid.clone())),
+            unpadded(&stored.implementation_version_name),
+        ],
+        ["1.2.840.10008.1.2", "1.2.3.888", "FIXTURE_WRITER"].map(|text| Some(text.to_owned()))
+    );
+    let group_two = |object: &FileDicomObject<InMemDicomObject>| -> Vec<Tag> {
+        object
+            .iter()
+            .map(|element| element.header().tag)
+            .filter(|tag| tag.group() == 0x0002)
+            .collect()
+    };
+    assert_eq!(group_two(&source), misplaced.map(|(tag, _, _)| tag));
 
     let (anon, _result) = super::anonymize_object(source, &AnonymizeOptions::default())
         .expect("anonymize_object must succeed");
     let path = source_dir.path().join("anonymized.dcm");
     anon.write_to_file(&path).expect("write the object");
-    let meta = dicom::object::open_file(&path)
-        .expect("the written file must re-read")
-        .meta()
-        .clone();
+    let reread = dicom::object::open_file(&path).expect("the written file must re-read");
+    assert_eq!(group_two(&reread), []);
+    let meta = reread.meta().clone();
 
     assert_eq!(meta.source_application_entity_title, None);
     assert_eq!(meta.sending_application_entity_title, None);

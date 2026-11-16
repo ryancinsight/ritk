@@ -16,7 +16,8 @@
 //!   implementation identifiers; its Media Storage SOP Instance UID is set to
 //!   the data set's SOPInstanceUID when that is a single conformant UID, and
 //!   is otherwise left as it was; its application entity titles and private
-//!   information are removed.
+//!   information are removed, as is every group 0002 element of the data
+//!   set.
 //! - `clean_pixel_data = CleaningPolicy::Skip` (default) never touches pixel data.
 //! - Same `(original_uid, salt)` always produces the same replacement UID.
 //! - Every count in [`AnonymizeResult`] is taken from the mutation that produced
@@ -475,7 +476,8 @@ fn anonymize_dataset(
 /// SOPInstanceUID when that is a single conformant UID; Source, Sending and
 /// Receiving Application Entity Title, Private Information Creator UID and
 /// Private Information are removed; the group length is recomputed; no other
-/// file meta element changes. Returns
+/// file meta element changes. Top-level data set elements of group 0002 are
+/// removed. Returns
 /// `AnonymizeResult` with per-operation statistics and the UID
 /// cross-reference map.
 ///
