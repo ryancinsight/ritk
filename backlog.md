@@ -101,6 +101,7 @@
 <a id="RITK-SNAP-NATIVE-LINK-001"></a>- [RITK-SNAP-NATIVE-LINK-001](backlog/RITK-SNAP-NATIVE-LINK-001.md) — Link panes by patient position — todo
 <a id="RITK-SNAP-NATIVE-LOAD-001"></a>- [RITK-SNAP-NATIVE-LOAD-001](backlog/RITK-SNAP-NATIVE-LOAD-001.md) — Browse a study while it loads — todo
 <a id="RITK-SNAP-NATIVE-MEASURE-SET-001"></a>- [RITK-SNAP-NATIVE-MEASURE-SET-001](backlog/RITK-SNAP-NATIVE-MEASURE-SET-001.md) — Complete the measurement and annotation set — blocked
+<a id="RITK-SNAP-NATIVE-INPUT-PARITY-001"></a>- [RITK-SNAP-NATIVE-INPUT-PARITY-001](backlog/RITK-SNAP-NATIVE-INPUT-PARITY-001.md) — Finish native input parity — todo
 <a id="RITK-SNAP-NATIVE-OPEN-001"></a>- [RITK-SNAP-NATIVE-OPEN-001](backlog/RITK-SNAP-NATIVE-OPEN-001.md) — Open files, archives and drops natively — todo
 <a id="RITK-SNAP-NATIVE-OVERLAY-TEXT-001"></a>- [RITK-SNAP-NATIVE-OVERLAY-TEXT-001](backlog/RITK-SNAP-NATIVE-OVERLAY-TEXT-001.md) — Draw clinical image overlays natively — todo
 <a id="RITK-SNAP-NATIVE-PACS-001"></a>- [RITK-SNAP-NATIVE-PACS-001](backlog/RITK-SNAP-NATIVE-PACS-001.md) — Query and receive PACS studies natively — todo
