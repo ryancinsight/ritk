@@ -6,6 +6,7 @@
 //! stale value links the export back to the source instance.
 
 use super::verify::VerifyIssue;
+use crate::format::dicom::identity::uid_is_valid;
 use dicom::core::Tag;
 use dicom::object::{FileDicomObject, InMemDicomObject};
 
@@ -23,9 +24,11 @@ fn data_set_uid(object: &FileDicomObject<InMemDicomObject>) -> Option<String> {
 }
 
 /// Copy the data set's SOP Instance UID into the file meta group. A data set
-/// without one leaves the file meta group as it is.
+/// without one, or with a value that is not a UID (PS3.5 section 9.1), leaves
+/// the file meta group as it is: a reader rejects a file whose meta group
+/// holds anything but a UID, and the export gate reports the difference.
 pub(super) fn align_media_storage_uid(object: &mut FileDicomObject<InMemDicomObject>) {
-    if let Some(uid) = data_set_uid(object) {
+    if let Some(uid) = data_set_uid(object).filter(|uid| uid_is_valid(uid)) {
         object.update_meta(|meta| meta.media_storage_sop_instance_uid = uid);
     }
 }
@@ -36,7 +39,7 @@ pub(super) fn media_storage_uid_issue(
     object: &FileDicomObject<InMemDicomObject>,
 ) -> Option<VerifyIssue> {
     let expected = data_set_uid(object)?;
-    let found = unpadded(object.meta().media_storage_sop_instance_uid());
+    let found = object.meta().media_storage_sop_instance_uid();
     (found != expected).then(|| VerifyIssue::UidMismatch {
         tag: "MediaStorageSOPInstanceUID".to_owned(),
         expected,

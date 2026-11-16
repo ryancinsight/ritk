@@ -362,3 +362,28 @@ fn anonymize_object_enhanced_removes_private_tags() {
         "AnonymizeResult must report exactly 2 private tags removed"
     );
 }
+
+#[test]
+fn anonymize_object_keeps_a_readable_file_meta_uid_when_the_data_set_has_none_to_copy() {
+    let opts = AnonymizeOptions {
+        profile: AnonymizationProfile::Basic,
+        ..AnonymizeOptions::default()
+    };
+    let not_a_uid = DataElement::new(Tag(0x0008, 0x0018), VR::UI, PrimitiveValue::from("1.2.3.A"));
+    for sop_instance_uid in [Some(not_a_uid), None] {
+        let mut source = make_test_object();
+        match sop_instance_uid {
+            Some(element) => drop(source.put(element)),
+            None => drop(source.remove_element(Tag(0x0008, 0x0018))),
+        }
+        let (anon, _result) =
+            super::anonymize_object(source, &opts).expect("anonymize_object must succeed");
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("kept-meta.dcm");
+        anon.write_to_file(&path).expect("write the object");
+
+        let reread = dicom::object::open_file(&path).expect("the written file must re-read");
+
+        assert_eq!(reread.meta().media_storage_sop_instance_uid(), "1.2.3.4.5");
+    }
+}

@@ -74,7 +74,9 @@ pub enum VerifyIssue {
     MissingUid { tag: String },
     /// A UID value is present but not DICOM-conformant.
     InvalidUid { tag: String, value: String },
-    /// A UID differs from the series-level expectation (study/series/FoR).
+    /// A UID differs from the value it must repeat: the series-level
+    /// expectation (study/series/FoR), or the data set's SOPInstanceUID for
+    /// the file meta Media Storage SOP Instance UID.
     UidMismatch {
         tag: String,
         expected: String,
