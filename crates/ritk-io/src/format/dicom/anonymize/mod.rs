@@ -47,6 +47,8 @@ mod tests_study;
 #[cfg(test)]
 #[path = "tests_verify.rs"]
 mod tests_verify;
+#[cfg(test)]
+mod tests_verify_geometry;
 pub mod verify;
 
 pub use profile::{AnonymizationProfile, TagAction};
