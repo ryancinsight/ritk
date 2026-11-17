@@ -297,11 +297,6 @@ impl SnapApp {
                 };
                 let mapped = viewport.and_then(|viewport| viewport.map(*position));
                 if self.pointer.pending_polygon_move.is_some() {
-                    let committed = *gesture == PointerGesture::Drag
-                        && mapped.is_some_and(|image| {
-                            self.preview_polygon_vertex_move(image)
-                                && self.commit_polygon_vertex_move()
-                        });
                     self.pointer.pending_polygon_move = None;
                     self.pointer.owner = None;
                     return Ok(ViewerActionDisposition::Continue { repaint: true });
