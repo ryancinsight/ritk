@@ -89,7 +89,7 @@ impl SnapApp {
             .push(annotation.with_location(self.annotation_location()));
     }
 
-    pub(super) fn annotation_location(&self) -> AnnotationLocation {
+    pub(in crate::app) fn annotation_location(&self) -> AnnotationLocation {
         AnnotationLocation {
             plane: self.axis,
             slice: self.axis_slice_info(self.axis).0,
