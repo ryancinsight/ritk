@@ -184,6 +184,17 @@ impl NativeViewerSession {
                 self.active_app_mut().toggle_cine();
                 Ok(true)
             }
+            WindowAction::ApplyWindowPreset { index } => {
+                match self.active_app_mut().apply_browser_window_preset(index) {
+                    Ok(changed) => Ok(changed),
+                    Err(error) => {
+                        self.active_app_mut().status_message = format!(
+                            "Window preset could not be applied; the active image remains displayed: {error:#}"
+                        );
+                        Ok(true)
+                    }
+                }
+            }
             WindowAction::ResetView => {
                 let app = self.active_app_mut();
                 app.zoom = 1.0;

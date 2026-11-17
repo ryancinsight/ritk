@@ -29,6 +29,9 @@ pub(crate) const VIRTUAL_KEY_CINE_TOGGLE: u32 = 0x20;
 pub(crate) const VIRTUAL_KEY_CROSSHAIR_TOGGLE: u32 = 0x58;
 pub(crate) const VIRTUAL_KEY_CINE_FPS_UP: u32 = 0xbb;
 pub(crate) const VIRTUAL_KEY_CINE_FPS_DOWN: u32 = 0xbd;
+/// Windows virtual-key codes for digits `1`–`9`, selecting modality presets.
+pub(crate) const VIRTUAL_KEY_PRESET_KEYS: [u32; 9] =
+    [0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39];
 
 /// Result of applying one viewer action to the RITK application.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -27,18 +27,21 @@ pub(crate) enum BrowserWindowPresetError {
         preset_count: usize,
     },
     /// A JavaScript number is not finite.
+    #[cfg(any(target_arch = "wasm32", test))]
     #[error("browser window preset index {value} must be finite")]
     CoordinateNotFinite {
         /// Rejected JavaScript number.
         value: f64,
     },
     /// A JavaScript number does not denote an integer.
+    #[cfg(any(target_arch = "wasm32", test))]
     #[error("browser window preset index {value} must be an integer")]
     CoordinateNotInteger {
         /// Rejected JavaScript number.
         value: f64,
     },
     /// A JavaScript integer cannot be represented by the WASM ABI.
+    #[cfg(any(target_arch = "wasm32", test))]
     #[error("browser window preset index {value} is outside 0..={maximum}")]
     CoordinateOutOfRange {
         /// Rejected JavaScript number.
@@ -49,6 +52,7 @@ pub(crate) enum BrowserWindowPresetError {
 }
 
 /// Validates a JavaScript number before narrowing it to a preset index.
+#[cfg(any(target_arch = "wasm32", test))]
 pub(crate) fn parse_browser_window_preset_request(
     value: f64,
 ) -> Result<usize, BrowserWindowPresetError> {
@@ -133,6 +137,7 @@ impl SnapApp {
     }
 
     /// Returns the number of presets available for the loaded modality.
+    #[cfg(any(target_arch = "wasm32", test))]
     pub(crate) fn browser_window_preset_count(&self) -> Result<usize, BrowserWindowPresetError> {
         if self.loaded.is_none() {
             return Err(BrowserWindowPresetError::StudyNotLoaded);
@@ -141,6 +146,7 @@ impl SnapApp {
     }
 
     /// Returns one loaded-modality preset name for browser control construction.
+    #[cfg(any(target_arch = "wasm32", test))]
     pub(crate) fn browser_window_preset_name(
         &self,
         index: usize,

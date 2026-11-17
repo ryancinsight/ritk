@@ -23,6 +23,7 @@ pub(super) enum Menu {
     View,
     Tools,
     Window,
+    Display,
     Anonymize,
     GridPicker,
 }
@@ -73,6 +74,9 @@ pub(super) enum WindowAction {
     ToggleAnonymizedOverlay,
     ToggleCine,
     ResetView,
+    ApplyWindowPreset {
+        index: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

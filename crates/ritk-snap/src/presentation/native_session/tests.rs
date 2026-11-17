@@ -12,6 +12,7 @@ use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::time::{Duration, Instant};
 mod anonymize;
 mod display;
+mod display_controls;
 mod interaction;
 mod measurement_overlay;
 mod overlay_text;

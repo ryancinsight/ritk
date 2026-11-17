@@ -22,11 +22,12 @@ pub(super) const POINTER_BUTTON_ROWS: [(&str, PointerButton); 4] = [
     ("Bind forward button", PointerButton::X2),
 ];
 
-pub(super) const MENU_TABS: [(Menu, &str, u32); 5] = [
+pub(super) const MENU_TABS: [(Menu, &str, u32); 6] = [
     (Menu::File, "File", 54),
     (Menu::View, "View", 58),
     (Menu::Tools, "Tools", 66),
     (Menu::Window, "Window", 78),
+    (Menu::Display, "Display", 76),
     (Menu::Anonymize, "Anonymize", 102),
 ];
 
@@ -52,7 +53,11 @@ pub(super) fn menu_tab_geometry(menu: Menu) -> u32 {
     0
 }
 
-pub(super) fn menu_item_count(menu: Menu, workspace_layout: WorkspaceLayout) -> usize {
+pub(super) fn menu_item_count(
+    menu: Menu,
+    app: &SnapApp,
+    workspace_layout: WorkspaceLayout,
+) -> usize {
     match menu {
         Menu::File => 3,
         Menu::Anonymize => ANONYMIZE_ITEMS.len(),
@@ -71,6 +76,7 @@ pub(super) fn menu_item_count(menu: Menu, workspace_layout: WorkspaceLayout) -> 
                 + POINTER_BUTTON_ROWS.len()
         }
         Menu::Window => 6,
+        Menu::Display => app.browser_window_presets().len(),
         Menu::GridPicker => 0,
     }
 }
@@ -203,6 +209,17 @@ pub(super) fn menu_item(
             )),
             _ => Err(anyhow!("native Window menu row is outside its items")),
         },
+        Menu::Display => {
+            let presets = app.browser_window_presets();
+            let preset = presets
+                .get(index)
+                .ok_or_else(|| anyhow!("native Display menu row is outside its preset table"))?;
+            Ok((
+                preset.name,
+                WindowAction::ApplyWindowPreset { index },
+                app.browser_window_preset_index() == Some(index),
+            ))
+        }
         Menu::GridPicker => Err(anyhow!("panel grid picker has no menu rows")),
     }
 }
