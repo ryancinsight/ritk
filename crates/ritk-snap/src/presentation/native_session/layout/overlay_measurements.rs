@@ -249,6 +249,22 @@ impl Pane<'_> {
                 )?;
                 self.label(overlay, p, format!("{value:.0}"))?;
             }
+            Annotation::CobbAngle {
+                p1,
+                p2,
+                p3,
+                p4,
+                angle_deg,
+                ..
+            } => {
+                let a = image_point(*p1);
+                let b = image_point(*p2);
+                let c = image_point(*p3);
+                let d = image_point(*p4);
+                self.line(overlay, a, b, MEASUREMENT_COLOR)?;
+                self.line(overlay, c, d, MEASUREMENT_COLOR)?;
+                self.label(overlay, b, format!("{angle_deg:.1} deg"))?;
+            }
             _ => {}
         }
         Ok(())

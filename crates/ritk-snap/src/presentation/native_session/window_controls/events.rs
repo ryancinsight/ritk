@@ -11,6 +11,7 @@ use super::slice_drag::SliceDrag;
 use super::{PanelCloseKind, PointerOwner, WindowAction, WindowChrome, WindowChromeEvent};
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
+use crate::tools::kind::ToolKind;
 use anyhow::{anyhow, Result};
 
 impl WindowChrome {
@@ -87,6 +88,7 @@ impl WindowChrome {
         } = event
         {
             let action = match (*virtual_key, modifiers.ctrl(), modifiers.shift()) {
+                (0x43, false, false) => Some(WindowAction::SelectTool(ToolKind::MeasureCobb)),
                 (0x73, false, false) => Some(WindowAction::OpenSeriesPicker),
                 (0x73, true, false) => Some(WindowAction::CloseActivePanel),
                 (0x73, false, true) => Some(WindowAction::CloseAllPanels),

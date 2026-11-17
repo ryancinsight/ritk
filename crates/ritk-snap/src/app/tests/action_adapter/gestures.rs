@@ -120,6 +120,49 @@ fn point_click_actions_record_a_ritk_annotation() {
 }
 
 #[test]
+fn cobb_drag_actions_record_two_directional_segments() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([1, 64, 64]));
+    app.active_tool = ToolKind::MeasureCobb;
+    let viewport = viewport([64, 64]);
+    let mut dispatcher = PresentationDispatcher::new();
+    let modifiers = PresentationModifiers::NONE;
+    for (start, end) in [((5.0, 10.0), (25.0, 10.0)), ((10.0, 5.0), (10.0, 25.0))] {
+        apply_events(
+            &mut app,
+            &mut dispatcher,
+            &viewport,
+            PresentationEvent::PointerDown {
+                x: start.0,
+                y: start.1,
+                button: PointerButton::Left,
+                modifiers,
+            },
+        );
+        apply_events(
+            &mut app,
+            &mut dispatcher,
+            &viewport,
+            PresentationEvent::PointerUp {
+                x: end.0,
+                y: end.1,
+                button: PointerButton::Left,
+            },
+        );
+    }
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::CobbAngle {
+            p1, p2, p3, p4, angle_deg, ..
+        }] if *p1 == [10.0, 5.0]
+            && *p2 == [10.0, 25.0]
+            && *p3 == [5.0, 10.0]
+            && *p4 == [25.0, 10.0]
+            && *angle_deg == 90.0
+    ));
+}
+
+#[test]
 fn length_measurement_clicks_advance_and_complete_through_the_adapter() {
     let mut app = SnapApp::default();
     app.loaded = Some(test_volume([4, 4, 1]));

@@ -38,6 +38,8 @@ pub enum ToolKind {
     LabelPaint,
     /// Erase segmentation labels to background under the cursor.
     LabelErase,
+    /// Measure the acute angle between two directed image segments.
+    MeasureCobb,
 }
 
 impl ToolKind {
@@ -55,6 +57,7 @@ impl ToolKind {
             ToolKind::PointHu => "HU Point",
             ToolKind::LabelPaint => "Label Paint",
             ToolKind::LabelErase => "Label Erase",
+            ToolKind::MeasureCobb => "Cobb Angle",
         }
     }
 
@@ -101,6 +104,7 @@ impl ToolKind {
                 "Label Erase: click or drag to erase segmentation labels \
                  back to background with the current brush radius."
             }
+            ToolKind::MeasureCobb => "Cobb angle: drag two directional segments.",
         }
     }
 
@@ -118,6 +122,7 @@ impl ToolKind {
             ToolKind::PointHu => "⊙",
             ToolKind::LabelPaint => "P",
             ToolKind::LabelErase => "E",
+            ToolKind::MeasureCobb => "∠",
         }
     }
 
@@ -139,6 +144,7 @@ impl ToolKind {
             ToolKind::PointHu,
             ToolKind::LabelPaint,
             ToolKind::LabelErase,
+            ToolKind::MeasureCobb,
         ]
     }
 }

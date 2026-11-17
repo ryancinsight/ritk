@@ -11,7 +11,8 @@ impl Annotation {
             | Self::Angle { location, .. }
             | Self::RoiRect { location, .. }
             | Self::RoiEllipse { location, .. }
-            | Self::HuPoint { location, .. } => *location,
+            | Self::HuPoint { location, .. }
+            | Self::CobbAngle { location, .. } => *location,
         }
     }
 
@@ -34,6 +35,9 @@ impl Annotation {
                 location: value, ..
             }
             | Self::HuPoint {
+                location: value, ..
+            }
+            | Self::CobbAngle {
                 location: value, ..
             } => *value = Some(location),
         }

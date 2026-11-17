@@ -20,6 +20,8 @@ pub enum AnnotationKind {
     HuPoint,
     /// A three-dimensional length measured in DICOM patient space.
     PatientLength,
+    /// A Cobb angle.
+    CobbAngle,
 }
 
 impl AnnotationKind {
@@ -33,6 +35,7 @@ impl AnnotationKind {
             Self::RoiRect => "roi-rect",
             Self::RoiEllipse => "roi-ellipse",
             Self::HuPoint => "hu-point",
+            Self::CobbAngle => "cobb-angle",
         }
     }
 }

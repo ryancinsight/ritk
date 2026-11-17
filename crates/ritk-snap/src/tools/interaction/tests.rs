@@ -7,6 +7,26 @@ use iris::color::{ColorMap, Normalized};
 #[path = "tests/patient_length.rs"]
 mod patient_length;
 
+#[test]
+fn cobb_angle_uses_directional_segments_and_returns_acute_angle() {
+    let angle = Annotation::compute_cobb_angle(
+        [0.0, 0.0],
+        [0.0, 10.0],
+        [0.0, 0.0],
+        [10.0, 0.0],
+        [1.0, 1.0],
+    );
+    assert_eq!(angle, 90.0);
+    let reversed = Annotation::compute_cobb_angle(
+        [0.0, 10.0],
+        [0.0, 0.0],
+        [0.0, 0.0],
+        [10.0, 0.0],
+        [1.0, 1.0],
+    );
+    assert_eq!(reversed, 90.0);
+}
+
 // ── compute_length ────────────────────────────────────────────────────────
 
 /// Axis-aligned horizontal displacement with unit spacing must yield the

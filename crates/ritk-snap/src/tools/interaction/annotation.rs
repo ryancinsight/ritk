@@ -200,6 +200,21 @@ pub enum Annotation {
         /// Intensity value at the point (HU or relative).
         value: f32,
     },
+
+    /// Two directed image segments with their acute Cobb angle.
+    CobbAngle {
+        /// Creation location on the source image plane.
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
+        /// First segment start and end points.
+        p1: [f32; 2],
+        p2: [f32; 2],
+        /// Second segment start and end points.
+        p3: [f32; 2],
+        p4: [f32; 2],
+        /// Acute angle in degrees.
+        angle_deg: f32,
+    },
 }
 
 impl Annotation {
@@ -252,6 +267,27 @@ impl Annotation {
         let dr = (p2[0] - p1[0]) * spacing[0];
         let dc = (p2[1] - p1[1]) * spacing[1];
         (dr * dr + dc * dc).sqrt()
+    }
+
+    /// Compute the acute angle between two directed segments in degrees.
+    pub fn compute_cobb_angle(
+        p1: [f32; 2],
+        p2: [f32; 2],
+        p3: [f32; 2],
+        p4: [f32; 2],
+        spacing: [f32; 2],
+    ) -> f32 {
+        let a = [(p2[0] - p1[0]) * spacing[0], (p2[1] - p1[1]) * spacing[1]];
+        let b = [(p4[0] - p3[0]) * spacing[0], (p4[1] - p3[1]) * spacing[1]];
+        let magnitude = (a[0] * a[0] + a[1] * a[1]).sqrt() * (b[0] * b[0] + b[1] * b[1]).sqrt();
+        if magnitude <= f32::EPSILON {
+            return 0.0;
+        }
+        let angle = ((a[0] * b[0] + a[1] * b[1]) / magnitude)
+            .clamp(-1.0, 1.0)
+            .acos()
+            .to_degrees();
+        angle.min(180.0 - angle)
     }
 
     /// Compute the angle at vertex `p2` between the rays `p2→p1` and `p2→p3`.

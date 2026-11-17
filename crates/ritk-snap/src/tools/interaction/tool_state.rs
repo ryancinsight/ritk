@@ -74,6 +74,21 @@ pub enum ToolState {
         /// Whether the ROI is rectangular or elliptical.
         kind: RoiKind,
     },
+
+    /// One of two directional Cobb segments is being dragged.
+    CobbDrag {
+        /// Completed segment endpoints in image coordinates.
+        segments: Vec<[ImagePoint; 2]>,
+        /// Current segment start.
+        start: ImagePoint,
+        /// Current segment endpoint.
+        current: ImagePoint,
+    },
+    /// One completed Cobb segment awaits the second directional drag.
+    CobbPending {
+        /// Completed segment endpoints.
+        segments: Vec<[ImagePoint; 2]>,
+    },
 }
 
 /// Discriminant for the two supported ROI shapes.
@@ -98,6 +113,7 @@ impl ToolState {
                 | ToolState::WindowLevelDrag { .. }
                 | ToolState::RoiDrag { .. }
                 | ToolState::LengthDrag { .. }
+                | ToolState::CobbDrag { .. }
         )
     }
 
@@ -105,7 +121,9 @@ impl ToolState {
     pub fn is_pending_measurement(&self) -> bool {
         matches!(
             self,
-            ToolState::MeasureLength1 { .. } | ToolState::MeasureAngle2 { .. }
+            ToolState::MeasureLength1 { .. }
+                | ToolState::MeasureAngle2 { .. }
+                | ToolState::CobbPending { .. }
         )
     }
 
@@ -120,6 +138,8 @@ impl ToolState {
                 Some(ToolKind::MeasureLength)
             }
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
+            ToolState::CobbDrag { .. } => Some(ToolKind::MeasureCobb),
+            ToolState::CobbPending { .. } => Some(ToolKind::MeasureCobb),
             ToolState::RoiDrag {
                 kind: RoiKind::Rect,
                 ..

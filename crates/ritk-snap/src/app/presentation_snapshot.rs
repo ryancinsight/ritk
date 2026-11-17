@@ -48,6 +48,9 @@ impl SnapApp {
             Annotation::HuPoint { value, .. } => {
                 AnnotationSummary::new(AnnotationKind::HuPoint, f64::from(*value))
             }
+            Annotation::CobbAngle { angle_deg, .. } => {
+                AnnotationSummary::new(AnnotationKind::CobbAngle, f64::from(*angle_deg))
+            }
         });
         PresentationSnapshot::from_parts(
             self.visual_revision,

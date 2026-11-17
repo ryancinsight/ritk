@@ -57,6 +57,14 @@ impl SnapApp {
                 start: pos,
                 current: pos,
             },
+            ToolKind::MeasureCobb => ToolState::CobbDrag {
+                segments: match self.tool_state.clone() {
+                    ToolState::CobbPending { segments } => segments,
+                    _ => Vec::new(),
+                },
+                start: pos,
+                current: pos,
+            },
             _ => return,
         };
         if self.tool_state.is_pending_measurement() {
@@ -117,6 +125,15 @@ impl SnapApp {
                     current: pos,
                 };
             }
+            ToolState::CobbDrag {
+                segments, start, ..
+            } => {
+                self.tool_state = ToolState::CobbDrag {
+                    segments,
+                    start,
+                    current: pos,
+                };
+            }
             _ => {}
         }
     }
@@ -129,7 +146,9 @@ impl SnapApp {
             // that gesture's own zoom and pan, so reapplying it would move it.
             if matches!(
                 self.tool_state,
-                ToolState::RoiDrag { .. } | ToolState::LengthDrag { .. }
+                ToolState::RoiDrag { .. }
+                    | ToolState::LengthDrag { .. }
+                    | ToolState::CobbDrag { .. }
             ) {
                 self.on_drag(pos);
             }
@@ -150,6 +169,45 @@ impl SnapApp {
                 }
                 ToolState::LengthDrag { start, current } if start != current => {
                     self.record_length(start, current);
+                }
+                ToolState::CobbDrag {
+                    mut segments,
+                    start,
+                    current,
+                } if start != current => {
+                    segments.push([start, current]);
+                    if segments.len() == 2 {
+                        let points = [
+                            [segments[0][0].y(), segments[0][0].x()],
+                            [segments[0][1].y(), segments[0][1].x()],
+                            [segments[1][0].y(), segments[1][0].x()],
+                            [segments[1][1].y(), segments[1][1].x()],
+                        ];
+                        let result = self
+                            .slice_plane_spacing()
+                            .and_then(Annotation::validate_spacing)
+                            .map(|spacing| {
+                                Annotation::compute_cobb_angle(
+                                    points[0], points[1], points[2], points[3], spacing,
+                                )
+                            });
+                        match result {
+                            Ok(angle_deg) => self.push_annotation(Annotation::CobbAngle {
+                                location: None,
+                                p1: points[0],
+                                p2: points[1],
+                                p3: points[2],
+                                p4: points[3],
+                                angle_deg,
+                            }),
+                            Err(error) => {
+                                self.status_message = format!("Measurement rejected: {error}")
+                            }
+                        }
+                        self.tool_state = ToolState::Idle;
+                    } else {
+                        self.tool_state = ToolState::CobbPending { segments };
+                    }
                 }
                 _ => {}
             }

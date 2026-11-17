@@ -6,6 +6,7 @@
 //! |-----------------|----------------|------------|
 //! | Length           | YELLOW         | 1.5 px     |
 //! | Angle            | YELLOW         | 1.5 px     |
+//! | Cobb angle       | YELLOW         | 1.5 px     |
 //! | ROI (rect)       | GREEN          | 1.5 px     |
 //! | HU point         | CYAN           | —          |
 //! | Labels           | WHITE          | —          |
@@ -106,6 +107,36 @@ impl MeasurementLayer {
                 Annotation::HuPoint { pos, value, .. } => {
                     let spos = img_to_screen(egui::pos2((*pos)[1], (*pos)[0]));
                     draw_hu_point(painter, spos, *value);
+                }
+                Annotation::CobbAngle {
+                    p1,
+                    p2,
+                    p3,
+                    p4,
+                    angle_deg,
+                    ..
+                } => {
+                    painter.line_segment(
+                        [
+                            img_to_screen(egui::pos2(p1[1], p1[0])),
+                            img_to_screen(egui::pos2(p2[1], p2[0])),
+                        ],
+                        Stroke::new(LINE_WIDTH, COLOR_MEASURE),
+                    );
+                    painter.line_segment(
+                        [
+                            img_to_screen(egui::pos2(p3[1], p3[0])),
+                            img_to_screen(egui::pos2(p4[1], p4[0])),
+                        ],
+                        Stroke::new(LINE_WIDTH, COLOR_MEASURE),
+                    );
+                    painter.text(
+                        img_to_screen(egui::pos2(p2[1], p2[0])) + Vec2::new(8.0, -12.0),
+                        egui::Align2::LEFT_CENTER,
+                        format!("{angle_deg:.1}°"),
+                        label_font(),
+                        COLOR_LABEL,
+                    );
                 }
                 Annotation::RoiEllipse {
                     center,
@@ -228,6 +259,39 @@ impl MeasurementLayer {
                             stroke: Stroke::new(LINE_WIDTH, COLOR_ROI),
                         });
                     }
+                }
+            }
+            ToolState::CobbDrag {
+                segments,
+                start,
+                current,
+            } => {
+                for segment in segments {
+                    painter.line_segment(
+                        [
+                            img_to_screen(egui_point(segment[0])),
+                            img_to_screen(egui_point(segment[1])),
+                        ],
+                        Stroke::new(LINE_WIDTH, COLOR_MEASURE),
+                    );
+                }
+                painter.line_segment(
+                    [
+                        img_to_screen(egui_point(*start)),
+                        img_to_screen(egui_point(*current)),
+                    ],
+                    Stroke::new(LINE_WIDTH, COLOR_MEASURE),
+                );
+            }
+            ToolState::CobbPending { segments } => {
+                for segment in segments {
+                    painter.line_segment(
+                        [
+                            img_to_screen(egui_point(segment[0])),
+                            img_to_screen(egui_point(segment[1])),
+                        ],
+                        Stroke::new(LINE_WIDTH, COLOR_MEASURE),
+                    );
                 }
             }
             // Panning and window-level drag produce no visual annotation.
