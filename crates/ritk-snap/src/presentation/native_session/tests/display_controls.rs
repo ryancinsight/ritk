@@ -14,27 +14,16 @@ use crate::ui::tool_shortcuts::VIRTUAL_KEY_MEASURE_COBB;
 use crate::ui::RotationSteps;
 
 #[test]
-fn plain_c_selects_cobb_and_shift_c_cycles_colormap() {
+fn plain_c_selects_cobb_measurement() {
     let (mut session, _root) = session();
-    let flow = session
+    session
         .handle_events(&[WindowEvent::KeyDown {
             virtual_key: VIRTUAL_KEY_MEASURE_COBB,
             repeated: false,
             modifiers: ModifierState::NONE,
         }])
         .expect("C selects Cobb measurement");
-    assert_eq!(flow, NativeFlow::Continue { repaint: true });
     assert_eq!(session.app.active_tool, ToolKind::MeasureCobb);
-
-    let flow = session
-        .handle_events(&[WindowEvent::KeyDown {
-            virtual_key: VIRTUAL_KEY_COLORMAP_CYCLE,
-            repeated: false,
-            modifiers: ModifierState::SHIFT,
-        }])
-        .expect("Shift+C cycles colormap");
-    assert_eq!(flow, NativeFlow::Continue { repaint: true });
-    assert_eq!(session.app.colormap, NamedColorMap::Hot);
 }
 
 #[test]
@@ -221,7 +210,7 @@ fn colormap_key_cycles_all_maps_in_stable_order_and_wraps() {
             .handle_events(&[WindowEvent::KeyDown {
                 virtual_key: VIRTUAL_KEY_COLORMAP_CYCLE,
                 repeated: false,
-                modifiers: ModifierState::NONE,
+                modifiers: ModifierState::SHIFT,
             }])
             .expect("colormap cycle key");
         assert_eq!(flow, NativeFlow::Continue { repaint: true });

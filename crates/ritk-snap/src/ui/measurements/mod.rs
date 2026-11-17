@@ -333,17 +333,19 @@ impl MeasurementLayer {
                 segments::draw_deviation_preview(painter, [*start, *current], &img_to_screen)
             }
             ToolState::CobbDrag {
-                segments: segment_list,
+                first,
                 start,
                 current,
             } => {
-                segments::draw_segments(painter, segment_list, &img_to_screen);
-                segments::draw_segment(painter, [*start, *current], &img_to_screen);
+                segments::draw_cobb_preview(
+                    painter,
+                    *first,
+                    Some([*start, *current]),
+                    &img_to_screen,
+                );
             }
-            ToolState::CobbPending {
-                segments: segment_list,
-            } => {
-                segments::draw_segments(painter, segment_list, &img_to_screen);
+            ToolState::CobbPending { segment } => {
+                segments::draw_cobb_preview(painter, Some(*segment), None, &img_to_screen)
             }
         }
     }

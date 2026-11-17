@@ -16,6 +16,16 @@ use metis_ui_lang::{PathCapture, PathPush};
 // ── Pointer / interaction event handlers ───────────────────────────────────
 
 impl SnapApp {
+    fn pending_cobb_segment(&self) -> Option<[ImagePoint; 2]> {
+        if let ToolState::CobbPending { segment } = self.tool_state
+            && self.pointer.pending_measurement_location == Some(self.annotation_location())
+        {
+            Some(segment)
+        } else {
+            None
+        }
+    }
+
     /// Begin the gesture `tool` performs from `pos`.
     ///
     /// A gesture started while a multi-click measurement is pending suspends
@@ -63,15 +73,7 @@ impl SnapApp {
                 current: pos,
             },
             ToolKind::MeasureCobb => ToolState::CobbDrag {
-                segments: match self.tool_state.clone() {
-                    ToolState::CobbPending { segments }
-                        if self.pointer.pending_measurement_location
-                            == Some(self.annotation_location()) =>
-                    {
-                        segments
-                    }
-                    _ => Vec::new(),
-                },
+                first: self.pending_cobb_segment(),
                 start: pos,
                 current: pos,
             },
@@ -156,11 +158,9 @@ impl SnapApp {
                     current: pos,
                 };
             }
-            ToolState::CobbDrag {
-                segments, start, ..
-            } => {
+            ToolState::CobbDrag { first, start, .. } => {
                 self.tool_state = ToolState::CobbDrag {
-                    segments,
+                    first,
                     start,
                     current: pos,
                 };
@@ -206,17 +206,17 @@ impl SnapApp {
                     self.finalise_deviation(start, current);
                 }
                 ToolState::CobbDrag {
-                    mut segments,
+                    first,
                     start,
                     current,
                 } if start != current => {
-                    segments.push([start, current]);
-                    if segments.len() == 2 {
+                    let second = [start, current];
+                    if let Some(first) = first {
                         let points = [
-                            [segments[0][0].y(), segments[0][0].x()],
-                            [segments[0][1].y(), segments[0][1].x()],
-                            [segments[1][0].y(), segments[1][0].x()],
-                            [segments[1][1].y(), segments[1][1].x()],
+                            [first[0].y(), first[0].x()],
+                            [first[1].y(), first[1].x()],
+                            [second[0].y(), second[0].x()],
+                            [second[1].y(), second[1].x()],
                         ];
                         let result = self
                             .slice_plane_spacing()
@@ -242,7 +242,7 @@ impl SnapApp {
                         self.tool_state = ToolState::Idle;
                         self.pointer.pending_measurement_location = None;
                     } else {
-                        self.tool_state = ToolState::CobbPending { segments };
+                        self.tool_state = ToolState::CobbPending { segment: second };
                         self.pointer.pending_measurement_location = recorded;
                     }
                     self.pointer.suspended_measurement = None;

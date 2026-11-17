@@ -46,14 +46,15 @@ pub(super) fn draw_segment(
     painter.circle_filled(projected[1], HANDLE_RADIUS, COLOR_MEASURE);
 }
 
-pub(super) fn draw_segments(
+pub(super) fn draw_cobb_preview(
     painter: &Painter,
-    segments: &[[ImagePoint; 2]],
+    first: Option<[ImagePoint; 2]>,
+    current: Option<[ImagePoint; 2]>,
     project: &impl Fn(Pos2) -> Pos2,
 ) {
-    for segment in segments {
-        draw_segment(painter, *segment, project);
-    }
+    first.into_iter().chain(current).for_each(|segment| {
+        draw_segment(painter, segment, project);
+    });
 }
 
 pub(super) fn draw_cobb_annotation(

@@ -87,7 +87,7 @@ pub enum ToolState {
     /// One of two directional Cobb segments is being dragged.
     CobbDrag {
         /// Completed segment endpoints in image coordinates.
-        segments: Vec<[ImagePoint; 2]>,
+        first: Option<[ImagePoint; 2]>,
         /// Current segment start.
         start: ImagePoint,
         /// Current segment endpoint.
@@ -96,7 +96,7 @@ pub enum ToolState {
     /// One completed Cobb segment awaits the second directional drag.
     CobbPending {
         /// Completed segment endpoints.
-        segments: Vec<[ImagePoint; 2]>,
+        segment: [ImagePoint; 2],
     },
     /// Polygon nodes awaiting confirmation.
     Polygon {
