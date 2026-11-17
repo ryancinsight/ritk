@@ -80,6 +80,10 @@ impl WindowChrome {
                 action,
             });
         }
+        #[cfg(windows)]
+        if let Some(action) = self.handle_calibration_event(event) {
+            return Ok(action);
+        }
         if let PresentationEvent::KeyDown {
             virtual_key,
             repeated: false,

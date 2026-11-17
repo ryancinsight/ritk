@@ -45,6 +45,76 @@ fn grid_measurement_draws_on_its_slice_and_disappears_on_the_adjacent_slice() {
     assert_ne!(session.framebuffer.get_pixel(x, y), measurement_color);
 }
 
+#[cfg(windows)]
+#[test]
+fn calibration_pins_reference_frame_and_preserves_other_slice() {
+    let (mut session, _root) = session();
+    let slice = session.views[0].slice_index;
+    let other_slice = (slice + 1) % session.views[0].slice_count;
+    let p1 = [0.5, 0.5];
+    let p2 = [1.5, 2.5];
+    let raw = session
+        .app
+        .measured_length(p1, p2)
+        .expect("anisotropic spacing");
+    session.app.annotations.push(Annotation::Length {
+        plane: 0,
+        location: Some(AnnotationLocation { plane: 0, slice }),
+        p1,
+        p2,
+        length_mm: raw,
+    });
+    session.app.annotations.push(Annotation::Length {
+        plane: 0,
+        location: Some(AnnotationLocation {
+            plane: 0,
+            slice: other_slice,
+        }),
+        p1,
+        p2,
+        length_mm: raw,
+    });
+    session
+        .apply_window_action(WindowAction::OpenCalibration)
+        .expect("open calibration");
+    session.app.set_slice_for_axis(0, other_slice);
+    let stale_error = session
+        .handle_events(&[
+            WindowEvent::TextInput { character: '8' },
+            WindowEvent::KeyDown {
+                virtual_key: 0x0d,
+                repeated: false,
+                modifiers: ModifierState::NONE,
+            },
+        ])
+        .expect_err("stale confirmation must be rejected");
+    assert!(stale_error
+        .to_string()
+        .contains("calibration reference no longer matches"));
+    assert!(session.app.length_calibrations.is_empty());
+    assert_eq!(session.app.annotations[0].length_mm, raw);
+    session.app.set_slice_for_axis(0, slice);
+    session
+        .apply_window_action(WindowAction::OpenCalibration)
+        .expect("reopen calibration");
+    session
+        .handle_events(&[
+            WindowEvent::TextInput { character: '8' },
+            WindowEvent::KeyDown {
+                virtual_key: 0x0d,
+                repeated: false,
+                modifiers: ModifierState::NONE,
+            },
+        ])
+        .expect("calibrate active distance");
+    assert_eq!(session.app.annotations[0].length_mm, 8.0);
+    session
+        .apply_window_action(WindowAction::ResetCalibration)
+        .expect("reset calibration");
+    assert!((session.app.annotations[0].length_mm - raw).abs() <= f32::EPSILON * raw);
+    assert_eq!(session.app.annotations[1].length_mm, raw);
+}
+
 fn draw_lines(commands: &[DisplayCommand]) -> Vec<((i32, i32), (i32, i32))> {
     commands
         .iter()
