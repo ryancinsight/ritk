@@ -40,6 +40,33 @@ impl SnapApp {
         }
     }
 
+    /// Record a one-drag deviation from the nearer image axis.
+    pub(super) fn finalise_deviation(&mut self, start: ImagePoint, end: ImagePoint) {
+        let spacing = match self
+            .slice_plane_spacing()
+            .and_then(Annotation::validate_spacing)
+        {
+            Ok(spacing) => spacing,
+            Err(error) => {
+                self.status_message = format!("Measurement rejected: {error}");
+                return;
+            }
+        };
+        let start = [start.y(), start.x()];
+        let end = [end.y(), end.x()];
+        let (reference, distance_mm, angle_deg) =
+            Annotation::compute_deviation_with_angle(start, end, spacing);
+        self.push_annotation(Annotation::Deviation {
+            location: None,
+            start,
+            end,
+            reference,
+            distance_mm,
+            angle_deg,
+        });
+        self.status_message = format!("Deviation: {distance_mm:.2} mm at {angle_deg:.1} deg");
+    }
+
     /// Compute ROI rect statistics for the pixel region between `start` and
     /// `end` (screen-space corners) on the current primary-axis slice.
     pub(super) fn finalise_roi_rect(&mut self, start: ImagePoint, end: ImagePoint) {

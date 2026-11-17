@@ -26,6 +26,8 @@ pub enum ToolKind {
     MeasureLength,
     /// Click three points to measure angle in degrees.
     MeasureAngle,
+    /// Drag a segment to measure deviation from its nearer image axis.
+    MeasureDeviation,
     /// Draw a rectangle ROI and compute mean/std/min/max HU and area.
     RoiRect,
     /// Draw an ellipse ROI and compute mean/std/min/max HU and area.
@@ -49,6 +51,7 @@ impl ToolKind {
             ToolKind::WindowLevel => "W/L",
             ToolKind::MeasureLength => "Length",
             ToolKind::MeasureAngle => "Angle",
+            ToolKind::MeasureDeviation => "Deviation",
             ToolKind::RoiRect => "ROI Rect",
             ToolKind::RoiEllipse => "ROI Ellipse",
             ToolKind::Crosshair => "Crosshair",
@@ -76,6 +79,9 @@ impl ToolKind {
             ToolKind::MeasureAngle => {
                 "Measure Angle: click three points — the second point is the vertex — \
                  to display the included angle in degrees."
+            }
+            ToolKind::MeasureDeviation => {
+                "Deviation: drag a segment to measure its offset and angle from the closer image axis."
             }
             ToolKind::RoiRect => {
                 "ROI Rectangle: drag a rectangle to compute mean, std, min, max \
@@ -112,6 +118,7 @@ impl ToolKind {
             ToolKind::WindowLevel => "☀",
             ToolKind::MeasureLength => "📏",
             ToolKind::MeasureAngle => "📐",
+            ToolKind::MeasureDeviation => "↕",
             ToolKind::RoiRect => "▭",
             ToolKind::RoiEllipse => "⬭",
             ToolKind::Crosshair => "⊕",
@@ -133,6 +140,7 @@ impl ToolKind {
             ToolKind::WindowLevel,
             ToolKind::MeasureLength,
             ToolKind::MeasureAngle,
+            ToolKind::MeasureDeviation,
             ToolKind::RoiRect,
             ToolKind::RoiEllipse,
             ToolKind::Crosshair,

@@ -184,6 +184,25 @@ impl Pane<'_> {
                 self.line(overlay, b, c, MEASUREMENT_COLOR)?;
                 self.label(overlay, b, format!("{angle_deg:.1} deg"))?;
             }
+            Annotation::Deviation {
+                start,
+                end,
+                reference,
+                distance_mm,
+                angle_deg,
+                ..
+            } => {
+                let a = image_point(*start);
+                let b = image_point(*end);
+                let baseline = image_point(*reference);
+                self.line(overlay, a, b, MEASUREMENT_COLOR)?;
+                self.line(overlay, a, baseline, MEASUREMENT_COLOR)?;
+                self.label(
+                    overlay,
+                    b,
+                    format!("{distance_mm:.1} mm {angle_deg:.1} deg"),
+                )?;
+            }
             Annotation::RoiRect {
                 top_left,
                 bottom_right,
