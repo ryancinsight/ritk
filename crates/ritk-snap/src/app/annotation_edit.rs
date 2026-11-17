@@ -47,6 +47,7 @@ impl SnapApp {
             return false;
         };
         if pending.source_location != location {
+            self.on_drag_end(None);
             return false;
         }
         let Some(candidate) =

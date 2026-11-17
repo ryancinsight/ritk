@@ -84,9 +84,9 @@ fn selected_vertex_drag_cancellation_modes_preserve_geometry() {
     ] {
         let mut app = app_with_polygon();
         begin_vertex_drag(&mut app);
+        send(&mut app, PresentationEvent::PointerMove { x: 6.0, y: 0.0 });
         match cancellation {
             Cancellation::Escape => {
-                send(&mut app, PresentationEvent::PointerMove { x: 6.0, y: 0.0 });
                 send(
                     &mut app,
                     PresentationEvent::KeyDown {
@@ -97,7 +97,6 @@ fn selected_vertex_drag_cancellation_modes_preserve_geometry() {
                 );
             }
             Cancellation::Pointer => {
-                send(&mut app, PresentationEvent::PointerMove { x: 6.0, y: 0.0 });
                 send(
                     &mut app,
                     PresentationEvent::PointerCancel {
@@ -109,7 +108,7 @@ fn selected_vertex_drag_cancellation_modes_preserve_geometry() {
             }
             Cancellation::Slice => {
                 app.set_slice_for_axis(0, 1);
-                send(&mut app, PresentationEvent::PointerMove { x: 6.0, y: 0.0 });
+                app.set_slice_for_axis(0, 0);
             }
         }
         release(&mut app, 6.0, 0.0);

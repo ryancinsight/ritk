@@ -47,7 +47,7 @@ pub(crate) fn append_measurement_overlay(
                 continue;
             }
             let annotation = pending_polygon
-                .filter(|candidate| selected_polygon == Some(index))
+                .filter(|_| selected_polygon == Some(index))
                 .unwrap_or(annotation);
             pane.draw(annotation, overlay, affine)?;
             if selected_polygon == Some(index)
