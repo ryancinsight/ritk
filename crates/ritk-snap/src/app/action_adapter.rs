@@ -174,7 +174,6 @@ impl SnapApp {
             }
             ViewerAction::FocusChanged { focused: false } => {
                 self.on_drag_end(None);
-                self.pointer.pending_polygon_move = None;
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::FocusChanged { focused: true } => {
@@ -332,7 +331,6 @@ impl SnapApp {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 }
                 self.on_drag_end(None);
-                self.pointer.pending_polygon_move = None;
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerWheel {
