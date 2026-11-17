@@ -70,8 +70,7 @@ pub(super) fn menu_item_count(
         }
         Menu::Tools => {
             #[cfg(windows)]
-            let calibration_rows = usize::from(app.has_calibration_reference())
-                + usize::from(app.has_active_length_calibration());
+            let calibration_rows = usize::from(app.has_calibration_reference());
             #[cfg(not(windows))]
             let calibration_rows = 0;
             ToolKind::all()
@@ -179,19 +178,18 @@ pub(super) fn menu_item(
             }
             #[cfg(windows)]
             if app.has_calibration_reference() && index == tool_rows {
+                let calibrated = app.has_active_length_calibration();
                 return Ok((
-                    "Calibrate last distance...",
-                    WindowAction::OpenCalibration,
-                    false,
-                ));
-            }
-            #[cfg(windows)]
-            if app.has_active_length_calibration()
-                && index == tool_rows + usize::from(app.has_calibration_reference())
-            {
-                return Ok((
-                    "Reset length calibration",
-                    WindowAction::ResetCalibration,
+                    if calibrated {
+                        "Reset length calibration"
+                    } else {
+                        "Calibrate last distance..."
+                    },
+                    if calibrated {
+                        WindowAction::ResetCalibration
+                    } else {
+                        WindowAction::OpenCalibration
+                    },
                     false,
                 ));
             }
