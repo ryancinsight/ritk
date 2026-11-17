@@ -7,7 +7,7 @@
 use crate::render::RgbaImage;
 use crate::render::{map_scalar_value, GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
-#[cfg(any(feature = "eframe-shell", windows))]
+#[cfg(any(feature = "eframe-shell", windows, test))]
 use iris::color::{ColorMap, Normalized};
 
 /// Per-voxel opacity scale for volume rendering. Canonical value per GPU VR spec.
