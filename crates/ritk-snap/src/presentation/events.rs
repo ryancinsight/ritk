@@ -193,6 +193,18 @@ pub enum PresentationEvent {
         /// an unmodified gesture.
         modifiers: PresentationModifiers,
     },
+    /// The native host reported the second press of a double-click.
+    ///
+    /// This follows the normalized second [`Self::PointerDown`]. The host
+    /// owns timing and hit-testing; the viewer only interprets the marker.
+    PointerDoubleClick {
+        /// Horizontal coordinate in the host viewport basis.
+        x: f64,
+        /// Vertical coordinate in the host viewport basis.
+        y: f64,
+        /// Double-clicked button.
+        button: PointerButton,
+    },
     /// A pointer button was released in client coordinates.
     PointerUp {
         /// Horizontal coordinate in the host viewport basis.

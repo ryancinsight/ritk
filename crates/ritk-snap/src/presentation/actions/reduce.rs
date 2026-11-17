@@ -118,6 +118,17 @@ impl PresentationDispatcher {
                     action_limit,
                 )
             }
+            PresentationEvent::PointerDoubleClick { x, y, button } => {
+                let position = viewport_point(*x, *y)?;
+                Self::push_action(
+                    actions,
+                    ViewerAction::PointerDoubleClicked {
+                        button: *button,
+                        position,
+                    },
+                    action_limit,
+                )
+            }
             PresentationEvent::PointerWheel {
                 x,
                 y,

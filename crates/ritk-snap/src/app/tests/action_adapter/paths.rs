@@ -155,6 +155,76 @@ fn open_polygon_enter_commits_physical_length_and_location() {
 }
 
 #[test]
+fn open_polygon_double_click_commits_before_trailing_release() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([1, 64, 64]));
+    app.select_tool(ToolKind::RoiOpenPolygon);
+    let viewport = viewport([64, 64]);
+    for (x, y) in [(10.0, 10.0), (13.0, 14.0)] {
+        apply_app_event(
+            &mut app,
+            &viewport,
+            PresentationEvent::PointerDown {
+                x,
+                y,
+                button: PointerButton::Left,
+                modifiers: PresentationModifiers::NONE,
+            },
+        );
+        apply_app_event(
+            &mut app,
+            &viewport,
+            PresentationEvent::PointerUp {
+                x,
+                y,
+                button: PointerButton::Left,
+            },
+        );
+    }
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 20.0,
+            y: 20.0,
+            button: PointerButton::Left,
+            modifiers: PresentationModifiers::NONE,
+        },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerDoubleClick {
+            x: 21.0,
+            y: 21.0,
+            button: PointerButton::Left,
+        },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 22.0,
+            y: 22.0,
+            button: PointerButton::Left,
+        },
+    );
+
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [Annotation::OpenPolygon {
+            points,
+            length_mm,
+            location: Some(location),
+        }] if points.len() == 2
+            && *length_mm == 5.0
+            && *location == crate::tools::interaction::AnnotationLocation { plane: 0, slice: 0 }
+    ));
+    assert!(app.tool_state.is_idle());
+    assert_eq!(app.pointer.owner, None);
+}
+
+#[test]
 fn escape_cancels_open_polygon_without_annotation() {
     let mut app = SnapApp::default();
     app.loaded = Some(test_volume([1, 64, 64]));

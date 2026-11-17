@@ -231,6 +231,24 @@ impl SnapApp {
                 self.on_drag(Some(image));
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
+            ViewerAction::PointerDoubleClicked { button, .. } => {
+                let owned_polygon = *button == PointerButton::Left
+                    && self.pointer.owner.is_some_and(|owner| {
+                        owner.button == *button
+                            && !owner.modified
+                            && matches!(
+                                owner.tool,
+                                ToolKind::RoiClosedPolygon | ToolKind::RoiOpenPolygon
+                            )
+                    })
+                    && matches!(&self.tool_state, ToolState::Polygon { .. });
+                if owned_polygon {
+                    self.finish_pending_polygon();
+                    self.pointer.owner = None;
+                    return Ok(ViewerActionDisposition::Continue { repaint: true });
+                }
+                Ok(ViewerActionDisposition::Continue { repaint: false })
+            }
             ViewerAction::PointerReleased {
                 button,
                 position,

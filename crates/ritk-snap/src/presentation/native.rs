@@ -126,6 +126,13 @@ pub fn translate_native_events(events: &[WindowEvent]) -> Result<Box<[Presentati
                 // provider `WindowEvent::PointerDown` first.
                 modifiers: PresentationModifiers::NONE,
             },
+            WindowEvent::PointerDoubleClick { x, y, button } => {
+                PresentationEvent::PointerDoubleClick {
+                    x: f64::from(*x),
+                    y: f64::from(*y),
+                    button: translate_pointer_button(*button),
+                }
+            }
             WindowEvent::PointerUp { x, y, button } => PresentationEvent::PointerUp {
                 x: f64::from(*x),
                 y: f64::from(*y),
