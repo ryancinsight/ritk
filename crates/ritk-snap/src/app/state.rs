@@ -1,4 +1,4 @@
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+#[cfg(not(target_arch = "wasm32"))]
 use super::volume_input::VolumeInput;
 use crate::label::LabelEditor;
 use crate::presentation::PresentationDispatcher;
@@ -235,7 +235,7 @@ pub(crate) struct SnapApp {
     // ── Status ────────────────────────────────────────────────────────────────
     /// Message shown in the bottom status bar.
     pub(crate) status_message: String,
-    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+    #[cfg(not(target_arch = "wasm32"))]
     /// Path queued for loading on the next native host update cycle.
     pub(crate) pending_load: Option<VolumeInput>,
     #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
@@ -243,10 +243,10 @@ pub(crate) struct SnapApp {
     pub(crate) pending_secondary_load: Option<VolumeInput>,
 
     /// Monotonic publication generations for primary and secondary loads.
-    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) load_generations: [u64; 2],
     /// At most one bounded decode task per viewer target.
-    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) load_tasks: [Option<super::load_tasks::LoadTask>; 2],
 
     // ── PACS panel ────────────────────────────────────────────────────────────
