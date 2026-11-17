@@ -96,6 +96,7 @@ fn composed(session: &NativeViewerSession, affine: Option<AffineTransform>) -> V
         &session.views,
         &session.viewports,
         &session.app.annotations,
+        session.app.pointer.selected_polygon,
         affine,
     )
     .expect("compose the measurement overlay");
@@ -157,6 +158,7 @@ fn measurement_length_skips_panes_beside_its_recorded_plane() {
         &views,
         &viewports,
         &session.app.annotations,
+        session.app.pointer.selected_polygon,
         None,
     )
     .expect("compose the measurement overlay");
@@ -352,4 +354,39 @@ fn native_toolbar_length_then_drag_records_measurement() {
         [crate::tools::interaction::Annotation::Length { length_mm, .. }]
             if (f64::from(*length_mm) - expected_mm).abs() <= bound
     ));
+}
+
+#[test]
+fn selected_polygon_draws_one_handle_at_each_projected_vertex() {
+    let (mut session, _root) = session();
+    let (index, origin_x, origin_y, texel_x, texel_y) = axial_panel(&session);
+    let view = &session.views[index];
+    session.app.annotations.push(Annotation::OpenPolygon {
+        location: Some(AnnotationLocation {
+            plane: view.axis,
+            slice: view.slice_index,
+        }),
+        points: vec![[0.0, 0.0], [1.0, 2.0]],
+        length_mm: 3.0,
+    });
+    let unselected = draw_lines(&composed(&session, None));
+    assert_eq!(unselected.len(), 1);
+    session.app.pointer.selected_polygon = Some(0);
+    let selected = draw_lines(&composed(&session, None));
+    let first = (origin_x.round(), origin_y.round());
+    let second = (
+        (origin_x + 2.0 * texel_x).round(),
+        (origin_y + texel_y).round(),
+    );
+    assert_eq!(selected.len(), 5);
+    for (x, y) in [first, second] {
+        assert!(selected.iter().any(|&(start, end)| {
+            (f64::from(start.0), f64::from(start.1)) == (x - 2.0, y)
+                && (f64::from(end.0), f64::from(end.1)) == (x + 2.0, y)
+        }));
+        assert!(selected.iter().any(|&(start, end)| {
+            (f64::from(start.0), f64::from(start.1)) == (x, y - 2.0)
+                && (f64::from(end.0), f64::from(end.1)) == (x, y + 2.0)
+        }));
+    }
 }

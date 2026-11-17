@@ -12,7 +12,7 @@ use super::state::SnapApp;
 use super::viewer_viewport::ViewerViewport;
 use crate::presentation::{
     ActionDispatchError, PointerButton, PointerGesture, PresentationDispatcher, PresentationEvent,
-    ViewerAction,
+    PresentationModifiers, ViewerAction,
 };
 use crate::tools::interaction::ToolState;
 use crate::tools::kind::ToolKind;
@@ -226,6 +226,9 @@ impl SnapApp {
                     button: *button,
                     tool,
                     modified,
+                    selects_polygon: tool == ToolKind::Pan
+                        && *modifiers == PresentationModifiers::NONE
+                        && viewport.shows_polygon_handles(),
                 });
                 if is_label_tool(tool) {
                     self.apply_label_at_pointer(viewport.axis(), Some(image));
@@ -284,6 +287,9 @@ impl SnapApp {
                             && let Some(image) = mapped
                         {
                             self.update_linked_cursor_from_pointer(viewport.axis(), Some(image));
+                            if owner.selects_polygon {
+                                self.pick_polygon(*viewport, *position);
+                            }
                         }
                         self.on_click(mapped);
                     }
@@ -360,6 +366,11 @@ impl SnapApp {
                     .filter(|owner| owner.button != PointerButton::Left || owner.modified);
             }
             return ViewerActionDisposition::Continue { repaint: true };
+        }
+        if virtual_key == 0x2e && !repeated {
+            return ViewerActionDisposition::Continue {
+                repaint: self.delete_selected_polygon(),
+            };
         }
         if virtual_key == VIRTUAL_KEY_CROSSHAIR_TOGGLE {
             if repeated || self.loaded.is_none() {

@@ -141,6 +141,11 @@ impl ScreenImageGeometry {
         Some(screen)
     }
 
+    /// Project continuous raster-edge coordinates to host coordinates.
+    pub(crate) fn project_edge(self, pixel: [f64; 2]) -> [f64; 2] {
+        std::array::from_fn(|axis| pixel[axis].mul_add(self.pixel_size[axis], self.origin[axis]))
+    }
+
     /// Return the validated raster dimensions.
     pub(crate) const fn dimensions(self) -> [u32; 2] {
         self.dimensions

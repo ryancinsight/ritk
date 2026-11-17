@@ -154,7 +154,8 @@ pub(super) fn placement_with_bounds(
         view.source_size,
         view.transform,
     )
-    .map_err(|error| anyhow!("construct native viewer viewport: {error}"))?;
+    .map_err(|error| anyhow!("construct native viewer viewport: {error}"))?
+    .with_polygon_handles();
     Ok(NativeViewport {
         scrollbar: None,
         panel: ScreenRect {

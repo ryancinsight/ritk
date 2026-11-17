@@ -397,7 +397,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "parking_lot",
  "percent-encoding",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
  "x11rb",
 ]
 
@@ -2442,7 +2442,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3615,7 +3615,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi 0.5.3",
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4192,7 +4192,7 @@ dependencies = [
 [[package]]
 name = "metis-core"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#e341c29e63c02994ad7a5ccae45625238296737e"
+source = "git+https://github.com/ryancinsight/metis.git#ec03d165e8f27c79c0669733ebde6b41d0c8db1e"
 dependencies = [
  "moirai-crypto",
 ]
@@ -4200,7 +4200,7 @@ dependencies = [
 [[package]]
 name = "metis-frontend"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#e341c29e63c02994ad7a5ccae45625238296737e"
+source = "git+https://github.com/ryancinsight/metis.git#ec03d165e8f27c79c0669733ebde6b41d0c8db1e"
 dependencies = [
  "iris-viz",
  "metis-core",
@@ -4212,7 +4212,7 @@ dependencies = [
 [[package]]
 name = "metis-ipc"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#e341c29e63c02994ad7a5ccae45625238296737e"
+source = "git+https://github.com/ryancinsight/metis.git#ec03d165e8f27c79c0669733ebde6b41d0c8db1e"
 dependencies = [
  "metis-core",
  "moirai-async",
@@ -4225,7 +4225,7 @@ dependencies = [
 [[package]]
 name = "metis-platform"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#e341c29e63c02994ad7a5ccae45625238296737e"
+source = "git+https://github.com/ryancinsight/metis.git#ec03d165e8f27c79c0669733ebde6b41d0c8db1e"
 dependencies = [
  "eunomia",
  "hermes-simd",
@@ -4239,7 +4239,7 @@ dependencies = [
 [[package]]
 name = "metis-ui-lang"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#e341c29e63c02994ad7a5ccae45625238296737e"
+source = "git+https://github.com/ryancinsight/metis.git#ec03d165e8f27c79c0669733ebde6b41d0c8db1e"
 dependencies = [
  "consus-raster",
  "eunomia",
@@ -4253,7 +4253,7 @@ dependencies = [
 [[package]]
 name = "metis-web"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#e341c29e63c02994ad7a5ccae45625238296737e"
+source = "git+https://github.com/ryancinsight/metis.git#ec03d165e8f27c79c0669733ebde6b41d0c8db1e"
 dependencies = [
  "metis-core",
  "metis-frontend",
@@ -4787,7 +4787,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5773,7 +5773,7 @@ dependencies = [
  "once_cell",
  "socket2 0.6.5",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7005,7 +7005,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7064,7 +7064,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7692,7 +7692,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.6",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7711,7 +7711,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "230a1b821ccbd75b185820a1f1ff7b14d21da1e442e22c0863ea5f08771a8874"
 dependencies = [
  "rustix 1.1.6",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

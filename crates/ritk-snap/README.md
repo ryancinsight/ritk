@@ -124,6 +124,8 @@ and press **Enter** to measure the path in millimetres.
 **Escape** cancels the unfinished path. Choose **Closed Polygon** with **G**
 and click the starting vertex or press **Enter** to close it
 and measure area and perimeter.
+With **Pan** selected, click a polygon edge to show its handles. Press
+**Delete** to remove the selected polygon from that image.
 
 On Windows the same command works without `--metis-native`; the flag remains an
 explicit spelling for scripts and existing workflows. The separately named

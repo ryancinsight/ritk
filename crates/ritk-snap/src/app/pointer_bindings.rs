@@ -104,6 +104,8 @@ pub(crate) struct PointerGestureOwner {
     /// gesture: it never places measurement anchors and its release never runs
     /// the click path of the still-selected tool.
     pub(crate) modified: bool,
+    /// An unmodified primary click can pick a polygon when the host draws handles.
+    pub(crate) selects_polygon: bool,
 }
 
 /// Pointer state of one viewer panel.
@@ -117,6 +119,8 @@ pub(crate) struct PointerGestures {
     pub(crate) suspended_measurement: Option<ToolState>,
     pub(crate) pending_measurement_location: Option<AnnotationLocation>,
     pub(crate) drag_measurement_location: Option<AnnotationLocation>,
+    /// Index of the completed polygon selected in this panel.
+    pub(crate) selected_polygon: Option<usize>,
 }
 
 impl PointerGestures {
@@ -129,5 +133,6 @@ impl PointerGestures {
         self.suspended_measurement = None;
         self.pending_measurement_location = None;
         self.drag_measurement_location = None;
+        self.selected_polygon = None;
     }
 }
