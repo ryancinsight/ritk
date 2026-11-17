@@ -98,7 +98,6 @@
 <a id="RITK-SNAP-NATIVE-FILTERS-001"></a>- [RITK-SNAP-NATIVE-FILTERS-001](backlog/RITK-SNAP-NATIVE-FILTERS-001.md) — Apply image filters natively — todo
 <a id="RITK-SNAP-NATIVE-FUSION-001"></a>- [RITK-SNAP-NATIVE-FUSION-001](backlog/RITK-SNAP-NATIVE-FUSION-001.md) — Fuse series and read SUV natively — blocked
 <a id="RITK-SNAP-NATIVE-LINK-001"></a>- [RITK-SNAP-NATIVE-LINK-001](backlog/RITK-SNAP-NATIVE-LINK-001.md) — Link panes by patient position — todo
-<a id="RITK-SNAP-NATIVE-LOAD-001"></a>- [RITK-SNAP-NATIVE-LOAD-001](backlog/RITK-SNAP-NATIVE-LOAD-001.md) — Browse a study while it loads — todo
 <a id="RITK-SNAP-NATIVE-MEASURE-SET-001"></a>- [RITK-SNAP-NATIVE-MEASURE-SET-001](backlog/RITK-SNAP-NATIVE-MEASURE-SET-001.md) — Complete the measurement and annotation set — blocked
 <a id="RITK-SNAP-NATIVE-INPUT-PARITY-001"></a>- [RITK-SNAP-NATIVE-INPUT-PARITY-001](backlog/RITK-SNAP-NATIVE-INPUT-PARITY-001.md) — Finish native input parity — todo
 <a id="RITK-SNAP-NATIVE-OPEN-001"></a>- [RITK-SNAP-NATIVE-OPEN-001](backlog/RITK-SNAP-NATIVE-OPEN-001.md) — Open files, archives and drops natively — todo
