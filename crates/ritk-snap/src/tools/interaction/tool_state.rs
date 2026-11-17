@@ -73,12 +73,9 @@ pub enum ToolState {
         /// Current endpoint in image pixels.
         current: ImagePoint,
     },
-
     /// Arrow drag in image pixels.
     ArrowDrag {
-        /// Tail position.
         start: ImagePoint,
-        /// Current head position.
         current: ImagePoint,
     },
 

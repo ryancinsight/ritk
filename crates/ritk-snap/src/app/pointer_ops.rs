@@ -148,10 +148,7 @@ impl SnapApp {
                 };
             }
             ToolState::ArrowDrag { start, .. } => {
-                self.tool_state = ToolState::ArrowDrag {
-                    start,
-                    current: pos,
-                };
+                self.tool_state = ToolState::ArrowDrag { start, current: pos };
             }
             _ => {}
         }

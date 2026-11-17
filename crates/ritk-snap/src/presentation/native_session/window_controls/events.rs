@@ -80,6 +80,18 @@ impl WindowChrome {
                 action,
             });
         }
+        if self.open_menu.is_some()
+            && matches!(
+                event,
+                PresentationEvent::KeyDown {
+                    virtual_key: 0x59,
+                    repeated: false,
+                    ..
+                }
+            )
+        {
+            return Ok(WindowChromeEvent::consumed(false));
+        }
         if self.open_menu.is_none()
             && let PresentationEvent::KeyDown {
             virtual_key,
