@@ -28,7 +28,9 @@ mod browser_semantics;
 mod browser_slice_selection;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_tool;
-#[cfg(any(target_arch = "wasm32", test))]
+// Window/level preset tables route browser, eframe and native sessions;
+// the selection logic is host-independent, so the module ships on every
+// target (only the wasm ABI error variants stay gated).
 mod browser_window_preset;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) mod clinical_distribution;
@@ -67,6 +69,7 @@ mod screen_image_geometry;
 mod shortcuts;
 mod slice_ops;
 pub(crate) mod state;
+mod state_default;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod surface_export;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
@@ -83,7 +86,7 @@ mod volume_input;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod volume_ops;
 mod volume_state;
-#[cfg(any(target_arch = "wasm32", feature = "eframe-shell", test))]
+// Window/level state transitions serve browser, eframe and native hosts alike.
 mod window_level;
 
 #[cfg(target_arch = "wasm32")]

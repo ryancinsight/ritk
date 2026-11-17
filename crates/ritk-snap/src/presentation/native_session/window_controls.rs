@@ -1,6 +1,7 @@
 //! RITK-owned controls rendered in the visible Métis native client area.
 
 mod events;
+mod key_bindings;
 mod layout;
 mod multi_series;
 mod series;
@@ -23,6 +24,7 @@ pub(super) enum Menu {
     View,
     Tools,
     Window,
+    Display,
     Anonymize,
     GridPicker,
 }
@@ -73,6 +75,24 @@ pub(super) enum WindowAction {
     ToggleAnonymizedOverlay,
     ToggleCine,
     ResetView,
+    ApplyWindowPreset {
+        index: usize,
+    },
+    ToggleInvert,
+    SetColormap(crate::render::NamedColorMap),
+    RotateCw,
+    RotateCcw,
+    FlipHorizontal,
+    FlipVertical,
+    ResetOrientation,
+    ZoomFit,
+    ZoomOneToOne,
+    ApplyCustomPreset {
+        index: usize,
+    },
+    SaveCustomPreset {
+        index: Option<usize>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

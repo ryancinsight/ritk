@@ -222,7 +222,7 @@ impl ChromeLayout {
         } else if let Some(menu) = open_menu {
             let popup_width = 210_u32.min(width);
             let menu_x = menu_tab_geometry(menu).min(width.saturating_sub(popup_width));
-            let count = menu_item_count(menu, workspace_layout);
+            let count = menu_item_count(menu, app, workspace_layout);
             let available_height = height.saturating_sub(geometry.menu_height);
             let count_u32 =
                 u32::try_from(count).map_err(|_| anyhow!("native menu item count exceeds u32"))?;

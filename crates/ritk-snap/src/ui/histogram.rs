@@ -25,7 +25,7 @@
 
 use egui::{Color32, Painter, Pos2, Rect, Stroke, Ui};
 
-use crate::render::histogram::{histogram_peak_count, Histogram};
+use crate::render::histogram::{bar_height_log, histogram_peak_count, wl_to_x, Histogram};
 use crate::ui::histogram_interact::{
     wl_center_from_click, wl_from_histogram_drag, HistogramCanvasGeometry,
 };
@@ -49,53 +49,6 @@ const WL_CENTER_COLOR: Color32 = Color32::from_rgb(255, 190, 60);
 
 /// Height in pixels allocated for the histogram canvas.
 const CANVAS_HEIGHT: f32 = 80.0;
-
-// ── bar_height_log ─────────────────────────────────────────────────────────────
-
-/// Compute the display height of a histogram bar using a log₁₊₁ scale.
-///
-/// # Contract
-///
-/// `height(count, peak, h) = ln(count + 1) / ln(peak + 1) × h`
-///
-/// where `ln` is the natural logarithm. The invariants are:
-/// - `bar_height_log(peak, peak, h) = h` (tallest bar fills the canvas).
-/// - `bar_height_log(0, peak, h) = 0.0` (empty bin has zero height).
-/// - `bar_height_log(count, 0, h) = 0.0` (no data, no bars).
-///
-/// Uses `f64` internally to avoid significant rounding errors for large
-/// counts (up to ~2³² per bin).
-#[inline]
-pub fn bar_height_log(count: u64, peak: u64, available_height: f32) -> f32 {
-    if peak == 0 || count == 0 {
-        return 0.0;
-    }
-    let ratio = ((count as f64 + 1.0).ln()) / ((peak as f64 + 1.0).ln());
-    (ratio * available_height as f64) as f32
-}
-
-// ── wl_to_x ───────────────────────────────────────────────────────────────────
-
-/// Map an intensity `value` from histogram range `[hist_min, hist_max]`
-/// linearly to a pixel x-coordinate in `[x_left, x_right]`.
-///
-/// # Contract
-///
-/// `x(v) = x_left + (v − hist_min) / (hist_max − hist_min) × (x_right − x_left)`
-///
-/// clamped to `[x_left, x_right]`.
-///
-/// Returns `x_left` when the range is degenerate (`hist_max − hist_min < ε`).
-#[inline]
-pub fn wl_to_x(value: f32, hist_min: f32, hist_max: f32, x_left: f32, x_right: f32) -> f32 {
-    let span = hist_max - hist_min;
-    if span.abs() < f32::EPSILON {
-        return x_left;
-    }
-    let t = (value - hist_min) / span;
-    let x = x_left + t * (x_right - x_left);
-    x.clamp(x_left, x_right)
-}
 
 // ── draw_histogram ─────────────────────────────────────────────────────────────
 
@@ -226,7 +179,3 @@ pub fn draw_histogram(
     }
     None
 }
-
-#[cfg(test)]
-#[path = "tests_histogram.rs"]
-mod tests;

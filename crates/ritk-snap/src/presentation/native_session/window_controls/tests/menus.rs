@@ -39,7 +39,7 @@ fn anonymize_menu_routes_both_scopes_and_profiles() {
     )
     .expect("Anonymize menu layout");
     assert_eq!(
-        layout.action_at(280.0, 14.0, None),
+        layout.action_at(356.0, 14.0, None),
         Some(WindowAction::OpenMenu(Menu::Anonymize))
     );
     for (y, scope, profile) in [
@@ -49,7 +49,7 @@ fn anonymize_menu_routes_both_scopes_and_profiles() {
         (128.0, AnonymizationScope::Series, Deidentification::Strict),
     ] {
         assert_eq!(
-            layout.action_at(280.0, y, None),
+            layout.action_at(356.0, y, None),
             Some(WindowAction::Anonymize(scope, profile))
         );
     }
