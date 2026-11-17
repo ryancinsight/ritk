@@ -56,17 +56,17 @@ fn selected_vertex_drag_commits_recomputed_length_on_release() {
     apply_app_event(
         &mut app,
         &native_viewport(),
-        PresentationEvent::PointerMove { x: 4.0, y: 0.0 },
+        PresentationEvent::PointerMove { x: 6.0, y: 0.0 },
     );
     assert!(matches!(
         app.annotations.as_slice(),
         [Annotation::OpenPolygon { points, .. }] if points[1] == [0.0, 3.0]
     ));
-    release(&mut app, 4.0, 0.0);
+    release(&mut app, 6.0, 0.0);
     assert!(matches!(
         app.annotations.as_slice(),
         [Annotation::OpenPolygon { points, length_mm, .. }]
-            if points[1] == [0.0, 4.0] && *length_mm == 9.0
+            if points[1] == [0.0, 6.0] && *length_mm == 11.0
     ));
 }
 
@@ -91,9 +91,9 @@ fn selected_vertex_drag_cancellation_modes_preserve_geometry() {
     apply_app_event(
         &mut app,
         &native_viewport(),
-        PresentationEvent::PointerMove { x: 4.0, y: 0.0 },
+        PresentationEvent::PointerMove { x: 6.0, y: 0.0 },
     );
-    release(&mut app, 4.0, 0.0);
+    release(&mut app, 6.0, 0.0);
     assert_unchanged(&app);
 
     let mut app = app_with_polygon();
@@ -105,6 +105,19 @@ fn selected_vertex_drag_cancellation_modes_preserve_geometry() {
             virtual_key: 0x1b,
             repeated: false,
             modifiers: PresentationModifiers::NONE,
+        },
+    );
+    assert_unchanged(&app);
+
+    let mut app = app_with_polygon();
+    begin_vertex_drag(&mut app);
+    apply_app_event(
+        &mut app,
+        &native_viewport(),
+        PresentationEvent::PointerCancel {
+            x: 6.0,
+            y: 0.0,
+            button: PointerButton::Left,
         },
     );
     assert_unchanged(&app);

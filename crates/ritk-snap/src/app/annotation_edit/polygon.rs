@@ -130,7 +130,7 @@ mod tests {
                 perimeter_mm: 14.0,
             },
             1,
-            ImagePoint::new(3.0, 0.0),
+            ImagePoint::new(2.0, 0.0),
             [1.0, 1.0],
         )
         .expect("invariant: finite closed polygon remains editable");

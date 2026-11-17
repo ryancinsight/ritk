@@ -305,7 +305,9 @@ impl SnapApp {
                         });
                     self.pointer.pending_polygon_move = None;
                     self.pointer.owner = None;
-                    return Ok(ViewerActionDisposition::Continue { repaint: committed });
+                    return Ok(ViewerActionDisposition::Continue {
+                        repaint: committed || mapped.is_none(),
+                    });
                 }
                 if *gesture == PointerGesture::Click {
                     // A modified left release ends a display gesture: it never

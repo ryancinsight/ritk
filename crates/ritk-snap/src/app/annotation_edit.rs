@@ -2,7 +2,7 @@ use super::pointer_bindings::PendingPolygonMove;
 use super::state::SnapApp;
 use super::viewer_viewport::ViewerViewport;
 use crate::presentation::ViewportPoint;
-use crate::tools::interaction::{Annotation, ImagePoint};
+use crate::tools::interaction::ImagePoint;
 
 mod polygon;
 
