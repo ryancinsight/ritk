@@ -252,6 +252,17 @@ fn session_snapshot_json_annotations_field_defaults_to_empty_when_absent() {
 fn save_to_file_and_load_from_file_round_trip_with_annotations() {
     let mut snapshot = canonical_snapshot_no_annotations();
     snapshot.annotations = all_annotation_variants();
+    snapshot.annotations.extend([
+        Annotation::Arrow {
+            location: Some(crate::tools::interaction::AnnotationLocation { plane: 2, slice: 4 }),
+            tail: [1.0, 2.0],
+            head: [4.0, 6.0],
+        },
+        Annotation::Pencil {
+            location: Some(crate::tools::interaction::AnnotationLocation { plane: 1, slice: 8 }),
+            points: vec![[1.0, 2.0], [4.0, 2.0], [4.0, 6.0]],
+        },
+    ]);
 
     let path = unique_temp_path("ritk_snap_session_test_round_trip", "json");
 
