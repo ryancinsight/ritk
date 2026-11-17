@@ -16,7 +16,10 @@ use arrayvec::ArrayVec;
 pub(super) use geometry::ChromeGeometry;
 use metis_platform::{Framebuffer, Rect};
 
-const CONTROL_CAPACITY: usize = 40;
+/// Stack-resident control budget: toolbar tabs plus one open menu popup.
+/// The Display popup is the largest (modality presets, the invert row and
+/// every colormap), so the budget covers that popup beside the toolbar.
+const CONTROL_CAPACITY: usize = 64;
 
 #[derive(Clone, Copy)]
 enum ControlKind {

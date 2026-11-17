@@ -190,6 +190,15 @@ impl NativeViewerSession {
                 app.bump_visual_revision();
                 Ok(true)
             }
+            WindowAction::SetColormap(map) => {
+                let app = self.active_app_mut();
+                let changed = app.colormap != map;
+                app.colormap = map;
+                if changed {
+                    app.bump_visual_revision();
+                }
+                Ok(changed)
+            }
             WindowAction::ApplyWindowPreset { index } => {
                 match self.active_app_mut().apply_browser_window_preset(index) {
                     Ok(changed) => Ok(changed),

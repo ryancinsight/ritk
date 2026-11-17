@@ -2,7 +2,8 @@
 
 use super::support::{control_center, session};
 use super::*;
-use crate::app::action_adapter::VIRTUAL_KEY_PRESET_KEYS;
+use crate::app::action_adapter::{VIRTUAL_KEY_COLORMAP_CYCLE, VIRTUAL_KEY_PRESET_KEYS};
+use crate::render::NamedColorMap;
 
 #[test]
 fn digit_keys_apply_ct_presets_and_repaint_presented_pixels() {
@@ -170,6 +171,74 @@ fn display_menu_invert_row_toggles_negative_display() {
             .expect("toggle invert from the Display menu");
         assert_eq!(session.app.invert_display, expected);
     }
+}
+
+#[test]
+fn colormap_key_cycles_all_maps_in_stable_order_and_wraps() {
+    let (mut session, _root) = session();
+    assert_eq!(session.app.colormap, NamedColorMap::Grayscale);
+    // Grayscale sits at index 1 of the stable display order.
+    let mut expected = NamedColorMap::Grayscale;
+    for _ in 0..NamedColorMap::ALL.len() {
+        let position = NamedColorMap::ALL
+            .iter()
+            .position(|map| *map == expected)
+            .expect("current map is listed");
+        expected = NamedColorMap::ALL[(position + 1) % NamedColorMap::ALL.len()];
+        let flow = session
+            .handle_events(&[WindowEvent::KeyDown {
+                virtual_key: VIRTUAL_KEY_COLORMAP_CYCLE,
+                repeated: false,
+                modifiers: ModifierState::NONE,
+            }])
+            .expect("colormap cycle key");
+        assert_eq!(flow, NativeFlow::Continue { repaint: true });
+        assert_eq!(session.app.colormap, expected);
+    }
+    assert_eq!(session.app.colormap, NamedColorMap::Grayscale);
+}
+
+#[test]
+fn display_menu_applies_each_colormap_to_presented_pixels() {
+    let (mut session, _root) = session();
+    session.refresh_frame().expect("baseline native frame");
+    let grayscale = session.views[0].frame().rgba().to_vec();
+    let (tab_x, tab_y) = control_center(
+        &session,
+        None,
+        WindowAction::OpenMenu(super::super::window_controls::Menu::Display),
+    );
+    let (row_x, row_y) = control_center(
+        &session,
+        Some(super::super::window_controls::Menu::Display),
+        WindowAction::SetColormap(NamedColorMap::Hot),
+    );
+    session
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x: tab_x,
+                y: tab_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: tab_x,
+                y: tab_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+            WindowEvent::PointerDown {
+                x: row_x,
+                y: row_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: row_x,
+                y: row_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+        ])
+        .expect("apply Hot colormap from the Display menu");
+    assert_eq!(session.app.colormap, NamedColorMap::Hot);
+    assert_ne!(session.views[0].frame().rgba(), grayscale.as_slice());
 }
 
 #[test]

@@ -1,6 +1,7 @@
 //! RITK-owned controls rendered in the visible Métis native client area.
 
 mod events;
+mod key_bindings;
 mod layout;
 mod multi_series;
 mod series;
@@ -78,6 +79,7 @@ pub(super) enum WindowAction {
         index: usize,
     },
     ToggleInvert,
+    SetColormap(crate::render::NamedColorMap),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

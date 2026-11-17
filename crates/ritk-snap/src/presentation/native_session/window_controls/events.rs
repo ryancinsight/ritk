@@ -9,10 +9,8 @@ use super::layout::ChromeLayout;
 use super::multi_series::DialogAction;
 use super::slice_drag::SliceDrag;
 use super::{PanelCloseKind, PointerOwner, WindowAction, WindowChrome, WindowChromeEvent};
-use crate::app::action_adapter::{VIRTUAL_KEY_INVERT_DISPLAY, VIRTUAL_KEY_PRESET_KEYS};
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
-use crate::tools::kind::ToolKind;
 use anyhow::{anyhow, Result};
 
 impl WindowChrome {
@@ -87,35 +85,18 @@ impl WindowChrome {
             repeated: false,
             modifiers,
         } = event
+            && let Some(action) = super::key_bindings::global_key_action(
+                *virtual_key,
+                modifiers.ctrl(),
+                modifiers.shift(),
+                app,
+            )
         {
-            let action = match (*virtual_key, modifiers.ctrl(), modifiers.shift()) {
-                (0x47, false, false) => Some(WindowAction::SelectTool(ToolKind::RoiClosedPolygon)),
-                (0x73, false, false) => Some(WindowAction::OpenSeriesPicker),
-                (0x73, true, false) => Some(WindowAction::CloseActivePanel),
-                (0x73, false, true) => Some(WindowAction::CloseAllPanels),
-                (0x4d, true, false) => Some(WindowAction::ToggleActivePanel),
-                (0x09, _, true) => Some(WindowAction::ActivatePreviousPanel),
-                (0x09, _, false) => Some(WindowAction::ActivateNextPanel),
-                (key, false, false) => {
-                    if key == VIRTUAL_KEY_INVERT_DISPLAY {
-                        Some(WindowAction::ToggleInvert)
-                    } else {
-                        VIRTUAL_KEY_PRESET_KEYS
-                            .iter()
-                            .position(|preset_key| *preset_key == key)
-                            .filter(|index| *index < app.browser_window_presets().len())
-                            .map(|index| WindowAction::ApplyWindowPreset { index })
-                    }
-                }
-                _ => None,
-            };
-            if let Some(action) = action {
-                return Ok(WindowChromeEvent {
-                    consumed: true,
-                    repaint: true,
-                    action: Some(action),
-                });
-            }
+            return Ok(WindowChromeEvent {
+                consumed: true,
+                repaint: true,
+                action: Some(action),
+            });
         }
         if self.open_menu.is_none()
             && let PresentationEvent::KeyDown {

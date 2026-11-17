@@ -31,6 +31,8 @@ pub(crate) const VIRTUAL_KEY_CINE_FPS_UP: u32 = 0xbb;
 pub(crate) const VIRTUAL_KEY_CINE_FPS_DOWN: u32 = 0xbd;
 /// Windows virtual-key code for `I`, toggling negative display.
 pub(crate) const VIRTUAL_KEY_INVERT_DISPLAY: u32 = 0x49;
+/// Windows virtual-key code for `C`, cycling the intensity colormap.
+pub(crate) const VIRTUAL_KEY_COLORMAP_CYCLE: u32 = 0x43;
 /// Windows virtual-key codes for digits `1`–`9`, selecting modality presets.
 pub(crate) const VIRTUAL_KEY_PRESET_KEYS: [u32; 9] =
     [0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39];

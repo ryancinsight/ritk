@@ -27,8 +27,8 @@ pub(super) const MENU_TABS: [(Menu, &str, u32); 6] = [
     (Menu::View, "View", 58),
     (Menu::Tools, "Tools", 66),
     (Menu::Window, "Window", 78),
-    (Menu::Display, "Display", 76),
     (Menu::Anonymize, "Anonymize", 102),
+    (Menu::Display, "Display", 76),
 ];
 
 pub(super) const ANONYMIZE_ITEMS: [(&str, AnonymizationScope, Deidentification); 4] = {
@@ -76,7 +76,11 @@ pub(super) fn menu_item_count(
                 + POINTER_BUTTON_ROWS.len()
         }
         Menu::Window => 6,
-        Menu::Display => app.browser_window_presets().len().saturating_add(1),
+        Menu::Display => app
+            .browser_window_presets()
+            .len()
+            .saturating_add(1)
+            .saturating_add(crate::render::NamedColorMap::ALL.len()),
         Menu::GridPicker => 0,
     }
 }
@@ -225,7 +229,15 @@ pub(super) fn menu_item(
                     app.invert_display,
                 ));
             }
-            Err(anyhow!("native Display menu row is outside its items"))
+            let colormap_index = index.saturating_sub(presets.len().saturating_add(1));
+            let map = crate::render::NamedColorMap::ALL
+                .get(colormap_index)
+                .ok_or_else(|| anyhow!("native Display menu row is outside its colormap table"))?;
+            Ok((
+                map.label(),
+                WindowAction::SetColormap(*map),
+                app.colormap == *map,
+            ))
         }
         Menu::GridPicker => Err(anyhow!("panel grid picker has no menu rows")),
     }
