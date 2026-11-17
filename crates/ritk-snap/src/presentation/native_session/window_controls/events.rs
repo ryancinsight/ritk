@@ -88,8 +88,12 @@ impl WindowChrome {
         } = event
         {
             let action = match (*virtual_key, modifiers.ctrl(), modifiers.shift()) {
-                (0x59, false, false) => Some(WindowAction::SelectTool(ToolKind::Arrow)),
-                (0x50, false, false) => Some(WindowAction::SelectTool(ToolKind::Pencil)),
+                (0x59, false, false) if self.open_menu.is_none() => {
+                    Some(WindowAction::SelectTool(ToolKind::Arrow))
+                }
+                (0x50, false, false) if self.open_menu.is_none() => {
+                    Some(WindowAction::SelectTool(ToolKind::Pencil))
+                }
                 (0x73, false, false) => Some(WindowAction::OpenSeriesPicker),
                 (0x73, true, false) => Some(WindowAction::CloseActivePanel),
                 (0x73, false, true) => Some(WindowAction::CloseAllPanels),
