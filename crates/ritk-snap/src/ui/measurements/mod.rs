@@ -169,6 +169,26 @@ impl MeasurementLayer {
                         );
                     }
                 }
+                Annotation::Arrow { tail, head, .. } => {
+                    let tail = img_to_screen(egui::pos2((*tail)[1], (*tail)[0]));
+                    let head = img_to_screen(egui::pos2((*head)[1], (*head)[0]));
+                    painter.line_segment([tail, head], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
+                    let direction = head - tail;
+                    let length = direction.length();
+                    if length > 0.0 {
+                        let unit = direction / length;
+                        let normal = Vec2::new(-unit.y, unit.x);
+                        let size = 8.0;
+                        painter.line_segment(
+                            [head, head - unit * size + normal * (size * 0.5)],
+                            Stroke::new(LINE_WIDTH, COLOR_MEASURE),
+                        );
+                        painter.line_segment(
+                            [head, head - unit * size - normal * (size * 0.5)],
+                            Stroke::new(LINE_WIDTH, COLOR_MEASURE),
+                        );
+                    }
+                }
                 Annotation::RoiEllipse {
                     center,
                     radii,
