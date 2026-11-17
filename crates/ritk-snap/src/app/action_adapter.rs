@@ -33,6 +33,16 @@ pub(crate) const VIRTUAL_KEY_CINE_FPS_DOWN: u32 = 0xbd;
 pub(crate) const VIRTUAL_KEY_INVERT_DISPLAY: u32 = 0x49;
 /// Windows virtual-key code for `C`, cycling the intensity colormap.
 pub(crate) const VIRTUAL_KEY_COLORMAP_CYCLE: u32 = 0x43;
+/// Windows virtual-key code for `H`, flipping horizontally.
+pub(crate) const VIRTUAL_KEY_FLIP_HORIZONTAL: u32 = 0x48;
+/// Windows virtual-key code for `V`, flipping vertically.
+pub(crate) const VIRTUAL_KEY_FLIP_VERTICAL: u32 = 0x56;
+/// Windows virtual-key code for `R`, rotating (`Shift` reverses).
+pub(crate) const VIRTUAL_KEY_ROTATE: u32 = 0x52;
+/// Windows virtual-key code for `O`, resetting orientation.
+pub(crate) const VIRTUAL_KEY_ORIENTATION_RESET: u32 = 0x4f;
+/// Windows virtual-key code for `0`, zooming to fit (with `Ctrl`).
+pub(crate) const VIRTUAL_KEY_ZOOM_FIT: u32 = 0x30;
 /// Windows virtual-key codes for digits `1`–`9`, selecting modality presets.
 pub(crate) const VIRTUAL_KEY_PRESET_KEYS: [u32; 9] =
     [0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39];

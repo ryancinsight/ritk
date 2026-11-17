@@ -80,7 +80,8 @@ pub(super) fn menu_item_count(
             .browser_window_presets()
             .len()
             .saturating_add(1)
-            .saturating_add(crate::render::NamedColorMap::ALL.len()),
+            .saturating_add(crate::render::NamedColorMap::ALL.len())
+            .saturating_add(7),
         Menu::GridPicker => 0,
     }
 }
@@ -230,14 +231,45 @@ pub(super) fn menu_item(
                 ));
             }
             let colormap_index = index.saturating_sub(presets.len().saturating_add(1));
-            let map = crate::render::NamedColorMap::ALL
-                .get(colormap_index)
-                .ok_or_else(|| anyhow!("native Display menu row is outside its colormap table"))?;
-            Ok((
-                map.label(),
-                WindowAction::SetColormap(*map),
-                app.colormap == *map,
-            ))
+            if colormap_index < crate::render::NamedColorMap::ALL.len() {
+                let map = crate::render::NamedColorMap::ALL[colormap_index];
+                return Ok((
+                    map.label(),
+                    WindowAction::SetColormap(map),
+                    app.colormap == map,
+                ));
+            }
+            let transform = app.view_transform;
+            match index
+                .saturating_sub(
+                    presets
+                        .len()
+                        .saturating_add(1)
+                        .saturating_add(crate::render::NamedColorMap::ALL.len()),
+                )
+                .saturating_add(1)
+            {
+                1 => Ok((
+                    "Flip horizontal  H",
+                    WindowAction::FlipHorizontal,
+                    transform.flip_h,
+                )),
+                2 => Ok((
+                    "Flip vertical  V",
+                    WindowAction::FlipVertical,
+                    transform.flip_v,
+                )),
+                3 => Ok(("Rotate 90 CW  R", WindowAction::RotateCw, false)),
+                4 => Ok(("Rotate 90 CCW  Shift+R", WindowAction::RotateCcw, false)),
+                5 => Ok((
+                    "Reset orientation  O",
+                    WindowAction::ResetOrientation,
+                    false,
+                )),
+                6 => Ok(("Zoom to fit  Ctrl+0", WindowAction::ZoomFit, false)),
+                7 => Ok(("Zoom 1:1", WindowAction::ZoomOneToOne, false)),
+                _ => Err(anyhow!("native Display menu row is outside its items")),
+            }
         }
         Menu::GridPicker => Err(anyhow!("panel grid picker has no menu rows")),
     }

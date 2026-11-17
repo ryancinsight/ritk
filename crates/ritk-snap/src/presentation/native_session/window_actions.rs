@@ -6,6 +6,17 @@ use crate::tools::interaction::{ToolState, ViewportOffset};
 use crate::tools::kind::ToolKind;
 
 impl NativeViewerSession {
+    /// Zoom multiplier that undoes the active panel's fit scale (1:1 pixels).
+    fn one_to_one_zoom(&self) -> Option<f32> {
+        let view = self.views.get(self.active_panel)?;
+        let viewport = self.viewports.get(self.active_panel)?;
+        crate::ui::zoom::one_to_one_zoom(
+            [viewport.panel_width, viewport.panel_height],
+            [view.frame.width(), view.frame.height()],
+            view.frame.display_spacing().values(),
+        )
+    }
+
     pub(super) fn apply_window_action(
         &mut self,
         action: WindowAction,
@@ -199,6 +210,59 @@ impl NativeViewerSession {
                 }
                 Ok(changed)
             }
+            WindowAction::RotateCw => {
+                let app = self.active_app_mut();
+                app.view_transform = app.view_transform.rotate_cw();
+                app.bump_visual_revision();
+                Ok(true)
+            }
+            WindowAction::RotateCcw => {
+                let app = self.active_app_mut();
+                app.view_transform = app.view_transform.rotate_ccw();
+                app.bump_visual_revision();
+                Ok(true)
+            }
+            WindowAction::FlipHorizontal => {
+                let app = self.active_app_mut();
+                app.view_transform = app.view_transform.toggle_flip_h();
+                app.bump_visual_revision();
+                Ok(true)
+            }
+            WindowAction::FlipVertical => {
+                let app = self.active_app_mut();
+                app.view_transform = app.view_transform.toggle_flip_v();
+                app.bump_visual_revision();
+                Ok(true)
+            }
+            WindowAction::ResetOrientation => {
+                let app = self.active_app_mut();
+                app.view_transform = app.view_transform.reset();
+                app.bump_visual_revision();
+                Ok(true)
+            }
+            WindowAction::ZoomFit => {
+                let app = self.active_app_mut();
+                app.zoom = crate::ui::zoom::FIT_ZOOM;
+                app.pan_offset = crate::tools::interaction::ViewportOffset::new(
+                    crate::ui::zoom::FIT_PAN_OFFSET[0],
+                    crate::ui::zoom::FIT_PAN_OFFSET[1],
+                );
+                app.bump_visual_revision();
+                Ok(true)
+            }
+            WindowAction::ZoomOneToOne => match self.one_to_one_zoom() {
+                Some(zoom) => {
+                    let app = self.active_app_mut();
+                    app.zoom = zoom;
+                    app.bump_visual_revision();
+                    Ok(true)
+                }
+                None => {
+                    self.active_app_mut().status_message =
+                        "1:1 zoom needs a finite active panel extent.".to_owned();
+                    Ok(true)
+                }
+            },
             WindowAction::ApplyWindowPreset { index } => {
                 match self.active_app_mut().apply_browser_window_preset(index) {
                     Ok(changed) => Ok(changed),

@@ -7,7 +7,9 @@
 
 use super::WindowAction;
 use crate::app::action_adapter::{
-    VIRTUAL_KEY_COLORMAP_CYCLE, VIRTUAL_KEY_INVERT_DISPLAY, VIRTUAL_KEY_PRESET_KEYS,
+    VIRTUAL_KEY_COLORMAP_CYCLE, VIRTUAL_KEY_FLIP_HORIZONTAL, VIRTUAL_KEY_FLIP_VERTICAL,
+    VIRTUAL_KEY_INVERT_DISPLAY, VIRTUAL_KEY_ORIENTATION_RESET, VIRTUAL_KEY_PRESET_KEYS,
+    VIRTUAL_KEY_ROTATE, VIRTUAL_KEY_ZOOM_FIT,
 };
 use crate::app::SnapApp;
 use crate::tools::kind::ToolKind;
@@ -30,6 +32,16 @@ pub(super) fn global_key_action(
         (0x4d, true, false) => Some(WindowAction::ToggleActivePanel),
         (0x09, _, true) => Some(WindowAction::ActivatePreviousPanel),
         (0x09, _, false) => Some(WindowAction::ActivateNextPanel),
+        (key, true, false) if key == VIRTUAL_KEY_ZOOM_FIT => Some(WindowAction::ZoomFit),
+        (key, false, false) if key == VIRTUAL_KEY_FLIP_HORIZONTAL => {
+            Some(WindowAction::FlipHorizontal)
+        }
+        (key, false, false) if key == VIRTUAL_KEY_FLIP_VERTICAL => Some(WindowAction::FlipVertical),
+        (key, false, false) if key == VIRTUAL_KEY_ROTATE => Some(WindowAction::RotateCw),
+        (key, false, true) if key == VIRTUAL_KEY_ROTATE => Some(WindowAction::RotateCcw),
+        (key, false, false) if key == VIRTUAL_KEY_ORIENTATION_RESET => {
+            Some(WindowAction::ResetOrientation)
+        }
         (key, false, false) => {
             if key == VIRTUAL_KEY_INVERT_DISPLAY {
                 Some(WindowAction::ToggleInvert)

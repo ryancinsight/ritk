@@ -80,6 +80,13 @@ pub(super) enum WindowAction {
     },
     ToggleInvert,
     SetColormap(crate::render::NamedColorMap),
+    RotateCw,
+    RotateCcw,
+    FlipHorizontal,
+    FlipVertical,
+    ResetOrientation,
+    ZoomFit,
+    ZoomOneToOne,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
