@@ -4192,7 +4192,7 @@ dependencies = [
 [[package]]
 name = "metis-core"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#631c4860b4ccef652d713d226b4d3fe64cdd4c06"
+source = "git+https://github.com/ryancinsight/metis.git#e341c29e63c02994ad7a5ccae45625238296737e"
 dependencies = [
  "moirai-crypto",
 ]
