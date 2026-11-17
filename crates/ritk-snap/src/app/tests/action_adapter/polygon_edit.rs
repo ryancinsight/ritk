@@ -79,22 +79,34 @@ fn assert_unchanged(app: &SnapApp) {
 
 #[test]
 fn selected_vertex_drag_cancellation_modes_preserve_geometry() {
-    let mut app = app_with_polygon();
-    begin_vertex_drag(&mut app);
-    app.set_slice_for_axis(0, 1);
-    send(&mut app, PresentationEvent::PointerMove { x: 6.0, y: 0.0 });
-    release(&mut app, 6.0, 0.0);
-    assert_unchanged(&app);
+    enum Cancellation {
+        Escape,
+        Pointer,
+    }
 
-    let mut app = app_with_polygon();
-    begin_vertex_drag(&mut app);
-    send(
-        &mut app,
-        PresentationEvent::PointerCancel {
-            x: 6.0,
-            y: 0.0,
-            button: PointerButton::Left,
-        },
-    );
-    assert_unchanged(&app);
+    for cancellation in [Cancellation::Escape, Cancellation::Pointer] {
+        let mut app = app_with_polygon();
+        begin_vertex_drag(&mut app);
+        send(&mut app, PresentationEvent::PointerMove { x: 6.0, y: 0.0 });
+        match cancellation {
+            Cancellation::Escape => send(
+                &mut app,
+                PresentationEvent::KeyDown {
+                    virtual_key: 0x1b,
+                    repeated: false,
+                    modifiers: PresentationModifiers::NONE,
+                },
+            ),
+            Cancellation::Pointer => send(
+                &mut app,
+                PresentationEvent::PointerCancel {
+                    x: 6.0,
+                    y: 0.0,
+                    button: PointerButton::Left,
+                },
+            ),
+        }
+        release(&mut app, 6.0, 0.0);
+        assert_unchanged(&app);
+    }
 }
