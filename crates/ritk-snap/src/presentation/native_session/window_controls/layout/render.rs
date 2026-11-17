@@ -154,8 +154,7 @@ pub(super) fn render(
     for control in &layout.controls {
         let background = match control.kind {
             ControlKind::MenuTab | ControlKind::Toolbar if control.active => Some(CONTROL_ACTIVE),
-            ControlKind::MenuItem if control.active => Some(CONTROL_ACTIVE),
-            ControlKind::Grid => Some(if control.active {
+            ControlKind::MenuItem | ControlKind::Grid => Some(if control.active {
                 CONTROL_ACTIVE
             } else {
                 CONTROL_BACKGROUND
