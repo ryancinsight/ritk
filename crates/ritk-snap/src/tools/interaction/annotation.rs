@@ -200,6 +200,19 @@ pub enum Annotation {
         /// Intensity value at the point (HU or relative).
         value: f32,
     },
+
+    /// Closed polygon ROI with physical area and perimeter.
+    ClosedPolygon {
+        /// Creation location on the source image plane.
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
+        /// Polygon vertices as `[row, col]` image pixels.
+        points: Vec<[f32; 2]>,
+        /// Physical enclosed area in square millimetres.
+        area_mm2: f32,
+        /// Physical perimeter in millimetres.
+        perimeter_mm: f32,
+    },
 }
 
 impl Annotation {
@@ -252,6 +265,35 @@ impl Annotation {
         let dr = (p2[0] - p1[0]) * spacing[0];
         let dc = (p2[1] - p1[1]) * spacing[1];
         (dr * dr + dc * dc).sqrt()
+    }
+
+    /// Compute the physical area of a closed polygon by the shoelace formula.
+    pub fn compute_polygon_area(points: &[[f32; 2]], spacing: [f32; 2]) -> f32 {
+        let [origin, vertices @ ..] = points else {
+            return 0.0;
+        };
+        let sum = vertices
+            .windows(2)
+            .map(|pair| {
+                let [a, b] = pair else {
+                    unreachable!("invariant: windows(2) contains two vertices")
+                };
+                let ar = a[0] - origin[0];
+                let ac = a[1] - origin[1];
+                let br = b[0] - origin[0];
+                let bc = b[1] - origin[1];
+                ar * bc - br * ac
+            })
+            .sum::<f32>();
+        0.5 * sum.abs() * spacing[0] * spacing[1]
+    }
+
+    /// Compute the physical length of a polyline.
+    pub fn compute_polyline_length(points: &[[f32; 2]], spacing: [f32; 2]) -> f32 {
+        points
+            .windows(2)
+            .map(|pair| Self::compute_length(pair[0], pair[1], spacing))
+            .sum()
     }
 
     /// Compute the angle at vertex `p2` between the rays `p2→p1` and `p2→p3`.

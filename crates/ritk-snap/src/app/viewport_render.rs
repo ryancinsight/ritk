@@ -302,11 +302,21 @@ impl EguiApp {
             // this block replaces it; the original painter is consumed below).
             let meas_painter = ui.painter_at(response.rect);
 
-            crate::ui::measurements::MeasurementLayer::draw_annotations(
-                &meas_painter,
-                &self.annotations,
-                source_to_screen,
-            );
+            let location = crate::tools::interaction::AnnotationLocation {
+                plane: axis,
+                slice: slice_idx,
+            };
+            for annotation in self.annotations.iter().filter(|annotation| {
+                annotation
+                    .location()
+                    .is_none_or(|source| source == location)
+            }) {
+                crate::ui::measurements::MeasurementLayer::draw_annotations(
+                    &meas_painter,
+                    std::slice::from_ref(annotation),
+                    source_to_screen,
+                );
+            }
             crate::ui::measurements::MeasurementLayer::draw_in_progress(
                 &meas_painter,
                 &self.tool_state,

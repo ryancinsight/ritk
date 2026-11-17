@@ -3,7 +3,7 @@
 use super::{Annotation, AnnotationLocation};
 
 impl Annotation {
-    #[cfg(windows)]
+    #[cfg(any(windows, all(not(target_arch = "wasm32"), feature = "eframe-shell")))]
     pub(crate) fn location(&self) -> Option<AnnotationLocation> {
         match self {
             Self::Length { location, .. }
@@ -11,7 +11,8 @@ impl Annotation {
             | Self::Angle { location, .. }
             | Self::RoiRect { location, .. }
             | Self::RoiEllipse { location, .. }
-            | Self::HuPoint { location, .. } => *location,
+            | Self::HuPoint { location, .. }
+            | Self::ClosedPolygon { location, .. } => *location,
         }
     }
 
@@ -34,6 +35,9 @@ impl Annotation {
                 location: value, ..
             }
             | Self::HuPoint {
+                location: value, ..
+            }
+            | Self::ClosedPolygon {
                 location: value, ..
             } => *value = Some(location),
         }

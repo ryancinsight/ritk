@@ -18,6 +18,8 @@ pub enum AnnotationKind {
     RoiEllipse,
     /// A single-point intensity measurement.
     HuPoint,
+    /// A closed polygon area measurement.
+    ClosedPolygon,
     /// A three-dimensional length measured in DICOM patient space.
     PatientLength,
 }
@@ -33,6 +35,7 @@ impl AnnotationKind {
             Self::RoiRect => "roi-rect",
             Self::RoiEllipse => "roi-ellipse",
             Self::HuPoint => "hu-point",
+            Self::ClosedPolygon => "closed-polygon",
         }
     }
 }

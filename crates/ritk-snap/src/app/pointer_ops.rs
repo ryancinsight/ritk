@@ -2,7 +2,7 @@ mod measurement;
 
 use super::state::SnapApp;
 use crate::render::NamedColorMap;
-use crate::tools::interaction::{Annotation, ImagePoint, RoiKind, ToolState};
+use crate::tools::interaction::{Annotation, ImagePoint, PolygonKind, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
@@ -238,6 +238,23 @@ impl SnapApp {
                 _ => {
                     self.tool_state = ToolState::MeasureLength1 { p1: pos };
                 }
+            },
+            ToolKind::RoiClosedPolygon => match self.tool_state.clone() {
+                ToolState::Polygon { mut points } => {
+                    let near = |point: &ImagePoint| {
+                        let dx = f64::from(point.x()) - f64::from(pos.x());
+                        let dy = f64::from(point.y()) - f64::from(pos.y());
+                        dx.hypot(dy) <= 6.0
+                    };
+                    if points.len() >= 3 && points.first().is_some_and(near) {
+                        self.finalise_polygon(points, PolygonKind::Closed);
+                        self.tool_state = ToolState::Idle;
+                    } else {
+                        points.push(pos);
+                        self.tool_state = ToolState::Polygon { points };
+                    }
+                }
+                _ => self.tool_state = ToolState::Polygon { points: vec![pos] },
             },
             ToolKind::PointHu => {
                 if let Some(vol) = &self.loaded {

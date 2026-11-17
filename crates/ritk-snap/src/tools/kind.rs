@@ -38,6 +38,8 @@ pub enum ToolKind {
     LabelPaint,
     /// Erase segmentation labels to background under the cursor.
     LabelErase,
+    /// Draw a closed polygon ROI and compute physical area and perimeter.
+    RoiClosedPolygon,
 }
 
 impl ToolKind {
@@ -55,6 +57,7 @@ impl ToolKind {
             ToolKind::PointHu => "HU Point",
             ToolKind::LabelPaint => "Label Paint",
             ToolKind::LabelErase => "Label Erase",
+            ToolKind::RoiClosedPolygon => "Closed Polygon",
         }
     }
 
@@ -101,6 +104,9 @@ impl ToolKind {
                 "Label Erase: click or drag to erase segmentation labels \
                  back to background with the current brush radius."
             }
+            ToolKind::RoiClosedPolygon => {
+                "Closed polygon: click boundary nodes, then click the first node again."
+            }
         }
     }
 
@@ -118,6 +124,7 @@ impl ToolKind {
             ToolKind::PointHu => "⊙",
             ToolKind::LabelPaint => "P",
             ToolKind::LabelErase => "E",
+            ToolKind::RoiClosedPolygon => "⬟",
         }
     }
 
@@ -139,6 +146,7 @@ impl ToolKind {
             ToolKind::PointHu,
             ToolKind::LabelPaint,
             ToolKind::LabelErase,
+            ToolKind::RoiClosedPolygon,
         ]
     }
 }
