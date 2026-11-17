@@ -307,6 +307,12 @@ impl SnapApp {
     }
 
     fn apply_virtual_key(&mut self, virtual_key: u32, repeated: bool) -> ViewerActionDisposition {
+        if virtual_key == 0x1b && !repeated && matches!(self.tool_state, ToolState::PathDrag { .. })
+        {
+            self.tool_state = ToolState::Idle;
+            self.pointer.abandon();
+            return ViewerActionDisposition::Continue { repaint: true };
+        }
         if virtual_key == VIRTUAL_KEY_CROSSHAIR_TOGGLE {
             if repeated || self.loaded.is_none() {
                 return ViewerActionDisposition::Continue { repaint: false };

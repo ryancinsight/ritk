@@ -170,6 +170,44 @@ fn arrow_drag_keeps_sampling_free_after_many_moves() {
 }
 
 #[test]
+fn escape_discards_a_live_arrow_or_pencil_path() {
+    let viewport = viewport([8, 8]);
+    for tool in [ToolKind::Arrow, ToolKind::Pencil] {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([1, 8, 8]));
+        app.select_tool(tool);
+        for event in [
+            PresentationEvent::PointerDown {
+                x: 2.0,
+                y: 2.0,
+                button: PointerButton::Left,
+                modifiers: PresentationModifiers::NONE,
+            },
+            PresentationEvent::PointerMove { x: 6.0, y: 5.0 },
+        ] {
+            apply_app_event(&mut app, &viewport, event);
+        }
+        assert_eq!(app.tool_state.tool_kind(), Some(tool));
+        for event in [
+            PresentationEvent::KeyDown {
+                virtual_key: 0x1b,
+                repeated: false,
+                modifiers: PresentationModifiers::NONE,
+            },
+            PresentationEvent::PointerUp {
+                x: 6.0,
+                y: 5.0,
+                button: PointerButton::Left,
+            },
+        ] {
+            apply_app_event(&mut app, &viewport, event);
+        }
+        assert_eq!(app.annotations.as_slice(), &[]);
+        assert_eq!(app.tool_state.tool_kind(), None);
+    }
+}
+
+#[test]
 fn window_level_actions_use_the_existing_sensitivity_mapping() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::WindowLevel;
