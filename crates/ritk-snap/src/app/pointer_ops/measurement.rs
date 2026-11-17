@@ -53,17 +53,10 @@ impl SnapApp {
             .into_iter()
             .map(|point| [point.y(), point.x()])
             .collect();
-        let polyline_mm = Annotation::compute_polyline_length(&points, spacing);
         match kind {
             PolygonKind::Closed => {
-                let Some(first) = points.first().copied() else {
-                    return;
-                };
-                let Some(last) = points.last().copied() else {
-                    return;
-                };
                 let area_mm2 = Annotation::compute_polygon_area(&points, spacing);
-                let perimeter_mm = polyline_mm + Annotation::compute_length(last, first, spacing);
+                let perimeter_mm = Annotation::compute_polygon_perimeter(&points, spacing);
                 if !area_mm2.is_finite() || !perimeter_mm.is_finite() {
                     self.status_message = "Polygon measurement exceeds the supported range".into();
                     return;
@@ -76,6 +69,7 @@ impl SnapApp {
                 });
             }
             PolygonKind::Open => {
+                let polyline_mm = Annotation::compute_polyline_length(&points, spacing);
                 if !polyline_mm.is_finite() {
                     self.status_message = "Polygon measurement exceeds the supported range".into();
                     return;

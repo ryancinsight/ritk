@@ -1,34 +1,21 @@
+use super::super::polygon_selection::{polygon_path, PICK_RADIUS_PIXELS};
 use super::super::viewer_viewport::ViewerViewport;
 use crate::presentation::ViewportPoint;
 use crate::tools::interaction::{Annotation, ImagePoint};
 use metis_ui_lang::nearest_polyline_vertex;
-
-const NODE_PICK_RADIUS_PIXELS: f64 = 6.0;
-
-fn points(annotation: &Annotation) -> Option<&[[f32; 2]]> {
-    match annotation {
-        Annotation::ClosedPolygon { points, .. } | Annotation::OpenPolygon { points, .. } => {
-            Some(points)
-        }
-        _ => None,
-    }
-}
 
 pub(super) fn nearest_node(
     annotation: &Annotation,
     viewport: ViewerViewport,
     target: ViewportPoint,
 ) -> Option<usize> {
-    let points = points(annotation)?;
+    let (points, _) = polygon_path(annotation)?;
     let hit = nearest_polyline_vertex(
-        points.iter().copied().map(|point| {
-            let [x, y] = viewport.project(point);
-            [x, y]
-        }),
+        points.iter().copied().map(|point| viewport.project(point)),
         [target.x(), target.y()],
     )
     .ok()?;
-    (hit.distance() <= NODE_PICK_RADIUS_PIXELS).then_some(hit.index())
+    (hit.distance() <= PICK_RADIUS_PIXELS).then_some(hit.index())
 }
 
 pub(super) fn move_node(
@@ -61,7 +48,7 @@ fn recompute(mut candidate: Annotation, spacing: [f64; 2]) -> Option<Annotation>
                 return None;
             }
             *area_mm2 = Annotation::compute_polygon_area(points, spacing);
-            *perimeter_mm = closed_perimeter(points, spacing);
+            *perimeter_mm = Annotation::compute_polygon_perimeter(points, spacing);
             (area_mm2.is_finite() && *area_mm2 > 0.0 && perimeter_mm.is_finite())
                 .then_some(candidate)
         }
@@ -76,17 +63,6 @@ fn recompute(mut candidate: Annotation, spacing: [f64; 2]) -> Option<Annotation>
         }
         _ => None,
     }
-}
-
-fn closed_perimeter(points: &[[f32; 2]], spacing: [f32; 2]) -> f32 {
-    let Some((&first, _)) = points.split_first() else {
-        return 0.0;
-    };
-    let Some(&last) = points.last() else {
-        return 0.0;
-    };
-    Annotation::compute_polyline_length(points, spacing)
-        + Annotation::compute_length(last, first, spacing)
 }
 
 #[cfg(test)]

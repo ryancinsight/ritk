@@ -39,25 +39,23 @@ impl SnapApp {
     }
 
     pub(crate) fn preview_polygon_vertex_move(&mut self, point: ImagePoint) -> bool {
-        let Some(pending) = self.pointer.pending_polygon_move.take() else {
-            return false;
-        };
-        if pending.source_location != self.annotation_location() {
-            return false;
-        }
+        let location = self.annotation_location();
         let Ok(spacing) = self.slice_plane_spacing() else {
             return false;
         };
+        let Some(pending) = self.pointer.pending_polygon_move.as_mut() else {
+            return false;
+        };
+        if pending.source_location != location {
+            return false;
+        }
         let Some(candidate) =
             polygon::move_node(&pending.original, pending.node_index, point, spacing)
         else {
             return false;
         };
-        self.pointer.pending_polygon_move = Some(PendingPolygonMove {
-            current: point,
-            candidate,
-            ..pending
-        });
+        pending.current = point;
+        pending.candidate = candidate;
         true
     }
 

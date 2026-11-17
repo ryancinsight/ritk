@@ -6,7 +6,7 @@ use crate::presentation::ViewportPoint;
 use crate::tools::interaction::{Annotation, AnnotationLocation};
 use metis_ui_lang::{nearest_polyline_segment, PathTopology};
 
-const PICK_RADIUS_PIXELS: f64 = 6.0;
+pub(super) const PICK_RADIUS_PIXELS: f64 = 6.0;
 
 impl SnapApp {
     pub(super) fn pick_polygon(&mut self, viewport: ViewerViewport, point: ViewportPoint) {
@@ -63,7 +63,7 @@ impl SnapApp {
     }
 }
 
-fn polygon_path(annotation: &Annotation) -> Option<(&[[f32; 2]], PathTopology)> {
+pub(super) fn polygon_path(annotation: &Annotation) -> Option<(&[[f32; 2]], PathTopology)> {
     match annotation {
         Annotation::ClosedPolygon { points, .. } => Some((points, PathTopology::Closed)),
         Annotation::OpenPolygon { points, .. } => Some((points, PathTopology::Open)),
