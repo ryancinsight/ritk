@@ -109,6 +109,16 @@ impl SnapApp {
         let measured = self
             .slice_plane_spacing()
             .and_then(|spacing| Annotation::compute_length_checked(p1, p2, spacing));
+        #[cfg(windows)]
+        let measured = measured.and_then(|value| {
+            self.length_calibrations
+                .iter()
+                .find(|item| item.applies_to(self.annotation_location()))
+                .map_or(Ok(value), |item| {
+                    item.apply(value)
+                        .map_err(|_| MeasurementError::NonFiniteResult { kind: "length" })
+                })
+        });
         match measured {
             Ok(length_mm) => {
                 self.push_annotation(Annotation::Length {
