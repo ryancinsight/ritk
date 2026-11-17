@@ -184,6 +184,12 @@ impl NativeViewerSession {
                 self.active_app_mut().toggle_cine();
                 Ok(true)
             }
+            WindowAction::ToggleInvert => {
+                let app = self.active_app_mut();
+                app.invert_display = !app.invert_display;
+                app.bump_visual_revision();
+                Ok(true)
+            }
             WindowAction::ApplyWindowPreset { index } => {
                 match self.active_app_mut().apply_browser_window_preset(index) {
                     Ok(changed) => Ok(changed),

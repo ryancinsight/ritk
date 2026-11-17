@@ -161,6 +161,7 @@ fn repeated_slice_updates_reuse_rgba_capacity() {
             0,
             window_level,
             NamedColorMap::Grayscale,
+            false,
             &mut scratch,
         )
         .expect("first reusable frame");
@@ -176,6 +177,7 @@ fn repeated_slice_updates_reuse_rgba_capacity() {
             0,
             window_level,
             NamedColorMap::Grayscale,
+            false,
             &mut scratch,
         )
         .expect("second reusable frame");
@@ -190,6 +192,7 @@ fn repeated_slice_updates_reuse_rgba_capacity() {
             0,
             window_level,
             NamedColorMap::Grayscale,
+            false,
             &mut scratch,
         )
         .expect("third reusable frame");

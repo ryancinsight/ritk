@@ -138,7 +138,7 @@ impl SliceRenderer {
         colormap: NamedColorMap,
     ) -> RgbaImage {
         let mut scratch = FrameRenderScratch::default();
-        let size = Self::render_rgba_into(&mut scratch, volume, axis, index, wl, colormap);
+        let size = Self::render_rgba_into(&mut scratch, volume, axis, index, wl, colormap, false);
         RgbaImage::new(size, scratch.rgba)
     }
 
@@ -148,6 +148,10 @@ impl SliceRenderer {
     /// `scratch.rgba` are valid for exactly that extent. The method preserves
     /// the same invalid-channel and malformed-grayscale sentinel images as
     /// [`Self::render_rgba`], while reusing both extraction and pixel buffers.
+    ///
+    /// When `invert` is set, the presented RGB channels of successfully
+    /// rendered pixels map `c` to `255 - c` (negative display); alpha and all
+    /// sentinel images are left untouched.
     pub(crate) fn render_rgba_into(
         scratch: &mut FrameRenderScratch,
         volume: &LoadedVolume,
@@ -155,6 +159,7 @@ impl SliceRenderer {
         index: usize,
         wl: WindowLevel,
         colormap: NamedColorMap,
+        invert: bool,
     ) -> [usize; 2] {
         if volume.channels == 3 {
             let (width, height) =
@@ -174,6 +179,9 @@ impl SliceRenderer {
             if !write_rgb_rgba(&scratch.pixel_f32, &mut scratch.rgba) {
                 write_invalid_image(&mut scratch.rgba);
                 return [1, 1];
+            }
+            if invert {
+                apply_display_invert(&mut scratch.rgba);
             }
             return [width, height];
         }
@@ -219,6 +227,9 @@ impl SliceRenderer {
             let value = Normalized::from_u8(byte);
             let base = index * 4;
             scratch.rgba[base..base + 4].copy_from_slice(&colormap.sample(value).to_rgba8());
+        }
+        if invert {
+            apply_display_invert(&mut scratch.rgba);
         }
         [width, height]
     }
@@ -292,6 +303,16 @@ impl SliceRenderer {
             rgba[base + 3] = alpha;
         }
         egui::ColorImage::from_rgba_unmultiplied([width, height], &pool.rgba_u8)
+    }
+}
+
+/// Map the RGB channels of row-major RGBA storage to their photographic
+/// negative (`255 - c`), leaving every alpha byte untouched.
+fn apply_display_invert(rgba: &mut [u8]) {
+    for pixel in rgba.chunks_exact_mut(4) {
+        pixel[0] = 255 - pixel[0];
+        pixel[1] = 255 - pixel[1];
+        pixel[2] = 255 - pixel[2];
     }
 }
 

@@ -95,7 +95,15 @@ fn render_view_into(
     let (index, _) = app.axis_slice_info(axis);
     let window_level = window_level_for_app(app);
     view.frame
-        .render_slice_into(volume, axis, index, window_level, app.colormap, scratch)
+        .render_slice_into(
+            volume,
+            axis,
+            index,
+            window_level,
+            app.colormap,
+            app.invert_display,
+            scratch,
+        )
         .context("render RITK slice into a bounded presentation frame")?;
     let transform = app.view_transform;
     let display_spacing = transformed_display_spacing(view.frame.display_spacing(), transform);

@@ -77,6 +77,7 @@ pub(super) enum WindowAction {
     ApplyWindowPreset {
         index: usize,
     },
+    ToggleInvert,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

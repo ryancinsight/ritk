@@ -9,7 +9,7 @@ use super::layout::ChromeLayout;
 use super::multi_series::DialogAction;
 use super::slice_drag::SliceDrag;
 use super::{PanelCloseKind, PointerOwner, WindowAction, WindowChrome, WindowChromeEvent};
-use crate::app::action_adapter::VIRTUAL_KEY_PRESET_KEYS;
+use crate::app::action_adapter::{VIRTUAL_KEY_INVERT_DISPLAY, VIRTUAL_KEY_PRESET_KEYS};
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
 use crate::tools::kind::ToolKind;
@@ -96,11 +96,17 @@ impl WindowChrome {
                 (0x4d, true, false) => Some(WindowAction::ToggleActivePanel),
                 (0x09, _, true) => Some(WindowAction::ActivatePreviousPanel),
                 (0x09, _, false) => Some(WindowAction::ActivateNextPanel),
-                (key, false, false) => VIRTUAL_KEY_PRESET_KEYS
-                    .iter()
-                    .position(|preset_key| *preset_key == key)
-                    .filter(|index| *index < app.browser_window_presets().len())
-                    .map(|index| WindowAction::ApplyWindowPreset { index }),
+                (key, false, false) => {
+                    if key == VIRTUAL_KEY_INVERT_DISPLAY {
+                        Some(WindowAction::ToggleInvert)
+                    } else {
+                        VIRTUAL_KEY_PRESET_KEYS
+                            .iter()
+                            .position(|preset_key| *preset_key == key)
+                            .filter(|index| *index < app.browser_window_presets().len())
+                            .map(|index| WindowAction::ApplyWindowPreset { index })
+                    }
+                }
                 _ => None,
             };
             if let Some(action) = action {

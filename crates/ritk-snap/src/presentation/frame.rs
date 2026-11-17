@@ -84,7 +84,15 @@ impl PresentationFrame {
     ) -> Result<Self> {
         let mut scratch = FrameRenderScratch::default();
         let mut frame = Self::empty();
-        frame.render_slice_into(volume, axis, index, window_level, colormap, &mut scratch)?;
+        frame.render_slice_into(
+            volume,
+            axis,
+            index,
+            window_level,
+            colormap,
+            false,
+            &mut scratch,
+        )?;
         Ok(frame)
     }
 
@@ -113,6 +121,7 @@ impl PresentationFrame {
                 indices[axis],
                 window_level,
                 colormap,
+                false,
                 &mut scratch,
             )?;
         }
@@ -186,11 +195,19 @@ impl PresentationFrame {
         index: usize,
         window_level: WindowLevel,
         colormap: NamedColorMap,
+        invert: bool,
         scratch: &mut FrameRenderScratch,
     ) -> Result<()> {
         let display_spacing = slice_display_spacing(volume.spacing, axis)?;
-        let [width, height] =
-            SliceRenderer::render_rgba_into(scratch, volume, axis, index, window_level, colormap);
+        let [width, height] = SliceRenderer::render_rgba_into(
+            scratch,
+            volume,
+            axis,
+            index,
+            window_level,
+            colormap,
+            invert,
+        );
         let width = u32::try_from(width).map_err(|_| anyhow!("frame width exceeds u32"))?;
         let height = u32::try_from(height).map_err(|_| anyhow!("frame height exceeds u32"))?;
         self.replace_rgba_storage(width, height, display_spacing, &mut scratch.rgba)

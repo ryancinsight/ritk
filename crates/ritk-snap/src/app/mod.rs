@@ -69,6 +69,7 @@ mod screen_image_geometry;
 mod shortcuts;
 mod slice_ops;
 pub(crate) mod state;
+mod state_default;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod surface_export;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]

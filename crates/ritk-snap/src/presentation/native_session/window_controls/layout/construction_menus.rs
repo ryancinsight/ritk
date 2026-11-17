@@ -76,7 +76,7 @@ pub(super) fn menu_item_count(
                 + POINTER_BUTTON_ROWS.len()
         }
         Menu::Window => 6,
-        Menu::Display => app.browser_window_presets().len(),
+        Menu::Display => app.browser_window_presets().len().saturating_add(1),
         Menu::GridPicker => 0,
     }
 }
@@ -211,14 +211,21 @@ pub(super) fn menu_item(
         },
         Menu::Display => {
             let presets = app.browser_window_presets();
-            let preset = presets
-                .get(index)
-                .ok_or_else(|| anyhow!("native Display menu row is outside its preset table"))?;
-            Ok((
-                preset.name,
-                WindowAction::ApplyWindowPreset { index },
-                app.browser_window_preset_index() == Some(index),
-            ))
+            if let Some(preset) = presets.get(index) {
+                return Ok((
+                    preset.name,
+                    WindowAction::ApplyWindowPreset { index },
+                    app.browser_window_preset_index() == Some(index),
+                ));
+            }
+            if index == presets.len() {
+                return Ok((
+                    "Invert display  I",
+                    WindowAction::ToggleInvert,
+                    app.invert_display,
+                ));
+            }
+            Err(anyhow!("native Display menu row is outside its items"))
         }
         Menu::GridPicker => Err(anyhow!("panel grid picker has no menu rows")),
     }
