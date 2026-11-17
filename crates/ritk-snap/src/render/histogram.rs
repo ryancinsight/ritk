@@ -26,6 +26,8 @@
 //! without pre-filtering; a typical 256-bin histogram over a CT volume runs
 //! in < 20 ms on a single core.
 
+use eunomia::FloatElement;
+
 // ── Histogram ──────────────────────────────────────────────────────────────────
 
 /// Output of [`compute_histogram`]: per-bin voxel counts plus the input range.
@@ -173,13 +175,21 @@ pub fn histogram_bin_center(h: &Histogram, bin: usize) -> f32 {
 ///
 /// Uses `f64` internally to avoid significant rounding errors for large
 /// counts (up to ~2³² per bin).
+///
+/// `usize::try_from` is std's exact count conversion; bin counts derive from
+/// in-memory voxel slices so they fit the address space. `from_count` is
+/// exact below 2⁵³ with nearest rounding above, and `from_f64` narrows the
+/// finite unit-range ratio exactly as the cast did.
 #[inline]
 pub fn bar_height_log(count: u64, peak: u64, available_height: f32) -> f32 {
     if peak == 0 || count == 0 {
         return 0.0;
     }
-    let ratio = ((count as f64 + 1.0).ln()) / ((peak as f64 + 1.0).ln());
-    (ratio * available_height as f64) as f32
+    let count_f =
+        f64::from_count(usize::try_from(count).expect("bin count fits the address space"));
+    let peak_f = f64::from_count(usize::try_from(peak).expect("bin count fits the address space"));
+    let ratio = (count_f + 1.0).ln() / (peak_f + 1.0).ln();
+    f32::from_f64(ratio * f64::from(available_height))
 }
 
 // ── wl_to_x ──────────────────────────────────────────────────────────────────

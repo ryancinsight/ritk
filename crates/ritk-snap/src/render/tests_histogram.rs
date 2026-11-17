@@ -1,4 +1,5 @@
 use super::*;
+use eunomia::FloatElement;
 
 // ── compute_histogram tests ───────────────────────────────────────────────
 
@@ -149,7 +150,7 @@ fn bar_height_log_half_peak_is_strictly_between_zero_and_max() {
         "half-peak height {h} must be in (0, 80)"
     );
     // Analytical: ln(51)/ln(101) × 80.0
-    let expected = (51f64.ln() / 101f64.ln() * 80.0) as f32;
+    let expected = f32::from_f64(51f64.ln() / 101f64.ln() * 80.0);
     assert!(
         (h - expected).abs() < 1e-3,
         "expected {expected:.4}, got {h:.4}"

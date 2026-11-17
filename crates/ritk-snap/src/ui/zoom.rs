@@ -4,6 +4,8 @@
 //! viewport zoom factor. The policy is intentionally pure and side-effect free
 //! so app integration points can be tested independently from UI event wiring.
 
+use eunomia::FloatElement;
+
 /// Minimum permitted viewport zoom multiplier.
 pub const MIN_ZOOM: f32 = 0.05;
 
@@ -86,11 +88,10 @@ pub fn one_to_one_zoom(panel: [u32; 2], frame: [u32; 2], display_spacing: [f64; 
     if !zoom.is_finite() || zoom < f64::from(f32::MIN) || zoom > f64::from(f32::MAX) {
         return None;
     }
-    #[expect(
-        clippy::cast_possible_truncation,
-        reason = "the zoom multiplier is an f32 viewport factor; the finite f64 reciprocal is range-checked against that contract above"
-    )]
-    Some(zoom as f32)
+    // The zoom multiplier is an f32 viewport factor; the finite f64
+    // reciprocal is range-checked against that contract above, so narrowing
+    // matches the cast bit-for-bit.
+    Some(f32::from_f64(zoom))
 }
 
 /// Compute zoom multiplier from a vertical drag delta in screen pixels.

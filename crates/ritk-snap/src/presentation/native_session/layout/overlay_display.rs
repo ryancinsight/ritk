@@ -7,6 +7,7 @@
 //! viewport geometry as the measurement overlays.
 
 use anyhow::{anyhow, Result};
+use eunomia::FloatElement;
 use iris::color::{ColorMap, Normalized};
 use metis_platform::rasterizer::CornerRadius;
 use metis_platform::{Color, Rect};
@@ -34,15 +35,10 @@ const COLORBAR_SEGMENTS: u8 = 64;
 
 /// Panel pixel coordinate as an `f32` canvas bound.
 ///
-/// Native panel extents stay far below 2²⁴, where the conversion is exact;
-/// the annotation documents the contract instead of hiding the cast.
+/// `i64::from` is lossless and `from_integer` is exact below 2²⁴; native
+/// panel extents stay far below that bound.
 pub(crate) fn canvas_coord(value: i32) -> f32 {
-    #[expect(
-        clippy::cast_precision_loss,
-        reason = "panel coordinates below 2^24 convert to f32 exactly"
-    )]
-    let bound = value as f32;
-    bound
+    f32::from_integer(i64::from(value))
 }
 
 const HISTOGRAM_BACKGROUND: Color = Color::rgba(20, 20, 20, 255);
