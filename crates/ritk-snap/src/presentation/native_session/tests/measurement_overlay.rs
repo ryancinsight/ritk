@@ -402,8 +402,11 @@ fn native_calibration_uses_the_selected_reference_on_one_image() {
         .expect("enter the known calibration distance");
     assert!(matches!(session.app.annotations.as_slice(), [
             Annotation::Length { length_mm: reference, .. },
-            Annotation::Length { length_mm: existing, .. }
-        ] if *reference == 8.0 && (*existing - 16.0).abs() <= f32::EPSILON * 16.0));
+            Annotation::Length { length_mm: existing, .. },
+            Annotation::Length { length_mm: other, .. }
+        ] if *reference == 8.0
+            && (*existing - 16.0).abs() <= f32::EPSILON * 16.0
+            && (*other - raw).abs() <= f32::EPSILON * raw));
     let corrected = session
         .app
         .measured_length(p1, p2)

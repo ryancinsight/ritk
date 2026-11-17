@@ -179,4 +179,26 @@ mod tests {
             super::DialogAction::Confirm(7.5)
         );
     }
+
+    #[test]
+    fn empty_and_zero_distance_are_rejected() {
+        let mut dialog = CalibrationDialog::new();
+        assert_eq!(
+            dialog.handle_event(&PresentationEvent::KeyDown {
+                virtual_key: 0x0d,
+                repeated: false,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
+            }),
+            super::DialogAction::None
+        );
+        dialog.handle_event(&PresentationEvent::TextInput { character: '0' });
+        assert_eq!(
+            dialog.handle_event(&PresentationEvent::KeyDown {
+                virtual_key: 0x0d,
+                repeated: false,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
+            }),
+            super::DialogAction::None
+        );
+    }
 }
