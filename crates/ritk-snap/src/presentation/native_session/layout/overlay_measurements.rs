@@ -10,7 +10,7 @@ use super::text::{text_command, text_style, PANEL_DETAIL_SIZE};
 use super::OverlayCommands;
 use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
-use crate::tools::interaction::{Annotation, AnnotationLocation};
+use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
 
 pub(crate) const MEASUREMENT_COLOR: Color = Color::rgba(255, 255, 0, 255);
 const ROI_COLOR: Color = Color::rgba(0, 255, 0, 255);
@@ -50,6 +50,52 @@ pub(crate) fn append_measurement_overlay(
     Ok(())
 }
 
+pub(crate) fn append_measurement_preview(
+    overlay: &mut OverlayCommands,
+    view: &RenderedView,
+    viewport: &NativeViewport,
+    tool_state: &ToolState,
+    location: Option<AnnotationLocation>,
+) -> Result<()> {
+    if location.is_some_and(|source| {
+        source
+            != AnnotationLocation {
+                plane: view.axis,
+                slice: view.slice_index,
+            }
+    }) {
+        return Ok(());
+    }
+    let output_size = view.transform.output_size(view.source_size);
+    if output_size.contains(&0) {
+        return Ok(());
+    }
+    let pane = Pane {
+        view,
+        viewport,
+        output_width: f64::from(u32::try_from(output_size[0])?),
+        output_height: f64::from(u32::try_from(output_size[1])?),
+    };
+    match tool_state {
+        ToolState::CobbDrag {
+            first: Some(first),
+            start,
+            current,
+        } => {
+            pane.draw_preview_segment(overlay, *first)?;
+            pane.draw_preview_segment(overlay, [*start, *current])?;
+        }
+        ToolState::CobbDrag { start, current, .. } => {
+            pane.draw_preview_segment(overlay, [*start, *current])?;
+        }
+        ToolState::CobbPending { segment } => {
+            pane.draw_preview_segment(overlay, *segment)?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 fn annotation_visible(annotation: &Annotation, plane: usize, slice: usize) -> bool {
     if let Some(AnnotationLocation {
         plane: recorded,
@@ -73,6 +119,19 @@ struct Pane<'a> {
 }
 
 impl Pane<'_> {
+    fn draw_preview_segment(
+        &self,
+        overlay: &mut OverlayCommands,
+        segment: [ImagePoint; 2],
+    ) -> Result<()> {
+        self.line(
+            overlay,
+            [f64::from(segment[0].x()), f64::from(segment[0].y())],
+            [f64::from(segment[1].x()), f64::from(segment[1].y())],
+            MEASUREMENT_COLOR,
+        )
+    }
+
     fn point(&self, image: [f64; 2]) -> Result<(i32, i32)> {
         let output = self
             .view

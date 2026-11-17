@@ -79,7 +79,7 @@ impl SnapApp {
             },
             _ => return,
         };
-        if self.tool_state.is_pending_measurement() {
+        if self.tool_state.is_pending_measurement() && tool != ToolKind::MeasureCobb {
             self.pointer.suspended_measurement = Some(self.tool_state.clone());
         }
         self.pointer.drag_measurement_location = matches!(
@@ -171,6 +171,9 @@ impl SnapApp {
 
     pub(crate) fn on_drag_end(&mut self, pos: Option<ImagePoint>) {
         let recorded = self.pointer.drag_measurement_location.take();
+        if pos.is_none() && matches!(self.tool_state, ToolState::CobbDrag { .. }) {
+            self.pointer.pending_measurement_location = None;
+        }
         if pos.is_some() && recorded.is_none_or(|location| location == self.annotation_location()) {
             // Only a measurement takes its release as a final point. The
             // viewport mapping a display gesture's release already includes

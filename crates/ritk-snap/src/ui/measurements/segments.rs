@@ -63,16 +63,16 @@ pub(super) fn draw_cobb_annotation(
     draw_segment(
         painter,
         [
-            ImagePoint::new(points[0][0], points[0][1]),
-            ImagePoint::new(points[1][0], points[1][1]),
+            ImagePoint::new(points[0][1], points[0][0]),
+            ImagePoint::new(points[1][1], points[1][0]),
         ],
         project,
     );
     draw_segment(
         painter,
         [
-            ImagePoint::new(points[2][0], points[2][1]),
-            ImagePoint::new(points[3][0], points[3][1]),
+            ImagePoint::new(points[2][1], points[2][0]),
+            ImagePoint::new(points[3][1], points[3][0]),
         ],
         project,
     );

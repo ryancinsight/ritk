@@ -38,6 +38,14 @@ fn cobb_angle_rejects_degenerate_and_nonfinite_segments() {
 }
 
 #[test]
+fn cobb_angle_uses_anisotropic_spacing_for_nonorthogonal_segments() {
+    let angle =
+        Annotation::compute_cobb_angle([0.0, 0.0], [3.0, 4.0], [0.0, 0.0], [4.0, -3.0], [2.0, 1.0])
+            .expect("finite nonorthogonal Cobb angle");
+    assert!((angle - 54.246).abs() < 0.1, "angle={angle}");
+}
+
+#[test]
 fn closed_polygon_area_and_perimeter_scale_with_spacing() {
     let square = [[0.0, 0.0], [0.0, 2.0], [2.0, 2.0], [2.0, 0.0]];
     assert_eq!(Annotation::compute_polygon_area(&square, [2.0, 3.0]), 24.0);
