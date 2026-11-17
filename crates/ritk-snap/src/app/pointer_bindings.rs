@@ -6,7 +6,7 @@
 //! tools so a reader can adjust the display without leaving a measurement.
 
 use crate::presentation::PointerButton;
-use crate::tools::interaction::{AnnotationLocation, ImagePoint, ToolState};
+use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(any(windows, test))]
 use thiserror::Error;
@@ -106,6 +106,31 @@ pub(crate) struct PointerGestureOwner {
     pub(crate) modified: bool,
 }
 
+/// An uncommitted polygon edit owned by one panel's pointer capture.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum PendingPolygonEdit {
+    /// A node move preview.
+    Move {
+        annotation_index: usize,
+        source_location: AnnotationLocation,
+        original: Annotation,
+        node_index: usize,
+        candidate: Annotation,
+        start: ImagePoint,
+        current: ImagePoint,
+    },
+    /// A node insertion preview.
+    Insert {
+        annotation_index: usize,
+        source_location: AnnotationLocation,
+        original: Annotation,
+        segment_index: usize,
+        candidate: Annotation,
+        start: ImagePoint,
+        current: ImagePoint,
+    },
+}
+
 /// Pointer state of one viewer panel.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct PointerGestures {
@@ -123,6 +148,8 @@ pub(crate) struct PointerGestures {
     pub(crate) selected_annotation: Option<usize>,
     /// Selected annotation and last image-space point during a native move.
     pub(crate) moving_annotation: Option<(usize, ImagePoint)>,
+    /// Polygon edit preview, committed only by its matching release.
+    pub(crate) pending_polygon_edit: Option<PendingPolygonEdit>,
 }
 
 impl PointerGestures {
@@ -139,5 +166,6 @@ impl PointerGestures {
         self.annotation_pixel_size = None;
         self.selected_annotation = None;
         self.moving_annotation = None;
+        self.pending_polygon_edit = None;
     }
 }

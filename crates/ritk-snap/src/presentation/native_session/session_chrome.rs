@@ -31,11 +31,23 @@ impl NativeViewerSession {
                 continue;
             }
             let mut overlay = OverlayCommands::with_capacity(app.annotations.len())?;
+            let location = crate::tools::interaction::AnnotationLocation {
+                plane: view.axis,
+                slice: view.slice_index,
+            };
+            let annotations = app
+                .annotations
+                .iter()
+                .enumerate()
+                .map(|(index, annotation)| {
+                    app.polygon_edit_preview(index, location)
+                        .unwrap_or(annotation)
+                });
             append_measurement_overlay(
                 &mut overlay,
                 std::slice::from_ref(view),
                 std::slice::from_ref(viewport),
-                &app.annotations,
+                annotations,
                 volume_affine(app),
             )?;
             append_measurement_preview(&mut overlay, view, viewport, app)?;

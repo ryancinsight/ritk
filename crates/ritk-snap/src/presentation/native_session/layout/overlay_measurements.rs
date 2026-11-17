@@ -25,18 +25,18 @@ const LENGTH_LABEL_OFFSET: f64 = 10.0;
 const ELLIPSE_SEGMENTS: u16 = 64;
 
 /// Draws every completed annotation that belongs to the displayed plane.
-pub(crate) fn append_measurement_overlay(
+pub(crate) fn append_measurement_overlay<'annotation>(
     overlay: &mut OverlayCommands,
     views: &[RenderedView],
     viewports: &[NativeViewport],
-    annotations: &[Annotation],
+    annotations: impl IntoIterator<Item = &'annotation Annotation> + Clone,
     affine: Option<AffineTransform>,
 ) -> Result<()> {
     for (view, viewport) in views.iter().zip(viewports.iter()) {
         let Some(pane) = Pane::new(view, viewport)? else {
             continue;
         };
-        for annotation in annotations {
+        for annotation in annotations.clone() {
             if !annotation.visible_on_image(AnnotationLocation {
                 plane: view.axis,
                 slice: view.slice_index,

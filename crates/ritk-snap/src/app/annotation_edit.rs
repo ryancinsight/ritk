@@ -5,6 +5,9 @@ use crate::tools::interaction::{Annotation, ImagePoint};
 use crate::ui::{image_point_to_voxel, intensity_at_voxel};
 use metis_ui_lang::{polyline_distance, PathTopology};
 
+mod polygon;
+mod polygon_transaction;
+
 impl SnapApp {
     #[cfg(windows)]
     pub(crate) fn has_selected_length(&self) -> bool {
@@ -28,6 +31,8 @@ impl SnapApp {
         if !annotation.visible_on_image(self.annotation_location()) {
             return false;
         }
+        self.pointer.pending_polygon_edit = None;
+        self.on_drag_end(None);
         self.annotations.remove(index);
         self.pointer.selected_annotation = None;
         true
@@ -37,6 +42,8 @@ impl SnapApp {
     #[cfg(windows)]
     pub(crate) fn delete_annotations_on_current_image(&mut self) -> usize {
         let location = self.annotation_location();
+        self.pointer.pending_polygon_edit = None;
+        self.on_drag_end(None);
         let before = self.annotations.len();
         self.annotations
             .retain(|annotation| !annotation.visible_on_image(location));

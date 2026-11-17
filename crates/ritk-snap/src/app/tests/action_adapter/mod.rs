@@ -13,6 +13,7 @@ mod lifecycle;
 mod modifier_gesture;
 mod paths;
 mod pointer_bindings;
+mod polygon_edit;
 mod wheel;
 
 fn viewport(source_size: [usize; 2]) -> ViewerViewport {

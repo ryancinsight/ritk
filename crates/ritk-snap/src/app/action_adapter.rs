@@ -150,6 +150,7 @@ impl SnapApp {
             ViewerAction::FocusChanged { focused: false } => {
                 self.on_drag_end(None);
                 self.pointer.moving_annotation = None;
+                self.pointer.pending_polygon_edit = None;
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::FocusChanged { focused: true } => {
@@ -180,6 +181,9 @@ impl SnapApp {
                 position,
                 modifiers,
             } => {
+                if self.abandon_polygon_edit_if_source_changed() {
+                    return Ok(ViewerActionDisposition::Continue { repaint: true });
+                }
                 if self.pointer.owner.is_some() {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 }
@@ -191,12 +195,23 @@ impl SnapApp {
                 };
                 let pixel_size = viewport.source_pixel_size();
                 self.pointer.annotation_pixel_size = Some(pixel_size);
+                let selected_before = self.pointer.selected_annotation;
                 if *button == PointerButton::Left
                     && !modifiers.ctrl()
                     && !modifiers.shift()
                     && !self.tool_state.is_pending_measurement()
                     && self.select_annotation_at(image, pixel_size)
                 {
+                    if selected_before == self.pointer.selected_annotation
+                        && self.begin_polygon_edit(image, pixel_size)
+                    {
+                        self.pointer.owner = Some(PointerGestureOwner {
+                            button: *button,
+                            tool: self.active_tool,
+                            modified: false,
+                        });
+                        return Ok(ViewerActionDisposition::Continue { repaint: true });
+                    }
                     if self.begin_annotation_move(image) {
                         self.pointer.owner = Some(PointerGestureOwner {
                             button: *button,
@@ -247,6 +262,9 @@ impl SnapApp {
                 current,
                 ..
             } => {
+                if self.abandon_polygon_edit_if_source_changed() {
+                    return Ok(ViewerActionDisposition::Continue { repaint: true });
+                }
                 let Some(owner) = self.pointer.owner.filter(|owner| owner.button == *button) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
@@ -254,8 +272,18 @@ impl SnapApp {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
                 let Some(image) = viewport.map(*current) else {
-                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                    let cancelled = self.pointer.pending_polygon_edit.take().is_some();
+                    if cancelled {
+                        self.on_drag_end(None);
+                    }
+                    return Ok(ViewerActionDisposition::Continue { repaint: cancelled });
                 };
+                if self.pointer.pending_polygon_edit.is_some() {
+                    if !self.preview_polygon_edit(image) {
+                        self.on_drag_end(None);
+                    }
+                    return Ok(ViewerActionDisposition::Continue { repaint: true });
+                }
                 if self.pointer.moving_annotation.is_some() {
                     return Ok(ViewerActionDisposition::Continue {
                         repaint: self.move_annotation_to(image),
@@ -287,6 +315,21 @@ impl SnapApp {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
                 let mapped = viewport.and_then(|viewport| viewport.map(*position));
+                if let Some(edit) = self.pointer.pending_polygon_edit.as_ref() {
+                    let is_insert = matches!(
+                        edit,
+                        super::pointer_bindings::PendingPolygonEdit::Insert { .. }
+                    );
+                    if (is_insert || *gesture == PointerGesture::Drag)
+                        && let Some(image) = mapped
+                        && self.preview_polygon_edit(image)
+                    {
+                        self.commit_polygon_edit();
+                    }
+                    self.pointer.pending_polygon_edit = None;
+                    self.on_drag_end(None);
+                    return Ok(ViewerActionDisposition::Continue { repaint: true });
+                }
                 if self.pointer.moving_annotation.is_some() {
                     let repaint = *gesture == PointerGesture::Drag
                         && mapped.is_some_and(|image| self.move_annotation_to(image));
@@ -317,6 +360,7 @@ impl SnapApp {
                 }
                 self.on_drag_end(None);
                 self.pointer.moving_annotation = None;
+                self.pointer.pending_polygon_edit = None;
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerWheel {
