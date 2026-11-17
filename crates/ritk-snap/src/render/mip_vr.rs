@@ -169,7 +169,7 @@ pub(crate) fn render_vr_axial_rgba_into(
 }
 
 /// Composite one front-to-back axial volume projection into caller storage.
-#[cfg(any(feature = "eframe-shell", windows))]
+#[cfg(any(feature = "eframe-shell", windows, test))]
 fn render_vr_pixels(
     volume: &LoadedVolume,
     presentation: GrayscalePresentation,
@@ -216,7 +216,7 @@ fn valid_presentation(volume: &LoadedVolume) -> Option<GrayscalePresentation> {
     }
 }
 
-#[cfg(any(feature = "eframe-shell", windows))]
+#[cfg(any(feature = "eframe-shell", windows, test))]
 fn channel_to_byte(value: f32) -> u8 {
     #[expect(
         clippy::cast_possible_truncation,
