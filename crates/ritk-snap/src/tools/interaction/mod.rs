@@ -19,4 +19,4 @@ mod tests;
 
 pub use annotation::{Annotation, AnnotationLocation, MeasurementError, PatientLength};
 pub use point::{ImagePoint, ViewportOffset};
-pub use tool_state::{PathKind, RoiKind, ToolState};
+pub use tool_state::{RoiKind, ToolState};

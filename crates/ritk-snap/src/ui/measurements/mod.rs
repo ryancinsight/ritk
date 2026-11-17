@@ -244,18 +244,20 @@ impl MeasurementLayer {
                     }
                 }
             }
-            ToolState::PathDrag { points, kind, .. } => {
+            ToolState::ArrowDrag { start, current } => {
+                draw_arrow(
+                    painter,
+                    img_to_screen(egui_point(*start)),
+                    img_to_screen(egui_point(*current)),
+                );
+            }
+            ToolState::PencilDrag { capture } => {
+                let points = capture.as_slice();
                 let screen: Vec<Pos2> = points
                     .iter()
                     .map(|point| img_to_screen(egui_point(*point)))
                     .collect();
-                if *kind == crate::tools::interaction::PathKind::Arrow {
-                    if let (Some(tail), Some(head)) = (screen.first(), screen.last()) {
-                        draw_arrow(painter, *tail, *head);
-                    }
-                } else {
-                    draw_polyline(painter, &screen);
-                }
+                draw_polyline(painter, &screen);
             }
             // Panning and window-level drag produce no visual annotation.
             ToolState::Panning { .. }

@@ -6,7 +6,11 @@ use crate::app::SnapApp;
 use crate::presentation::{
     PointerButton, PresentationDispatcher, PresentationEvent, PresentationModifiers,
 };
-use crate::tools::{interaction::ViewportOffset, kind::ToolKind};
+use crate::tools::{
+    interaction::{ImagePoint, ViewportOffset},
+    kind::ToolKind,
+};
+use metis_platform::rasterizer::MAX_STROKE_POINTS;
 
 use super::{apply_app_event, apply_events, viewport};
 
@@ -124,6 +128,44 @@ fn arrow_and_pencil_drags_preserve_exact_image_endpoints() {
             crate::tools::interaction::Annotation::Arrow { .. },
             crate::tools::interaction::Annotation::Pencil { points, .. }
         ] if points.as_slice() == [[6.0, 5.0], [9.0, 8.0], [12.0, 11.0]]
+    ));
+}
+
+#[test]
+fn pencil_drag_cancels_and_reports_the_path_capacity() {
+    let mut app = SnapApp::default();
+    app.on_drag_start(ToolKind::Pencil, Some(ImagePoint::new(0.0, 0.0)));
+
+    for index in 1..MAX_STROKE_POINTS {
+        let coordinate = f32::from(u16::try_from(index).expect("invariant: stroke limit fits u16"));
+        app.on_drag(Some(ImagePoint::new(coordinate, coordinate)));
+    }
+
+    app.on_drag(Some(ImagePoint::new(
+        f32::from(u16::try_from(MAX_STROKE_POINTS).expect("invariant: stroke limit fits u16")),
+        f32::from(u16::try_from(MAX_STROKE_POINTS).expect("invariant: stroke limit fits u16")),
+    )));
+
+    assert!(app.tool_state.is_idle());
+    assert!(app.annotations.is_empty());
+    assert_eq!(app.status_message, "Annotation path sample limit reached");
+}
+
+#[test]
+fn arrow_drag_keeps_sampling_free_after_many_moves() {
+    let mut app = SnapApp::default();
+    app.on_drag_start(ToolKind::Arrow, Some(ImagePoint::new(1.0, 2.0)));
+
+    for index in 3..=8192_u16 {
+        let coordinate = f32::from(index);
+        app.on_drag(Some(ImagePoint::new(coordinate, coordinate)));
+    }
+    app.on_drag_end(Some(ImagePoint::new(8192.0, 8192.0)));
+
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::Arrow { tail, head, .. }]
+            if *tail == [2.0, 1.0] && *head == [8192.0, 8192.0]
     ));
 }
 

@@ -2,7 +2,7 @@ mod measurement;
 
 use super::state::SnapApp;
 use crate::render::NamedColorMap;
-use crate::tools::interaction::{Annotation, ImagePoint, PathKind, RoiKind, ToolState};
+use crate::tools::interaction::{Annotation, ImagePoint, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
@@ -11,6 +11,7 @@ use crate::ui::{
     zoom_from_drag_delta, WINDOW_LEVEL_SENSITIVITY,
 };
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
+use metis_ui_lang::{PathCapture, PathPush};
 
 // ── Pointer / interaction event handlers ───────────────────────────────────
 
@@ -57,15 +58,12 @@ impl SnapApp {
                 start: pos,
                 current: pos,
             },
-            ToolKind::Arrow => ToolState::PathDrag {
+            ToolKind::Arrow => ToolState::ArrowDrag {
                 start: pos,
-                points: vec![pos],
-                kind: PathKind::Arrow,
+                current: pos,
             },
-            ToolKind::Pencil => ToolState::PathDrag {
-                start: pos,
-                points: vec![pos],
-                kind: PathKind::Pencil,
+            ToolKind::Pencil => ToolState::PencilDrag {
+                capture: PathCapture::new(pos),
             },
             _ => return,
         };
@@ -74,7 +72,10 @@ impl SnapApp {
         }
         self.pointer.drag_measurement_location = matches!(
             gesture,
-            ToolState::LengthDrag { .. } | ToolState::RoiDrag { .. } | ToolState::PathDrag { .. }
+            ToolState::LengthDrag { .. }
+                | ToolState::RoiDrag { .. }
+                | ToolState::ArrowDrag { .. }
+                | ToolState::PencilDrag { .. }
         )
         .then(|| self.annotation_location());
         self.tool_state = gesture;
@@ -82,15 +83,20 @@ impl SnapApp {
 
     pub(crate) fn on_drag(&mut self, pos: Option<ImagePoint>) {
         let Some(pos) = pos else { return };
-        if let ToolState::PathDrag { points, kind, .. } = &mut self.tool_state {
-            match kind {
-                PathKind::Arrow if points.len() == 2 => points[1] = pos,
-                PathKind::Arrow | PathKind::Pencil if points.last() != Some(&pos) => {
-                    points.push(pos);
-                }
-                _ => {}
+        match &mut self.tool_state {
+            ToolState::ArrowDrag { current, .. } => {
+                *current = pos;
+                return;
             }
-            return;
+            ToolState::PencilDrag { capture } => {
+                if matches!(capture.push(pos), PathPush::Full) {
+                    self.status_message = "Annotation path sample limit reached".to_owned();
+                    self.pointer.drag_measurement_location = None;
+                    self.finish_gesture();
+                }
+                return;
+            }
+            _ => {}
         }
         match self.tool_state.clone() {
             ToolState::Panning {
@@ -151,9 +157,20 @@ impl SnapApp {
                 self.tool_state,
                 ToolState::RoiDrag { .. }
                     | ToolState::LengthDrag { .. }
-                    | ToolState::PathDrag { .. }
+                    | ToolState::ArrowDrag { .. }
+                    | ToolState::PencilDrag { .. }
             ) {
                 self.on_drag(pos);
+            }
+            if let ToolState::PencilDrag { capture } = &self.tool_state {
+                if let points @ [_, _, ..] = capture.as_slice() {
+                    self.push_annotation(Annotation::Pencil {
+                        location: None,
+                        points: points.iter().map(|point| [point.y(), point.x()]).collect(),
+                    });
+                }
+                self.finish_gesture();
+                return;
             }
             match self.tool_state.clone() {
                 ToolState::RoiDrag {
@@ -173,29 +190,11 @@ impl SnapApp {
                 ToolState::LengthDrag { start, current } if start != current => {
                     self.record_length(start, current);
                 }
-                ToolState::PathDrag {
-                    points,
-                    kind: PathKind::Arrow,
-                    ..
-                } => {
-                    if let [tail, head] = points.as_slice()
-                        && tail != head
-                    {
-                        self.push_annotation(Annotation::Arrow {
-                            location: None,
-                            tail: [tail.y(), tail.x()],
-                            head: [head.y(), head.x()],
-                        });
-                    }
-                }
-                ToolState::PathDrag {
-                    points,
-                    kind: PathKind::Pencil,
-                    ..
-                } if points.len() >= 2 => {
-                    self.push_annotation(Annotation::Pencil {
+                ToolState::ArrowDrag { start, current } if start != current => {
+                    self.push_annotation(Annotation::Arrow {
                         location: None,
-                        points: points.iter().map(|point| [point.y(), point.x()]).collect(),
+                        tail: [start.y(), start.x()],
+                        head: [current.y(), current.x()],
                     });
                 }
                 _ => {}
