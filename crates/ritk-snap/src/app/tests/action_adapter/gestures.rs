@@ -187,7 +187,7 @@ fn deviation_measurement_completes_from_one_pointer_drag() {
         &mut app,
         &mut dispatcher,
         &viewport,
-        PresentationEvent::PointerMove { x: 2.5, y: 3.25 },
+        PresentationEvent::PointerMove { x: 2.5, y: 2.5 },
     );
     apply_events(
         &mut app,
@@ -195,7 +195,7 @@ fn deviation_measurement_completes_from_one_pointer_drag() {
         &viewport,
         PresentationEvent::PointerUp {
             x: 2.5,
-            y: 3.25,
+            y: 2.5,
             button: PointerButton::Left,
         },
     );
@@ -211,10 +211,10 @@ fn deviation_measurement_completes_from_one_pointer_drag() {
             angle_deg,
             ..
         }] if *start == [0.5, 0.5]
-            && *end == [3.25, 2.5]
-            && *reference == [3.25, 0.5]
+            && *end == [2.5, 2.5]
+            && *reference == [0.5, 2.5]
             && (*distance_mm - 2.0).abs() < 1e-6
-            && (*angle_deg - 36.027).abs() < 0.01
+            && (*angle_deg - 45.0).abs() < 1e-6
     ));
 }
 

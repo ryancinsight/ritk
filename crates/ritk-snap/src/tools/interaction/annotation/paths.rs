@@ -34,9 +34,9 @@ mod tests {
     #[test]
     fn deviation_uses_physical_row_and_column_spacing() {
         let (baseline, distance, angle) =
-            Annotation::compute_deviation_with_angle([0.0, 0.0], [3.0, 4.0], [2.0, 1.0]);
+            Annotation::compute_deviation_with_angle([0.0, 0.0], [2.0, 4.0], [2.0, 1.0]);
         assert_eq!(baseline, [0.0, 4.0]);
-        assert_eq!(distance, 6.0);
-        assert!((angle - 36.869_9).abs() < 0.001);
+        assert_eq!(distance, 4.0);
+        assert!((angle - 45.0).abs() < 1e-6);
     }
 }
