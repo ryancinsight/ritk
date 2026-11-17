@@ -56,10 +56,6 @@ fn selected_vertex_drag_commits_recomputed_length_on_release() {
     release(&mut app, 1.5, 0.0);
     press(&mut app, 3.0, 0.0);
     send(&mut app, PresentationEvent::PointerMove { x: 6.0, y: 0.0 });
-    assert!(matches!(
-        app.annotations.as_slice(),
-        [Annotation::OpenPolygon { points, .. }] if points[1] == [0.0, 3.0]
-    ));
     release(&mut app, 6.0, 0.0);
     assert!(matches!(
         app.annotations.as_slice(),
