@@ -111,6 +111,14 @@ impl Annotation {
             .sum()
     }
 
+    /// Return the physical length of all edges, including the closing edge.
+    pub(crate) fn compute_polygon_perimeter(points: &[[f32; 2]], spacing: [f32; 2]) -> f32 {
+        let Some((&first, &last)) = points.first().zip(points.last()) else {
+            return 0.0;
+        };
+        Self::compute_polyline_length(points, spacing) + Self::compute_length(last, first, spacing)
+    }
+
     /// Compute the angle at vertex `p2` between the rays `p2→p1` and `p2→p3`.
     ///
     /// Returns the angle in degrees in the range `[0°, 180°]`.

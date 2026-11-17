@@ -49,7 +49,6 @@ fn grid_measurement_draws_on_its_slice_and_disappears_on_the_adjacent_slice() {
     session.refresh_frame().expect("compose the adjacent slice");
     assert_ne!(session.framebuffer.get_pixel(x, y), measurement_color);
 }
-
 fn draw_lines(commands: &[DisplayCommand]) -> Vec<((i32, i32), (i32, i32))> {
     commands
         .iter()
@@ -97,6 +96,7 @@ fn composed(session: &NativeViewerSession, affine: Option<AffineTransform>) -> V
         &session.viewports,
         &session.app.annotations,
         session.app.pointer.selected_polygon,
+        None,
         affine,
     )
     .expect("compose the measurement overlay");
@@ -159,6 +159,7 @@ fn measurement_length_skips_panes_beside_its_recorded_plane() {
         &viewports,
         &session.app.annotations,
         session.app.pointer.selected_polygon,
+        None,
         None,
     )
     .expect("compose the measurement overlay");

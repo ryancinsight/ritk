@@ -147,6 +147,9 @@ impl SnapApp {
     }
 
     pub(crate) fn on_drag_end(&mut self, pos: Option<ImagePoint>) {
+        if pos.is_none() {
+            self.pointer.pending_polygon_move = None;
+        }
         let recorded = self.pointer.drag_measurement_location.take();
         if pos.is_some() && recorded.is_none_or(|location| location == self.annotation_location()) {
             // Only a measurement takes its release as a final point. The

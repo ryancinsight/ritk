@@ -13,6 +13,7 @@ mod lifecycle;
 mod modifier_gesture;
 mod paths;
 mod pointer_bindings;
+mod polygon_edit;
 mod polygon_selection;
 mod wheel;
 
