@@ -28,6 +28,10 @@ fn cobb_angle_is_invariant_under_scale_and_endpoint_reversal() {
 fn cobb_angle_resolves_anisotropic_directions_and_rejects_overflow() {
     let origin = [0.0, 0.0];
     assert_eq!(
+        Annotation::compute_cobb_angle(origin, origin, origin, [2.0, 0.0], [1.0; 2]),
+        Err(MeasurementError::DegenerateSegment { kind: "Cobb angle" })
+    );
+    assert_eq!(
         Annotation::compute_cobb_angle(origin, [0.0, 2.0], origin, [1.0, 2.0], [2.0, 1.0]),
         Ok(45.0)
     );
