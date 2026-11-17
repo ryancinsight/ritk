@@ -207,8 +207,8 @@ pub(crate) struct SnapApp {
     /// Cached voxel intensity histogram for the loaded volume.
     ///
     /// Computed once when a volume is loaded; `None` when no volume is loaded.
-    /// Used to render the W/L histogram panel in the sidebar.
-    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+    /// Used to render the W/L histogram panel in the sidebar and the native
+    /// window panel overlay.
     pub(crate) cached_histogram: Option<crate::render::histogram::Histogram>,
 
     // ── Series browser ────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ mod crosshair;
 mod geometry;
 mod overlay;
 mod overlay_clinical;
+mod overlay_display;
 mod overlay_measurements;
 mod responsive;
 pub(super) mod text;
@@ -30,6 +31,11 @@ pub(super) use overlay::{
 };
 #[cfg(test)]
 pub(super) use overlay_clinical::scale_bar_for_scale;
+pub(super) use overlay_display::{append_colorbar_overlay, append_histogram_overlay};
+#[cfg(test)]
+pub(super) use overlay_display::{
+    canvas_f32, window_band_x, COLORBAR_WIDTH, HISTOGRAM_STRIP_HEIGHT,
+};
 pub(super) use overlay_measurements::append_measurement_overlay;
 pub(super) use responsive::surface_frames_responsive;
 pub(super) use text::{draw_text, text_style, TextStyle};

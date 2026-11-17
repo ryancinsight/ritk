@@ -100,7 +100,6 @@ impl Default for SnapApp {
             show_series_browser: true,
             pointer_intensity: 0.0,
             pointer_suv: None,
-            #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             cached_histogram: None,
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             series_tree: crate::dicom::series_tree::SeriesTree::new(),

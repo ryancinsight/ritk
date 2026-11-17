@@ -1,7 +1,8 @@
 //! Native chrome composition for the viewer session.
 
 use super::layout::{
-    append_measurement_overlay, crosshair_overlay, OverlayCommands, MAX_GRID_PANELS,
+    append_colorbar_overlay, append_histogram_overlay, append_measurement_overlay,
+    crosshair_overlay, OverlayCommands, MAX_GRID_PANELS,
 };
 use super::session::{volume_affine, NativeViewerSession};
 use anyhow::{anyhow, Result};
@@ -35,6 +36,38 @@ impl NativeViewerSession {
                 &app.annotations,
                 volume_affine(app),
             )?;
+            self.framebuffer
+                .render_clipped(viewport.panel_rect()?, |framebuffer| {
+                    overlay.into_display_list().render_to(framebuffer);
+                });
+        }
+        Ok(())
+    }
+
+    /// Renders the Display menu colorbars (every pane) and the histogram
+    /// window panel (active pane) once a study is loaded.
+    pub(super) fn render_display_overlays(&mut self) -> Result<()> {
+        for (index, viewport) in self.viewports.iter().enumerate() {
+            let app = if self.workspace_layout.is_grid() && index > 0 {
+                &self
+                    .compare_panels
+                    .get(index - 1)
+                    .ok_or_else(|| anyhow!("series panel state is missing"))?
+                    .app
+            } else {
+                &self.app
+            };
+            if app.loaded.is_none() || viewport.panel_width == 0 || viewport.panel_height == 0 {
+                continue;
+            }
+            let mut overlay = OverlayCommands::with_capacity(384)?;
+            let (center, width) = app.browser_window_level_values();
+            append_colorbar_overlay(&mut overlay, viewport, app.colormap, center, width)?;
+            if index == self.active_panel
+                && let Some(histogram) = &app.cached_histogram
+            {
+                append_histogram_overlay(&mut overlay, viewport, histogram, center, width)?;
+            }
             self.framebuffer
                 .render_clipped(viewport.panel_rect()?, |framebuffer| {
                     overlay.into_display_list().render_to(framebuffer);

@@ -14,6 +14,7 @@ mod anonymize;
 mod display;
 mod display_controls;
 mod display_custom_presets;
+mod display_overlays;
 mod interaction;
 mod measurement_overlay;
 mod overlay_text;
