@@ -21,6 +21,7 @@ pub(crate) struct ViewerViewport {
     transform: ViewTransform,
     zoom: f64,
     pan: [f64; 2],
+    polygon_handles: bool,
 }
 
 impl ViewerViewport {
@@ -99,7 +100,19 @@ impl ViewerViewport {
             transform,
             zoom: f64::from(zoom),
             pan: [f64::from(pan.x()), f64::from(pan.y())],
+            polygon_handles: false,
         })
+    }
+
+    /// Enable picking when this host displays the selected polygon's handles.
+    #[cfg(any(windows, test))]
+    pub(crate) const fn with_polygon_handles(mut self) -> Self {
+        self.polygon_handles = true;
+        self
+    }
+
+    pub(crate) const fn shows_polygon_handles(self) -> bool {
+        self.polygon_handles
     }
 
     /// Project a stored [row, column] vertex into host pixels.
