@@ -299,3 +299,32 @@ fn adapter_accumulates_repaint_across_actions_in_one_batch() {
         ViewerActionDisposition::Continue { repaint: true }
     );
 }
+
+#[test]
+fn cobb_angle_does_not_combine_segments_from_different_slices() {
+    use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint};
+
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([4, 4, 3]));
+    app.active_tool = ToolKind::MeasureCobb;
+    let horizontal = [ImagePoint::new(0.5, 0.5), ImagePoint::new(2.5, 0.5)];
+    let vertical = [ImagePoint::new(1.5, 0.5), ImagePoint::new(1.5, 2.5)];
+    app.on_drag_start(ToolKind::MeasureCobb, Some(horizontal[0]));
+    app.on_drag_end(Some(horizontal[1]));
+
+    app.set_slice_for_axis(0, 1);
+    app.on_drag_start(ToolKind::MeasureCobb, Some(vertical[0]));
+    app.on_drag_end(Some(vertical[1]));
+    assert_eq!(app.annotations.as_slice(), &[]);
+
+    app.on_drag_start(ToolKind::MeasureCobb, Some(horizontal[0]));
+    app.on_drag_end(Some(horizontal[1]));
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [Annotation::CobbAngle {
+            angle_deg: 90.0,
+            location: Some(AnnotationLocation { plane: 0, slice: 1 }),
+            ..
+        }]
+    ));
+}

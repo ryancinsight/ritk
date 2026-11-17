@@ -59,7 +59,12 @@ impl SnapApp {
             },
             ToolKind::MeasureCobb => ToolState::CobbDrag {
                 segments: match self.tool_state.clone() {
-                    ToolState::CobbPending { segments } => segments,
+                    ToolState::CobbPending { segments }
+                        if self.pointer.pending_measurement_location
+                            == Some(self.annotation_location()) =>
+                    {
+                        segments
+                    }
                     _ => Vec::new(),
                 },
                 start: pos,
@@ -72,7 +77,7 @@ impl SnapApp {
         }
         self.pointer.drag_measurement_location = matches!(
             gesture,
-            ToolState::LengthDrag { .. } | ToolState::RoiDrag { .. }
+            ToolState::LengthDrag { .. } | ToolState::RoiDrag { .. } | ToolState::CobbDrag { .. }
         )
         .then(|| self.annotation_location());
         self.tool_state = gesture;
@@ -205,9 +210,12 @@ impl SnapApp {
                             }
                         }
                         self.tool_state = ToolState::Idle;
+                        self.pointer.pending_measurement_location = None;
                     } else {
                         self.tool_state = ToolState::CobbPending { segments };
+                        self.pointer.pending_measurement_location = recorded;
                     }
+                    self.pointer.suspended_measurement = None;
                 }
                 _ => {}
             }
