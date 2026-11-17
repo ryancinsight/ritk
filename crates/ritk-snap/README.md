@@ -115,7 +115,8 @@ Click the track to jump within the stack. Single-slice images and projection
 panes have no slice scrollbar.
 
 Use the Tools menu to draw a length, angle, rectangular or elliptical region,
-or intensity probe. Completed measurements appear on the slice where they
+or intensity probe. Use Arrow to mark a direction and Pencil to trace a
+freehand path. Completed measurements and drawings appear on the slice where they
 were placed, including in comparison views. The clinical overlay toggle
 controls the image readouts separately from measurement marks.
 

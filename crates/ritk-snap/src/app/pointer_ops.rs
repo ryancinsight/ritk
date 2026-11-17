@@ -82,6 +82,16 @@ impl SnapApp {
 
     pub(crate) fn on_drag(&mut self, pos: Option<ImagePoint>) {
         let Some(pos) = pos else { return };
+        if let ToolState::PathDrag { points, kind, .. } = &mut self.tool_state {
+            match kind {
+                PathKind::Arrow if points.len() == 2 => points[1] = pos,
+                PathKind::Arrow | PathKind::Pencil if points.last() != Some(&pos) => {
+                    points.push(pos);
+                }
+                _ => {}
+            }
+            return;
+        }
         match self.tool_state.clone() {
             ToolState::Panning {
                 start,
@@ -127,20 +137,6 @@ impl SnapApp {
                     current: pos,
                 };
             }
-            ToolState::PathDrag {
-                start,
-                mut points,
-                kind,
-            } => {
-                if points.last().is_none_or(|last| *last != pos) {
-                    points.push(pos);
-                }
-                self.tool_state = ToolState::PathDrag {
-                    start,
-                    points,
-                    kind,
-                };
-            }
             _ => {}
         }
     }
@@ -181,12 +177,16 @@ impl SnapApp {
                     points,
                     kind: PathKind::Arrow,
                     ..
-                } if points.len() >= 2 => {
-                    self.push_annotation(Annotation::Arrow {
-                        location: None,
-                        tail: [points[0].y(), points[0].x()],
-                        head: [points[points.len() - 1].y(), points[points.len() - 1].x()],
-                    });
+                } => {
+                    if let [tail, head] = points.as_slice()
+                        && tail != head
+                    {
+                        self.push_annotation(Annotation::Arrow {
+                            location: None,
+                            tail: [tail.y(), tail.x()],
+                            head: [head.y(), head.x()],
+                        });
+                    }
                 }
                 ToolState::PathDrag {
                     points,
