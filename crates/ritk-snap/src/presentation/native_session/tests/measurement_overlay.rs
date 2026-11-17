@@ -418,8 +418,15 @@ fn native_calibration_uses_the_selected_reference_on_one_image() {
         raw
     );
     session.app.set_slice_for_axis(0, slice);
+    session.app.pointer.selected_annotation = None;
+    let reset = WindowAction::ResetCalibration;
+    super::support::control_center(
+        &session,
+        Some(super::super::window_controls::Menu::Tools),
+        reset,
+    );
     session
-        .apply_window_action(WindowAction::ResetCalibration)
+        .apply_window_action(reset)
         .expect("reset calibration");
     assert!(matches!(session.app.annotations.as_slice(), [
         Annotation::Length { length_mm: reference, .. },

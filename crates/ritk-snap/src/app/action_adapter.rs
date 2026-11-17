@@ -101,7 +101,13 @@ impl SnapApp {
     #[cfg(any(target_arch = "wasm32", windows, feature = "eframe-shell"))]
     pub(crate) fn cancel_presentation_gesture(&mut self) {
         self.presentation_dispatcher.cancel_pointers();
+        self.cancel_pointer_gesture();
+    }
+
+    fn cancel_pointer_gesture(&mut self) {
         self.on_drag_end(None);
+        self.pointer.moving_annotation = None;
+        self.pointer.pending_polygon_edit = None;
     }
 
     /// Make `tool` the left-button tool, ending any measurement in progress.
@@ -148,9 +154,7 @@ impl SnapApp {
                 Ok(ViewerActionDisposition::Exit)
             }
             ViewerAction::FocusChanged { focused: false } => {
-                self.on_drag_end(None);
-                self.pointer.moving_annotation = None;
-                self.pointer.pending_polygon_edit = None;
+                self.cancel_pointer_gesture();
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::FocusChanged { focused: true } => {
@@ -358,9 +362,7 @@ impl SnapApp {
                 if !self.owns_gesture(*button) {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 }
-                self.on_drag_end(None);
-                self.pointer.moving_annotation = None;
-                self.pointer.pending_polygon_edit = None;
+                self.cancel_pointer_gesture();
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerWheel {
@@ -406,7 +408,10 @@ impl SnapApp {
     }
 
     fn apply_virtual_key(&mut self, virtual_key: u32, repeated: bool) -> ViewerActionDisposition {
-        if virtual_key == 0x1b && !repeated && !self.tool_state.is_idle() {
+        if virtual_key == 0x1b
+            && !repeated
+            && (!self.tool_state.is_idle() || self.pointer.pending_polygon_edit.is_some())
+        {
             self.tool_state = crate::tools::interaction::ToolState::Idle;
             self.pointer.abandon();
             return ViewerActionDisposition::Continue { repaint: true };

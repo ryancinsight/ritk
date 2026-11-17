@@ -73,7 +73,7 @@ pub(super) fn menu_item_count(
                 .filter(|tool| !(workspace_layout.is_grid() && **tool == ToolKind::Crosshair))
                 .count()
                 + usize::from(app.has_selected_length())
-                + usize::from(app.has_selected_length() && app.has_active_length_calibration())
+                + usize::from(app.has_active_length_calibration())
                 + POINTER_BUTTON_ROWS.len()
         }
         Menu::Window => 6,
@@ -164,16 +164,16 @@ pub(super) fn menu_item(
                     app.active_tool == tool,
                 ));
             }
-            if app.has_selected_length() && index == tool_rows {
+            let selected_length = app.has_selected_length();
+            if selected_length && index == tool_rows {
                 return Ok((
                     "Calibrate selected length...",
                     WindowAction::OpenCalibration,
                     false,
                 ));
             }
-            let selected_length = app.has_selected_length();
-            let calibrated_length = selected_length && app.has_active_length_calibration();
-            if calibrated_length && index == tool_rows + 1 {
+            let calibrated_length = app.has_active_length_calibration();
+            if calibrated_length && index == tool_rows + usize::from(selected_length) {
                 return Ok((
                     "Reset length calibration",
                     WindowAction::ResetCalibration,

@@ -2857,7 +2857,13 @@ the orthogonal layout.
 To calibrate lengths against a known reference, measure the reference and
 select it. Open **Tools → Calibrate selected length…**, enter the known
 distance in millimetres, and press **Enter**. The viewer applies the correction
-to subsequent lengths on that image for the loaded study.
+to existing and subsequent lengths on that image for the loaded study.
+Choose **Tools → Reset length calibration** to restore the DICOM spacing on
+the active image.
+
+To edit a polygon, click it to select it, then drag a vertex to move it or
+click a segment to insert a vertex. Press **Esc** during the gesture to discard
+the preview.
 
 The viewer's **View → Orientation** commands and shortcuts apply the same
 `ViewTransform` to the texture and every source-coordinate overlay:
