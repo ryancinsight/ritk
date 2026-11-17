@@ -27,6 +27,7 @@ pub(crate) fn append_measurement_overlay(
     views: &[RenderedView],
     viewports: &[NativeViewport],
     annotations: &[Annotation],
+    selected_polygon: Option<usize>,
     affine: Option<AffineTransform>,
 ) -> Result<()> {
     for (view, viewport) in views.iter().zip(viewports.iter()) {
@@ -40,11 +41,30 @@ pub(crate) fn append_measurement_overlay(
             output_width: f64::from(u32::try_from(output_size[0])?),
             output_height: f64::from(u32::try_from(output_size[1])?),
         };
-        for annotation in annotations {
+        for (index, annotation) in annotations.iter().enumerate() {
             if !annotation_visible(annotation, view.axis, view.slice_index) {
                 continue;
             }
             pane.draw(annotation, overlay, affine)?;
+            if selected_polygon == Some(index)
+                && let Annotation::OpenPolygon { points, .. }
+                | Annotation::ClosedPolygon { points, .. } = annotation
+            {
+                for point in points {
+                    let (x, y) = pane.point(image_point(*point))?;
+                    let left = x.saturating_sub(2);
+                    let right = x.saturating_add(2);
+                    let top = y.saturating_sub(2);
+                    let bottom = y.saturating_add(2);
+                    for (start, end) in [((left, y), (right, y)), ((x, top), (x, bottom))] {
+                        overlay.push(metis_ui_lang::DisplayCommand::DrawLine {
+                            start,
+                            end,
+                            color: POINT_COLOR,
+                        });
+                    }
+                }
+            }
         }
     }
     Ok(())

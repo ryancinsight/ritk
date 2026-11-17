@@ -284,6 +284,9 @@ impl SnapApp {
                             && let Some(image) = mapped
                         {
                             self.update_linked_cursor_from_pointer(viewport.axis(), Some(image));
+                            if owner.tool == ToolKind::Pan {
+                                self.pick_polygon(*viewport, *position);
+                            }
                         }
                         self.on_click(mapped);
                     }
@@ -360,6 +363,11 @@ impl SnapApp {
                     .filter(|owner| owner.button != PointerButton::Left || owner.modified);
             }
             return ViewerActionDisposition::Continue { repaint: true };
+        }
+        if virtual_key == 0x2e && !repeated {
+            return ViewerActionDisposition::Continue {
+                repaint: self.delete_selected_polygon(),
+            };
         }
         if virtual_key == VIRTUAL_KEY_CROSSHAIR_TOGGLE {
             if repeated || self.loaded.is_none() {

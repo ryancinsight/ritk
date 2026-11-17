@@ -102,6 +102,20 @@ impl ViewerViewport {
         })
     }
 
+    /// Project a stored [row, column] vertex into host pixels.
+    pub(crate) fn project(self, [row, column]: [f32; 2]) -> [f64; 2] {
+        let output = self
+            .transform
+            .source_to_output_coordinates([f64::from(column), f64::from(row)], self.source_size);
+        let center = self
+            .geometry
+            .dimensions()
+            .map(|dimension| f64::from(dimension) / 2.0);
+        self.geometry.project_edge(std::array::from_fn(|axis| {
+            (output[axis] - center[axis]).mul_add(self.zoom, center[axis] + self.pan[axis])
+        }))
+    }
+
     pub(crate) fn map(self, point: ViewportPoint) -> Option<ImagePoint> {
         let output = self.geometry.map_edge(point)?;
         let output_size = self.geometry.dimensions().map(f64::from);

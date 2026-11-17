@@ -3,7 +3,6 @@
 use super::{Annotation, AnnotationLocation, MeasurementError};
 
 impl Annotation {
-    #[cfg(any(windows, all(not(target_arch = "wasm32"), feature = "eframe-shell")))]
     pub(crate) fn location(&self) -> Option<AnnotationLocation> {
         match self {
             Self::Length { location, .. }

@@ -28,6 +28,7 @@ mod browser_semantics;
 mod browser_slice_selection;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_tool;
+mod polygon_selection;
 // Window/level preset tables route browser, eframe and native sessions;
 // the selection logic is host-independent, so the module ships on every
 // target (only the wasm ABI error variants stay gated).
