@@ -23,7 +23,7 @@ fn native_viewport() -> ViewerViewport {
 }
 
 fn send(app: &mut SnapApp, event: PresentationEvent) {
-    apply_app_event(app, &native_viewport(), event);
+    apply_app_event(app, &native_viewport(), event)
 }
 
 fn press(app: &mut SnapApp, x: f64, y: f64) {
@@ -83,7 +83,6 @@ fn selected_vertex_drag_cancellation_modes_preserve_geometry() {
         Escape,
         Pointer,
     }
-
     for cancellation in [Cancellation::Escape, Cancellation::Pointer] {
         let mut app = app_with_polygon();
         begin_vertex_drag(&mut app);
