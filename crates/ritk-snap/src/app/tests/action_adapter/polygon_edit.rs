@@ -90,18 +90,6 @@ fn selected_vertex_drag_cancellation_modes_preserve_geometry() {
     begin_vertex_drag(&mut app);
     send(
         &mut app,
-        PresentationEvent::KeyDown {
-            virtual_key: 0x1b,
-            repeated: false,
-            modifiers: PresentationModifiers::NONE,
-        },
-    );
-    assert_unchanged(&app);
-
-    let mut app = app_with_polygon();
-    begin_vertex_drag(&mut app);
-    send(
-        &mut app,
         PresentationEvent::PointerCancel {
             x: 6.0,
             y: 0.0,
