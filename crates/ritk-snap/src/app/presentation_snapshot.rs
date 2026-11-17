@@ -51,6 +51,9 @@ impl SnapApp {
             Annotation::ClosedPolygon { area_mm2, .. } => {
                 AnnotationSummary::new(AnnotationKind::ClosedPolygon, f64::from(*area_mm2))
             }
+            Annotation::OpenPolygon { length_mm, .. } => {
+                AnnotationSummary::new(AnnotationKind::OpenPolygon, f64::from(*length_mm))
+            }
         });
         PresentationSnapshot::from_parts(
             self.visual_revision,

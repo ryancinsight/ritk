@@ -2,7 +2,11 @@ use super::{apply_app_event, viewport};
 use crate::app::tests::test_volume;
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
-use crate::tools::{interaction::Annotation, kind::ToolKind};
+use crate::tools::{
+    interaction::{Annotation, ImagePoint},
+    kind::ToolKind,
+};
+use metis_ui_lang::PathCapture;
 
 #[test]
 fn closed_polygon_commits_area_perimeter_and_slice_location() {
@@ -98,9 +102,133 @@ fn pending_polygon_anchor_is_discarded_after_slice_change() {
     assert_eq!(
         app.tool_state,
         crate::tools::interaction::ToolState::Polygon {
-            points: metis_ui_lang::PathCapture::new(crate::tools::interaction::ImagePoint::new(
-                30.0, 10.0,
-            )),
+            points: PathCapture::new(ImagePoint::new(30.0, 10.0)),
+            kind: crate::tools::interaction::PolygonKind::Closed,
+        }
+    );
+}
+
+fn polygon_press(x: f64, y: f64) -> PresentationEvent {
+    PresentationEvent::PointerDown {
+        x,
+        y,
+        button: PointerButton::Left,
+        modifiers: PresentationModifiers::NONE,
+    }
+}
+
+fn polygon_release(x: f64, y: f64) -> PresentationEvent {
+    PresentationEvent::PointerUp {
+        x,
+        y,
+        button: PointerButton::Left,
+    }
+}
+
+#[test]
+fn open_polygon_enter_commits_physical_length_and_consumes_release() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([1, 64, 64]));
+    app.select_tool(ToolKind::RoiOpenPolygon);
+    let viewport = viewport([64, 64]);
+    for event in [
+        polygon_press(10.0, 10.0),
+        polygon_release(10.0, 10.0),
+        polygon_press(13.0, 14.0),
+        polygon_release(13.0, 14.0),
+        PresentationEvent::KeyDown {
+            virtual_key: 0x0d,
+            repeated: true,
+            modifiers: PresentationModifiers::NONE,
+        },
+    ] {
+        apply_app_event(&mut app, &viewport, event);
+    }
+    assert_eq!(app.annotations.as_slice(), &[]);
+    for event in [
+        polygon_press(30.0, 30.0),
+        PresentationEvent::KeyDown {
+            virtual_key: 0x0d,
+            repeated: false,
+            modifiers: PresentationModifiers::NONE,
+        },
+        polygon_release(30.0, 30.0),
+    ] {
+        apply_app_event(&mut app, &viewport, event);
+    }
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [Annotation::OpenPolygon {
+            points,
+            length_mm,
+            location: Some(location),
+        }] if points == &[[10.0, 10.0], [14.0, 13.0]]
+            && *length_mm == 5.0
+            && *location == crate::tools::interaction::AnnotationLocation { plane: 0, slice: 0 }
+    ));
+    assert_eq!(app.tool_state, crate::tools::interaction::ToolState::Idle);
+}
+
+#[test]
+fn escape_cancels_open_polygon_without_annotation() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([1, 64, 64]));
+    app.select_tool(ToolKind::RoiOpenPolygon);
+    let viewport = viewport([64, 64]);
+    for event in [
+        polygon_press(10.0, 10.0),
+        polygon_release(10.0, 10.0),
+        polygon_press(20.0, 20.0),
+    ] {
+        apply_app_event(&mut app, &viewport, event);
+    }
+    assert_eq!(
+        app.tool_state,
+        crate::tools::interaction::ToolState::Polygon {
+            points: PathCapture::new(ImagePoint::new(10.0, 10.0)),
+            kind: crate::tools::interaction::PolygonKind::Open,
+        }
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::KeyDown {
+            virtual_key: 0x1b,
+            repeated: false,
+            modifiers: PresentationModifiers::NONE,
+        },
+    );
+    apply_app_event(&mut app, &viewport, polygon_release(20.0, 20.0));
+    assert_eq!(app.annotations.as_slice(), &[]);
+    assert_eq!(app.tool_state, crate::tools::interaction::ToolState::Idle);
+}
+
+#[test]
+fn open_polygon_anchor_is_discarded_after_slice_change() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([2, 64, 64]));
+    app.select_tool(ToolKind::RoiOpenPolygon);
+    let viewport = viewport([64, 64]);
+    apply_app_event(&mut app, &viewport, polygon_press(10.0, 10.0));
+    apply_app_event(&mut app, &viewport, polygon_release(10.0, 10.0));
+    app.viewer_state.slice_index = 1;
+    apply_app_event(&mut app, &viewport, polygon_press(30.0, 10.0));
+    apply_app_event(&mut app, &viewport, polygon_release(30.0, 10.0));
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::KeyDown {
+            virtual_key: 0x0d,
+            repeated: false,
+            modifiers: PresentationModifiers::NONE,
+        },
+    );
+    assert_eq!(app.annotations.as_slice(), &[]);
+    assert_eq!(
+        app.tool_state,
+        crate::tools::interaction::ToolState::Polygon {
+            points: PathCapture::new(ImagePoint::new(30.0, 10.0)),
+            kind: crate::tools::interaction::PolygonKind::Open,
         }
     );
 }
