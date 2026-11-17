@@ -255,6 +255,26 @@ impl MeasurementLayer {
                     }
                 }
             }
+            ToolState::Polygon { points } => {
+                let mut vertices = points
+                    .as_slice()
+                    .iter()
+                    .map(|point| img_to_screen(egui_point(*point)));
+                if let Some(first) = vertices.next() {
+                    let stroke = Stroke::new(LINE_WIDTH, COLOR_ROI);
+                    let mut last = first;
+                    for vertex in vertices {
+                        painter.line_segment([last, vertex], stroke);
+                        last = vertex;
+                    }
+                    if points.as_slice().len() >= 3 {
+                        painter.line_segment([last, first], stroke);
+                    }
+                    if let Some(cursor) = cursor_screen {
+                        painter.line_segment([last, cursor], stroke);
+                    }
+                }
+            }
             // Panning and window-level drag produce no visual annotation.
             ToolState::Panning { .. }
             | ToolState::Zooming { .. }
