@@ -28,6 +28,7 @@ pub(crate) fn append_measurement_overlay(
     viewports: &[NativeViewport],
     annotations: &[Annotation],
     selected_polygon: Option<usize>,
+    pending_polygon: Option<&Annotation>,
     affine: Option<AffineTransform>,
 ) -> Result<()> {
     for (view, viewport) in views.iter().zip(viewports.iter()) {
@@ -45,6 +46,9 @@ pub(crate) fn append_measurement_overlay(
             if !annotation_visible(annotation, view.axis, view.slice_index) {
                 continue;
             }
+            let annotation = pending_polygon
+                .filter(|candidate| selected_polygon == Some(index))
+                .unwrap_or(annotation);
             pane.draw(annotation, overlay, affine)?;
             if selected_polygon == Some(index)
                 && let Annotation::OpenPolygon { points, .. }

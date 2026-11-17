@@ -35,6 +35,10 @@ impl NativeViewerSession {
                 std::slice::from_ref(viewport),
                 &app.annotations,
                 app.pointer.selected_polygon,
+                app.pointer
+                    .pending_polygon_move
+                    .as_ref()
+                    .map(|pending| &pending.candidate),
                 volume_affine(app),
             )?;
             self.framebuffer

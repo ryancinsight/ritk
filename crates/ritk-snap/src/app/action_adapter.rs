@@ -174,6 +174,7 @@ impl SnapApp {
             }
             ViewerAction::FocusChanged { focused: false } => {
                 self.on_drag_end(None);
+                self.pointer.pending_polygon_move = None;
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::FocusChanged { focused: true } => {
@@ -204,6 +205,19 @@ impl SnapApp {
                 let Some(image) = viewport.map(*position) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
+                if *button == PointerButton::Left
+                    && !modifiers.ctrl()
+                    && !modifiers.shift()
+                    && self.begin_polygon_vertex_move(*viewport, *position, image)
+                {
+                    self.pointer.owner = Some(PointerGestureOwner {
+                        button: *button,
+                        tool: self.active_tool,
+                        modified: false,
+                        selects_polygon: false,
+                    });
+                    return Ok(ViewerActionDisposition::Continue { repaint: true });
+                }
                 // A modified left press runs a display gesture without leaving
                 // the selected tool: Control adjusts window/level and Shift
                 // pans, matching the RadiAnt 2D modifier table. Control wins
@@ -256,6 +270,10 @@ impl SnapApp {
                 let Some(image) = viewport.map(*current) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
+                if self.pointer.pending_polygon_move.is_some() {
+                    let repaint = self.preview_polygon_vertex_move(image);
+                    return Ok(ViewerActionDisposition::Continue { repaint });
+                }
                 if is_label_tool(owner.tool) {
                     self.apply_label_at_pointer(viewport.axis(), Some(image));
                 }
@@ -279,6 +297,16 @@ impl SnapApp {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
                 let mapped = viewport.and_then(|viewport| viewport.map(*position));
+                if self.pointer.pending_polygon_move.is_some() {
+                    let committed = *gesture == PointerGesture::Drag
+                        && mapped.is_some_and(|image| {
+                            self.preview_polygon_vertex_move(image)
+                                && self.commit_polygon_vertex_move()
+                        });
+                    self.pointer.pending_polygon_move = None;
+                    self.pointer.owner = None;
+                    return Ok(ViewerActionDisposition::Continue { repaint: committed });
+                }
                 if *gesture == PointerGesture::Click {
                     // A modified left release ends a display gesture: it never
                     // runs the selected tool's click path.
@@ -304,6 +332,7 @@ impl SnapApp {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 }
                 self.on_drag_end(None);
+                self.pointer.pending_polygon_move = None;
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerWheel {
@@ -329,6 +358,8 @@ impl SnapApp {
                     self.status_message = format!("Zoom: {:.0}%", self.zoom * 100.0);
                     Ok(ViewerActionDisposition::Continue { repaint: true })
                 } else {
+                    self.pointer.pending_polygon_move = None;
+                    self.pointer.owner = None;
                     let step = if delta.y() > 0.0 { -1_i32 } else { 1 };
                     self.step_slice_for_axis(viewport.axis(), step);
                     Ok(ViewerActionDisposition::Continue { repaint: true })
@@ -349,6 +380,11 @@ impl SnapApp {
     }
 
     fn apply_virtual_key(&mut self, virtual_key: u32, repeated: bool) -> ViewerActionDisposition {
+        if virtual_key == 0x1b && !repeated && self.pointer.pending_polygon_move.is_some() {
+            self.pointer.pending_polygon_move = None;
+            self.pointer.owner = None;
+            return ViewerActionDisposition::Continue { repaint: true };
+        }
         if virtual_key == 0x1b
             && !repeated
             && (self.tool_state.is_pending_measurement()
