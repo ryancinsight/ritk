@@ -2,6 +2,7 @@
 
 use super::super::kind::ToolKind;
 use super::{ImagePoint, ViewportOffset};
+use metis_ui_lang::PathCapture;
 
 // ── In-progress tool state ────────────────────────────────────────────────────
 
@@ -74,6 +75,8 @@ pub enum ToolState {
         /// Whether the ROI is rectangular or elliptical.
         kind: RoiKind,
     },
+    /// Closed polygon nodes awaiting the closing click.
+    Polygon { points: PathCapture<ImagePoint> },
 }
 
 /// Discriminant for the two supported ROI shapes.
@@ -81,6 +84,12 @@ pub enum ToolState {
 pub enum RoiKind {
     Rect,
     Ellipse,
+}
+
+/// Polygon annotation gesture kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PolygonKind {
+    Closed,
 }
 
 impl ToolState {
@@ -105,7 +114,9 @@ impl ToolState {
     pub fn is_pending_measurement(&self) -> bool {
         matches!(
             self,
-            ToolState::MeasureLength1 { .. } | ToolState::MeasureAngle2 { .. }
+            ToolState::MeasureLength1 { .. }
+                | ToolState::MeasureAngle2 { .. }
+                | ToolState::Polygon { .. }
         )
     }
 
@@ -120,6 +131,7 @@ impl ToolState {
                 Some(ToolKind::MeasureLength)
             }
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
+            ToolState::Polygon { .. } => Some(ToolKind::RoiClosedPolygon),
             ToolState::RoiDrag {
                 kind: RoiKind::Rect,
                 ..

@@ -1,9 +1,46 @@
 //! Completed measurements and slice geometry.
 
 use super::SnapApp;
-use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, MeasurementError};
+use crate::tools::interaction::{
+    Annotation, AnnotationLocation, ImagePoint, MeasurementError, PolygonKind,
+};
 
 impl SnapApp {
+    pub(super) fn finalise_polygon(&mut self, points: Vec<ImagePoint>, kind: PolygonKind) {
+        let spacing = match self
+            .slice_plane_spacing()
+            .and_then(Annotation::validate_spacing)
+        {
+            Ok(spacing) => spacing,
+            Err(error) => {
+                self.status_message = format!("Measurement rejected: {error}");
+                return;
+            }
+        };
+        let points: Vec<[f32; 2]> = points.iter().map(|p| [p.y(), p.x()]).collect();
+        let Some(first) = points.first().copied() else {
+            return;
+        };
+        let Some(last) = points.last().copied() else {
+            return;
+        };
+        let area_mm2 = Annotation::compute_polygon_area(&points, spacing);
+        let perimeter_mm = Annotation::compute_polyline_length(&points, spacing)
+            + Annotation::compute_length(last, first, spacing);
+        if !area_mm2.is_finite() || !perimeter_mm.is_finite() {
+            self.status_message = "Polygon measurement exceeds the supported range".into();
+            return;
+        }
+        match kind {
+            PolygonKind::Closed => self.push_annotation(Annotation::ClosedPolygon {
+                location: None,
+                points,
+                area_mm2,
+                perimeter_mm,
+            }),
+        }
+    }
+
     pub(super) fn push_annotation(&mut self, annotation: Annotation) {
         self.annotations
             .push(annotation.with_location(self.annotation_location()));
