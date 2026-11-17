@@ -353,6 +353,13 @@ fn native_calibration_uses_the_selected_reference_on_one_image() {
         p2,
         length_mm: raw,
     });
+    session.app.annotations.push(Annotation::Length {
+        plane: 0,
+        location: Some(AnnotationLocation { plane: 0, slice }),
+        p1: [1.5, 0.5],
+        p2: [1.5, 2.5],
+        length_mm: raw * 2.0,
+    });
     let x = super::layout::screen_coordinate(x + dx, "reference x").expect("bounded test x");
     let y = super::layout::screen_coordinate(y + dy * 0.5, "reference y").expect("bounded test y");
     session
@@ -382,9 +389,10 @@ fn native_calibration_uses_the_selected_reference_on_one_image() {
             },
         ])
         .expect("enter the known calibration distance");
-    assert!(
-        matches!(session.app.annotations.as_slice(), [Annotation::Length { length_mm, .. }] if *length_mm == 8.0)
-    );
+    assert!(matches!(session.app.annotations.as_slice(), [
+            Annotation::Length { length_mm: reference, .. },
+            Annotation::Length { length_mm: existing, .. }
+        ] if *reference == 8.0 && (*existing - 16.0).abs() <= f32::EPSILON * 16.0));
     let corrected = session
         .app
         .measured_length(p1, p2)

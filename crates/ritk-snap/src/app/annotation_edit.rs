@@ -3,37 +3,42 @@
 use super::state::SnapApp;
 use crate::tools::interaction::{Annotation, ImagePoint};
 use crate::ui::{image_point_to_voxel, intensity_at_voxel};
+use metis_ui_lang::{polyline_distance, PathTopology};
 
 impl SnapApp {
     #[cfg(windows)]
     pub(crate) fn has_selected_length(&self) -> bool {
-        self.pointer
-            .selected_annotation
-            .and_then(|index| self.annotations.get(index))
-            .is_some_and(|annotation| {
-                matches!(annotation, Annotation::Length { .. })
-                    && annotation.visible_on_image(self.annotation_location())
-            })
+        matches!(
+            self.pointer.selected_annotation.and_then(|index| self.annotations.get(index)),
+            Some(Annotation::Length { location: Some(location), .. })
+                if *location == self.annotation_location()
+        )
     }
 
     #[cfg(windows)]
     pub(crate) fn calibrate_selected_length(&mut self, known_mm: f32) -> bool {
-        let Some(index) = self.pointer.selected_annotation else {
-            return false;
-        };
-        if !self.has_selected_length() {
-            return false;
-        }
-        let Some(Annotation::Length { p1, p2, .. }) = self.annotations.get(index) else {
-            return false;
-        };
-        let Ok(measured_mm) = self
-            .slice_plane_spacing()
-            .and_then(|spacing| Annotation::compute_length_checked(*p1, *p2, spacing))
-        else {
+        let Some(selected) = self.pointer.selected_annotation else {
             return false;
         };
         let location = self.annotation_location();
+        let Some(Annotation::Length {
+            p1,
+            p2,
+            location: Some(source),
+            ..
+        }) = self.annotations.get(selected)
+        else {
+            return false;
+        };
+        if *source != location {
+            return false;
+        }
+        let Ok(spacing) = self.slice_plane_spacing() else {
+            return false;
+        };
+        let Ok(measured_mm) = Annotation::compute_length_checked(*p1, *p2, spacing) else {
+            return false;
+        };
         let Some(calibration) = super::calibration::ManualLengthCalibration::from_reference(
             location,
             measured_mm,
@@ -41,12 +46,38 @@ impl SnapApp {
         ) else {
             return false;
         };
+        let updates: Option<Vec<_>> = self
+            .annotations
+            .iter()
+            .enumerate()
+            .filter_map(|(index, annotation)| match annotation {
+                Annotation::Length {
+                    p1,
+                    p2,
+                    location: Some(source),
+                    ..
+                } if *source == location => Some((index, p1, p2)),
+                _ => None,
+            })
+            .map(|(index, p1, p2)| {
+                let length = if index == selected {
+                    known_mm
+                } else {
+                    calibration
+                        .apply(Annotation::compute_length_checked(*p1, *p2, spacing).ok()?)?
+                };
+                Some((index, length))
+            })
+            .collect();
+        let Some(updates) = updates else { return false };
+        for (index, updated) in updates {
+            if let Some(Annotation::Length { length_mm, .. }) = self.annotations.get_mut(index) {
+                *length_mm = updated;
+            }
+        }
         self.length_calibrations
             .retain(|current| !current.applies_to(location));
         self.length_calibrations.push(calibration);
-        if let Some(Annotation::Length { length_mm, .. }) = self.annotations.get_mut(index) {
-            *length_mm = known_mm;
-        }
         true
     }
 
@@ -297,16 +328,15 @@ fn annotation_distance(
             (f64::from(row) - f64::from(point[0])) * height,
         ]
     };
-    let segment = |start, end| segment_distance(relative(start), relative(end));
-    let path = |points: &[[f32; 2]]| {
-        points.windows(2).fold(f64::INFINITY, |min, pair| {
-            min.min(segment(pair[0], pair[1]))
-        })
+    let path = |points: &[[f32; 2]], topology| {
+        // An invalid or incomplete saved path cannot be a pointer hit.
+        polyline_distance(points.iter().copied().map(relative), [0.0; 2], topology).ok()
     };
-    let distance = match annotation {
+    let segment = |start, end| path(&[start, end], PathTopology::Open);
+    match annotation {
         Annotation::Length { p1, p2, .. } => segment(*p1, *p2),
-        Annotation::PatientLength { .. } => return None,
-        Annotation::Angle { p1, p2, p3, .. } => segment(*p1, *p2).min(segment(*p2, *p3)),
+        Annotation::PatientLength { .. } => None,
+        Annotation::Angle { p1, p2, p3, .. } => path(&[*p1, *p2, *p3], PathTopology::Open),
         Annotation::RoiRect {
             top_left,
             bottom_right,
@@ -314,42 +344,36 @@ fn annotation_distance(
         } => {
             let top_right = [top_left[0], bottom_right[1]];
             let bottom_left = [bottom_right[0], top_left[1]];
-            path(&[*top_left, top_right, *bottom_right, bottom_left, *top_left])
+            path(
+                &[*top_left, top_right, *bottom_right, bottom_left],
+                PathTopology::Closed,
+            )
         }
         Annotation::RoiEllipse { center, radii, .. } => {
             let row = (point[0] - center[0]) / radii[0];
             let col = (point[1] - center[1]) / radii[1];
-            return (row * row + col * col <= 1.0).then_some(0.0);
+            (row * row + col * col <= 1.0).then_some(0.0)
         }
         Annotation::HuPoint { pos, .. } => {
             let [x, y] = relative(*pos);
-            x.hypot(y)
+            let distance = x.hypot(y);
+            distance.is_finite().then_some(distance)
         }
-        Annotation::ClosedPolygon { points, .. } => {
-            path(points).min(segment(*points.last()?, *points.first()?))
+        Annotation::ClosedPolygon { points, .. } => path(points, PathTopology::Closed),
+        Annotation::OpenPolygon { points, .. } | Annotation::Pencil { points, .. } => {
+            path(points, PathTopology::Open)
         }
-        Annotation::OpenPolygon { points, .. } | Annotation::Pencil { points, .. } => path(points),
-        Annotation::CobbAngle { p1, p2, p3, p4, .. } => segment(*p1, *p2).min(segment(*p3, *p4)),
+        Annotation::CobbAngle { p1, p2, p3, p4, .. } => {
+            Some(segment(*p1, *p2)?.min(segment(*p3, *p4)?))
+        }
         Annotation::Deviation {
             start,
             end,
             reference,
             ..
-        } => path(&[*start, *end, *reference, *start]),
+        } => path(&[*end, *start, *reference], PathTopology::Open),
         Annotation::Arrow { tail, head, .. } => segment(*tail, *head),
-    };
-    distance.is_finite().then_some(distance)
-}
-
-fn segment_distance(start: [f64; 2], end: [f64; 2]) -> f64 {
-    let [dx, dy] = [end[0] - start[0], end[1] - start[1]];
-    let length_squared = dx.mul_add(dx, dy * dy);
-    if length_squared == 0.0 {
-        return start[0].hypot(start[1]);
     }
-    let t = ((-start[0]).mul_add(dx, -start[1] * dy) / length_squared).clamp(0.0, 1.0);
-    let [x, y] = [start[0] + t * dx, start[1] + t * dy];
-    x.hypot(y)
 }
 
 #[cfg(test)]
@@ -380,6 +404,31 @@ mod tests {
         let distance = annotation_distance(&annotation, [10.0, 20.0], [2.0, 3.0])
             .expect("invariant: finite line geometry produces a distance");
         assert_eq!(distance, 0.0);
+    }
+
+    #[test]
+    fn deviation_only_picks_the_two_drawn_segments() {
+        let annotation = Annotation::Deviation {
+            location: None,
+            start: [0.0, 0.0],
+            end: [4.0, 4.0],
+            reference: [0.0, 4.0],
+            distance_mm: 4.0,
+            angle_deg: 45.0,
+        };
+        assert_eq!(
+            annotation_distance(&annotation, [4.0, 4.0], [1.0, 1.0]),
+            Some(0.0)
+        );
+        assert_eq!(
+            annotation_distance(&annotation, [0.0, 2.0], [1.0, 1.0]),
+            Some(0.0)
+        );
+        assert_eq!(
+            annotation_distance(&annotation, [2.0, 4.0], [1.0, 1.0])
+                .map(|distance| distance >= 1.0),
+            Some(true)
+        );
     }
 
     #[test]

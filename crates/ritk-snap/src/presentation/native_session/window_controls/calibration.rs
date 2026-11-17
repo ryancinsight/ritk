@@ -7,7 +7,7 @@ use metis_platform::{Color, Framebuffer, Rect};
 
 use super::super::layout::{draw_text, text_style};
 use super::{WindowAction, WindowChrome, WindowChromeEvent};
-use arrayvec::ArrayString;
+use metis_ui_lang::{DecimalEdit, DecimalEntry};
 
 const PANEL: Color = Color::rgb(43, 49, 57);
 const FIELD: Color = Color::rgb(31, 36, 42);
@@ -24,27 +24,25 @@ pub(super) enum DialogAction {
 
 #[derive(Debug, Clone)]
 pub(super) struct CalibrationDialog {
-    input: ArrayString<32>,
+    input: DecimalEntry<32>,
     error: Option<&'static str>,
 }
 
 impl CalibrationDialog {
     pub(super) fn new() -> Self {
         Self {
-            input: ArrayString::new(),
+            input: DecimalEntry::new(),
             error: None,
         }
     }
 
     pub(super) fn handle_event(&mut self, event: &PresentationEvent) -> DialogAction {
         match event {
-            PresentationEvent::TextInput { character } if !character.is_control() => {
-                if character.is_ascii_digit() || matches!(character, '.' | '-' | '+' | 'e' | 'E') {
-                    self.error = self
-                        .input
-                        .try_push(*character)
-                        .err()
-                        .map(|_| "Distance is too long");
+            PresentationEvent::TextInput { character } => {
+                match self.input.insert(*character) {
+                    DecimalEdit::Appended => self.error = None,
+                    DecimalEdit::Full => self.error = Some("Distance is too long"),
+                    _ => {}
                 }
                 DialogAction::None
             }
@@ -54,11 +52,12 @@ impl CalibrationDialog {
                 ..
             } => match *virtual_key {
                 0x08 => {
-                    self.input.pop();
-                    self.error = None;
+                    if self.input.backspace() {
+                        self.error = None;
+                    }
                     DialogAction::None
                 }
-                0x0d => match self.input.trim().parse::<f32>() {
+                0x0d => match self.input.as_str().parse::<f32>() {
                     Ok(value) if value.is_finite() && value > 0.0 => DialogAction::Confirm(value),
                     _ => {
                         self.error = Some("Enter a positive distance in millimetres");
@@ -102,7 +101,13 @@ impl CalibrationDialog {
         );
         let field = Rect::new(panel.x + 18, panel.y + 62, 324, 28);
         fill_rect(framebuffer, field, CornerRadius::SQUARE, FIELD);
-        draw_text(framebuffer, field.x + 8, field.y + 20, &self.input, body);
+        draw_text(
+            framebuffer,
+            field.x + 8,
+            field.y + 20,
+            self.input.as_str(),
+            body,
+        );
         if let Some(error) = &self.error {
             let error_style = text_style(ERROR, 12)?;
             draw_text(framebuffer, panel.x + 18, panel.y + 112, error, error_style);
