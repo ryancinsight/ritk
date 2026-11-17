@@ -4,12 +4,16 @@
 //! plane, projecting endpoints through the same plane mapping the crosshair
 //! uses, with the value label beside the segment.
 
-use super::super::layout::{append_measurement_overlay, OverlayCommands};
+use super::super::layout::{
+    append_measurement_overlay, append_measurement_preview, OverlayCommands,
+};
 use super::support::session;
 use super::*;
 use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
-use crate::tools::interaction::{Annotation, AnnotationLocation, PatientLength};
+use crate::tools::interaction::{
+    Annotation, AnnotationLocation, ImagePoint, PatientLength, ToolState,
+};
 use metis_platform::Color;
 use metis_ui_lang::DisplayCommand;
 
@@ -163,6 +167,49 @@ fn measurement_length_skips_panes_beside_its_recorded_plane() {
     assert!(
         draw_texts(&commands).is_empty(),
         "a coronal length must not label the axial pane"
+    );
+}
+
+#[test]
+fn native_length_preview_draws_only_on_its_owning_slice() {
+    let (session, _root) = session();
+    let index = session
+        .views
+        .iter()
+        .position(|view| view.axis == 0)
+        .expect("session composes an axial pane");
+    let view = &session.views[index];
+    let viewport = &session.viewports[index];
+    let tool_state = ToolState::LengthDrag {
+        start: ImagePoint::new(0.0, 0.0),
+        current: ImagePoint::new(3.0, 4.0),
+    };
+    let location = Some(AnnotationLocation {
+        plane: view.axis,
+        slice: view.slice_index,
+    });
+    let mut overlay = OverlayCommands::with_capacity(2).expect("reserve preview commands");
+    append_measurement_preview(&mut overlay, view, viewport, &tool_state, location)
+        .expect("compose native length preview");
+    let commands = overlay.into_display_list().commands().to_vec();
+    assert_eq!(draw_lines(&commands).len(), 1, "preview draws one segment");
+
+    let mut overlay = OverlayCommands::with_capacity(2).expect("reserve preview commands");
+    append_measurement_preview(
+        &mut overlay,
+        view,
+        viewport,
+        &tool_state,
+        Some(AnnotationLocation {
+            plane: view.axis,
+            slice: view.slice_index + 1,
+        }),
+    )
+    .expect("compose mismatched native preview");
+    let commands = overlay.into_display_list().commands().to_vec();
+    assert!(
+        draw_lines(&commands).is_empty(),
+        "preview skips another slice"
     );
 }
 
