@@ -165,6 +165,137 @@ fn length_measurement_clicks_advance_and_complete_through_the_adapter() {
 }
 
 #[test]
+fn deviation_measurement_completes_from_one_pointer_drag() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([4, 4, 1]));
+    app.active_tool = ToolKind::MeasureDeviation;
+    let viewport = viewport([4, 4]);
+    let mut dispatcher = PresentationDispatcher::new();
+
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+            modifiers: PresentationModifiers::NONE,
+        },
+    );
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerMove { x: 2.5, y: 2.5 },
+    );
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 2.5,
+            y: 2.5,
+            button: PointerButton::Left,
+        },
+    );
+
+    assert!(app.tool_state.is_idle());
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::Deviation {
+            start,
+            end,
+            reference,
+            distance_mm,
+            angle_deg,
+            ..
+        }] if *start == [0.5, 0.5]
+            && *end == [2.5, 2.5]
+            && *reference == [0.5, 2.5]
+            && (*distance_mm - 2.0).abs() < 1e-6
+            && (*angle_deg - 45.0).abs() < 1e-6
+    ));
+}
+
+#[test]
+fn deviation_drag_rejects_release_after_slice_switch() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([4, 4, 2]));
+    app.active_tool = ToolKind::MeasureDeviation;
+    let viewport = viewport([4, 4]);
+    let mut dispatcher = PresentationDispatcher::new();
+
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+            modifiers: PresentationModifiers::NONE,
+        },
+    );
+    app.set_slice_for_axis(0, 1);
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerMove { x: 2.5, y: 3.25 },
+    );
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 2.5,
+            y: 3.25,
+            button: PointerButton::Left,
+        },
+    );
+
+    assert!(app.tool_state.is_idle());
+    assert!(app.annotations.is_empty());
+}
+
+#[test]
+fn escape_discards_a_live_deviation_and_ignores_its_release() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([1, 4, 4]));
+    app.select_tool(ToolKind::MeasureDeviation);
+    let viewport = viewport([4, 4]);
+    for event in [
+        PresentationEvent::PointerDown {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+            modifiers: PresentationModifiers::NONE,
+        },
+        PresentationEvent::PointerMove { x: 2.5, y: 3.0 },
+    ] {
+        apply_app_event(&mut app, &viewport, event);
+    }
+    assert_eq!(app.tool_state.tool_kind(), Some(ToolKind::MeasureDeviation));
+    for event in [
+        PresentationEvent::KeyDown {
+            virtual_key: 0x1b,
+            repeated: false,
+            modifiers: PresentationModifiers::NONE,
+        },
+        PresentationEvent::PointerUp {
+            x: 2.5,
+            y: 3.0,
+            button: PointerButton::Left,
+        },
+    ] {
+        apply_app_event(&mut app, &viewport, event);
+    }
+    assert_eq!(app.annotations.as_slice(), &[]);
+    assert_eq!(app.tool_state.tool_kind(), None);
+}
+
+#[test]
 fn angle_measurement_clicks_advance_and_complete_through_the_adapter() {
     let mut app = SnapApp::default();
     app.loaded = Some(test_volume([4, 4, 1]));

@@ -2,14 +2,14 @@ use super::*;
 
 /// `all()` must enumerate every variant exactly once with no duplicates.
 ///
-/// Correctness criterion: `all().len() == 13` and pairwise distinctness.
+/// Correctness criterion: `all().len() == 14` and pairwise distinctness.
 #[test]
 fn test_tool_kind_all_complete_and_distinct() {
     let all = ToolKind::all();
     assert_eq!(
         all.len(),
-        13,
-        "ToolKind::all() must contain all 13 variants, found {}",
+        14,
+        "ToolKind::all() must contain all 14 variants, found {}",
         all.len()
     );
     for i in 0..all.len() {

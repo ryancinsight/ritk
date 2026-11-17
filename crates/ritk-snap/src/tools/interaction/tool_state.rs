@@ -66,6 +66,14 @@ pub enum ToolState {
         current: ImagePoint,
     },
 
+    /// Single-segment deviation drag.
+    DeviationDrag {
+        /// Segment start in image pixels.
+        start: ImagePoint,
+        /// Current endpoint in image pixels.
+        current: ImagePoint,
+    },
+
     /// ROI drag in progress.
     RoiDrag {
         /// Drag start in image pixel coordinates `[row, col]`.
@@ -113,6 +121,7 @@ impl ToolState {
                 | ToolState::WindowLevelDrag { .. }
                 | ToolState::RoiDrag { .. }
                 | ToolState::LengthDrag { .. }
+                | ToolState::DeviationDrag { .. }
         )
     }
 
@@ -136,6 +145,7 @@ impl ToolState {
             ToolState::MeasureLength1 { .. } | ToolState::LengthDrag { .. } => {
                 Some(ToolKind::MeasureLength)
             }
+            ToolState::DeviationDrag { .. } => Some(ToolKind::MeasureDeviation),
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
             ToolState::Polygon {
                 kind: PolygonKind::Closed,

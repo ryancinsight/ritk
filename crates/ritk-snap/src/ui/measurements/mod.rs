@@ -22,6 +22,8 @@ use egui::{Color32, FontId, Painter, Pos2, Rect, Stroke, Vec2};
 use crate::tools::interaction::{Annotation, ImagePoint, PolygonKind, RoiKind, ToolState};
 use crate::ui::live_preview::{live_angle_deg, live_length_mm};
 
+mod segments;
+
 // ── colour / style constants ──────────────────────────────────────────────────
 
 const COLOR_MEASURE: Color32 = Color32::YELLOW;
@@ -80,6 +82,20 @@ impl MeasurementLayer {
                 // created them. Orthogonal views must not project them as if
                 // their endpoints were two-dimensional image coordinates.
                 Annotation::PatientLength { .. } => {}
+                Annotation::Deviation {
+                    start,
+                    end,
+                    reference,
+                    distance_mm,
+                    angle_deg,
+                    ..
+                } => segments::draw_deviation(
+                    painter,
+                    [*start, *end, *reference],
+                    *distance_mm,
+                    *angle_deg,
+                    &img_to_screen,
+                ),
                 Annotation::Angle {
                     p1,
                     p2,
@@ -90,7 +106,7 @@ impl MeasurementLayer {
                     let sp1 = img_to_screen(egui::pos2((*p1)[1], (*p1)[0]));
                     let sp2 = img_to_screen(egui::pos2((*p2)[1], (*p2)[0]));
                     let sp3 = img_to_screen(egui::pos2((*p3)[1], (*p3)[0]));
-                    draw_angle_annotation(painter, sp1, sp2, sp3, *angle_deg);
+                    segments::draw_angle_annotation(painter, sp1, sp2, sp3, *angle_deg);
                 }
                 Annotation::RoiRect {
                     top_left,
@@ -300,6 +316,9 @@ impl MeasurementLayer {
             ToolState::Panning { .. }
             | ToolState::Zooming { .. }
             | ToolState::WindowLevelDrag { .. } => {}
+            ToolState::DeviationDrag { start, current } => {
+                segments::draw_deviation_preview(painter, [*start, *current], &img_to_screen)
+            }
         }
     }
 }
@@ -324,42 +343,6 @@ fn draw_length_annotation(painter: &Painter, p1: Pos2, p2: Pos2, length_mm: f32)
     let offset = perpendicular_offset(p1, p2, 10.0);
     painter.text(
         mid + offset,
-        egui::Align2::CENTER_CENTER,
-        label,
-        label_font(),
-        COLOR_LABEL,
-    );
-}
-
-/// Draw an angle measurement annotation: two rays from the vertex `p2` to
-/// `p1` and `p3`, with a small arc at the vertex and an angle label.
-///
-/// # Label placement
-/// The label is placed along the angle bisector from `p2`, 20 px from the
-/// vertex.
-fn draw_angle_annotation(painter: &Painter, p1: Pos2, p2: Pos2, p3: Pos2, angle_deg: f32) {
-    // Two rays
-    painter.line_segment([p2, p1], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
-    painter.line_segment([p2, p3], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
-    // Endpoint handles
-    painter.circle_filled(p1, HANDLE_RADIUS, COLOR_MEASURE);
-    painter.circle_filled(p2, HANDLE_RADIUS, COLOR_MEASURE);
-    painter.circle_filled(p3, HANDLE_RADIUS, COLOR_MEASURE);
-    // Small arc at the vertex (approximated by a circle outline).
-    painter.circle_stroke(p2, 8.0, Stroke::new(1.0_f32, COLOR_MEASURE));
-    // Label along the angle bisector.
-    let d1 = (p1 - p2).normalized();
-    let d3 = (p3 - p2).normalized();
-    let bisector = if (d1 + d3).length() > 1e-4 {
-        (d1 + d3).normalized()
-    } else {
-        // Degenerate: rays are antiparallel; use perpendicular.
-        Vec2::new(-d1.y, d1.x)
-    };
-    let label_pos = p2 + bisector * 22.0;
-    let label = format!("{:.1}°", angle_deg);
-    painter.text(
-        label_pos,
         egui::Align2::CENTER_CENTER,
         label,
         label_font(),

@@ -45,6 +45,9 @@ pub const KEY_MEASURE_LENGTH: Key = Key::L;
 /// Single-key shortcut for Measure Angle tool.
 #[cfg(feature = "eframe-shell")]
 pub const KEY_MEASURE_ANGLE: Key = Key::A;
+/// Single-key shortcut for Measure Deviation tool.
+#[cfg(feature = "eframe-shell")]
+pub const KEY_MEASURE_DEVIATION: Key = Key::D;
 
 /// Single-key shortcut for ROI Rectangle tool.
 #[cfg(feature = "eframe-shell")]
@@ -83,6 +86,8 @@ pub const VIRTUAL_KEY_MEASURE_LENGTH: u32 = 0x4c;
 
 /// Host virtual-key value for the Measure Angle shortcut.
 pub const VIRTUAL_KEY_MEASURE_ANGLE: u32 = 0x41;
+/// Host virtual-key value for Measure Deviation.
+pub const VIRTUAL_KEY_MEASURE_DEVIATION: u32 = 0x44;
 
 /// Host virtual-key value for the ROI Rectangle shortcut.
 pub const VIRTUAL_KEY_ROI_RECT: u32 = 0x52;
@@ -123,6 +128,7 @@ pub fn tool_kind_for_virtual_key(virtual_key: u32) -> Option<ToolKind> {
     match virtual_key {
         VIRTUAL_KEY_MEASURE_LENGTH => Some(ToolKind::MeasureLength),
         VIRTUAL_KEY_MEASURE_ANGLE => Some(ToolKind::MeasureAngle),
+        VIRTUAL_KEY_MEASURE_DEVIATION => Some(ToolKind::MeasureDeviation),
         VIRTUAL_KEY_ROI_RECT => Some(ToolKind::RoiRect),
         VIRTUAL_KEY_ROI_ELLIPSE => Some(ToolKind::RoiEllipse),
         VIRTUAL_KEY_HU_POINT => Some(ToolKind::PointHu),
@@ -164,6 +170,7 @@ pub fn tool_kind_for_key(key: Key) -> Option<ToolKind> {
     match key {
         KEY_MEASURE_LENGTH => tool_kind_for_virtual_key(VIRTUAL_KEY_MEASURE_LENGTH),
         KEY_MEASURE_ANGLE => tool_kind_for_virtual_key(VIRTUAL_KEY_MEASURE_ANGLE),
+        KEY_MEASURE_DEVIATION => tool_kind_for_virtual_key(VIRTUAL_KEY_MEASURE_DEVIATION),
         KEY_ROI_RECT => tool_kind_for_virtual_key(VIRTUAL_KEY_ROI_RECT),
         KEY_ROI_ELLIPSE => tool_kind_for_virtual_key(VIRTUAL_KEY_ROI_ELLIPSE),
         KEY_HU_POINT => tool_kind_for_virtual_key(VIRTUAL_KEY_HU_POINT),

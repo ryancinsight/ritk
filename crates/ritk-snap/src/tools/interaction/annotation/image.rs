@@ -9,6 +9,7 @@ impl Annotation {
             Self::Length { location, .. }
             | Self::PatientLength { location, .. }
             | Self::Angle { location, .. }
+            | Self::Deviation { location, .. }
             | Self::RoiRect { location, .. }
             | Self::RoiEllipse { location, .. }
             | Self::HuPoint { location, .. }
@@ -27,6 +28,9 @@ impl Annotation {
                 location: value, ..
             }
             | Self::Angle {
+                location: value, ..
+            }
+            | Self::Deviation {
                 location: value, ..
             }
             | Self::RoiRect {
