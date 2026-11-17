@@ -6,7 +6,7 @@
 //! tools so a reader can adjust the display without leaving a measurement.
 
 use crate::presentation::PointerButton;
-use crate::tools::interaction::{AnnotationLocation, ToolState};
+use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(any(windows, test))]
 use thiserror::Error;
@@ -108,6 +108,17 @@ pub(crate) struct PointerGestureOwner {
     pub(crate) selects_polygon: bool,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct PendingPolygonMove {
+    pub(crate) annotation_index: usize,
+    pub(crate) source_location: AnnotationLocation,
+    pub(crate) original: Annotation,
+    pub(crate) node_index: usize,
+    pub(crate) candidate: Annotation,
+    pub(crate) start: ImagePoint,
+    pub(crate) current: ImagePoint,
+}
+
 /// Pointer state of one viewer panel.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct PointerGestures {
@@ -121,6 +132,7 @@ pub(crate) struct PointerGestures {
     pub(crate) drag_measurement_location: Option<AnnotationLocation>,
     /// Index of the completed polygon selected in this panel.
     pub(crate) selected_polygon: Option<usize>,
+    pub(crate) pending_polygon_move: Option<PendingPolygonMove>,
 }
 
 impl PointerGestures {
@@ -134,5 +146,6 @@ impl PointerGestures {
         self.pending_measurement_location = None;
         self.drag_measurement_location = None;
         self.selected_polygon = None;
+        self.pending_polygon_move = None;
     }
 }
