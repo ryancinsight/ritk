@@ -1,5 +1,3 @@
-//! Manual length calibration for native DICOM image measurements.
-
 use crate::tools::interaction::{Annotation, AnnotationLocation, MeasurementError};
 
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]

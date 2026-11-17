@@ -1,5 +1,3 @@
-//! Native manual calibration dialog using the reusable Métis decimal editor.
-
 use crate::presentation::PresentationEvent;
 use anyhow::Result;
 use metis_platform::rasterizer::{fill_rect, CornerRadius};
