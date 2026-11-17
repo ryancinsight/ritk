@@ -57,6 +57,7 @@ impl SnapApp {
             Annotation::OpenPolygon { length_mm, .. } => {
                 AnnotationSummary::new(AnnotationKind::OpenPolygon, f64::from(*length_mm))
             }
+            Annotation::Arrow { .. } => AnnotationSummary::new(AnnotationKind::Arrow, 0.0),
         });
         PresentationSnapshot::from_parts(
             self.visual_revision,

@@ -346,7 +346,10 @@ impl SnapApp {
         if virtual_key == 0x1b
             && !repeated
             && (self.tool_state.is_pending_measurement()
-                || matches!(self.tool_state, ToolState::DeviationDrag { .. }))
+                || matches!(
+                    self.tool_state,
+                    ToolState::DeviationDrag { .. } | ToolState::ArrowDrag { .. }
+                ))
         {
             self.tool_state = ToolState::Idle;
             self.pointer.abandon();

@@ -24,6 +24,8 @@ pub enum AnnotationKind {
     ClosedPolygon,
     /// An open polygon polyline length measurement.
     OpenPolygon,
+    /// An image-space directional arrow annotation.
+    Arrow,
     /// A three-dimensional length measured in DICOM patient space.
     PatientLength,
 }
@@ -42,6 +44,7 @@ impl AnnotationKind {
             Self::HuPoint => "hu-point",
             Self::ClosedPolygon => "closed-polygon",
             Self::OpenPolygon => "open-polygon",
+            Self::Arrow => "arrow",
         }
     }
 }

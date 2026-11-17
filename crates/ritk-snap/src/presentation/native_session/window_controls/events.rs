@@ -80,7 +80,8 @@ impl WindowChrome {
                 action,
             });
         }
-        if let PresentationEvent::KeyDown {
+        if self.open_menu.is_none()
+            && let PresentationEvent::KeyDown {
             virtual_key,
             repeated: false,
             modifiers,
@@ -159,7 +160,7 @@ impl WindowChrome {
                 repeated: false,
                 ..
             }
-        ) && self.open_menu.is_none()
+        ) && self.open_menu.is_none() && !app.tool_state.is_drag_gesture()
         {
             return Ok(WindowChromeEvent {
                 consumed: true,
