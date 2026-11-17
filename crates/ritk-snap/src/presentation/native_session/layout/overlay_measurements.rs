@@ -298,6 +298,37 @@ impl Pane<'_> {
                     self.label(overlay, *first, format!("{length_mm:.1} mm"))?;
                 }
             }
+            Annotation::Arrow { tail, head, .. } => {
+                let a = image_point(*tail);
+                let b = image_point(*head);
+                self.line(overlay, a, b, MEASUREMENT_COLOR)?;
+                let dx = b[0] - a[0];
+                let dy = b[1] - a[1];
+                let norm = dx.hypot(dy);
+                if norm > 0.0 {
+                    let ux = dx / norm;
+                    let uy = dy / norm;
+                    let size = 8.0;
+                    self.line(
+                        overlay,
+                        b,
+                        [
+                            b[0] - ux * size + uy * size * 0.5,
+                            b[1] - uy * size - ux * size * 0.5,
+                        ],
+                        MEASUREMENT_COLOR,
+                    )?;
+                    self.line(
+                        overlay,
+                        b,
+                        [
+                            b[0] - ux * size - uy * size * 0.5,
+                            b[1] - uy * size + ux * size * 0.5,
+                        ],
+                        MEASUREMENT_COLOR,
+                    )?;
+                }
+            }
             _ => {}
         }
         Ok(())

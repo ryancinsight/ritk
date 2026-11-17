@@ -74,6 +74,14 @@ pub enum ToolState {
         current: ImagePoint,
     },
 
+    /// Arrow drag in image pixels.
+    ArrowDrag {
+        /// Tail position.
+        start: ImagePoint,
+        /// Current head position.
+        current: ImagePoint,
+    },
+
     /// ROI drag in progress.
     RoiDrag {
         /// Drag start in image pixel coordinates `[row, col]`.
@@ -122,6 +130,7 @@ impl ToolState {
                 | ToolState::RoiDrag { .. }
                 | ToolState::LengthDrag { .. }
                 | ToolState::DeviationDrag { .. }
+                | ToolState::ArrowDrag { .. }
         )
     }
 
@@ -146,6 +155,7 @@ impl ToolState {
                 Some(ToolKind::MeasureLength)
             }
             ToolState::DeviationDrag { .. } => Some(ToolKind::MeasureDeviation),
+            ToolState::ArrowDrag { .. } => Some(ToolKind::Arrow),
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
             ToolState::Polygon {
                 kind: PolygonKind::Closed,

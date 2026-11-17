@@ -319,6 +319,11 @@ impl MeasurementLayer {
             ToolState::DeviationDrag { start, current } => {
                 segments::draw_deviation_preview(painter, [*start, *current], &img_to_screen)
             }
+            ToolState::ArrowDrag { start, current } => {
+                let tail = img_to_screen(egui_point(*start));
+                let head = img_to_screen(egui_point(*current));
+                painter.line_segment([tail, head], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
+            }
         }
     }
 }
