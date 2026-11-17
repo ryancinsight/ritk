@@ -55,7 +55,13 @@ impl SnapApp {
         let start = [start.y(), start.x()];
         let end = [end.y(), end.x()];
         let (reference, distance_mm, angle_deg) =
-            Annotation::compute_deviation_with_angle(start, end, spacing);
+            match Annotation::compute_deviation_with_angle(start, end, spacing) {
+                Ok(measured) => measured,
+                Err(error) => {
+                    self.status_message = format!("Measurement rejected: {error}");
+                    return;
+                }
+            };
         self.push_annotation(Annotation::Deviation {
             location: None,
             start,

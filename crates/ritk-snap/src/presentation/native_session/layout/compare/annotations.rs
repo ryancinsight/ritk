@@ -1,11 +1,14 @@
 //! DICOM image values overlaid on each comparison panel.
 
 use super::super::super::frame::RenderedView;
-use super::super::text::{draw_text, TextStyle};
+use super::super::text::{draw_text, fit_text, TextStyle};
 use anyhow::{anyhow, Result};
 use arrayvec::ArrayString;
 use metis_platform::Framebuffer;
 use std::fmt::Write as _;
+
+const ANNOTATION_MARGIN: i32 = 8;
+const ANNOTATION_GAP: i32 = 8;
 
 pub(super) fn draw_dicom_corner_values(
     framebuffer: &mut Framebuffer,
@@ -41,7 +44,8 @@ pub(super) fn draw_dicom_corner_values(
     let top_y = panel_y
         .checked_add(7)
         .ok_or_else(|| anyhow!("DICOM annotation top edge overflows"))?;
-    draw_shadowed_text(framebuffer, left_x, top_y, image.as_str(), style, shadow)?;
+    let image = fit_text(image.as_str(), panel_width - 2 * ANNOTATION_MARGIN, *style);
+    draw_shadowed_text(framebuffer, left_x, top_y, &image, style, shadow)?;
 
     let mut window = ArrayString::<48>::new();
     write!(
@@ -54,14 +58,12 @@ pub(super) fn draw_dicom_corner_values(
         .checked_add(panel_height)
         .and_then(|bottom| bottom.checked_sub(18))
         .ok_or_else(|| anyhow!("DICOM annotation bottom edge overflows"))?;
-    draw_shadowed_text(
-        framebuffer,
-        left_x,
-        bottom_y,
-        window.as_str(),
-        style,
-        shadow,
-    )?;
+    let side_width = panel_width
+        .saturating_sub(2 * ANNOTATION_MARGIN)
+        .saturating_sub(ANNOTATION_GAP)
+        / 2;
+    let window = fit_text(window.as_str(), side_width, *style);
+    draw_shadowed_text(framebuffer, left_x, bottom_y, &window, style, shadow)?;
 
     let mut dimensions = ArrayString::<32>::new();
     write!(
@@ -71,22 +73,16 @@ pub(super) fn draw_dicom_corner_values(
         view.frame.height()
     )
     .map_err(|_| anyhow!("DICOM dimensions annotation exceeds its buffer"))?;
+    let dimensions = fit_text(dimensions.as_str(), side_width, *style);
     let text_width = style
-        .extent(0, 0, dimensions.as_str())
+        .extent(0, 0, &dimensions)
         .map_or(0, |bounds| bounds.width);
     let right_x = panel_x
         .checked_add(panel_width)
         .and_then(|right| right.checked_sub(text_width))
         .and_then(|right| right.checked_sub(8))
         .ok_or_else(|| anyhow!("DICOM annotation right edge overflows"))?;
-    draw_shadowed_text(
-        framebuffer,
-        right_x,
-        bottom_y,
-        dimensions.as_str(),
-        style,
-        shadow,
-    )?;
+    draw_shadowed_text(framebuffer, right_x, bottom_y, &dimensions, style, shadow)?;
     Ok(())
 }
 

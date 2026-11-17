@@ -1,6 +1,6 @@
 //! Physical deviation measurements for one image-space segment.
 
-use super::Annotation;
+use super::{Annotation, MeasurementError};
 
 impl Annotation {
     /// Return the baseline, physical offset, and acute angle for a segment.
@@ -8,10 +8,13 @@ impl Annotation {
         start: [f32; 2],
         end: [f32; 2],
         spacing: [f32; 2],
-    ) -> ([f32; 2], f32, f32) {
+    ) -> Result<([f32; 2], f32, f32), MeasurementError> {
         let dx = (end[1] - start[1]) * spacing[1];
         let dy = (end[0] - start[0]) * spacing[0];
-        if dx.abs() >= dy.abs() {
+        if !dx.is_finite() || !dy.is_finite() {
+            return Err(MeasurementError::NonFiniteResult { kind: "deviation" });
+        }
+        Ok(if dx.abs() >= dy.abs() {
             (
                 [start[0], end[1]],
                 dy.abs(),
@@ -23,7 +26,7 @@ impl Annotation {
                 dx.abs(),
                 dx.abs().atan2(dy.abs()).to_degrees(),
             )
-        }
+        })
     }
 }
 
@@ -34,9 +37,19 @@ mod tests {
     #[test]
     fn deviation_uses_physical_row_and_column_spacing() {
         let (baseline, distance, angle) =
-            Annotation::compute_deviation_with_angle([0.0, 0.0], [2.0, 4.0], [2.0, 1.0]);
+            Annotation::compute_deviation_with_angle([0.0, 0.0], [2.0, 4.0], [2.0, 1.0])
+                .expect("finite physical deviation");
         assert_eq!(baseline, [0.0, 4.0]);
         assert_eq!(distance, 4.0);
         assert!((angle - 45.0).abs() < 1e-6);
     }
+}
+
+#[cfg(test)]
+#[test]
+fn deviation_rejects_unrepresentable_physical_components() {
+    assert_eq!(
+        Annotation::compute_deviation_with_angle([0.0; 2], [2.0; 2], [f32::MAX; 2]),
+        Err(MeasurementError::NonFiniteResult { kind: "deviation" })
+    );
 }

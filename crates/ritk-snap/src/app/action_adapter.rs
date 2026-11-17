@@ -214,7 +214,10 @@ impl SnapApp {
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerDragged {
-                button, current, ..
+                button,
+                start,
+                current,
+                ..
             } => {
                 let Some(owner) = self.pointer.owner.filter(|owner| owner.button == *button) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
@@ -228,7 +231,15 @@ impl SnapApp {
                 if is_label_tool(owner.tool) {
                     self.apply_label_at_pointer(viewport.axis(), Some(image));
                 }
-                self.on_drag(Some(image));
+                // Moving one whole screen pixel on either axis can occur
+                // during a click without placing the second endpoint.
+                let pending_length_jitter = owner.tool == ToolKind::MeasureLength
+                    && matches!(self.tool_state, ToolState::MeasureLength1 { .. })
+                    && (current.x() - start.x()).abs() <= 1.0
+                    && (current.y() - start.y()).abs() <= 1.0;
+                if !pending_length_jitter {
+                    self.on_drag(Some(image));
+                }
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerReleased {
@@ -307,6 +318,14 @@ impl SnapApp {
     }
 
     fn apply_virtual_key(&mut self, virtual_key: u32, repeated: bool) -> ViewerActionDisposition {
+        if virtual_key == 0x1b
+            && !repeated
+            && matches!(self.tool_state, ToolState::DeviationDrag { .. })
+        {
+            self.tool_state = ToolState::Idle;
+            self.pointer.abandon();
+            return ViewerActionDisposition::Continue { repaint: true };
+        }
         if virtual_key == VIRTUAL_KEY_CROSSHAIR_TOGGLE {
             if repeated || self.loaded.is_none() {
                 return ViewerActionDisposition::Continue { repaint: false };
