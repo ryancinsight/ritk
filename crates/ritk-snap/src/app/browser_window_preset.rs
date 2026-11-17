@@ -1,10 +1,16 @@
 //! Typed browser access to the RITK window/level preset tables.
 
 use super::SnapApp;
+#[cfg(any(windows, target_arch = "wasm32", test))]
 use crate::ui::window_presets::WindowPreset;
+#[cfg(any(windows, target_arch = "wasm32", test))]
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 /// Failure to apply a browser window/level preset without changing state.
+///
+/// Live wherever a preset consumer exists: the Windows native shell, the
+/// browser canvas, and unit tests.
+#[cfg(any(windows, target_arch = "wasm32", test))]
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub(crate) enum BrowserWindowPresetError {
     /// No browser viewer is mounted.
@@ -82,6 +88,7 @@ pub(crate) fn parse_browser_window_preset_request(
 
 impl SnapApp {
     /// Returns the effective window centre and width used by browser frames.
+    #[cfg(any(windows, target_arch = "wasm32", test))]
     pub(crate) fn browser_window_level_values(&self) -> (f32, f32) {
         (
             self.viewer_state
@@ -95,6 +102,7 @@ impl SnapApp {
     }
 
     /// Returns the preset table selected by the loaded DICOM modality.
+    #[cfg(any(windows, target_arch = "wasm32", test))]
     pub(crate) fn browser_window_presets(&self) -> &'static [WindowPreset] {
         let modality = self
             .loaded
@@ -104,6 +112,7 @@ impl SnapApp {
     }
 
     /// Returns the active preset index when the current values match a table entry.
+    #[cfg(any(windows, target_arch = "wasm32", test))]
     pub(crate) fn browser_window_preset_index(&self) -> Option<usize> {
         self.loaded.as_ref()?;
         let (center, width) = self.browser_window_level_values();
@@ -113,6 +122,7 @@ impl SnapApp {
     }
 
     /// Applies one loaded-modality preset and reports whether pixels changed.
+    #[cfg(any(windows, target_arch = "wasm32", test))]
     pub(crate) fn apply_browser_window_preset(
         &mut self,
         index: usize,

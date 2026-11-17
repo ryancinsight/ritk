@@ -74,7 +74,9 @@ impl Default for SnapApp {
             pan_offset: ViewportOffset::new(0.0, 0.0),
             zoom: 1.0,
             view_transform: ViewTransform::default(),
+            #[cfg(windows)]
             invert_display: false,
+            #[cfg(windows)]
             custom_presets: [None; super::state::MAX_CUSTOM_PRESETS],
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             show_colorbar: false,
