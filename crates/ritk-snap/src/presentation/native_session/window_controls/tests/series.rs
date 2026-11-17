@@ -140,6 +140,40 @@ fn window_menu_shortcuts_match_panel_actions() {
 }
 
 #[test]
+fn tools_menu_owns_arrow_and_pencil_shortcuts() {
+    let app = SnapApp::default();
+    let mut browser = None;
+    let mut chrome = WindowChrome::new(true);
+    chrome.open_menu = Some(Menu::Tools);
+
+    for virtual_key in [0x59, 0x50] {
+        let event = PresentationEvent::KeyDown {
+            virtual_key,
+            repeated: false,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
+        };
+        assert_eq!(
+            chrome
+                .handle_event(
+                    &event,
+                    1_280,
+                    800,
+                    &app,
+                    &mut browser,
+                    WorkspaceLayout::Orthogonal,
+                    false,
+                    &[],
+                    &[],
+                    0,
+                )
+                .expect("route keyboard input while the Tools menu is open"),
+            WindowChromeEvent::passed()
+        );
+        assert_eq!(chrome.open_menu, Some(Menu::Tools));
+    }
+}
+
+#[test]
 fn series_preview_hides_before_it_collapses_the_viewport() {
     let app = SnapApp::default();
     let hidden = ChromeLayout::new(640, 479, None, &app, true, WorkspaceLayout::Orthogonal)
