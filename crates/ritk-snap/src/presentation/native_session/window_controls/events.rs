@@ -89,6 +89,7 @@ impl WindowChrome {
                 *virtual_key,
                 modifiers.ctrl(),
                 modifiers.shift(),
+                modifiers.alt(),
                 app,
             )
         {

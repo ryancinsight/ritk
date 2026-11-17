@@ -250,6 +250,28 @@ impl NativeViewerSession {
                 app.bump_visual_revision();
                 Ok(true)
             }
+            WindowAction::ApplyCustomPreset { index } => {
+                match self.active_app_mut().apply_custom_preset(index) {
+                    Ok(changed) => Ok(changed),
+                    Err(error) => {
+                        self.active_app_mut().status_message = format!(
+                            "Custom window preset could not be applied; the active image remains displayed: {error:#}"
+                        );
+                        Ok(true)
+                    }
+                }
+            }
+            WindowAction::SaveCustomPreset { index } => {
+                match self.active_app_mut().save_custom_preset(index) {
+                    Ok(_) => Ok(true),
+                    Err(error) => {
+                        self.active_app_mut().status_message = format!(
+                            "Custom window preset could not be saved; no slot changed: {error:#}"
+                        );
+                        Ok(true)
+                    }
+                }
+            }
             WindowAction::ZoomOneToOne => match self.one_to_one_zoom() {
                 Some(zoom) => {
                     let app = self.active_app_mut();

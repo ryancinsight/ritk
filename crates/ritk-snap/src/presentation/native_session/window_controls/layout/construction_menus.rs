@@ -81,7 +81,9 @@ pub(super) fn menu_item_count(
             .len()
             .saturating_add(1)
             .saturating_add(crate::render::NamedColorMap::ALL.len())
-            .saturating_add(7),
+            .saturating_add(7)
+            .saturating_add(crate::app::state::MAX_CUSTOM_PRESETS)
+            .saturating_add(1),
         Menu::GridPicker => 0,
     }
 }
@@ -268,7 +270,28 @@ pub(super) fn menu_item(
                 )),
                 6 => Ok(("Zoom to fit  Ctrl+0", WindowAction::ZoomFit, false)),
                 7 => Ok(("Zoom 1:1", WindowAction::ZoomOneToOne, false)),
-                _ => Err(anyhow!("native Display menu row is outside its items")),
+                8 => Ok((
+                    "Save W/L as custom...",
+                    WindowAction::SaveCustomPreset { index: None },
+                    false,
+                )),
+                _ => {
+                    let custom = index.saturating_sub(
+                        presets
+                            .len()
+                            .saturating_add(1)
+                            .saturating_add(crate::render::NamedColorMap::ALL.len())
+                            .saturating_add(8),
+                    );
+                    let label = crate::app::state::CUSTOM_PRESET_LABELS
+                        .get(custom)
+                        .ok_or_else(|| anyhow!("native Display menu row is outside its items"))?;
+                    Ok((
+                        label,
+                        WindowAction::ApplyCustomPreset { index: custom },
+                        app.custom_preset_index() == Some(custom),
+                    ))
+                }
             }
         }
         Menu::GridPicker => Err(anyhow!("panel grid picker has no menu rows")),

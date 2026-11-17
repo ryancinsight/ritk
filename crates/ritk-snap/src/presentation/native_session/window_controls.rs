@@ -87,6 +87,12 @@ pub(super) enum WindowAction {
     ResetOrientation,
     ZoomFit,
     ZoomOneToOne,
+    ApplyCustomPreset {
+        index: usize,
+    },
+    SaveCustomPreset {
+        index: Option<usize>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

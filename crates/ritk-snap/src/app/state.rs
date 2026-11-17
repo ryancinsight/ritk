@@ -14,6 +14,13 @@ use crate::{LoadedVolume, ViewerState};
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) const DEFAULT_FUSION_ALPHA: f32 = 0.35;
 
+/// Numbered custom window/level slots offered by the native Display menu.
+pub(crate) const MAX_CUSTOM_PRESETS: usize = 4;
+
+/// Static Display-menu labels for the custom window/level slots.
+pub(crate) const CUSTOM_PRESET_LABELS: [&str; MAX_CUSTOM_PRESETS] =
+    ["Custom 1", "Custom 2", "Custom 3", "Custom 4"];
+
 // ── Helper types ──────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -153,6 +160,8 @@ pub(crate) struct SnapApp {
     pub(crate) view_transform: ViewTransform,
     /// Negative display: presented RGB channels are inverted (`255 - c`).
     pub(crate) invert_display: bool,
+    /// Numbered custom window/level slots, empty until the viewer saves one.
+    pub(crate) custom_presets: [Option<(f32, f32)>; MAX_CUSTOM_PRESETS],
     #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     /// Whether to show the colorbar overlay in each viewport.
     pub(crate) show_colorbar: bool,

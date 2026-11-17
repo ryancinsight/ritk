@@ -18,12 +18,35 @@ use crate::tools::kind::ToolKind;
 ///
 /// Digit keys select the loaded modality's preset table entries; `I`
 /// toggles negative display and `C` advances the intensity colormap.
+/// `Alt` plus a digit applies a numbered custom slot, while `Shift` plus a
+/// digit saves the current window into that custom slot.
 pub(super) fn global_key_action(
     virtual_key: u32,
     ctrl: bool,
     shift: bool,
+    alt: bool,
     app: &SnapApp,
 ) -> Option<WindowAction> {
+    let custom_slot = || {
+        VIRTUAL_KEY_PRESET_KEYS
+            .iter()
+            .position(|preset_key| *preset_key == virtual_key)
+            .filter(|index| *index < crate::app::state::MAX_CUSTOM_PRESETS)
+    };
+    if alt
+        && !ctrl
+        && !shift
+        && let Some(index) = custom_slot()
+    {
+        return Some(WindowAction::ApplyCustomPreset { index });
+    }
+    if shift
+        && !ctrl
+        && !alt
+        && let Some(index) = custom_slot()
+    {
+        return Some(WindowAction::SaveCustomPreset { index: Some(index) });
+    }
     match (virtual_key, ctrl, shift) {
         (0x47, false, false) => Some(WindowAction::SelectTool(ToolKind::RoiClosedPolygon)),
         (0x73, false, false) => Some(WindowAction::OpenSeriesPicker),

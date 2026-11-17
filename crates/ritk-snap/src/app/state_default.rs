@@ -75,6 +75,7 @@ impl Default for SnapApp {
             zoom: 1.0,
             view_transform: ViewTransform::default(),
             invert_display: false,
+            custom_presets: [None; super::state::MAX_CUSTOM_PRESETS],
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             show_colorbar: false,
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
