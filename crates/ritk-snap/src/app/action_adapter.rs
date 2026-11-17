@@ -307,7 +307,12 @@ impl SnapApp {
     }
 
     fn apply_virtual_key(&mut self, virtual_key: u32, repeated: bool) -> ViewerActionDisposition {
-        if virtual_key == 0x1b && !repeated && matches!(self.tool_state, ToolState::PathDrag { .. })
+        if virtual_key == 0x1b
+            && !repeated
+            && matches!(
+                self.tool_state,
+                ToolState::ArrowDrag { .. } | ToolState::PencilDrag { .. }
+            )
         {
             self.tool_state = ToolState::Idle;
             self.pointer.abandon();
