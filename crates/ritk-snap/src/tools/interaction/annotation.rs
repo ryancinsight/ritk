@@ -230,6 +230,17 @@ pub enum Annotation {
         /// Physical perimeter in millimetres.
         perimeter_mm: f32,
     },
+
+    /// Open polygon polyline with physical length.
+    OpenPolygon {
+        /// Creation location on the source image plane.
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
+        /// Polyline vertices as `[row, col]` image pixels.
+        points: Vec<[f32; 2]>,
+        /// Physical polyline length in millimetres.
+        length_mm: f32,
+    },
 }
 
 impl Annotation {

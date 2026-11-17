@@ -121,6 +121,9 @@ pub fn csv_for(annotations: &[Annotation]) -> String {
                 perimeter_mm,
                 ..
             } => format!("{i},Closed Polygon,{area_mm2:.2},mm²,perimeter={perimeter_mm:.2} mm\n"),
+            Annotation::OpenPolygon { length_mm, .. } => {
+                format!("{i},Open Polygon,{length_mm:.2},mm,\n")
+            }
         };
         out.push_str(&row);
     }
@@ -181,6 +184,9 @@ fn annotation_label(i: usize, ann: &Annotation) -> String {
             perimeter_mm,
             ..
         } => format!("#{i}  Closed polygon: {area_mm2:.1} mm², {perimeter_mm:.1} mm"),
+        Annotation::OpenPolygon { length_mm, .. } => {
+            format!("#{i}  Open polygon: {length_mm:.1} mm")
+        }
     }
 }
 

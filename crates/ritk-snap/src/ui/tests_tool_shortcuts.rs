@@ -83,6 +83,7 @@ fn virtual_key_shortcuts_match_egui_shortcuts() {
         (VIRTUAL_KEY_ZOOM, Key::Z),
         (VIRTUAL_KEY_WINDOW_LEVEL, Key::W),
         (VIRTUAL_KEY_LABEL_PAINT, Key::B),
+        (VIRTUAL_KEY_ROI_OPEN_POLYGON, Key::O),
     ];
     for (virtual_key, key) in pairs {
         assert_eq!(
@@ -108,6 +109,7 @@ fn all_shortcuts_distinct() {
         Key::Z,
         Key::W,
         Key::B,
+        Key::O,
     ];
     let mut mapped = vec![];
     for k in &keys {

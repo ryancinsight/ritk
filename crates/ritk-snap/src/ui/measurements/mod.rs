@@ -19,7 +19,7 @@
 
 use egui::{Color32, FontId, Painter, Pos2, Rect, Stroke, Vec2};
 
-use crate::tools::interaction::{Annotation, ImagePoint, RoiKind, ToolState};
+use crate::tools::interaction::{Annotation, ImagePoint, PolygonKind, RoiKind, ToolState};
 use crate::ui::live_preview::{live_angle_deg, live_length_mm};
 
 // ── colour / style constants ──────────────────────────────────────────────────
@@ -154,6 +154,27 @@ impl MeasurementLayer {
                         );
                     }
                 }
+                Annotation::OpenPolygon {
+                    points, length_mm, ..
+                } => {
+                    let screen: Vec<Pos2> = points
+                        .iter()
+                        .map(|p| img_to_screen(egui::pos2((*p)[1], (*p)[0])))
+                        .collect();
+                    for pair in screen.windows(2) {
+                        painter
+                            .line_segment([pair[0], pair[1]], Stroke::new(LINE_WIDTH, COLOR_ROI));
+                    }
+                    if let Some(first) = screen.first() {
+                        painter.text(
+                            *first + Vec2::new(8.0, -12.0),
+                            egui::Align2::LEFT_CENTER,
+                            format!("{length_mm:.1} mm"),
+                            label_font(),
+                            COLOR_LABEL,
+                        );
+                    }
+                }
                 Annotation::RoiEllipse {
                     center,
                     radii,
@@ -277,7 +298,7 @@ impl MeasurementLayer {
                     }
                 }
             }
-            ToolState::Polygon { points } => {
+            ToolState::Polygon { points, kind } => {
                 let mut vertices = points
                     .as_slice()
                     .iter()
@@ -289,7 +310,7 @@ impl MeasurementLayer {
                         painter.line_segment([last, vertex], stroke);
                         last = vertex;
                     }
-                    if points.as_slice().len() >= 3 {
+                    if *kind == PolygonKind::Closed && points.as_slice().len() >= 3 {
                         painter.line_segment([last, first], stroke);
                     }
                     if let Some(cursor) = cursor_screen {

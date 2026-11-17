@@ -320,10 +320,20 @@ impl SnapApp {
     fn apply_virtual_key(&mut self, virtual_key: u32, repeated: bool) -> ViewerActionDisposition {
         if virtual_key == 0x1b
             && !repeated
-            && matches!(self.tool_state, ToolState::DeviationDrag { .. })
+            && (self.tool_state.is_pending_measurement()
+                || matches!(self.tool_state, ToolState::DeviationDrag { .. }))
         {
             self.tool_state = ToolState::Idle;
             self.pointer.abandon();
+            return ViewerActionDisposition::Continue { repaint: true };
+        }
+        if virtual_key == 0x0d && !repeated && self.finish_pending_polygon() {
+            if self.tool_state.is_idle() {
+                self.pointer.owner = self
+                    .pointer
+                    .owner
+                    .filter(|owner| owner.button != PointerButton::Left || owner.modified);
+            }
             return ViewerActionDisposition::Continue { repaint: true };
         }
         if virtual_key == VIRTUAL_KEY_CROSSHAIR_TOGGLE {

@@ -16,6 +16,7 @@
 //! - **Z**   → Zoom (scroll wheel or drag to zoom)
 //! - **W**   → Window/Level (adjust display intensity mapping)
 //! - **B**   → LabelPaint (paint segmentation labels)
+//! - **O**   → Open Polygon (open polyline physical length)
 //! - **E**   → LabelErase (erase segmentation labels; conflicts with ROI Ellipse — E prioritizes paint, use Shift+E for erase)
 //!
 //! Tools not directly selectable via single key (Crosshair) remain toolbar-only or
@@ -76,6 +77,10 @@ pub const KEY_WINDOW_LEVEL: Key = Key::W;
 #[cfg(feature = "eframe-shell")]
 pub const KEY_LABEL_PAINT: Key = Key::B;
 
+/// Single-key shortcut for Open Polygon tool.
+#[cfg(feature = "eframe-shell")]
+pub const KEY_ROI_OPEN_POLYGON: Key = Key::O;
+
 /// Host virtual-key value for the Measure Length shortcut.
 pub const VIRTUAL_KEY_MEASURE_LENGTH: u32 = 0x4c;
 
@@ -105,6 +110,9 @@ pub const VIRTUAL_KEY_WINDOW_LEVEL: u32 = 0x57;
 /// Host virtual-key value for the Label Paint shortcut.
 pub const VIRTUAL_KEY_LABEL_PAINT: u32 = 0x42;
 
+/// Host virtual-key value for the Open Polygon shortcut.
+pub const VIRTUAL_KEY_ROI_OPEN_POLYGON: u32 = 0x4f;
+
 // ── SSOT function ────────────────────────────────────────────────────────────
 
 /// Map a host virtual-key value to an optional tool kind.
@@ -128,6 +136,7 @@ pub fn tool_kind_for_virtual_key(virtual_key: u32) -> Option<ToolKind> {
         VIRTUAL_KEY_ZOOM => Some(ToolKind::Zoom),
         VIRTUAL_KEY_WINDOW_LEVEL => Some(ToolKind::WindowLevel),
         VIRTUAL_KEY_LABEL_PAINT => Some(ToolKind::LabelPaint),
+        VIRTUAL_KEY_ROI_OPEN_POLYGON => Some(ToolKind::RoiOpenPolygon),
         _ => None,
     }
 }
@@ -152,6 +161,7 @@ pub fn tool_kind_for_virtual_key(virtual_key: u32) -> Option<ToolKind> {
 /// - **Z** → Zoom
 /// - **W** → Window/Level
 /// - **B** → Label Paint
+/// - **O** → Open Polygon
 ///
 /// All other keys return `None`.
 #[inline]
@@ -168,6 +178,7 @@ pub fn tool_kind_for_key(key: Key) -> Option<ToolKind> {
         KEY_ZOOM => tool_kind_for_virtual_key(VIRTUAL_KEY_ZOOM),
         KEY_WINDOW_LEVEL => tool_kind_for_virtual_key(VIRTUAL_KEY_WINDOW_LEVEL),
         KEY_LABEL_PAINT => tool_kind_for_virtual_key(VIRTUAL_KEY_LABEL_PAINT),
+        KEY_ROI_OPEN_POLYGON => tool_kind_for_virtual_key(VIRTUAL_KEY_ROI_OPEN_POLYGON),
         _ => None,
     }
 }

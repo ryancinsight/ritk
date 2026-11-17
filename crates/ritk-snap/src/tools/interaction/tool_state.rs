@@ -83,8 +83,13 @@ pub enum ToolState {
         /// Whether the ROI is rectangular or elliptical.
         kind: RoiKind,
     },
-    /// Closed polygon nodes awaiting the closing click.
-    Polygon { points: PathCapture<ImagePoint> },
+    /// Polygon nodes awaiting confirmation.
+    Polygon {
+        /// Bounded user-supplied vertices.
+        points: PathCapture<ImagePoint>,
+        /// Whether the path closes into an area or remains a polyline.
+        kind: PolygonKind,
+    },
 }
 
 /// Discriminant for the two supported ROI shapes.
@@ -98,6 +103,7 @@ pub enum RoiKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PolygonKind {
     Closed,
+    Open,
 }
 
 impl ToolState {
@@ -141,7 +147,14 @@ impl ToolState {
             }
             ToolState::DeviationDrag { .. } => Some(ToolKind::MeasureDeviation),
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
-            ToolState::Polygon { .. } => Some(ToolKind::RoiClosedPolygon),
+            ToolState::Polygon {
+                kind: PolygonKind::Closed,
+                ..
+            } => Some(ToolKind::RoiClosedPolygon),
+            ToolState::Polygon {
+                kind: PolygonKind::Open,
+                ..
+            } => Some(ToolKind::RoiOpenPolygon),
             ToolState::RoiDrag {
                 kind: RoiKind::Rect,
                 ..
