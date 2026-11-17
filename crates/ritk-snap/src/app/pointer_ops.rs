@@ -5,10 +5,10 @@ use crate::render::NamedColorMap;
 use crate::tools::interaction::{Annotation, ImagePoint, PolygonKind, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
-use crate::ui::{AnatomicalPlane, anatomical_label_for_axis, axis_for_plane_in_volume};
+use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
 use crate::ui::{
-    WINDOW_LEVEL_SENSITIVITY, image_point_to_voxel, intensity_at_voxel, pan_from_drag_delta,
-    window_level_from_drag_delta, zoom_from_drag_delta,
+    image_point_to_voxel, intensity_at_voxel, pan_from_drag_delta, window_level_from_drag_delta,
+    zoom_from_drag_delta, WINDOW_LEVEL_SENSITIVITY,
 };
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 use metis_ui_lang::{PathCapture, PathPush};

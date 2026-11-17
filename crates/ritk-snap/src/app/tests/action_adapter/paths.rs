@@ -1,6 +1,6 @@
 use super::{apply_app_event, viewport};
-use crate::app::SnapApp;
 use crate::app::tests::test_volume;
+use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
 use crate::tools::{
     interaction::{Annotation, ImagePoint},
