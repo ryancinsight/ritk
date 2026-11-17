@@ -208,6 +208,7 @@ impl NativeViewerSession {
             session.refresh_frame()?;
         } else {
             session.render_crosshair_overlay()?;
+            session.render_slice_scrollbars()?;
             session.render_chrome()?;
             record_state(&session.observation, &session.app, 96, false)?;
         }
@@ -384,6 +385,7 @@ impl NativeViewerSession {
         self.framebuffer = framebuffer;
         self.viewports = viewports;
         self.render_crosshair_overlay()?;
+        self.render_slice_scrollbars()?;
         self.render_chrome()?;
         self.observation
             .frame_generations

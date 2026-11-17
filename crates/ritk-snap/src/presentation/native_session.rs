@@ -27,6 +27,7 @@ mod repair;
 mod routing;
 mod series;
 mod series_browser;
+mod slice_scrollbar;
 mod startup;
 mod window_actions;
 mod window_controls;

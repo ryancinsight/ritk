@@ -7,11 +7,11 @@ use crate::presentation::PointerButton;
 use crate::tools::kind::ToolKind;
 use metis_platform::native::MouseButton;
 
-fn down(x: i32, y: i32, button: MouseButton) -> WindowEvent {
+pub(super) fn down(x: i32, y: i32, button: MouseButton) -> WindowEvent {
     WindowEvent::PointerDown { x, y, button }
 }
 
-fn up(x: i32, y: i32, button: MouseButton) -> WindowEvent {
+pub(super) fn up(x: i32, y: i32, button: MouseButton) -> WindowEvent {
     WindowEvent::PointerUp { x, y, button }
 }
 

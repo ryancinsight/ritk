@@ -1,5 +1,9 @@
 # ritk-snap
 
+Drag the scrollbar on the right edge of a native image pane to browse its
+slices. Clicking the track jumps to that position in the stack. Single-slice
+images and projection-only panes have no slice scrollbar.
+
 `ritk-snap` is the RITK medical-image viewer. On Windows the Métis host is the
 default desktop shell. The default package has no eframe, egui, or rfd active
 dependency; the complete compatibility shell is the separately named

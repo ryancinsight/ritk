@@ -4,6 +4,7 @@ mod events;
 mod layout;
 mod multi_series;
 mod series;
+mod slice_drag;
 use self::layout::{ChromeGeometry, ChromeLayout};
 use self::multi_series::MultiSeriesDialog;
 use super::deidentify::{AnonymizationScope, Deidentification};
@@ -36,6 +37,11 @@ pub(super) enum WindowAction {
     LoadSelectedSeries,
     Exit,
     SelectSeries(usize),
+    SelectSlice {
+        panel_index: usize,
+        axis: usize,
+        index: Option<usize>,
+    },
     BrowseSeries {
         series_index: usize,
         panel_index: usize,
@@ -81,6 +87,7 @@ enum PointerOwner {
     Chrome,
     Pane,
     Series(usize),
+    Slice(slice_drag::SliceDrag),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -266,6 +273,12 @@ impl WindowChrome {
     pub(super) fn cancel_pointer_capture(&mut self) {
         self.pointer_owner = PointerOwner::None;
         self.pressed_buttons = PressedButtons::EMPTY;
+    }
+
+    pub(super) fn cancel_slice_drag(&mut self) {
+        if matches!(self.pointer_owner, PointerOwner::Slice(_)) {
+            self.pointer_owner = PointerOwner::Chrome;
+        }
     }
 }
 

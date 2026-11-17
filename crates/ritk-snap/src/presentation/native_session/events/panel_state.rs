@@ -177,6 +177,10 @@ impl KeyboardPanelState {
 
     fn update_state(&mut self, action: WindowAction) -> Result<(), NativeViewerError> {
         match action {
+            WindowAction::SelectSlice { panel_index, .. } => {
+                self.active_panel = panel_index;
+                Ok(())
+            }
             WindowAction::ActivateNextPanel => self.activate_panel(true),
             WindowAction::ActivatePreviousPanel => self.activate_panel(false),
             WindowAction::BrowseSeries {

@@ -120,7 +120,8 @@ pub(crate) fn append_clinical_corners(
     let top = panel_y + OVERLAY_BAR_HEIGHT + 2;
     let bottom = panel_y + panel_height - OVERLAY_BAR_HEIGHT - 2;
     let left_edge = panel_x + OVERLAY_MARGIN;
-    let right_edge = panel_x + panel_width - OVERLAY_MARGIN;
+    let right_edge =
+        panel_x + panel_width - OVERLAY_MARGIN - super::super::slice_scrollbar::RIGHT_GUTTER;
     let at_left = |_line: &str| Ok(left_edge);
 
     let top_left: Vec<String> = if clinical.anonymize {

@@ -120,9 +120,15 @@ impl NativeApplication for NativeViewerSession {
 
         let resized = resize.is_some_and(|(width, height)| width > 0 && height > 0);
         if let Some((width, height)) = resize {
+            self.window_chrome.cancel_slice_drag();
             self.surface_width = width;
             self.surface_height = height;
             self.minimized = width == 0 || height == 0;
+            if self.minimized {
+                for viewport in &mut self.viewports {
+                    viewport.scrollbar = None;
+                }
+            }
             self.observation
                 .surface_width
                 .store(width, Ordering::Relaxed);
@@ -363,7 +369,7 @@ impl NativeApplication for NativeViewerSession {
                     .map_or(1, PanelGrid::panel_count);
                 let changed = self.apply_window_action(action)?;
                 chrome_repaint |= changed;
-                if changed {
+                if changed && !matches!(action, WindowAction::SelectSlice { .. }) {
                     self.end_held_gestures();
                 }
                 let maximized_after = self.maximized_panel.map(|panel| panel.panel_index);

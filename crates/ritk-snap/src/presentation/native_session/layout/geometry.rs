@@ -35,6 +35,8 @@ impl ViewportArea {
 /// Screen placement and RITK coordinate mapping for one composed view.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct NativeViewport {
+    pub(in crate::presentation::native_session) scrollbar:
+        Option<super::super::slice_scrollbar::SliceScrollbar>,
     pub(super) panel: ScreenRect,
     pub(in crate::presentation::native_session) panel_x: u32,
     pub(in crate::presentation::native_session) panel_y: u32,
@@ -156,6 +158,7 @@ pub(super) fn placement_with_bounds(
     )
     .map_err(|error| anyhow!("construct native viewer viewport: {error}"))?;
     Ok(NativeViewport {
+        scrollbar: None,
         panel: ScreenRect {
             x: f64::from(panel_x),
             y: f64::from(panel_y),

@@ -211,7 +211,10 @@ fn append_edge_letters(
         (labels.left, panel_x + OVERLAY_MARGIN, center_y - line / 2),
         (
             labels.right,
-            panel_x + panel_width - OVERLAY_MARGIN - width(labels.right)?,
+            panel_x + panel_width
+                - OVERLAY_MARGIN
+                - super::super::slice_scrollbar::RIGHT_GUTTER
+                - width(labels.right)?,
             center_y - line / 2,
         ),
     ];

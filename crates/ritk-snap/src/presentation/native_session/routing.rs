@@ -9,6 +9,9 @@ use crate::app::viewer_viewport::ViewerViewport;
 use crate::presentation::PresentationEvent;
 use arrayvec::ArrayVec;
 
+mod pointer_events;
+pub(super) use pointer_events::{activates_panel, is_pointer_event};
+
 /// Where one host event is delivered within a native batch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum EventRoute {
@@ -115,6 +118,7 @@ impl PointerCapture {
                 }
             }
             PresentationEvent::FocusLost
+            | PresentationEvent::PointerCaptureLost
             | PresentationEvent::CloseRequested
             | PresentationEvent::Destroyed => {
                 self.view = None;
@@ -189,6 +193,7 @@ fn event_view_index(
     viewports: &[NativeViewport],
 ) -> Option<usize> {
     let candidate = match event {
+        PresentationEvent::PointerCaptureLost => active_view,
         PresentationEvent::PointerDown { x, y, .. }
         | PresentationEvent::PointerMove { x, y }
         | PresentationEvent::PointerUp { x, y, .. }
@@ -223,7 +228,7 @@ impl NativeViewerSession {
         }
     }
 
-    fn app_for_panel_mut(
+    pub(super) fn app_for_panel_mut(
         &mut self,
         panel_index: usize,
     ) -> std::result::Result<&mut crate::app::SnapApp, NativeViewerError> {
@@ -474,26 +479,4 @@ impl NativeViewerSession {
             route.view()
         }
     }
-}
-
-/// Whether the event activates the panel it routes to. A release never does:
-/// its press chose the panel, and an action may have moved it since. Keyboard
-/// routing and event reduction share this predicate.
-pub(super) fn activates_panel(event: &PresentationEvent) -> bool {
-    is_pointer_event(event)
-        && !matches!(
-            event,
-            PresentationEvent::PointerUp { .. } | PresentationEvent::PointerCancel { .. }
-        )
-}
-
-pub(super) fn is_pointer_event(event: &PresentationEvent) -> bool {
-    matches!(
-        event,
-        PresentationEvent::PointerDown { .. }
-            | PresentationEvent::PointerMove { .. }
-            | PresentationEvent::PointerUp { .. }
-            | PresentationEvent::PointerCancel { .. }
-            | PresentationEvent::PointerWheel { .. }
-    )
 }

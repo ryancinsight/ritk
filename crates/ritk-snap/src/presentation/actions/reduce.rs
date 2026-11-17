@@ -23,12 +23,14 @@ impl PresentationDispatcher {
                 ViewerAction::FocusChanged { focused: true },
                 action_limit,
             ),
-            PresentationEvent::FocusLost => {
-                Self::push_action(
-                    actions,
-                    ViewerAction::FocusChanged { focused: false },
-                    action_limit,
-                )?;
+            PresentationEvent::FocusLost | PresentationEvent::PointerCaptureLost => {
+                if matches!(event, PresentationEvent::FocusLost) {
+                    Self::push_action(
+                        actions,
+                        ViewerAction::FocusChanged { focused: false },
+                        action_limit,
+                    )?;
+                }
                 for button in POINTER_BUTTONS {
                     if let Some(press) = self.pointers[button_slot(button)] {
                         Self::push_action(

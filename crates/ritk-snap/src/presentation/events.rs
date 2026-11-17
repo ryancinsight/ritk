@@ -160,6 +160,8 @@ pub enum PresentationEvent {
     FocusGained,
     /// The viewer lost keyboard focus.
     FocusLost,
+    /// The host revoked mouse capture without delivering a button release.
+    PointerCaptureLost,
     /// An assistive-technology client requested an operation on a native node.
     ///
     /// RITK currently does not install a native accessibility tree. The

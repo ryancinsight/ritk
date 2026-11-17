@@ -15,9 +15,9 @@ pub(super) use compare::{
     WorkspaceLayout, MAX_COMPARISON_PANELS, MAX_GRID_COLUMNS, MAX_GRID_PANELS, MAX_GRID_ROWS,
 };
 pub(super) use composition::{surface_frames, surface_frames_with_projection};
-pub(super) use crosshair::crosshair_overlay;
 #[cfg(test)]
 pub(super) use crosshair::CROSSHAIR_COLOR;
+pub(super) use crosshair::{crosshair_overlay, screen_coordinate};
 #[cfg(test)]
 pub(super) use geometry::VIEW_GAP_PIXELS;
 pub(super) use geometry::{NativeViewport, ViewportArea};

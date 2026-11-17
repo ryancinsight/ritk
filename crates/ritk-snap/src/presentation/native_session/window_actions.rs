@@ -67,6 +67,23 @@ impl NativeViewerSession {
                     Ok(true)
                 }
             },
+            WindowAction::SelectSlice {
+                panel_index,
+                axis,
+                index,
+            } => {
+                let active_changed = self.active_panel != panel_index;
+                let app = self.app_for_panel_mut(panel_index)?;
+                let axis_changed = app.axis != axis;
+                app.axis = axis;
+                let (previous, _) = app.axis_slice_info(axis);
+                if let Some(index) = index {
+                    app.set_slice_for_axis(axis, index);
+                }
+                let slice_changed = previous != app.axis_slice_info(axis).0;
+                self.active_panel = panel_index;
+                Ok(active_changed || axis_changed || slice_changed)
+            }
             WindowAction::BrowseSeries {
                 series_index,
                 panel_index,

@@ -18,6 +18,7 @@ mod overlay_text;
 mod pointer_capture;
 mod repair;
 mod series_browser;
+mod slice_scrollbar;
 mod support;
 mod window_controls;
 #[cfg(feature = "eframe-shell")]
