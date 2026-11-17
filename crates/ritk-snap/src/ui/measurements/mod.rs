@@ -80,7 +80,28 @@ impl MeasurementLayer {
                 // created them. Orthogonal views must not project them as if
                 // their endpoints were two-dimensional image coordinates.
                 Annotation::PatientLength { .. } => {}
-                Annotation::Deviation { .. } => {}
+                Annotation::Deviation {
+                    start,
+                    end,
+                    reference,
+                    distance_mm,
+                    angle_deg,
+                    ..
+                } => {
+                    let a = img_to_screen(Pos2::new(start[1], start[0]));
+                    let b = img_to_screen(Pos2::new(end[1], end[0]));
+                    let baseline = img_to_screen(Pos2::new(reference[1], reference[0]));
+                    let stroke = Stroke::new(LINE_WIDTH, COLOR_MEASURE);
+                    painter.line_segment([a, b], stroke);
+                    painter.line_segment([a, baseline], stroke);
+                    painter.text(
+                        b + Vec2::new(8.0, -12.0),
+                        egui::Align2::LEFT_CENTER,
+                        format!("{distance_mm:.1} mm {angle_deg:.1}°"),
+                        label_font(),
+                        COLOR_LABEL,
+                    );
+                }
                 Annotation::Angle {
                     p1,
                     p2,
@@ -234,8 +255,16 @@ impl MeasurementLayer {
             // Panning and window-level drag produce no visual annotation.
             ToolState::Panning { .. }
             | ToolState::Zooming { .. }
-            | ToolState::WindowLevelDrag { .. }
-            | ToolState::DeviationDrag { .. } => {}
+            | ToolState::WindowLevelDrag { .. } => {}
+            ToolState::DeviationDrag { start, current } => {
+                painter.line_segment(
+                    [
+                        img_to_screen(egui_point(*start)),
+                        img_to_screen(egui_point(*current)),
+                    ],
+                    Stroke::new(LINE_WIDTH, COLOR_MEASURE),
+                );
+            }
         }
     }
 }
