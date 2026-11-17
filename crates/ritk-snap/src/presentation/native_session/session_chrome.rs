@@ -1,8 +1,8 @@
 //! Native chrome composition for the viewer session.
 
+use super::layout::overlay_display::{append_colorbar_overlay, append_histogram_overlay};
 use super::layout::{
-    append_colorbar_overlay, append_histogram_overlay, append_measurement_overlay,
-    crosshair_overlay, OverlayCommands, MAX_GRID_PANELS,
+    append_measurement_overlay, crosshair_overlay, OverlayCommands, MAX_GRID_PANELS,
 };
 use super::session::{volume_affine, NativeViewerSession};
 use anyhow::{anyhow, Result};

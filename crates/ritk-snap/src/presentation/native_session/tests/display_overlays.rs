@@ -31,7 +31,7 @@ fn colorbar_endpoints_show_exact_colormap_colors() {
     let panel = viewport.panel_rect().expect("pane rect");
     let strip_x = panel.x + panel.width
         - super::super::slice_scrollbar::RIGHT_GUTTER
-        - super::super::layout::COLORBAR_WIDTH;
+        - super::super::layout::overlay_display::COLORBAR_WIDTH;
     let image_top = super::super::layout::screen_coordinate(viewport.image.y, "colorbar top")
         .expect("colorbar top fits");
     let image_height =
@@ -67,7 +67,8 @@ fn histogram_strip_shows_window_mark_and_bars() {
         .expect("frame with display overlays");
     let viewport = session.viewports[0];
     let panel = viewport.panel_rect().expect("pane rect");
-    let strip_top = panel.y + panel.height - super::super::layout::HISTOGRAM_STRIP_HEIGHT;
+    let strip_top =
+        panel.y + panel.height - super::super::layout::overlay_display::HISTOGRAM_STRIP_HEIGHT;
     // Strip background is untouched where no bar, band or label reaches.
     let width = usize::try_from(session.framebuffer.width()).expect("framebuffer width fits");
     let pixel_at = |x: i32, y: i32| {
@@ -96,8 +97,8 @@ fn histogram_strip_shows_window_mark_and_bars() {
             center,
             histogram.min(),
             histogram.max(),
-            super::super::layout::canvas_f32(canvas_left),
-            super::super::layout::canvas_f32(canvas_right),
+            super::super::layout::overlay_display::canvas_coord(canvas_left),
+            super::super::layout::overlay_display::canvas_coord(canvas_right),
         )),
         "window centre",
     )
@@ -108,17 +109,18 @@ fn histogram_strip_shows_window_mark_and_bars() {
         "histogram centre line must mark the window centre"
     );
     // One bar outside the window band renders the exact bar grey.
-    let (band_left, band_right) = super::super::layout::window_band_x(
+    let (band_left, band_right) = super::super::layout::overlay_display::window_band_x(
         center,
         width_value,
         histogram.min(),
         histogram.max(),
-        super::super::layout::canvas_f32(canvas_left),
-        super::super::layout::canvas_f32(canvas_right),
+        super::super::layout::overlay_display::canvas_coord(canvas_left),
+        super::super::layout::overlay_display::canvas_coord(canvas_right),
     );
     let canvas_span = f64::from(canvas_right - canvas_left);
     let bins = f64::from(u32::try_from(histogram.bins).expect("bin count fits"));
-    let bars_bottom = strip_top + super::super::layout::HISTOGRAM_STRIP_HEIGHT - 20;
+    let bars_bottom =
+        strip_top + super::super::layout::overlay_display::HISTOGRAM_STRIP_HEIGHT - 20;
     let mut marked = false;
     for (bin, &count) in histogram.counts.iter().enumerate() {
         if count == 0 {

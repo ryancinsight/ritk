@@ -36,7 +36,7 @@ const COLORBAR_SEGMENTS: u8 = 64;
 ///
 /// Native panel extents stay far below 2²⁴, where the conversion is exact;
 /// the annotation documents the contract instead of hiding the cast.
-pub(crate) fn canvas_f32(value: i32) -> f32 {
+pub(crate) fn canvas_coord(value: i32) -> f32 {
     #[expect(
         clippy::cast_precision_loss,
         reason = "panel coordinates below 2^24 convert to f32 exactly"
@@ -221,8 +221,8 @@ pub(crate) fn append_histogram_overlay(
         width,
         histogram.min(),
         histogram.max(),
-        canvas_f32(canvas_left),
-        canvas_f32(canvas_right),
+        canvas_coord(canvas_left),
+        canvas_coord(canvas_right),
     );
     let band_x0 = screen_coordinate(f64::from(band_left), "window band left")?;
     let band_x1 = screen_coordinate(f64::from(band_right), "window band right")?;
@@ -241,8 +241,8 @@ pub(crate) fn append_histogram_overlay(
             center,
             histogram.min(),
             histogram.max(),
-            canvas_f32(canvas_left),
-            canvas_f32(canvas_right),
+            canvas_coord(canvas_left),
+            canvas_coord(canvas_right),
         )),
         "window centre",
     )?;
