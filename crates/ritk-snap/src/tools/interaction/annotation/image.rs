@@ -1,6 +1,6 @@
 //! Placement and spacing of image-space annotations.
 
-use super::{Annotation, AnnotationLocation};
+use super::{Annotation, AnnotationLocation, MeasurementError};
 
 impl Annotation {
     #[cfg(windows)]
@@ -42,6 +42,37 @@ impl Annotation {
             } => *value = Some(location),
         }
         self
+    }
+
+    /// Measure the acute angle in degrees between two physical segments.
+    ///
+    /// Scaling each direction by its largest component keeps dot and determinant
+    /// products bounded. Both products have the same length factor, which
+    /// cancels in atan2. Taking magnitudes makes the angle orientation-independent.
+    pub(crate) fn compute_cobb_angle(
+        p1: [f32; 2],
+        p2: [f32; 2],
+        p3: [f32; 2],
+        p4: [f32; 2],
+        spacing: [f32; 2],
+    ) -> Result<f32, MeasurementError> {
+        let direction = |start: [f32; 2], end: [f32; 2]| {
+            let row = (end[0] - start[0]) * spacing[0];
+            let col = (end[1] - start[1]) * spacing[1];
+            if !row.is_finite() || !col.is_finite() {
+                return Err(MeasurementError::NonFiniteResult { kind: "Cobb angle" });
+            }
+            let scale = row.abs().max(col.abs());
+            if scale == 0.0 {
+                return Err(MeasurementError::DegenerateSegment { kind: "Cobb angle" });
+            }
+            Ok([row / scale, col / scale])
+        };
+        let [ar, ac] = direction(p1, p2)?;
+        let [br, bc] = direction(p3, p4)?;
+        let dot = (ar * br + ac * bc).abs();
+        let determinant = (ar * bc - ac * br).abs();
+        Ok(determinant.atan2(dot).to_degrees())
     }
 
     /// Compute the angle between rays scaled by the row and column pixel spacing.

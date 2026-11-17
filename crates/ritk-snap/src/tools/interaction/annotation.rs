@@ -60,6 +60,9 @@ pub enum MeasurementError {
     /// A computed physical value overflowed or became non-finite.
     #[error("{kind} measurement result is not finite")]
     NonFiniteResult { kind: &'static str },
+    /// A physical segment has no representable direction.
+    #[error("{kind} measurement requires two distinct physical endpoints")]
+    DegenerateSegment { kind: &'static str },
     /// A measurement was requested without a loaded volume.
     #[error("measurement requires a loaded volume")]
     MissingVolume,
@@ -267,27 +270,6 @@ impl Annotation {
         let dr = (p2[0] - p1[0]) * spacing[0];
         let dc = (p2[1] - p1[1]) * spacing[1];
         (dr * dr + dc * dc).sqrt()
-    }
-
-    /// Compute the acute angle between two directed segments in degrees.
-    pub fn compute_cobb_angle(
-        p1: [f32; 2],
-        p2: [f32; 2],
-        p3: [f32; 2],
-        p4: [f32; 2],
-        spacing: [f32; 2],
-    ) -> f32 {
-        let a = [(p2[0] - p1[0]) * spacing[0], (p2[1] - p1[1]) * spacing[1]];
-        let b = [(p4[0] - p3[0]) * spacing[0], (p4[1] - p3[1]) * spacing[1]];
-        let magnitude = (a[0] * a[0] + a[1] * a[1]).sqrt() * (b[0] * b[0] + b[1] * b[1]).sqrt();
-        if magnitude <= f32::EPSILON {
-            return 0.0;
-        }
-        let angle = ((a[0] * b[0] + a[1] * b[1]) / magnitude)
-            .clamp(-1.0, 1.0)
-            .acos()
-            .to_degrees();
-        angle.min(180.0 - angle)
     }
 
     /// Compute the angle at vertex `p2` between the rays `p2→p1` and `p2→p3`.

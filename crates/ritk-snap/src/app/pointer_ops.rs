@@ -191,7 +191,7 @@ impl SnapApp {
                         let result = self
                             .slice_plane_spacing()
                             .and_then(Annotation::validate_spacing)
-                            .map(|spacing| {
+                            .and_then(|spacing| {
                                 Annotation::compute_cobb_angle(
                                     points[0], points[1], points[2], points[3], spacing,
                                 )
