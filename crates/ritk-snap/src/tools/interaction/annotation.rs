@@ -203,6 +203,7 @@ pub enum Annotation {
 }
 
 impl Annotation {
+    #[cfg(windows)]
     pub(crate) fn location(&self) -> Option<AnnotationLocation> {
         match self {
             Self::Length { location, .. }
