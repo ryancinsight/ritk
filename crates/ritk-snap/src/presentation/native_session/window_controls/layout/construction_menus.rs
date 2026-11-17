@@ -193,6 +193,10 @@ pub(super) fn menu_item(
                     false,
                 ));
             }
+            #[cfg(windows)]
+            let calibration_rows = usize::from(app.last_active_length().is_some());
+            #[cfg(not(windows))]
+            let calibration_rows = 0;
             let (label, button) = POINTER_BUTTON_ROWS
                 .get(
                     index

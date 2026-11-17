@@ -1,6 +1,6 @@
 //! Apply native viewer menu, toolbar and panel actions.
 
-use super::window_controls::{PanelCloseKind, WindowAction};
+use super::window_controls::{CalibrationTarget, PanelCloseKind, WindowAction};
 use super::{NativeViewerError, NativeViewerSession};
 use crate::tools::interaction::{ToolState, ViewportOffset};
 use crate::tools::kind::ToolKind;
@@ -307,16 +307,27 @@ impl NativeViewerSession {
             }
             #[cfg(windows)]
             WindowAction::OpenCalibration => {
-                self.window_chrome.open_calibration();
+                let Some((_, p1, p2)) = self.active_app().last_active_length() else {
+                    return Ok(false);
+                };
+                let target = CalibrationTarget {
+                    location: crate::tools::interaction::AnnotationLocation {
+                        plane: self.active_app().axis,
+                        slice: self.active_app().axis_slice_info(self.active_app().axis).0,
+                    },
+                    p1,
+                    p2,
+                };
+                self.window_chrome.open_calibration(target);
                 Ok(true)
             }
             #[cfg(windows)]
-            WindowAction::ApplyCalibration => {
+            WindowAction::ApplyCalibration(target) => {
                 let Some(known_mm) = self.window_chrome.take_calibration_value() else {
                     return Ok(false);
                 };
                 self.active_app_mut()
-                    .calibrate_last_active_length(known_mm)
+                    .calibrate_length_reference(target.location, target.p1, target.p2, known_mm)
                     .map_err(|error| NativeViewerError::new(error.to_string()))?;
                 self.active_app_mut().status_message =
                     format!("Length calibration set to {known_mm:.3} mm");

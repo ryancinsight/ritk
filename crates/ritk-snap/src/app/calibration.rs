@@ -4,6 +4,8 @@ use crate::tools::interaction::{Annotation, AnnotationLocation, MeasurementError
 pub(crate) enum CalibrationError {
     #[error("no distance annotation exists on the active image")]
     MissingReference,
+    #[error("calibration reference no longer matches the active image")]
+    StaleReference,
     #[error("known distance must be finite and strictly positive")]
     InvalidReference,
     #[error("calibrated distance is outside the supported range")]
@@ -50,21 +52,36 @@ impl ManualLengthCalibration {
 }
 
 impl super::state::SnapApp {
+    fn active_length_location(&self) -> AnnotationLocation {
+        AnnotationLocation {
+            plane: self.axis,
+            slice: self.axis_slice_info(self.axis).0,
+        }
+    }
+
     pub(crate) fn has_active_length_calibration(&self) -> bool {
-        let location = self.annotation_location();
+        let location = self.active_length_location();
         self.length_calibrations
             .iter()
             .any(|item| item.applies_to(location))
     }
 
-    pub(crate) fn calibrate_last_active_length(
+    pub(crate) fn calibrate_length_reference(
         &mut self,
+        location: AnnotationLocation,
+        p1: [f32; 2],
+        p2: [f32; 2],
         known_mm: f32,
     ) -> Result<(), CalibrationError> {
-        let location = self.annotation_location();
-        let (selected, p1, p2) = self
+        if location != self.active_length_location() {
+            return Err(CalibrationError::StaleReference);
+        }
+        let (selected, current_p1, current_p2) = self
             .last_active_length()
             .ok_or(CalibrationError::MissingReference)?;
+        if current_p1 != p1 || current_p2 != p2 {
+            return Err(CalibrationError::StaleReference);
+        }
         let spacing = self.slice_plane_spacing()?;
         let measured = Annotation::compute_length_checked(p1, p2, spacing)?;
         let calibration = ManualLengthCalibration::from_reference(location, measured, known_mm)?;
@@ -85,7 +102,7 @@ impl super::state::SnapApp {
     }
 
     pub(crate) fn reset_active_length_calibration(&mut self) -> Result<bool, CalibrationError> {
-        let location = self.annotation_location();
+        let location = self.active_length_location();
         if !self.has_active_length_calibration() {
             return Ok(false);
         }
@@ -96,7 +113,7 @@ impl super::state::SnapApp {
     }
 
     pub(crate) fn last_active_length(&self) -> Option<(usize, [f32; 2], [f32; 2])> {
-        let location = self.annotation_location();
+        let location = self.active_length_location();
         self.annotations
             .iter()
             .enumerate()
