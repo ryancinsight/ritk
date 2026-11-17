@@ -264,7 +264,7 @@ pub(super) fn menu_item(
                 3 => Ok(("Rotate 90 CW  R", WindowAction::RotateCw, false)),
                 4 => Ok(("Rotate 90 CCW  Shift+R", WindowAction::RotateCcw, false)),
                 5 => Ok((
-                    "Reset orientation  O",
+                    "Reset orientation  Shift+O",
                     WindowAction::ResetOrientation,
                     false,
                 )),

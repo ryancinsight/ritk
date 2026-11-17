@@ -44,7 +44,7 @@ pub(crate) const VIRTUAL_KEY_FLIP_VERTICAL: u32 = 0x56;
 /// Windows virtual-key code for `R`, rotating (`Shift` reverses).
 #[cfg(windows)]
 pub(crate) const VIRTUAL_KEY_ROTATE: u32 = 0x52;
-/// Windows virtual-key code for `O`, resetting orientation.
+/// Windows virtual-key code for `Shift+O`, resetting orientation.
 #[cfg(windows)]
 pub(crate) const VIRTUAL_KEY_ORIENTATION_RESET: u32 = 0x4f;
 /// Windows virtual-key code for `0`, zooming to fit (with `Ctrl`).

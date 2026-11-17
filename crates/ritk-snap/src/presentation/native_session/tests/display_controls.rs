@@ -275,11 +275,26 @@ fn transform_keys_route_orientation_and_repaint() {
             _ => unreachable!("fixed orientation step table"),
         }
     }
+    let transform = session.app.view_transform;
+    let flow = session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: crate::ui::tool_shortcuts::VIRTUAL_KEY_ROI_OPEN_POLYGON,
+            repeated: false,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("Open Polygon key");
+    assert_eq!(flow, NativeFlow::Continue { repaint: true });
+    assert_eq!(
+        session.app.active_tool,
+        crate::tools::kind::ToolKind::RoiOpenPolygon
+    );
+    assert_eq!(session.app.view_transform, transform);
+
     let flow = session
         .handle_events(&[WindowEvent::KeyDown {
             virtual_key: VIRTUAL_KEY_ORIENTATION_RESET,
             repeated: false,
-            modifiers: ModifierState::NONE,
+            modifiers: ModifierState::SHIFT,
         }])
         .expect("orientation reset key");
     assert_eq!(flow, NativeFlow::Continue { repaint: true });
