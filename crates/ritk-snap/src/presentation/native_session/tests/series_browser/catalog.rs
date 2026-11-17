@@ -91,6 +91,7 @@ fn unopenable_replacement_study_preserves_every_populated_panel() {
     viewer
         .open_selected_series(&[0, 2])
         .expect("fill both comparison panels");
+    viewer.wait_for_series_loads();
     let original_primary = viewer
         .app
         .loaded

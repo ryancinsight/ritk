@@ -96,6 +96,10 @@ pub(super) struct NativeViewerSession {
     /// study-level exports.
     pub(super) study_root: Option<PathBuf>,
     pub(super) primary_series_index: Option<usize>,
+    /// Expected panel count for an in-flight multi-series load; zero idle.
+    pub(super) series_load_total: usize,
+    /// Last reported `(loaded, total)` progress; sentinel while unreported.
+    pub(super) series_load_reported: (usize, usize),
     pub(super) compare_panels: ArrayVec<ComparePanel, MAX_COMPARISON_PANELS>,
     pub(super) workspace_layout: WorkspaceLayout,
     pub(super) active_panel: usize,
@@ -195,6 +199,8 @@ impl NativeViewerSession {
             series_browser,
             study_root: None,
             primary_series_index,
+            series_load_total: 0,
+            series_load_reported: (usize::MAX, usize::MAX),
             compare_panels: ArrayVec::new(),
             workspace_layout: WorkspaceLayout::Orthogonal,
             active_panel: 0,
@@ -275,6 +281,7 @@ impl NativeViewerSession {
     }
 
     pub(super) fn refresh_frame(&mut self) -> Result<()> {
+        self.pump_series_loads();
         if self.app.loaded.is_some() {
             render_orthogonal_views_into(&self.app, &mut self.views, &mut self.render_scratch)?;
             match self.presentation_mode.projection_statistic() {

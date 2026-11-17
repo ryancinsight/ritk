@@ -22,6 +22,7 @@ fn multi_series_selection_opens_each_selected_study_series_in_its_own_panel() {
     viewer
         .open_selected_series(&[0, 2, 3])
         .expect("load selected series transactionally");
+    viewer.wait_for_series_loads();
     viewer.refresh_frame().expect("render all selected series");
 
     assert_eq!(
@@ -72,6 +73,7 @@ fn multi_series_selection_pads_rounded_grid_with_empty_panels() {
     viewer
         .open_selected_series(&selected)
         .expect("load all seven selected series");
+    viewer.wait_for_series_loads();
     viewer.refresh_frame().expect("render the rounded grid");
 
     assert_eq!(
@@ -199,6 +201,7 @@ fn f4_picker_opens_every_keyboard_selected_series_in_the_native_window() {
             },
         ])
         .expect("select and open both series with the keyboard");
+    viewer.wait_for_series_loads();
 
     assert_eq!(
         viewer.workspace_layout.grid().map(PanelGrid::panel_count),
