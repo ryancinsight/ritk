@@ -8,7 +8,7 @@
 use super::eframe::EguiApp;
 use super::image_placement::ImagePlacement;
 use crate::render::WindowLevel;
-use crate::tools::interaction::Annotation;
+use crate::tools::interaction::{Annotation, ToolState};
 use crate::ui::overlay::{OverlayContext, OverlayRenderer};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 use crate::{
@@ -317,14 +317,24 @@ impl EguiApp {
                     source_to_screen,
                 );
             }
-            crate::ui::measurements::MeasurementLayer::draw_in_progress(
-                &meas_painter,
-                &self.tool_state,
-                response.hover_pos(),
-                cursor_img_opt,
-                spacing_2d,
-                source_to_screen,
-            );
+            let preview_location = self
+                .pointer
+                .drag_measurement_location
+                .or(self.pointer.pending_measurement_location);
+            if !matches!(
+                self.tool_state,
+                ToolState::CobbDrag { .. } | ToolState::CobbPending { .. }
+            ) || preview_location.is_none_or(|source| source == location)
+            {
+                crate::ui::measurements::MeasurementLayer::draw_in_progress(
+                    &meas_painter,
+                    &self.tool_state,
+                    response.hover_pos(),
+                    cursor_img_opt,
+                    spacing_2d,
+                    source_to_screen,
+                );
+            }
         } // painter is dropped here; no longer borrows ui.
         drop(painter);
 

@@ -113,6 +113,9 @@ pub const VIRTUAL_KEY_LABEL_PAINT: u32 = 0x42;
 /// Host virtual-key value for the Open Polygon shortcut.
 pub const VIRTUAL_KEY_ROI_OPEN_POLYGON: u32 = 0x4f;
 
+/// Host virtual-key value for the Cobb angle shortcut.
+pub const VIRTUAL_KEY_MEASURE_COBB: u32 = 0x43;
+
 // ── SSOT function ────────────────────────────────────────────────────────────
 
 /// Map a host virtual-key value to an optional tool kind.
@@ -137,6 +140,7 @@ pub fn tool_kind_for_virtual_key(virtual_key: u32) -> Option<ToolKind> {
         VIRTUAL_KEY_WINDOW_LEVEL => Some(ToolKind::WindowLevel),
         VIRTUAL_KEY_LABEL_PAINT => Some(ToolKind::LabelPaint),
         VIRTUAL_KEY_ROI_OPEN_POLYGON => Some(ToolKind::RoiOpenPolygon),
+        VIRTUAL_KEY_MEASURE_COBB => Some(ToolKind::MeasureCobb),
         _ => None,
     }
 }

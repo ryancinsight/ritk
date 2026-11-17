@@ -120,6 +120,76 @@ fn point_click_actions_record_a_ritk_annotation() {
 }
 
 #[test]
+fn cobb_drag_actions_record_two_directional_segments() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([1, 64, 64]));
+    app.active_tool = ToolKind::MeasureCobb;
+    let viewport = viewport([64, 64]);
+    for (start, end) in [([5.0, 10.0], [25.0, 10.0]), ([10.0, 5.0], [10.0, 25.0])] {
+        for event in cobb_drag_events(start, end) {
+            apply_app_event(&mut app, &viewport, event);
+        }
+    }
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::CobbAngle {
+            p1, p2, p3, p4, angle_deg, ..
+        }] if *p1 == [10.0, 5.0]
+            && *p2 == [10.0, 25.0]
+            && *p3 == [5.0, 10.0]
+            && *p4 == [25.0, 10.0]
+            && *angle_deg == 90.0
+    ));
+}
+
+fn cobb_drag_events([x, y]: [f64; 2], [end_x, end_y]: [f64; 2]) -> [PresentationEvent; 3] {
+    [
+        PresentationEvent::PointerDown {
+            x,
+            y,
+            button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
+        },
+        PresentationEvent::PointerMove { x: end_x, y: end_y },
+        PresentationEvent::PointerUp {
+            x: end_x,
+            y: end_y,
+            button: PointerButton::Left,
+        },
+    ]
+}
+
+#[test]
+fn escape_discards_active_or_pending_cobb_segments() {
+    let viewport = viewport([64, 64]);
+    for release_first_segment in [false, true] {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([1, 64, 64]));
+        app.select_tool(ToolKind::MeasureCobb);
+        let [down, moved, up] = cobb_drag_events([5.0, 10.0], [25.0, 10.0]);
+        apply_app_event(&mut app, &viewport, down);
+        apply_app_event(&mut app, &viewport, moved);
+        if release_first_segment {
+            apply_app_event(&mut app, &viewport, up);
+            assert!(app.tool_state.is_pending_measurement());
+        } else {
+            assert!(app.tool_state.is_drag_gesture());
+        }
+        apply_app_event(
+            &mut app,
+            &viewport,
+            PresentationEvent::KeyDown {
+                virtual_key: 0x1b,
+                repeated: false,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
+            },
+        );
+        assert_eq!(app.annotations.as_slice(), &[]);
+        assert_eq!(app.tool_state.tool_kind(), None);
+    }
+}
+
+#[test]
 fn length_measurement_clicks_advance_and_complete_through_the_adapter() {
     let mut app = SnapApp::default();
     app.loaded = Some(test_volume([4, 4, 1]));

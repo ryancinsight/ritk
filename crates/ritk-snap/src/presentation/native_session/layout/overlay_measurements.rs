@@ -58,15 +58,16 @@ pub(crate) fn append_measurement_preview(
     tool_state: &ToolState,
     location: Option<AnnotationLocation>,
 ) -> Result<()> {
-    if !matches!(tool_state, ToolState::LengthDrag { .. })
-        || location.is_some_and(|source| {
-            source
-                != (AnnotationLocation {
-                    plane: view.axis,
-                    slice: view.slice_index,
-                })
-        })
-    {
+    if !matches!(
+        tool_state,
+        ToolState::LengthDrag { .. } | ToolState::CobbDrag { .. } | ToolState::CobbPending { .. }
+    ) || location.is_some_and(|source| {
+        source
+            != (AnnotationLocation {
+                plane: view.axis,
+                slice: view.slice_index,
+            })
+    }) {
         return Ok(());
     }
     let output_size = view.transform.output_size(view.source_size);
@@ -79,8 +80,25 @@ pub(crate) fn append_measurement_preview(
         output_width: f64::from(u32::try_from(output_size[0])?),
         output_height: f64::from(u32::try_from(output_size[1])?),
     };
-    if let ToolState::LengthDrag { start, current } = tool_state {
-        pane.segment(overlay, [*start, *current], MEASUREMENT_COLOR)?;
+    match tool_state {
+        ToolState::LengthDrag { start, current } => {
+            pane.segment(overlay, [*start, *current], MEASUREMENT_COLOR)?;
+        }
+        ToolState::CobbDrag {
+            first: Some(first),
+            start,
+            current,
+        } => {
+            pane.segment(overlay, *first, MEASUREMENT_COLOR)?;
+            pane.segment(overlay, [*start, *current], MEASUREMENT_COLOR)?;
+        }
+        ToolState::CobbDrag { start, current, .. } => {
+            pane.segment(overlay, [*start, *current], MEASUREMENT_COLOR)?;
+        }
+        ToolState::CobbPending { segment } => {
+            pane.segment(overlay, *segment, MEASUREMENT_COLOR)?;
+        }
+        _ => {}
     }
     Ok(())
 }
@@ -259,6 +277,22 @@ impl Pane<'_> {
                     image_point(*end),
                     format!("{distance_mm:.1} mm {angle_deg:.1} deg"),
                 )?;
+            }
+            Annotation::CobbAngle {
+                p1,
+                p2,
+                p3,
+                p4,
+                angle_deg,
+                ..
+            } => {
+                let a = image_point(*p1);
+                let b = image_point(*p2);
+                let c = image_point(*p3);
+                let d = image_point(*p4);
+                self.line(overlay, a, b, MEASUREMENT_COLOR)?;
+                self.line(overlay, c, d, MEASUREMENT_COLOR)?;
+                self.label(overlay, b, format!("{angle_deg:.1} deg"))?;
             }
             Annotation::RoiRect {
                 top_left,

@@ -16,6 +16,16 @@ use metis_ui_lang::{PathCapture, PathPush};
 // ── Pointer / interaction event handlers ───────────────────────────────────
 
 impl SnapApp {
+    fn pending_cobb_segment(&self) -> Option<[ImagePoint; 2]> {
+        if let ToolState::CobbPending { segment } = self.tool_state
+            && self.pointer.pending_measurement_location == Some(self.annotation_location())
+        {
+            Some(segment)
+        } else {
+            None
+        }
+    }
+
     /// Begin the gesture `tool` performs from `pos`.
     ///
     /// A gesture started while a multi-click measurement is pending suspends
@@ -62,9 +72,14 @@ impl SnapApp {
                 start: pos,
                 current: pos,
             },
+            ToolKind::MeasureCobb => ToolState::CobbDrag {
+                first: self.pending_cobb_segment(),
+                start: pos,
+                current: pos,
+            },
             _ => return,
         };
-        if self.tool_state.is_pending_measurement() {
+        if self.tool_state.is_pending_measurement() && tool != ToolKind::MeasureCobb {
             self.pointer.suspended_measurement = Some(self.tool_state.clone());
         }
         self.pointer.drag_measurement_location = matches!(
@@ -72,6 +87,7 @@ impl SnapApp {
             ToolState::LengthDrag { .. }
                 | ToolState::DeviationDrag { .. }
                 | ToolState::RoiDrag { .. }
+                | ToolState::CobbDrag { .. }
         )
         .then(|| self.annotation_location());
         self.tool_state = gesture;
@@ -142,12 +158,22 @@ impl SnapApp {
                     current: pos,
                 };
             }
+            ToolState::CobbDrag { first, start, .. } => {
+                self.tool_state = ToolState::CobbDrag {
+                    first,
+                    start,
+                    current: pos,
+                };
+            }
             _ => {}
         }
     }
 
     pub(crate) fn on_drag_end(&mut self, pos: Option<ImagePoint>) {
         let recorded = self.pointer.drag_measurement_location.take();
+        if pos.is_none() && matches!(self.tool_state, ToolState::CobbDrag { .. }) {
+            self.pointer.pending_measurement_location = None;
+        }
         if pos.is_some() && recorded.is_none_or(|location| location == self.annotation_location()) {
             // Only a measurement takes its release as a final point. The
             // viewport mapping a display gesture's release already includes
@@ -157,6 +183,7 @@ impl SnapApp {
                 ToolState::RoiDrag { .. }
                     | ToolState::LengthDrag { .. }
                     | ToolState::DeviationDrag { .. }
+                    | ToolState::CobbDrag { .. }
             ) {
                 self.on_drag(pos);
             }
@@ -180,6 +207,48 @@ impl SnapApp {
                 }
                 ToolState::DeviationDrag { start, current } if start != current => {
                     self.finalise_deviation(start, current);
+                }
+                ToolState::CobbDrag {
+                    first,
+                    start,
+                    current,
+                } if start != current => {
+                    let second = [start, current];
+                    if let Some(first) = first {
+                        let points = [
+                            [first[0].y(), first[0].x()],
+                            [first[1].y(), first[1].x()],
+                            [second[0].y(), second[0].x()],
+                            [second[1].y(), second[1].x()],
+                        ];
+                        let result = self
+                            .slice_plane_spacing()
+                            .and_then(Annotation::validate_spacing)
+                            .and_then(|spacing| {
+                                Annotation::compute_cobb_angle(
+                                    points[0], points[1], points[2], points[3], spacing,
+                                )
+                            });
+                        match result {
+                            Ok(angle_deg) => self.push_annotation(Annotation::CobbAngle {
+                                location: None,
+                                p1: points[0],
+                                p2: points[1],
+                                p3: points[2],
+                                p4: points[3],
+                                angle_deg,
+                            }),
+                            Err(error) => {
+                                self.status_message = format!("Measurement rejected: {error}")
+                            }
+                        }
+                        self.tool_state = ToolState::Idle;
+                        self.pointer.pending_measurement_location = None;
+                    } else {
+                        self.tool_state = ToolState::CobbPending { segment: second };
+                        self.pointer.pending_measurement_location = recorded;
+                    }
+                    self.pointer.suspended_measurement = None;
                 }
                 _ => {}
             }

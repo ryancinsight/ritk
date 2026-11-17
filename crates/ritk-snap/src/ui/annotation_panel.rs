@@ -116,6 +116,9 @@ pub fn csv_for(annotations: &[Annotation]) -> String {
             Annotation::HuPoint { value, .. } => {
                 format!("{i},HU Point,{value:.2},HU,\n")
             }
+            Annotation::CobbAngle { angle_deg, .. } => {
+                format!("{i},Cobb Angle,{angle_deg:.2},deg,\n")
+            }
             Annotation::ClosedPolygon {
                 area_mm2,
                 perimeter_mm,
@@ -178,6 +181,9 @@ fn annotation_label(i: usize, ann: &Annotation) -> String {
         }
         Annotation::HuPoint { value, pos, .. } => {
             format!("#{i}  HU ({:.0},{:.0}): {value:.0}", pos[1], pos[0])
+        }
+        Annotation::CobbAngle { angle_deg, .. } => {
+            format!("#{i}  Cobb angle: {angle_deg:.2}°")
         }
         Annotation::ClosedPolygon {
             area_mm2,

@@ -83,6 +83,21 @@ pub enum ToolState {
         /// Whether the ROI is rectangular or elliptical.
         kind: RoiKind,
     },
+
+    /// One of two directional Cobb segments is being dragged.
+    CobbDrag {
+        /// Completed segment endpoints in image coordinates.
+        first: Option<[ImagePoint; 2]>,
+        /// Current segment start.
+        start: ImagePoint,
+        /// Current segment endpoint.
+        current: ImagePoint,
+    },
+    /// One completed Cobb segment awaits the second directional drag.
+    CobbPending {
+        /// Completed segment endpoints.
+        segment: [ImagePoint; 2],
+    },
     /// Polygon nodes awaiting confirmation.
     Polygon {
         /// Bounded user-supplied vertices.
@@ -122,6 +137,7 @@ impl ToolState {
                 | ToolState::RoiDrag { .. }
                 | ToolState::LengthDrag { .. }
                 | ToolState::DeviationDrag { .. }
+                | ToolState::CobbDrag { .. }
         )
     }
 
@@ -132,6 +148,7 @@ impl ToolState {
             ToolState::MeasureLength1 { .. }
                 | ToolState::MeasureAngle2 { .. }
                 | ToolState::Polygon { .. }
+                | ToolState::CobbPending { .. }
         )
     }
 
@@ -147,6 +164,9 @@ impl ToolState {
             }
             ToolState::DeviationDrag { .. } => Some(ToolKind::MeasureDeviation),
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
+            ToolState::CobbDrag { .. } | ToolState::CobbPending { .. } => {
+                Some(ToolKind::MeasureCobb)
+            }
             ToolState::Polygon {
                 kind: PolygonKind::Closed,
                 ..

@@ -132,6 +132,12 @@ impl SnapApp {
                 }
             }
         }
+        if self.tool_state.is_pending_measurement()
+            && self.pointer.pending_measurement_location != Some(self.annotation_location())
+        {
+            self.tool_state = ToolState::Idle;
+            self.pointer.abandon();
+        }
     }
 
     /// Step the slice for `axis` by `delta`, clamped to the valid range.

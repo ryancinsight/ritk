@@ -232,6 +232,7 @@ impl SnapApp {
                 }
                 let places_next_anchor = *button == PointerButton::Left
                     && !modified
+                    && tool != ToolKind::MeasureCobb
                     && self.tool_state.is_pending_measurement();
                 if !places_next_anchor {
                     self.on_drag_start(tool, Some(image));
@@ -346,7 +347,10 @@ impl SnapApp {
         if virtual_key == 0x1b
             && !repeated
             && (self.tool_state.is_pending_measurement()
-                || matches!(self.tool_state, ToolState::DeviationDrag { .. }))
+                || matches!(
+                    self.tool_state,
+                    ToolState::DeviationDrag { .. } | ToolState::CobbDrag { .. }
+                ))
         {
             self.tool_state = ToolState::Idle;
             self.pointer.abandon();

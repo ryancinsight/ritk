@@ -61,6 +61,9 @@ pub enum MeasurementError {
     /// A computed physical value overflowed or became non-finite.
     #[error("{kind} measurement result is not finite")]
     NonFiniteResult { kind: &'static str },
+    /// A physical segment has no representable direction.
+    #[error("{kind} measurement requires two distinct physical endpoints")]
+    DegenerateSegment { kind: &'static str },
     /// A measurement was requested without a loaded volume.
     #[error("measurement requires a loaded volume")]
     MissingVolume,
@@ -216,6 +219,21 @@ pub enum Annotation {
         pos: [f32; 2],
         /// Intensity value at the point (HU or relative).
         value: f32,
+    },
+
+    /// Two directed image segments with their acute Cobb angle.
+    CobbAngle {
+        /// Creation location on the source image plane.
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
+        /// First segment start and end points.
+        p1: [f32; 2],
+        p2: [f32; 2],
+        /// Second segment start and end points.
+        p3: [f32; 2],
+        p4: [f32; 2],
+        /// Acute angle in degrees.
+        angle_deg: f32,
     },
 
     /// Closed polygon ROI with physical area and perimeter.

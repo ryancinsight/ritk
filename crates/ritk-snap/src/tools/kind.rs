@@ -40,6 +40,8 @@ pub enum ToolKind {
     LabelPaint,
     /// Erase segmentation labels to background under the cursor.
     LabelErase,
+    /// Measure the acute angle between two directed image segments.
+    MeasureCobb,
     /// Draw a closed polygon ROI and compute physical area and perimeter.
     RoiClosedPolygon,
     /// Draw an open polygon polyline and compute its physical length.
@@ -62,6 +64,7 @@ impl ToolKind {
             ToolKind::PointHu => "HU Point",
             ToolKind::LabelPaint => "Label Paint",
             ToolKind::LabelErase => "Label Erase",
+            ToolKind::MeasureCobb => "Cobb Angle",
             ToolKind::RoiClosedPolygon => "Closed Polygon",
             ToolKind::RoiOpenPolygon => "Open Polygon",
         }
@@ -113,6 +116,7 @@ impl ToolKind {
                 "Label Erase: click or drag to erase segmentation labels \
                  back to background with the current brush radius."
             }
+            ToolKind::MeasureCobb => "Cobb angle: drag two directional segments.",
             ToolKind::RoiClosedPolygon => {
                 "Closed polygon: click boundary nodes, then click the first node again."
             }
@@ -137,6 +141,7 @@ impl ToolKind {
             ToolKind::PointHu => "⊙",
             ToolKind::LabelPaint => "P",
             ToolKind::LabelErase => "E",
+            ToolKind::MeasureCobb => "∠",
             ToolKind::RoiClosedPolygon => "⬟",
             ToolKind::RoiOpenPolygon => "〽",
         }
@@ -161,6 +166,7 @@ impl ToolKind {
             ToolKind::PointHu,
             ToolKind::LabelPaint,
             ToolKind::LabelErase,
+            ToolKind::MeasureCobb,
             ToolKind::RoiClosedPolygon,
             ToolKind::RoiOpenPolygon,
         ]

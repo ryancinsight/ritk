@@ -9,6 +9,8 @@ use crate::app::action_adapter::{
 };
 use crate::presentation::ViewportPoint;
 use crate::render::NamedColorMap;
+use crate::tools::kind::ToolKind;
+use crate::ui::tool_shortcuts::VIRTUAL_KEY_MEASURE_COBB;
 use crate::ui::RotationSteps;
 
 #[test]
@@ -182,6 +184,14 @@ fn display_menu_invert_row_toggles_negative_display() {
 #[test]
 fn colormap_key_cycles_all_maps_in_stable_order_and_wraps() {
     let (mut session, _root) = session();
+    session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: VIRTUAL_KEY_MEASURE_COBB,
+            repeated: false,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("C selects Cobb measurement");
+    assert_eq!(session.app.active_tool, ToolKind::MeasureCobb);
     assert_eq!(session.app.colormap, NamedColorMap::Grayscale);
     // Grayscale sits at index 1 of the stable display order.
     let mut expected = NamedColorMap::Grayscale;
@@ -195,7 +205,7 @@ fn colormap_key_cycles_all_maps_in_stable_order_and_wraps() {
             .handle_events(&[WindowEvent::KeyDown {
                 virtual_key: VIRTUAL_KEY_COLORMAP_CYCLE,
                 repeated: false,
-                modifiers: ModifierState::NONE,
+                modifiers: ModifierState::SHIFT,
             }])
             .expect("colormap cycle key");
         assert_eq!(flow, NativeFlow::Continue { repaint: true });
