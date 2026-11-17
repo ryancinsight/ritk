@@ -32,6 +32,8 @@ mod browser_tool;
 // the selection logic is host-independent, so the module ships on every
 // target (only the wasm ABI error variants stay gated).
 mod browser_window_preset;
+#[cfg(any(windows, test))]
+mod calibration;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) mod clinical_distribution;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
