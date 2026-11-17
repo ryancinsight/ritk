@@ -20,6 +20,8 @@ pub enum AnnotationKind {
     HuPoint,
     /// A closed polygon area measurement.
     ClosedPolygon,
+    /// An open polygon polyline length measurement.
+    OpenPolygon,
     /// A three-dimensional length measured in DICOM patient space.
     PatientLength,
 }
@@ -36,6 +38,7 @@ impl AnnotationKind {
             Self::RoiEllipse => "roi-ellipse",
             Self::HuPoint => "hu-point",
             Self::ClosedPolygon => "closed-polygon",
+            Self::OpenPolygon => "open-polygon",
         }
     }
 }

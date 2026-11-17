@@ -40,6 +40,8 @@ pub enum ToolKind {
     LabelErase,
     /// Draw a closed polygon ROI and compute physical area and perimeter.
     RoiClosedPolygon,
+    /// Draw an open polygon polyline and compute its physical length.
+    RoiOpenPolygon,
 }
 
 impl ToolKind {
@@ -58,6 +60,7 @@ impl ToolKind {
             ToolKind::LabelPaint => "Label Paint",
             ToolKind::LabelErase => "Label Erase",
             ToolKind::RoiClosedPolygon => "Closed Polygon",
+            ToolKind::RoiOpenPolygon => "Open Polygon",
         }
     }
 
@@ -107,6 +110,9 @@ impl ToolKind {
             ToolKind::RoiClosedPolygon => {
                 "Closed polygon: click boundary nodes, then click the first node again."
             }
+            ToolKind::RoiOpenPolygon => {
+                "Open polygon: click polyline nodes, then press Enter to finish."
+            }
         }
     }
 
@@ -125,6 +131,7 @@ impl ToolKind {
             ToolKind::LabelPaint => "P",
             ToolKind::LabelErase => "E",
             ToolKind::RoiClosedPolygon => "⬟",
+            ToolKind::RoiOpenPolygon => "〽",
         }
     }
 
@@ -147,6 +154,7 @@ impl ToolKind {
             ToolKind::LabelPaint,
             ToolKind::LabelErase,
             ToolKind::RoiClosedPolygon,
+            ToolKind::RoiOpenPolygon,
         ]
     }
 }
