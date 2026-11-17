@@ -74,7 +74,7 @@ impl SnapApp {
         }
         self.pointer.drag_measurement_location = matches!(
             gesture,
-            ToolState::LengthDrag { .. } | ToolState::RoiDrag { .. }
+            ToolState::LengthDrag { .. } | ToolState::RoiDrag { .. } | ToolState::PathDrag { .. }
         )
         .then(|| self.annotation_location());
         self.tool_state = gesture;

@@ -334,3 +334,21 @@ fn adapter_accumulates_repaint_across_actions_in_one_batch() {
         ViewerActionDisposition::Continue { repaint: true }
     );
 }
+
+#[test]
+fn image_drawings_cancel_when_the_source_slice_changes_during_drag() {
+    use crate::tools::interaction::ImagePoint;
+
+    for tool in [ToolKind::Arrow, ToolKind::Pencil] {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([4, 4, 3]));
+        app.active_tool = tool;
+        app.on_drag_start(tool, Some(ImagePoint::new(0.5, 0.5)));
+        app.on_drag(Some(ImagePoint::new(1.5, 1.5)));
+        app.set_slice_for_axis(0, 1);
+        app.on_drag_end(Some(ImagePoint::new(2.5, 2.5)));
+
+        assert_eq!(app.annotations.as_slice(), &[]);
+        assert_eq!(app.tool_state, crate::tools::interaction::ToolState::Idle);
+    }
+}
