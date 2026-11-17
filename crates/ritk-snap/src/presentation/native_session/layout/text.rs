@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use metis_platform::typeface::TextSize;
 use metis_platform::{Color, Framebuffer};
 use metis_ui_lang::DisplayCommand;
+use std::borrow::Cow;
 
 pub(in crate::presentation::native_session) use metis_platform::typeface::TextStyle;
 
@@ -41,4 +42,29 @@ pub(in crate::presentation::native_session) fn text_command(
         y,
         style,
     }
+}
+
+pub(super) fn fit_text(text: &str, width: i32, style: TextStyle) -> Cow<'_, str> {
+    const ELLIPSIS: &str = "...";
+    let fits = |value: &str| {
+        style
+            .extent(0, 0, value)
+            .is_some_and(|rect| rect.width <= width)
+    };
+    if fits(text) {
+        return Cow::Borrowed(text);
+    }
+    if !fits(ELLIPSIS) || text.is_empty() {
+        return Cow::Borrowed("");
+    }
+    let mut shortened = String::from(ELLIPSIS);
+    for character in text.chars() {
+        let end = shortened.len() - ELLIPSIS.len();
+        shortened.insert(end, character);
+        if !fits(&shortened) {
+            shortened.remove(end);
+            break;
+        }
+    }
+    Cow::Owned(shortened)
 }
