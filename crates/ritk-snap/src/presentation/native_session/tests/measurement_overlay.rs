@@ -360,6 +360,17 @@ fn native_calibration_uses_the_selected_reference_on_one_image() {
         p2: [1.5, 2.5],
         length_mm: raw * 2.0,
     });
+    let other_slice = (slice + 1) % session.views[pane].slice_count;
+    session.app.annotations.push(Annotation::Length {
+        plane: 0,
+        location: Some(AnnotationLocation {
+            plane: 0,
+            slice: other_slice,
+        }),
+        p1,
+        p2,
+        length_mm: raw,
+    });
     let x = super::layout::screen_coordinate(x + dx, "reference x").expect("bounded test x");
     let y = super::layout::screen_coordinate(y + dy * 0.5, "reference y").expect("bounded test y");
     session
@@ -398,9 +409,7 @@ fn native_calibration_uses_the_selected_reference_on_one_image() {
         .measured_length(p1, p2)
         .expect("calibrated length");
     assert!((corrected - 8.0).abs() <= f32::EPSILON * 8.0);
-    session
-        .app
-        .set_slice_for_axis(0, (slice + 1) % session.views[pane].slice_count);
+    session.app.set_slice_for_axis(0, other_slice);
     assert_eq!(
         session
             .app
@@ -408,4 +417,15 @@ fn native_calibration_uses_the_selected_reference_on_one_image() {
             .expect("adjacent image retains spacing"),
         raw
     );
+    session.app.set_slice_for_axis(0, slice);
+    session
+        .apply_window_action(WindowAction::ResetCalibration)
+        .expect("reset calibration");
+    assert!(matches!(session.app.annotations.as_slice(), [
+        Annotation::Length { length_mm: reference, .. },
+        Annotation::Length { length_mm: existing, .. },
+        Annotation::Length { length_mm: other, .. }
+    ] if (*reference - raw).abs() <= f32::EPSILON * raw
+        && (*existing - raw * 2.0).abs() <= f32::EPSILON * raw * 2.0
+        && (*other - raw).abs() <= f32::EPSILON * raw));
 }

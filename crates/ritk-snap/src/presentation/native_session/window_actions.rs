@@ -215,12 +215,21 @@ impl NativeViewerSession {
                 let Some(known_mm) = self.window_chrome.take_calibration_value() else {
                     return Ok(false);
                 };
-                let changed = self.active_app_mut().calibrate_selected_length(known_mm);
-                if changed {
-                    self.active_app_mut().status_message =
-                        format!("Length calibration set to {known_mm:.3} mm");
-                }
-                Ok(changed)
+                let app = self.active_app_mut();
+                app.status_message = match app.calibrate_selected_length(known_mm) {
+                    Ok(()) => format!("Length calibration set to {known_mm:.3} mm"),
+                    Err(error) => format!("Length calibration rejected: {error}"),
+                };
+                Ok(true)
+            }
+            WindowAction::ResetCalibration => {
+                let app = self.active_app_mut();
+                app.status_message = match app.reset_active_length_calibration() {
+                    Ok(false) => return Ok(false),
+                    Ok(true) => "Length calibration reset to DICOM spacing".to_owned(),
+                    Err(error) => format!("Length calibration reset rejected: {error}"),
+                };
+                Ok(true)
             }
         }
     }

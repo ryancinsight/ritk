@@ -78,6 +78,7 @@ pub(super) enum WindowAction {
     DeleteCurrentImageAnnotations,
     OpenCalibration,
     ApplyCalibration,
+    ResetCalibration,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
