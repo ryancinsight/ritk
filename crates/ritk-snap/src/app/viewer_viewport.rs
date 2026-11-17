@@ -29,6 +29,21 @@ impl ViewerViewport {
         self.axis
     }
 
+    pub(crate) fn source_pixel_size(self) -> [f64; 2] {
+        let [x, y] = self.geometry.pixel_size().map(|size| size * self.zoom);
+        let origin = self
+            .transform
+            .source_to_output_coordinates([0.0, 0.0], self.source_size);
+        let next = self
+            .transform
+            .source_to_output_coordinates([1.0, 0.0], self.source_size);
+        if origin[0] == next[0] {
+            [y, x]
+        } else {
+            [x, y]
+        }
+    }
+
     /// Construct a viewport mapping from validated image placement values.
     ///
     /// # Errors

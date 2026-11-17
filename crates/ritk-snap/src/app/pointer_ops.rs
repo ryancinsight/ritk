@@ -1,8 +1,9 @@
+mod annotation;
 mod measurement;
 
 use super::state::SnapApp;
 use crate::render::NamedColorMap;
-use crate::tools::interaction::{Annotation, ImagePoint, RoiKind, ToolState};
+use crate::tools::interaction::{Annotation, ImagePoint, PathKind, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
@@ -57,6 +58,35 @@ impl SnapApp {
                 start: pos,
                 current: pos,
             },
+            ToolKind::Arrow => ToolState::PathDrag {
+                start: pos,
+                points: vec![pos],
+                kind: PathKind::Arrow,
+            },
+            ToolKind::Pencil => ToolState::PathDrag {
+                start: pos,
+                points: vec![pos],
+                kind: PathKind::Pencil,
+            },
+            ToolKind::MeasureCobb => {
+                let points = match self.tool_state.clone() {
+                    ToolState::Cobb { points }
+                        if points.len() == 2
+                            && self.pointer.pending_measurement_location
+                                == Some(self.annotation_location()) =>
+                    {
+                        points
+                    }
+                    _ => Vec::new(),
+                };
+                let mut points = points;
+                points.push(pos);
+                ToolState::CobbDrag { points }
+            }
+            ToolKind::MeasureDeviation => ToolState::DeviationDrag {
+                start: pos,
+                current: pos,
+            },
             _ => return,
         };
         if self.tool_state.is_pending_measurement() {
@@ -64,7 +94,11 @@ impl SnapApp {
         }
         self.pointer.drag_measurement_location = matches!(
             gesture,
-            ToolState::LengthDrag { .. } | ToolState::RoiDrag { .. }
+            ToolState::LengthDrag { .. }
+                | ToolState::RoiDrag { .. }
+                | ToolState::PathDrag { .. }
+                | ToolState::CobbDrag { .. }
+                | ToolState::DeviationDrag { .. }
         )
         .then(|| self.annotation_location());
         self.tool_state = gesture;
@@ -72,6 +106,16 @@ impl SnapApp {
 
     pub(crate) fn on_drag(&mut self, pos: Option<ImagePoint>) {
         let Some(pos) = pos else { return };
+        if let ToolState::PathDrag { points, kind, .. } = &mut self.tool_state {
+            if *kind == PathKind::Arrow
+                && let [_, endpoint] = points.as_mut_slice()
+            {
+                *endpoint = pos;
+            } else if points.last() != Some(&pos) {
+                points.push(pos);
+            }
+            return;
+        }
         match self.tool_state.clone() {
             ToolState::Panning {
                 start,
@@ -117,6 +161,27 @@ impl SnapApp {
                     current: pos,
                 };
             }
+            ToolState::MeasureLength1 { p1 } if self.active_tool == ToolKind::MeasureLength => {
+                self.pointer.drag_measurement_location = self.pointer.pending_measurement_location;
+                self.tool_state = ToolState::LengthDrag {
+                    start: p1,
+                    current: pos,
+                };
+            }
+            ToolState::CobbDrag { mut points } => {
+                if matches!(points.len(), 1 | 3) {
+                    points.push(pos);
+                } else if let Some(last) = points.last_mut() {
+                    *last = pos;
+                }
+                self.tool_state = ToolState::CobbDrag { points };
+            }
+            ToolState::DeviationDrag { start, .. } => {
+                self.tool_state = ToolState::DeviationDrag {
+                    start,
+                    current: pos,
+                };
+            }
             _ => {}
         }
     }
@@ -129,7 +194,11 @@ impl SnapApp {
             // that gesture's own zoom and pan, so reapplying it would move it.
             if matches!(
                 self.tool_state,
-                ToolState::RoiDrag { .. } | ToolState::LengthDrag { .. }
+                ToolState::RoiDrag { .. }
+                    | ToolState::LengthDrag { .. }
+                    | ToolState::PathDrag { .. }
+                    | ToolState::CobbDrag { .. }
+                    | ToolState::DeviationDrag { .. }
             ) {
                 self.on_drag(pos);
             }
@@ -150,6 +219,42 @@ impl SnapApp {
                 }
                 ToolState::LengthDrag { start, current } if start != current => {
                     self.record_length(start, current);
+                }
+                ToolState::PathDrag {
+                    points,
+                    kind: PathKind::Arrow,
+                    ..
+                } if points.len() >= 2 => {
+                    self.push_annotation(Annotation::Arrow {
+                        location: None,
+                        tail: [points[0].y(), points[0].x()],
+                        head: [points[points.len() - 1].y(), points[points.len() - 1].x()],
+                    });
+                }
+                ToolState::PathDrag {
+                    points,
+                    kind: PathKind::Pencil,
+                    ..
+                } if points.len() >= 2 => {
+                    self.push_annotation(Annotation::Pencil {
+                        location: None,
+                        points: points.iter().map(|p| [p.y(), p.x()]).collect(),
+                    });
+                }
+                ToolState::CobbDrag { points } if points.len() == 2 => {
+                    self.tool_state = ToolState::Cobb { points };
+                    self.pointer.pending_measurement_location = recorded;
+                    self.pointer.suspended_measurement = None;
+                }
+                ToolState::CobbDrag { points } if points.len() == 4 => {
+                    self.finalise_cobb(&points);
+                    self.tool_state = ToolState::Idle;
+                    self.pointer.pending_measurement_location = None;
+                    self.pointer.suspended_measurement = None;
+                }
+                ToolState::DeviationDrag { start, current } if start != current => {
+                    self.finalise_deviation(start, current);
+                    self.tool_state = ToolState::Idle;
                 }
                 _ => {}
             }
@@ -197,67 +302,16 @@ impl SnapApp {
         {
             self.tool_state = ToolState::Idle;
         }
-        match self.active_tool {
-            ToolKind::MeasureLength => match self.tool_state.clone() {
+        if self.active_tool == ToolKind::MeasureLength {
+            match self.tool_state.clone() {
                 ToolState::MeasureLength1 { p1 } => {
                     self.record_length(p1, pos);
                     self.tool_state = ToolState::Idle;
                 }
-                _ => {
-                    self.tool_state = ToolState::MeasureLength1 { p1: pos };
-                }
-            },
-            ToolKind::MeasureAngle => match self.tool_state.clone() {
-                ToolState::MeasureAngle2 { p1, p2 } => {
-                    let a = [p1.y(), p1.x()];
-                    let b = [p2.y(), p2.x()];
-                    let c = [pos.y(), pos.x()];
-                    let angle_deg = match self
-                        .slice_plane_spacing()
-                        .and_then(Annotation::validate_spacing)
-                    {
-                        Ok(spacing) => Annotation::compute_angle_with_spacing(a, b, c, spacing),
-                        Err(error) => {
-                            self.status_message = format!("Measurement rejected: {error}");
-                            self.tool_state = ToolState::Idle;
-                            return;
-                        }
-                    };
-                    self.push_annotation(Annotation::Angle {
-                        location: None,
-                        p1: a,
-                        p2: b,
-                        p3: c,
-                        angle_deg,
-                    });
-                    self.tool_state = ToolState::Idle;
-                }
-                ToolState::MeasureLength1 { p1 } => {
-                    self.tool_state = ToolState::MeasureAngle2 { p1, p2: pos };
-                }
-                _ => {
-                    self.tool_state = ToolState::MeasureLength1 { p1: pos };
-                }
-            },
-            ToolKind::PointHu => {
-                if let Some(vol) = &self.loaded {
-                    let Some(voxel) =
-                        image_point_to_voxel(vol.shape, self.axis, location.slice, pos)
-                    else {
-                        return;
-                    };
-                    let value = intensity_at_voxel(vol, voxel);
-                    self.push_annotation(Annotation::HuPoint {
-                        location: None,
-                        pos: [pos.y(), pos.x()],
-                        value,
-                    });
-                    let [depth, row, col] = voxel;
-                    self.status_message = format!("Value at [{depth},{row},{col}]: {value:.0}");
-                }
+                _ => self.tool_state = ToolState::MeasureLength1 { p1: pos },
             }
-            ToolKind::LabelPaint | ToolKind::LabelErase => {}
-            _ => {}
+        } else {
+            self.on_annotation_click(pos);
         }
         self.pointer.pending_measurement_location =
             self.tool_state.is_pending_measurement().then_some(location);

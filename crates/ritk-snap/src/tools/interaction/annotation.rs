@@ -40,6 +40,7 @@
 //! area = (max_r − min_r + 1) · s_r × (max_c − min_c + 1) · s_c [mm²]
 //! ```
 
+mod paths;
 mod patient_length;
 mod regions;
 
@@ -200,10 +201,62 @@ pub enum Annotation {
         /// Intensity value at the point (HU or relative).
         value: f32,
     },
+
+    /// Closed polygon ROI with physical area.
+    ClosedPolygon {
+        location: Option<AnnotationLocation>,
+        points: Vec<[f32; 2]>,
+        area_mm2: f32,
+        perimeter_mm: f32,
+    },
+    /// Open polyline annotation.
+    OpenPolygon {
+        location: Option<AnnotationLocation>,
+        points: Vec<[f32; 2]>,
+        length_mm: f32,
+    },
+    /// Two-line Cobb angle, in degrees.
+    CobbAngle {
+        location: Option<AnnotationLocation>,
+        p1: [f32; 2],
+        p2: [f32; 2],
+        p3: [f32; 2],
+        p4: [f32; 2],
+        angle_deg: f32,
+    },
+    /// Offset and angle of a segment from the nearer image axis.
+    Deviation {
+        location: Option<AnnotationLocation>,
+        start: [f32; 2],
+        end: [f32; 2],
+        reference: [f32; 2],
+        distance_mm: f32,
+        angle_deg: f32,
+    },
+    /// Directional arrow annotation.
+    Arrow {
+        location: Option<AnnotationLocation>,
+        tail: [f32; 2],
+        head: [f32; 2],
+    },
+    /// Freehand pencil annotation.
+    Pencil {
+        location: Option<AnnotationLocation>,
+        points: Vec<[f32; 2]>,
+    },
 }
 
 impl Annotation {
-    #[cfg(windows)]
+    pub(crate) fn visible_on_image(&self, image: AnnotationLocation) -> bool {
+        match self.location() {
+            Some(recorded) => recorded == image,
+            None => matches!(
+                self,
+                Self::Length { plane, .. } | Self::PatientLength { plane, .. } if *plane == image.plane
+            ),
+        }
+    }
+
     pub(crate) fn location(&self) -> Option<AnnotationLocation> {
         match self {
             Self::Length { location, .. }
@@ -212,6 +265,12 @@ impl Annotation {
             | Self::RoiRect { location, .. }
             | Self::RoiEllipse { location, .. }
             | Self::HuPoint { location, .. } => *location,
+            Self::ClosedPolygon { location, .. }
+            | Self::OpenPolygon { location, .. }
+            | Self::CobbAngle { location, .. }
+            | Self::Deviation { location, .. }
+            | Self::Arrow { location, .. }
+            | Self::Pencil { location, .. } => *location,
         }
     }
 
@@ -234,6 +293,24 @@ impl Annotation {
                 location: value, ..
             }
             | Self::HuPoint {
+                location: value, ..
+            } => *value = Some(location),
+            Self::ClosedPolygon {
+                location: value, ..
+            }
+            | Self::OpenPolygon {
+                location: value, ..
+            }
+            | Self::CobbAngle {
+                location: value, ..
+            }
+            | Self::Deviation {
+                location: value, ..
+            }
+            | Self::Arrow {
+                location: value, ..
+            }
+            | Self::Pencil {
                 location: value, ..
             } => *value = Some(location),
         }

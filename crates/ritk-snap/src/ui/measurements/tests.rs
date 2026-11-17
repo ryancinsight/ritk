@@ -1,3 +1,4 @@
+use super::drawing::perpendicular_offset;
 use super::*;
 use crate::geometry::PatientPointMm;
 use crate::tools::interaction::PatientLength;

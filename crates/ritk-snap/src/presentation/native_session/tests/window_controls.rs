@@ -4,6 +4,43 @@ use super::support::control_center;
 use super::*;
 
 #[test]
+fn annotation_shortcuts_select_tools_and_toggle_clinical_readouts() {
+    use crate::tools::kind::ToolKind;
+
+    let (mut session, _root) = session();
+    for (key, tool) in [
+        (b'L', ToolKind::MeasureLength),
+        (b'E', ToolKind::RoiEllipse),
+        (b'G', ToolKind::RoiClosedPolygon),
+        (b'O', ToolKind::RoiOpenPolygon),
+        (b'A', ToolKind::MeasureAngle),
+        (b'C', ToolKind::MeasureCobb),
+        (b'D', ToolKind::MeasureDeviation),
+        (b'Y', ToolKind::Arrow),
+        (b'P', ToolKind::Pencil),
+        (b'Q', ToolKind::Crosshair),
+    ] {
+        session
+            .handle_events(&[WindowEvent::KeyDown {
+                virtual_key: u32::from(key),
+                repeated: false,
+                modifiers: ModifierState::NONE,
+            }])
+            .expect("deliver the viewer shortcut");
+        assert_eq!(session.app.active_tool, tool);
+    }
+    let readouts = session.app.show_overlay;
+    session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: 0x7b,
+            repeated: false,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("deliver F12");
+    assert_eq!(session.app.show_overlay, !readouts);
+}
+
+#[test]
 fn native_menus_and_toolbar_drive_the_existing_viewer_actions() {
     let (mut session, _root) = session();
     let (pan_x, pan_y) = control_center(

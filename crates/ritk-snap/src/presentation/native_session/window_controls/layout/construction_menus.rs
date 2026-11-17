@@ -52,7 +52,11 @@ pub(super) fn menu_tab_geometry(menu: Menu) -> u32 {
     0
 }
 
-pub(super) fn menu_item_count(menu: Menu, workspace_layout: WorkspaceLayout) -> usize {
+pub(super) fn menu_item_count(
+    menu: Menu,
+    app: &SnapApp,
+    workspace_layout: WorkspaceLayout,
+) -> usize {
     match menu {
         Menu::File => 3,
         Menu::Anonymize => ANONYMIZE_ITEMS.len(),
@@ -68,6 +72,7 @@ pub(super) fn menu_item_count(menu: Menu, workspace_layout: WorkspaceLayout) -> 
                 .iter()
                 .filter(|tool| !(workspace_layout.is_grid() && **tool == ToolKind::Crosshair))
                 .count()
+                + usize::from(app.has_selected_length())
                 + POINTER_BUTTON_ROWS.len()
         }
         Menu::Window => 6,
@@ -158,8 +163,16 @@ pub(super) fn menu_item(
                     app.active_tool == tool,
                 ));
             }
+            if app.has_selected_length() && index == tool_rows {
+                return Ok((
+                    "Calibrate selected length...",
+                    WindowAction::OpenCalibration,
+                    false,
+                ));
+            }
+            let pointer_index = index - tool_rows - usize::from(app.has_selected_length());
             let (label, button) = POINTER_BUTTON_ROWS
-                .get(index - tool_rows)
+                .get(pointer_index)
                 .ok_or_else(|| anyhow!("native Tools menu row is outside its items"))?;
             Ok((
                 label,

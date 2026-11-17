@@ -32,6 +32,8 @@
 //! 3,ROI Rect,100.00,HU,σ=10.00 area=50.00mm²
 //! 4,ROI Ellipse,80.00,HU,σ=5.00 area=25.00mm²
 //! 5,HU Point,200.00,HU,
+//! 6,Closed Polygon,40.00,mm2,
+//! 7,Open Polygon,20.00,mm,
 //! ```
 
 use egui::Ui;
@@ -109,6 +111,30 @@ pub fn csv_for(annotations: &[Annotation]) -> String {
             Annotation::HuPoint { value, .. } => {
                 format!("{i},HU Point,{value:.2},HU,\n")
             }
+            Annotation::ClosedPolygon {
+                area_mm2,
+                perimeter_mm,
+                ..
+            } => {
+                format!("{i},Closed Polygon,{area_mm2:.2},mm²,perimeter={perimeter_mm:.2} mm\n")
+            }
+            Annotation::OpenPolygon { length_mm, .. } => {
+                format!("{i},Open Polygon,{length_mm:.2},mm,\n")
+            }
+            Annotation::CobbAngle { angle_deg, .. } => {
+                format!("{i},Cobb Angle,{angle_deg:.2},deg,\n")
+            }
+            Annotation::Deviation {
+                distance_mm,
+                angle_deg,
+                ..
+            } => {
+                format!("{i},Deviation,{distance_mm:.2},mm,angle={angle_deg:.2} deg\n")
+            }
+            Annotation::Arrow { .. } => format!("{i},Arrow,,,\n"),
+            Annotation::Pencil { points, .. } => {
+                format!("{i},Pencil,{},points,\n", points.len())
+            }
         };
         out.push_str(&row);
     }
@@ -157,6 +183,24 @@ fn annotation_label(i: usize, ann: &Annotation) -> String {
         Annotation::HuPoint { value, pos, .. } => {
             format!("#{i}  HU ({:.0},{:.0}): {value:.0}", pos[1], pos[0])
         }
+        Annotation::ClosedPolygon {
+            area_mm2,
+            perimeter_mm,
+            ..
+        } => {
+            format!("#{i}  Closed polygon: {area_mm2:.1} mm², {perimeter_mm:.1} mm")
+        }
+        Annotation::OpenPolygon { length_mm, .. } => {
+            format!("#{i}  Open polygon: {length_mm:.1} mm")
+        }
+        Annotation::CobbAngle { angle_deg, .. } => {
+            format!("#{i}  Cobb angle: {angle_deg:.2}°")
+        }
+        Annotation::Deviation { distance_mm, .. } => {
+            format!("#{i}  Deviation: {distance_mm:.1} mm")
+        }
+        Annotation::Arrow { .. } => format!("#{i}  Arrow"),
+        Annotation::Pencil { points, .. } => format!("#{i}  Pencil: {} points", points.len()),
     }
 }
 

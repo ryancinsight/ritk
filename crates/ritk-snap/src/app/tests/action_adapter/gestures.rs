@@ -165,6 +165,66 @@ fn length_measurement_clicks_advance_and_complete_through_the_adapter() {
 }
 
 #[test]
+fn length_measurement_first_click_then_drag_completes_through_the_adapter() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([8, 8, 1]));
+    app.active_tool = ToolKind::MeasureLength;
+    let viewport = viewport([8, 8]);
+
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
+        },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+        },
+    );
+
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
+        },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerMove { x: 4.5, y: 3.5 },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 4.5,
+            y: 3.5,
+            button: PointerButton::Left,
+        },
+    );
+
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::Length { length_mm, .. }]
+            if (*length_mm - 5.0).abs() < 1e-6
+    ));
+    assert!(app.tool_state.is_idle());
+}
+
+#[test]
 fn angle_measurement_clicks_advance_and_complete_through_the_adapter() {
     let mut app = SnapApp::default();
     app.loaded = Some(test_volume([4, 4, 1]));
@@ -198,6 +258,85 @@ fn angle_measurement_clicks_advance_and_complete_through_the_adapter() {
         app.annotations.as_slice(),
         [crate::tools::interaction::Annotation::Angle { angle_deg, .. }]
             if (*angle_deg - 90.0).abs() < 1e-5
+    ));
+}
+
+#[test]
+fn cobb_measurement_uses_two_drag_segments() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([8, 8, 1]));
+    app.active_tool = ToolKind::MeasureCobb;
+    let viewport = viewport([8, 8]);
+    for (start, end) in [((0.5, 0.5), (0.5, 4.5)), ((1.5, 0.5), (5.5, 2.5))] {
+        apply_app_event(
+            &mut app,
+            &viewport,
+            PresentationEvent::PointerDown {
+                x: start.0,
+                y: start.1,
+                button: PointerButton::Left,
+                modifiers: PresentationModifiers::NONE,
+            },
+        );
+        apply_app_event(
+            &mut app,
+            &viewport,
+            PresentationEvent::PointerMove { x: end.0, y: end.1 },
+        );
+        apply_app_event(
+            &mut app,
+            &viewport,
+            PresentationEvent::PointerUp {
+                x: end.0,
+                y: end.1,
+                button: PointerButton::Left,
+            },
+        );
+    }
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::CobbAngle { angle_deg, .. }]
+            if (*angle_deg - 63.4349).abs() < 1e-3
+    ));
+}
+
+#[test]
+fn deviation_measurement_uses_one_drag_segment() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([8, 8, 1]));
+    app.active_tool = ToolKind::MeasureDeviation;
+    let viewport = viewport([8, 8]);
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+            modifiers: PresentationModifiers::NONE,
+        },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerMove { x: 4.5, y: 3.5 },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 4.5,
+            y: 3.5,
+            button: PointerButton::Left,
+        },
+    );
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::Deviation {
+            distance_mm,
+            angle_deg,
+            ..
+        }] if *distance_mm == 3.0 && (*angle_deg - 36.8699).abs() < 1e-3
     ));
 }
 

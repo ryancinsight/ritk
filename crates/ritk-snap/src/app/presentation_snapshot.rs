@@ -48,6 +48,26 @@ impl SnapApp {
             Annotation::HuPoint { value, .. } => {
                 AnnotationSummary::new(AnnotationKind::HuPoint, f64::from(*value))
             }
+            Annotation::ClosedPolygon { area_mm2, .. } => {
+                AnnotationSummary::new(AnnotationKind::ClosedPolygon, f64::from(*area_mm2))
+            }
+            Annotation::OpenPolygon { length_mm, .. } => {
+                AnnotationSummary::new(AnnotationKind::OpenPolygon, f64::from(*length_mm))
+            }
+            Annotation::CobbAngle { angle_deg, .. } => {
+                AnnotationSummary::new(AnnotationKind::CobbAngle, f64::from(*angle_deg))
+            }
+            Annotation::Deviation { distance_mm, .. } => {
+                AnnotationSummary::new(AnnotationKind::Deviation, f64::from(*distance_mm))
+            }
+            Annotation::Arrow { tail, head, .. } => AnnotationSummary::new(
+                AnnotationKind::Arrow,
+                f64::from(Annotation::compute_length(*tail, *head, [1.0, 1.0])),
+            ),
+            Annotation::Pencil { points, .. } => AnnotationSummary::new(
+                AnnotationKind::Pencil,
+                f64::from(Annotation::compute_polyline_length(points, [1.0, 1.0])),
+            ),
         });
         PresentationSnapshot::from_parts(
             self.visual_revision,

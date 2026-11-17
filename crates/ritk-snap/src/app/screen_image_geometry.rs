@@ -44,7 +44,6 @@ impl ScreenImageGeometry {
     }
 
     /// Return the checked pixel spacing in host coordinates.
-    #[cfg(test)]
     pub(crate) const fn pixel_size(self) -> [f64; 2] {
         self.pixel_size
     }

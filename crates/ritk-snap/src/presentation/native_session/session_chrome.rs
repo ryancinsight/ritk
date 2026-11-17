@@ -1,7 +1,8 @@
 //! Native chrome composition for the viewer session.
 
 use super::layout::{
-    append_measurement_overlay, crosshair_overlay, OverlayCommands, MAX_GRID_PANELS,
+    append_measurement_overlay, append_measurement_preview, crosshair_overlay, OverlayCommands,
+    MAX_GRID_PANELS,
 };
 use super::session::{volume_affine, NativeViewerSession};
 use anyhow::{anyhow, Result};
@@ -23,7 +24,9 @@ impl NativeViewerSession {
                     .ok_or_else(|| anyhow!("native viewport has no slice frame"))?;
                 (&self.app, view)
             };
-            if app.annotations.is_empty() || viewport.panel_width == 0 || viewport.panel_height == 0
+            if viewport.panel_width == 0
+                || viewport.panel_height == 0
+                || (app.annotations.is_empty() && app.tool_state.is_idle())
             {
                 continue;
             }
@@ -35,6 +38,7 @@ impl NativeViewerSession {
                 &app.annotations,
                 volume_affine(app),
             )?;
+            append_measurement_preview(&mut overlay, view, viewport, app)?;
             self.framebuffer
                 .render_clipped(viewport.panel_rect()?, |framebuffer| {
                     overlay.into_display_list().render_to(framebuffer);

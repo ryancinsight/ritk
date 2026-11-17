@@ -192,6 +192,36 @@ impl NativeViewerSession {
                 app.pointer.abandon();
                 Ok(true)
             }
+            WindowAction::DeleteSelectedAnnotation => {
+                let changed = self.active_app_mut().delete_selected_annotation();
+                if changed {
+                    self.active_app_mut().status_message = "Deleted annotation".to_owned();
+                }
+                Ok(changed)
+            }
+            WindowAction::DeleteCurrentImageAnnotations => {
+                let count = self.active_app_mut().delete_annotations_on_current_image();
+                if count != 0 {
+                    self.active_app_mut().status_message =
+                        format!("Deleted {count} annotation(s) from current image");
+                }
+                Ok(count != 0)
+            }
+            WindowAction::OpenCalibration => {
+                self.window_chrome.open_calibration();
+                Ok(true)
+            }
+            WindowAction::ApplyCalibration => {
+                let Some(known_mm) = self.window_chrome.take_calibration_value() else {
+                    return Ok(false);
+                };
+                let changed = self.active_app_mut().calibrate_selected_length(known_mm);
+                if changed {
+                    self.active_app_mut().status_message =
+                        format!("Length calibration set to {known_mm:.3} mm");
+                }
+                Ok(changed)
+            }
         }
     }
 }

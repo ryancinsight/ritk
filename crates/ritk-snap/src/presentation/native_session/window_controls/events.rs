@@ -13,6 +13,8 @@ use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
 use anyhow::{anyhow, Result};
 
+mod keyboard_tools;
+
 impl WindowChrome {
     pub(in crate::presentation::native_session) fn handle_event(
         &mut self,
@@ -80,6 +82,9 @@ impl WindowChrome {
                 action,
             });
         }
+        if let Some(action) = self.handle_calibration_event(event) {
+            return Ok(action);
+        }
         if let PresentationEvent::KeyDown {
             virtual_key,
             repeated: false,
@@ -87,6 +92,8 @@ impl WindowChrome {
         } = event
         {
             let action = match (*virtual_key, modifiers.ctrl(), modifiers.shift()) {
+                (0x2e, true, false) => Some(WindowAction::DeleteCurrentImageAnnotations),
+                (0x2e, false, false) => Some(WindowAction::DeleteSelectedAnnotation),
                 (0x73, false, false) => Some(WindowAction::OpenSeriesPicker),
                 (0x73, true, false) => Some(WindowAction::CloseActivePanel),
                 (0x73, false, true) => Some(WindowAction::CloseAllPanels),
@@ -111,6 +118,13 @@ impl WindowChrome {
             } = event
             && *modifiers == PresentationModifiers::NONE
         {
+            if let Some(action) = keyboard_tools::action(*virtual_key, workspace_layout) {
+                return Ok(WindowChromeEvent {
+                    consumed: true,
+                    repaint: true,
+                    action: Some(action),
+                });
+            }
             let current_series = displayed_series
                 .get(active_panel)
                 .copied()

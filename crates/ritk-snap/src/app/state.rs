@@ -74,6 +74,7 @@ pub(crate) struct SnapApp {
     pub(crate) active_tool: ToolKind,
     /// In-progress gesture state for the active tool.
     pub(crate) tool_state: ToolState,
+    pub(crate) length_calibrations: Vec<super::calibration::ManualLengthCalibration>,
     /// Pointer button assignments and the gesture in progress.
     pub(crate) pointer: super::pointer_bindings::PointerGestures,
     /// Stateful reducer for host pointer gestures at the presentation seam.
@@ -313,6 +314,7 @@ impl Default for SnapApp {
             axis: 0,
             active_tool: ToolKind::WindowLevel,
             tool_state: ToolState::Idle,
+            length_calibrations: Vec::new(),
             pointer: Default::default(),
             presentation_dispatcher: PresentationDispatcher::new(),
             annotations: Vec::new(),

@@ -205,3 +205,199 @@ fn measurement_patient_length_projects_through_affine_to_same_segment() {
     );
     let _ = index;
 }
+
+#[test]
+fn native_toolbar_length_then_drag_records_measurement() {
+    let (mut session, _root) = session();
+    let (tool_x, tool_y) = super::support::control_center(
+        &session,
+        None,
+        WindowAction::SelectTool(crate::tools::kind::ToolKind::MeasureLength),
+    );
+    session
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x: tool_x,
+                y: tool_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: tool_x,
+                y: tool_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+        ])
+        .expect("toolbar length selection");
+    assert_eq!(
+        session.app.active_tool,
+        crate::tools::kind::ToolKind::MeasureLength
+    );
+
+    let (pane, _, _, width, height) = axial_panel(&session);
+    let (start_x, start_y) = session.viewports[pane].center();
+    let [row_spacing, col_spacing] = session.views[pane].frame.display_spacing().values();
+    let expected_mm = (3.0 * col_spacing / width).hypot(4.0 * row_spacing / height);
+    let bound = f64::from(f32::EPSILON)
+        * (f64::from(session.views[pane].frame.width()) * col_spacing
+            + f64::from(session.views[pane].frame.height()) * row_spacing);
+    session
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x: start_x,
+                y: start_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+            WindowEvent::PointerMove {
+                x: start_x + 3,
+                y: start_y + 4,
+            },
+            WindowEvent::PointerUp {
+                x: start_x + 3,
+                y: start_y + 4,
+                button: metis_platform::native::MouseButton::Left,
+            },
+        ])
+        .expect("native length drag");
+    assert!(matches!(
+        session.app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::Length { length_mm, .. }]
+            if (f64::from(*length_mm) - expected_mm).abs() <= bound
+    ));
+}
+
+#[test]
+fn native_delete_targets_the_mark_and_image_under_the_pointer() {
+    use metis_platform::native::MouseButton;
+
+    let (mut session, _root) = session();
+    let (pane, x, y, dx, dy) = axial_panel(&session);
+    let slice = session.views[pane].slice_index;
+    let other_slice = (slice + 1) % session.views[pane].slice_count;
+    assert_ne!(slice, other_slice);
+    for (position, recorded) in [
+        ([0.5, 0.5], slice),
+        ([1.5, 1.5], slice),
+        ([0.5, 0.5], other_slice),
+    ] {
+        session.app.annotations.push(Annotation::HuPoint {
+            location: Some(AnnotationLocation {
+                plane: 0,
+                slice: recorded,
+            }),
+            pos: position,
+            value: 42.0,
+        });
+    }
+    let x = super::layout::screen_coordinate(x + dx * 0.5, "point x").expect("bounded test x");
+    let y = super::layout::screen_coordinate(y + dy * 0.5, "point y").expect("bounded test y");
+    session
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x,
+                y,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x,
+                y,
+                button: MouseButton::Left,
+            },
+            WindowEvent::KeyDown {
+                virtual_key: 0x2e,
+                repeated: false,
+                modifiers: ModifierState::NONE,
+            },
+        ])
+        .expect("select and delete one mark");
+    assert_eq!(session.app.annotations.len(), 2);
+    assert!(
+        matches!(session.app.annotations.first(), Some(Annotation::HuPoint { pos, .. }) if *pos == [1.5, 1.5])
+    );
+    session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: 0x2e,
+            repeated: false,
+            modifiers: ModifierState::CONTROL,
+        }])
+        .expect("delete only marks on the displayed image");
+    assert_eq!(
+        session.app.annotations.as_slice(),
+        &[Annotation::HuPoint {
+            location: Some(AnnotationLocation {
+                plane: 0,
+                slice: other_slice
+            }),
+            pos: [0.5, 0.5],
+            value: 42.0,
+        }]
+    );
+}
+
+#[test]
+fn native_calibration_uses_the_selected_reference_on_one_image() {
+    use metis_platform::native::MouseButton;
+
+    let (mut session, _root) = session();
+    let (pane, x, y, dx, dy) = axial_panel(&session);
+    let slice = session.views[pane].slice_index;
+    let p1 = [0.5, 0.5];
+    let p2 = [0.5, 1.5];
+    let raw = session
+        .app
+        .measured_length(p1, p2)
+        .expect("reference has physical spacing");
+    session.app.annotations.push(Annotation::Length {
+        plane: 0,
+        location: Some(AnnotationLocation { plane: 0, slice }),
+        p1,
+        p2,
+        length_mm: raw,
+    });
+    let x = super::layout::screen_coordinate(x + dx, "reference x").expect("bounded test x");
+    let y = super::layout::screen_coordinate(y + dy * 0.5, "reference y").expect("bounded test y");
+    session
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x,
+                y,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x,
+                y,
+                button: MouseButton::Left,
+            },
+        ])
+        .expect("select the reference length");
+    session
+        .apply_window_action(WindowAction::OpenCalibration)
+        .expect("open calibration");
+    session
+        .handle_events(&[
+            WindowEvent::TextInput { character: '8' },
+            WindowEvent::KeyDown {
+                virtual_key: 0x0d,
+                repeated: false,
+                modifiers: ModifierState::NONE,
+            },
+        ])
+        .expect("enter the known calibration distance");
+    assert!(
+        matches!(session.app.annotations.as_slice(), [Annotation::Length { length_mm, .. }] if *length_mm == 8.0)
+    );
+    let corrected = session
+        .app
+        .measured_length(p1, p2)
+        .expect("calibrated length");
+    assert!((corrected - 8.0).abs() <= f32::EPSILON * 8.0);
+    session
+        .app
+        .set_slice_for_axis(0, (slice + 1) % session.views[pane].slice_count);
+    assert_eq!(
+        session
+            .app
+            .measured_length(p1, p2)
+            .expect("adjacent image retains spacing"),
+        raw
+    );
+}

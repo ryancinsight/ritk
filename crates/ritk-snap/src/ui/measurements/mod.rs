@@ -17,9 +17,19 @@
 //! # Font size
 //! All measurement labels use a 12 pt proportional font.
 
+mod drawing;
+#[cfg(test)]
+mod tests;
+use self::drawing::{
+    draw_angle_annotation, draw_arrow, draw_hu_point, draw_length_annotation, draw_polyline,
+    draw_roi_ellipse_annotation, draw_roi_rect_annotation,
+};
+
 use egui::{Color32, FontId, Painter, Pos2, Rect, Stroke, Vec2};
 
-use crate::tools::interaction::{Annotation, ImagePoint, RoiKind, ToolState};
+use crate::tools::interaction::{
+    Annotation, ImagePoint, PathKind, PolygonKind, RoiKind, ToolState,
+};
 use crate::ui::live_preview::{live_angle_deg, live_length_mm};
 
 // ── colour / style constants ──────────────────────────────────────────────────
@@ -133,6 +143,101 @@ impl MeasurementLayer {
                         *std_dev,
                     );
                 }
+                Annotation::ClosedPolygon {
+                    points,
+                    area_mm2,
+                    perimeter_mm,
+                    ..
+                } => {
+                    let screen: Vec<Pos2> = points
+                        .iter()
+                        .map(|p| img_to_screen(egui::pos2((*p)[1], (*p)[0])))
+                        .collect();
+                    draw_polyline(painter, &screen, true, COLOR_ROI);
+                    if let Some(anchor) = screen.first() {
+                        painter.text(
+                            *anchor + Vec2::new(8.0, 8.0),
+                            egui::Align2::LEFT_TOP,
+                            format!("{area_mm2:.1} mm²  {perimeter_mm:.1} mm"),
+                            label_font(),
+                            COLOR_LABEL,
+                        );
+                    }
+                }
+                Annotation::OpenPolygon {
+                    points, length_mm, ..
+                } => {
+                    let screen: Vec<Pos2> = points
+                        .iter()
+                        .map(|p| img_to_screen(egui::pos2((*p)[1], (*p)[0])))
+                        .collect();
+                    draw_polyline(painter, &screen, false, COLOR_ROI);
+                    if let Some(anchor) = screen.first() {
+                        painter.text(
+                            *anchor + Vec2::new(8.0, 8.0),
+                            egui::Align2::LEFT_TOP,
+                            format!("{length_mm:.1} mm"),
+                            label_font(),
+                            COLOR_LABEL,
+                        );
+                    }
+                }
+                Annotation::CobbAngle {
+                    p1,
+                    p2,
+                    p3,
+                    p4,
+                    angle_deg,
+                    ..
+                } => {
+                    let a = img_to_screen(egui::pos2(p1[1], p1[0]));
+                    let b = img_to_screen(egui::pos2(p2[1], p2[0]));
+                    let c = img_to_screen(egui::pos2(p3[1], p3[0]));
+                    let d = img_to_screen(egui::pos2(p4[1], p4[0]));
+                    painter.line_segment([a, b], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
+                    painter.line_segment([c, d], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
+                    painter.text(
+                        b + Vec2::new(8.0, -12.0),
+                        egui::Align2::LEFT_CENTER,
+                        format!("{angle_deg:.1}°"),
+                        label_font(),
+                        COLOR_LABEL,
+                    );
+                }
+                Annotation::Deviation {
+                    start,
+                    end,
+                    reference,
+                    distance_mm,
+                    angle_deg,
+                    ..
+                } => {
+                    let a = img_to_screen(egui::pos2(start[1], start[0]));
+                    let b = img_to_screen(egui::pos2(end[1], end[0]));
+                    let p = img_to_screen(egui::pos2(reference[1], reference[0]));
+                    painter.line_segment([a, b], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
+                    painter.line_segment([a, p], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
+                    painter.line_segment([p, b], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
+                    painter.text(
+                        p + Vec2::new(8.0, 8.0),
+                        egui::Align2::LEFT_TOP,
+                        format!("{distance_mm:.1} mm  {angle_deg:.1}°"),
+                        label_font(),
+                        COLOR_LABEL,
+                    );
+                }
+                Annotation::Arrow { tail, head, .. } => {
+                    let a = img_to_screen(egui::pos2(tail[1], tail[0]));
+                    let b = img_to_screen(egui::pos2(head[1], head[0]));
+                    draw_arrow(painter, a, b);
+                }
+                Annotation::Pencil { points, .. } => {
+                    let screen: Vec<Pos2> = points
+                        .iter()
+                        .map(|p| img_to_screen(egui::pos2((*p)[1], (*p)[0])))
+                        .collect();
+                    draw_polyline(painter, &screen, false, COLOR_MEASURE);
+                }
             }
         }
     }
@@ -230,6 +335,53 @@ impl MeasurementLayer {
                     }
                 }
             }
+            ToolState::Polygon { points, kind } => {
+                let screen: Vec<Pos2> = points
+                    .iter()
+                    .map(|p| img_to_screen(egui_point(*p)))
+                    .collect();
+                if let Some(cursor) = cursor_screen {
+                    let mut preview = screen.clone();
+                    preview.push(cursor);
+                    draw_polyline(painter, &preview, *kind == PolygonKind::Closed, COLOR_ROI);
+                }
+                for point in screen {
+                    painter.circle_filled(point, HANDLE_RADIUS, COLOR_ROI);
+                }
+            }
+            ToolState::PathDrag { points, kind, .. } => {
+                let screen: Vec<Pos2> = points
+                    .iter()
+                    .map(|p| img_to_screen(egui_point(*p)))
+                    .collect();
+                if *kind == PathKind::Arrow {
+                    if let (Some(a), Some(b)) = (screen.first(), screen.last()) {
+                        draw_arrow(painter, *a, *b);
+                    }
+                } else {
+                    draw_polyline(painter, &screen, false, COLOR_MEASURE);
+                }
+            }
+            ToolState::Cobb { points } | ToolState::CobbDrag { points } => {
+                for pair in points.chunks_exact(2) {
+                    painter.line_segment(
+                        [
+                            img_to_screen(egui_point(pair[0])),
+                            img_to_screen(egui_point(pair[1])),
+                        ],
+                        Stroke::new(LINE_WIDTH, COLOR_MEASURE),
+                    );
+                }
+            }
+            ToolState::DeviationDrag { start, current } => {
+                painter.line_segment(
+                    [
+                        img_to_screen(egui_point(*start)),
+                        img_to_screen(egui_point(*current)),
+                    ],
+                    Stroke::new(LINE_WIDTH, COLOR_MEASURE),
+                );
+            }
             // Panning and window-level drag produce no visual annotation.
             ToolState::Panning { .. }
             | ToolState::Zooming { .. }
@@ -237,186 +389,3 @@ impl MeasurementLayer {
         }
     }
 }
-
-// ── private drawing functions ─────────────────────────────────────────────────
-
-/// Draw a length measurement annotation: a line with endpoint handles and
-/// a label showing the distance in mm.
-///
-/// # Label placement
-/// The label is positioned at the midpoint of the line, offset 8 px
-/// perpendicular to the line direction to avoid overlap.
-fn draw_length_annotation(painter: &Painter, p1: Pos2, p2: Pos2, length_mm: f32) {
-    // Line
-    painter.line_segment([p1, p2], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
-    // Endpoint handles
-    painter.circle_filled(p1, HANDLE_RADIUS, COLOR_MEASURE);
-    painter.circle_filled(p2, HANDLE_RADIUS, COLOR_MEASURE);
-    // Label at midpoint, offset perpendicular to the line.
-    let mid = Pos2::new((p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5);
-    let label = format!("{:.1} mm", length_mm);
-    let offset = perpendicular_offset(p1, p2, 10.0);
-    painter.text(
-        mid + offset,
-        egui::Align2::CENTER_CENTER,
-        label,
-        label_font(),
-        COLOR_LABEL,
-    );
-}
-
-/// Draw an angle measurement annotation: two rays from the vertex `p2` to
-/// `p1` and `p3`, with a small arc at the vertex and an angle label.
-///
-/// # Label placement
-/// The label is placed along the angle bisector from `p2`, 20 px from the
-/// vertex.
-fn draw_angle_annotation(painter: &Painter, p1: Pos2, p2: Pos2, p3: Pos2, angle_deg: f32) {
-    // Two rays
-    painter.line_segment([p2, p1], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
-    painter.line_segment([p2, p3], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
-    // Endpoint handles
-    painter.circle_filled(p1, HANDLE_RADIUS, COLOR_MEASURE);
-    painter.circle_filled(p2, HANDLE_RADIUS, COLOR_MEASURE);
-    painter.circle_filled(p3, HANDLE_RADIUS, COLOR_MEASURE);
-    // Small arc at the vertex (approximated by a circle outline).
-    painter.circle_stroke(p2, 8.0, Stroke::new(1.0_f32, COLOR_MEASURE));
-    // Label along the angle bisector.
-    let d1 = (p1 - p2).normalized();
-    let d3 = (p3 - p2).normalized();
-    let bisector = if (d1 + d3).length() > 1e-4 {
-        (d1 + d3).normalized()
-    } else {
-        // Degenerate: rays are antiparallel; use perpendicular.
-        Vec2::new(-d1.y, d1.x)
-    };
-    let label_pos = p2 + bisector * 22.0;
-    let label = format!("{:.1}°", angle_deg);
-    painter.text(
-        label_pos,
-        egui::Align2::CENTER_CENTER,
-        label,
-        label_font(),
-        COLOR_LABEL,
-    );
-}
-
-/// Draw a rectangular ROI annotation with a statistics label.
-///
-/// The rectangle is drawn with [`COLOR_ROI`]. The label shows mean ± std.
-///
-/// # Label placement
-/// The label is placed immediately below the bottom edge of the rectangle.
-fn draw_roi_rect_annotation(painter: &Painter, tl: Pos2, br: Pos2, mean: f32, std: f32) {
-    let tl = Pos2::new(tl.x.min(br.x), tl.y.min(br.y));
-    let br = Pos2::new(tl.x.max(br.x), tl.y.max(br.y));
-    let rect = Rect::from_min_max(tl, br);
-    // Rectangle border
-    painter.rect_stroke(rect, 0.0, Stroke::new(LINE_WIDTH, COLOR_ROI));
-    // Corner handles
-    for corner in &[tl, Pos2::new(br.x, tl.y), br, Pos2::new(tl.x, br.y)] {
-        painter.circle_filled(*corner, HANDLE_RADIUS, COLOR_ROI);
-    }
-    // Label below the bottom edge.
-    let label = format!("μ={:.1} σ={:.1}", mean, std);
-    let label_pos = Pos2::new(rect.center().x, br.y + 12.0);
-    painter.text(
-        label_pos,
-        egui::Align2::CENTER_TOP,
-        label,
-        label_font(),
-        COLOR_LABEL,
-    );
-}
-
-/// Draw a single HU point annotation: a small crosshair circle with the
-/// pixel value label.
-fn draw_hu_point(painter: &Painter, pos: Pos2, value: f32) {
-    // Crosshair
-    let arm = 5.0_f32;
-    painter.line_segment(
-        [Pos2::new(pos.x - arm, pos.y), Pos2::new(pos.x + arm, pos.y)],
-        Stroke::new(LINE_WIDTH, COLOR_HU_POINT),
-    );
-    painter.line_segment(
-        [Pos2::new(pos.x, pos.y - arm), Pos2::new(pos.x, pos.y + arm)],
-        Stroke::new(LINE_WIDTH, COLOR_HU_POINT),
-    );
-    painter.circle_stroke(pos, arm, Stroke::new(LINE_WIDTH, COLOR_HU_POINT));
-    // Value label
-    let label = format!("{:.0} HU", value);
-    painter.text(
-        Pos2::new(pos.x + arm + 4.0, pos.y),
-        egui::Align2::LEFT_CENTER,
-        label,
-        label_font(),
-        COLOR_LABEL,
-    );
-}
-
-/// Draw an ellipse ROI annotation with a statistics label.
-///
-/// The ellipse is drawn with [`COLOR_ROI`]. The label shows `μ ± σ`.
-///
-/// # Parameters
-/// - `center` — ellipse centre in screen coordinates.
-/// - `radius_x` — horizontal screen-space radius (col direction).
-/// - `radius_y` — vertical screen-space radius (row direction).
-/// - `mean`, `std` — statistics to render in the label.
-///
-/// # Label placement
-/// The label is placed immediately below the bottom of the ellipse.
-fn draw_roi_ellipse_annotation(
-    painter: &Painter,
-    center: Pos2,
-    radius_x: f32,
-    radius_y: f32,
-    mean: f32,
-    std: f32,
-) {
-    painter.add(egui::epaint::EllipseShape {
-        center,
-        radius: Vec2::new(radius_x, radius_y),
-        fill: Color32::TRANSPARENT,
-        stroke: Stroke::new(LINE_WIDTH, COLOR_ROI),
-    });
-    // Corner handles at cardinal points.
-    for handle in &[
-        Pos2::new(center.x, center.y - radius_y), // top
-        Pos2::new(center.x + radius_x, center.y), // right
-        Pos2::new(center.x, center.y + radius_y), // bottom
-        Pos2::new(center.x - radius_x, center.y), // left
-    ] {
-        painter.circle_filled(*handle, HANDLE_RADIUS, COLOR_ROI);
-    }
-    // Label below the bottom of the ellipse.
-    let label = format!("μ={:.1} σ={:.1}", mean, std);
-    let label_pos = Pos2::new(center.x, center.y + radius_y + 12.0);
-    painter.text(
-        label_pos,
-        egui::Align2::CENTER_TOP,
-        label,
-        label_font(),
-        COLOR_LABEL,
-    );
-}
-
-// ── helpers ───────────────────────────────────────────────────────────────────
-
-/// Compute a perpendicular offset vector of length `distance` from the line
-/// `p1 → p2`.
-///
-/// The perpendicular is rotated 90° counter-clockwise from the line direction.
-/// When `p1 == p2` (degenerate line), returns a straight-up offset `(0, -d)`.
-fn perpendicular_offset(p1: Pos2, p2: Pos2, distance: f32) -> Vec2 {
-    let d = p2 - p1;
-    let len = d.length();
-    if len < 1e-4 {
-        return Vec2::new(0.0, -distance);
-    }
-    // 90° CCW rotation: (dx, dy) → (-dy, dx)
-    Vec2::new(-d.y / len, d.x / len) * distance
-}
-
-#[cfg(test)]
-mod tests;

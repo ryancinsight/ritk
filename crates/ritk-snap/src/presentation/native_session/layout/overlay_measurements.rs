@@ -1,7 +1,10 @@
 //! RITK-owned measurement and region overlays for native panes.
 
+mod preview;
+
 use anyhow::Result;
-use metis_platform::Color;
+use metis_platform::{Color, Rect};
+pub(in crate::presentation::native_session) use preview::append_measurement_preview;
 
 use super::super::frame::RenderedView;
 use super::crosshair::screen_coordinate;
@@ -30,39 +33,20 @@ pub(crate) fn append_measurement_overlay(
     affine: Option<AffineTransform>,
 ) -> Result<()> {
     for (view, viewport) in views.iter().zip(viewports.iter()) {
-        let output_size = view.transform.output_size(view.source_size);
-        if output_size.contains(&0) {
+        let Some(pane) = Pane::new(view, viewport)? else {
             continue;
-        }
-        let pane = Pane {
-            view,
-            viewport,
-            output_width: f64::from(u32::try_from(output_size[0])?),
-            output_height: f64::from(u32::try_from(output_size[1])?),
         };
         for annotation in annotations {
-            if !annotation_visible(annotation, view.axis, view.slice_index) {
+            if !annotation.visible_on_image(AnnotationLocation {
+                plane: view.axis,
+                slice: view.slice_index,
+            }) {
                 continue;
             }
             pane.draw(annotation, overlay, affine)?;
         }
     }
     Ok(())
-}
-
-fn annotation_visible(annotation: &Annotation, plane: usize, slice: usize) -> bool {
-    if let Some(AnnotationLocation {
-        plane: recorded,
-        slice: index,
-    }) = annotation.location()
-    {
-        return recorded == plane && index == slice;
-    }
-    matches!(
-        annotation,
-        Annotation::Length { plane: recorded, .. }
-            | Annotation::PatientLength { plane: recorded, .. } if *recorded == plane
-    )
 }
 
 struct Pane<'a> {
@@ -72,7 +56,20 @@ struct Pane<'a> {
     output_height: f64,
 }
 
-impl Pane<'_> {
+impl<'a> Pane<'a> {
+    fn new(view: &'a RenderedView, viewport: &'a NativeViewport) -> Result<Option<Self>> {
+        let [width, height] = view.transform.output_size(view.source_size);
+        if width == 0 || height == 0 {
+            return Ok(None);
+        }
+        Ok(Some(Self {
+            view,
+            viewport,
+            output_width: f64::from(u32::try_from(width)?),
+            output_height: f64::from(u32::try_from(height)?),
+        }))
+    }
+
     fn point(&self, image: [f64; 2]) -> Result<(i32, i32)> {
         let output = self
             .view
@@ -98,15 +95,43 @@ impl Pane<'_> {
         Ok(())
     }
 
+    fn arrow(&self, overlay: &mut OverlayCommands, tail: [f64; 2], tip: [f64; 2]) -> Result<()> {
+        let (start, end) = (self.point(tail)?, self.point(tip)?);
+        let [x, y] = [f64::from(end.0), f64::from(end.1)];
+        let [dx, dy] = [x - f64::from(start.0), y - f64::from(start.1)];
+        let length = dx.hypot(dy);
+        if length == 0.0 {
+            return Ok(());
+        }
+        let color = MEASUREMENT_COLOR;
+        overlay.push(metis_ui_lang::DisplayCommand::DrawLine { start, end, color });
+        const TIP_LENGTH_PIXELS: f64 = 10.0;
+        let size = TIP_LENGTH_PIXELS.min(length);
+        let [ux, uy] = [dx * size / length, dy * size / length];
+        for sign in [-0.5, 0.5] {
+            let wing = (
+                screen_coordinate(x - ux + sign * uy, "arrow wing x")?,
+                screen_coordinate(y - uy - sign * ux, "arrow wing y")?,
+            );
+            overlay.push(metis_ui_lang::DisplayCommand::DrawLine {
+                start: end,
+                end: wing,
+                color,
+            });
+        }
+        Ok(())
+    }
+
     fn label(&self, overlay: &mut OverlayCommands, anchor: [f64; 2], text: String) -> Result<()> {
         let (x, y) = self.point(anchor)?;
-        overlay.push(text_command(
+        self.place_label(
+            overlay,
+            [
+                x.saturating_add(LABEL_OFFSET),
+                y.saturating_add(LABEL_OFFSET),
+            ],
             text,
-            x.saturating_add(LABEL_OFFSET),
-            y.saturating_add(LABEL_OFFSET),
-            text_style(MEASUREMENT_COLOR, PANEL_DETAIL_SIZE)?,
-        ));
-        Ok(())
+        )
     }
 
     fn length_label(
@@ -129,12 +154,47 @@ impl Pane<'_> {
                 dx / norm * LENGTH_LABEL_OFFSET,
             )
         };
-        overlay.push(text_command(
+        self.place_label(
+            overlay,
+            [
+                screen_coordinate((x0 + x1) * 0.5 + ox, "length label x")?,
+                screen_coordinate((y0 + y1) * 0.5 + oy, "length label y")?,
+            ],
             text,
-            screen_coordinate((x0 + x1) * 0.5 + ox, "length label x")?,
-            screen_coordinate((y0 + y1) * 0.5 + oy, "length label y")?,
-            text_style(MEASUREMENT_COLOR, PANEL_DETAIL_SIZE)?,
-        ));
+        )
+    }
+
+    fn place_label(
+        &self,
+        overlay: &mut OverlayCommands,
+        [x, y]: [i32; 2],
+        text: String,
+    ) -> Result<()> {
+        let style = text_style(MEASUREMENT_COLOR, PANEL_DETAIL_SIZE)?;
+        let Some(bounds) = style.extent(0, 0, &text) else {
+            return Ok(());
+        };
+        let pane = self.viewport.panel_rect()?;
+        let right =
+            pane.x + pane.width - bounds.width - super::super::slice_scrollbar::RIGHT_GUTTER;
+        let bottom = pane.y + pane.height - bounds.height;
+        if right < pane.x || bottom < pane.y {
+            return Ok(());
+        }
+        let x = (x + bounds.x).clamp(pane.x, right);
+        let y = (y + bounds.y).clamp(pane.y, bottom);
+        for row in [
+            y,
+            y.saturating_add(bounds.height),
+            y.saturating_sub(bounds.height),
+        ] {
+            if (pane.y..=bottom).contains(&row)
+                && !overlay.overlaps_text(Rect::new(x, row, bounds.width, bounds.height))
+            {
+                overlay.push(text_command(text, x - bounds.x, row - bounds.y, style));
+                break;
+            }
+        }
         Ok(())
     }
 
@@ -249,6 +309,87 @@ impl Pane<'_> {
                 )?;
                 self.label(overlay, p, format!("{value:.0}"))?;
             }
+            Annotation::ClosedPolygon {
+                points,
+                area_mm2,
+                perimeter_mm,
+                ..
+            } => {
+                let polygon: Vec<[f64; 2]> = points.iter().map(|p| image_point(*p)).collect();
+                for pair in polygon.windows(2) {
+                    self.line(overlay, pair[0], pair[1], ROI_COLOR)?;
+                }
+                if let (Some(first), Some(last)) = (polygon.first(), polygon.last()) {
+                    self.line(overlay, *last, *first, ROI_COLOR)?;
+                }
+                if let Some(anchor) = polygon.first() {
+                    self.label(
+                        overlay,
+                        *anchor,
+                        format!("{area_mm2:.1} mm2  {perimeter_mm:.1} mm"),
+                    )?;
+                }
+            }
+            Annotation::OpenPolygon {
+                points, length_mm, ..
+            } => {
+                let polygon: Vec<[f64; 2]> = points.iter().map(|p| image_point(*p)).collect();
+                for pair in polygon.windows(2) {
+                    self.line(overlay, pair[0], pair[1], ROI_COLOR)?;
+                }
+                if let (Some(first), Some(last)) = (polygon.first(), polygon.last()) {
+                    self.length_label(overlay, *first, *last, format!("{length_mm:.1} mm"))?;
+                }
+            }
+            Annotation::CobbAngle {
+                p1,
+                p2,
+                p3,
+                p4,
+                angle_deg,
+                ..
+            } => {
+                let a = image_point(*p1);
+                let b = image_point(*p2);
+                let c = image_point(*p3);
+                let d = image_point(*p4);
+                self.line(overlay, a, b, MEASUREMENT_COLOR)?;
+                self.line(overlay, c, d, MEASUREMENT_COLOR)?;
+                self.label(overlay, b, format!("{angle_deg:.1} deg"))?;
+            }
+            Annotation::Deviation {
+                start,
+                end,
+                reference,
+                distance_mm,
+                angle_deg,
+                ..
+            } => {
+                let a = image_point(*start);
+                let b = image_point(*end);
+                let p = image_point(*reference);
+                self.line(overlay, a, b, MEASUREMENT_COLOR)?;
+                self.line(overlay, a, p, MEASUREMENT_COLOR)?;
+                self.line(overlay, p, b, MEASUREMENT_COLOR)?;
+                self.label(
+                    overlay,
+                    p,
+                    format!("{distance_mm:.1} mm  {angle_deg:.1} deg"),
+                )?;
+            }
+            Annotation::Arrow { tail, head, .. } => {
+                self.arrow(overlay, image_point(*tail), image_point(*head))?;
+            }
+            Annotation::Pencil { points, .. } => {
+                for pair in points.windows(2) {
+                    self.line(
+                        overlay,
+                        image_point(pair[0]),
+                        image_point(pair[1]),
+                        MEASUREMENT_COLOR,
+                    )?;
+                }
+            }
             _ => {}
         }
         Ok(())
@@ -274,7 +415,7 @@ fn plane_point(axis: usize, affine: AffineTransform, point: PatientPointMm) -> O
 
 #[cfg(test)]
 mod tests {
-    use super::{annotation_visible, Annotation, AnnotationLocation};
+    use super::{Annotation, AnnotationLocation};
 
     #[test]
     fn anchored_annotation_requires_matching_plane_and_slice() {
@@ -284,9 +425,9 @@ mod tests {
             value: -10.0,
         };
 
-        assert!(annotation_visible(&annotation, 1, 4));
-        assert!(!annotation_visible(&annotation, 0, 4));
-        assert!(!annotation_visible(&annotation, 1, 3));
+        assert!(annotation.visible_on_image(AnnotationLocation { plane: 1, slice: 4 }));
+        assert!(!annotation.visible_on_image(AnnotationLocation { plane: 0, slice: 4 }));
+        assert!(!annotation.visible_on_image(AnnotationLocation { plane: 1, slice: 3 }));
     }
 
     #[test]
@@ -296,7 +437,10 @@ mod tests {
             pos: [0.0, 0.0],
             value: -10.0,
         };
-        assert!(!annotation_visible(&annotation, 0, 0));
-        assert!(!annotation_visible(&annotation, 2, 17));
+        assert!(!annotation.visible_on_image(AnnotationLocation { plane: 0, slice: 0 }));
+        assert!(!annotation.visible_on_image(AnnotationLocation {
+            plane: 2,
+            slice: 17
+        }));
     }
 }

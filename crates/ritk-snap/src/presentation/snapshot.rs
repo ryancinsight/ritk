@@ -20,6 +20,18 @@ pub enum AnnotationKind {
     HuPoint,
     /// A three-dimensional length measured in DICOM patient space.
     PatientLength,
+    /// A closed polygon ROI.
+    ClosedPolygon,
+    /// An open polyline.
+    OpenPolygon,
+    /// A Cobb angle.
+    CobbAngle,
+    /// A baseline deviation.
+    Deviation,
+    /// A directional arrow measured in source pixels.
+    Arrow,
+    /// A freehand pencil path measured in source pixels.
+    Pencil,
 }
 
 impl AnnotationKind {
@@ -33,6 +45,12 @@ impl AnnotationKind {
             Self::RoiRect => "roi-rect",
             Self::RoiEllipse => "roi-ellipse",
             Self::HuPoint => "hu-point",
+            Self::ClosedPolygon => "closed-polygon",
+            Self::OpenPolygon => "open-polygon",
+            Self::CobbAngle => "cobb-angle",
+            Self::Deviation => "deviation",
+            Self::Arrow => "arrow",
+            Self::Pencil => "pencil",
         }
     }
 }

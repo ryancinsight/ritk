@@ -1294,7 +1294,8 @@ that was active before it, even when the release lands over another panel.
 Inside an image, the left button runs the selected tool. The other buttons keep
 their own tools, so the display can be adjusted without changing tools: middle
 drag adjusts the window, right drag zooms, the back button pans and the forward
-button measures a length. Dragging with the length tool also records a length,
+button measures a length. Dragging with the length tool records a length. A
+first click followed by a drag from the second anchor records the same way,
 and a display adjustment between two measurement clicks keeps the first point.
 
 The F4 multiple-series picker opens with its series list focused. Typing moves
@@ -2832,10 +2833,37 @@ pixel tests agree.
 
 ## Keep cursor and measurements with transformed pixels
 
+In the native viewer, drag the slice scrollbar beside the image to move
+through that pane's slices. Use the **Tools** menu or these shortcuts to
+place annotations on the current slice:
+
+| Tool | Shortcut | Gesture |
+| --- | --- | --- |
+| Length | L | Drag between endpoints, or click the first endpoint and click or drag the second. |
+| Ellipse | E | Drag the bounding rectangle. |
+| Angle | A | Click three points, placing the vertex second. |
+| Cobb angle | C | Drag the two segments in sequence. |
+| Deviation | D | Drag a segment to measure its offset and angle from the closer image axis. |
+| Closed polygon | G | Click each node, then click the first or final node again. |
+| Open polygon | O | Click each node, then click the final node again. |
+| Arrow | Y | Drag from tail to tip. |
+| Pencil | P | Drag to draw a freehand path. |
+
+Press **Esc** to cancel a mark in progress. Drag an existing image-space mark
+to move it, or click it and press **Delete** to remove it. **Ctrl+Delete**
+removes marks on the displayed image. **F12** toggles the clinical readouts in
+the orthogonal layout.
+
+To calibrate lengths against a known reference, measure the reference and
+select it. Open **Tools → Calibrate selected length…**, enter the known
+distance in millimetres, and press **Enter**. The viewer applies the correction
+to subsequent lengths on that image for the loaded study.
+
 The viewer's **View → Orientation** commands and shortcuts apply the same
 `ViewTransform` to the texture and every source-coordinate overlay:
 **H** flips horizontally, **V** flips vertically, **R** rotates clockwise by
-90°, **Shift+R** rotates counter-clockwise, and **O** restores the identity.
+90°, and **Shift+R** rotates counter-clockwise. In the browser and eframe
+viewers, **O** restores the identity.
 The linked cursor, pointer intensity, crosshair, label map, RT-STRUCT, RT-DOSE,
 orientation labels, and measurement annotations all use source voxel
 coordinates. Screen input first enters the displayed output rectangle and is

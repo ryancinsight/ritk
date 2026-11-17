@@ -1,5 +1,6 @@
 //! RITK-owned controls rendered in the visible Métis native client area.
 
+mod calibration;
 mod events;
 mod layout;
 mod multi_series;
@@ -73,6 +74,10 @@ pub(super) enum WindowAction {
     ToggleAnonymizedOverlay,
     ToggleCine,
     ResetView,
+    DeleteSelectedAnnotation,
+    DeleteCurrentImageAnnotations,
+    OpenCalibration,
+    ApplyCalibration,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -120,6 +125,8 @@ pub(super) struct WindowChrome {
     visible: bool,
     open_menu: Option<Menu>,
     multi_series_dialog: Option<MultiSeriesDialog>,
+    calibration_dialog: Option<calibration::CalibrationDialog>,
+    calibration_value: Option<f32>,
     show_series_preview: bool,
     control_down: bool,
     pointer_owner: PointerOwner,
@@ -132,6 +139,8 @@ impl WindowChrome {
             visible,
             open_menu: None,
             multi_series_dialog: None,
+            calibration_dialog: None,
+            calibration_value: None,
             show_series_preview: true,
             control_down: false,
             pointer_owner: PointerOwner::None,
@@ -244,6 +253,9 @@ impl WindowChrome {
         if let (Some(dialog), Some(browser)) = (&self.multi_series_dialog, browser.as_deref()) {
             dialog.render(framebuffer, browser)?;
         }
+        if let Some(dialog) = &self.calibration_dialog {
+            dialog.render(framebuffer)?;
+        }
         Ok(())
     }
 
@@ -279,6 +291,17 @@ impl WindowChrome {
         if matches!(self.pointer_owner, PointerOwner::Slice(_)) {
             self.pointer_owner = PointerOwner::Chrome;
         }
+    }
+
+    pub(super) fn open_calibration(&mut self) {
+        self.calibration_dialog = Some(calibration::CalibrationDialog::new());
+        self.calibration_value = None;
+        self.open_menu = None;
+        self.cancel_pointer_capture();
+    }
+
+    pub(super) fn take_calibration_value(&mut self) -> Option<f32> {
+        self.calibration_value.take()
     }
 }
 

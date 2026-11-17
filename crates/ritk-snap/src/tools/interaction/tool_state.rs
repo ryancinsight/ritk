@@ -74,6 +74,26 @@ pub enum ToolState {
         /// Whether the ROI is rectangular or elliptical.
         kind: RoiKind,
     },
+    /// Freehand or arrow drag.
+    PathDrag {
+        start: ImagePoint,
+        points: Vec<ImagePoint>,
+        kind: PathKind,
+    },
+    /// Multi-click polygon in progress.
+    Polygon {
+        points: Vec<ImagePoint>,
+        kind: PolygonKind,
+    },
+    /// Four-point Cobb angle in progress.
+    Cobb { points: Vec<ImagePoint> },
+    /// One of the two Cobb angle segments is being dragged.
+    CobbDrag { points: Vec<ImagePoint> },
+    /// A RadiAnt deviation segment is being dragged.
+    DeviationDrag {
+        start: ImagePoint,
+        current: ImagePoint,
+    },
 }
 
 /// Discriminant for the two supported ROI shapes.
@@ -81,6 +101,20 @@ pub enum ToolState {
 pub enum RoiKind {
     Rect,
     Ellipse,
+}
+
+/// Path annotation gesture kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathKind {
+    Arrow,
+    Pencil,
+}
+
+/// Polygon annotation gesture kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PolygonKind {
+    Closed,
+    Open,
 }
 
 impl ToolState {
@@ -98,6 +132,9 @@ impl ToolState {
                 | ToolState::WindowLevelDrag { .. }
                 | ToolState::RoiDrag { .. }
                 | ToolState::LengthDrag { .. }
+                | ToolState::PathDrag { .. }
+                | ToolState::CobbDrag { .. }
+                | ToolState::DeviationDrag { .. }
         )
     }
 
@@ -105,7 +142,10 @@ impl ToolState {
     pub fn is_pending_measurement(&self) -> bool {
         matches!(
             self,
-            ToolState::MeasureLength1 { .. } | ToolState::MeasureAngle2 { .. }
+            ToolState::MeasureLength1 { .. }
+                | ToolState::MeasureAngle2 { .. }
+                | ToolState::Polygon { .. }
+                | ToolState::Cobb { .. }
         )
     }
 
@@ -128,6 +168,25 @@ impl ToolState {
                 kind: RoiKind::Ellipse,
                 ..
             } => Some(ToolKind::RoiEllipse),
+            ToolState::PathDrag {
+                kind: PathKind::Arrow,
+                ..
+            } => Some(ToolKind::Arrow),
+            ToolState::PathDrag {
+                kind: PathKind::Pencil,
+                ..
+            } => Some(ToolKind::Pencil),
+            ToolState::Polygon {
+                kind: PolygonKind::Closed,
+                ..
+            } => Some(ToolKind::RoiClosedPolygon),
+            ToolState::Polygon {
+                kind: PolygonKind::Open,
+                ..
+            } => Some(ToolKind::RoiOpenPolygon),
+            ToolState::Cobb { .. } => Some(ToolKind::MeasureCobb),
+            ToolState::CobbDrag { .. } => Some(ToolKind::MeasureCobb),
+            ToolState::DeviationDrag { .. } => Some(ToolKind::MeasureDeviation),
         }
     }
 }

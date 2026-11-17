@@ -31,5 +31,6 @@ pub(super) use overlay::{
 #[cfg(test)]
 pub(super) use overlay_clinical::scale_bar_for_scale;
 pub(super) use overlay_measurements::append_measurement_overlay;
+pub(super) use overlay_measurements::append_measurement_preview;
 pub(super) use responsive::surface_frames_responsive;
 pub(super) use text::{draw_text, text_style, TextStyle};

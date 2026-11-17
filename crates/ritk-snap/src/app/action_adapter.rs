@@ -149,6 +149,7 @@ impl SnapApp {
             }
             ViewerAction::FocusChanged { focused: false } => {
                 self.on_drag_end(None);
+                self.pointer.moving_annotation = None;
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::FocusChanged { focused: true } => {
@@ -160,8 +161,17 @@ impl SnapApp {
                 };
                 let Some(image) = viewport.map(*position) else {
                     self.update_pointer_intensity(viewport.axis(), None);
+                    self.pointer.annotation_cursor = None;
                     return Ok(ViewerActionDisposition::Continue { repaint: true });
                 };
+                let axis = viewport.axis();
+                self.pointer.annotation_cursor = Some((
+                    crate::tools::interaction::AnnotationLocation {
+                        plane: axis,
+                        slice: self.axis_slice_info(axis).0,
+                    },
+                    image,
+                ));
                 self.update_pointer_intensity(viewport.axis(), Some(image));
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
@@ -179,6 +189,23 @@ impl SnapApp {
                 let Some(image) = viewport.map(*position) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
+                let pixel_size = viewport.source_pixel_size();
+                self.pointer.annotation_pixel_size = Some(pixel_size);
+                if *button == PointerButton::Left
+                    && !modifiers.ctrl()
+                    && !modifiers.shift()
+                    && !self.tool_state.is_pending_measurement()
+                    && self.select_annotation_at(image, pixel_size)
+                {
+                    if self.begin_annotation_move(image) {
+                        self.pointer.owner = Some(PointerGestureOwner {
+                            button: *button,
+                            tool: self.active_tool,
+                            modified: false,
+                        });
+                    }
+                    return Ok(ViewerActionDisposition::Continue { repaint: true });
+                }
                 // A modified left press runs a display gesture without leaving
                 // the selected tool: Control adjusts window/level and Shift
                 // pans, matching the RadiAnt 2D modifier table. Control wins
@@ -207,14 +234,18 @@ impl SnapApp {
                 }
                 let places_next_anchor = *button == PointerButton::Left
                     && !modified
-                    && self.tool_state.is_pending_measurement();
+                    && self.tool_state.is_pending_measurement()
+                    && tool != ToolKind::MeasureCobb;
                 if !places_next_anchor {
                     self.on_drag_start(tool, Some(image));
                 }
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerDragged {
-                button, current, ..
+                button,
+                start,
+                current,
+                ..
             } => {
                 let Some(owner) = self.pointer.owner.filter(|owner| owner.button == *button) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
@@ -225,6 +256,22 @@ impl SnapApp {
                 let Some(image) = viewport.map(*current) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
+                if self.pointer.moving_annotation.is_some() {
+                    return Ok(ViewerActionDisposition::Continue {
+                        repaint: self.move_annotation_to(image),
+                    });
+                }
+                // A second click can wobble by one whole native pixel on both
+                // axes without becoming a deliberate distance drag.
+                if matches!(
+                    self.tool_state,
+                    crate::tools::interaction::ToolState::MeasureLength1 { .. }
+                ) && owner.tool == ToolKind::MeasureLength
+                    && (current.x() - start.x()).abs() <= 1.0
+                    && (current.y() - start.y()).abs() <= 1.0
+                {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                }
                 if is_label_tool(owner.tool) {
                     self.apply_label_at_pointer(viewport.axis(), Some(image));
                 }
@@ -240,6 +287,13 @@ impl SnapApp {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
                 let mapped = viewport.and_then(|viewport| viewport.map(*position));
+                if self.pointer.moving_annotation.is_some() {
+                    let repaint = *gesture == PointerGesture::Drag
+                        && mapped.is_some_and(|image| self.move_annotation_to(image));
+                    self.pointer.moving_annotation = None;
+                    self.on_drag_end(None);
+                    return Ok(ViewerActionDisposition::Continue { repaint });
+                }
                 if *gesture == PointerGesture::Click {
                     // A modified left release ends a display gesture: it never
                     // runs the selected tool's click path.
@@ -262,6 +316,7 @@ impl SnapApp {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 }
                 self.on_drag_end(None);
+                self.pointer.moving_annotation = None;
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerWheel {
@@ -307,6 +362,11 @@ impl SnapApp {
     }
 
     fn apply_virtual_key(&mut self, virtual_key: u32, repeated: bool) -> ViewerActionDisposition {
+        if virtual_key == 0x1b && !repeated && !self.tool_state.is_idle() {
+            self.tool_state = crate::tools::interaction::ToolState::Idle;
+            self.pointer.abandon();
+            return ViewerActionDisposition::Continue { repaint: true };
+        }
         if virtual_key == VIRTUAL_KEY_CROSSHAIR_TOGGLE {
             if repeated || self.loaded.is_none() {
                 return ViewerActionDisposition::Continue { repaint: false };

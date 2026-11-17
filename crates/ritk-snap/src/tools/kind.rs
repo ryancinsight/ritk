@@ -38,6 +38,18 @@ pub enum ToolKind {
     LabelPaint,
     /// Erase segmentation labels to background under the cursor.
     LabelErase,
+    /// Draw a closed polygon ROI.
+    RoiClosedPolygon,
+    /// Draw an open polyline ROI.
+    RoiOpenPolygon,
+    /// Measure the angle between two line segments.
+    MeasureCobb,
+    /// Measure perpendicular deviation from a baseline.
+    MeasureDeviation,
+    /// Draw a directional arrow.
+    Arrow,
+    /// Draw a freehand pencil path.
+    Pencil,
 }
 
 impl ToolKind {
@@ -55,6 +67,12 @@ impl ToolKind {
             ToolKind::PointHu => "HU Point",
             ToolKind::LabelPaint => "Label Paint",
             ToolKind::LabelErase => "Label Erase",
+            ToolKind::RoiClosedPolygon => "Closed Polygon",
+            ToolKind::RoiOpenPolygon => "Open Polygon",
+            ToolKind::MeasureCobb => "Cobb Angle",
+            ToolKind::MeasureDeviation => "Deviation",
+            ToolKind::Arrow => "Arrow",
+            ToolKind::Pencil => "Pencil",
         }
     }
 
@@ -70,8 +88,8 @@ impl ToolKind {
                  vertically to change window centre."
             }
             ToolKind::MeasureLength => {
-                "Measure Length: click two points to display the straight-line \
-                 distance in millimetres."
+                "Measure Length: drag between endpoints or click two points to display \
+                 the straight-line distance in millimetres."
             }
             ToolKind::MeasureAngle => {
                 "Measure Angle: click three points — the second point is the vertex — \
@@ -101,6 +119,16 @@ impl ToolKind {
                 "Label Erase: click or drag to erase segmentation labels \
                  back to background with the current brush radius."
             }
+            ToolKind::RoiClosedPolygon => {
+                "Closed polygon: click the nodes, then click the first or final node again."
+            }
+            ToolKind::RoiOpenPolygon => "Open polygon: click the nodes, then click the final node again.",
+            ToolKind::MeasureCobb => "Cobb angle: drag two segments in sequence.",
+            ToolKind::MeasureDeviation => {
+                "Deviation: drag a segment to measure its offset and angle from the closer image axis."
+            }
+            ToolKind::Arrow => "Arrow: drag from the tail to the arrow head.",
+            ToolKind::Pencil => "Pencil: drag to draw a freehand annotation.",
         }
     }
 
@@ -118,6 +146,12 @@ impl ToolKind {
             ToolKind::PointHu => "⊙",
             ToolKind::LabelPaint => "P",
             ToolKind::LabelErase => "E",
+            ToolKind::RoiClosedPolygon => "⬟",
+            ToolKind::RoiOpenPolygon => "⌁",
+            ToolKind::MeasureCobb => "∠",
+            ToolKind::MeasureDeviation => "↕",
+            ToolKind::Arrow => "➤",
+            ToolKind::Pencil => "✎",
         }
     }
 
@@ -139,6 +173,12 @@ impl ToolKind {
             ToolKind::PointHu,
             ToolKind::LabelPaint,
             ToolKind::LabelErase,
+            ToolKind::RoiClosedPolygon,
+            ToolKind::RoiOpenPolygon,
+            ToolKind::MeasureCobb,
+            ToolKind::MeasureDeviation,
+            ToolKind::Arrow,
+            ToolKind::Pencil,
         ]
     }
 }

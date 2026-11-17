@@ -114,10 +114,13 @@ Drag the scrollbar on the right edge of an image pane to browse its slices.
 Click the track to jump within the stack. Single-slice images and projection
 panes have no slice scrollbar.
 
-Use the Tools menu to draw a length, angle, rectangular or elliptical region,
-or intensity probe. Completed measurements appear on the slice where they
-were placed, including in comparison views. The clinical overlay toggle
-controls the image readouts separately from measurement marks.
+Use the Tools menu to place lengths, angles, Cobb angles, deviations, regions,
+polygons, intensity probes, arrows, or freehand marks. Drag with the Length
+tool to see the distance as you move, or click to place the first endpoint and
+click or drag the second. Annotations appear on their recorded slices,
+including in comparison views. Click a mark and press Delete to remove it.
+Ctrl+Delete removes the marks on the displayed image. F12 controls the
+orthogonal image readouts separately from measurement marks.
 
 On Windows the same command works without `--metis-native`; the flag remains an
 explicit spelling for scripts and existing workflows. The separately named
