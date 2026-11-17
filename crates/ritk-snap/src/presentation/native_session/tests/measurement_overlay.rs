@@ -14,6 +14,7 @@ use crate::geometry::PatientPointMm;
 use crate::tools::interaction::{
     Annotation, AnnotationLocation, ImagePoint, PatientLength, ToolState,
 };
+use crate::ui::{RotationSteps, ViewTransform};
 use metis_platform::Color;
 use metis_ui_lang::DisplayCommand;
 
@@ -172,7 +173,15 @@ fn measurement_length_skips_panes_beside_its_recorded_plane() {
 
 #[test]
 fn native_length_preview_draws_only_on_its_owning_slice() {
-    let (session, _root) = session();
+    let (mut session, _root) = session();
+    session.app.view_transform = ViewTransform {
+        flip_h: true,
+        flip_v: false,
+        rotation: RotationSteps::Ninety,
+    };
+    session
+        .refresh_frame()
+        .expect("compose transformed preview view");
     let index = session
         .views
         .iter()
@@ -192,7 +201,30 @@ fn native_length_preview_draws_only_on_its_owning_slice() {
     append_measurement_preview(&mut overlay, view, viewport, &tool_state, location)
         .expect("compose native length preview");
     let commands = overlay.into_display_list().commands().to_vec();
-    assert_eq!(draw_lines(&commands).len(), 1, "preview draws one segment");
+    let lines = draw_lines(&commands);
+    assert_eq!(lines.len(), 1, "preview draws one segment");
+    let output_size = view.transform.output_size(view.source_size);
+    let output_width = f64::from(u32::try_from(output_size[0]).expect("output width fits"));
+    let output_height = f64::from(u32::try_from(output_size[1]).expect("output height fits"));
+    let expected = [[1.75, 3.5], [0.5, 0.75]].map(|[x, y]| {
+        (
+            super::layout::screen_coordinate(
+                viewport.image.x + x / output_width * viewport.image.width,
+                "preview endpoint x",
+            )
+            .expect("preview x fits"),
+            super::layout::screen_coordinate(
+                viewport.image.y + y / output_height * viewport.image.height,
+                "preview endpoint y",
+            )
+            .expect("preview y fits"),
+        )
+    });
+    assert_eq!(
+        lines[0],
+        (expected[0], expected[1]),
+        "transformed endpoints"
+    );
 
     let mut overlay = OverlayCommands::with_capacity(2).expect("reserve preview commands");
     append_measurement_preview(
