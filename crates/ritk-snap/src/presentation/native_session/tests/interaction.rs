@@ -269,10 +269,11 @@ fn native_session_scalar_projection_modes_render_and_label() {
         (NativePresentationMode::OrthogonalWithMip, "MIP"),
         (NativePresentationMode::OrthogonalWithMinip, "MinIP"),
         (NativePresentationMode::OrthogonalWithAverage, "Average"),
+        (NativePresentationMode::OrthogonalWithVr, "VR"),
     ] {
         let (session, _root) = session_with_mode(mode);
         let projection = session.projection.as_ref().expect("projection layout");
-        assert_eq!(projection.statistic.label(), label);
+        assert_eq!(projection.kind.label(), label);
         let (x, y) = projection_center(&session);
         assert_ne!(
             session.framebuffer.get_pixel(x, y),

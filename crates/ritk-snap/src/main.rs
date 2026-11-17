@@ -30,6 +30,7 @@ enum CliNativeLayout {
     OrthogonalWithMip,
     OrthogonalWithMinip,
     OrthogonalWithAverage,
+    OrthogonalWithVr,
     Responsive,
 }
 
@@ -45,6 +46,7 @@ impl CliNativeLayout {
             Self::OrthogonalWithAverage => {
                 Some(ritk_snap::NativePresentationMode::OrthogonalWithAverage)
             }
+            Self::OrthogonalWithVr => Some(ritk_snap::NativePresentationMode::OrthogonalWithVr),
             Self::Responsive => None,
         }
     }
