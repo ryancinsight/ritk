@@ -159,6 +159,7 @@ fn control_click_preserves_populated_panels_when_one_is_maximized() {
     viewer
         .open_selected_series(&[0, 1])
         .expect("open the first two series");
+    viewer.wait_for_series_loads();
     viewer
         .toggle_panel_maximize(1)
         .expect("maximize the second series");
@@ -186,6 +187,7 @@ fn control_click_preserves_populated_panels_hidden_by_a_smaller_grid() {
     viewer
         .open_selected_series(&[0, 1, 2])
         .expect("open three series");
+    viewer.wait_for_series_loads();
     viewer
         .set_workspace_layout(WorkspaceLayout::Panels(
             PanelGrid::new(2, 1).expect("two-panel layout"),

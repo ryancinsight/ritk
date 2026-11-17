@@ -32,7 +32,6 @@ mod dicom_workflows;
 #[cfg(feature = "eframe-shell")]
 mod distribution;
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "eframe-shell")]
 mod load_tasks;
 #[cfg(test)]
 #[cfg(feature = "eframe-shell")]

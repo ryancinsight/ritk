@@ -152,6 +152,21 @@ impl WindowChrome {
         {
             return Ok(WindowChromeEvent::consumed(true));
         }
+        if matches!(
+            event,
+            PresentationEvent::KeyDown {
+                virtual_key: 0x1b,
+                repeated: false,
+                ..
+            }
+        ) && self.open_menu.is_none()
+        {
+            return Ok(WindowChromeEvent {
+                consumed: true,
+                repaint: true,
+                action: Some(WindowAction::CancelPendingLoads),
+            });
+        }
 
         let layout = ChromeLayout::new(
             width,

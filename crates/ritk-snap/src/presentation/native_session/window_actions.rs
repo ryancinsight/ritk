@@ -133,6 +133,7 @@ impl NativeViewerSession {
             WindowAction::CloseAllPanels => {
                 self.close_all_panels().map_err(NativeViewerError::from)
             }
+            WindowAction::CancelPendingLoads => Ok(self.cancel_series_loads()),
             WindowAction::ActivateNextPanel => {
                 self.activate_next_panel().map_err(NativeViewerError::from)
             }

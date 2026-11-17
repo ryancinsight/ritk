@@ -42,7 +42,7 @@ mod filter;
 mod image_placement;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod io_ops;
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+#[cfg(not(target_arch = "wasm32"))]
 mod load_tasks;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod menu;
@@ -81,9 +81,9 @@ mod viewport;
 mod viewport_compare;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod viewport_render;
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
-mod volume_input;
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod volume_input;
+#[cfg(not(target_arch = "wasm32"))]
 mod volume_ops;
 mod volume_state;
 // Window/level state transitions serve browser, eframe and native hosts alike.

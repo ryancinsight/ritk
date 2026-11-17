@@ -112,13 +112,13 @@ impl Default for SnapApp {
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             series_load_target: SeriesLoadTarget::Primary,
             status_message: "No study loaded — use File > Open to load a DICOM folder.".to_owned(),
-            #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+            #[cfg(not(target_arch = "wasm32"))]
             pending_load: None,
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             pending_secondary_load: None,
-            #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+            #[cfg(not(target_arch = "wasm32"))]
             load_generations: [0; 2],
-            #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+            #[cfg(not(target_arch = "wasm32"))]
             load_tasks: std::array::from_fn(|_| None),
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             pacs_config: crate::pacs::PacsConfig::default(),

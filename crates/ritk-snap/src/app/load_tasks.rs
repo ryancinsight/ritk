@@ -18,9 +18,13 @@ use crate::LoadedVolume;
 use anyhow::{anyhow, Result};
 
 /// Identifies the viewer state that receives a completed load.
+///
+/// The secondary target drives the eframe compare pane, which has no native
+/// counterpart; panel loads in the native shell all publish as primary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LoadTarget {
     Primary,
+    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     Secondary,
 }
 
