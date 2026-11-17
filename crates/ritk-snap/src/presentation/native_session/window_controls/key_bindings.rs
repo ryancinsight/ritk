@@ -62,7 +62,7 @@ pub(super) fn global_key_action(
         (key, false, false) if key == VIRTUAL_KEY_FLIP_VERTICAL => Some(WindowAction::FlipVertical),
         (key, false, false) if key == VIRTUAL_KEY_ROTATE => Some(WindowAction::RotateCw),
         (key, false, true) if key == VIRTUAL_KEY_ROTATE => Some(WindowAction::RotateCcw),
-        (key, false, false) if key == VIRTUAL_KEY_ORIENTATION_RESET => {
+        (key, false, true) if key == VIRTUAL_KEY_ORIENTATION_RESET => {
             Some(WindowAction::ResetOrientation)
         }
         (key, false, false) => {

@@ -58,6 +58,10 @@ impl SnapApp {
                 start: pos,
                 current: pos,
             },
+            ToolKind::MeasureDeviation => ToolState::DeviationDrag {
+                start: pos,
+                current: pos,
+            },
             _ => return,
         };
         if self.tool_state.is_pending_measurement() {
@@ -65,7 +69,9 @@ impl SnapApp {
         }
         self.pointer.drag_measurement_location = matches!(
             gesture,
-            ToolState::LengthDrag { .. } | ToolState::RoiDrag { .. }
+            ToolState::LengthDrag { .. }
+                | ToolState::DeviationDrag { .. }
+                | ToolState::RoiDrag { .. }
         )
         .then(|| self.annotation_location());
         self.tool_state = gesture;
@@ -130,6 +136,12 @@ impl SnapApp {
                     current: pos,
                 };
             }
+            ToolState::DeviationDrag { start, .. } => {
+                self.tool_state = ToolState::DeviationDrag {
+                    start,
+                    current: pos,
+                };
+            }
             _ => {}
         }
     }
@@ -142,7 +154,9 @@ impl SnapApp {
             // that gesture's own zoom and pan, so reapplying it would move it.
             if matches!(
                 self.tool_state,
-                ToolState::RoiDrag { .. } | ToolState::LengthDrag { .. }
+                ToolState::RoiDrag { .. }
+                    | ToolState::LengthDrag { .. }
+                    | ToolState::DeviationDrag { .. }
             ) {
                 self.on_drag(pos);
             }
@@ -163,6 +177,9 @@ impl SnapApp {
                 }
                 ToolState::LengthDrag { start, current } if start != current => {
                     self.record_length(start, current);
+                }
+                ToolState::DeviationDrag { start, current } if start != current => {
+                    self.finalise_deviation(start, current);
                 }
                 _ => {}
             }

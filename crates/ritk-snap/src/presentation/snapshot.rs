@@ -12,6 +12,8 @@ pub enum AnnotationKind {
     Length,
     /// A three-point angle measurement.
     Angle,
+    /// A baseline deviation measurement.
+    Deviation,
     /// A rectangle region-of-interest statistic.
     RoiRect,
     /// An ellipse region-of-interest statistic.
@@ -34,6 +36,7 @@ impl AnnotationKind {
             Self::Length => "length",
             Self::PatientLength => "patient-length",
             Self::Angle => "angle",
+            Self::Deviation => "deviation",
             Self::RoiRect => "roi-rect",
             Self::RoiEllipse => "roi-ellipse",
             Self::HuPoint => "hu-point",
