@@ -9,9 +9,8 @@ use metis_ui_lang::{DisplayCommand, DisplayList};
 
 use super::super::frame::RenderedView;
 use super::super::projection::RenderedProjection;
-use super::crosshair::screen_coordinate;
 use super::geometry::NativeViewport;
-use super::text::{text_command, text_style, PANEL_DETAIL_SIZE, PANEL_TITLE_SIZE};
+use super::text::{fit_text, text_command, text_style, PANEL_DETAIL_SIZE, PANEL_TITLE_SIZE};
 use crate::ui::coordinate_system::OrientationLabels;
 use crate::ui::coordinate_system::{edge_slot, orientation_labels, remap_labels_by_slots};
 use crate::ui::ViewTransform;
@@ -100,7 +99,7 @@ pub(crate) fn application_overlay(
             .map_err(|_| anyhow!("native overlay width exceeds i32"))?;
         let panel_height = i32::try_from(viewport.panel_height)
             .map_err(|_| anyhow!("native overlay height exceeds i32"))?;
-        if panel_width <= OVERLAY_MARGIN * 2 {
+        if panel_width <= OVERLAY_MARGIN * 2 || panel_height < 2 * OVERLAY_BAR_HEIGHT {
             continue;
         }
         overlay.push(DisplayCommand::FillRect {
@@ -119,12 +118,11 @@ pub(crate) fn application_overlay(
             color: OVERLAY_BACKGROUND,
         });
         let title = format!("METIS  RITK-SNAP  {}", view.plane_name);
-        overlay.push(text_command(
-            title,
-            panel_x + OVERLAY_MARGIN,
-            panel_y + 2,
-            text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?,
-        ));
+        let title_style = text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?;
+        let detail_style = text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE)?;
+        let text_width =
+            panel_width - 2 * OVERLAY_MARGIN - super::super::slice_scrollbar::RIGHT_GUTTER;
+        let title = fit_text(&title, text_width, title_style);
         let footer = format!(
             "Slice {}/{}  {}x{}  W:{:.0} C:{:.0}",
             view.slice_index.saturating_add(1),
@@ -139,12 +137,30 @@ pub(crate) fn application_overlay(
         } else {
             footer
         };
-        overlay.push(text_command(
-            footer,
-            panel_x + OVERLAY_MARGIN,
-            panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
-            text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE)?,
-        ));
+        let footer = fit_text(&footer, text_width, detail_style);
+        for (text, style, bar_top) in [
+            (title, title_style, panel_y),
+            (
+                footer,
+                detail_style,
+                panel_y + panel_height - OVERLAY_BAR_HEIGHT,
+            ),
+        ] {
+            if let Some(bounds) = style.extent(0, 0, &text) {
+                let bottom = panel_y + panel_height - bounds.height;
+                if bottom < panel_y {
+                    continue;
+                }
+                let top =
+                    (bar_top + (OVERLAY_BAR_HEIGHT - bounds.height) / 2).clamp(panel_y, bottom);
+                overlay.push(text_command(
+                    text,
+                    panel_x + OVERLAY_MARGIN - bounds.x,
+                    top - bounds.y,
+                    style,
+                ));
+            }
+        }
         if let Some(clinical) = clinical {
             append_edge_letters(
                 &mut overlay,
@@ -155,7 +171,6 @@ pub(crate) fn application_overlay(
                 panel_height,
                 &clinical.direction,
             )?;
-            append_scale_bar(&mut overlay, view, viewport, panel_y, panel_height)?;
             append_clinical_corners(
                 &mut overlay,
                 panel_x,
@@ -164,6 +179,7 @@ pub(crate) fn application_overlay(
                 panel_height,
                 clinical,
             )?;
+            append_scale_bar(&mut overlay, view, viewport, panel_y, panel_height)?;
         }
     }
     Ok(overlay)
@@ -184,36 +200,37 @@ fn append_edge_letters(
     direction: &[f64; 9],
 ) -> Result<()> {
     let style = text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?;
-    let line = screen_coordinate(style.line_height(), "orientation letter height")?;
-    let top = panel_y + OVERLAY_BAR_HEIGHT;
-    let bottom = panel_y + panel_height - OVERLAY_BAR_HEIGHT;
-    if panel_height < 2 * OVERLAY_BAR_HEIGHT + 2 * (line + OVERLAY_MARGIN) + line {
+    let line = style.extent(0, 0, "R").map_or(0, |bounds| bounds.height);
+    let chrome = line.max(OVERLAY_BAR_HEIGHT);
+    let top = panel_y + chrome;
+    let bottom = panel_y + panel_height - chrome;
+    if panel_height < 2 * chrome + 2 * (line + OVERLAY_MARGIN) + line {
         return Ok(());
     }
     let labels = clinical_labels_for_view(view.axis, direction, view.source_size, view.transform);
-    let width =
-        |letter: &str| screen_coordinate(style.advance(letter).round(), "orientation letter width");
-    let center_x = panel_x + panel_width / 2;
+    let left = panel_x + OVERLAY_MARGIN;
+    let right =
+        panel_x + panel_width - OVERLAY_MARGIN - super::super::slice_scrollbar::RIGHT_GUTTER;
+    let center_x = left + (right - left) / 2;
     let center_y = panel_y + panel_height / 2;
-    let placements = [
-        (labels.top, center_x - width(labels.top)? / 2, top + 2),
-        (
-            labels.bottom,
-            center_x - width(labels.bottom)? / 2,
-            bottom - 2 - line,
-        ),
-        (labels.left, panel_x + OVERLAY_MARGIN, center_y - line / 2),
-        (
-            labels.right,
-            panel_x + panel_width
-                - OVERLAY_MARGIN
-                - super::super::slice_scrollbar::RIGHT_GUTTER
-                - width(labels.right)?,
-            center_y - line / 2,
-        ),
-    ];
-    for (letter, x, y) in placements {
-        overlay.push(text_command(letter, x, y, style));
+    for letter in [labels.top, labels.bottom, labels.left, labels.right]
+        .into_iter()
+        .enumerate()
+    {
+        let (edge, letter) = letter;
+        let Some(bounds) = style.extent(0, 0, letter) else {
+            continue;
+        };
+        if bounds.width > (right - left) / 2 {
+            continue;
+        }
+        let (x, y) = match edge {
+            0 => (center_x - bounds.width / 2, top),
+            1 => (center_x - bounds.width / 2, bottom - line),
+            2 => (left, center_y - line / 2),
+            _ => (right - bounds.width, center_y - line / 2),
+        };
+        overlay.push(text_command(letter, x - bounds.x, y - bounds.y, style));
     }
     Ok(())
 }
@@ -298,6 +315,21 @@ impl OverlayCommands {
     /// Appends one command; the reserved capacity covers it.
     pub(crate) fn push(&mut self, command: DisplayCommand) {
         self.commands.push(command);
+    }
+
+    pub(super) fn overlaps_text(&self, region: Rect) -> bool {
+        self.commands.iter().any(|command| {
+            if let DisplayCommand::DrawText { text, x, y, style } = command {
+                style.extent(*x, *y, text).is_some_and(|text| {
+                    text.x < region.x + region.width
+                        && region.x < text.x + text.width
+                        && text.y < region.y + region.height
+                        && region.y < text.y + text.height
+                })
+            } else {
+                false
+            }
+        })
     }
 
     /// Appends another overlay's commands after this one's.

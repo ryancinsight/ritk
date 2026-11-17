@@ -5,10 +5,10 @@ use crate::render::NamedColorMap;
 use crate::tools::interaction::{Annotation, ImagePoint, PolygonKind, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
-use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
+use crate::ui::{AnatomicalPlane, anatomical_label_for_axis, axis_for_plane_in_volume};
 use crate::ui::{
-    image_point_to_voxel, intensity_at_voxel, pan_from_drag_delta, window_level_from_drag_delta,
-    zoom_from_drag_delta, WINDOW_LEVEL_SENSITIVITY,
+    WINDOW_LEVEL_SENSITIVITY, image_point_to_voxel, intensity_at_voxel, pan_from_drag_delta,
+    window_level_from_drag_delta, zoom_from_drag_delta,
 };
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 use metis_ui_lang::{PathCapture, PathPush};
@@ -115,6 +115,18 @@ impl SnapApp {
             ToolState::LengthDrag { start, .. } => {
                 self.tool_state = ToolState::LengthDrag {
                     start,
+                    current: pos,
+                };
+            }
+            ToolState::MeasureLength1 { p1 }
+                if self.active_tool == ToolKind::MeasureLength
+                    && self.pointer.pending_measurement_location
+                        == Some(self.annotation_location()) =>
+            {
+                self.pointer.drag_measurement_location =
+                    self.pointer.pending_measurement_location.take();
+                self.tool_state = ToolState::LengthDrag {
+                    start: p1,
                     current: pos,
                 };
             }
