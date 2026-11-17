@@ -10,7 +10,7 @@ use super::text::{text_command, text_style, PANEL_DETAIL_SIZE};
 use super::OverlayCommands;
 use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
-use crate::tools::interaction::{Annotation, AnnotationLocation};
+use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
 
 pub(crate) const MEASUREMENT_COLOR: Color = Color::rgba(255, 255, 0, 255);
 const ROI_COLOR: Color = Color::rgba(0, 255, 0, 255);
@@ -46,6 +46,59 @@ pub(crate) fn append_measurement_overlay(
             }
             pane.draw(annotation, overlay, affine)?;
         }
+    }
+    Ok(())
+}
+
+/// Draws the active length drag only on its owning native pane.
+pub(crate) fn append_measurement_preview(
+    overlay: &mut OverlayCommands,
+    view: &RenderedView,
+    viewport: &NativeViewport,
+    tool_state: &ToolState,
+    location: Option<AnnotationLocation>,
+) -> Result<()> {
+    if !matches!(
+        tool_state,
+        ToolState::LengthDrag { .. } | ToolState::CobbDrag { .. } | ToolState::CobbPending { .. }
+    ) || location.is_some_and(|source| {
+        source
+            != (AnnotationLocation {
+                plane: view.axis,
+                slice: view.slice_index,
+            })
+    }) {
+        return Ok(());
+    }
+    let output_size = view.transform.output_size(view.source_size);
+    if output_size.contains(&0) {
+        return Ok(());
+    }
+    let pane = Pane {
+        view,
+        viewport,
+        output_width: f64::from(u32::try_from(output_size[0])?),
+        output_height: f64::from(u32::try_from(output_size[1])?),
+    };
+    match tool_state {
+        ToolState::LengthDrag { start, current } => {
+            pane.segment(overlay, [*start, *current], MEASUREMENT_COLOR)?;
+        }
+        ToolState::CobbDrag {
+            first: Some(first),
+            start,
+            current,
+        } => {
+            pane.segment(overlay, *first, MEASUREMENT_COLOR)?;
+            pane.segment(overlay, [*start, *current], MEASUREMENT_COLOR)?;
+        }
+        ToolState::CobbDrag { start, current, .. } => {
+            pane.segment(overlay, [*start, *current], MEASUREMENT_COLOR)?;
+        }
+        ToolState::CobbPending { segment } => {
+            pane.segment(overlay, *segment, MEASUREMENT_COLOR)?;
+        }
+        _ => {}
     }
     Ok(())
 }
@@ -96,6 +149,20 @@ impl Pane<'_> {
         let (start, end) = (self.point(a)?, self.point(b)?);
         overlay.push(metis_ui_lang::DisplayCommand::DrawLine { start, end, color });
         Ok(())
+    }
+
+    fn segment(
+        &self,
+        overlay: &mut OverlayCommands,
+        points: [ImagePoint; 2],
+        color: Color,
+    ) -> Result<()> {
+        self.line(
+            overlay,
+            image_point([points[0].y(), points[0].x()]),
+            image_point([points[1].y(), points[1].x()]),
+            color,
+        )
     }
 
     fn label(&self, overlay: &mut OverlayCommands, anchor: [f64; 2], text: String) -> Result<()> {
@@ -152,10 +219,14 @@ impl Pane<'_> {
                 length_mm,
                 ..
             } if *plane == self.view.axis => {
-                let a = image_point(*p1);
-                let b = image_point(*p2);
-                self.line(overlay, a, b, MEASUREMENT_COLOR)?;
-                self.length_label(overlay, a, b, format!("{length_mm:.1} mm"))?;
+                let segment = [ImagePoint::new(p1[1], p1[0]), ImagePoint::new(p2[1], p2[0])];
+                self.segment(overlay, segment, MEASUREMENT_COLOR)?;
+                self.length_label(
+                    overlay,
+                    image_point(*p1),
+                    image_point(*p2),
+                    format!("{length_mm:.1} mm"),
+                )?;
             }
             Annotation::PatientLength { plane, length, .. } if *plane == self.view.axis => {
                 let Some(affine) = affine else {
@@ -177,12 +248,11 @@ impl Pane<'_> {
                 angle_deg,
                 ..
             } => {
-                let a = image_point(*p1);
-                let b = image_point(*p2);
-                let c = image_point(*p3);
-                self.line(overlay, a, b, MEASUREMENT_COLOR)?;
-                self.line(overlay, b, c, MEASUREMENT_COLOR)?;
-                self.label(overlay, b, format!("{angle_deg:.1} deg"))?;
+                let first = [ImagePoint::new(p1[1], p1[0]), ImagePoint::new(p2[1], p2[0])];
+                let second = [ImagePoint::new(p2[1], p2[0]), ImagePoint::new(p3[1], p3[0])];
+                self.segment(overlay, first, MEASUREMENT_COLOR)?;
+                self.segment(overlay, second, MEASUREMENT_COLOR)?;
+                self.label(overlay, image_point(*p2), format!("{angle_deg:.1} deg"))?;
             }
             Annotation::Deviation {
                 start,
@@ -192,14 +262,19 @@ impl Pane<'_> {
                 angle_deg,
                 ..
             } => {
-                let a = image_point(*start);
-                let b = image_point(*end);
-                let baseline = image_point(*reference);
-                self.line(overlay, a, b, MEASUREMENT_COLOR)?;
-                self.line(overlay, a, baseline, MEASUREMENT_COLOR)?;
+                let first = [
+                    ImagePoint::new(start[1], start[0]),
+                    ImagePoint::new(end[1], end[0]),
+                ];
+                let baseline = [
+                    ImagePoint::new(start[1], start[0]),
+                    ImagePoint::new(reference[1], reference[0]),
+                ];
+                self.segment(overlay, first, MEASUREMENT_COLOR)?;
+                self.segment(overlay, baseline, MEASUREMENT_COLOR)?;
                 self.label(
                     overlay,
-                    b,
+                    image_point(*end),
                     format!("{distance_mm:.1} mm {angle_deg:.1} deg"),
                 )?;
             }

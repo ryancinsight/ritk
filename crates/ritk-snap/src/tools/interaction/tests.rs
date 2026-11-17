@@ -8,33 +8,24 @@ use iris::color::{ColorMap, Normalized};
 mod patient_length;
 
 #[test]
-fn cobb_angle_is_invariant_under_scale_and_endpoint_reversal() {
+fn cobb_angle_rejects_degenerate_and_nonfinite_segments() {
     let origin = [0.0, 0.0];
-    let column = [0.0, 10.0];
-    let row = [10.0, 0.0];
-    for scale in [1.0e-4, 1.0, 1.0e20] {
-        assert_eq!(
-            Annotation::compute_cobb_angle(origin, column, origin, row, [scale; 2]),
-            Ok(90.0)
-        );
-        assert_eq!(
-            Annotation::compute_cobb_angle(column, origin, origin, row, [scale; 2]),
-            Ok(90.0)
-        );
-    }
+    assert!(matches!(
+        Annotation::compute_cobb_angle(origin, origin, origin, [2.0, 0.0], [1.0; 2]),
+        Err(MeasurementError::DegenerateSegment { kind: "Cobb angle" })
+    ));
+    assert!(matches!(
+        Annotation::compute_cobb_angle(origin, [0.0, 2.0], origin, [2.0, 0.0], [f32::MAX; 2]),
+        Err(MeasurementError::NonFiniteResult { kind: "Cobb angle" })
+    ));
 }
 
 #[test]
-fn cobb_angle_rejects_degenerate_and_nonfinite_segments() {
-    let origin = [0.0, 0.0];
-    assert_eq!(
-        Annotation::compute_cobb_angle(origin, origin, origin, [2.0, 0.0], [1.0; 2]),
-        Err(MeasurementError::DegenerateSegment { kind: "Cobb angle" })
-    );
-    assert_eq!(
-        Annotation::compute_cobb_angle(origin, [0.0, 2.0], origin, [2.0, 0.0], [f32::MAX; 2]),
-        Err(MeasurementError::NonFiniteResult { kind: "Cobb angle" })
-    );
+fn cobb_angle_uses_anisotropic_spacing_for_nonorthogonal_segments() {
+    let angle =
+        Annotation::compute_cobb_angle([0.0, 0.0], [3.0, 4.0], [0.0, 0.0], [4.0, -3.0], [2.0, 1.0])
+            .expect("finite nonorthogonal Cobb angle");
+    assert!((angle - 54.246).abs() < 0.1, "angle={angle}");
 }
 
 #[test]

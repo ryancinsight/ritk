@@ -337,15 +337,13 @@ impl MeasurementLayer {
                 start,
                 current,
             } => {
-                segments::draw_cobb_preview(
-                    painter,
-                    *first,
-                    Some([*start, *current]),
-                    &img_to_screen,
-                );
+                if let Some(first) = first {
+                    segments::draw_deviation_preview(painter, *first, &img_to_screen);
+                }
+                segments::draw_deviation_preview(painter, [*start, *current], &img_to_screen);
             }
             ToolState::CobbPending { segment } => {
-                segments::draw_cobb_preview(painter, Some(*segment), None, &img_to_screen)
+                segments::draw_deviation_preview(painter, *segment, &img_to_screen)
             }
         }
     }

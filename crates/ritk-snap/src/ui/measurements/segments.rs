@@ -34,45 +34,26 @@ pub(super) fn draw_deviation_preview(
         Stroke::new(LINE_WIDTH, COLOR_MEASURE),
     );
 }
-pub(super) fn draw_segment(
-    painter: &Painter,
-    points: [ImagePoint; 2],
-    project: &impl Fn(Pos2) -> Pos2,
-) {
-    let projected = points.map(|point| project(egui_point(point)));
-    painter.line_segment(projected, Stroke::new(LINE_WIDTH, COLOR_MEASURE));
-    painter.circle_filled(projected[0], HANDLE_RADIUS, COLOR_MEASURE);
-    painter.circle_filled(projected[1], HANDLE_RADIUS, COLOR_MEASURE);
-}
-pub(super) fn draw_cobb_preview(
-    painter: &Painter,
-    first: Option<[ImagePoint; 2]>,
-    current: Option<[ImagePoint; 2]>,
-    project: &impl Fn(Pos2) -> Pos2,
-) {
-    first.into_iter().chain(current).for_each(|segment| {
-        draw_segment(painter, segment, project);
-    });
-}
+
 pub(super) fn draw_cobb_annotation(
     painter: &Painter,
     points: [[f32; 2]; 4],
     angle_deg: f32,
     project: &impl Fn(Pos2) -> Pos2,
 ) {
-    draw_segment(
+    draw_deviation_preview(
         painter,
         [
-            ImagePoint::new(points[0][0], points[0][1]),
-            ImagePoint::new(points[1][0], points[1][1]),
+            ImagePoint::new(points[0][1], points[0][0]),
+            ImagePoint::new(points[1][1], points[1][0]),
         ],
         project,
     );
-    draw_segment(
+    draw_deviation_preview(
         painter,
         [
-            ImagePoint::new(points[2][0], points[2][1]),
-            ImagePoint::new(points[3][0], points[3][1]),
+            ImagePoint::new(points[2][1], points[2][0]),
+            ImagePoint::new(points[3][1], points[3][0]),
         ],
         project,
     );
