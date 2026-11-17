@@ -99,7 +99,7 @@ fn pending_polygon_anchor_is_discarded_after_slice_change() {
         app.tool_state,
         crate::tools::interaction::ToolState::Polygon {
             points: metis_ui_lang::PathCapture::new(crate::tools::interaction::ImagePoint::new(
-                10.0, 30.0,
+                30.0, 10.0,
             )),
         }
     );
