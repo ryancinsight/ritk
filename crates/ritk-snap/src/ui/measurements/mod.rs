@@ -277,21 +277,23 @@ impl MeasurementLayer {
                 }
             }
             ToolState::Polygon { points, kind } => {
-                let screen: Vec<Pos2> = points
+                let mut vertices = points
                     .as_slice()
                     .iter()
-                    .map(|p| img_to_screen(egui_point(*p)))
-                    .collect();
-                for pair in screen.windows(2) {
-                    painter.line_segment([pair[0], pair[1]], Stroke::new(LINE_WIDTH, COLOR_ROI));
-                }
-                if *kind == PolygonKind::Closed {
-                    if let (Some(first), Some(last)) = (screen.first(), screen.last()) {
-                        painter.line_segment([*last, *first], Stroke::new(LINE_WIDTH, COLOR_ROI));
+                    .map(|point| img_to_screen(egui_point(*point)));
+                if let Some(first) = vertices.next() {
+                    let stroke = Stroke::new(LINE_WIDTH, COLOR_ROI);
+                    let mut last = first;
+                    for vertex in vertices {
+                        painter.line_segment([last, vertex], stroke);
+                        last = vertex;
                     }
-                }
-                if let (Some(last), Some(cursor)) = (screen.last(), cursor_screen) {
-                    painter.line_segment([*last, cursor], Stroke::new(LINE_WIDTH, COLOR_ROI));
+                    if *kind == PolygonKind::Closed && points.as_slice().len() >= 3 {
+                        painter.line_segment([last, first], stroke);
+                    }
+                    if let Some(cursor) = cursor_screen {
+                        painter.line_segment([last, cursor], stroke);
+                    }
                 }
             }
             // Panning and window-level drag produce no visual annotation.
