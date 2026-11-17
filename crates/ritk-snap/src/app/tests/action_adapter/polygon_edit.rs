@@ -22,10 +22,13 @@ fn native_viewport() -> ViewerViewport {
     viewport([64, 64]).with_polygon_handles()
 }
 
+fn send(app: &mut SnapApp, event: PresentationEvent) {
+    apply_app_event(app, &native_viewport(), event);
+}
+
 fn press(app: &mut SnapApp, x: f64, y: f64) {
-    apply_app_event(
+    send(
         app,
-        &native_viewport(),
         PresentationEvent::PointerDown {
             x,
             y,
@@ -36,9 +39,8 @@ fn press(app: &mut SnapApp, x: f64, y: f64) {
 }
 
 fn release(app: &mut SnapApp, x: f64, y: f64) {
-    apply_app_event(
+    send(
         app,
-        &native_viewport(),
         PresentationEvent::PointerUp {
             x,
             y,
@@ -53,11 +55,7 @@ fn selected_vertex_drag_commits_recomputed_length_on_release() {
     press(&mut app, 1.5, 0.0);
     release(&mut app, 1.5, 0.0);
     press(&mut app, 3.0, 0.0);
-    apply_app_event(
-        &mut app,
-        &native_viewport(),
-        PresentationEvent::PointerMove { x: 6.0, y: 0.0 },
-    );
+    send(&mut app, PresentationEvent::PointerMove { x: 6.0, y: 0.0 });
     assert!(matches!(
         app.annotations.as_slice(),
         [Annotation::OpenPolygon { points, .. }] if points[1] == [0.0, 3.0]
@@ -88,19 +86,14 @@ fn selected_vertex_drag_cancellation_modes_preserve_geometry() {
     let mut app = app_with_polygon();
     begin_vertex_drag(&mut app);
     app.set_slice_for_axis(0, 1);
-    apply_app_event(
-        &mut app,
-        &native_viewport(),
-        PresentationEvent::PointerMove { x: 6.0, y: 0.0 },
-    );
+    send(&mut app, PresentationEvent::PointerMove { x: 6.0, y: 0.0 });
     release(&mut app, 6.0, 0.0);
     assert_unchanged(&app);
 
     let mut app = app_with_polygon();
     begin_vertex_drag(&mut app);
-    apply_app_event(
+    send(
         &mut app,
-        &native_viewport(),
         PresentationEvent::KeyDown {
             virtual_key: 0x1b,
             repeated: false,
@@ -111,9 +104,8 @@ fn selected_vertex_drag_cancellation_modes_preserve_geometry() {
 
     let mut app = app_with_polygon();
     begin_vertex_drag(&mut app);
-    apply_app_event(
+    send(
         &mut app,
-        &native_viewport(),
         PresentationEvent::PointerCancel {
             x: 6.0,
             y: 0.0,
