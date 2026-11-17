@@ -13,7 +13,7 @@ fn closed_polygon_commits_area_perimeter_and_slice_location() {
     let nodes = [(10.0, 10.0), (30.0, 10.0), (30.0, 30.0), (10.0, 30.0)];
     let first = nodes[0];
 
-    for (x, y) in nodes.into_iter().chain([first]) {
+    for (x, y) in [first].into_iter().chain(nodes).chain([first]) {
         apply_app_event(
             &mut app,
             &viewport,
@@ -98,7 +98,9 @@ fn pending_polygon_anchor_is_discarded_after_slice_change() {
     assert_eq!(
         app.tool_state,
         crate::tools::interaction::ToolState::Polygon {
-            points: vec![crate::tools::interaction::ImagePoint::new(10.0, 30.0)],
+            points: metis_ui_lang::PathCapture::new(crate::tools::interaction::ImagePoint::new(
+                10.0, 30.0,
+            )),
         }
     );
 }

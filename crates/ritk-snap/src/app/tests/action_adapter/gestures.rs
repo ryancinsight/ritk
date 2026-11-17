@@ -256,3 +256,63 @@ fn adapter_accumulates_repaint_across_actions_in_one_batch() {
         ViewerActionDisposition::Continue { repaint: true }
     );
 }
+
+#[test]
+fn length_measurement_first_click_then_drag_completes_through_the_adapter() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([8, 8, 1]));
+    app.active_tool = ToolKind::MeasureLength;
+    let viewport = viewport([8, 8]);
+
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
+        },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+        },
+    );
+
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
+        },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerMove { x: 4.5, y: 3.5 },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 4.5,
+            y: 3.5,
+            button: PointerButton::Left,
+        },
+    );
+
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::Length { length_mm, .. }]
+            if *length_mm == 5.0
+    ));
+    assert!(app.tool_state.is_idle());
+}

@@ -2,6 +2,7 @@
 
 use super::super::kind::ToolKind;
 use super::{ImagePoint, ViewportOffset};
+use metis_ui_lang::PathCapture;
 
 // ── In-progress tool state ────────────────────────────────────────────────────
 
@@ -75,7 +76,7 @@ pub enum ToolState {
         kind: RoiKind,
     },
     /// Closed polygon nodes awaiting the closing click.
-    Polygon { points: Vec<ImagePoint> },
+    Polygon { points: PathCapture<ImagePoint> },
 }
 
 /// Discriminant for the two supported ROI shapes.

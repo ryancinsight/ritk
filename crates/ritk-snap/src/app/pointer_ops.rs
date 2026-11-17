@@ -11,6 +11,7 @@ use crate::ui::{
     zoom_from_drag_delta, WINDOW_LEVEL_SENSITIVITY,
 };
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
+use metis_ui_lang::{PathCapture, PathPush};
 
 // ── Pointer / interaction event handlers ───────────────────────────────────
 
@@ -114,6 +115,18 @@ impl SnapApp {
             ToolState::LengthDrag { start, .. } => {
                 self.tool_state = ToolState::LengthDrag {
                     start,
+                    current: pos,
+                };
+            }
+            ToolState::MeasureLength1 { p1 }
+                if self.active_tool == ToolKind::MeasureLength
+                    && self.pointer.pending_measurement_location
+                        == Some(self.annotation_location()) =>
+            {
+                self.pointer.drag_measurement_location =
+                    self.pointer.pending_measurement_location.take();
+                self.tool_state = ToolState::LengthDrag {
+                    start: p1,
                     current: pos,
                 };
             }
@@ -239,23 +252,30 @@ impl SnapApp {
                     self.tool_state = ToolState::MeasureLength1 { p1: pos };
                 }
             },
-            ToolKind::RoiClosedPolygon => match self.tool_state.clone() {
-                ToolState::Polygon { mut points } => {
-                    let near = |point: &ImagePoint| {
-                        let dx = f64::from(point.x()) - f64::from(pos.x());
-                        let dy = f64::from(point.y()) - f64::from(pos.y());
-                        dx.hypot(dy) <= 6.0
-                    };
-                    if points.len() >= 3 && points.first().is_some_and(near) {
-                        self.finalise_polygon(points, PolygonKind::Closed);
-                        self.tool_state = ToolState::Idle;
-                    } else {
-                        points.push(pos);
-                        self.tool_state = ToolState::Polygon { points };
+            ToolKind::RoiClosedPolygon => {
+                if let ToolState::Polygon { points } = &mut self.tool_state {
+                    let samples = points.as_slice();
+                    let closes = samples.len() >= 3
+                        && samples.first().is_some_and(|point| {
+                            let dx = f64::from(point.x()) - f64::from(pos.x());
+                            let dy = f64::from(point.y()) - f64::from(pos.y());
+                            dx.hypot(dy) <= 6.0
+                        });
+                    if closes {
+                        if let ToolState::Polygon { points } =
+                            std::mem::replace(&mut self.tool_state, ToolState::Idle)
+                        {
+                            self.finalise_polygon(points.into_vec(), PolygonKind::Closed);
+                        }
+                    } else if matches!(points.push(pos), PathPush::Full) {
+                        self.status_message = "Polygon sample limit reached".to_owned();
                     }
+                } else {
+                    self.tool_state = ToolState::Polygon {
+                        points: PathCapture::new(pos),
+                    };
                 }
-                _ => self.tool_state = ToolState::Polygon { points: vec![pos] },
-            },
+            }
             ToolKind::PointHu => {
                 if let Some(vol) = &self.loaded {
                     let Some(voxel) =

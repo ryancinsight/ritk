@@ -212,3 +212,61 @@ fn native_overlay_text_commands_carry_single_letter_edge_labels() {
         );
     }
 }
+
+#[test]
+fn clinical_labels_stay_inside_the_pane_and_clear_one_another() {
+    let (session, _root) = session();
+    let patient = "Very long patient display name with several components";
+    let series = "Very long series description in the other corner";
+    let clinical = ClinicalOverlay {
+        patient_name: Some(patient),
+        series_description: Some(series),
+        ..clinical()
+    };
+    for [width, height] in [[176, 228], [416, 360]] {
+        let mut viewport = session.viewports[0];
+        viewport.panel_width = width;
+        viewport.panel_height = height;
+        let pane = viewport.panel_rect().expect("bounded test pane");
+        let overlay =
+            application_overlay(&session.views, &[viewport], false, 30.0, Some(&clinical))
+                .expect("compose clinical text in the test pane")
+                .into_display_list();
+        let mut runs = Vec::new();
+        for command in overlay.commands() {
+            if let DisplayCommand::DrawText { text, x, y, style } = command
+                && let Some(bounds) = style.extent(*x, *y, text)
+            {
+                assert!(
+                    bounds.x >= pane.x && bounds.x + bounds.width <= pane.x + pane.width,
+                    "{text}"
+                );
+                assert!(
+                    bounds.y >= pane.y && bounds.y + bounds.height <= pane.y + pane.height,
+                    "{text}"
+                );
+                runs.push((text.as_ref(), bounds));
+            }
+        }
+        assert!(runs
+            .iter()
+            .any(|(text, _)| text.starts_with("Very") && text.ends_with("...")));
+        assert_eq!(
+            runs.iter()
+                .filter(|(text, _)| matches!(*text, "R" | "L" | "A" | "P" | "S" | "I"))
+                .count(),
+            4
+        );
+        for (index, (text, bounds)) in runs.iter().enumerate() {
+            for (other, other_bounds) in runs.iter().skip(index + 1) {
+                assert!(
+                    bounds.x + bounds.width <= other_bounds.x
+                        || other_bounds.x + other_bounds.width <= bounds.x
+                        || bounds.y + bounds.height <= other_bounds.y
+                        || other_bounds.y + other_bounds.height <= bounds.y,
+                    "{text:?} overlaps {other:?}"
+                );
+            }
+        }
+    }
+}
