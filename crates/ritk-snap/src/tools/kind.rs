@@ -38,6 +38,10 @@ pub enum ToolKind {
     LabelPaint,
     /// Erase segmentation labels to background under the cursor.
     LabelErase,
+    /// Draw a directional arrow.
+    Arrow,
+    /// Draw a freehand pencil path.
+    Pencil,
 }
 
 impl ToolKind {
@@ -55,6 +59,8 @@ impl ToolKind {
             ToolKind::PointHu => "HU Point",
             ToolKind::LabelPaint => "Label Paint",
             ToolKind::LabelErase => "Label Erase",
+            ToolKind::Arrow => "Arrow",
+            ToolKind::Pencil => "Pencil",
         }
     }
 
@@ -101,6 +107,8 @@ impl ToolKind {
                 "Label Erase: click or drag to erase segmentation labels \
                  back to background with the current brush radius."
             }
+            ToolKind::Arrow => "Arrow: drag from the tail to the arrow head.",
+            ToolKind::Pencil => "Pencil: drag to draw a freehand annotation.",
         }
     }
 
@@ -118,6 +126,8 @@ impl ToolKind {
             ToolKind::PointHu => "⊙",
             ToolKind::LabelPaint => "P",
             ToolKind::LabelErase => "E",
+            ToolKind::Arrow => "➤",
+            ToolKind::Pencil => "✎",
         }
     }
 
@@ -139,6 +149,8 @@ impl ToolKind {
             ToolKind::PointHu,
             ToolKind::LabelPaint,
             ToolKind::LabelErase,
+            ToolKind::Arrow,
+            ToolKind::Pencil,
         ]
     }
 }

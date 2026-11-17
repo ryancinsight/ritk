@@ -50,6 +50,84 @@ fn pan_actions_update_viewer_state_without_gui_coordinates() {
 }
 
 #[test]
+fn arrow_and_pencil_drags_preserve_exact_image_endpoints() {
+    let mut app = SnapApp::default();
+    let viewport = viewport([64, 64]);
+    let mut dispatcher = PresentationDispatcher::new();
+    let modifiers = PresentationModifiers::NONE;
+
+    app.active_tool = ToolKind::Arrow;
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 10.0,
+            y: 20.0,
+            button: PointerButton::Left,
+            modifiers,
+        },
+    );
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerMove { x: 30.0, y: 40.0 },
+    );
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 30.0,
+            y: 40.0,
+            button: PointerButton::Left,
+        },
+    );
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::Arrow { tail, head, .. }]
+            if *tail == [20.0, 10.0] && *head == [40.0, 30.0]
+    ));
+
+    app.active_tool = ToolKind::Pencil;
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 5.0,
+            y: 6.0,
+            button: PointerButton::Left,
+            modifiers,
+        },
+    );
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerMove { x: 8.0, y: 9.0 },
+    );
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 11.0,
+            y: 12.0,
+            button: PointerButton::Left,
+        },
+    );
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [
+            crate::tools::interaction::Annotation::Arrow { .. },
+            crate::tools::interaction::Annotation::Pencil { points, .. }
+        ] if points.as_slice() == [[6.0, 5.0], [9.0, 8.0], [12.0, 11.0]]
+    ));
+}
+
+#[test]
 fn window_level_actions_use_the_existing_sensitivity_mapping() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::WindowLevel;

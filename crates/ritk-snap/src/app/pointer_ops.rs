@@ -2,7 +2,7 @@ mod measurement;
 
 use super::state::SnapApp;
 use crate::render::NamedColorMap;
-use crate::tools::interaction::{Annotation, ImagePoint, RoiKind, ToolState};
+use crate::tools::interaction::{Annotation, ImagePoint, PathKind, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
@@ -56,6 +56,16 @@ impl SnapApp {
             ToolKind::MeasureLength => ToolState::LengthDrag {
                 start: pos,
                 current: pos,
+            },
+            ToolKind::Arrow => ToolState::PathDrag {
+                start: pos,
+                points: vec![pos],
+                kind: PathKind::Arrow,
+            },
+            ToolKind::Pencil => ToolState::PathDrag {
+                start: pos,
+                points: vec![pos],
+                kind: PathKind::Pencil,
             },
             _ => return,
         };
@@ -117,6 +127,20 @@ impl SnapApp {
                     current: pos,
                 };
             }
+            ToolState::PathDrag {
+                start,
+                mut points,
+                kind,
+            } => {
+                if points.last().is_none_or(|last| *last != pos) {
+                    points.push(pos);
+                }
+                self.tool_state = ToolState::PathDrag {
+                    start,
+                    points,
+                    kind,
+                };
+            }
             _ => {}
         }
     }
@@ -129,7 +153,9 @@ impl SnapApp {
             // that gesture's own zoom and pan, so reapplying it would move it.
             if matches!(
                 self.tool_state,
-                ToolState::RoiDrag { .. } | ToolState::LengthDrag { .. }
+                ToolState::RoiDrag { .. }
+                    | ToolState::LengthDrag { .. }
+                    | ToolState::PathDrag { .. }
             ) {
                 self.on_drag(pos);
             }
@@ -150,6 +176,27 @@ impl SnapApp {
                 }
                 ToolState::LengthDrag { start, current } if start != current => {
                     self.record_length(start, current);
+                }
+                ToolState::PathDrag {
+                    points,
+                    kind: PathKind::Arrow,
+                    ..
+                } if points.len() >= 2 => {
+                    self.push_annotation(Annotation::Arrow {
+                        location: None,
+                        tail: [points[0].y(), points[0].x()],
+                        head: [points[points.len() - 1].y(), points[points.len() - 1].x()],
+                    });
+                }
+                ToolState::PathDrag {
+                    points,
+                    kind: PathKind::Pencil,
+                    ..
+                } if points.len() >= 2 => {
+                    self.push_annotation(Annotation::Pencil {
+                        location: None,
+                        points: points.iter().map(|point| [point.y(), point.x()]).collect(),
+                    });
                 }
                 _ => {}
             }

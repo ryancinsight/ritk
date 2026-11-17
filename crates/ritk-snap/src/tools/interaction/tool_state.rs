@@ -74,6 +74,16 @@ pub enum ToolState {
         /// Whether the ROI is rectangular or elliptical.
         kind: RoiKind,
     },
+
+    /// Arrow or pencil drag in image pixels.
+    PathDrag {
+        /// Pointer position where the drag started.
+        start: ImagePoint,
+        /// Collected path samples.
+        points: Vec<ImagePoint>,
+        /// The path annotation to create on release.
+        kind: PathKind,
+    },
 }
 
 /// Discriminant for the two supported ROI shapes.
@@ -81,6 +91,13 @@ pub enum ToolState {
 pub enum RoiKind {
     Rect,
     Ellipse,
+}
+
+/// Distinguishes the two drag-based path annotations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathKind {
+    Arrow,
+    Pencil,
 }
 
 impl ToolState {
@@ -98,6 +115,7 @@ impl ToolState {
                 | ToolState::WindowLevelDrag { .. }
                 | ToolState::RoiDrag { .. }
                 | ToolState::LengthDrag { .. }
+                | ToolState::PathDrag { .. }
         )
     }
 
@@ -120,6 +138,14 @@ impl ToolState {
                 Some(ToolKind::MeasureLength)
             }
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
+            ToolState::PathDrag {
+                kind: PathKind::Arrow,
+                ..
+            } => Some(ToolKind::Arrow),
+            ToolState::PathDrag {
+                kind: PathKind::Pencil,
+                ..
+            } => Some(ToolKind::Pencil),
             ToolState::RoiDrag {
                 kind: RoiKind::Rect,
                 ..

@@ -7,6 +7,25 @@ use iris::color::{ColorMap, Normalized};
 #[path = "tests/patient_length.rs"]
 mod patient_length;
 
+#[test]
+fn path_annotations_retain_ordered_image_shape() {
+    let arrow = Annotation::Arrow {
+        location: None,
+        tail: [2.0, 3.0],
+        head: [8.0, 11.0],
+    };
+    let pencil = Annotation::Pencil {
+        location: None,
+        points: vec![[1.0, 2.0], [2.0, 4.0], [5.0, 7.0]],
+    };
+    assert!(
+        matches!(arrow, Annotation::Arrow { tail, head, .. } if tail == [2.0, 3.0] && head == [8.0, 11.0])
+    );
+    assert!(
+        matches!(pencil, Annotation::Pencil { points, .. } if points.len() == 3 && points[1] == [2.0, 4.0])
+    );
+}
+
 // ── compute_length ────────────────────────────────────────────────────────
 
 /// Axis-aligned horizontal displacement with unit spacing must yield the

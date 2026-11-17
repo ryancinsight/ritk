@@ -48,6 +48,19 @@ impl SnapApp {
             Annotation::HuPoint { value, .. } => {
                 AnnotationSummary::new(AnnotationKind::HuPoint, f64::from(*value))
             }
+            Annotation::Arrow { tail, head, .. } => {
+                let row = f64::from(head[0] - tail[0]);
+                let col = f64::from(head[1] - tail[1]);
+                AnnotationSummary::new(AnnotationKind::Arrow, row.hypot(col))
+            }
+            Annotation::Pencil { points, .. } => {
+                let path_length = points.windows(2).fold(0.0_f64, |sum, pair| {
+                    let row = f64::from(pair[1][0] - pair[0][0]);
+                    let col = f64::from(pair[1][1] - pair[0][1]);
+                    sum + row.hypot(col)
+                });
+                AnnotationSummary::new(AnnotationKind::Pencil, path_length)
+            }
         });
         PresentationSnapshot::from_parts(
             self.visual_revision,

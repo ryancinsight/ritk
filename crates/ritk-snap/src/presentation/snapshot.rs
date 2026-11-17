@@ -20,6 +20,10 @@ pub enum AnnotationKind {
     HuPoint,
     /// A three-dimensional length measured in DICOM patient space.
     PatientLength,
+    /// A directional arrow annotation.
+    Arrow,
+    /// A freehand pencil path annotation.
+    Pencil,
 }
 
 impl AnnotationKind {
@@ -33,6 +37,8 @@ impl AnnotationKind {
             Self::RoiRect => "roi-rect",
             Self::RoiEllipse => "roi-ellipse",
             Self::HuPoint => "hu-point",
+            Self::Arrow => "arrow",
+            Self::Pencil => "pencil",
         }
     }
 }

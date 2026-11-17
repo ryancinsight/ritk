@@ -133,6 +133,20 @@ impl MeasurementLayer {
                         *std_dev,
                     );
                 }
+                Annotation::Arrow { tail, head, .. } => {
+                    draw_arrow(
+                        painter,
+                        img_to_screen(egui::pos2((*tail)[1], (*tail)[0])),
+                        img_to_screen(egui::pos2((*head)[1], (*head)[0])),
+                    );
+                }
+                Annotation::Pencil { points, .. } => {
+                    let screen: Vec<Pos2> = points
+                        .iter()
+                        .map(|point| img_to_screen(egui::pos2(point[1], point[0])))
+                        .collect();
+                    draw_polyline(painter, &screen);
+                }
             }
         }
     }
@@ -230,6 +244,19 @@ impl MeasurementLayer {
                     }
                 }
             }
+            ToolState::PathDrag { points, kind, .. } => {
+                let screen: Vec<Pos2> = points
+                    .iter()
+                    .map(|point| img_to_screen(egui_point(*point)))
+                    .collect();
+                if *kind == crate::tools::interaction::PathKind::Arrow {
+                    if let (Some(tail), Some(head)) = (screen.first(), screen.last()) {
+                        draw_arrow(painter, *tail, *head);
+                    }
+                } else {
+                    draw_polyline(painter, &screen);
+                }
+            }
             // Panning and window-level drag produce no visual annotation.
             ToolState::Panning { .. }
             | ToolState::Zooming { .. }
@@ -263,6 +290,31 @@ fn draw_length_annotation(painter: &Painter, p1: Pos2, p2: Pos2, length_mm: f32)
         label_font(),
         COLOR_LABEL,
     );
+}
+
+fn draw_polyline(painter: &Painter, points: &[Pos2]) {
+    for pair in points.windows(2) {
+        painter.line_segment([pair[0], pair[1]], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
+    }
+}
+
+fn draw_arrow(painter: &Painter, tail: Pos2, head: Pos2) {
+    painter.line_segment([tail, head], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
+    let direction = head - tail;
+    let length = direction.length();
+    if length > f32::EPSILON {
+        let unit = direction / length;
+        let side = Vec2::new(-unit.y, unit.x);
+        let size = 8.0;
+        painter.line_segment(
+            [head, head - unit * size + side * 4.0],
+            Stroke::new(LINE_WIDTH, COLOR_MEASURE),
+        );
+        painter.line_segment(
+            [head, head - unit * size - side * 4.0],
+            Stroke::new(LINE_WIDTH, COLOR_MEASURE),
+        );
+    }
 }
 
 /// Draw an angle measurement annotation: two rays from the vertex `p2` to
