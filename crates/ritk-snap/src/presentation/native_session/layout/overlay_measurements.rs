@@ -268,6 +268,17 @@ impl Pane<'_> {
                     )?;
                 }
             }
+            Annotation::OpenPolygon {
+                points, length_mm, ..
+            } => {
+                let polyline: Vec<[f64; 2]> = points.iter().map(|p| image_point(*p)).collect();
+                for pair in polyline.windows(2) {
+                    self.line(overlay, pair[0], pair[1], ROI_COLOR)?;
+                }
+                if let Some(first) = polyline.first() {
+                    self.label(overlay, *first, format!("{length_mm:.1} mm"))?;
+                }
+            }
             _ => {}
         }
         Ok(())
