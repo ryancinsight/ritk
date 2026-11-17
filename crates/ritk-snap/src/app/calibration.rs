@@ -59,10 +59,6 @@ impl super::state::SnapApp {
             .any(|item| item.applies_to(location))
     }
 
-    pub(crate) fn has_calibration_reference(&self) -> bool {
-        self.last_active_length().is_some()
-    }
-
     pub(crate) fn calibrate_last_active_length(
         &mut self,
         known_mm: f32,
@@ -101,7 +97,7 @@ impl super::state::SnapApp {
         Ok(true)
     }
 
-    fn last_active_length(&self) -> Option<(usize, [f32; 2], [f32; 2])> {
+    pub(crate) fn last_active_length(&self) -> Option<(usize, [f32; 2], [f32; 2])> {
         let location = self.annotation_location();
         self.annotations
             .iter()
