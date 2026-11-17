@@ -119,6 +119,12 @@ or intensity probe. Completed measurements appear on the slice where they
 were placed, including in comparison views. The clinical overlay toggle
 controls the image readouts separately from measurement marks.
 
+Choose **Open Polygon** from **Tools** or press **O**. Click to add vertices
+and double-click or press **Enter** to measure the path in millimetres.
+**Escape** cancels the unfinished path. Choose **Closed Polygon** with **G**
+and click the starting vertex, double-click, or press **Enter** to close it
+and measure area and perimeter.
+
 On Windows the same command works without `--metis-native`; the flag remains an
 explicit spelling for scripts and existing workflows. The separately named
 `ritk-snap-eframe` executable selects the compatibility shell without activating
