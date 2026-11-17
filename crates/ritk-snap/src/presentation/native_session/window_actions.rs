@@ -305,6 +305,35 @@ impl NativeViewerSession {
                 app.pointer.abandon();
                 Ok(true)
             }
+            #[cfg(windows)]
+            WindowAction::OpenCalibration => {
+                self.window_chrome.open_calibration();
+                Ok(true)
+            }
+            #[cfg(windows)]
+            WindowAction::ApplyCalibration => {
+                let Some(known_mm) = self.window_chrome.take_calibration_value() else {
+                    return Ok(false);
+                };
+                self.active_app_mut()
+                    .calibrate_last_active_length(known_mm)
+                    .map_err(|error| NativeViewerError::new(error.to_string()))?;
+                self.active_app_mut().status_message =
+                    format!("Length calibration set to {known_mm:.3} mm");
+                Ok(true)
+            }
+            #[cfg(windows)]
+            WindowAction::ResetCalibration => {
+                let changed = self
+                    .active_app_mut()
+                    .reset_active_length_calibration()
+                    .map_err(|error| NativeViewerError::new(error.to_string()))?;
+                if changed {
+                    self.active_app_mut().status_message =
+                        "Length calibration reset to DICOM spacing".to_owned();
+                }
+                Ok(changed)
+            }
         }
     }
 }
