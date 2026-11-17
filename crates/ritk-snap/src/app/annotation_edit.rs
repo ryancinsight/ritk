@@ -61,22 +61,17 @@ impl SnapApp {
         true
     }
 
-    pub(crate) fn commit_polygon_vertex_move(&mut self) -> bool {
+    pub(super) fn commit_polygon_vertex_move(&mut self) {
         let Some(pending) = self.pointer.pending_polygon_move.take() else {
-            return false;
+            return;
         };
-        if pending.source_location != self.annotation_location() || pending.start == pending.current
+        if pending.source_location == self.annotation_location()
+            && pending.start != pending.current
+            && let Some(annotation) = self.annotations.get_mut(pending.annotation_index)
+            && *annotation == pending.original
         {
-            return false;
+            *annotation = pending.candidate;
+            self.bump_visual_revision();
         }
-        let Some(annotation) = self.annotations.get_mut(pending.annotation_index) else {
-            return false;
-        };
-        if *annotation != pending.original {
-            return false;
-        }
-        *annotation = pending.candidate;
-        self.bump_visual_revision();
-        true
     }
 }
