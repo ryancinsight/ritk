@@ -190,8 +190,8 @@ fn native_length_preview_draws_only_on_its_owning_slice() {
     let view = &session.views[index];
     let viewport = &session.viewports[index];
     let tool_state = ToolState::LengthDrag {
-        start: ImagePoint::new(0.0, 0.0),
-        current: ImagePoint::new(3.0, 4.0),
+        start: ImagePoint::new(0.5, 0.25),
+        current: ImagePoint::new(3.25, 1.5),
     };
     let location = Some(AnnotationLocation {
         plane: view.axis,
