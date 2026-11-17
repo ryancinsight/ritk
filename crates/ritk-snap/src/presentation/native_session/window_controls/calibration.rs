@@ -113,15 +113,19 @@ impl WindowChrome {
             DialogAction::None => Some(WindowChromeEvent::consumed(true)),
             DialogAction::Cancel => {
                 self.calibration_dialog = None;
+                self.calibration_target = None;
                 Some(WindowChromeEvent::consumed(true))
             }
             DialogAction::Confirm(value) => {
                 self.calibration_dialog = None;
                 self.calibration_value = Some(value);
+                let Some(target) = self.calibration_target.take() else {
+                    return Some(WindowChromeEvent::consumed(true));
+                };
                 Some(WindowChromeEvent {
                     consumed: true,
                     repaint: true,
-                    action: Some(WindowAction::ApplyCalibration),
+                    action: Some(WindowAction::ApplyCalibration(target)),
                 })
             }
         }

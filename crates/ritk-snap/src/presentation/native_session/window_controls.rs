@@ -16,6 +16,7 @@ use super::pressed_buttons::PressedButtons;
 use super::series_browser::SeriesBrowser;
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationFrame};
+use crate::tools::interaction::AnnotationLocation;
 use crate::tools::kind::ToolKind;
 use anyhow::Result;
 use metis_platform::Framebuffer;
@@ -99,9 +100,17 @@ pub(super) enum WindowAction {
     #[cfg(windows)]
     OpenCalibration,
     #[cfg(windows)]
-    ApplyCalibration,
+    ApplyCalibration(CalibrationTarget),
     #[cfg(windows)]
     ResetCalibration,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct CalibrationTarget {
+    pub(super) panel_index: usize,
+    pub(super) location: AnnotationLocation,
+    pub(super) p1: [f32; 2],
+    pub(super) p2: [f32; 2],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -153,6 +162,8 @@ pub(super) struct WindowChrome {
     calibration_dialog: Option<calibration::CalibrationDialog>,
     #[cfg(windows)]
     calibration_value: Option<f32>,
+    #[cfg(windows)]
+    calibration_target: Option<CalibrationTarget>,
     show_series_preview: bool,
     control_down: bool,
     pointer_owner: PointerOwner,
@@ -169,6 +180,7 @@ impl WindowChrome {
             calibration_dialog: None,
             #[cfg(windows)]
             calibration_value: None,
+            calibration_target: None,
             show_series_preview: true,
             control_down: false,
             pointer_owner: PointerOwner::None,
@@ -323,9 +335,10 @@ impl WindowChrome {
     }
 
     #[cfg(windows)]
-    pub(super) fn open_calibration(&mut self) {
+    pub(super) fn open_calibration(&mut self, target: CalibrationTarget) {
         self.calibration_dialog = Some(calibration::CalibrationDialog::new());
         self.calibration_value = None;
+        self.calibration_target = Some(target);
         self.open_menu = None;
         self.cancel_pointer_capture();
     }
@@ -333,6 +346,11 @@ impl WindowChrome {
     #[cfg(windows)]
     pub(super) fn take_calibration_value(&mut self) -> Option<f32> {
         self.calibration_value.take()
+    }
+
+    #[cfg(windows)]
+    pub(super) fn take_calibration_target(&mut self) -> Option<CalibrationTarget> {
+        self.calibration_target.take()
     }
 }
 

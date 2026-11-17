@@ -2835,7 +2835,8 @@ pixel tests agree.
 The viewer's **View → Orientation** commands and shortcuts apply the same
 `ViewTransform` to the texture and every source-coordinate overlay:
 **H** flips horizontally, **V** flips vertically, **R** rotates clockwise by
-90°, **Shift+R** rotates counter-clockwise, and **O** restores the identity.
+90° and **Shift+R** rotates counter-clockwise. In the native viewer,
+**Shift+O** restores the identity and **O** selects Open Polygon.
 The linked cursor, pointer intensity, crosshair, label map, RT-STRUCT, RT-DOSE,
 orientation labels, and measurement annotations all use source voxel
 coordinates. Screen input first enters the displayed output rectangle and is
