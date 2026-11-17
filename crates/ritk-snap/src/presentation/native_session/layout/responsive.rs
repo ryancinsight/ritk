@@ -11,9 +11,8 @@ use super::geometry::{
     VIEW_GAP_PIXELS,
 };
 use super::overlay::{application_overlay, projection_overlay, ClinicalOverlay};
-use crate::geometry::affine::AffineTransform;
 use crate::presentation::{PaneLayout, PaneRole};
-use crate::tools::interaction::{Annotation, ViewportOffset};
+use crate::tools::interaction::ViewportOffset;
 
 /// Compose a responsive single, dual or four-pane surface.
 pub(crate) fn surface_frames_responsive(
@@ -29,8 +28,6 @@ pub(crate) fn surface_frames_responsive(
     cine_fps: f32,
     show_application_overlay: bool,
     clinical: Option<&ClinicalOverlay<'_>>,
-    annotations: &[Annotation],
-    affine: Option<AffineTransform>,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     if !zoom.is_finite() || zoom <= 0.0 {
         bail!("native viewer zoom must be finite and positive");
@@ -110,15 +107,7 @@ pub(crate) fn surface_frames_responsive(
         }
     }
     if show_application_overlay {
-        let mut overlay = application_overlay(
-            views,
-            &viewports,
-            cine_enabled,
-            cine_fps,
-            clinical,
-            annotations,
-            affine,
-        )?;
+        let mut overlay = application_overlay(views, &viewports, cine_enabled, cine_fps, clinical)?;
         if let Some((projection, pane_x, pane_y, pane_width, pane_height)) = projection_panel {
             overlay.extend(projection_overlay(
                 projection,

@@ -112,6 +112,15 @@ fn test_compute_angle_right_angle() {
     );
 }
 
+/// Physical angle uses spacing, not raw pixel geometry.
+#[test]
+fn test_compute_angle_scales_anisotropic_spacing() {
+    let angle =
+        Annotation::compute_angle_with_spacing([1.0, 0.0], [0.0, 0.0], [1.0, 1.0], [2.0, 1.0]);
+    let expected = (2.0_f32 / 5.0_f32.sqrt()).acos().to_degrees();
+    assert_eq!(angle.to_bits(), expected.to_bits());
+}
+
 /// Three collinear points (same direction) must yield 0°.
 ///
 /// Analytical:

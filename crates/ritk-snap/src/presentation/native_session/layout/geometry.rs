@@ -4,7 +4,6 @@ use crate::app::viewer_viewport::ViewerViewport;
 use crate::presentation::PresentationSpacing;
 use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, bail, Result};
-#[cfg(test)]
 use metis_platform::Rect;
 
 use super::super::frame::RenderedView;
@@ -80,7 +79,6 @@ impl NativeViewport {
         self.panel_width
     }
 
-    #[cfg(test)]
     pub(crate) fn panel_rect(self) -> Result<Rect> {
         Ok(Rect::new(
             i32::try_from(self.panel_x).map_err(|_| anyhow!("panel x exceeds i32"))?,

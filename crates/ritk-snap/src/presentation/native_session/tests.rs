@@ -421,8 +421,6 @@ fn native_session_cine_rate_controls_repaint_and_bound_overlay() {
         true,
         session.app.cine.fps,
         None,
-        &[],
-        None,
     )
     .expect("active cine overlay")
     .into_display_list();

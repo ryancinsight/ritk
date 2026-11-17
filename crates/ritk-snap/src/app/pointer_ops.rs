@@ -1,6 +1,8 @@
+mod measurement;
+
 use super::state::SnapApp;
 use crate::render::NamedColorMap;
-use crate::tools::interaction::{Annotation, ImagePoint, MeasurementError, RoiKind, ToolState};
+use crate::tools::interaction::{Annotation, ImagePoint, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
@@ -60,6 +62,11 @@ impl SnapApp {
         if self.tool_state.is_pending_measurement() {
             self.pointer.suspended_measurement = Some(self.tool_state.clone());
         }
+        self.pointer.drag_measurement_location = matches!(
+            gesture,
+            ToolState::LengthDrag { .. } | ToolState::RoiDrag { .. }
+        )
+        .then(|| self.annotation_location());
         self.tool_state = gesture;
     }
 
@@ -115,7 +122,8 @@ impl SnapApp {
     }
 
     pub(crate) fn on_drag_end(&mut self, pos: Option<ImagePoint>) {
-        if pos.is_some() {
+        let recorded = self.pointer.drag_measurement_location.take();
+        if pos.is_some() && recorded.is_none_or(|location| location == self.annotation_location()) {
             // Only a measurement takes its release as a final point. The
             // viewport mapping a display gesture's release already includes
             // that gesture's own zoom and pan, so reapplying it would move it.
@@ -180,6 +188,15 @@ impl SnapApp {
 
     pub(crate) fn on_click(&mut self, pos: Option<ImagePoint>) {
         let Some(pos) = pos else { return };
+        let location = self.annotation_location();
+        if self.tool_state.is_pending_measurement()
+            && self
+                .pointer
+                .pending_measurement_location
+                .is_some_and(|anchor| anchor != location)
+        {
+            self.tool_state = ToolState::Idle;
+        }
         match self.active_tool {
             ToolKind::MeasureLength => match self.tool_state.clone() {
                 ToolState::MeasureLength1 { p1 } => {
@@ -195,8 +212,19 @@ impl SnapApp {
                     let a = [p1.y(), p1.x()];
                     let b = [p2.y(), p2.x()];
                     let c = [pos.y(), pos.x()];
-                    let angle_deg = Annotation::compute_angle(a, b, c);
-                    self.annotations.push(Annotation::Angle {
+                    let angle_deg = match self
+                        .slice_plane_spacing()
+                        .and_then(Annotation::validate_spacing)
+                    {
+                        Ok(spacing) => Annotation::compute_angle_with_spacing(a, b, c, spacing),
+                        Err(error) => {
+                            self.status_message = format!("Measurement rejected: {error}");
+                            self.tool_state = ToolState::Idle;
+                            return;
+                        }
+                    };
+                    self.push_annotation(Annotation::Angle {
+                        location: None,
                         p1: a,
                         p2: b,
                         p3: c,
@@ -213,140 +241,26 @@ impl SnapApp {
             },
             ToolKind::PointHu => {
                 if let Some(vol) = &self.loaded {
-                    let row = pos.y() as usize;
-                    let col = pos.x() as usize;
-                    let (pixels, width, _height) =
-                        vol.extract_slice(self.axis, self.viewer_state.slice_index);
-                    let idx = row * width + col;
-                    let value = if idx < pixels.len() { pixels[idx] } else { 0.0 };
-                    self.annotations.push(Annotation::HuPoint {
+                    let Some(voxel) =
+                        image_point_to_voxel(vol.shape, self.axis, location.slice, pos)
+                    else {
+                        return;
+                    };
+                    let value = intensity_at_voxel(vol, voxel);
+                    self.push_annotation(Annotation::HuPoint {
+                        location: None,
                         pos: [pos.y(), pos.x()],
                         value,
                     });
-                    self.status_message = format!("HU at col={col} row={row}: {value:.0}");
+                    let [depth, row, col] = voxel;
+                    self.status_message = format!("Value at [{depth},{row},{col}]: {value:.0}");
                 }
             }
             ToolKind::LabelPaint | ToolKind::LabelErase => {}
             _ => {}
         }
-    }
-
-    // ── Annotation helpers ────────────────────────────────────────────────
-
-    /// Record the patient-space length between two image points.
-    fn record_length(&mut self, start: ImagePoint, end: ImagePoint) {
-        let p1 = [start.y(), start.x()];
-        let p2 = [end.y(), end.x()];
-        let measured = self
-            .slice_plane_spacing()
-            .and_then(|spacing| Annotation::compute_length_checked(p1, p2, spacing));
-        match measured {
-            Ok(length_mm) => {
-                self.annotations.push(Annotation::Length {
-                    plane: self.axis,
-                    p1,
-                    p2,
-                    length_mm,
-                });
-                self.status_message = format!("Length: {length_mm:.2} mm");
-            }
-            Err(error) => {
-                self.status_message = format!("Measurement rejected: {error}");
-            }
-        }
-    }
-
-    /// Compute ROI rect statistics for the pixel region between `start` and
-    /// `end` (screen-space corners) on the current primary-axis slice.
-    fn finalise_roi_rect(&mut self, start: ImagePoint, end: ImagePoint) {
-        let spacing = match self.slice_plane_spacing() {
-            Ok(spacing) => spacing,
-            Err(error) => {
-                self.status_message = format!("Measurement rejected: {error}");
-                return;
-            }
-        };
-        let Some(vol) = &self.loaded else { return };
-        let p1 = [start.y(), start.x()];
-        let p2 = [end.y(), end.x()];
-        let (pixels, width, height) = vol.extract_slice(self.axis, self.viewer_state.slice_index);
-        let (mean, std_dev, min, max, area_mm2) = match Annotation::compute_roi_rect_stats_checked(
-            p1, p2, &pixels, width, height, spacing,
-        ) {
-            Ok(stats) => stats,
-            Err(error) => {
-                self.status_message = format!("Measurement rejected: {error}");
-                return;
-            }
-        };
-        self.annotations.push(Annotation::RoiRect {
-            top_left: [p1[0].min(p2[0]), p1[1].min(p2[1])],
-            bottom_right: [p1[0].max(p2[0]), p1[1].max(p2[1])],
-            mean,
-            std_dev,
-            min,
-            max,
-            area_mm2,
-        });
-        self.status_message =
-            format!("ROI: \u{03bc}={mean:.1} \u{03c3}={std_dev:.1} [{min:.0}, {max:.0}] {area_mm2:.1} mm\u{b2}");
-    }
-
-    fn finalise_roi_ellipse(&mut self, start: ImagePoint, end: ImagePoint) {
-        let spacing = match self.slice_plane_spacing() {
-            Ok(spacing) => spacing,
-            Err(error) => {
-                self.status_message = format!("Measurement rejected: {error}");
-                return;
-            }
-        };
-        let Some(vol) = &self.loaded else { return };
-        let p1 = [start.y(), start.x()];
-        let p2 = [end.y(), end.x()];
-        let (pixels, width, height) = vol.extract_slice(self.axis, self.viewer_state.slice_index);
-        let (center, radii, mean, std_dev, min, max, area_mm2) =
-            match Annotation::compute_roi_ellipse_stats_checked(
-                p1, p2, &pixels, width, height, spacing,
-            ) {
-                Ok(stats) => stats,
-                Err(error) => {
-                    self.status_message = format!("Measurement rejected: {error}");
-                    return;
-                }
-            };
-        self.annotations.push(Annotation::RoiEllipse {
-            center,
-            radii,
-            mean,
-            std_dev,
-            min,
-            max,
-            area_mm2,
-        });
-        self.status_message = format!(
-            "Ellipse ROI: \u{03bc}={mean:.1} \u{03c3}={std_dev:.1} [{min:.0}, {max:.0}] {area_mm2:.1} mm\u{b2}"
-        );
-    }
-
-    /// Per-axis 2-D pixel spacing `[row_spacing, col_spacing]` in mm/pixel.
-    ///
-    /// | axis | row spacing | col spacing |
-    /// |------|-------------|-------------|
-    /// | 0 axial   | dy | dx |
-    /// | 1 coronal | dz | dx |
-    /// | 2 sagittal| dz | dy |
-    pub(crate) fn slice_plane_spacing(&self) -> Result<[f64; 2], MeasurementError> {
-        let Some(vol) = &self.loaded else {
-            return Err(MeasurementError::MissingVolume);
-        };
-        let [dz, dy, dx] = vol.spacing;
-        let spacing = match self.axis {
-            0 => [dy, dx],
-            1 => [dz, dx],
-            _ => [dz, dy],
-        };
-        Annotation::validate_spacing(spacing)?;
-        Ok(spacing)
+        self.pointer.pending_measurement_location =
+            self.tool_state.is_pending_measurement().then_some(location);
     }
 
     pub(crate) fn apply_label_at_pointer(&mut self, axis: usize, pos: Option<ImagePoint>) {

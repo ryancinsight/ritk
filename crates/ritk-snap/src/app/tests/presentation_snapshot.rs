@@ -78,6 +78,7 @@ fn snapshot_projects_latest_annotation_kind_and_primary_value() {
     let mut app = SnapApp::default();
     app.loaded = Some(test_volume([4, 3, 2]));
     app.annotations.push(Annotation::HuPoint {
+        location: None,
         pos: [1.0, 2.0],
         value: -42.5,
     });
@@ -100,8 +101,11 @@ fn patient_length_snapshot_preserves_f64_precision_through_app() {
     )
     .expect("finite patient-space length");
     let mut app = SnapApp::default();
-    app.annotations
-        .push(Annotation::PatientLength { plane: 0, length });
+    app.annotations.push(Annotation::PatientLength {
+        plane: 0,
+        location: None,
+        length,
+    });
 
     let summary = app
         .presentation_snapshot()

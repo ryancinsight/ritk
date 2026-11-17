@@ -1,9 +1,5 @@
 # ritk-snap
 
-Drag the scrollbar on the right edge of a native image pane to browse its
-slices. Clicking the track jumps to that position in the stack. Single-slice
-images and projection-only panes have no slice scrollbar.
-
 `ritk-snap` is the RITK medical-image viewer. On Windows the Métis host is the
 default desktop shell. The default package has no eframe, egui, or rfd active
 dependency; the complete compatibility shell is the separately named
@@ -113,6 +109,15 @@ closes the active panel, and Shift+F4 closes all panels. The single-series
 workspace remains the three-plane MPR view. Comparison panels display the image
 number and count, window width and centre, and source pixel dimensions in
 the RadiAnt-clone image corners.
+
+Drag the scrollbar on the right edge of an image pane to browse its slices.
+Click the track to jump within the stack. Single-slice images and projection
+panes have no slice scrollbar.
+
+Use the Tools menu to draw a length, angle, rectangular or elliptical region,
+or intensity probe. Completed measurements appear on the slice where they
+were placed, including in comparison views. The clinical overlay toggle
+controls the image readouts separately from measurement marks.
 
 On Windows the same command works without `--metis-native`; the flag remains an
 explicit spelling for scripts and existing workflows. The separately named

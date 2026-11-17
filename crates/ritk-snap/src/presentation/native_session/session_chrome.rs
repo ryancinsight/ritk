@@ -1,11 +1,48 @@
 //! Native chrome composition for the viewer session.
 
-use super::layout::{crosshair_overlay, MAX_GRID_PANELS};
-use super::session::NativeViewerSession;
-use anyhow::Result;
+use super::layout::{
+    append_measurement_overlay, crosshair_overlay, OverlayCommands, MAX_GRID_PANELS,
+};
+use super::session::{volume_affine, NativeViewerSession};
+use anyhow::{anyhow, Result};
 use arrayvec::ArrayVec;
 
 impl NativeViewerSession {
+    pub(super) fn render_measurements(&mut self) -> Result<()> {
+        for (index, viewport) in self.viewports.iter().enumerate() {
+            let (app, view) = if self.workspace_layout.is_grid() && index > 0 {
+                let panel = self
+                    .compare_panels
+                    .get(index - 1)
+                    .ok_or_else(|| anyhow!("series panel state is missing"))?;
+                (&panel.app, panel.axial_view())
+            } else {
+                let view = self
+                    .views
+                    .get(index)
+                    .ok_or_else(|| anyhow!("native viewport has no slice frame"))?;
+                (&self.app, view)
+            };
+            if app.annotations.is_empty() || viewport.panel_width == 0 || viewport.panel_height == 0
+            {
+                continue;
+            }
+            let mut overlay = OverlayCommands::with_capacity(app.annotations.len())?;
+            append_measurement_overlay(
+                &mut overlay,
+                std::slice::from_ref(view),
+                std::slice::from_ref(viewport),
+                &app.annotations,
+                volume_affine(app),
+            )?;
+            self.framebuffer
+                .render_clipped(viewport.panel_rect()?, |framebuffer| {
+                    overlay.into_display_list().render_to(framebuffer);
+                });
+        }
+        Ok(())
+    }
+
     pub(super) fn render_crosshair_overlay(&mut self) -> Result<()> {
         if self.workspace_layout.is_grid() {
             return Ok(());

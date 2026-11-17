@@ -79,8 +79,6 @@ fn overlay_commands(clinical: &ClinicalOverlay) -> Vec<String> {
         false,
         30.0,
         Some(clinical),
-        &[],
-        None,
     )
     .expect("compose the native overlay commands")
     .into_display_list();
@@ -195,8 +193,6 @@ fn native_overlay_text_commands_carry_single_letter_edge_labels() {
         false,
         30.0,
         Some(&clinical),
-        &[],
-        None,
     )
     .expect("compose the native overlay commands");
     let commands = overlay.into_display_list();

@@ -114,7 +114,7 @@ fn point_click_actions_record_a_ritk_annotation() {
 
     assert!(matches!(
         app.annotations.as_slice(),
-        [crate::tools::interaction::Annotation::HuPoint { pos, value }]
+        [crate::tools::interaction::Annotation::HuPoint { pos, value, .. }]
             if *pos == [2.0, 1.0] && *value == 0.0
     ));
 }
@@ -153,6 +153,7 @@ fn length_measurement_clicks_advance_and_complete_through_the_adapter() {
         app.annotations.as_slice(),
         [crate::tools::interaction::Annotation::Length {
             plane,
+            location: Some(crate::tools::interaction::AnnotationLocation { plane: 0, slice: 0 }),
             p1,
             p2,
             length_mm,
@@ -198,6 +199,33 @@ fn angle_measurement_clicks_advance_and_complete_through_the_adapter() {
         [crate::tools::interaction::Annotation::Angle { angle_deg, .. }]
             if (*angle_deg - 90.0).abs() < 1e-5
     ));
+}
+
+#[test]
+fn angle_anchors_on_different_slices_do_not_form_one_measurement() {
+    use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint};
+
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([4, 4, 3]));
+    app.active_tool = ToolKind::MeasureAngle;
+    app.on_click(Some(ImagePoint::new(0.5, 0.5)));
+    app.on_click(Some(ImagePoint::new(0.5, 1.5)));
+
+    app.set_slice_for_axis(0, 1);
+    app.on_click(Some(ImagePoint::new(0.5, 0.5)));
+    assert_eq!(app.annotations.as_slice(), &[]);
+    app.on_click(Some(ImagePoint::new(1.5, 0.5)));
+    app.on_click(Some(ImagePoint::new(1.5, 1.5)));
+    assert_eq!(
+        app.annotations.as_slice(),
+        &[Annotation::Angle {
+            location: Some(AnnotationLocation { plane: 0, slice: 1 }),
+            p1: [0.5, 0.5],
+            p2: [0.5, 1.5],
+            p3: [1.5, 1.5],
+            angle_deg: 90.0,
+        }]
+    );
 }
 
 #[test]

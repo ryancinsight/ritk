@@ -43,7 +43,7 @@ fn viewport_offset(app: &SnapApp) -> ViewportOffset {
 ///
 /// Patient-space annotations project through this transform onto their
 /// recorded plane; volumes whose geometry cannot invert skip that projection.
-fn volume_affine(app: &SnapApp) -> Option<AffineTransform> {
+pub(super) fn volume_affine(app: &SnapApp) -> Option<AffineTransform> {
     let volume = app.loaded.as_ref()?;
     AffineTransform::from_parts(volume.origin, volume.direction, volume.spacing).ok()
 }
@@ -151,8 +151,6 @@ impl NativeViewerSession {
             app.cine.fps,
             app.show_overlay || capture_application,
             clinical.as_ref(),
-            &app.annotations,
-            volume_affine(&app),
         )?;
         let mut viewports = ArrayVec::new();
         for viewport in initial_viewports {
@@ -208,6 +206,7 @@ impl NativeViewerSession {
             session.refresh_frame()?;
         } else {
             session.render_crosshair_overlay()?;
+            session.render_measurements()?;
             session.render_slice_scrollbars()?;
             session.render_chrome()?;
             record_state(&session.observation, &session.app, 96, false)?;
@@ -371,8 +370,6 @@ impl NativeViewerSession {
                 self.app.cine.fps,
                 self.app.show_overlay || self.capture_application,
                 clinical.as_ref(),
-                &self.app.annotations,
-                volume_affine(&self.app),
             )?;
             let mut viewports = ArrayVec::new();
             for viewport in composition_viewports {
@@ -385,6 +382,7 @@ impl NativeViewerSession {
         self.framebuffer = framebuffer;
         self.viewports = viewports;
         self.render_crosshair_overlay()?;
+        self.render_measurements()?;
         self.render_slice_scrollbars()?;
         self.render_chrome()?;
         self.observation

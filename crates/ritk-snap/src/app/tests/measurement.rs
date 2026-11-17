@@ -135,6 +135,7 @@ fn measurement_length_completion_records_active_axis_as_plane() {
     let mut app = SnapApp::default();
     app.load_volume(make_anisotropic_volume(), "fixture".to_owned());
     app.axis = 2;
+    let slice = app.axis_slice_info(2).0;
     app.active_tool = ToolKind::MeasureLength;
     app.on_click(Some(ImagePoint::new(0.0, 0.0)));
     app.on_click(Some(ImagePoint::new(4.0, 3.0)));
@@ -146,11 +147,16 @@ fn measurement_length_completion_records_active_axis_as_plane() {
     match &app.annotations[0] {
         Annotation::Length {
             plane,
+            location,
             p1,
             p2,
             length_mm,
         } => {
             assert_eq!(*plane, 2, "length must record its placement plane");
+            assert_eq!(
+                *location,
+                Some(crate::tools::interaction::AnnotationLocation { plane: 2, slice })
+            );
             assert_eq!(*p1, [0.0, 0.0], "stored start must keep image order");
             assert_eq!(*p2, [3.0, 4.0], "stored end must keep image order");
             let expected = 180.0_f32.sqrt();
