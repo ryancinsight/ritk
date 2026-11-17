@@ -44,6 +44,8 @@ pub enum ToolKind {
     RoiClosedPolygon,
     /// Draw an open polygon polyline and compute its physical length.
     RoiOpenPolygon,
+    /// Drag from a tail to a head to place an image annotation arrow.
+    Arrow,
 }
 
 impl ToolKind {
@@ -64,6 +66,7 @@ impl ToolKind {
             ToolKind::LabelErase => "Label Erase",
             ToolKind::RoiClosedPolygon => "Closed Polygon",
             ToolKind::RoiOpenPolygon => "Open Polygon",
+            ToolKind::Arrow => "Arrow",
         }
     }
 
@@ -119,6 +122,7 @@ impl ToolKind {
             ToolKind::RoiOpenPolygon => {
                 "Open polygon: click polyline nodes, then press Enter to finish."
             }
+            ToolKind::Arrow => "Arrow: drag from the tail to the head to annotate the image.",
         }
     }
 
@@ -139,6 +143,7 @@ impl ToolKind {
             ToolKind::LabelErase => "E",
             ToolKind::RoiClosedPolygon => "⬟",
             ToolKind::RoiOpenPolygon => "〽",
+            ToolKind::Arrow => "➜",
         }
     }
 
@@ -163,6 +168,7 @@ impl ToolKind {
             ToolKind::LabelErase,
             ToolKind::RoiClosedPolygon,
             ToolKind::RoiOpenPolygon,
+            ToolKind::Arrow,
         ]
     }
 }

@@ -58,7 +58,10 @@ pub(crate) fn append_measurement_preview(
     tool_state: &ToolState,
     location: Option<AnnotationLocation>,
 ) -> Result<()> {
-    if !matches!(tool_state, ToolState::LengthDrag { .. })
+    if !matches!(
+        tool_state,
+        ToolState::LengthDrag { .. } | ToolState::ArrowDrag { .. }
+    )
         || location.is_some_and(|source| {
             source
                 != (AnnotationLocation {
@@ -81,6 +84,8 @@ pub(crate) fn append_measurement_preview(
     };
     if let ToolState::LengthDrag { start, current } = tool_state {
         pane.segment(overlay, [*start, *current], MEASUREMENT_COLOR)?;
+    } else if let ToolState::ArrowDrag { start, current } = tool_state {
+        pane.arrow(overlay, [*start, *current], MEASUREMENT_COLOR)?;
     }
     Ok(())
 }
@@ -145,6 +150,28 @@ impl Pane<'_> {
             image_point([points[1].y(), points[1].x()]),
             color,
         )
+    }
+
+    fn arrow(
+        &self,
+        overlay: &mut OverlayCommands,
+        points: [ImagePoint; 2],
+        color: Color,
+    ) -> Result<()> {
+        let a = image_point([points[0].y(), points[0].x()]);
+        let b = image_point([points[1].y(), points[1].x()]);
+        self.line(overlay, a, b, color)?;
+        let dx = b[0] - a[0];
+        let dy = b[1] - a[1];
+        let norm = dx.hypot(dy);
+        if norm > 0.0 {
+            let ux = dx / norm;
+            let uy = dy / norm;
+            let size = 8.0;
+            self.line(overlay, b, [b[0] - ux * size + uy * size * 0.5, b[1] - uy * size - ux * size * 0.5], color)?;
+            self.line(overlay, b, [b[0] - ux * size - uy * size * 0.5, b[1] - uy * size + ux * size * 0.5], color)?;
+        }
+        Ok(())
     }
 
     fn label(&self, overlay: &mut OverlayCommands, anchor: [f64; 2], text: String) -> Result<()> {
@@ -354,6 +381,16 @@ impl Pane<'_> {
                 if let Some(first) = polyline.first() {
                     self.label(overlay, *first, format!("{length_mm:.1} mm"))?;
                 }
+            }
+            Annotation::Arrow { tail, head, .. } => {
+                self.arrow(
+                    overlay,
+                    [
+                        ImagePoint::new(tail[1], tail[0]),
+                        ImagePoint::new(head[1], head[0]),
+                    ],
+                    MEASUREMENT_COLOR,
+                )?;
             }
             _ => {}
         }

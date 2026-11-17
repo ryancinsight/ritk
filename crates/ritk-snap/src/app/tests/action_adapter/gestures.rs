@@ -120,6 +120,38 @@ fn point_click_actions_record_a_ritk_annotation() {
 }
 
 #[test]
+fn arrow_drag_records_endpoints_and_escape_cancels_capture() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([4, 4, 1]));
+    app.active_tool = ToolKind::Arrow;
+    let viewport = viewport([4, 4]);
+    let mut dispatcher = PresentationDispatcher::new();
+    apply_events(&mut app, &mut dispatcher, &viewport, PresentationEvent::PointerDown {
+        x: 1.0, y: 1.0, button: PointerButton::Left,
+        modifiers: PresentationModifiers::NONE,
+    });
+    apply_events(&mut app, &mut dispatcher, &viewport, PresentationEvent::PointerMove { x: 3.0, y: 2.0 });
+    apply_events(&mut app, &mut dispatcher, &viewport, PresentationEvent::PointerUp {
+        x: 3.0, y: 2.0, button: PointerButton::Left,
+    });
+    assert!(matches!(app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::Arrow { tail, head, .. }]
+            if *tail == [1.0, 1.0] && *head == [2.0, 3.0]));
+
+    app.annotations.clear();
+    apply_events(&mut app, &mut dispatcher, &viewport, PresentationEvent::PointerDown {
+        x: 1.0, y: 1.0, button: PointerButton::Left,
+        modifiers: PresentationModifiers::NONE,
+    });
+    apply_events(&mut app, &mut dispatcher, &viewport, PresentationEvent::PointerMove { x: 3.0, y: 2.0 });
+    apply_events(&mut app, &mut dispatcher, &viewport, PresentationEvent::KeyDown {
+        virtual_key: 0x1b, repeated: false, modifiers: PresentationModifiers::NONE,
+    });
+    assert!(app.annotations.is_empty());
+    assert!(app.tool_state.is_idle());
+}
+
+#[test]
 fn length_measurement_clicks_advance_and_complete_through_the_adapter() {
     let mut app = SnapApp::default();
     app.loaded = Some(test_volume([4, 4, 1]));

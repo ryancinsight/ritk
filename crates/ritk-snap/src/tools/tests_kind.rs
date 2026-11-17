@@ -8,8 +8,8 @@ fn test_tool_kind_all_complete_and_distinct() {
     let all = ToolKind::all();
     assert_eq!(
         all.len(),
-        14,
-        "ToolKind::all() must contain all 14 variants, found {}",
+        15,
+        "ToolKind::all() must contain all 15 variants, found {}",
         all.len()
     );
     for i in 0..all.len() {
