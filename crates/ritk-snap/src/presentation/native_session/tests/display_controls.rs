@@ -14,19 +14,6 @@ use crate::ui::tool_shortcuts::VIRTUAL_KEY_MEASURE_COBB;
 use crate::ui::RotationSteps;
 
 #[test]
-fn plain_c_selects_cobb_measurement() {
-    let (mut session, _root) = session();
-    session
-        .handle_events(&[WindowEvent::KeyDown {
-            virtual_key: VIRTUAL_KEY_MEASURE_COBB,
-            repeated: false,
-            modifiers: ModifierState::NONE,
-        }])
-        .expect("C selects Cobb measurement");
-    assert_eq!(session.app.active_tool, ToolKind::MeasureCobb);
-}
-
-#[test]
 fn digit_keys_apply_ct_presets_and_repaint_presented_pixels() {
     let (mut session, _root) = session();
     let before = session.framebuffer.clone();
@@ -197,6 +184,14 @@ fn display_menu_invert_row_toggles_negative_display() {
 #[test]
 fn colormap_key_cycles_all_maps_in_stable_order_and_wraps() {
     let (mut session, _root) = session();
+    session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: VIRTUAL_KEY_MEASURE_COBB,
+            repeated: false,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("C selects Cobb measurement");
+    assert_eq!(session.app.active_tool, ToolKind::MeasureCobb);
     assert_eq!(session.app.colormap, NamedColorMap::Grayscale);
     // Grayscale sits at index 1 of the stable display order.
     let mut expected = NamedColorMap::Grayscale;

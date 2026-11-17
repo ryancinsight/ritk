@@ -34,7 +34,6 @@ pub(super) fn draw_deviation_preview(
         Stroke::new(LINE_WIDTH, COLOR_MEASURE),
     );
 }
-
 pub(super) fn draw_segment(
     painter: &Painter,
     points: [ImagePoint; 2],
@@ -45,7 +44,6 @@ pub(super) fn draw_segment(
     painter.circle_filled(projected[0], HANDLE_RADIUS, COLOR_MEASURE);
     painter.circle_filled(projected[1], HANDLE_RADIUS, COLOR_MEASURE);
 }
-
 pub(super) fn draw_cobb_preview(
     painter: &Painter,
     first: Option<[ImagePoint; 2]>,
@@ -56,7 +54,6 @@ pub(super) fn draw_cobb_preview(
         draw_segment(painter, segment, project);
     });
 }
-
 pub(super) fn draw_cobb_annotation(
     painter: &Painter,
     points: [[f32; 2]; 4],

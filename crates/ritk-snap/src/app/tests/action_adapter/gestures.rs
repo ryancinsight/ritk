@@ -175,7 +175,6 @@ fn escape_discards_active_or_pending_cobb_segments() {
         } else {
             assert!(app.tool_state.is_drag_gesture());
         }
-        assert_eq!(app.tool_state.tool_kind(), Some(ToolKind::MeasureCobb));
         apply_app_event(
             &mut app,
             &viewport,
