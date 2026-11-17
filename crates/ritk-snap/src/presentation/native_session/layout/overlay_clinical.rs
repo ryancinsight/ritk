@@ -3,7 +3,7 @@
 //! The demographic corners, cursor readout and spacing ruler build on the
 //! panel chrome in the parent module; this module owns their layout.
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use metis_platform::rasterizer::CornerRadius;
 use metis_platform::Rect;
 use metis_ui_lang::DisplayCommand;
@@ -14,7 +14,11 @@ use super::geometry::NativeViewport;
 use super::overlay::{
     ClinicalOverlay, OverlayCommands, OVERLAY_BAR_HEIGHT, OVERLAY_MARGIN, OVERLAY_TEXT,
 };
-use super::text::{text_command, text_style, TextStyle, PANEL_DETAIL_SIZE};
+use super::text::{
+    fit_text, text_command, text_style, TextStyle, PANEL_DETAIL_SIZE, PANEL_TITLE_SIZE,
+};
+
+const CORNER_GAP: i32 = 8;
 
 pub(crate) fn scale_bar_for_scale(px_per_mm: f64, max_px: f64) -> Option<(f64, f64)> {
     if !px_per_mm.is_finite() || !max_px.is_finite() || px_per_mm <= 0.0 || max_px <= 0.0 {
@@ -91,12 +95,21 @@ pub(crate) fn append_scale_bar(
     if label_top < chrome_top || image_bottom > chrome_bottom {
         return Ok(());
     }
+    let bar = Rect::new(right - bar_width, bar_top, bar_width, SCALE_BAR_HEIGHT);
+    let label_x = right - label_width;
+    if overlay.overlaps_text(bar)
+        || style
+            .extent(label_x, label_top, &label)
+            .is_some_and(|bounds| overlay.overlaps_text(bounds))
+    {
+        return Ok(());
+    }
     overlay.push(DisplayCommand::FillRect {
-        rect: Rect::new(right - bar_width, bar_top, bar_width, SCALE_BAR_HEIGHT),
+        rect: bar,
         radius: CornerRadius::SQUARE,
         color: OVERLAY_TEXT,
     });
-    overlay.push(text_command(label, right - label_width, label_top, style));
+    overlay.push(text_command(label, label_x, label_top, style));
     Ok(())
 }
 
@@ -115,15 +128,21 @@ pub(crate) fn append_clinical_corners(
     clinical: &ClinicalOverlay<'_>,
 ) -> Result<()> {
     let style = text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE)?;
-    let step = screen_coordinate(style.line_height(), "corner line step")?;
-    let width = |line: &str| screen_coordinate(style.advance(line).round(), "corner line width");
-    let top = panel_y + OVERLAY_BAR_HEIGHT + 2;
-    let bottom = panel_y + panel_height - OVERLAY_BAR_HEIGHT - 2;
+    let orientation_style = text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?;
+    // The center row belongs to the lateral orientation markers. The
+    // top and bottom orientation markers occupy their own rows.
+    let orientation_height = orientation_style
+        .extent(0, 0, "R")
+        .map_or(0, |bounds| bounds.height);
+    let chrome = orientation_height.max(OVERLAY_BAR_HEIGHT);
+    let top = panel_y + chrome + orientation_height + OVERLAY_MARGIN;
+    let bottom = panel_y + panel_height - chrome - orientation_height - OVERLAY_MARGIN;
+    let middle = panel_y + panel_height / 2;
+    let upper_height = middle - orientation_height / 2 - OVERLAY_MARGIN - top;
+    let lower_height = bottom - middle - orientation_height / 2 - OVERLAY_MARGIN;
     let left_edge = panel_x + OVERLAY_MARGIN;
     let right_edge =
         panel_x + panel_width - OVERLAY_MARGIN - super::super::slice_scrollbar::RIGHT_GUTTER;
-    let at_left = |_line: &str| Ok(left_edge);
-
     let top_left: Vec<String> = if clinical.anonymize {
         vec!["Anonymous".to_owned()]
     } else {
@@ -175,51 +194,69 @@ pub(crate) fn append_clinical_corners(
         .into_iter()
         .collect();
 
-    append_lines(overlay, &top_left, style, step, &at_left, top, 1)?;
-    append_lines(
-        overlay,
-        &top_right,
-        style,
-        step,
-        &|line| Ok(right_edge - width(line)?),
-        top,
-        1,
-    )?;
-    append_lines(overlay, &bottom_left, style, step, &at_left, bottom, -1)?;
-    append_lines(
-        overlay,
-        &bottom_right,
-        style,
-        step,
-        &|line| Ok(right_edge - width(line)?),
-        bottom,
-        -1,
-    )?;
+    let side_width = (right_edge - left_edge - CORNER_GAP) / 2;
+    let left = HorizontalAnchor::Left(left_edge);
+    let right = HorizontalAnchor::Right(right_edge);
+    let upper = VerticalAnchor::Top(top);
+    let lower = VerticalAnchor::Bottom(bottom);
+    for (lines, horizontal, vertical, height) in [
+        (top_left, left, upper, upper_height),
+        (top_right, right, upper, upper_height),
+        (bottom_left, left, lower, lower_height),
+        (bottom_right, right, lower, lower_height),
+    ] {
+        append_lines(
+            overlay,
+            &lines,
+            style,
+            [side_width, height],
+            horizontal,
+            vertical,
+        );
+    }
     Ok(())
 }
 
-/// One corner block: each line at `first` growing by `growing` line steps
-/// (`1` downward, `-1` upward). `at_x` positions each line horizontally so
-/// right corners can align to the panel edge.
+#[derive(Clone, Copy)]
+enum HorizontalAnchor {
+    Left(i32),
+    Right(i32),
+}
+
+#[derive(Clone, Copy)]
+enum VerticalAnchor {
+    Top(i32),
+    Bottom(i32),
+}
+
 fn append_lines(
     overlay: &mut OverlayCommands,
     lines: &[String],
     style: TextStyle,
-    step: i32,
-    at_x: &dyn Fn(&str) -> Result<i32>,
-    first: i32,
-    growing: i32,
-) -> Result<()> {
-    for (index, line) in lines.iter().enumerate() {
-        let order = i32::try_from(index).map_err(|_| anyhow!("corner exceeds i32 lines"))?;
-        overlay.push(text_command(
-            line.clone(),
-            at_x(line)?,
-            first + growing * order * step,
-            style,
-        ));
+    [width, height]: [i32; 2],
+    horizontal: HorizontalAnchor,
+    vertical: VerticalAnchor,
+) {
+    let mut used = 0;
+    for line in lines {
+        let line = fit_text(line, width, style);
+        let Some(bounds) = style.extent(0, 0, &line) else {
+            continue;
+        };
+        if bounds.height > height - used {
+            break;
+        }
+        let x = match horizontal {
+            HorizontalAnchor::Left(edge) => edge,
+            HorizontalAnchor::Right(edge) => edge - bounds.width,
+        };
+        let y = match vertical {
+            VerticalAnchor::Top(edge) => edge + used,
+            VerticalAnchor::Bottom(edge) => edge - used - bounds.height,
+        };
+        overlay.push(text_command(line, x - bounds.x, y - bounds.y, style));
+        used += bounds.height;
     }
-    Ok(())
 }
 
 /// Whole millimetres print without decimals; fractional steps keep one.
