@@ -275,7 +275,7 @@ pub(crate) fn projection_overlay(
         color: OVERLAY_BACKGROUND,
     });
     overlay.push(text_command(
-        format!("METIS  RITK-SNAP  3D {}", projection.statistic.label()),
+        format!("METIS  RITK-SNAP  3D {}", projection.kind.label()),
         panel_x + OVERLAY_MARGIN,
         panel_y + 2,
         text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?,
@@ -283,7 +283,7 @@ pub(crate) fn projection_overlay(
     overlay.push(text_command(
         format!(
             "Axial {}  {}x{}",
-            projection.statistic.label(),
+            projection.kind.label(),
             projection.frame.width(),
             projection.frame.height()
         ),

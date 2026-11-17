@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::render::ProjectionStatistic;
+use crate::render::{ProjectionKind, ProjectionStatistic};
 
 #[cfg(not(target_arch = "wasm32"))]
 mod series_comparison;
@@ -35,17 +35,21 @@ pub enum NativePresentationMode {
     /// Orthogonal panels plus the RITK axial average-intensity projection.
     #[value(name = "orthogonal-with-average")]
     OrthogonalWithAverage,
+    /// Orthogonal panels plus the RITK axial front-to-back volume rendering.
+    #[value(name = "orthogonal-with-vr")]
+    OrthogonalWithVr,
 }
 
 impl NativePresentationMode {
-    /// Return the scalar reduction used by a projection layout, if any.
+    /// Return the projection content used by a projection layout, if any.
     #[must_use]
-    pub const fn projection_statistic(self) -> Option<ProjectionStatistic> {
+    pub const fn projection_kind(self) -> Option<ProjectionKind> {
         match self {
             Self::Orthogonal => None,
-            Self::OrthogonalWithMip => Some(ProjectionStatistic::Maximum),
-            Self::OrthogonalWithMinip => Some(ProjectionStatistic::Minimum),
-            Self::OrthogonalWithAverage => Some(ProjectionStatistic::Average),
+            Self::OrthogonalWithMip => Some(ProjectionKind::Slab(ProjectionStatistic::Maximum)),
+            Self::OrthogonalWithMinip => Some(ProjectionKind::Slab(ProjectionStatistic::Minimum)),
+            Self::OrthogonalWithAverage => Some(ProjectionKind::Slab(ProjectionStatistic::Average)),
+            Self::OrthogonalWithVr => Some(ProjectionKind::VolumeRender),
         }
     }
 }
@@ -62,10 +66,10 @@ pub(crate) enum NativePresentationSelection {
 
 #[cfg(all(not(target_arch = "wasm32"), windows))]
 impl NativePresentationSelection {
-    pub(crate) const fn projection_statistic(self) -> Option<ProjectionStatistic> {
+    pub(crate) const fn projection_kind(self) -> Option<ProjectionKind> {
         match self {
-            Self::Fixed(mode) => mode.projection_statistic(),
-            Self::Responsive => Some(ProjectionStatistic::Maximum),
+            Self::Fixed(mode) => mode.projection_kind(),
+            Self::Responsive => Some(ProjectionKind::Slab(ProjectionStatistic::Maximum)),
         }
     }
 }

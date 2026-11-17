@@ -124,17 +124,12 @@ impl NativeViewerSession {
             frame::empty_orthogonal_views()?
         };
         let mut projection_scratch = ProjectionRenderScratch::default();
-        let projection = match presentation_mode.projection_statistic() {
+        let projection = match presentation_mode.projection_kind() {
             None => None,
-            Some(statistic) => {
-                let mut projection = empty_projection(statistic)?;
+            Some(kind) => {
+                let mut projection = empty_projection(kind)?;
                 if app.loaded.is_some() {
-                    render_projection_into(
-                        &app,
-                        statistic,
-                        &mut projection,
-                        &mut projection_scratch,
-                    )?;
+                    render_projection_into(&app, kind, &mut projection, &mut projection_scratch)?;
                 }
                 Some(projection)
             }
@@ -284,21 +279,21 @@ impl NativeViewerSession {
         self.pump_series_loads();
         if self.app.loaded.is_some() {
             render_orthogonal_views_into(&self.app, &mut self.views, &mut self.render_scratch)?;
-            match self.presentation_mode.projection_statistic() {
+            match self.presentation_mode.projection_kind() {
                 None => self.projection = None,
-                Some(statistic) => {
+                Some(kind) => {
                     if let Some(projection) = self.projection.as_mut() {
                         render_projection_into(
                             &self.app,
-                            statistic,
+                            kind,
                             projection,
                             &mut self.projection_scratch,
                         )?;
                     } else {
-                        let mut projection = empty_projection(statistic)?;
+                        let mut projection = empty_projection(kind)?;
                         render_projection_into(
                             &self.app,
-                            statistic,
+                            kind,
                             &mut projection,
                             &mut self.projection_scratch,
                         )?;

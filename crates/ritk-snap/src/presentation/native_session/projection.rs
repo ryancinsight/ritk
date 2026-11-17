@@ -2,14 +2,15 @@
 
 use crate::app::SnapApp;
 use crate::presentation::{PresentationFrame, PresentationSpacing};
+use crate::render::mip_vr::DEFAULT_VR_ALPHA;
 use crate::render::{
-    map_scalar_value, render_mip_axial_rgba_into, GrayscalePresentation, ProjectionStatistic,
-    SlabProjection,
+    map_scalar_value, render_mip_axial_rgba_into, render_vr_axial_rgba_into, GrayscalePresentation,
+    ProjectionKind, ProjectionStatistic, SlabProjection,
 };
 use anyhow::{anyhow, bail, Context, Result};
 
 #[cfg(test)]
-use crate::render::render_mip_axial_rgba;
+use crate::render::{render_mip_axial_rgba, render_vr_axial_rgba};
 
 use super::frame::window_level_for_app;
 
@@ -17,7 +18,7 @@ use super::frame::window_level_for_app;
 #[derive(Debug, Clone)]
 pub(super) struct RenderedProjection {
     pub(super) frame: PresentationFrame,
-    pub(super) statistic: ProjectionStatistic,
+    pub(super) kind: ProjectionKind,
 }
 
 /// Caller-owned storage for scalar projection reduction and display mapping.
@@ -27,28 +28,25 @@ pub(super) struct ProjectionRenderScratch {
     pub(super) rgba: Vec<u8>,
 }
 
-pub(super) fn empty_projection(statistic: ProjectionStatistic) -> Result<RenderedProjection> {
+pub(super) fn empty_projection(kind: ProjectionKind) -> Result<RenderedProjection> {
     let frame = PresentationFrame::from_rgba_storage(1, 1, vec![0, 0, 0, 255])
         .context("construct empty native projection selection frame")?;
-    Ok(RenderedProjection { frame, statistic })
+    Ok(RenderedProjection { frame, kind })
 }
 
-/// Render one scalar axial projection for the native Métis layout.
+/// Render one axial projection for the native Métis layout.
 #[cfg(test)]
-pub(super) fn render_projection(
-    app: &SnapApp,
-    statistic: ProjectionStatistic,
-) -> Result<RenderedProjection> {
-    let mut projection = empty_projection(statistic)?;
+pub(super) fn render_projection(app: &SnapApp, kind: ProjectionKind) -> Result<RenderedProjection> {
+    let mut projection = empty_projection(kind)?;
     let mut scratch = ProjectionRenderScratch::default();
-    render_projection_into(app, statistic, &mut projection, &mut scratch)?;
+    render_projection_into(app, kind, &mut projection, &mut scratch)?;
     Ok(projection)
 }
 
-/// Re-render a scalar projection into retained frame and scratch storage.
+/// Re-render a projection into retained frame and scratch storage.
 pub(super) fn render_projection_into(
     app: &SnapApp,
-    statistic: ProjectionStatistic,
+    kind: ProjectionKind,
     projection: &mut RenderedProjection,
     scratch: &mut ProjectionRenderScratch,
 ) -> Result<()> {
@@ -60,10 +58,20 @@ pub(super) fn render_projection_into(
         bail!("native Métis projection requires a scalar RITK volume");
     }
     let window_level = window_level_for_app(app);
-    let [width, height] = if statistic == ProjectionStatistic::Maximum {
-        render_mip_axial_rgba_into(&mut scratch.rgba, volume, window_level, app.colormap)
-    } else {
-        render_slab_projection_into(volume, window_level, app.colormap, statistic, scratch)?
+    let [width, height] = match kind {
+        ProjectionKind::Slab(ProjectionStatistic::Maximum) => {
+            render_mip_axial_rgba_into(&mut scratch.rgba, volume, window_level, app.colormap)
+        }
+        ProjectionKind::Slab(statistic) => {
+            render_slab_projection_into(volume, window_level, app.colormap, statistic, scratch)?
+        }
+        ProjectionKind::VolumeRender => render_vr_axial_rgba_into(
+            &mut scratch.rgba,
+            volume,
+            window_level,
+            app.colormap,
+            DEFAULT_VR_ALPHA,
+        ),
     };
     let width = u32::try_from(width).map_err(|_| anyhow!("native projection width exceeds u32"))?;
     let height =
@@ -75,7 +83,7 @@ pub(super) fn render_projection_into(
         .frame
         .replace_rgba_storage(width, height, spacing, &mut scratch.rgba)
         .context("replace native projection presentation storage")?;
-    projection.statistic = statistic;
+    projection.kind = kind;
     Ok(())
 }
 
@@ -152,7 +160,8 @@ mod tests {
         app.load_volume(volume.clone(), "projection fixture".to_owned());
         let window_level = window_level_for_app(&app);
         let expected = render_mip_axial_rgba(&volume, window_level, app.colormap);
-        let actual = render_projection(&app, ProjectionStatistic::Maximum).expect("native MIP");
+        let actual = render_projection(&app, ProjectionKind::Slab(ProjectionStatistic::Maximum))
+            .expect("native MIP");
         let ([expected_width, expected_height], expected_rgba) = expected.into_parts();
         assert_eq!(
             actual.frame.width(),
@@ -167,13 +176,49 @@ mod tests {
     }
 
     #[test]
+    fn native_volume_render_matches_the_existing_ritk_vr_renderer() {
+        let volume = scalar_volume();
+        let mut app = SnapApp::default();
+        app.load_volume(volume.clone(), "projection fixture".to_owned());
+        let window_level = window_level_for_app(&app);
+        let expected = render_vr_axial_rgba(&volume, window_level, app.colormap, DEFAULT_VR_ALPHA);
+        let actual =
+            render_projection(&app, ProjectionKind::VolumeRender).expect("native volume render");
+        let ([expected_width, expected_height], expected_rgba) = expected.into_parts();
+        assert_eq!(
+            actual.frame.width(),
+            u32::try_from(expected_width).expect("width")
+        );
+        assert_eq!(
+            actual.frame.height(),
+            u32::try_from(expected_height).expect("height")
+        );
+        assert_eq!(actual.frame.rgba(), expected_rgba.as_ref());
+        assert_eq!(actual.kind, ProjectionKind::VolumeRender);
+        assert_eq!(actual.kind.label(), "VR");
+        assert_eq!(actual.frame.display_spacing().values(), [1.5, 0.75]);
+    }
+
+    #[test]
     fn native_projection_rejects_color_volume() {
         let mut volume = scalar_volume();
         volume.channels = 3;
         volume.data = Arc::new(vec![0.0; 2 * 1 * 2 * 3]);
         let mut app = SnapApp::default();
         app.load_volume(volume, "color fixture".to_owned());
-        let error = render_projection(&app, ProjectionStatistic::Maximum).expect_err("color MIP");
+        let error = render_projection(&app, ProjectionKind::Slab(ProjectionStatistic::Maximum))
+            .expect_err("color MIP");
+        assert!(error.to_string().contains("scalar"));
+    }
+
+    #[test]
+    fn native_volume_render_rejects_color_volume() {
+        let mut volume = scalar_volume();
+        volume.channels = 3;
+        volume.data = Arc::new(vec![0.0; 2 * 1 * 2 * 3]);
+        let mut app = SnapApp::default();
+        app.load_volume(volume, "color fixture".to_owned());
+        let error = render_projection(&app, ProjectionKind::VolumeRender).expect_err("color VR");
         assert!(error.to_string().contains("scalar"));
     }
 
@@ -182,9 +227,10 @@ mod tests {
         let volume = scalar_volume();
         let mut app = SnapApp::default();
         app.load_volume(volume.clone(), "projection fixture".to_owned());
-        let minimum = render_projection(&app, ProjectionStatistic::Minimum).expect("native MinIP");
-        let average =
-            render_projection(&app, ProjectionStatistic::Average).expect("native average");
+        let minimum = render_projection(&app, ProjectionKind::Slab(ProjectionStatistic::Minimum))
+            .expect("native MinIP");
+        let average = render_projection(&app, ProjectionKind::Slab(ProjectionStatistic::Average))
+            .expect("native average");
         assert_eq!([minimum.frame.width(), minimum.frame.height()], [2, 1]);
         assert_eq!([average.frame.width(), average.frame.height()], [2, 1]);
         let request = SlabProjection::try_new(&volume, 0, 1, 1).expect("full-depth slab");
@@ -202,7 +248,7 @@ mod tests {
         let volume = scalar_volume();
         let mut app = SnapApp::default();
         app.load_volume(volume, "projection fixture".to_owned());
-        let statistic = ProjectionStatistic::Maximum;
+        let kind = ProjectionKind::Slab(ProjectionStatistic::Maximum);
         let expected = render_mip_axial_rgba(
             app.loaded.as_ref().expect("loaded volume"),
             window_level_for_app(&app),
@@ -210,16 +256,16 @@ mod tests {
         );
         let (_, expected_rgba) = expected.into_parts();
         let mut scratch = ProjectionRenderScratch::default();
-        let mut projection = empty_projection(statistic).expect("empty projection");
-        render_projection_into(&app, statistic, &mut projection, &mut scratch)
+        let mut projection = empty_projection(kind).expect("empty projection");
+        render_projection_into(&app, kind, &mut projection, &mut scratch)
             .expect("first reusable projection");
-        render_projection_into(&app, statistic, &mut projection, &mut scratch)
+        render_projection_into(&app, kind, &mut projection, &mut scratch)
             .expect("warm reusable projection");
         assert_eq!(projection.frame.rgba(), expected_rgba.as_ref());
         let frame_pointer = projection.frame.rgba().as_ptr();
         let scratch_pointer = scratch.rgba.as_ptr();
 
-        render_projection_into(&app, statistic, &mut projection, &mut scratch)
+        render_projection_into(&app, kind, &mut projection, &mut scratch)
             .expect("steady-state reusable projection");
         assert_eq!(projection.frame.rgba(), expected_rgba.as_ref());
         assert_eq!(projection.frame.rgba().as_ptr(), scratch_pointer);
@@ -232,16 +278,17 @@ mod tests {
         let mut app = SnapApp::default();
         app.load_volume(volume, "projection fixture".to_owned());
         let mut scratch = ProjectionRenderScratch::default();
-        let mut projection =
-            empty_projection(ProjectionStatistic::Maximum).expect("empty projection");
-        for statistic in [
-            ProjectionStatistic::Maximum,
-            ProjectionStatistic::Minimum,
-            ProjectionStatistic::Average,
+        let mut projection = empty_projection(ProjectionKind::Slab(ProjectionStatistic::Maximum))
+            .expect("empty projection");
+        for kind in [
+            ProjectionKind::Slab(ProjectionStatistic::Maximum),
+            ProjectionKind::Slab(ProjectionStatistic::Minimum),
+            ProjectionKind::Slab(ProjectionStatistic::Average),
+            ProjectionKind::VolumeRender,
         ] {
-            render_projection_into(&app, statistic, &mut projection, &mut scratch)
-                .expect("re-render projection statistic");
-            assert_eq!(projection.statistic, statistic);
+            render_projection_into(&app, kind, &mut projection, &mut scratch)
+                .expect("re-render projection kind");
+            assert_eq!(projection.kind, kind);
             assert_eq!(
                 [projection.frame.width(), projection.frame.height()],
                 [2, 1]

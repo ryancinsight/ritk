@@ -7,8 +7,12 @@
 use crate::render::RgbaImage;
 use crate::render::{map_scalar_value, GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
-#[cfg(feature = "eframe-shell")]
+#[cfg(any(feature = "eframe-shell", windows))]
 use iris::color::{ColorMap, Normalized};
+
+/// Per-voxel opacity scale for volume rendering. Canonical value per GPU VR spec.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) const DEFAULT_VR_ALPHA: f32 = 0.06;
 
 /// Render a scalar axial maximum-intensity projection into owned RGBA storage.
 #[cfg(any(feature = "eframe-shell", test))]
@@ -90,7 +94,7 @@ fn render_mip_pixels(
 }
 
 /// Render a scalar axial front-to-back volume projection into RGBA storage.
-#[cfg(feature = "eframe-shell")]
+#[cfg(any(feature = "eframe-shell", test))]
 pub(crate) fn render_vr_axial_rgba(
     volume: &LoadedVolume,
     wl: WindowLevel,
@@ -102,7 +106,7 @@ pub(crate) fn render_vr_axial_rgba(
 }
 
 /// Render an axial volume projection using caller-owned scratch.
-#[cfg(feature = "eframe-shell")]
+#[cfg(any(feature = "eframe-shell", test))]
 pub(crate) fn render_vr_axial_rgba_with_scratch(
     scratch: &mut mnemosyne::AlignedVec<u8>,
     volume: &LoadedVolume,
@@ -116,8 +120,65 @@ pub(crate) fn render_vr_axial_rgba_with_scratch(
     let Some(presentation) = valid_presentation(volume) else {
         return invalid_image();
     };
-    let [depth, rows, cols] = volume.shape;
+    let [_, rows, cols] = volume.shape;
     scratch.resize(rows.saturating_mul(cols).saturating_mul(4), 0);
+    render_vr_pixels(
+        volume,
+        presentation,
+        wl,
+        colormap,
+        alpha,
+        scratch.as_mut_slice(),
+    );
+    RgbaImage::new([cols, rows], scratch.to_vec())
+}
+
+/// Render an axial volume projection into caller-owned RGBA bytes.
+///
+/// This native presentation seam keeps the completed image in the caller's
+/// frame/scratch swap instead of materializing an intermediate [`RgbaImage`].
+#[cfg(windows)]
+pub(crate) fn render_vr_axial_rgba_into(
+    scratch: &mut Vec<u8>,
+    volume: &LoadedVolume,
+    wl: WindowLevel,
+    colormap: NamedColorMap,
+    alpha: f32,
+) -> [usize; 2] {
+    if volume.channels != 1 {
+        scratch.clear();
+        scratch.extend_from_slice(&[255, 0, 255, 255]);
+        return [1, 1];
+    }
+    let Some(presentation) = valid_presentation(volume) else {
+        scratch.clear();
+        scratch.extend_from_slice(&[255, 0, 255, 255]);
+        return [1, 1];
+    };
+    let [_, rows, cols] = volume.shape;
+    scratch.resize(rows.saturating_mul(cols).saturating_mul(4), 0);
+    render_vr_pixels(
+        volume,
+        presentation,
+        wl,
+        colormap,
+        alpha,
+        scratch.as_mut_slice(),
+    );
+    [cols, rows]
+}
+
+/// Composite one front-to-back axial volume projection into caller storage.
+#[cfg(any(feature = "eframe-shell", windows))]
+fn render_vr_pixels(
+    volume: &LoadedVolume,
+    presentation: GrayscalePresentation,
+    wl: WindowLevel,
+    colormap: NamedColorMap,
+    alpha: f32,
+    rgba: &mut [u8],
+) {
+    let [depth, rows, cols] = volume.shape;
     for row in 0..rows {
         for col in 0..cols {
             let mut accum = [0.0_f32; 3];
@@ -137,13 +198,12 @@ pub(crate) fn render_vr_axial_rgba_with_scratch(
                 }
             }
             let index = (row * cols + col) * 4;
-            scratch[index] = channel_to_byte(accum[0]);
-            scratch[index + 1] = channel_to_byte(accum[1]);
-            scratch[index + 2] = channel_to_byte(accum[2]);
-            scratch[index + 3] = channel_to_byte(accum_alpha);
+            rgba[index] = channel_to_byte(accum[0]);
+            rgba[index + 1] = channel_to_byte(accum[1]);
+            rgba[index + 2] = channel_to_byte(accum[2]);
+            rgba[index + 3] = channel_to_byte(accum_alpha);
         }
     }
-    RgbaImage::new([cols, rows], scratch.to_vec())
 }
 
 fn valid_presentation(volume: &LoadedVolume) -> Option<GrayscalePresentation> {
@@ -156,7 +216,7 @@ fn valid_presentation(volume: &LoadedVolume) -> Option<GrayscalePresentation> {
     }
 }
 
-#[cfg(feature = "eframe-shell")]
+#[cfg(any(feature = "eframe-shell", windows))]
 fn channel_to_byte(value: f32) -> u8 {
     #[expect(
         clippy::cast_possible_truncation,

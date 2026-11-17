@@ -69,6 +69,10 @@ pub(super) fn compose_frames(
         | (
             NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithAverage),
             Some(projection),
+        )
+        | (
+            NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithVr),
+            Some(projection),
         ) => surface_frames_with_projection(
             views,
             projection,
@@ -88,6 +92,7 @@ pub(super) fn compose_frames(
             NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithAverage),
             None,
         )
+        | (NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithVr), None)
         | (NativePresentationSelection::Responsive, None) => Err(anyhow!(
             "native presentation mode and projection state disagree"
         )),
