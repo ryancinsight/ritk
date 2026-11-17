@@ -6,7 +6,7 @@
 //! tools so a reader can adjust the display without leaving a measurement.
 
 use crate::presentation::PointerButton;
-use crate::tools::interaction::ToolState;
+use crate::tools::interaction::{AnnotationLocation, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(any(windows, test))]
 use thiserror::Error;
@@ -115,6 +115,8 @@ pub(crate) struct PointerGestures {
     pub(crate) owner: Option<PointerGestureOwner>,
     /// Multi-click measurement held while another gesture runs.
     pub(crate) suspended_measurement: Option<ToolState>,
+    pub(crate) pending_measurement_location: Option<AnnotationLocation>,
+    pub(crate) drag_measurement_location: Option<AnnotationLocation>,
 }
 
 impl PointerGestures {
@@ -125,5 +127,7 @@ impl PointerGestures {
     pub(crate) fn abandon(&mut self) {
         self.owner = None;
         self.suspended_measurement = None;
+        self.pending_measurement_location = None;
+        self.drag_measurement_location = None;
     }
 }

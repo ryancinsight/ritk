@@ -352,6 +352,7 @@ pub(in crate::presentation::native_session) fn surface_frames_grid(
             height: f64::from(content_height),
         };
         let viewport = NativeViewport {
+            scrollbar: None,
             panel: panel_bounds,
             panel_x,
             panel_y: image_y,

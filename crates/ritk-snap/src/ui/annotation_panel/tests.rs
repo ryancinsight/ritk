@@ -7,6 +7,7 @@ fn patient_length() -> Annotation {
     let end = PatientPointMm::try_new([3.0, 4.0, 0.0]).expect("finite point");
     Annotation::PatientLength {
         plane: 0,
+        location: None,
         length: PatientLength::try_new(start, end).expect("3-4-5 segment is representable"),
     }
 }
@@ -39,11 +40,13 @@ fn csv_row_count_equals_annotation_count_plus_header() {
     let annotations = vec![
         Annotation::Length {
             plane: 0,
+            location: None,
             p1: [0.0, 0.0],
             p2: [3.0, 4.0],
             length_mm: 5.0,
         },
         Annotation::HuPoint {
+            location: None,
             pos: [10.0, 20.0],
             value: 42.0,
         },
@@ -63,6 +66,7 @@ fn csv_length_row_analytical() {
     // Expected: "0,Length,5.00,mm,"
     let ann = Annotation::Length {
         plane: 0,
+        location: None,
         p1: [0.0, 0.0],
         p2: [3.0, 4.0],
         length_mm: 5.0,
@@ -87,6 +91,7 @@ fn csv_angle_row_analytical() {
     // Analytical: angle_deg = 90.0, index = 0
     // Expected: "0,Angle,90.00,deg,"
     let ann = Annotation::Angle {
+        location: None,
         p1: [0.0, 0.0],
         p2: [0.0, 1.0],
         p3: [1.0, 1.0],
@@ -105,6 +110,7 @@ fn csv_roi_rect_row_analytical() {
     // Analytical: mean=100.0, σ=10.0, area=50.0, index=0
     // Expected: "0,ROI Rect,100.00,HU,σ=10.00 area=50.00mm²"
     let ann = Annotation::RoiRect {
+        location: None,
         top_left: [0.0, 0.0],
         bottom_right: [5.0, 10.0],
         mean: 100.0,
@@ -126,6 +132,7 @@ fn csv_roi_ellipse_row_analytical() {
     // Analytical: mean=80.0, σ=5.0, area=25.0, index=0
     // Expected: "0,ROI Ellipse,80.00,HU,σ=5.00 area=25.00mm²"
     let ann = Annotation::RoiEllipse {
+        location: None,
         center: [5.0, 5.0],
         radii: [3.0, 2.0],
         mean: 80.0,
@@ -147,6 +154,7 @@ fn csv_hu_point_row_analytical() {
     // Analytical: value=200.0, index=0
     // Expected: "0,HU Point,200.00,HU,"
     let ann = Annotation::HuPoint {
+        location: None,
         pos: [10.0, 20.0],
         value: 200.0,
     };
@@ -164,15 +172,18 @@ fn csv_multi_annotation_indices_are_sequential() {
     let annotations = vec![
         Annotation::Length {
             plane: 0,
+            location: None,
             p1: [0.0, 0.0],
             p2: [1.0, 0.0],
             length_mm: 1.0,
         },
         Annotation::HuPoint {
+            location: None,
             pos: [0.0, 0.0],
             value: 0.0,
         },
         Annotation::Angle {
+            location: None,
             p1: [0.0, 0.0],
             p2: [1.0, 0.0],
             p3: [1.0, 1.0],
@@ -227,6 +238,7 @@ fn action_clear_all_is_distinct_from_delete() {
 fn action_export_csv_payload_matches_csv_for() {
     let annotations = vec![Annotation::Length {
         plane: 0,
+        location: None,
         p1: [0.0, 0.0],
         p2: [3.0, 4.0],
         length_mm: 5.0,
@@ -250,6 +262,7 @@ fn action_export_csv_payload_matches_csv_for() {
 fn label_length_format() {
     let ann = Annotation::Length {
         plane: 0,
+        location: None,
         p1: [0.0, 0.0],
         p2: [3.0, 4.0],
         length_mm: 5.0,
@@ -271,6 +284,7 @@ fn label_patient_length_identifies_patient_space() {
 #[test]
 fn label_angle_format() {
     let ann = Annotation::Angle {
+        location: None,
         p1: [0.0, 0.0],
         p2: [1.0, 0.0],
         p3: [1.0, 1.0],
@@ -287,6 +301,7 @@ fn label_angle_format() {
 #[test]
 fn label_hu_point_format() {
     let ann = Annotation::HuPoint {
+        location: None,
         pos: [10.0, 20.0],
         value: 150.0,
     };

@@ -154,7 +154,7 @@ fn annotation_label(i: usize, ann: &Annotation) -> String {
                 "#{i}  ROI Ellipse  μ={mean:.1} σ={std_dev:.1} [{min:.0},{max:.0}] {area_mm2:.1}mm²"
             )
         }
-        Annotation::HuPoint { value, pos } => {
+        Annotation::HuPoint { value, pos, .. } => {
             format!("#{i}  HU ({:.0},{:.0}): {value:.0}", pos[1], pos[0])
         }
     }

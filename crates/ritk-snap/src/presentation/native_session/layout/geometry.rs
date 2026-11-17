@@ -4,7 +4,6 @@ use crate::app::viewer_viewport::ViewerViewport;
 use crate::presentation::PresentationSpacing;
 use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, bail, Result};
-#[cfg(test)]
 use metis_platform::Rect;
 
 use super::super::frame::RenderedView;
@@ -35,6 +34,8 @@ impl ViewportArea {
 /// Screen placement and RITK coordinate mapping for one composed view.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct NativeViewport {
+    pub(in crate::presentation::native_session) scrollbar:
+        Option<super::super::slice_scrollbar::SliceScrollbar>,
     pub(super) panel: ScreenRect,
     pub(in crate::presentation::native_session) panel_x: u32,
     pub(in crate::presentation::native_session) panel_y: u32,
@@ -78,7 +79,6 @@ impl NativeViewport {
         self.panel_width
     }
 
-    #[cfg(test)]
     pub(crate) fn panel_rect(self) -> Result<Rect> {
         Ok(Rect::new(
             i32::try_from(self.panel_x).map_err(|_| anyhow!("panel x exceeds i32"))?,
@@ -156,6 +156,7 @@ pub(super) fn placement_with_bounds(
     )
     .map_err(|error| anyhow!("construct native viewer viewport: {error}"))?;
     Ok(NativeViewport {
+        scrollbar: None,
         panel: ScreenRect {
             x: f64::from(panel_x),
             y: f64::from(panel_y),

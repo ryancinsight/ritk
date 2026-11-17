@@ -110,6 +110,15 @@ workspace remains the three-plane MPR view. Comparison panels display the image
 number and count, window width and centre, and source pixel dimensions in
 the RadiAnt-clone image corners.
 
+Drag the scrollbar on the right edge of an image pane to browse its slices.
+Click the track to jump within the stack. Single-slice images and projection
+panes have no slice scrollbar.
+
+Use the Tools menu to draw a length, angle, rectangular or elliptical region,
+or intensity probe. Completed measurements appear on the slice where they
+were placed, including in comparison views. The clinical overlay toggle
+controls the image readouts separately from measurement marks.
+
 On Windows the same command works without `--metis-native`; the flag remains an
 explicit spelling for scripts and existing workflows. The separately named
 `ritk-snap-eframe` executable selects the compatibility shell without activating

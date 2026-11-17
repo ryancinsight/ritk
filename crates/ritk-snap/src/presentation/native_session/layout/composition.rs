@@ -10,9 +10,8 @@ use super::geometry::{
     VIEW_GAP_PIXELS,
 };
 use super::overlay::{application_overlay, projection_overlay, ClinicalOverlay};
-use crate::geometry::affine::AffineTransform;
 use crate::presentation::PresentationFrame;
-use crate::tools::interaction::{Annotation, ViewportOffset};
+use crate::tools::interaction::ViewportOffset;
 
 /// Compose the three views into one bounded Métis framebuffer.
 pub(crate) fn surface_frames(
@@ -26,8 +25,6 @@ pub(crate) fn surface_frames(
     cine_fps: f32,
     show_application_overlay: bool,
     clinical: Option<&ClinicalOverlay<'_>>,
-    annotations: &[Annotation],
-    affine: Option<AffineTransform>,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     if surface_width == 0 || surface_height == 0 {
         bail!("native surface dimensions must be nonzero while rendering");
@@ -108,15 +105,7 @@ pub(crate) fn surface_frames(
         )?;
     }
     if show_application_overlay {
-        let overlay = application_overlay(
-            views,
-            &viewports,
-            cine_enabled,
-            cine_fps,
-            clinical,
-            annotations,
-            affine,
-        )?;
+        let overlay = application_overlay(views, &viewports, cine_enabled, cine_fps, clinical)?;
         overlay.into_display_list().render_to(&mut framebuffer);
     }
     Ok((framebuffer, viewports))
@@ -135,8 +124,6 @@ pub(crate) fn surface_frames_with_projection(
     cine_fps: f32,
     show_application_overlay: bool,
     clinical: Option<&ClinicalOverlay<'_>>,
-    annotations: &[Annotation],
-    affine: Option<AffineTransform>,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     let mut composition = compose_four_panel(
         views,
@@ -153,8 +140,6 @@ pub(crate) fn surface_frames_with_projection(
             cine_enabled,
             cine_fps,
             clinical,
-            annotations,
-            affine,
         )?;
         overlay.extend(projection_overlay(
             projection,

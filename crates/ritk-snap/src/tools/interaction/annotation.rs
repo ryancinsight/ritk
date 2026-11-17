@@ -40,6 +40,7 @@
 //! area = (max_r − min_r + 1) · s_r × (max_c − min_c + 1) · s_c [mm²]
 //! ```
 
+mod image;
 mod patient_length;
 
 pub use patient_length::PatientLength;
@@ -66,6 +67,15 @@ pub enum MeasurementError {
 
 // ── Completed annotations ─────────────────────────────────────────────────────
 
+/// Optional creation location for a completed annotation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct AnnotationLocation {
+    /// Orthogonal pane axis.
+    pub plane: usize,
+    /// Zero-based slice index within the plane.
+    pub slice: usize,
+}
+
 /// A completed measurement annotation stored on a viewport.
 ///
 /// Orthogonal positions are stored as `[row, col]` in image pixel coordinates.
@@ -81,6 +91,9 @@ pub enum Annotation {
         /// gesture was placed on; the overlay draws the length on that pane.
         #[serde(default)]
         plane: usize,
+        /// Creation location; absent on records written before slice anchoring.
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
         /// Start point as `[row, col]` in image pixels.
         p1: [f32; 2],
         /// End point as `[row, col]` in image pixels.
@@ -95,12 +108,18 @@ pub enum Annotation {
         /// projects the patient endpoints onto that pane.
         #[serde(default)]
         plane: usize,
+        /// Creation location; absent on records written before slice anchoring.
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
         /// Validated patient-space endpoints and distance.
         length: PatientLength,
     },
 
     /// Angle at vertex `p2` between the rays `p2→p1` and `p2→p3`.
     Angle {
+        /// Creation location; absent on legacy records.
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
         /// First ray endpoint as `[row, col]` in image pixels.
         p1: [f32; 2],
         /// Vertex as `[row, col]` in image pixels.
@@ -113,6 +132,9 @@ pub enum Annotation {
 
     /// Axis-aligned rectangle ROI with intensity statistics.
     RoiRect {
+        /// Creation location; absent on legacy records.
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
         /// Top-left corner as `[row, col]` in image pixels.
         top_left: [f32; 2],
         /// Bottom-right corner as `[row, col]` in image pixels.
@@ -149,6 +171,9 @@ pub enum Annotation {
     /// area_mm² = π × radii[0] × spacing[0] × radii[1] × spacing[1]
     /// ```
     RoiEllipse {
+        /// Creation location; absent on legacy records.
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
         /// Centre of the ellipse as `[row, col]` in image pixels.
         center: [f32; 2],
         /// Semi-axis radii as `[row_radius, col_radius]` in image pixels.
@@ -167,6 +192,9 @@ pub enum Annotation {
 
     /// Single-point HU measurement.
     HuPoint {
+        /// Creation location; absent on legacy records.
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
         /// Point location as `[row, col]` in image pixels.
         pos: [f32; 2],
         /// Intensity value at the point (HU or relative).
@@ -240,17 +268,7 @@ impl Annotation {
     /// θ = arccos(cos θ) [converted to degrees]
     /// ```
     pub fn compute_angle(p1: [f32; 2], p2: [f32; 2], p3: [f32; 2]) -> f32 {
-        let v1 = [p1[0] - p2[0], p1[1] - p2[1]];
-        let v2 = [p3[0] - p2[0], p3[1] - p2[1]];
-        let dot = v1[0] * v2[0] + v1[1] * v2[1];
-        let mag1 = (v1[0] * v1[0] + v1[1] * v1[1]).sqrt();
-        let mag2 = (v2[0] * v2[0] + v2[1] * v2[1]).sqrt();
-        if mag1 < f32::EPSILON || mag2 < f32::EPSILON {
-            // Degenerate: one or both rays have zero length; angle is undefined.
-            return 0.0;
-        }
-        let cos_theta = (dot / (mag1 * mag2)).clamp(-1.0, 1.0);
-        cos_theta.acos().to_degrees()
+        Self::compute_angle_with_spacing(p1, p2, p3, [1.0, 1.0])
     }
 
     /// Compute intensity statistics for pixels within the axis-aligned rectangle

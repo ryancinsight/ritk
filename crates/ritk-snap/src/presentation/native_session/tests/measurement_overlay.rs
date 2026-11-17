@@ -9,7 +9,8 @@ use super::support::session;
 use super::*;
 use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
-use crate::tools::interaction::{Annotation, PatientLength};
+use crate::tools::interaction::{Annotation, AnnotationLocation, PatientLength};
+use metis_platform::Color;
 use metis_ui_lang::DisplayCommand;
 
 const IDENTITY_DIRECTION: [f64; 9] = [
@@ -17,6 +18,32 @@ const IDENTITY_DIRECTION: [f64; 9] = [
     0.0, 1.0, 0.0, //
     0.0, 0.0, 1.0,
 ];
+
+#[test]
+fn grid_measurement_draws_on_its_slice_and_disappears_on_the_adjacent_slice() {
+    let (mut session, _root) = session();
+    let grid = super::layout::PanelGrid::new(2, 1).expect("two-panel layout");
+    session
+        .set_workspace_layout(super::layout::WorkspaceLayout::Panels(grid))
+        .expect("place the loaded series in the grid");
+    session.app.annotations.push(Annotation::Angle {
+        location: Some(AnnotationLocation { plane: 0, slice: 1 }),
+        p1: [0.25, 0.25],
+        p2: [0.25, 1.25],
+        p3: [1.25, 1.25],
+        angle_deg: 90.0,
+    });
+    session.refresh_frame().expect("compose the measured slice");
+    let (_, x, y, dx, dy) = axial_panel(&session);
+    let x = super::layout::screen_coordinate(x + 0.25 * dx, "sample x").expect("sample fits");
+    let y = super::layout::screen_coordinate(y + 0.25 * dy, "sample y").expect("sample fits");
+    let measurement_color = Color::rgba(255, 255, 0, 255);
+    assert_eq!(session.framebuffer.get_pixel(x, y), measurement_color);
+
+    session.app.set_slice_for_axis(0, 0);
+    session.refresh_frame().expect("compose the adjacent slice");
+    assert_ne!(session.framebuffer.get_pixel(x, y), measurement_color);
+}
 
 fn draw_lines(commands: &[DisplayCommand]) -> Vec<((i32, i32), (i32, i32))> {
     commands
@@ -75,6 +102,7 @@ fn measurement_length_draws_projected_line_and_value_on_matching_plane() {
     let (mut session, _root) = session();
     session.app.annotations.push(Annotation::Length {
         plane: 0,
+        location: None,
         p1: [0.0, 0.0],
         p2: [3.0, 4.0],
         length_mm: 5.0,
@@ -110,6 +138,7 @@ fn measurement_length_skips_panes_beside_its_recorded_plane() {
     let (mut session, _root) = session();
     session.app.annotations.push(Annotation::Length {
         plane: 1,
+        location: None,
         p1: [0.0, 0.0],
         p2: [3.0, 4.0],
         length_mm: 5.0,
@@ -144,10 +173,11 @@ fn measurement_patient_length_projects_through_affine_to_same_segment() {
     let end = PatientPointMm::try_new([0.0, 3.0, 4.0]).expect("finite patient point");
     let length = PatientLength::try_new(start, end).expect("3-4-5 segment is representable");
     assert_eq!(length.length_mm(), 5.0, "acceptance segment measures 5 mm");
-    session
-        .app
-        .annotations
-        .push(Annotation::PatientLength { plane: 0, length });
+    session.app.annotations.push(Annotation::PatientLength {
+        plane: 0,
+        location: None,
+        length,
+    });
     let affine = AffineTransform::from_parts([0.0, 0.0, 0.0], IDENTITY_DIRECTION, [1.0, 1.0, 1.0])
         .expect("unit affine is valid");
     let (index, origin_x, origin_y, texel_x, texel_y) = axial_panel(&session);

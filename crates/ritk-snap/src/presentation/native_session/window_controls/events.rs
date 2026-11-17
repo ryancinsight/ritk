@@ -7,6 +7,7 @@ use super::super::pressed_buttons::PressedButtons;
 use super::super::series_browser::SeriesBrowser;
 use super::layout::ChromeLayout;
 use super::multi_series::DialogAction;
+use super::slice_drag::SliceDrag;
 use super::{PanelCloseKind, PointerOwner, WindowAction, WindowChrome, WindowChromeEvent};
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
@@ -26,6 +27,10 @@ impl WindowChrome {
         displayed_series: &[Option<usize>],
         active_panel: usize,
     ) -> Result<WindowChromeEvent> {
+        if matches!(event, PresentationEvent::PointerCaptureLost) {
+            self.cancel_pointer_capture();
+            return Ok(WindowChromeEvent::passed());
+        }
         if workspace_layout.is_grid()
             && self.multi_series_dialog.is_none()
             && matches!(
@@ -160,6 +165,9 @@ impl WindowChrome {
             self.show_series_preview,
             workspace_layout,
         )?;
+        if let Some(event) = self.handle_slice_drag(event)? {
+            return Ok(event);
+        }
         match event {
             PresentationEvent::PointerDown {
                 x,
@@ -237,6 +245,18 @@ impl WindowChrome {
                         let repaint = self.open_menu.take().is_some();
                         return Ok(WindowChromeEvent::consumed(repaint));
                     }
+                    if self.open_menu.is_none()
+                        && let Some((drag, action)) =
+                            SliceDrag::begin(viewports, workspace_layout, *x, *y)?
+                    {
+                        self.pointer_owner = PointerOwner::Slice(drag);
+                        self.press(*button);
+                        return Ok(WindowChromeEvent {
+                            consumed: true,
+                            repaint: false,
+                            action: Some(action),
+                        });
+                    }
                 }
                 if self.pointer_owner == PointerOwner::Chrome {
                     self.press(*button);
@@ -289,7 +309,7 @@ impl WindowChrome {
             ),
             PresentationEvent::PointerUp { x, y, button } => {
                 let (consumed, action) = match self.pointer_owner {
-                    PointerOwner::Chrome => (true, None),
+                    PointerOwner::Chrome | PointerOwner::Slice(_) => (true, None),
                     PointerOwner::Pane => (false, None),
                     PointerOwner::None => (layout.owns_pointer(*x, *y), None),
                     PointerOwner::Series(index) => {
@@ -332,7 +352,7 @@ impl WindowChrome {
             }
             PresentationEvent::PointerCancel { x, y, button } => {
                 let consumed = match self.pointer_owner {
-                    PointerOwner::Chrome => true,
+                    PointerOwner::Chrome | PointerOwner::Slice(_) => true,
                     PointerOwner::Pane => false,
                     PointerOwner::None => layout.owns_pointer(*x, *y),
                     PointerOwner::Series(_) => true,
@@ -432,16 +452,18 @@ impl WindowChrome {
                 self.pointer_owner = PointerOwner::None;
                 self.pressed_buttons = PressedButtons::EMPTY;
             }
-            PointerOwner::Series(_) | PointerOwner::Chrome => self.release(button),
+            PointerOwner::Series(_) | PointerOwner::Chrome | PointerOwner::Slice(_) => {
+                self.release(button);
+            }
             PointerOwner::Pane | PointerOwner::None => {}
         }
     }
 
-    fn press(&mut self, button: PointerButton) {
+    pub(super) fn press(&mut self, button: PointerButton) {
         self.pressed_buttons.insert(button);
     }
 
-    fn release(&mut self, button: PointerButton) {
+    pub(super) fn release(&mut self, button: PointerButton) {
         self.pressed_buttons.remove(button);
         if self.pressed_buttons.is_empty() {
             self.pointer_owner = PointerOwner::None;

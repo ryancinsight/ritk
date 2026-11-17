@@ -18,6 +18,7 @@ mod overlay_text;
 mod pointer_capture;
 mod repair;
 mod series_browser;
+mod slice_scrollbar;
 mod support;
 mod window_controls;
 #[cfg(feature = "eframe-shell")]
@@ -419,8 +420,6 @@ fn native_session_cine_rate_controls_repaint_and_bound_overlay() {
         &session.viewports,
         true,
         session.app.cine.fps,
-        None,
-        &[],
         None,
     )
     .expect("active cine overlay")

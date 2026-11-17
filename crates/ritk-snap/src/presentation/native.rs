@@ -101,6 +101,7 @@ pub fn translate_native_events(events: &[WindowEvent]) -> Result<Box<[Presentati
             WindowEvent::Destroyed => PresentationEvent::Destroyed,
             WindowEvent::FocusGained => PresentationEvent::FocusGained,
             WindowEvent::FocusLost => PresentationEvent::FocusLost,
+            WindowEvent::PointerCaptureLost => PresentationEvent::PointerCaptureLost,
             WindowEvent::AccessibilityAction { request } => {
                 PresentationEvent::AccessibilityAction {
                     request: AccessibilityActionRequest {

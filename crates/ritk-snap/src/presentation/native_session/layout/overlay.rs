@@ -1,6 +1,5 @@
 //! Labels and controls rendered over native viewer panes.
 
-use super::append_measurement_overlay;
 use super::overlay_clinical::{append_clinical_corners, append_scale_bar};
 
 use anyhow::{anyhow, Result};
@@ -13,8 +12,6 @@ use super::super::projection::RenderedProjection;
 use super::crosshair::screen_coordinate;
 use super::geometry::NativeViewport;
 use super::text::{text_command, text_style, PANEL_DETAIL_SIZE, PANEL_TITLE_SIZE};
-use crate::geometry::affine::AffineTransform;
-use crate::tools::interaction::Annotation;
 use crate::ui::coordinate_system::OrientationLabels;
 use crate::ui::coordinate_system::{edge_slot, orientation_labels, remap_labels_by_slots};
 use crate::ui::ViewTransform;
@@ -92,8 +89,6 @@ pub(crate) fn application_overlay(
     cine_enabled: bool,
     cine_fps: f32,
     clinical: Option<&ClinicalOverlay<'_>>,
-    annotations: &[Annotation],
-    affine: Option<AffineTransform>,
 ) -> Result<OverlayCommands> {
     let mut overlay = OverlayCommands::with_capacity(views.len() * 4)?;
     for (view, viewport) in views.iter().zip(viewports) {
@@ -171,7 +166,6 @@ pub(crate) fn application_overlay(
             )?;
         }
     }
-    append_measurement_overlay(&mut overlay, views, viewports, annotations, affine)?;
     Ok(overlay)
 }
 
@@ -211,7 +205,10 @@ fn append_edge_letters(
         (labels.left, panel_x + OVERLAY_MARGIN, center_y - line / 2),
         (
             labels.right,
-            panel_x + panel_width - OVERLAY_MARGIN - width(labels.right)?,
+            panel_x + panel_width
+                - OVERLAY_MARGIN
+                - super::super::slice_scrollbar::RIGHT_GUTTER
+                - width(labels.right)?,
             center_y - line / 2,
         ),
     ];

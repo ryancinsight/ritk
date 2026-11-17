@@ -8,6 +8,7 @@ fn orthogonal_layer_does_not_rasterize_patient_space_length() {
     let end = PatientPointMm::try_new([3.0, 4.0, 0.0]).expect("finite point");
     let annotation = Annotation::PatientLength {
         plane: 0,
+        location: None,
         length: PatientLength::try_new(start, end).expect("3-4-5 segment is representable"),
     };
     let context = egui::Context::default();

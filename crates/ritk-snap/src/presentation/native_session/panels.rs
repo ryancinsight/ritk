@@ -66,6 +66,17 @@ impl PanelRouteMap {
                     series_index,
                     panel_index,
                 }),
+            WindowAction::SelectSlice {
+                panel_index,
+                axis,
+                index,
+            } => self
+                .current_panel(panel_index)
+                .map(|panel_index| WindowAction::SelectSlice {
+                    panel_index,
+                    axis,
+                    index,
+                }),
             _ => Some(action),
         }
     }

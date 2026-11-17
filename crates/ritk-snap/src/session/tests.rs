@@ -48,12 +48,14 @@ fn all_annotation_variants() -> Vec<Annotation> {
     vec![
         Annotation::Length {
             plane: 0,
+            location: None,
             p1: [0.0, 0.0],
             p2: [3.0, 4.0],
             length_mm: 5.0,
         },
         Annotation::PatientLength {
             plane: 2,
+            location: None,
             length: PatientLength::try_new(
                 PatientPointMm::try_new([1.0, 2.0, 3.0]).expect("finite patient point"),
                 PatientPointMm::try_new([4.0, 6.0, 3.0]).expect("finite patient point"),
@@ -61,12 +63,14 @@ fn all_annotation_variants() -> Vec<Annotation> {
             .expect("3-4-5 segment is representable"),
         },
         Annotation::Angle {
+            location: None,
             p1: [0.0, 1.0],
             p2: [0.0, 0.0],
             p3: [1.0, 0.0],
             angle_deg: 90.0,
         },
         Annotation::RoiRect {
+            location: None,
             top_left: [10.0, 10.0],
             bottom_right: [20.0, 30.0],
             mean: 42.5,
@@ -76,6 +80,7 @@ fn all_annotation_variants() -> Vec<Annotation> {
             area_mm2: 200.0,
         },
         Annotation::RoiEllipse {
+            location: None,
             center: [15.0, 20.0],
             radii: [5.0, 10.0],
             mean: 37.0,
@@ -85,6 +90,7 @@ fn all_annotation_variants() -> Vec<Annotation> {
             area_mm2: 314.159_27,
         },
         Annotation::HuPoint {
+            location: None,
             pos: [5.0, 8.0],
             value: -150.0,
         },
@@ -158,6 +164,7 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
             p1,
             p2,
             length_mm,
+            ..
         } => {
             assert_eq!(*plane, 0);
             assert_eq!(*p1, [0.0f32, 0.0f32]);
@@ -169,7 +176,7 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
 
     // Verify patient-space endpoints and derived distance round-trip exactly.
     match &recovered.annotations[1] {
-        Annotation::PatientLength { plane, length } => {
+        Annotation::PatientLength { plane, length, .. } => {
             assert_eq!(*plane, 2, "non-default plane round-trips");
             assert_eq!(length.start_mm().coordinates(), [1.0, 2.0, 3.0]);
             assert_eq!(length.end_mm().coordinates(), [4.0, 6.0, 3.0]);
@@ -185,6 +192,7 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
             p2,
             p3,
             angle_deg,
+            ..
         } => {
             assert_eq!(*p1, [0.0f32, 1.0f32]);
             assert_eq!(*p2, [0.0f32, 0.0f32]);
@@ -196,7 +204,7 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
 
     // Verify HU point annotation round-trips negative value exactly.
     match &recovered.annotations[5] {
-        Annotation::HuPoint { pos, value } => {
+        Annotation::HuPoint { pos, value, .. } => {
             assert_eq!(*pos, [5.0f32, 8.0f32]);
             assert_eq!(*value, -150.0f32);
         }
@@ -270,6 +278,7 @@ fn save_to_file_and_load_from_file_round_trip_with_annotations() {
 fn save_to_file_produces_valid_json_with_annotations_key() {
     let mut snapshot = ViewerSessionSnapshot::default();
     snapshot.annotations.push(Annotation::HuPoint {
+        location: None,
         pos: [1.0, 2.0],
         value: 100.0,
     });
