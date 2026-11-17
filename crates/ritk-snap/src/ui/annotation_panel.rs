@@ -116,6 +116,11 @@ pub fn csv_for(annotations: &[Annotation]) -> String {
             Annotation::HuPoint { value, .. } => {
                 format!("{i},HU Point,{value:.2},HU,\n")
             }
+            Annotation::ClosedPolygon {
+                area_mm2,
+                perimeter_mm,
+                ..
+            } => format!("{i},Closed Polygon,{area_mm2:.2},mm²,perimeter={perimeter_mm:.2} mm\n"),
         };
         out.push_str(&row);
     }
@@ -171,6 +176,11 @@ fn annotation_label(i: usize, ann: &Annotation) -> String {
         Annotation::HuPoint { value, pos, .. } => {
             format!("#{i}  HU ({:.0},{:.0}): {value:.0}", pos[1], pos[0])
         }
+        Annotation::ClosedPolygon {
+            area_mm2,
+            perimeter_mm,
+            ..
+        } => format!("#{i}  Closed polygon: {area_mm2:.1} mm², {perimeter_mm:.1} mm"),
     }
 }
 

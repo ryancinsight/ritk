@@ -129,6 +129,31 @@ impl MeasurementLayer {
                     let spos = img_to_screen(egui::pos2((*pos)[1], (*pos)[0]));
                     draw_hu_point(painter, spos, *value);
                 }
+                Annotation::ClosedPolygon {
+                    points,
+                    area_mm2,
+                    perimeter_mm,
+                    ..
+                } => {
+                    let screen: Vec<Pos2> = points
+                        .iter()
+                        .map(|p| img_to_screen(egui::pos2((*p)[1], (*p)[0])))
+                        .collect();
+                    for pair in screen.windows(2) {
+                        painter
+                            .line_segment([pair[0], pair[1]], Stroke::new(LINE_WIDTH, COLOR_ROI));
+                    }
+                    if let (Some(first), Some(last)) = (screen.first(), screen.last()) {
+                        painter.line_segment([*last, *first], Stroke::new(LINE_WIDTH, COLOR_ROI));
+                        painter.text(
+                            *first + Vec2::new(8.0, -12.0),
+                            egui::Align2::LEFT_CENTER,
+                            format!("{area_mm2:.1} mm²  {perimeter_mm:.1} mm"),
+                            label_font(),
+                            COLOR_LABEL,
+                        );
+                    }
+                }
                 Annotation::RoiEllipse {
                     center,
                     radii,
@@ -249,6 +274,26 @@ impl MeasurementLayer {
                             fill: Color32::TRANSPARENT,
                             stroke: Stroke::new(LINE_WIDTH, COLOR_ROI),
                         });
+                    }
+                }
+            }
+            ToolState::Polygon { points } => {
+                let mut vertices = points
+                    .as_slice()
+                    .iter()
+                    .map(|point| img_to_screen(egui_point(*point)));
+                if let Some(first) = vertices.next() {
+                    let stroke = Stroke::new(LINE_WIDTH, COLOR_ROI);
+                    let mut last = first;
+                    for vertex in vertices {
+                        painter.line_segment([last, vertex], stroke);
+                        last = vertex;
+                    }
+                    if points.as_slice().len() >= 3 {
+                        painter.line_segment([last, first], stroke);
+                    }
+                    if let Some(cursor) = cursor_screen {
+                        painter.line_segment([last, cursor], stroke);
                     }
                 }
             }

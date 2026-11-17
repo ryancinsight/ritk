@@ -217,6 +217,19 @@ pub enum Annotation {
         /// Intensity value at the point (HU or relative).
         value: f32,
     },
+
+    /// Closed polygon ROI with physical area and perimeter.
+    ClosedPolygon {
+        /// Creation location on the source image plane.
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
+        /// Polygon vertices as `[row, col]` image pixels.
+        points: Vec<[f32; 2]>,
+        /// Physical enclosed area in square millimetres.
+        area_mm2: f32,
+        /// Physical perimeter in millimetres.
+        perimeter_mm: f32,
+    },
 }
 
 impl Annotation {
@@ -238,54 +251,6 @@ impl Annotation {
             converted[index] = narrowed;
         }
         Ok(converted)
-    }
-
-    /// Compute a finite length after validating physical spacing.
-    pub fn compute_length_checked(
-        p1: [f32; 2],
-        p2: [f32; 2],
-        spacing: [f64; 2],
-    ) -> Result<f32, MeasurementError> {
-        let spacing = Self::validate_spacing(spacing)?;
-        let result = Self::compute_length(p1, p2, spacing);
-        result
-            .is_finite()
-            .then_some(result)
-            .ok_or(MeasurementError::NonFiniteResult { kind: "length" })
-    }
-
-    /// Compute the Euclidean distance between two image points in physical space.
-    ///
-    /// # Parameters
-    /// - `p1`, `p2` — image coordinates `[row, col]` in pixels.
-    /// - `spacing` — pixel spacing `[row_spacing, col_spacing]` in mm/pixel.
-    ///
-    /// # Formula
-    /// ```text
-    /// length = √( ((p2[0] − p1[0]) · spacing[0])²
-    ///            + ((p2[1] − p1[1]) · spacing[1])² )
-    /// ```
-    pub fn compute_length(p1: [f32; 2], p2: [f32; 2], spacing: [f32; 2]) -> f32 {
-        let dr = (p2[0] - p1[0]) * spacing[0];
-        let dc = (p2[1] - p1[1]) * spacing[1];
-        (dr * dr + dc * dc).sqrt()
-    }
-
-    /// Compute the angle at vertex `p2` between the rays `p2→p1` and `p2→p3`.
-    ///
-    /// Returns the angle in degrees in the range `[0°, 180°]`.
-    ///
-    /// Returns `0.0` when either input ray has zero length (degenerate case:
-    /// two coincident points), avoiding division by zero without panicking.
-    ///
-    /// # Formula
-    /// ```text
-    /// v₁ = p₁ − p₂, v₂ = p₃ − p₂
-    /// cos θ = clamp( (v₁ · v₂) / (|v₁| · |v₂|), −1, 1 )
-    /// θ = arccos(cos θ) [converted to degrees]
-    /// ```
-    pub fn compute_angle(p1: [f32; 2], p2: [f32; 2], p3: [f32; 2]) -> f32 {
-        Self::compute_angle_with_spacing(p1, p2, p3, [1.0, 1.0])
     }
 
     /// Compute intensity statistics for pixels within the axis-aligned rectangle

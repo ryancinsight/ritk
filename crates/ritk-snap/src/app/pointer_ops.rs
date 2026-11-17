@@ -2,7 +2,7 @@ mod measurement;
 
 use super::state::SnapApp;
 use crate::render::NamedColorMap;
-use crate::tools::interaction::{Annotation, ImagePoint, RoiKind, ToolState};
+use crate::tools::interaction::{Annotation, ImagePoint, PolygonKind, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
@@ -11,6 +11,7 @@ use crate::ui::{
     zoom_from_drag_delta, WINDOW_LEVEL_SENSITIVITY,
 };
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
+use metis_ui_lang::{PathCapture, PathPush};
 
 // ── Pointer / interaction event handlers ───────────────────────────────────
 
@@ -268,6 +269,30 @@ impl SnapApp {
                     self.tool_state = ToolState::MeasureLength1 { p1: pos };
                 }
             },
+            ToolKind::RoiClosedPolygon => {
+                if let ToolState::Polygon { points } = &mut self.tool_state {
+                    let samples = points.as_slice();
+                    let closes = samples.len() >= 3
+                        && samples.first().is_some_and(|point| {
+                            let dx = f64::from(point.x()) - f64::from(pos.x());
+                            let dy = f64::from(point.y()) - f64::from(pos.y());
+                            dx.hypot(dy) <= 6.0
+                        });
+                    if closes {
+                        if let ToolState::Polygon { points } =
+                            std::mem::replace(&mut self.tool_state, ToolState::Idle)
+                        {
+                            self.finalise_polygon(points.into_vec(), PolygonKind::Closed);
+                        }
+                    } else if matches!(points.push(pos), PathPush::Full) {
+                        self.status_message = "Polygon sample limit reached".to_owned();
+                    }
+                } else {
+                    self.tool_state = ToolState::Polygon {
+                        points: PathCapture::new(pos),
+                    };
+                }
+            }
             ToolKind::PointHu => {
                 if let Some(vol) = &self.loaded {
                     let Some(voxel) =

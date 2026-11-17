@@ -9,24 +9,17 @@ impl Annotation {
         end: [f32; 2],
         spacing: [f32; 2],
     ) -> Result<([f32; 2], f32, f32), MeasurementError> {
-        let dx = (end[1] - start[1]) * spacing[1];
-        let dy = (end[0] - start[0]) * spacing[0];
+        let dx = ((end[1] - start[1]) * spacing[1]).abs();
+        let dy = ((end[0] - start[0]) * spacing[0]).abs();
         if !dx.is_finite() || !dy.is_finite() {
             return Err(MeasurementError::NonFiniteResult { kind: "deviation" });
         }
-        Ok(if dx.abs() >= dy.abs() {
-            (
-                [start[0], end[1]],
-                dy.abs(),
-                dy.abs().atan2(dx.abs()).to_degrees(),
-            )
+        let (baseline, offset, run) = if dx >= dy {
+            ([start[0], end[1]], dy, dx)
         } else {
-            (
-                [end[0], start[1]],
-                dx.abs(),
-                dx.abs().atan2(dy.abs()).to_degrees(),
-            )
-        })
+            ([end[0], start[1]], dx, dy)
+        };
+        Ok((baseline, offset, offset.atan2(run).to_degrees()))
     }
 }
 

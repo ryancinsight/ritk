@@ -7,6 +7,15 @@ use iris::color::{ColorMap, Normalized};
 #[path = "tests/patient_length.rs"]
 mod patient_length;
 
+#[test]
+fn closed_polygon_area_and_perimeter_scale_with_spacing() {
+    let square = [[0.0, 0.0], [0.0, 2.0], [2.0, 2.0], [2.0, 0.0]];
+    assert_eq!(Annotation::compute_polygon_area(&square, [2.0, 3.0]), 24.0);
+    let perimeter = Annotation::compute_polyline_length(&square, [2.0, 3.0])
+        + Annotation::compute_length(square[3], square[0], [2.0, 3.0]);
+    assert_eq!(perimeter, 20.0);
+}
+
 // ── compute_length ────────────────────────────────────────────────────────
 
 /// Axis-aligned horizontal displacement with unit spacing must yield the

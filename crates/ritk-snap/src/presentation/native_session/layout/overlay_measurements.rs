@@ -268,6 +268,25 @@ impl Pane<'_> {
                 )?;
                 self.label(overlay, p, format!("{value:.0}"))?;
             }
+            Annotation::ClosedPolygon {
+                points,
+                area_mm2,
+                perimeter_mm,
+                ..
+            } => {
+                let polygon: Vec<[f64; 2]> = points.iter().map(|p| image_point(*p)).collect();
+                for pair in polygon.windows(2) {
+                    self.line(overlay, pair[0], pair[1], ROI_COLOR)?;
+                }
+                if let (Some(first), Some(last)) = (polygon.first(), polygon.last()) {
+                    self.line(overlay, *last, *first, ROI_COLOR)?;
+                    self.label(
+                        overlay,
+                        *first,
+                        format!("{area_mm2:.1} mm2  {perimeter_mm:.1} mm"),
+                    )?;
+                }
+            }
             _ => {}
         }
         Ok(())

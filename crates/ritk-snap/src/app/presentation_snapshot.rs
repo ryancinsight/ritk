@@ -51,6 +51,9 @@ impl SnapApp {
             Annotation::HuPoint { value, .. } => {
                 AnnotationSummary::new(AnnotationKind::HuPoint, f64::from(*value))
             }
+            Annotation::ClosedPolygon { area_mm2, .. } => {
+                AnnotationSummary::new(AnnotationKind::ClosedPolygon, f64::from(*area_mm2))
+            }
         });
         PresentationSnapshot::from_parts(
             self.visual_revision,
