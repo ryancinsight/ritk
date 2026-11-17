@@ -20,11 +20,9 @@ fn app_with_polygon() -> SnapApp {
 fn native_viewport() -> ViewerViewport {
     viewport([64, 64]).with_polygon_handles()
 }
-
 fn send(app: &mut SnapApp, event: PresentationEvent) {
     apply_app_event(app, &native_viewport(), event)
 }
-
 fn press(app: &mut SnapApp, x: f64, y: f64) {
     send(
         app,
@@ -36,7 +34,6 @@ fn press(app: &mut SnapApp, x: f64, y: f64) {
         },
     );
 }
-
 fn release(app: &mut SnapApp, x: f64, y: f64) {
     send(
         app,
@@ -47,7 +44,6 @@ fn release(app: &mut SnapApp, x: f64, y: f64) {
         },
     );
 }
-
 #[test]
 fn selected_vertex_drag_commits_recomputed_length_on_release() {
     let mut app = app_with_polygon();
@@ -63,20 +59,17 @@ fn selected_vertex_drag_commits_recomputed_length_on_release() {
             if points[1] == [0.0, 6.0] && *length_mm == 11.0
     ));
 }
-
 fn begin_vertex_drag(app: &mut SnapApp) {
     press(app, 1.5, 0.0);
     release(app, 1.5, 0.0);
     press(app, 3.0, 0.0);
 }
-
 fn assert_unchanged(app: &SnapApp) {
     assert!(matches!(
         app.annotations.as_slice(),
         [Annotation::OpenPolygon { points, .. }] if points[1] == [0.0, 3.0]
     ));
 }
-
 #[test]
 fn selected_vertex_drag_cancellation_modes_preserve_geometry() {
     enum Cancellation {

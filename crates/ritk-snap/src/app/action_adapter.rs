@@ -297,8 +297,7 @@ impl SnapApp {
                 };
                 let mapped = viewport.and_then(|viewport| viewport.map(*position));
                 if self.pointer.pending_polygon_move.is_some() {
-                    self.pointer.pending_polygon_move = None;
-                    self.pointer.owner = None;
+                    self.on_drag_end(None);
                     return Ok(ViewerActionDisposition::Continue { repaint: true });
                 }
                 if *gesture == PointerGesture::Click {
@@ -351,8 +350,7 @@ impl SnapApp {
                     self.status_message = format!("Zoom: {:.0}%", self.zoom * 100.0);
                     Ok(ViewerActionDisposition::Continue { repaint: true })
                 } else {
-                    self.pointer.pending_polygon_move = None;
-                    self.pointer.owner = None;
+                    self.on_drag_end(None);
                     let step = if delta.y() > 0.0 { -1_i32 } else { 1 };
                     self.step_slice_for_axis(viewport.axis(), step);
                     Ok(ViewerActionDisposition::Continue { repaint: true })
@@ -374,8 +372,7 @@ impl SnapApp {
 
     fn apply_virtual_key(&mut self, virtual_key: u32, repeated: bool) -> ViewerActionDisposition {
         if virtual_key == 0x1b && !repeated && self.pointer.pending_polygon_move.is_some() {
-            self.pointer.pending_polygon_move = None;
-            self.pointer.owner = None;
+            self.on_drag_end(None);
             return ViewerActionDisposition::Continue { repaint: true };
         }
         if virtual_key == 0x1b
