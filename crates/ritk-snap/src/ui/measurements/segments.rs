@@ -35,6 +35,38 @@ pub(super) fn draw_deviation_preview(
     );
 }
 
+pub(super) fn draw_cobb_annotation(
+    painter: &Painter,
+    points: [[f32; 2]; 4],
+    angle_deg: f32,
+    project: &impl Fn(Pos2) -> Pos2,
+) {
+    draw_deviation_preview(
+        painter,
+        [
+            ImagePoint::new(points[0][1], points[0][0]),
+            ImagePoint::new(points[1][1], points[1][0]),
+        ],
+        project,
+    );
+    draw_deviation_preview(
+        painter,
+        [
+            ImagePoint::new(points[2][1], points[2][0]),
+            ImagePoint::new(points[3][1], points[3][0]),
+        ],
+        project,
+    );
+    let anchor = project(Pos2::new(points[1][1], points[1][0]));
+    painter.text(
+        anchor + Vec2::new(8.0, -12.0),
+        Align2::LEFT_CENTER,
+        format!("{angle_deg:.1}°"),
+        label_font(),
+        COLOR_LABEL,
+    );
+}
+
 /// Draw an angle measurement annotation: two rays from the vertex `p2` to
 /// `p1` and `p3`, with a small arc at the vertex and an angle label.
 ///

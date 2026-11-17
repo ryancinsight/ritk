@@ -96,6 +96,19 @@ impl MeasurementLayer {
                     *angle_deg,
                     &img_to_screen,
                 ),
+                Annotation::CobbAngle {
+                    p1,
+                    p2,
+                    p3,
+                    p4,
+                    angle_deg,
+                    ..
+                } => segments::draw_cobb_annotation(
+                    painter,
+                    [*p1, *p2, *p3, *p4],
+                    *angle_deg,
+                    &img_to_screen,
+                ),
                 Annotation::Angle {
                     p1,
                     p2,
@@ -318,6 +331,19 @@ impl MeasurementLayer {
             | ToolState::WindowLevelDrag { .. } => {}
             ToolState::DeviationDrag { start, current } => {
                 segments::draw_deviation_preview(painter, [*start, *current], &img_to_screen)
+            }
+            ToolState::CobbDrag {
+                first,
+                start,
+                current,
+            } => {
+                if let Some(first) = first {
+                    segments::draw_deviation_preview(painter, *first, &img_to_screen);
+                }
+                segments::draw_deviation_preview(painter, [*start, *current], &img_to_screen);
+            }
+            ToolState::CobbPending { segment } => {
+                segments::draw_deviation_preview(painter, *segment, &img_to_screen)
             }
         }
     }
