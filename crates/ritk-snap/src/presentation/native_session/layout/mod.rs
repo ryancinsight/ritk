@@ -6,6 +6,7 @@ mod crosshair;
 mod geometry;
 mod overlay;
 mod overlay_clinical;
+pub(crate) mod overlay_display;
 mod overlay_measurements;
 mod responsive;
 pub(super) mod text;

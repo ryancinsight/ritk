@@ -1,12 +1,15 @@
 //! DICOM series scanning and loading methods.
 
 #[cfg(not(target_arch = "wasm32"))]
-use tracing::{error, info};
+use tracing::error;
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+use tracing::info;
 
 use super::state::SnapApp;
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use super::volume_state::metadata_window_level;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::dicom::select_hanging_protocol;
 
 impl SnapApp {
@@ -15,6 +18,7 @@ impl SnapApp {
         if let Some(input) = self.pending_load.take() {
             self.queue_primary(input);
         }
+        #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
         if let Some(input) = self.pending_secondary_load.take() {
             self.queue_secondary(input);
         }
@@ -31,6 +35,7 @@ impl SnapApp {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     fn queue_secondary(&mut self, input: super::volume_input::VolumeInput) {
         self.queue_load(super::load_tasks::LoadTarget::Secondary, input);
     }
@@ -43,6 +48,7 @@ impl SnapApp {
     ) {
         let slot = match target {
             super::load_tasks::LoadTarget::Primary => 0,
+            #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             super::load_tasks::LoadTarget::Secondary => 1,
         };
         let Some(generation) = self.load_generations[slot].checked_add(1) else {
@@ -110,7 +116,10 @@ impl SnapApp {
         }
         self.load_tasks = std::array::from_fn(|_| None);
         self.pending_load = None;
-        self.pending_secondary_load = None;
+        #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+        {
+            self.pending_secondary_load = None;
+        }
         for generation in &mut self.load_generations {
             *generation = next_generation(*generation);
         }
@@ -127,11 +136,12 @@ impl SnapApp {
                 let message = format!("Loaded volume — shape {:?}", volume.shape);
                 self.load_volume(volume, message);
             }
+            #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             super::load_tasks::LoadTarget::Secondary => self.publish_secondary(volume),
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     fn publish_secondary(&mut self, volume: crate::LoadedVolume) {
         let shape = volume.shape;
         let protocol = select_hanging_protocol(
@@ -158,6 +168,7 @@ impl SnapApp {
     fn report_load_error(&mut self, target: super::load_tasks::LoadTarget, error: String) {
         let message = match target {
             super::load_tasks::LoadTarget::Primary => format!("Volume load failed: {error}"),
+            #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             super::load_tasks::LoadTarget::Secondary => {
                 format!("Secondary volume load failed: {error}")
             }
@@ -166,7 +177,7 @@ impl SnapApp {
         self.status_message = message;
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     pub(crate) fn scan_for_series(&mut self, folder: std::path::PathBuf) {
         match crate::dicom::loader::scan_folder_for_series(&folder) {
             Ok(tree) => {
@@ -184,7 +195,7 @@ impl SnapApp {
     }
 
     /// Decode completely before replacing primary state.
-    #[cfg(test)]
+    #[cfg(all(test, not(target_arch = "wasm32")))]
     pub(crate) fn load_primary(&mut self, input: super::volume_input::VolumeInput) {
         match input.load() {
             Ok(volume) => {
@@ -199,7 +210,7 @@ impl SnapApp {
     }
 
     /// Decode completely before replacing the comparison acquisition.
-    #[cfg(test)]
+    #[cfg(all(test, feature = "eframe-shell"))]
     pub(crate) fn load_secondary(&mut self, input: super::volume_input::VolumeInput) {
         match input.load() {
             Ok(volume) => self.publish_secondary(volume),

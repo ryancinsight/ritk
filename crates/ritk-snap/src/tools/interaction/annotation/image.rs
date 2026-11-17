@@ -3,15 +3,18 @@
 use super::{Annotation, AnnotationLocation, MeasurementError};
 
 impl Annotation {
-    #[cfg(windows)]
+    #[cfg(any(windows, all(not(target_arch = "wasm32"), feature = "eframe-shell")))]
     pub(crate) fn location(&self) -> Option<AnnotationLocation> {
         match self {
             Self::Length { location, .. }
             | Self::PatientLength { location, .. }
             | Self::Angle { location, .. }
+            | Self::Deviation { location, .. }
             | Self::RoiRect { location, .. }
             | Self::RoiEllipse { location, .. }
             | Self::HuPoint { location, .. }
+            | Self::ClosedPolygon { location, .. }
+            | Self::OpenPolygon { location, .. }
             | Self::CobbAngle { location, .. } => *location,
         }
     }
@@ -28,6 +31,9 @@ impl Annotation {
             | Self::Angle {
                 location: value, ..
             }
+            | Self::Deviation {
+                location: value, ..
+            }
             | Self::RoiRect {
                 location: value, ..
             }
@@ -35,6 +41,12 @@ impl Annotation {
                 location: value, ..
             }
             | Self::HuPoint {
+                location: value, ..
+            }
+            | Self::ClosedPolygon {
+                location: value, ..
+            }
+            | Self::OpenPolygon {
                 location: value, ..
             }
             | Self::CobbAngle {
@@ -45,10 +57,6 @@ impl Annotation {
     }
 
     /// Measure the acute angle in degrees between two physical segments.
-    ///
-    /// Scaling each direction by its largest component keeps dot and determinant
-    /// products bounded. Both products have the same length factor, which
-    /// cancels in atan2. Taking magnitudes makes the angle orientation-independent.
     pub(crate) fn compute_cobb_angle(
         p1: [f32; 2],
         p2: [f32; 2],
@@ -73,6 +81,83 @@ impl Annotation {
         let dot = (ar * br + ac * bc).abs();
         let determinant = (ar * bc - ac * br).abs();
         Ok(determinant.atan2(dot).to_degrees())
+    }
+
+    /// Compute a finite length after validating physical spacing.
+    pub fn compute_length_checked(
+        p1: [f32; 2],
+        p2: [f32; 2],
+        spacing: [f64; 2],
+    ) -> Result<f32, MeasurementError> {
+        let spacing = Self::validate_spacing(spacing)?;
+        let result = Self::compute_length(p1, p2, spacing);
+        result
+            .is_finite()
+            .then_some(result)
+            .ok_or(MeasurementError::NonFiniteResult { kind: "length" })
+    }
+
+    /// Compute the Euclidean distance between two image points in physical space.
+    ///
+    /// # Parameters
+    /// - `p1`, `p2` — image coordinates `[row, col]` in pixels.
+    /// - `spacing` — pixel spacing `[row_spacing, col_spacing]` in mm/pixel.
+    ///
+    /// # Formula
+    /// ```text
+    /// length = √( ((p2[0] − p1[0]) · spacing[0])²
+    ///            + ((p2[1] − p1[1]) · spacing[1])² )
+    /// ```
+    pub fn compute_length(p1: [f32; 2], p2: [f32; 2], spacing: [f32; 2]) -> f32 {
+        let dr = (p2[0] - p1[0]) * spacing[0];
+        let dc = (p2[1] - p1[1]) * spacing[1];
+        (dr * dr + dc * dc).sqrt()
+    }
+
+    /// Compute the physical area of a closed polygon by the shoelace formula.
+    pub fn compute_polygon_area(points: &[[f32; 2]], spacing: [f32; 2]) -> f32 {
+        let [origin, vertices @ ..] = points else {
+            return 0.0;
+        };
+        let sum = vertices
+            .windows(2)
+            .map(|pair| {
+                let [a, b] = pair else {
+                    unreachable!("invariant: windows(2) contains two vertices")
+                };
+                let ar = a[0] - origin[0];
+                let ac = a[1] - origin[1];
+                let br = b[0] - origin[0];
+                let bc = b[1] - origin[1];
+                ar * bc - br * ac
+            })
+            .sum::<f32>();
+        0.5 * sum.abs() * spacing[0] * spacing[1]
+    }
+
+    /// Compute the physical length of a polyline.
+    pub fn compute_polyline_length(points: &[[f32; 2]], spacing: [f32; 2]) -> f32 {
+        points
+            .windows(2)
+            .map(|pair| Self::compute_length(pair[0], pair[1], spacing))
+            .sum()
+    }
+
+    /// Compute the angle at vertex `p2` between the rays `p2→p1` and `p2→p3`.
+    ///
+    /// Returns the angle in degrees in the range `[0°, 180°]`.
+    ///
+    /// Returns `0.0` when either input ray has zero length (degenerate case:
+    /// two coincident points), avoiding division by zero without panicking.
+    ///
+    /// # Formula
+    /// ```text
+    /// v₁ = p₁ − p₂, v₂ = p₃ − p₂
+    /// cos θ = clamp( (v₁ · v₂) / (|v₁| · |v₂|), −1, 1 )
+    /// θ = arccos(cos θ) [converted to degrees]
+    /// ```
+    pub fn compute_angle(p1: [f32; 2], p2: [f32; 2], p3: [f32; 2]) -> f32 {
+        Self::compute_angle_with_spacing(p1, p2, p3, [1.0, 1.0])
     }
 
     /// Compute the angle between rays scaled by the row and column pixel spacing.

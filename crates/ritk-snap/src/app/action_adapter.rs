@@ -29,6 +29,31 @@ pub(crate) const VIRTUAL_KEY_CINE_TOGGLE: u32 = 0x20;
 pub(crate) const VIRTUAL_KEY_CROSSHAIR_TOGGLE: u32 = 0x58;
 pub(crate) const VIRTUAL_KEY_CINE_FPS_UP: u32 = 0xbb;
 pub(crate) const VIRTUAL_KEY_CINE_FPS_DOWN: u32 = 0xbd;
+/// Windows virtual-key code for `I`, toggling negative display.
+#[cfg(windows)]
+pub(crate) const VIRTUAL_KEY_INVERT_DISPLAY: u32 = 0x49;
+/// Windows virtual-key code for `C`, cycling the intensity colormap.
+#[cfg(windows)]
+pub(crate) const VIRTUAL_KEY_COLORMAP_CYCLE: u32 = 0x43;
+/// Windows virtual-key code for `H`, flipping horizontally.
+#[cfg(windows)]
+pub(crate) const VIRTUAL_KEY_FLIP_HORIZONTAL: u32 = 0x48;
+/// Windows virtual-key code for `V`, flipping vertically.
+#[cfg(windows)]
+pub(crate) const VIRTUAL_KEY_FLIP_VERTICAL: u32 = 0x56;
+/// Windows virtual-key code for `R`, rotating (`Shift` reverses).
+#[cfg(windows)]
+pub(crate) const VIRTUAL_KEY_ROTATE: u32 = 0x52;
+/// Windows virtual-key code for `O`, resetting orientation.
+#[cfg(windows)]
+pub(crate) const VIRTUAL_KEY_ORIENTATION_RESET: u32 = 0x4f;
+/// Windows virtual-key code for `0`, zooming to fit (with `Ctrl`).
+#[cfg(windows)]
+pub(crate) const VIRTUAL_KEY_ZOOM_FIT: u32 = 0x30;
+/// Windows virtual-key codes for digits `1`–`9`, selecting modality presets.
+#[cfg(windows)]
+pub(crate) const VIRTUAL_KEY_PRESET_KEYS: [u32; 9] =
+    [0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39];
 
 /// Result of applying one viewer action to the RITK application.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -215,7 +240,10 @@ impl SnapApp {
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerDragged {
-                button, current, ..
+                button,
+                start,
+                current,
+                ..
             } => {
                 let Some(owner) = self.pointer.owner.filter(|owner| owner.button == *button) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
@@ -229,7 +257,15 @@ impl SnapApp {
                 if is_label_tool(owner.tool) {
                     self.apply_label_at_pointer(viewport.axis(), Some(image));
                 }
-                self.on_drag(Some(image));
+                // Moving one whole screen pixel on either axis can occur
+                // during a click without placing the second endpoint.
+                let pending_length_jitter = owner.tool == ToolKind::MeasureLength
+                    && matches!(self.tool_state, ToolState::MeasureLength1 { .. })
+                    && (current.x() - start.x()).abs() <= 1.0
+                    && (current.y() - start.y()).abs() <= 1.0;
+                if !pending_length_jitter {
+                    self.on_drag(Some(image));
+                }
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerReleased {
@@ -310,13 +346,23 @@ impl SnapApp {
     fn apply_virtual_key(&mut self, virtual_key: u32, repeated: bool) -> ViewerActionDisposition {
         if virtual_key == 0x1b
             && !repeated
-            && matches!(
-                self.tool_state,
-                ToolState::CobbDrag { .. } | ToolState::CobbPending { .. }
-            )
+            && (self.tool_state.is_pending_measurement()
+                || matches!(
+                    self.tool_state,
+                    ToolState::DeviationDrag { .. } | ToolState::CobbDrag { .. }
+                ))
         {
             self.tool_state = ToolState::Idle;
             self.pointer.abandon();
+            return ViewerActionDisposition::Continue { repaint: true };
+        }
+        if virtual_key == 0x0d && !repeated && self.finish_pending_polygon() {
+            if self.tool_state.is_idle() {
+                self.pointer.owner = self
+                    .pointer
+                    .owner
+                    .filter(|owner| owner.button != PointerButton::Left || owner.modified);
+            }
             return ViewerActionDisposition::Continue { repaint: true };
         }
         if virtual_key == VIRTUAL_KEY_CROSSHAIR_TOGGLE {

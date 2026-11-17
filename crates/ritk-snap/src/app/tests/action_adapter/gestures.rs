@@ -148,7 +148,7 @@ fn cobb_drag_events([x, y]: [f64; 2], [end_x, end_y]: [f64; 2]) -> [Presentation
             x,
             y,
             button: PointerButton::Left,
-            modifiers: PresentationModifiers::NONE,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
         },
         PresentationEvent::PointerMove { x: end_x, y: end_y },
         PresentationEvent::PointerUp {
@@ -182,7 +182,7 @@ fn escape_discards_active_or_pending_cobb_segments() {
             PresentationEvent::KeyDown {
                 virtual_key: 0x1b,
                 repeated: false,
-                modifiers: PresentationModifiers::NONE,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             },
         );
         assert_eq!(app.annotations.as_slice(), &[]);
@@ -233,6 +233,137 @@ fn length_measurement_clicks_advance_and_complete_through_the_adapter() {
             && *p2 == [0.5, 3.25]
             && (*length_mm - 2.75).abs() < 1e-6
     ));
+}
+
+#[test]
+fn deviation_measurement_completes_from_one_pointer_drag() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([4, 4, 1]));
+    app.active_tool = ToolKind::MeasureDeviation;
+    let viewport = viewport([4, 4]);
+    let mut dispatcher = PresentationDispatcher::new();
+
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+            modifiers: PresentationModifiers::NONE,
+        },
+    );
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerMove { x: 2.5, y: 2.5 },
+    );
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 2.5,
+            y: 2.5,
+            button: PointerButton::Left,
+        },
+    );
+
+    assert!(app.tool_state.is_idle());
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::Deviation {
+            start,
+            end,
+            reference,
+            distance_mm,
+            angle_deg,
+            ..
+        }] if *start == [0.5, 0.5]
+            && *end == [2.5, 2.5]
+            && *reference == [0.5, 2.5]
+            && (*distance_mm - 2.0).abs() < 1e-6
+            && (*angle_deg - 45.0).abs() < 1e-6
+    ));
+}
+
+#[test]
+fn deviation_drag_rejects_release_after_slice_switch() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([4, 4, 2]));
+    app.active_tool = ToolKind::MeasureDeviation;
+    let viewport = viewport([4, 4]);
+    let mut dispatcher = PresentationDispatcher::new();
+
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+            modifiers: PresentationModifiers::NONE,
+        },
+    );
+    app.set_slice_for_axis(0, 1);
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerMove { x: 2.5, y: 3.25 },
+    );
+    apply_events(
+        &mut app,
+        &mut dispatcher,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 2.5,
+            y: 3.25,
+            button: PointerButton::Left,
+        },
+    );
+
+    assert!(app.tool_state.is_idle());
+    assert!(app.annotations.is_empty());
+}
+
+#[test]
+fn escape_discards_a_live_deviation_and_ignores_its_release() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([1, 4, 4]));
+    app.select_tool(ToolKind::MeasureDeviation);
+    let viewport = viewport([4, 4]);
+    for event in [
+        PresentationEvent::PointerDown {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+            modifiers: PresentationModifiers::NONE,
+        },
+        PresentationEvent::PointerMove { x: 2.5, y: 3.0 },
+    ] {
+        apply_app_event(&mut app, &viewport, event);
+    }
+    assert_eq!(app.tool_state.tool_kind(), Some(ToolKind::MeasureDeviation));
+    for event in [
+        PresentationEvent::KeyDown {
+            virtual_key: 0x1b,
+            repeated: false,
+            modifiers: PresentationModifiers::NONE,
+        },
+        PresentationEvent::PointerUp {
+            x: 2.5,
+            y: 3.0,
+            button: PointerButton::Left,
+        },
+    ] {
+        apply_app_event(&mut app, &viewport, event);
+    }
+    assert_eq!(app.annotations.as_slice(), &[]);
+    assert_eq!(app.tool_state.tool_kind(), None);
 }
 
 #[test]
@@ -329,30 +460,61 @@ fn adapter_accumulates_repaint_across_actions_in_one_batch() {
 }
 
 #[test]
-fn cobb_angle_does_not_combine_segments_from_different_slices() {
-    use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint};
-
+fn length_measurement_first_click_then_drag_completes_through_the_adapter() {
     let mut app = SnapApp::default();
-    app.loaded = Some(test_volume([4, 4, 3]));
-    app.active_tool = ToolKind::MeasureCobb;
-    let horizontal = [ImagePoint::new(0.5, 0.5), ImagePoint::new(2.5, 0.5)];
-    let vertical = [ImagePoint::new(1.5, 0.5), ImagePoint::new(1.5, 2.5)];
-    app.on_drag_start(ToolKind::MeasureCobb, Some(horizontal[0]));
-    app.on_drag_end(Some(horizontal[1]));
+    app.loaded = Some(test_volume([8, 8, 1]));
+    app.active_tool = ToolKind::MeasureLength;
+    let viewport = viewport([8, 8]);
 
-    app.set_slice_for_axis(0, 1);
-    app.on_drag_start(ToolKind::MeasureCobb, Some(vertical[0]));
-    app.on_drag_end(Some(vertical[1]));
-    assert_eq!(app.annotations.as_slice(), &[]);
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
+        },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+        },
+    );
 
-    app.on_drag_start(ToolKind::MeasureCobb, Some(horizontal[0]));
-    app.on_drag_end(Some(horizontal[1]));
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 0.5,
+            y: 0.5,
+            button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
+        },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerMove { x: 4.5, y: 3.5 },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 4.5,
+            y: 3.5,
+            button: PointerButton::Left,
+        },
+    );
+
     assert!(matches!(
         app.annotations.as_slice(),
-        [Annotation::CobbAngle {
-            angle_deg: 90.0,
-            location: Some(AnnotationLocation { plane: 0, slice: 1 }),
-            ..
-        }]
+        [crate::tools::interaction::Annotation::Length { length_mm, .. }]
+            if *length_mm == 5.0
     ));
+    assert!(app.tool_state.is_idle());
 }

@@ -1,16 +1,24 @@
 //! Deferred volume requests preserve discovery identity until verified decode.
 use crate::LoadedVolume;
-use anyhow::{bail, Result};
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+use anyhow::bail;
+use anyhow::Result;
 use ritk_io::DicomSeriesInfo;
-use std::{path::PathBuf, sync::Arc};
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub(crate) enum VolumeInput {
+    /// Filesystem study input. The eframe shell queues these from its menu,
+    /// toolbar and drop handlers; the native shell opens catalog series.
+    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     Path(PathBuf),
     Series(Arc<DicomSeriesInfo>),
 }
 
 impl VolumeInput {
+    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     pub(crate) fn restore(source: crate::session::StudySource) -> Result<Self> {
         match source {
             crate::session::StudySource::Path(path) => Ok(Self::Path(path)),
@@ -31,6 +39,7 @@ impl VolumeInput {
         }
     }
 
+    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     pub(crate) fn acquisition(volume: &LoadedVolume) -> Option<Arc<DicomSeriesInfo>> {
         volume.source.as_ref()?;
         let metadata = volume.metadata.as_ref()?;
@@ -52,6 +61,7 @@ impl VolumeInput {
 
     pub(crate) fn load(&self) -> Result<LoadedVolume> {
         match self {
+            #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             Self::Path(path) => crate::dicom::loader::load_volume_from_path(path),
             Self::Series(info) => crate::dicom::loader::load_volume_from_series_info(info),
         }

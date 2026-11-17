@@ -205,3 +205,72 @@ fn measurement_patient_length_projects_through_affine_to_same_segment() {
     );
     let _ = index;
 }
+
+#[test]
+fn native_toolbar_length_then_drag_records_measurement() {
+    let (mut session, _root) = session();
+    let (tool_x, tool_y) = super::support::control_center(
+        &session,
+        None,
+        WindowAction::SelectTool(crate::tools::kind::ToolKind::MeasureLength),
+    );
+    session
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x: tool_x,
+                y: tool_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: tool_x,
+                y: tool_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+        ])
+        .expect("toolbar length selection");
+    assert_eq!(
+        session.app.active_tool,
+        crate::tools::kind::ToolKind::MeasureLength
+    );
+
+    let (pane, _, _, width, height) = axial_panel(&session);
+    let (start_x, start_y) = session.viewports[pane].center();
+    let [row_spacing, col_spacing] = session.views[pane].frame.display_spacing().values();
+    let expected_mm = (3.0 * col_spacing / width).hypot(4.0 * row_spacing / height);
+    let bound = f64::from(f32::EPSILON)
+        * (f64::from(session.views[pane].frame.width()) * col_spacing
+            + f64::from(session.views[pane].frame.height()) * row_spacing);
+    session
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x: start_x,
+                y: start_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: start_x,
+                y: start_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+            WindowEvent::PointerDown {
+                x: start_x,
+                y: start_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+            WindowEvent::PointerMove {
+                x: start_x + 3,
+                y: start_y + 4,
+            },
+            WindowEvent::PointerUp {
+                x: start_x + 3,
+                y: start_y + 4,
+                button: metis_platform::native::MouseButton::Left,
+            },
+        ])
+        .expect("native length drag");
+    assert!(matches!(
+        session.app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::Length { length_mm, .. }]
+            if (f64::from(*length_mm) - expected_mm).abs() <= bound
+    ));
+}

@@ -184,6 +184,41 @@ impl Pane<'_> {
                 self.line(overlay, b, c, MEASUREMENT_COLOR)?;
                 self.label(overlay, b, format!("{angle_deg:.1} deg"))?;
             }
+            Annotation::Deviation {
+                start,
+                end,
+                reference,
+                distance_mm,
+                angle_deg,
+                ..
+            } => {
+                let a = image_point(*start);
+                let b = image_point(*end);
+                let baseline = image_point(*reference);
+                self.line(overlay, a, b, MEASUREMENT_COLOR)?;
+                self.line(overlay, a, baseline, MEASUREMENT_COLOR)?;
+                self.label(
+                    overlay,
+                    b,
+                    format!("{distance_mm:.1} mm {angle_deg:.1} deg"),
+                )?;
+            }
+            Annotation::CobbAngle {
+                p1,
+                p2,
+                p3,
+                p4,
+                angle_deg,
+                ..
+            } => {
+                let a = image_point(*p1);
+                let b = image_point(*p2);
+                let c = image_point(*p3);
+                let d = image_point(*p4);
+                self.line(overlay, a, b, MEASUREMENT_COLOR)?;
+                self.line(overlay, c, d, MEASUREMENT_COLOR)?;
+                self.label(overlay, b, format!("{angle_deg:.1} deg"))?;
+            }
             Annotation::RoiRect {
                 top_left,
                 bottom_right,
@@ -249,21 +284,35 @@ impl Pane<'_> {
                 )?;
                 self.label(overlay, p, format!("{value:.0}"))?;
             }
-            Annotation::CobbAngle {
-                p1,
-                p2,
-                p3,
-                p4,
-                angle_deg,
+            Annotation::ClosedPolygon {
+                points,
+                area_mm2,
+                perimeter_mm,
                 ..
             } => {
-                let a = image_point(*p1);
-                let b = image_point(*p2);
-                let c = image_point(*p3);
-                let d = image_point(*p4);
-                self.line(overlay, a, b, MEASUREMENT_COLOR)?;
-                self.line(overlay, c, d, MEASUREMENT_COLOR)?;
-                self.label(overlay, b, format!("{angle_deg:.1} deg"))?;
+                let polygon: Vec<[f64; 2]> = points.iter().map(|p| image_point(*p)).collect();
+                for pair in polygon.windows(2) {
+                    self.line(overlay, pair[0], pair[1], ROI_COLOR)?;
+                }
+                if let (Some(first), Some(last)) = (polygon.first(), polygon.last()) {
+                    self.line(overlay, *last, *first, ROI_COLOR)?;
+                    self.label(
+                        overlay,
+                        *first,
+                        format!("{area_mm2:.1} mm2  {perimeter_mm:.1} mm"),
+                    )?;
+                }
+            }
+            Annotation::OpenPolygon {
+                points, length_mm, ..
+            } => {
+                let polyline: Vec<[f64; 2]> = points.iter().map(|p| image_point(*p)).collect();
+                for pair in polyline.windows(2) {
+                    self.line(overlay, pair[0], pair[1], ROI_COLOR)?;
+                }
+                if let Some(first) = polyline.first() {
+                    self.label(overlay, *first, format!("{length_mm:.1} mm"))?;
+                }
             }
             _ => {}
         }

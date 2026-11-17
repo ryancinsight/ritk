@@ -26,6 +26,8 @@ pub enum ToolKind {
     MeasureLength,
     /// Click three points to measure angle in degrees.
     MeasureAngle,
+    /// Drag a segment to measure deviation from its nearer image axis.
+    MeasureDeviation,
     /// Draw a rectangle ROI and compute mean/std/min/max HU and area.
     RoiRect,
     /// Draw an ellipse ROI and compute mean/std/min/max HU and area.
@@ -40,6 +42,10 @@ pub enum ToolKind {
     LabelErase,
     /// Measure the acute angle between two directed image segments.
     MeasureCobb,
+    /// Draw a closed polygon ROI and compute physical area and perimeter.
+    RoiClosedPolygon,
+    /// Draw an open polygon polyline and compute its physical length.
+    RoiOpenPolygon,
 }
 
 impl ToolKind {
@@ -51,6 +57,7 @@ impl ToolKind {
             ToolKind::WindowLevel => "W/L",
             ToolKind::MeasureLength => "Length",
             ToolKind::MeasureAngle => "Angle",
+            ToolKind::MeasureDeviation => "Deviation",
             ToolKind::RoiRect => "ROI Rect",
             ToolKind::RoiEllipse => "ROI Ellipse",
             ToolKind::Crosshair => "Crosshair",
@@ -58,6 +65,8 @@ impl ToolKind {
             ToolKind::LabelPaint => "Label Paint",
             ToolKind::LabelErase => "Label Erase",
             ToolKind::MeasureCobb => "Cobb Angle",
+            ToolKind::RoiClosedPolygon => "Closed Polygon",
+            ToolKind::RoiOpenPolygon => "Open Polygon",
         }
     }
 
@@ -79,6 +88,9 @@ impl ToolKind {
             ToolKind::MeasureAngle => {
                 "Measure Angle: click three points — the second point is the vertex — \
                  to display the included angle in degrees."
+            }
+            ToolKind::MeasureDeviation => {
+                "Deviation: drag a segment to measure its offset and angle from the closer image axis."
             }
             ToolKind::RoiRect => {
                 "ROI Rectangle: drag a rectangle to compute mean, std, min, max \
@@ -105,6 +117,12 @@ impl ToolKind {
                  back to background with the current brush radius."
             }
             ToolKind::MeasureCobb => "Cobb angle: drag two directional segments.",
+            ToolKind::RoiClosedPolygon => {
+                "Closed polygon: click boundary nodes, then click the first node again."
+            }
+            ToolKind::RoiOpenPolygon => {
+                "Open polygon: click polyline nodes, then press Enter to finish."
+            }
         }
     }
 
@@ -116,6 +134,7 @@ impl ToolKind {
             ToolKind::WindowLevel => "☀",
             ToolKind::MeasureLength => "📏",
             ToolKind::MeasureAngle => "📐",
+            ToolKind::MeasureDeviation => "↕",
             ToolKind::RoiRect => "▭",
             ToolKind::RoiEllipse => "⬭",
             ToolKind::Crosshair => "⊕",
@@ -123,6 +142,8 @@ impl ToolKind {
             ToolKind::LabelPaint => "P",
             ToolKind::LabelErase => "E",
             ToolKind::MeasureCobb => "∠",
+            ToolKind::RoiClosedPolygon => "⬟",
+            ToolKind::RoiOpenPolygon => "〽",
         }
     }
 
@@ -138,6 +159,7 @@ impl ToolKind {
             ToolKind::WindowLevel,
             ToolKind::MeasureLength,
             ToolKind::MeasureAngle,
+            ToolKind::MeasureDeviation,
             ToolKind::RoiRect,
             ToolKind::RoiEllipse,
             ToolKind::Crosshair,
@@ -145,6 +167,8 @@ impl ToolKind {
             ToolKind::LabelPaint,
             ToolKind::LabelErase,
             ToolKind::MeasureCobb,
+            ToolKind::RoiClosedPolygon,
+            ToolKind::RoiOpenPolygon,
         ]
     }
 }

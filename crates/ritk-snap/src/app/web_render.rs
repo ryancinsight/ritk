@@ -27,6 +27,7 @@ impl SnapApp {
             slice_index,
             window_level,
             self.colormap,
+            false,
             scratch,
         )?;
         frame.apply_zoom_pan(self.zoom, self.pan_offset, &mut scratch.rgba)
@@ -53,6 +54,7 @@ impl SnapApp {
                 indices[axis],
                 self.browser_window_level(),
                 self.colormap,
+                false,
                 scratch,
             )?;
             frame.apply_zoom_pan(self.zoom, self.pan_offset, &mut scratch.rgba)?;

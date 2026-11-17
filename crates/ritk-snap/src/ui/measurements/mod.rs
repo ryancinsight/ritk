@@ -6,7 +6,6 @@
 //! |-----------------|----------------|------------|
 //! | Length           | YELLOW         | 1.5 px     |
 //! | Angle            | YELLOW         | 1.5 px     |
-//! | Cobb angle       | YELLOW         | 1.5 px     |
 //! | ROI (rect)       | GREEN          | 1.5 px     |
 //! | HU point         | CYAN           | —          |
 //! | Labels           | WHITE          | —          |
@@ -20,8 +19,10 @@
 
 use egui::{Color32, FontId, Painter, Pos2, Rect, Stroke, Vec2};
 
-use crate::tools::interaction::{Annotation, ImagePoint, RoiKind, ToolState};
+use crate::tools::interaction::{Annotation, ImagePoint, PolygonKind, RoiKind, ToolState};
 use crate::ui::live_preview::{live_angle_deg, live_length_mm};
+
+mod segments;
 
 // ── colour / style constants ──────────────────────────────────────────────────
 
@@ -81,6 +82,33 @@ impl MeasurementLayer {
                 // created them. Orthogonal views must not project them as if
                 // their endpoints were two-dimensional image coordinates.
                 Annotation::PatientLength { .. } => {}
+                Annotation::Deviation {
+                    start,
+                    end,
+                    reference,
+                    distance_mm,
+                    angle_deg,
+                    ..
+                } => segments::draw_deviation(
+                    painter,
+                    [*start, *end, *reference],
+                    *distance_mm,
+                    *angle_deg,
+                    &img_to_screen,
+                ),
+                Annotation::CobbAngle {
+                    p1,
+                    p2,
+                    p3,
+                    p4,
+                    angle_deg,
+                    ..
+                } => segments::draw_cobb_annotation(
+                    painter,
+                    [*p1, *p2, *p3, *p4],
+                    *angle_deg,
+                    &img_to_screen,
+                ),
                 Annotation::Angle {
                     p1,
                     p2,
@@ -91,7 +119,7 @@ impl MeasurementLayer {
                     let sp1 = img_to_screen(egui::pos2((*p1)[1], (*p1)[0]));
                     let sp2 = img_to_screen(egui::pos2((*p2)[1], (*p2)[0]));
                     let sp3 = img_to_screen(egui::pos2((*p3)[1], (*p3)[0]));
-                    draw_angle_annotation(painter, sp1, sp2, sp3, *angle_deg);
+                    segments::draw_angle_annotation(painter, sp1, sp2, sp3, *angle_deg);
                 }
                 Annotation::RoiRect {
                     top_left,
@@ -108,35 +136,51 @@ impl MeasurementLayer {
                     let spos = img_to_screen(egui::pos2((*pos)[1], (*pos)[0]));
                     draw_hu_point(painter, spos, *value);
                 }
-                Annotation::CobbAngle {
-                    p1,
-                    p2,
-                    p3,
-                    p4,
-                    angle_deg,
+                Annotation::ClosedPolygon {
+                    points,
+                    area_mm2,
+                    perimeter_mm,
                     ..
                 } => {
-                    painter.line_segment(
-                        [
-                            img_to_screen(egui::pos2(p1[1], p1[0])),
-                            img_to_screen(egui::pos2(p2[1], p2[0])),
-                        ],
-                        Stroke::new(LINE_WIDTH, COLOR_MEASURE),
-                    );
-                    painter.line_segment(
-                        [
-                            img_to_screen(egui::pos2(p3[1], p3[0])),
-                            img_to_screen(egui::pos2(p4[1], p4[0])),
-                        ],
-                        Stroke::new(LINE_WIDTH, COLOR_MEASURE),
-                    );
-                    painter.text(
-                        img_to_screen(egui::pos2(p2[1], p2[0])) + Vec2::new(8.0, -12.0),
-                        egui::Align2::LEFT_CENTER,
-                        format!("{angle_deg:.1}°"),
-                        label_font(),
-                        COLOR_LABEL,
-                    );
+                    let screen: Vec<Pos2> = points
+                        .iter()
+                        .map(|p| img_to_screen(egui::pos2((*p)[1], (*p)[0])))
+                        .collect();
+                    for pair in screen.windows(2) {
+                        painter
+                            .line_segment([pair[0], pair[1]], Stroke::new(LINE_WIDTH, COLOR_ROI));
+                    }
+                    if let (Some(first), Some(last)) = (screen.first(), screen.last()) {
+                        painter.line_segment([*last, *first], Stroke::new(LINE_WIDTH, COLOR_ROI));
+                        painter.text(
+                            *first + Vec2::new(8.0, -12.0),
+                            egui::Align2::LEFT_CENTER,
+                            format!("{area_mm2:.1} mm²  {perimeter_mm:.1} mm"),
+                            label_font(),
+                            COLOR_LABEL,
+                        );
+                    }
+                }
+                Annotation::OpenPolygon {
+                    points, length_mm, ..
+                } => {
+                    let screen: Vec<Pos2> = points
+                        .iter()
+                        .map(|p| img_to_screen(egui::pos2((*p)[1], (*p)[0])))
+                        .collect();
+                    for pair in screen.windows(2) {
+                        painter
+                            .line_segment([pair[0], pair[1]], Stroke::new(LINE_WIDTH, COLOR_ROI));
+                    }
+                    if let Some(first) = screen.first() {
+                        painter.text(
+                            *first + Vec2::new(8.0, -12.0),
+                            egui::Align2::LEFT_CENTER,
+                            format!("{length_mm:.1} mm"),
+                            label_font(),
+                            COLOR_LABEL,
+                        );
+                    }
                 }
                 Annotation::RoiEllipse {
                     center,
@@ -261,43 +305,46 @@ impl MeasurementLayer {
                     }
                 }
             }
-            ToolState::CobbDrag {
-                segments,
-                start,
-                current,
-            } => {
-                for segment in segments {
-                    painter.line_segment(
-                        [
-                            img_to_screen(egui_point(segment[0])),
-                            img_to_screen(egui_point(segment[1])),
-                        ],
-                        Stroke::new(LINE_WIDTH, COLOR_MEASURE),
-                    );
-                }
-                painter.line_segment(
-                    [
-                        img_to_screen(egui_point(*start)),
-                        img_to_screen(egui_point(*current)),
-                    ],
-                    Stroke::new(LINE_WIDTH, COLOR_MEASURE),
-                );
-            }
-            ToolState::CobbPending { segments } => {
-                for segment in segments {
-                    painter.line_segment(
-                        [
-                            img_to_screen(egui_point(segment[0])),
-                            img_to_screen(egui_point(segment[1])),
-                        ],
-                        Stroke::new(LINE_WIDTH, COLOR_MEASURE),
-                    );
+            ToolState::Polygon { points, kind } => {
+                let mut vertices = points
+                    .as_slice()
+                    .iter()
+                    .map(|point| img_to_screen(egui_point(*point)));
+                if let Some(first) = vertices.next() {
+                    let stroke = Stroke::new(LINE_WIDTH, COLOR_ROI);
+                    let mut last = first;
+                    for vertex in vertices {
+                        painter.line_segment([last, vertex], stroke);
+                        last = vertex;
+                    }
+                    if *kind == PolygonKind::Closed && points.as_slice().len() >= 3 {
+                        painter.line_segment([last, first], stroke);
+                    }
+                    if let Some(cursor) = cursor_screen {
+                        painter.line_segment([last, cursor], stroke);
+                    }
                 }
             }
             // Panning and window-level drag produce no visual annotation.
             ToolState::Panning { .. }
             | ToolState::Zooming { .. }
             | ToolState::WindowLevelDrag { .. } => {}
+            ToolState::DeviationDrag { start, current } => {
+                segments::draw_deviation_preview(painter, [*start, *current], &img_to_screen)
+            }
+            ToolState::CobbDrag {
+                segments: segment_list,
+                start,
+                current,
+            } => {
+                segments::draw_segments(painter, segment_list, &img_to_screen);
+                segments::draw_segment(painter, [*start, *current], &img_to_screen);
+            }
+            ToolState::CobbPending {
+                segments: segment_list,
+            } => {
+                segments::draw_segments(painter, segment_list, &img_to_screen);
+            }
         }
     }
 }
@@ -322,42 +369,6 @@ fn draw_length_annotation(painter: &Painter, p1: Pos2, p2: Pos2, length_mm: f32)
     let offset = perpendicular_offset(p1, p2, 10.0);
     painter.text(
         mid + offset,
-        egui::Align2::CENTER_CENTER,
-        label,
-        label_font(),
-        COLOR_LABEL,
-    );
-}
-
-/// Draw an angle measurement annotation: two rays from the vertex `p2` to
-/// `p1` and `p3`, with a small arc at the vertex and an angle label.
-///
-/// # Label placement
-/// The label is placed along the angle bisector from `p2`, 20 px from the
-/// vertex.
-fn draw_angle_annotation(painter: &Painter, p1: Pos2, p2: Pos2, p3: Pos2, angle_deg: f32) {
-    // Two rays
-    painter.line_segment([p2, p1], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
-    painter.line_segment([p2, p3], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
-    // Endpoint handles
-    painter.circle_filled(p1, HANDLE_RADIUS, COLOR_MEASURE);
-    painter.circle_filled(p2, HANDLE_RADIUS, COLOR_MEASURE);
-    painter.circle_filled(p3, HANDLE_RADIUS, COLOR_MEASURE);
-    // Small arc at the vertex (approximated by a circle outline).
-    painter.circle_stroke(p2, 8.0, Stroke::new(1.0_f32, COLOR_MEASURE));
-    // Label along the angle bisector.
-    let d1 = (p1 - p2).normalized();
-    let d3 = (p3 - p2).normalized();
-    let bisector = if (d1 + d3).length() > 1e-4 {
-        (d1 + d3).normalized()
-    } else {
-        // Degenerate: rays are antiparallel; use perpendicular.
-        Vec2::new(-d1.y, d1.x)
-    };
-    let label_pos = p2 + bisector * 22.0;
-    let label = format!("{:.1}°", angle_deg);
-    painter.text(
-        label_pos,
         egui::Align2::CENTER_CENTER,
         label,
         label_font(),

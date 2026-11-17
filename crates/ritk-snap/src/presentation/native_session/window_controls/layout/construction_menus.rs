@@ -22,12 +22,13 @@ pub(super) const POINTER_BUTTON_ROWS: [(&str, PointerButton); 4] = [
     ("Bind forward button", PointerButton::X2),
 ];
 
-pub(super) const MENU_TABS: [(Menu, &str, u32); 5] = [
+pub(super) const MENU_TABS: [(Menu, &str, u32); 6] = [
     (Menu::File, "File", 54),
     (Menu::View, "View", 58),
     (Menu::Tools, "Tools", 66),
     (Menu::Window, "Window", 78),
     (Menu::Anonymize, "Anonymize", 102),
+    (Menu::Display, "Display", 76),
 ];
 
 pub(super) const ANONYMIZE_ITEMS: [(&str, AnonymizationScope, Deidentification); 4] = {
@@ -52,7 +53,11 @@ pub(super) fn menu_tab_geometry(menu: Menu) -> u32 {
     0
 }
 
-pub(super) fn menu_item_count(menu: Menu, workspace_layout: WorkspaceLayout) -> usize {
+pub(super) fn menu_item_count(
+    menu: Menu,
+    app: &SnapApp,
+    workspace_layout: WorkspaceLayout,
+) -> usize {
     match menu {
         Menu::File => 3,
         Menu::Anonymize => ANONYMIZE_ITEMS.len(),
@@ -71,6 +76,14 @@ pub(super) fn menu_item_count(menu: Menu, workspace_layout: WorkspaceLayout) -> 
                 + POINTER_BUTTON_ROWS.len()
         }
         Menu::Window => 6,
+        Menu::Display => app
+            .browser_window_presets()
+            .len()
+            .saturating_add(1)
+            .saturating_add(crate::render::NamedColorMap::ALL.len())
+            .saturating_add(7)
+            .saturating_add(crate::app::state::MAX_CUSTOM_PRESETS)
+            .saturating_add(1),
         Menu::GridPicker => 0,
     }
 }
@@ -203,6 +216,84 @@ pub(super) fn menu_item(
             )),
             _ => Err(anyhow!("native Window menu row is outside its items")),
         },
+        Menu::Display => {
+            let presets = app.browser_window_presets();
+            if let Some(preset) = presets.get(index) {
+                return Ok((
+                    preset.name,
+                    WindowAction::ApplyWindowPreset { index },
+                    app.browser_window_preset_index() == Some(index),
+                ));
+            }
+            if index == presets.len() {
+                return Ok((
+                    "Invert display  I",
+                    WindowAction::ToggleInvert,
+                    app.invert_display,
+                ));
+            }
+            let colormap_index = index.saturating_sub(presets.len().saturating_add(1));
+            if colormap_index < crate::render::NamedColorMap::ALL.len() {
+                let map = crate::render::NamedColorMap::ALL[colormap_index];
+                return Ok((
+                    map.label(),
+                    WindowAction::SetColormap(map),
+                    app.colormap == map,
+                ));
+            }
+            let transform = app.view_transform;
+            match index
+                .saturating_sub(
+                    presets
+                        .len()
+                        .saturating_add(1)
+                        .saturating_add(crate::render::NamedColorMap::ALL.len()),
+                )
+                .saturating_add(1)
+            {
+                1 => Ok((
+                    "Flip horizontal  H",
+                    WindowAction::FlipHorizontal,
+                    transform.flip_h,
+                )),
+                2 => Ok((
+                    "Flip vertical  V",
+                    WindowAction::FlipVertical,
+                    transform.flip_v,
+                )),
+                3 => Ok(("Rotate 90 CW  R", WindowAction::RotateCw, false)),
+                4 => Ok(("Rotate 90 CCW  Shift+R", WindowAction::RotateCcw, false)),
+                5 => Ok((
+                    "Reset orientation  O",
+                    WindowAction::ResetOrientation,
+                    false,
+                )),
+                6 => Ok(("Zoom to fit  Ctrl+0", WindowAction::ZoomFit, false)),
+                7 => Ok(("Zoom 1:1", WindowAction::ZoomOneToOne, false)),
+                8 => Ok((
+                    "Save W/L as custom...",
+                    WindowAction::SaveCustomPreset { index: None },
+                    false,
+                )),
+                _ => {
+                    let custom = index.saturating_sub(
+                        presets
+                            .len()
+                            .saturating_add(1)
+                            .saturating_add(crate::render::NamedColorMap::ALL.len())
+                            .saturating_add(8),
+                    );
+                    let label = crate::app::state::CUSTOM_PRESET_LABELS
+                        .get(custom)
+                        .ok_or_else(|| anyhow!("native Display menu row is outside its items"))?;
+                    Ok((
+                        label,
+                        WindowAction::ApplyCustomPreset { index: custom },
+                        app.custom_preset_index() == Some(custom),
+                    ))
+                }
+            }
+        }
         Menu::GridPicker => Err(anyhow!("panel grid picker has no menu rows")),
     }
 }

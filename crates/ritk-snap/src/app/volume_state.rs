@@ -119,7 +119,6 @@ impl SnapApp {
             self.projection_backend = ProjectionBackend::Pending;
         }
         self.status_message = status_msg;
-        #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
         self.refresh_cached_histogram();
         info!("{}", self.status_message);
     }
@@ -290,7 +289,6 @@ impl SnapApp {
         self.status_message = "Study closed.".to_owned();
     }
 
-    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     pub(crate) fn refresh_cached_histogram(&mut self) {
         use crate::render::histogram::compute_histogram;
 

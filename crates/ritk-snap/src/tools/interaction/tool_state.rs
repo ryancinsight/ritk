@@ -2,6 +2,7 @@
 
 use super::super::kind::ToolKind;
 use super::{ImagePoint, ViewportOffset};
+use metis_ui_lang::PathCapture;
 
 // ── In-progress tool state ────────────────────────────────────────────────────
 
@@ -65,6 +66,14 @@ pub enum ToolState {
         current: ImagePoint,
     },
 
+    /// Single-segment deviation drag.
+    DeviationDrag {
+        /// Segment start in image pixels.
+        start: ImagePoint,
+        /// Current endpoint in image pixels.
+        current: ImagePoint,
+    },
+
     /// ROI drag in progress.
     RoiDrag {
         /// Drag start in image pixel coordinates `[row, col]`.
@@ -89,6 +98,13 @@ pub enum ToolState {
         /// Completed segment endpoints.
         segments: Vec<[ImagePoint; 2]>,
     },
+    /// Polygon nodes awaiting confirmation.
+    Polygon {
+        /// Bounded user-supplied vertices.
+        points: PathCapture<ImagePoint>,
+        /// Whether the path closes into an area or remains a polyline.
+        kind: PolygonKind,
+    },
 }
 
 /// Discriminant for the two supported ROI shapes.
@@ -96,6 +112,13 @@ pub enum ToolState {
 pub enum RoiKind {
     Rect,
     Ellipse,
+}
+
+/// Polygon annotation gesture kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PolygonKind {
+    Closed,
+    Open,
 }
 
 impl ToolState {
@@ -113,6 +136,7 @@ impl ToolState {
                 | ToolState::WindowLevelDrag { .. }
                 | ToolState::RoiDrag { .. }
                 | ToolState::LengthDrag { .. }
+                | ToolState::DeviationDrag { .. }
                 | ToolState::CobbDrag { .. }
         )
     }
@@ -123,6 +147,7 @@ impl ToolState {
             self,
             ToolState::MeasureLength1 { .. }
                 | ToolState::MeasureAngle2 { .. }
+                | ToolState::Polygon { .. }
                 | ToolState::CobbPending { .. }
         )
     }
@@ -137,9 +162,19 @@ impl ToolState {
             ToolState::MeasureLength1 { .. } | ToolState::LengthDrag { .. } => {
                 Some(ToolKind::MeasureLength)
             }
+            ToolState::DeviationDrag { .. } => Some(ToolKind::MeasureDeviation),
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
-            ToolState::CobbDrag { .. } => Some(ToolKind::MeasureCobb),
-            ToolState::CobbPending { .. } => Some(ToolKind::MeasureCobb),
+            ToolState::CobbDrag { .. } | ToolState::CobbPending { .. } => {
+                Some(ToolKind::MeasureCobb)
+            }
+            ToolState::Polygon {
+                kind: PolygonKind::Closed,
+                ..
+            } => Some(ToolKind::RoiClosedPolygon),
+            ToolState::Polygon {
+                kind: PolygonKind::Open,
+                ..
+            } => Some(ToolKind::RoiOpenPolygon),
             ToolState::RoiDrag {
                 kind: RoiKind::Rect,
                 ..

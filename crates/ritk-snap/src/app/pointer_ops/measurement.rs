@@ -1,9 +1,95 @@
 //! Completed measurements and slice geometry.
 
 use super::SnapApp;
-use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, MeasurementError};
+use crate::tools::interaction::{
+    Annotation, AnnotationLocation, ImagePoint, MeasurementError, PolygonKind, ToolState,
+};
+use metis_ui_lang::PathCapture;
 
 impl SnapApp {
+    pub(in crate::app) fn finish_pending_polygon(&mut self) -> bool {
+        let ToolState::Polygon { points, kind } = &self.tool_state else {
+            return false;
+        };
+        if self
+            .pointer
+            .pending_measurement_location
+            .is_some_and(|location| location != self.annotation_location())
+        {
+            self.tool_state = ToolState::Idle;
+            self.pointer.pending_measurement_location = None;
+            return true;
+        }
+        let minimum = match kind {
+            PolygonKind::Closed => 3,
+            PolygonKind::Open => 2,
+        };
+        if points.as_slice().len() < minimum {
+            self.status_message = format!("Polygon needs at least {minimum} points");
+            return true;
+        }
+        if let ToolState::Polygon { points, kind } =
+            std::mem::replace(&mut self.tool_state, ToolState::Idle)
+        {
+            self.finalise_polygon(points, kind);
+        }
+        self.pointer.pending_measurement_location = None;
+        true
+    }
+
+    pub(super) fn finalise_polygon(&mut self, capture: PathCapture<ImagePoint>, kind: PolygonKind) {
+        let spacing = match self
+            .slice_plane_spacing()
+            .and_then(Annotation::validate_spacing)
+        {
+            Ok(spacing) => spacing,
+            Err(error) => {
+                self.status_message = format!("Measurement rejected: {error}");
+                return;
+            }
+        };
+        let points: Vec<[f32; 2]> = capture
+            .into_vec()
+            .into_iter()
+            .map(|point| [point.y(), point.x()])
+            .collect();
+        let polyline_mm = Annotation::compute_polyline_length(&points, spacing);
+        match kind {
+            PolygonKind::Closed => {
+                let Some(first) = points.first().copied() else {
+                    return;
+                };
+                let Some(last) = points.last().copied() else {
+                    return;
+                };
+                let area_mm2 = Annotation::compute_polygon_area(&points, spacing);
+                let perimeter_mm = polyline_mm + Annotation::compute_length(last, first, spacing);
+                if !area_mm2.is_finite() || !perimeter_mm.is_finite() {
+                    self.status_message = "Polygon measurement exceeds the supported range".into();
+                    return;
+                }
+                self.push_annotation(Annotation::ClosedPolygon {
+                    location: None,
+                    points,
+                    area_mm2,
+                    perimeter_mm,
+                });
+            }
+            PolygonKind::Open => {
+                if !polyline_mm.is_finite() {
+                    self.status_message = "Polygon measurement exceeds the supported range".into();
+                    return;
+                }
+                self.push_annotation(Annotation::OpenPolygon {
+                    location: None,
+                    points,
+                    length_mm: polyline_mm,
+                });
+                self.status_message = format!("Open polygon: {polyline_mm:.2} mm");
+            }
+        }
+    }
+
     pub(super) fn push_annotation(&mut self, annotation: Annotation) {
         self.annotations
             .push(annotation.with_location(self.annotation_location()));
@@ -38,6 +124,39 @@ impl SnapApp {
                 self.status_message = format!("Measurement rejected: {error}");
             }
         }
+    }
+
+    /// Record a one-drag deviation from the nearer image axis.
+    pub(super) fn finalise_deviation(&mut self, start: ImagePoint, end: ImagePoint) {
+        let spacing = match self
+            .slice_plane_spacing()
+            .and_then(Annotation::validate_spacing)
+        {
+            Ok(spacing) => spacing,
+            Err(error) => {
+                self.status_message = format!("Measurement rejected: {error}");
+                return;
+            }
+        };
+        let start = [start.y(), start.x()];
+        let end = [end.y(), end.x()];
+        let (reference, distance_mm, angle_deg) =
+            match Annotation::compute_deviation_with_angle(start, end, spacing) {
+                Ok(measured) => measured,
+                Err(error) => {
+                    self.status_message = format!("Measurement rejected: {error}");
+                    return;
+                }
+            };
+        self.push_annotation(Annotation::Deviation {
+            location: None,
+            start,
+            end,
+            reference,
+            distance_mm,
+            angle_deg,
+        });
+        self.status_message = format!("Deviation: {distance_mm:.2} mm at {angle_deg:.1} deg");
     }
 
     /// Compute ROI rect statistics for the pixel region between `start` and

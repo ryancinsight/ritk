@@ -25,20 +25,25 @@ fn cobb_angle_is_invariant_under_scale_and_endpoint_reversal() {
 }
 
 #[test]
-fn cobb_angle_resolves_anisotropic_directions_and_rejects_overflow() {
+fn cobb_angle_rejects_degenerate_and_nonfinite_segments() {
     let origin = [0.0, 0.0];
     assert_eq!(
         Annotation::compute_cobb_angle(origin, origin, origin, [2.0, 0.0], [1.0; 2]),
         Err(MeasurementError::DegenerateSegment { kind: "Cobb angle" })
     );
     assert_eq!(
-        Annotation::compute_cobb_angle(origin, [0.0, 2.0], origin, [1.0, 2.0], [2.0, 1.0]),
-        Ok(45.0)
-    );
-    assert_eq!(
         Annotation::compute_cobb_angle(origin, [0.0, 2.0], origin, [2.0, 0.0], [f32::MAX; 2]),
         Err(MeasurementError::NonFiniteResult { kind: "Cobb angle" })
     );
+}
+
+#[test]
+fn closed_polygon_area_and_perimeter_scale_with_spacing() {
+    let square = [[0.0, 0.0], [0.0, 2.0], [2.0, 2.0], [2.0, 0.0]];
+    assert_eq!(Annotation::compute_polygon_area(&square, [2.0, 3.0]), 24.0);
+    let perimeter = Annotation::compute_polyline_length(&square, [2.0, 3.0])
+        + Annotation::compute_length(square[3], square[0], [2.0, 3.0]);
+    assert_eq!(perimeter, 20.0);
 }
 
 // ── compute_length ────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@ mod measurement;
 
 use super::state::SnapApp;
 use crate::render::NamedColorMap;
-use crate::tools::interaction::{Annotation, ImagePoint, RoiKind, ToolState};
+use crate::tools::interaction::{Annotation, ImagePoint, PolygonKind, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
@@ -11,6 +11,7 @@ use crate::ui::{
     zoom_from_drag_delta, WINDOW_LEVEL_SENSITIVITY,
 };
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
+use metis_ui_lang::{PathCapture, PathPush};
 
 // ── Pointer / interaction event handlers ───────────────────────────────────
 
@@ -57,6 +58,10 @@ impl SnapApp {
                 start: pos,
                 current: pos,
             },
+            ToolKind::MeasureDeviation => ToolState::DeviationDrag {
+                start: pos,
+                current: pos,
+            },
             ToolKind::MeasureCobb => ToolState::CobbDrag {
                 segments: match self.tool_state.clone() {
                     ToolState::CobbPending { segments }
@@ -77,7 +82,10 @@ impl SnapApp {
         }
         self.pointer.drag_measurement_location = matches!(
             gesture,
-            ToolState::LengthDrag { .. } | ToolState::RoiDrag { .. } | ToolState::CobbDrag { .. }
+            ToolState::LengthDrag { .. }
+                | ToolState::DeviationDrag { .. }
+                | ToolState::RoiDrag { .. }
+                | ToolState::CobbDrag { .. }
         )
         .then(|| self.annotation_location());
         self.tool_state = gesture;
@@ -130,6 +138,24 @@ impl SnapApp {
                     current: pos,
                 };
             }
+            ToolState::MeasureLength1 { p1 }
+                if self.active_tool == ToolKind::MeasureLength
+                    && self.pointer.pending_measurement_location
+                        == Some(self.annotation_location()) =>
+            {
+                self.pointer.drag_measurement_location =
+                    self.pointer.pending_measurement_location.take();
+                self.tool_state = ToolState::LengthDrag {
+                    start: p1,
+                    current: pos,
+                };
+            }
+            ToolState::DeviationDrag { start, .. } => {
+                self.tool_state = ToolState::DeviationDrag {
+                    start,
+                    current: pos,
+                };
+            }
             ToolState::CobbDrag {
                 segments, start, ..
             } => {
@@ -153,6 +179,7 @@ impl SnapApp {
                 self.tool_state,
                 ToolState::RoiDrag { .. }
                     | ToolState::LengthDrag { .. }
+                    | ToolState::DeviationDrag { .. }
                     | ToolState::CobbDrag { .. }
             ) {
                 self.on_drag(pos);
@@ -174,6 +201,9 @@ impl SnapApp {
                 }
                 ToolState::LengthDrag { start, current } if start != current => {
                     self.record_length(start, current);
+                }
+                ToolState::DeviationDrag { start, current } if start != current => {
+                    self.finalise_deviation(start, current);
                 }
                 ToolState::CobbDrag {
                     mut segments,
@@ -305,6 +335,32 @@ impl SnapApp {
                     self.tool_state = ToolState::MeasureLength1 { p1: pos };
                 }
             },
+            ToolKind::RoiClosedPolygon | ToolKind::RoiOpenPolygon => {
+                if let ToolState::Polygon { points, kind } = &mut self.tool_state {
+                    let samples = points.as_slice();
+                    let closes = *kind == PolygonKind::Closed
+                        && samples.len() >= 3
+                        && samples.first().is_some_and(|point| {
+                            let dx = f64::from(point.x()) - f64::from(pos.x());
+                            let dy = f64::from(point.y()) - f64::from(pos.y());
+                            dx.hypot(dy) <= 6.0
+                        });
+                    if closes {
+                        self.finish_pending_polygon();
+                    } else if matches!(points.push(pos), PathPush::Full) {
+                        self.status_message = "Polygon sample limit reached".to_owned();
+                    }
+                } else {
+                    self.tool_state = ToolState::Polygon {
+                        points: PathCapture::new(pos),
+                        kind: if self.active_tool == ToolKind::RoiOpenPolygon {
+                            PolygonKind::Open
+                        } else {
+                            PolygonKind::Closed
+                        },
+                    };
+                }
+            }
             ToolKind::PointHu => {
                 if let Some(vol) = &self.loaded {
                     let Some(voxel) =

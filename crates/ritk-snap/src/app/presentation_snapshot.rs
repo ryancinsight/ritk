@@ -39,6 +39,9 @@ impl SnapApp {
             Annotation::Angle { angle_deg, .. } => {
                 AnnotationSummary::new(AnnotationKind::Angle, f64::from(*angle_deg))
             }
+            Annotation::Deviation { distance_mm, .. } => {
+                AnnotationSummary::new(AnnotationKind::Deviation, f64::from(*distance_mm))
+            }
             Annotation::RoiRect { area_mm2, .. } => {
                 AnnotationSummary::new(AnnotationKind::RoiRect, f64::from(*area_mm2))
             }
@@ -50,6 +53,12 @@ impl SnapApp {
             }
             Annotation::CobbAngle { angle_deg, .. } => {
                 AnnotationSummary::new(AnnotationKind::CobbAngle, f64::from(*angle_deg))
+            }
+            Annotation::ClosedPolygon { area_mm2, .. } => {
+                AnnotationSummary::new(AnnotationKind::ClosedPolygon, f64::from(*area_mm2))
+            }
+            Annotation::OpenPolygon { length_mm, .. } => {
+                AnnotationSummary::new(AnnotationKind::OpenPolygon, f64::from(*length_mm))
             }
         });
         PresentationSnapshot::from_parts(

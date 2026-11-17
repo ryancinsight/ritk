@@ -151,6 +151,7 @@ fn native_anonymize_uses_active_pane_series_and_its_study() {
     session
         .open_selected_series(&[ct, mr])
         .expect("load both panes");
+    session.wait_for_series_loads();
     assert!(session.activate_next_panel().expect("activate MR pane"));
 
     let parent = tempfile::tempdir().expect("export parent");

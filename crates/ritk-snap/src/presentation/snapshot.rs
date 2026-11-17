@@ -12,12 +12,18 @@ pub enum AnnotationKind {
     Length,
     /// A three-point angle measurement.
     Angle,
+    /// A baseline deviation measurement.
+    Deviation,
     /// A rectangle region-of-interest statistic.
     RoiRect,
     /// An ellipse region-of-interest statistic.
     RoiEllipse,
     /// A single-point intensity measurement.
     HuPoint,
+    /// A closed polygon area measurement.
+    ClosedPolygon,
+    /// An open polygon polyline length measurement.
+    OpenPolygon,
     /// A three-dimensional length measured in DICOM patient space.
     PatientLength,
     /// A Cobb angle.
@@ -32,10 +38,13 @@ impl AnnotationKind {
             Self::Length => "length",
             Self::PatientLength => "patient-length",
             Self::Angle => "angle",
+            Self::Deviation => "deviation",
             Self::RoiRect => "roi-rect",
             Self::RoiEllipse => "roi-ellipse",
             Self::HuPoint => "hu-point",
             Self::CobbAngle => "cobb-angle",
+            Self::ClosedPolygon => "closed-polygon",
+            Self::OpenPolygon => "open-polygon",
         }
     }
 }

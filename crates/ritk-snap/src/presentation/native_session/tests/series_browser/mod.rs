@@ -54,7 +54,7 @@ fn replacement_study() -> tempfile::TempDir {
     root
 }
 
-fn four_series_study() -> tempfile::TempDir {
+pub(super) fn four_series_study() -> tempfile::TempDir {
     let root = tempfile::tempdir().expect("four-series study root");
     let ct = acquisition_samples(fixtures::SERIES_UID);
     let mr = acquisition_samples(SECOND_SERIES_UID);
@@ -75,7 +75,7 @@ fn four_series_study() -> tempfile::TempDir {
 /// this fails if a panel renders another series' pixels — the cross-wiring the
 /// previous `assert_ne!(BLACK)` check could not detect, because it accepted any
 /// non-empty rendering.
-fn assert_panel_displays_its_own_pixels(
+pub(super) fn assert_panel_displays_its_own_pixels(
     viewer: &crate::presentation::native_session::NativeViewerSession,
     expected_uids: &[&str],
 ) {
