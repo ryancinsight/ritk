@@ -117,6 +117,18 @@ impl SnapApp {
                     current: pos,
                 };
             }
+            ToolState::MeasureLength1 { p1 }
+                if self.active_tool == ToolKind::MeasureLength
+                    && self.pointer.pending_measurement_location
+                        == Some(self.annotation_location()) =>
+            {
+                self.pointer.drag_measurement_location =
+                    self.pointer.pending_measurement_location.take();
+                self.tool_state = ToolState::LengthDrag {
+                    start: p1,
+                    current: pos,
+                };
+            }
             _ => {}
         }
     }
