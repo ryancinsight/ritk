@@ -31,6 +31,9 @@ impl WindowChrome {
             self.cancel_pointer_capture();
             return Ok(WindowChromeEvent::passed());
         }
+        if let Some(event) = self.edit_calibration(event) {
+            return Ok(event);
+        }
         if workspace_layout.is_grid()
             && self.multi_series_dialog.is_none()
             && matches!(
@@ -218,6 +221,9 @@ impl WindowChrome {
                         self.pointer_owner = PointerOwner::Chrome;
                         self.press(*button);
                         let action = layout.action_at(*x, *y, browser.as_ref());
+                        if action == Some(WindowAction::LengthCalibration) {
+                            return Ok(self.open_calibration(app, active_panel));
+                        }
                         if let Some(WindowAction::OpenMenu(menu)) = action {
                             self.open_menu = (self.open_menu != Some(menu)).then_some(menu);
                             return Ok(WindowChromeEvent::consumed(true));

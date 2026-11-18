@@ -1,5 +1,6 @@
 //! RITK-owned controls rendered in the visible Métis native client area.
 
+mod calibration;
 mod events;
 mod key_bindings;
 mod layout;
@@ -65,6 +66,12 @@ pub(super) enum WindowAction {
         panel_index: usize,
     },
     SelectTool(ToolKind),
+    LengthCalibration,
+    ApplyLengthCalibration {
+        panel: usize,
+        reference: crate::app::LengthCalibrationReference,
+        known_mm: Option<u32>,
+    },
     AssignPointerTool {
         button: PointerButton,
         tool: ToolKind,
@@ -141,6 +148,7 @@ pub(super) struct WindowChrome {
     visible: bool,
     open_menu: Option<Menu>,
     multi_series_dialog: Option<MultiSeriesDialog>,
+    calibration: Option<calibration::CalibrationDialog>,
     show_series_preview: bool,
     control_down: bool,
     pointer_owner: PointerOwner,
@@ -153,6 +161,7 @@ impl WindowChrome {
             visible,
             open_menu: None,
             multi_series_dialog: None,
+            calibration: None,
             show_series_preview: true,
             control_down: false,
             pointer_owner: PointerOwner::None,
@@ -264,6 +273,9 @@ impl WindowChrome {
         )?;
         if let (Some(dialog), Some(browser)) = (&self.multi_series_dialog, browser.as_deref()) {
             dialog.render(framebuffer, browser)?;
+        }
+        if let Some(dialog) = &self.calibration {
+            dialog.render(framebuffer)?;
         }
         Ok(())
     }

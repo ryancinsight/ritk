@@ -64,6 +64,19 @@ readouts and orientation letters in wide and narrow panes.
 4. Scroll to another slice and back. The measurements appear on the slice
    where you drew them.
 
+### Calibrate a length on one image
+
+1. Measure a reference of known length with **Tools → Length**.
+2. Choose **Tools → Calibrate last distance…**. Enter the known distance in
+   millimetres and press **Enter**. **Esc** cancels.
+3. Check the labels on that image. If a 5 mm reading is calibrated to
+   10 mm, a 3 mm reading on that image becomes 6 mm.
+4. Scroll to another slice and back. Choose **Tools → Reset length
+   calibration** on the reference image to restore image-spacing readings.
+
+Calibration lasts for the current viewer session. Saved sessions retain
+the measurements based on the original image spacing.
+
 ### Trace an open path and a closed outline
 
 1. Press **O** or choose **Tools → Open Polygon**. Click at least two
@@ -104,6 +117,7 @@ cargo nextest run --locked -p ritk-snap -E '
   or test(transform_keys_route_orientation_and_repaint)
   or test(native_toolbar_length_then_drag_records_measurement)
   or test(native_length_preview_draws_only_on_its_owning_slice)
+  or test(native_length_calibration_scales_labels_and_resets)
   or test(length_measurement_first_click_then_drag_completes_through_the_adapter)
   or test(deviation_measurement_completes_from_one_pointer_drag)
   or test(open_polygon_enter_commits_physical_length_and_consumes_release)
@@ -114,8 +128,8 @@ cargo nextest run --locked -p ritk-snap -E '
 '
 ```
 
-Manual length calibration, Arrow, Pencil, Cobb angle, polygon edge insertion,
-and double-click completion are tracked in the
+Arrow, Pencil, Cobb angle, polygon edge insertion, and double-click completion
+are tracked in the
 [native measurement work](../../backlog.md#RITK-SNAP-NATIVE-MEASURE-SET-001).
 
 ## Actual application gallery

@@ -31,7 +31,10 @@ impl SnapApp {
             .expect("invariant: active tool belongs to ToolKind::all");
         let last_annotation = self.annotations.last().map(|annotation| match annotation {
             Annotation::Length { length_mm, .. } => {
-                AnnotationSummary::new(AnnotationKind::Length, f64::from(*length_mm))
+                let length_mm = f64::from(*length_mm);
+                #[cfg(windows)]
+                let length_mm = length_mm * self.length_scale(annotation.location());
+                AnnotationSummary::new(AnnotationKind::Length, length_mm)
             }
             Annotation::PatientLength { length, .. } => {
                 AnnotationSummary::new(AnnotationKind::PatientLength, length.length_mm())

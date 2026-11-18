@@ -74,6 +74,7 @@ pub(super) fn menu_item_count(
                 .filter(|tool| !(workspace_layout.is_grid() && **tool == ToolKind::Crosshair))
                 .count()
                 + POINTER_BUTTON_ROWS.len()
+                + usize::from(app.has_length_calibration() || app.can_calibrate_length())
         }
         Menu::Window => 6,
         Menu::Display => app
@@ -171,8 +172,18 @@ pub(super) fn menu_item(
                     app.active_tool == tool,
                 ));
             }
+            let calibrated = app.has_length_calibration();
+            let calibration_row = calibrated || app.can_calibrate_length();
+            if calibration_row && index == tool_rows {
+                let label = if calibrated {
+                    "Reset length calibration"
+                } else {
+                    "Calibrate last distance..."
+                };
+                return Ok((label, WindowAction::LengthCalibration, false));
+            }
             let (label, button) = POINTER_BUTTON_ROWS
-                .get(index - tool_rows)
+                .get(index - tool_rows - usize::from(calibration_row))
                 .ok_or_else(|| anyhow!("native Tools menu row is outside its items"))?;
             Ok((
                 label,
