@@ -3,6 +3,7 @@ use super::super::viewer_viewport::ViewerViewport;
 use crate::presentation::ViewportPoint;
 use crate::tools::interaction::{Annotation, ImagePoint};
 use eunomia::FloatElement;
+use metis_platform::rasterizer::MAX_STROKE_POINTS;
 use metis_ui_lang::{nearest_polyline_segment, nearest_polyline_vertex, PathTopology};
 
 pub(super) fn nearest_node(
@@ -68,7 +69,10 @@ pub(super) fn insert_node(
         let (points, topology) = super::super::polygon_selection::polygon_path(&candidate)?;
         let next = match topology {
             PathTopology::Open => points.get(edge + 1).copied()?,
-            PathTopology::Closed => points.get(edge + 1).copied().unwrap_or(points[0]),
+            PathTopology::Closed => points
+                .get(edge + 1)
+                .copied()
+                .or_else(|| points.first().copied())?,
         };
         (*points.get(edge)?, next)
     };
@@ -77,8 +81,14 @@ pub(super) fn insert_node(
         start[0] + (next[0] - start[0]) * fraction,
         start[1] + (next[1] - start[1]) * fraction,
     ];
+    if point == start || point == next {
+        return None;
+    }
     match &mut candidate {
         Annotation::ClosedPolygon { points, .. } | Annotation::OpenPolygon { points, .. } => {
+            if points.len() >= MAX_STROKE_POINTS {
+                return None;
+            }
             points.insert(edge + 1, point);
         }
         _ => return None,
@@ -170,5 +180,6 @@ mod tests {
     #[test]
     fn endpoint_insertion_is_rejected() {
         assert_eq!(insert_node(&open(), 0, 0.0, [1.0, 1.0]), None);
+        assert_eq!(insert_node(&open(), 0, 1.0, [1.0, 1.0]), None);
     }
 }
