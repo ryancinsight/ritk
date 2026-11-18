@@ -87,6 +87,12 @@ impl SnapApp {
 
     pub(crate) fn on_drag(&mut self, pos: Option<ImagePoint>) {
         let Some(pos) = pos else { return };
+        if let ToolState::PencilDrag { capture } = &mut self.tool_state {
+            if matches!(capture.push(pos), PathPush::Full) {
+                self.status_message = "Pencil sample limit reached".to_owned();
+            }
+            return;
+        }
         match self.tool_state.clone() {
             ToolState::Panning {
                 start,
@@ -156,7 +162,6 @@ impl SnapApp {
                     current: pos,
                 };
             }
-            ToolState::PencilDrag { .. } => self.pencil_drag(pos),
             _ => {}
         }
     }
