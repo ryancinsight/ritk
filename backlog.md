@@ -111,3 +111,4 @@
 <a id="RITK-SNAP-CUSTOM-WINDOW-001"></a>- [RITK-SNAP-CUSTOM-WINDOW-001](backlog/RITK-SNAP-CUSTOM-WINDOW-001.md) — Retain precise custom window settings — todo
 <a id="RITK-SNAP-LARGE-STUDY-001"></a>- [RITK-SNAP-LARGE-STUDY-001](backlog/RITK-SNAP-LARGE-STUDY-001.md) — Measure native study resource bounds — todo
 <a id="RITK-SNAP-ZOOM-SCALE-001"></a>- [RITK-SNAP-ZOOM-SCALE-001](backlog/RITK-SNAP-ZOOM-SCALE-001.md) — Correct the pixel-scale zoom preset — todo
+<a id="RITK-SNAP-NATIVE-DISPLAY-001"></a>- [RITK-SNAP-NATIVE-DISPLAY-001](backlog/RITK-SNAP-NATIVE-DISPLAY-001.md) — Finish native display actions — todo

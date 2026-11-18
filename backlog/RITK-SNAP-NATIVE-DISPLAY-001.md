@@ -1,10 +1,10 @@
 <a id="RITK-SNAP-NATIVE-DISPLAY-001"></a>
 ## RITK-SNAP-NATIVE-DISPLAY-001 — Route display controls in the native shell — todo
-- outcome: Window presets with number keys, negative mode, color maps, and custom presets are reachable from native menus and keys. Rotate 90 CW/CCW, 180, flip horizontal/vertical, fit and 1:1 sizing are reachable from native menus and change the presented pixels. The window panel shows a log-scaled intensity histogram with the window and level marked. A colorbar labels the window range beside each pane, and flip, rotate and fit have assigned keys.
-- acceptance: Native tests assert the window values each preset applies per modality, inverted output pixels, and the rendered color-map output. Native tests assert the transformed corner pixels and that image-point mapping stays exact under each transform.
-- scope: `crates/ritk-snap/src/presentation/native_session/window_controls/**`, `crates/ritk-snap/src/presentation/native_session/window_actions.rs`, `crates/ritk-snap/src/ui/window_presets/`, `crates/ritk-snap/src/presentation/native_session/window_actions.rs`, `crates/ritk-snap/src/presentation/native_session/window_controls/layout/construction.rs`, `crates/ritk-snap/src/ui/histogram.rs`
-- next: Add `WindowAction` variants over the existing preset library. Deleted shell source: `414da7491:crates/ritk-snap/src/ui/colorbar.rs`, `414da7491:crates/ritk-snap/src/ui/preset_panel.rs`, `414da7491:crates/ritk-snap/src/app/shortcuts.rs`, `414da7491:crates/ritk-snap/src/app/panels.rs`.
-- basis: 30b8ba098
-- needs: none
+- outcome: Finish the explicit 180-degree display action and correct pixel-scale sizing; retain delivered presets, colormaps, histogram, inversion, and orientation controls.
+- acceptance: Native menu tests assert a direct 180-degree action and transformed corner pixels; pixel-scale correction meets RITK-SNAP-ZOOM-SCALE-001.
+- scope: crates/ritk-snap/src/presentation/native_session/window_actions.rs, crates/ritk-snap/src/presentation/native_session/window_controls/, crates/ritk-snap/src/presentation/native_session/tests/display_controls.rs
+- next: Add the remaining direct rotation action and reuse the corrected zoom policy; existing preset and transform tests remain unchanged.
+- basis: 30ade461c3cbf50a286111a44213e195c2fe5d95
+- needs: RITK-SNAP-ZOOM-SCALE-001
 - milestone: M-viewer-reading
 - priority: feature
