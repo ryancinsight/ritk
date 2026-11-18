@@ -78,6 +78,11 @@ impl MeasurementLayer {
                     let sp2 = img_to_screen(egui::pos2((*p2)[1], (*p2)[0]));
                     draw_length_annotation(painter, sp1, sp2, *length_mm);
                 }
+                Annotation::Arrow { tail, head, .. } => {
+                    let tail = img_to_screen(egui::pos2((*tail)[1], (*tail)[0]));
+                    let head = img_to_screen(egui::pos2((*head)[1], (*head)[0]));
+                    segments::draw_arrow(painter, tail, head);
+                }
                 // Patient-space annotations require the reslice plane that
                 // created them. Orthogonal views must not project them as if
                 // their endpoints were two-dimensional image coordinates.
@@ -318,6 +323,11 @@ impl MeasurementLayer {
             | ToolState::WindowLevelDrag { .. } => {}
             ToolState::DeviationDrag { start, current } => {
                 segments::draw_deviation_preview(painter, [*start, *current], &img_to_screen)
+            }
+            ToolState::ArrowDrag { start, current } => {
+                let tail = img_to_screen(egui_point(*start));
+                let head = img_to_screen(egui_point(*current));
+                segments::draw_arrow(painter, tail, head);
             }
         }
     }

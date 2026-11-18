@@ -49,7 +49,7 @@ fn grid_measurement_draws_on_its_slice_and_disappears_on_the_adjacent_slice() {
     session.refresh_frame().expect("compose the adjacent slice");
     assert_ne!(session.framebuffer.get_pixel(x, y), measurement_color);
 }
-fn draw_lines(commands: &[DisplayCommand]) -> Vec<((i32, i32), (i32, i32))> {
+pub(super) fn draw_lines(commands: &[DisplayCommand]) -> Vec<((i32, i32), (i32, i32))> {
     commands
         .iter()
         .filter_map(|command| match command {
@@ -69,7 +69,7 @@ fn draw_texts(commands: &[DisplayCommand]) -> Vec<String> {
         .collect()
 }
 
-fn axial_panel(session: &NativeViewerSession) -> (usize, f64, f64, f64, f64) {
+pub(super) fn axial_panel(session: &NativeViewerSession) -> (usize, f64, f64, f64, f64) {
     let index = session
         .views
         .iter()
@@ -87,7 +87,10 @@ fn axial_panel(session: &NativeViewerSession) -> (usize, f64, f64, f64, f64) {
     )
 }
 
-fn composed(session: &NativeViewerSession, affine: Option<AffineTransform>) -> Vec<DisplayCommand> {
+pub(super) fn composed(
+    session: &NativeViewerSession,
+    affine: Option<AffineTransform>,
+) -> Vec<DisplayCommand> {
     let mut overlay = OverlayCommands::with_capacity(session.app.annotations.len() * 2 + 8)
         .expect("reserve the measurement overlay commands");
     append_measurement_overlay(

@@ -8,7 +8,7 @@
 use super::eframe::EguiApp;
 use super::image_placement::ImagePlacement;
 use crate::render::WindowLevel;
-use crate::tools::interaction::Annotation;
+use crate::tools::interaction::{Annotation, ToolState};
 use crate::ui::overlay::{OverlayContext, OverlayRenderer};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 use crate::{
@@ -317,9 +317,17 @@ impl EguiApp {
                     source_to_screen,
                 );
             }
+            let tool_state = match self.tool_state {
+                ToolState::ArrowDrag { .. }
+                    if self.pointer.drag_measurement_location != Some(location) =>
+                {
+                    &ToolState::Idle
+                }
+                _ => &self.tool_state,
+            };
             crate::ui::measurements::MeasurementLayer::draw_in_progress(
                 &meas_painter,
-                &self.tool_state,
+                tool_state,
                 response.hover_pos(),
                 cursor_img_opt,
                 spacing_2d,

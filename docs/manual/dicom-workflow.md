@@ -102,6 +102,12 @@ Choose another tool to discard an unfinished path.
    with its image. Select its edge again and press **Delete** to remove it.
    Marks on other slices stay in place.
 
+### Draw an arrow
+
+Choose **Tools → Arrow** or press **Y**. Drag from the tail to the tip and
+release. Press **Esc** during the drag to cancel. Scroll off the image and
+back to see that the completed arrow belongs to the image where you drew it.
+
 ### Run the reference checks
 
 The Windows regression fixtures exercise native-session rendering and the
@@ -118,6 +124,7 @@ cargo nextest run --locked -p ritk-snap -E '
   or test(native_toolbar_length_then_drag_records_measurement)
   or test(native_length_preview_draws_only_on_its_owning_slice)
   or test(native_length_calibration_scales_labels_and_resets)
+  or test(arrow_)
   or test(length_measurement_first_click_then_drag_completes_through_the_adapter)
   or test(deviation_measurement_completes_from_one_pointer_drag)
   or test(open_polygon_enter_commits_physical_length_and_consumes_release)
@@ -128,7 +135,7 @@ cargo nextest run --locked -p ritk-snap -E '
 '
 ```
 
-Arrow, Pencil, Cobb angle, polygon edge insertion, and double-click completion
+Pencil, Cobb angle, polygon edge insertion, and double-click completion
 are tracked in the
 [native measurement work](../../backlog.md#RITK-SNAP-NATIVE-MEASURE-SET-001).
 

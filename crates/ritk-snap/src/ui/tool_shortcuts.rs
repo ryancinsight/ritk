@@ -88,6 +88,8 @@ pub const VIRTUAL_KEY_MEASURE_LENGTH: u32 = 0x4c;
 pub const VIRTUAL_KEY_MEASURE_ANGLE: u32 = 0x41;
 /// Host virtual-key value for Measure Deviation.
 pub const VIRTUAL_KEY_MEASURE_DEVIATION: u32 = 0x44;
+/// Host virtual-key value for the Arrow shortcut.
+pub const VIRTUAL_KEY_ARROW: u32 = 0x59;
 
 /// Host virtual-key value for the ROI Rectangle shortcut.
 pub const VIRTUAL_KEY_ROI_RECT: u32 = 0x52;
@@ -129,6 +131,7 @@ pub fn tool_kind_for_virtual_key(virtual_key: u32) -> Option<ToolKind> {
         VIRTUAL_KEY_MEASURE_LENGTH => Some(ToolKind::MeasureLength),
         VIRTUAL_KEY_MEASURE_ANGLE => Some(ToolKind::MeasureAngle),
         VIRTUAL_KEY_MEASURE_DEVIATION => Some(ToolKind::MeasureDeviation),
+        VIRTUAL_KEY_ARROW => Some(ToolKind::Arrow),
         VIRTUAL_KEY_ROI_RECT => Some(ToolKind::RoiRect),
         VIRTUAL_KEY_ROI_ELLIPSE => Some(ToolKind::RoiEllipse),
         VIRTUAL_KEY_HU_POINT => Some(ToolKind::PointHu),
