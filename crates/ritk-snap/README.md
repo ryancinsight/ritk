@@ -1,9 +1,10 @@
-# ritk-snap
+# AsterSlice
 
-`ritk-snap` is the RITK medical-image viewer. On Windows the Métis host is the
-default desktop shell. The default package has no eframe, egui, or rfd active
-dependency; the complete compatibility shell is the separately named
-`ritk-snap-eframe` package. The migration is described in
+AsterSlice is the RITK medical-image viewer, distributed as the `ritk-snap`
+package. On Windows the Métis host is the default desktop shell. The default
+package has no eframe, egui, or rfd active dependency; the complete
+compatibility shell is the separately named `ritk-snap-eframe` package. The
+migration is described in
 [ADR 0026](../../docs/adr/0026-viewer-presentation-migration.md).
 
 RITK owns DICOM opening, decoding, geometry, and medical display semantics.

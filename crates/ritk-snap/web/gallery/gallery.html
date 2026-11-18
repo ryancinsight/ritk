@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self' blob: http://127.0.0.1:8766 ws://127.0.0.1:8765; img-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'">
-  <title>DICOM study gallery</title>
+  <title>AsterSlice</title>
   <link rel="icon" type="image/svg+xml" href="./assets/metis-mark.svg">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./gallery.css">
 </head>
 <body class="gallery">
   <header>
-    <h1>DICOM study gallery</h1>
+    <h1>AsterSlice</h1>
     <p>Choose the DICOM files of one study with <strong>Choose study files</strong>, or drag them from your file manager onto the drop area below. Select files, not their enclosing folder.</p>
     <p>Up to 512 files, 64 MiB per file, 256 MiB total. Files stay in this browser; RITK opens the study and renders the three views. Add <code>?projection=mip</code>, <code>?projection=minip</code>, or <code>?projection=average</code> to show a scalar slab projection.</p>
     <p id="gallery-status" role="status" aria-live="polite">Loading viewer…</p>

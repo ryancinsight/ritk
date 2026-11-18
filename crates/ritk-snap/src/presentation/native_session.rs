@@ -6,7 +6,7 @@
 //! DICOM decoding, display policy and input state; Métis owns the native
 //! surface and receives only that framebuffer.
 
-use crate::app::SnapApp;
+use crate::app::{SnapApp, PRODUCT_NAME};
 use crate::launch::{NativePresentationMode, NativePresentationSelection};
 use anyhow::{anyhow, Result};
 use metis_platform::native::{run_native_application, WindowConfig, WindowVisibility};
@@ -47,7 +47,6 @@ use session::NativeViewerSession;
 const INITIAL_WIDTH: u32 = 1_280;
 const INITIAL_HEIGHT: u32 = 800;
 const EVENT_WAIT: Duration = Duration::from_millis(16);
-const NATIVE_TITLE: &str = "RITK DICOM Viewer";
 const VIRTUAL_KEY_OPEN_STUDY: u32 = 0x4f;
 
 mod outcome;
@@ -170,7 +169,7 @@ fn run_native_viewer_with_browser(
     )?;
     session.study_root = Some(initial_path.to_path_buf());
     let config = WindowConfig::with_visibility(
-        NATIVE_TITLE,
+        PRODUCT_NAME,
         INITIAL_WIDTH,
         INITIAL_HEIGHT,
         if capture.is_some() {

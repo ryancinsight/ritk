@@ -13,6 +13,7 @@ use super::geometry::NativeViewport;
 use super::text::{
     fit_text, text_command, text_style, TextStyle, PANEL_DETAIL_SIZE, PANEL_TITLE_SIZE,
 };
+use crate::app::PRODUCT_NAME;
 use crate::ui::coordinate_system::OrientationLabels;
 use crate::ui::coordinate_system::{edge_slot, orientation_labels, remap_labels_by_slots};
 use crate::ui::ViewTransform;
@@ -119,7 +120,7 @@ pub(crate) fn application_overlay(
             radius: CornerRadius::SQUARE,
             color: OVERLAY_BACKGROUND,
         });
-        let title = format!("METIS  RITK-SNAP  {}", view.plane_name);
+        let title = format!("{PRODUCT_NAME}  {}", view.plane_name);
         let title_style = text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?;
         let detail_style = text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE)?;
         let text_width =
@@ -277,7 +278,7 @@ pub(crate) fn projection_overlay(
         color: OVERLAY_BACKGROUND,
     });
     overlay.push(text_command(
-        format!("METIS  RITK-SNAP  3D {}", projection.kind.label()),
+        format!("{PRODUCT_NAME}  3D {}", projection.kind.label()),
         panel_x + OVERLAY_MARGIN,
         panel_y + 2,
         text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?,

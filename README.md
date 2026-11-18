@@ -29,7 +29,7 @@ RITK provides a comprehensive framework for medical image analysis:
   autodiff
 - **Image Processing Pipeline**: Filtering, segmentation, statistics, normalization
 - **CT Visualization Support**: Bed separation filter for CT foreground/body masking
-- **Native DICOM Viewer**: `ritk-snap` desktop viewer with DICOM folder/DICOMDIR launch, MPR viewports, overlays, measurements, and tag inspection
+- **AsterSlice DICOM Viewer**: the `ritk-snap` desktop application with DICOM folder/DICOMDIR launch, MPR viewports, overlays, measurements, and tag inspection
 - **Python Bindings**: PyO3 + maturin with NumPy bridge, packaged type stubs, and `py.typed`
 - **CLI**: `ritk` binary with `convert`, `filter`, `register`, `segment`, and `stats` subcommands
 
@@ -67,9 +67,9 @@ from the public [Iris](https://github.com/ryancinsight/iris) provider.
 `ritk-vtk` retains VTK mapping and serialization. Both consume the same Iris
 `NamedColorMap` contract without local color interpolation.
 
-### Viewer (`ritk-snap`)
+### AsterSlice viewer (`ritk-snap`)
 
-`ritk-snap [PATH]` launches the native viewer directly against a DICOM folder,
+AsterSlice launches through `ritk-snap [PATH]` directly against a DICOM folder,
 a single DICOM file, a `DICOMDIR` file, or a supported medical image file. The viewer keeps DICOM
 I/O in `ritk-io` and presentation logic in `ritk-snap`, with a vertical module
 split for input path normalization, hanging-protocol selection, series

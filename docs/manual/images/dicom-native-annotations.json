@@ -1,5 +1,5 @@
 {
-  "viewer_revision": "8f08c027efb16ad57723233c6810339b44e52d90",
+  "viewer_revision": "e7f17246db7a7f57cb60c3c1fcea379505747737",
   "fixture": {
     "path": "test_data/2_head_mri_t2/DICOM",
     "dicom_images": 94
@@ -11,10 +11,10 @@
     "dicom-native-slices.webp": {
       "width_px": 1280,
       "height_px": 800,
-      "webp_bytes": 114398,
-      "webp_sha256": "4f58eea03960968ab8255d27c096a557a9f8500e444178f0948123ce54c95f70",
-      "source_png_bytes": 431175,
-      "source_png_sha256": "056f3743642af68bfa53376adb0aebbb1aba893fb895f474a477383762171fe1"
+      "webp_bytes": 114154,
+      "webp_sha256": "7947e4c41311bc8ed4677cf74b5d69e155caf566c1b731fcf0d1f7cc96193de3",
+      "source_png_bytes": 427931,
+      "source_png_sha256": "206d3075c217ed067da292ee5ba1961805a42d6f6e3fe96e54bdda30be9f79a1"
     },
     "dicom-native-calibration.webp": {
       "width_px": 1280,

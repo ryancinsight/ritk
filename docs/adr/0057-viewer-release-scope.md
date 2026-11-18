@@ -4,7 +4,7 @@
 
 ## Context
 
-`ritk-snap` is built as a native alternative to the RadiAnt DICOM Viewer, on
+AsterSlice (`ritk-snap`) is built as a native alternative to the RadiAnt DICOM Viewer, on
 the Métis host. An audit of the native session at `30b8ba098` found that
 navigation, multi-series panels and orthogonal MPR are reachable, while
 measurement drawing, display controls, clinical overlays, cross-series linking,

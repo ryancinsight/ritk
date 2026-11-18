@@ -13,6 +13,8 @@
 //! | `false`        | Single viewport — current axis fills panel. |
 //! | `true`         | 2×2 grid: Axial / Coronal / Sagittal / 3D-MIP, with Info below.|
 
+pub(crate) const PRODUCT_NAME: &str = "AsterSlice";
+
 pub(crate) mod action_adapter;
 mod annotation_edit;
 #[cfg(windows)]

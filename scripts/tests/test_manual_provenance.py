@@ -38,3 +38,23 @@ class ManualImageProvenanceTests(unittest.TestCase):
         self.assertEqual(capture["bytes"], replay_capture["capture_bytes"])
         self.assertNotEqual(capture["sha256"], resource["output"]["sha256"])
         self.assertNotEqual(capture["bytes"], resource["output"]["bytes"])
+
+    def test_current_windows_frames_match_their_capture_record(self):
+        directory = ROOT / "docs/manual/images"
+        record = json.loads(
+            (directory / "dicom-native-annotations.json").read_text(encoding="utf-8")
+        )
+        expected = {
+            "dicom-native-slices.webp",
+            "dicom-native-calibration.webp",
+            "dicom-native-annotations.webp",
+        }
+        self.assertEqual(set(record["frames"]), expected)
+        self.assertEqual(record["fixture"]["dicom_images"], 94)
+        for name, frame in record["frames"].items():
+            with self.subTest(image=name):
+                image = (directory / name).read_bytes()
+                self.assertEqual(hashlib.sha256(image).hexdigest(), frame["webp_sha256"])
+                self.assertEqual(len(image), frame["webp_bytes"])
+                self.assertLessEqual(len(image), 200_000)
+                self.assertEqual((frame["width_px"], frame["height_px"]), (1280, 800))

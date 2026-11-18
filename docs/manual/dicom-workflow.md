@@ -1,8 +1,8 @@
-# RITK DICOM viewer manual
+# AsterSlice user manual
 
-Use the native Windows viewer to browse a study and measure or mark an image.
+Use AsterSlice to browse a study and measure or mark an image on Windows.
 See the [viewer launch commands](../../crates/ritk-snap/README.md) to start
-RITK. The [technical workflows](#actual-application-gallery) below document
+AsterSlice. The [technical workflows](#actual-application-gallery) below document
 the fixtures and captures used to verify viewer behavior.
 
 - [Scroll through a slice stack](#scroll-through-a-slice-stack)
@@ -35,7 +35,7 @@ corner labels with an ellipsis. Resize the window to compare the corner
 readouts and orientation letters in wide and narrow panes. Colorbar values
 have their own rows. Measurement labels move to stay visible inside the pane.
 
-![Current Windows viewer with independent slice scrollbars at the right edge of each MPR pane](images/dicom-native-slices.webp)
+![AsterSlice Windows viewer with independent slice scrollbars at the right edge of each MPR pane](images/dicom-native-slices.webp)
 
 ### Measure a length and a deviation
 
@@ -64,7 +64,7 @@ have their own rows. Measurement labels move to stay visible inside the pane.
 4. Scroll to another slice and back. Choose **Tools → Reset length
    calibration** on the reference image to restore image-spacing readings.
 
-![RITK Tools calibration dialog over the current DICOM slice with a 100 mm reference entered](images/dicom-native-calibration.webp)
+![AsterSlice Tools calibration dialog over the current DICOM slice with a 100 mm reference entered](images/dicom-native-calibration.webp)
 
 Calibration lasts for the loaded study. Reopen the study to restore its DICOM
 spacing.
@@ -141,7 +141,7 @@ the drag to discard the unfinished stroke.
 | **P** | Pencil |
 | **Shift+C** | Cycle the display colormap |
 
-![Current native RITK viewer with calibrated lengths, Cobb angle, a selected edited polygon, an arrow and a pencil mark on a public MRI phantom](images/dicom-native-annotations.webp)
+![AsterSlice viewer with calibrated lengths, Cobb angle, a selected edited polygon, an arrow and a pencil mark on a public MRI phantom](images/dicom-native-annotations.webp)
 
 The figures show the native Windows viewer's client area with the public T2
 phantom loaded. See the [capture inputs and image digests](images/dicom-native-annotations.json).
@@ -2329,7 +2329,7 @@ input and RITK voxel selection, not clinical interpretation or compositor
 timing. The [embedding contract](../adr/0032-browser-semantic-snapshot.md)
 states the supported geometry and inspectable-ancestry requirement.
 
-## Build the RITK SNAP executable and installer
+## Build the AsterSlice executable and installer
 
 RITK owns the application manifest at
 [`metis.json`](../../metis.json). It declares

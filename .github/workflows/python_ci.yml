@@ -83,7 +83,7 @@ jobs:
             if ! printf '%s\n' "$changed" | grep -qE '^(crates/ritk-python/|Cargo\.lock$|Cargo\.toml$|\.github/workflows/python_ci\.yml$)'; then
               python=false
             fi
-            if ! printf '%s\n' "$changed" | grep -qE '^(scripts/|Cargo\.lock$|\.github/workflows/python_ci\.yml$|docs/manual/images/dicom-metis-real-mri(\.png|\.json|-resource\.json)$)'; then
+            if ! printf '%s\n' "$changed" | grep -qE '^(scripts/|Cargo\.lock$|\.github/workflows/python_ci\.yml$|docs/manual/images/dicom-metis-real-mri(\.png|\.json|-resource\.json)$|docs/manual/images/dicom-native-(slices|calibration|annotations)\.(webp|json)$)'; then
               scripts_tests=false
             fi
           fi

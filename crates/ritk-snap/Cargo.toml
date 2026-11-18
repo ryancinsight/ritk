@@ -5,7 +5,7 @@ authors.workspace = true
 repository.workspace = true
 publish = false
 edition.workspace = true
-description = "RITK DICOM image viewer — full-featured medical workstation viewer"
+description = "AsterSlice DICOM image viewer"
 license.workspace = true
 
 [lib]
