@@ -91,7 +91,6 @@
 <a id="RITK-SNAP-EFRAME-REMOVAL-001"></a>- [RITK-SNAP-EFRAME-REMOVAL-001](backlog/RITK-SNAP-EFRAME-REMOVAL-001.md) — Remove the eframe shell — blocked
 <a id="RITK-SNAP-NATIVE-ARCHIVE-001"></a>- [RITK-SNAP-NATIVE-ARCHIVE-001](backlog/RITK-SNAP-NATIVE-ARCHIVE-001.md) — Keep a local study archive — blocked
 <a id="RITK-SNAP-NATIVE-DOCUMENTS-001"></a>- [RITK-SNAP-NATIVE-DOCUMENTS-001](backlog/RITK-SNAP-NATIVE-DOCUMENTS-001.md) — Display reports, PDFs and video objects — todo
-<a id="RITK-SNAP-NATIVE-DRAG-FEEDBACK-001"></a>- [RITK-SNAP-NATIVE-DRAG-FEEDBACK-001](backlog/RITK-SNAP-NATIVE-DRAG-FEEDBACK-001.md) — Keep pan and zoom drags independent of event batching — todo
 <a id="RITK-SNAP-NATIVE-DYNAMIC-001"></a>- [RITK-SNAP-NATIVE-DYNAMIC-001](backlog/RITK-SNAP-NATIVE-DYNAMIC-001.md) — Add time-intensity curves and DSA — todo
 <a id="RITK-SNAP-NATIVE-EXPORT-001"></a>- [RITK-SNAP-NATIVE-EXPORT-001](backlog/RITK-SNAP-NATIVE-EXPORT-001.md) — Export and copy displayed images — todo
 <a id="RITK-SNAP-NATIVE-FILTERS-001"></a>- [RITK-SNAP-NATIVE-FILTERS-001](backlog/RITK-SNAP-NATIVE-FILTERS-001.md) — Apply image filters natively — todo
