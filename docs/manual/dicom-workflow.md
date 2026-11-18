@@ -106,7 +106,11 @@ number of vertices. Choose another tool to discard an unfinished path.
    within the image to keep the new shape and update the length or the
    area and perimeter. If pointer capture is lost during the drag, the
    original shape stays in place.
-3. Scroll off the source slice and return to it to see that the mark stays
+3. Press an already-selected segment away from its handles to insert a node
+   on the projected segment. Keep holding the button to drag that new node;
+   release commits the updated measurement. Pressing a handle takes priority,
+   and endpoint clicks do not add duplicate nodes.
+4. Scroll off the source slice and return to it to see that the mark stays
    with its image. Select its edge again and press **Delete** to remove it.
    Marks on other slices stay in place.
 
@@ -151,9 +155,6 @@ cargo nextest run --locked -p ritk-snap -E '
   or test(selected_vertex_drag_)
 '
 ```
-
-Polygon edge insertion is tracked in the
-[native measurement work](../../backlog.md#RITK-SNAP-NATIVE-MEASURE-SET-001).
 
 ## Actual application gallery
 
