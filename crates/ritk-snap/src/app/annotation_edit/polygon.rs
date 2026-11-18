@@ -2,7 +2,8 @@ use super::super::polygon_selection::{polygon_path, PICK_RADIUS_PIXELS};
 use super::super::viewer_viewport::ViewerViewport;
 use crate::presentation::ViewportPoint;
 use crate::tools::interaction::{Annotation, ImagePoint};
-use metis_ui_lang::nearest_polyline_vertex;
+use eunomia::FloatElement;
+use metis_ui_lang::{nearest_polyline_segment, nearest_polyline_vertex, PathTopology};
 
 pub(super) fn nearest_node(
     annotation: &Annotation,
@@ -29,6 +30,56 @@ pub(super) fn move_node(
     match &mut candidate {
         Annotation::ClosedPolygon { points, .. } | Annotation::OpenPolygon { points, .. } => {
             *points.get_mut(node_index)? = point;
+        }
+        _ => return None,
+    }
+    recompute(candidate, spacing)
+}
+
+pub(super) fn nearest_edge(
+    annotation: &Annotation,
+    viewport: ViewerViewport,
+    target: ViewportPoint,
+) -> Option<(usize, f64)> {
+    let (points, topology) = super::super::polygon_selection::polygon_path(annotation)?;
+    let hit = nearest_polyline_segment(
+        points.iter().copied().map(|point| viewport.project(point)),
+        [target.x(), target.y()],
+        topology,
+    )
+    .ok()?;
+    (hit.distance() <= super::super::polygon_selection::PICK_RADIUS_PIXELS
+        && hit.fraction() > 0.0
+        && hit.fraction() < 1.0)
+        .then_some((hit.start_index(), hit.fraction()))
+}
+
+pub(super) fn insert_node(
+    original: &Annotation,
+    edge: usize,
+    fraction: f64,
+    spacing: [f64; 2],
+) -> Option<Annotation> {
+    if !fraction.is_finite() || fraction <= 0.0 || fraction >= 1.0 {
+        return None;
+    }
+    let mut candidate = original.clone();
+    let (start, next) = {
+        let (points, topology) = super::super::polygon_selection::polygon_path(&candidate)?;
+        let next = match topology {
+            PathTopology::Open => points.get(edge + 1).copied()?,
+            PathTopology::Closed => points.get(edge + 1).copied().unwrap_or(points[0]),
+        };
+        (*points.get(edge)?, next)
+    };
+    let fraction = <f32 as FloatElement>::from_f64(fraction);
+    let point = [
+        start[0] + (next[0] - start[0]) * fraction,
+        start[1] + (next[1] - start[1]) * fraction,
+    ];
+    match &mut candidate {
+        Annotation::ClosedPolygon { points, .. } | Annotation::OpenPolygon { points, .. } => {
+            points.insert(edge + 1, point);
         }
         _ => return None,
     }
@@ -114,5 +165,10 @@ mod tests {
             moved,
             Annotation::ClosedPolygon { area_mm2, .. } if area_mm2 == 9.0
         ));
+    }
+
+    #[test]
+    fn endpoint_insertion_is_rejected() {
+        assert_eq!(insert_node(&open(), 0, 0.0, [1.0, 1.0]), None);
     }
 }
