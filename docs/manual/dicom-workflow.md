@@ -147,7 +147,7 @@ cargo nextest run --locked -p ritk-snap -E '
   or test(double_click_)
   or test(length_measurement_first_click_then_drag_completes_through_the_adapter)
   or test(deviation_measurement_completes_from_one_pointer_drag)
-  or test(native_cobb_records_two_segments_on_their_slice)
+  or test(native_cobb_) or test(native_polygon_edge_insert_)
   or test(open_polygon_enter_commits_physical_length_and_consumes_release)
   or test(closed_polygon_commits_area_perimeter_and_slice_location)
   or test(pan_click_selects_a_visible_closing_edge_and_delete_keeps_other_slices)
