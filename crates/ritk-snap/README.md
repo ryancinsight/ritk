@@ -36,7 +36,7 @@ From a standalone RITK checkout, open a study directory with:
 cargo run --locked -p ritk-snap -- path/to/study
 ```
 
-The [synthetic DICOM workflow](../../docs/manual/dicom-workflow.md) explains
+The [synthetic DICOM workflow](../../docs/manual/development.md) explains
 the deterministic study used to check real file decoding, coordinates, and
 rendered slice pixels. The [native slice and annotation guide](../../docs/manual/dicom-workflow.md#try-the-windows-slice-and-annotation-tools)
 covers the current scrollbar, measurement, polygon editing, deletion, and
@@ -173,7 +173,7 @@ first three panels and the display-only projection is in the lower-right
 panel. Color volumes reject every projection mode because the typed RITK
 contract is scalar-only.
 
-The reviewed capture is shown in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#present-validated-ritk-views-through-m%C3%A9tis).
+The reviewed capture is shown in the [DICOM workflow manual](../../docs/manual/development.md#present-validated-ritk-views-through-m%C3%A9tis).
 
 The native host also provides a responsive layout that selects one, two or
 four panes from the current surface extent:
@@ -326,7 +326,7 @@ to raster implicitly. The RITK gallery uses this mode only for
 The three canvases receive RITK-owned axial, coronal and sagittal
 `PresentationFrame` values from one bounded drop batch. Métis remains the
 format-neutral browser host and receives no DICOM state. The reviewed
-three-canvas runtime capture is in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#inspect-the-browser-orthogonal-visual-capture).
+three-canvas runtime capture is in the [DICOM workflow manual](../../docs/manual/development.md#inspect-the-browser-orthogonal-visual-capture).
 
 Consumers that want the native scalar projection panel can opt into the
 four-canvas entrypoint. The first three canvases retain their interactive
