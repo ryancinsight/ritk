@@ -67,7 +67,7 @@ impl SnapApp {
             zoom: self.zoom,
             cine_enabled: self.cine.enabled,
             cine_fps: self.cine.fps,
-            annotations: self.annotations.clone(),
+            annotations: self.session_annotations(),
         }
     }
 
@@ -99,6 +99,7 @@ impl SnapApp {
         self.zoom = snapshot.zoom.clamp(MIN_ZOOM, MAX_ZOOM);
         self.cine.restore(snapshot.cine_enabled, snapshot.cine_fps);
         self.annotations = snapshot.annotations;
+        self.clear_length_calibrations();
         self.pointer.selected_polygon = None;
         self.tool_state = ToolState::Idle;
         self.bump_visual_revision();
@@ -111,6 +112,51 @@ impl SnapApp {
             )
         });
         Ok(())
+    }
+
+    #[cfg(windows)]
+    fn clear_length_calibrations(&mut self) {
+        self.length_calibrations.clear();
+    }
+
+    #[cfg(not(windows))]
+    fn clear_length_calibrations(&mut self) {}
+
+    #[cfg(windows)]
+    fn session_annotations(&self) -> Vec<crate::tools::interaction::Annotation> {
+        self.annotations
+            .iter()
+            .map(|annotation| match *annotation {
+                crate::tools::interaction::Annotation::Length {
+                    plane,
+                    location,
+                    p1,
+                    p2,
+                    length_mm,
+                } => {
+                    let length_mm = location
+                        .and_then(|source| {
+                            self.length_calibrations
+                                .iter()
+                                .find(|item| item.applies_to(source))
+                        })
+                        .map_or(length_mm, |_| self.raw_length_for_session(source, p1, p2));
+                    crate::tools::interaction::Annotation::Length {
+                        plane,
+                        location,
+                        p1,
+                        p2,
+                        length_mm,
+                    }
+                }
+                annotation => annotation,
+            })
+            .collect()
+    }
+
+    #[cfg(not(windows))]
+    fn session_annotations(&self) -> Vec<crate::tools::interaction::Annotation> {
+        self.annotations.clone()
     }
 
     /// Ingest shell-dropped inputs (desktop) or browser-dropped file payloads.
