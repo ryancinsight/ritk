@@ -53,6 +53,38 @@ impl ManualLengthCalibration {
 
 #[cfg(windows)]
 impl super::state::SnapApp {
+    pub(crate) fn raw_length_for_session(
+        &self,
+        location: AnnotationLocation,
+        p1: [f32; 2],
+        p2: [f32; 2],
+    ) -> f32 {
+        let spacing = self
+            .spacing_for_plane(location.plane)
+            .expect("invariant: loaded image spacing validates source length");
+        Annotation::compute_length_checked(p1, p2, spacing)
+            .expect("invariant: source length endpoints remain representable")
+    }
+
+    fn spacing_for_plane(&self, plane: usize) -> Result<[f64; 2], MeasurementError> {
+        let Some(volume) = &self.loaded else {
+            return Err(MeasurementError::MissingVolume);
+        };
+        let [dz, dy, dx] = volume.spacing;
+        let spacing = match plane {
+            0 => [dy, dx],
+            1 => [dz, dx],
+            2 => [dz, dy],
+            _ => {
+                return Err(MeasurementError::InvalidSpacing {
+                    index: plane,
+                    value: f64::NAN,
+                })
+            }
+        };
+        Annotation::validate_spacing(spacing)
+    }
+
     fn active_length_location(&self) -> AnnotationLocation {
         AnnotationLocation {
             plane: self.axis,
@@ -73,7 +105,11 @@ impl super::state::SnapApp {
         p1: [f32; 2],
         p2: [f32; 2],
         known_mm: f32,
+        expected_revision: u64,
     ) -> Result<(), CalibrationError> {
+        if self.visual_revision != expected_revision {
+            return Err(CalibrationError::StaleReference);
+        }
         if location != self.active_length_location() {
             return Err(CalibrationError::StaleReference);
         }
