@@ -1,7 +1,7 @@
 //! Native histogram window panel and per-pane colorbar overlays.
 
 use super::super::layout::overlay_display::append_colorbar_overlay;
-use super::super::layout::{application_overlay, ClinicalOverlay};
+use super::super::layout::{application_overlay, ClinicalOverlay, OverlayCommands};
 use super::support::session;
 use iris::color::{ColorMap, Normalized};
 use metis_platform::rasterizer::CornerRadius;
@@ -166,31 +166,33 @@ fn colorbar_labels_clear_orientation_and_scale_ruler_lanes() {
         cursor_value: None,
         anonymize: false,
     };
-    let mut overlay = application_overlay(
+    let clinical_commands = application_overlay(
         &session.views,
         &session.viewports,
         false,
         30.0,
         Some(&clinical),
     )
-    .expect("compose clinical lanes");
+    .expect("compose clinical lanes")
+    .into_display_list();
     let (center, width) = session.app.browser_window_level_values();
+    let mut colorbar = OverlayCommands::with_capacity(70).expect("reserve colorbar lanes");
     append_colorbar_overlay(
-        &mut overlay,
+        &mut colorbar,
         &session.viewports[0],
         session.app.colormap,
         center,
         width,
     )
     .expect("compose colorbar labels");
-    let commands = overlay.into_display_list();
+    let colorbar_commands = colorbar.into_display_list();
     let half = width / 2.0;
     let labels = [
         super::super::layout::overlay_display::intensity_label(center + half),
         super::super::layout::overlay_display::intensity_label(center),
         super::super::layout::overlay_display::intensity_label(center - half),
     ];
-    let label_bounds: Vec<_> = commands
+    let label_bounds: Vec<_> = colorbar_commands
         .commands()
         .iter()
         .filter_map(|command| match command {
@@ -203,7 +205,7 @@ fn colorbar_labels_clear_orientation_and_scale_ruler_lanes() {
         })
         .collect();
     assert_eq!(label_bounds.len(), labels.len());
-    let orientation_bounds: Vec<_> = commands
+    let orientation_bounds: Vec<_> = clinical_commands
         .commands()
         .iter()
         .filter_map(|command| match command {
@@ -215,19 +217,31 @@ fn colorbar_labels_clear_orientation_and_scale_ruler_lanes() {
             _ => None,
         })
         .collect();
-    let scale_bars: Vec<_> = commands
+    let viewport = session.viewports[0];
+    let image_mid = super::super::layout::screen_coordinate(
+        viewport.image.x + viewport.image.width / 2.0,
+        "ruler lane midpoint",
+    )
+    .expect("ruler midpoint fits");
+    let image_left = super::super::layout::screen_coordinate(viewport.image.x, "ruler lane left")
+        .expect("ruler left fits");
+    let scale_bars: Vec<_> = clinical_commands
         .commands()
         .iter()
         .filter_map(|command| match command {
             DisplayCommand::FillRect { rect, radius, .. }
-                if *radius == CornerRadius::SQUARE && rect.height == 3 && rect.width >= 24 =>
+                if *radius == CornerRadius::SQUARE
+                    && rect.height == 3
+                    && rect.width >= 24
+                    && rect.x >= image_left
+                    && rect.x + rect.width <= image_mid =>
             {
                 Some(*rect)
             }
             _ => None,
         })
         .collect();
-    let scale_labels: Vec<_> = commands
+    let scale_labels: Vec<_> = clinical_commands
         .commands()
         .iter()
         .filter_map(|command| match command {
@@ -238,12 +252,24 @@ fn colorbar_labels_clear_orientation_and_scale_ruler_lanes() {
         })
         .collect();
     assert!(!scale_bars.is_empty(), "fixture must draw a scale ruler");
+    let view = &session.views[0];
+    let spacing = view.frame.display_spacing().values();
+    let px_per_unit_x = viewport.image.width / f64::from(view.frame.width());
+    let mm_per_px = spacing[1] / px_per_unit_x;
+    let ruler_margin = scale_bars[0].x - image_left;
+    let max_px = f64::from(image_mid - image_left - 2 * ruler_margin);
+    let (_, expected_bar_px) = super::super::layout::scale_bar_for_scale(1.0 / mm_per_px, max_px)
+        .expect("fixture has a measurable ruler");
+    let expected_bar_width =
+        super::super::layout::screen_coordinate(expected_bar_px, "expected ruler width")
+            .expect("expected ruler width fits");
+    assert!(scale_bars.iter().any(|bar| bar.width == expected_bar_width));
     assert!(scale_bars.iter().all(|bar| {
         scale_labels.iter().any(|label| {
             label.x < bar.x + bar.width
                 && bar.x < label.x + label.width
                 && label.y + label.height <= bar.y
-                && bar.y - (label.y + label.height) <= super::super::layout::overlay::OVERLAY_MARGIN
+                && bar.y - (label.y + label.height) <= bar.height * 2
         })
     }));
     let overlaps = |left: metis_platform::Rect, right: metis_platform::Rect| {
