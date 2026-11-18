@@ -67,3 +67,10 @@
 - risk: `anonymize/file_meta.rs` says the dicom-rs reader refuses a file meta (0002,0003) that is not a UID, but it accepts `1..2` and `01.2`; `repair/study.rs` `failed` duplicates the anonymize helper and its `!=` against the default summary has a surviving `==` mutant; no test reaches `Instance`, `Write` or `Retained`; the viewer ends held gestures before a dialog the reader may cancel, and repeats the left-out sentence in two modules.
 - evidence: filed findings in the judge verdict comments on ritk#926, #927, #928 and #929.
 - reopen: at the next change under `crates/ritk-io/src/format/dicom/repair/`, `anonymize/file_meta.rs` or `crates/ritk-snap/src/presentation/native_session/{repair,deidentify}.rs`, or when the backlog has room (1,000 of 1,000 lines once ritk#928 lands).
+
+
+<a id="RITK-SNAP-PDB-OUTPUT-001"></a>
+## RITK-SNAP-PDB-OUTPUT-001 — native and library targets share PDB names
+- risk: Cargo warns that the Windows executable and cdylib/rlib target write the same ritk_snap.pdb output; symbols can collide even though the executable runs.
+- evidence: Windows cargo run --locked -p ritk-snap -- --help in [RITK #984](https://github.com/ryancinsight/ritk/pull/984) reports collisions in debug/ and debug/deps/ under the pinned 1.97.0 toolchain.
+- reopen: before changing native/WASM target layout or publishing a Windows symbol bundle, separate symbol ownership while preserving both runtime contracts and verify native and WASM builds.

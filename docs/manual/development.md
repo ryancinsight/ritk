@@ -487,7 +487,7 @@ Deterministic tests cover parser, DICOMDIR, retained-byte, decoded-workspace,
 and replacement cases. Unix reads reject a final symlink with `O_NOFOLLOW`;
 Windows reads request a reparse-point handle and reject a final reparse point.
 The DICOMDIR record-tree and referenced-identity contract is delivered by
-[RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001); the
+[DICOMDIR reader](../../crates/ritk-io/src/format/dicom/reader/dicomdir.rs); the
 root-confined filesystem contract is provided by Moirai PAL.
 
 For a conventional scalar series, the scan retains each validated Part-10

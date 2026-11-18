@@ -114,3 +114,15 @@
 <a id="RITK-SNAP-EFRAME-PORT-001"></a>- [RITK-SNAP-EFRAME-PORT-001](backlog/RITK-SNAP-EFRAME-PORT-001.md) — Port smoothing and segmentation filter ranges — todo
 <a id="RITK-SNAP-EFRAME-PORT-002"></a>- [RITK-SNAP-EFRAME-PORT-002](backlog/RITK-SNAP-EFRAME-PORT-002.md) — Port morphology, geometry, CPR and pointwise filter ranges — todo
 <a id="RITK-SNAP-EFRAME-PORT-003"></a>- [RITK-SNAP-EFRAME-PORT-003](backlog/RITK-SNAP-EFRAME-PORT-003.md) — Port filter labels and starting parameters — todo
+<a id="RITK-SNAP-CROSSHAIR-TOOL-001"></a>- [RITK-SNAP-CROSSHAIR-TOOL-001](backlog/RITK-SNAP-CROSSHAIR-TOOL-001.md) — Enable the selected crosshair tool — todo
+<a id="RITK-SNAP-DICOM-GRAPHICS-001"></a>- [RITK-SNAP-DICOM-GRAPHICS-001](backlog/RITK-SNAP-DICOM-GRAPHICS-001.md) — Display DICOM graphic overlay planes — todo
+<a id="RITK-SNAP-LENGTH-EDIT-001"></a>- [RITK-SNAP-LENGTH-EDIT-001](backlog/RITK-SNAP-LENGTH-EDIT-001.md) — Move and resize completed lengths — todo
+<a id="RITK-SNAP-ROI-EDIT-001"></a>- [RITK-SNAP-ROI-EDIT-001](backlog/RITK-SNAP-ROI-EDIT-001.md) — Move and resize image regions — todo
+<a id="RITK-SNAP-MARK-EDIT-001"></a>- [RITK-SNAP-MARK-EDIT-001](backlog/RITK-SNAP-MARK-EDIT-001.md) — Edit completed angles and drawn marks — todo
+<a id="RITK-SNAP-ANNOTATION-TEXT-001"></a>- [RITK-SNAP-ANNOTATION-TEXT-001](backlog/RITK-SNAP-ANNOTATION-TEXT-001.md) — Position readable annotation labels — todo
+<a id="RITK-SNAP-ANNOTATION-COPY-001"></a>- [RITK-SNAP-ANNOTATION-COPY-001](backlog/RITK-SNAP-ANNOTATION-COPY-001.md) — Copy and duplicate image annotations — todo
+<a id="RITK-SNAP-US-REGION-001"></a>- [RITK-SNAP-US-REGION-001](backlog/RITK-SNAP-US-REGION-001.md) — Measure calibrated ultrasound regions — todo
+<a id="RITK-SNAP-FORMAT-VIEWER-001"></a>- [RITK-SNAP-FORMAT-VIEWER-001](backlog/RITK-SNAP-FORMAT-VIEWER-001.md) — Exercise encoded studies in the viewer — todo
+<a id="RITK-SNAP-CUSTOM-WINDOW-001"></a>- [RITK-SNAP-CUSTOM-WINDOW-001](backlog/RITK-SNAP-CUSTOM-WINDOW-001.md) — Retain precise custom window settings — todo
+<a id="RITK-SNAP-LARGE-STUDY-001"></a>- [RITK-SNAP-LARGE-STUDY-001](backlog/RITK-SNAP-LARGE-STUDY-001.md) — Measure native study resource bounds — todo
+<a id="RITK-SNAP-ZOOM-SCALE-001"></a>- [RITK-SNAP-ZOOM-SCALE-001](backlog/RITK-SNAP-ZOOM-SCALE-001.md) — Correct the pixel-scale zoom preset — todo

@@ -1,16 +1,79 @@
 # AsterSlice user manual
 
 Use AsterSlice to browse a study and measure or mark an image on Windows.
-See the [viewer launch commands](../../crates/ritk-snap/README.md) to start
-AsterSlice. The [developer reference](development.md) below document
-the fixtures and captures used to verify viewer behavior.
+The executable and Cargo package are named `ritk-snap`. The
+[feature comparison](features.md) covers the supplied RadiAnt 2021.2 manual,
+the current Windows controls, the tests, and the work needed for parity.
+The [developer reference](development.md) contains reproduction procedures
+and historical captures.
 
+## Launch and open a study
+
+From a RITK source checkout, build and start AsterSlice with a DICOM folder.
+
+```powershell
+cargo run --locked -p ritk-snap -- path/to/study
+```
+
+Without a startup path, the Windows application opens a folder picker.
+In an open viewer, choose **File → Open Study...** or **Ctrl+O** to replace
+the current study. Pick a folder containing the DICOM files. Use the series
+browser to select an acquisition from a study containing several series.
+
+For a known example, use the public MRI phantom included in the repository.
+
+```powershell
+cargo run --locked -p ritk-snap -- test_data/2_head_mri_t2/DICOM
+```
+
+A startup path can also name a DICOM instance or DICOMDIR. To select a series
+explicitly, add `--series-instance-uid UID`. The [launch reference](../../crates/ritk-snap/README.md)
+describes startup selection and capture options.
+
+- [Adjust the image display](#adjust-the-image-display)
+- [Compare series](#compare-series)
 - [Scroll through a slice stack](#scroll-through-a-slice-stack)
 - [Measure a length and calibrate it](#calibrate-a-length-on-one-image)
 - [Measure angles and regions](#measure-an-angle-or-a-region-of-interest)
 - [Draw and edit polygons](#trace-an-open-path-and-a-closed-outline)
 - [Draw an arrow or a freehand mark](#draw-an-arrow)
 - [Windows tool shortcuts](#windows-tool-shortcuts)
+
+## Adjust the image display
+
+Use **W/L**, **Pan**, or **Zoom** on the toolbar to choose the left-button
+gesture. Drag within the image to apply it. The **Display** menu offers the
+loaded modality's window presets, inversion, and color maps. Number keys
+apply available presets; **I** inverts and **Shift+C** cycles the color map.
+Custom presets currently last for the running application.
+
+Press **H** or **V** to flip the image horizontally or vertically.
+**R** rotates clockwise by 90 degrees and **Shift+R** rotates the other way.
+**Shift+O** restores image orientation. **Ctrl+0** fits the image to its pane;
+The **Display → Zoom 1:1** preset currently has a
+[spacing-dependent scale defect](features.md#reading-and-annotations).
+The measurement and orientation overlays follow the displayed image.
+
+In three-plane MPR, **View → Toggle clinical overlay** shows or hides the
+corner text. **View → Toggle anonymized overlay** hides the identity text in
+those corners. To create a de-identified study copy, use the **Anonymize**
+menu. **File → Repair Study Copy...** writes a corrected study copy.
+The [study-copy procedures](development.md#export-a-de-identified-study-or-series)
+describe their selection, output, and failure behavior.
+
+## Compare series
+
+Choose **Window → Open multiple series...** or press **F4** to select series.
+Choose **Window → Panel layout...** to arrange the panes. Click a pane to
+make it active. **Tab** and **Shift+Tab** move between panes; each pane's
+slice rail acts on that pane's series.
+
+Use **Ctrl+M** to maximize or restore the active pane, **Ctrl+F4** to close
+it, or **Shift+F4** to close all panes. Choose **Window → Three-plane MPR**
+to return to the axial, coronal, and sagittal views.
+
+Patient-position synchronization and cross-reference lines between different
+series remain [linking work](features.md#reading-and-annotations).
 
 ## Try the Windows slice and annotation tools
 
@@ -145,3 +208,11 @@ the drag to discard the unfinished stroke.
 
 The figures show the native Windows viewer's client area with the public T2
 phantom loaded. See the [capture inputs and image digests](images/dicom-native-annotations.json).
+
+## Feature and test coverage
+
+The [feature comparison](features.md) records current native workflows,
+processing-only capabilities, missing controls, and required tests against
+RadiAnt 2021.2. Use it when checking a capability before relying on the
+viewer for a particular workflow. Capture and test commands are in the
+[developer reference](development.md#run-the-reference-checks).
