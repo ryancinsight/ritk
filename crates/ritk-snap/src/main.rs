@@ -1,6 +1,6 @@
-//! `ritk-snap` binary entry point.
+//! AsterSlice binary entry point.
 //!
-//! Launches the RITK DICOM viewer with the selected desktop host.
+//! Launches AsterSlice with the selected desktop host.
 
 // Mnemosyne as the process-wide allocator. Not applicable on WASM where
 // the runtime provides its own allocator.
@@ -52,7 +52,7 @@ impl CliNativeLayout {
     }
 }
 
-/// Native RITK DICOM viewer.
+/// AsterSlice medical-image viewer.
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Parser)]
 #[command(author, version, about)]

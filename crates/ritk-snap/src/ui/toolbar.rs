@@ -46,7 +46,7 @@
 //!
 //! **Help Menu:**
 //! - Keyboard Shortcuts
-//! - About ritk-snap
+//! - About AsterSlice
 //!
 //! # Invariants
 //! - The active tool is visually distinct in the Tools menu.
@@ -57,6 +57,7 @@
 use egui::Ui;
 
 use crate::{
+    app::PRODUCT_NAME,
     render::{NamedColorMap, WindowLevel},
     tools::kind::ToolKind,
     ui::{layout::LayoutMode, window_presets::WindowPreset},
@@ -279,7 +280,7 @@ impl<'a> ToolbarPanel<'a> {
                 if ui.button("Keyboard Shortcuts").clicked() {
                     ui.close_menu();
                 }
-                if ui.button("About ritk-snap").clicked() {
+                if ui.button(format!("About {PRODUCT_NAME}")).clicked() {
                     ui.close_menu();
                 }
             });

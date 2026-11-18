@@ -283,9 +283,11 @@ fn native_session_scalar_projection_modes_render_and_label() {
         let overlay = super::layout::projection_overlay(projection, 640, 400, 640, 400)
             .expect("projection overlay")
             .into_display_list();
+        let expected_title = format!("{PRODUCT_NAME}  3D {label}");
         assert!(overlay.commands().iter().any(|command| matches!(
             command,
-            DisplayCommand::DrawText { text, .. } if text.contains(label)
+            DisplayCommand::DrawText { text, .. }
+                if text.as_ref() == expected_title.as_str()
         )));
     }
 }
@@ -378,7 +380,7 @@ fn native_overlay_is_emitted_as_metis_display_commands() {
     );
     assert!(overlay.commands().iter().any(|command| matches!(
         command,
-        DisplayCommand::DrawText { text, .. } if &**text == "METIS  RITK-SNAP  Axial"
+        DisplayCommand::DrawText { text, .. } if &**text == "AsterSlice  Axial"
     )));
     assert!(overlay.commands().iter().any(|command| matches!(
         command,

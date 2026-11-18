@@ -46,7 +46,7 @@ fn orthogonal_overlay_uses_embedded_typeface_and_composites_exact_rgba() {
         }
         fill_index += 2;
 
-        let expected_title = format!("METIS  RITK-SNAP  {}", view.plane_name);
+        let expected_title = format!("AsterSlice  {}", view.plane_name);
         let expected_footer = format!(
             "Slice {}/{}  {}x{}  W:{:.0} C:{:.0}",
             view.slice_index.saturating_add(1),

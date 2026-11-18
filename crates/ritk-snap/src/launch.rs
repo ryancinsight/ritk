@@ -371,7 +371,7 @@ fn run_app_with_compatibility_selection(
         let app_completion = Rc::clone(&completion);
         let native_options = eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
-                .with_title("ritk-snap — DICOM Viewer")
+                .with_title(crate::app::PRODUCT_NAME)
                 .with_inner_size(viewport.logical_size()),
             ..Default::default()
         };
