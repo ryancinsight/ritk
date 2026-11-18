@@ -29,38 +29,43 @@ impl SnapApp {
             .iter()
             .position(|tool| *tool == self.active_tool)
             .expect("invariant: active tool belongs to ToolKind::all");
-        let last_annotation = self.annotations.last().map(|annotation| match annotation {
-            Annotation::Length { length_mm, .. } => {
-                let length_mm = f64::from(*length_mm);
-                #[cfg(windows)]
-                let length_mm = length_mm * self.length_scale(annotation.location());
-                AnnotationSummary::new(AnnotationKind::Length, length_mm)
-            }
-            Annotation::PatientLength { length, .. } => {
-                AnnotationSummary::new(AnnotationKind::PatientLength, length.length_mm())
-            }
-            Annotation::Angle { angle_deg, .. } => {
-                AnnotationSummary::new(AnnotationKind::Angle, f64::from(*angle_deg))
-            }
-            Annotation::Deviation { distance_mm, .. } => {
-                AnnotationSummary::new(AnnotationKind::Deviation, f64::from(*distance_mm))
-            }
-            Annotation::RoiRect { area_mm2, .. } => {
-                AnnotationSummary::new(AnnotationKind::RoiRect, f64::from(*area_mm2))
-            }
-            Annotation::RoiEllipse { area_mm2, .. } => {
-                AnnotationSummary::new(AnnotationKind::RoiEllipse, f64::from(*area_mm2))
-            }
-            Annotation::HuPoint { value, .. } => {
-                AnnotationSummary::new(AnnotationKind::HuPoint, f64::from(*value))
-            }
-            Annotation::ClosedPolygon { area_mm2, .. } => {
-                AnnotationSummary::new(AnnotationKind::ClosedPolygon, f64::from(*area_mm2))
-            }
-            Annotation::OpenPolygon { length_mm, .. } => {
-                AnnotationSummary::new(AnnotationKind::OpenPolygon, f64::from(*length_mm))
-            }
-        });
+        let summary = |kind, value| Some(AnnotationSummary::new(kind, value));
+        let last_annotation = self
+            .annotations
+            .last()
+            .and_then(|annotation| match annotation {
+                Annotation::Length { length_mm, .. } => {
+                    let length_mm = f64::from(*length_mm);
+                    #[cfg(windows)]
+                    let length_mm = length_mm * self.length_scale(annotation.location());
+                    summary(AnnotationKind::Length, length_mm)
+                }
+                Annotation::PatientLength { length, .. } => {
+                    summary(AnnotationKind::PatientLength, length.length_mm())
+                }
+                Annotation::Angle { angle_deg, .. } => {
+                    summary(AnnotationKind::Angle, f64::from(*angle_deg))
+                }
+                Annotation::Deviation { distance_mm, .. } => {
+                    summary(AnnotationKind::Deviation, f64::from(*distance_mm))
+                }
+                Annotation::RoiRect { area_mm2, .. } => {
+                    summary(AnnotationKind::RoiRect, f64::from(*area_mm2))
+                }
+                Annotation::RoiEllipse { area_mm2, .. } => {
+                    summary(AnnotationKind::RoiEllipse, f64::from(*area_mm2))
+                }
+                Annotation::HuPoint { value, .. } => {
+                    summary(AnnotationKind::HuPoint, f64::from(*value))
+                }
+                Annotation::ClosedPolygon { area_mm2, .. } => {
+                    summary(AnnotationKind::ClosedPolygon, f64::from(*area_mm2))
+                }
+                Annotation::OpenPolygon { length_mm, .. } => {
+                    summary(AnnotationKind::OpenPolygon, f64::from(*length_mm))
+                }
+                Annotation::Arrow { .. } => None,
+            });
         PresentationSnapshot::from_parts(
             self.visual_revision,
             self.loaded.is_some(),

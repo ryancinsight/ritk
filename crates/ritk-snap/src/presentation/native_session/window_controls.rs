@@ -58,7 +58,7 @@ pub(super) enum WindowAction {
     ToggleActivePanel,
     CloseActivePanel,
     CloseAllPanels,
-    CancelPendingLoads,
+    CancelInteraction,
     ActivateNextPanel,
     ActivatePreviousPanel,
     AssignSeries {

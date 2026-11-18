@@ -11,6 +11,7 @@ use metis_platform::native::{ModifierState, NativeApplication, NativeFlow, Windo
 use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::time::{Duration, Instant};
 mod anonymize;
+mod arrow_overlay;
 mod display;
 mod display_controls;
 mod display_custom_presets;

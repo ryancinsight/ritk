@@ -133,7 +133,14 @@ impl NativeViewerSession {
             WindowAction::CloseAllPanels => {
                 self.close_all_panels().map_err(NativeViewerError::from)
             }
-            WindowAction::CancelPendingLoads => Ok(self.cancel_series_loads()),
+            WindowAction::CancelInteraction => {
+                if matches!(self.active_app().tool_state, ToolState::ArrowDrag { .. }) {
+                    self.end_held_gestures();
+                    Ok(true)
+                } else {
+                    Ok(self.cancel_series_loads())
+                }
+            }
             WindowAction::ActivateNextPanel => {
                 self.activate_next_panel().map_err(NativeViewerError::from)
             }

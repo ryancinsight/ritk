@@ -96,11 +96,10 @@ impl WindowChrome {
                 app,
             )
         {
-            return Ok(WindowChromeEvent {
-                consumed: true,
-                repaint: true,
-                action: Some(action),
-            });
+            return Ok(super::key_bindings::global_key_event(
+                self.open_menu,
+                action,
+            ));
         }
         if self.open_menu.is_none()
             && let PresentationEvent::KeyDown {
@@ -167,7 +166,7 @@ impl WindowChrome {
             return Ok(WindowChromeEvent {
                 consumed: true,
                 repaint: true,
-                action: Some(WindowAction::CancelPendingLoads),
+                action: Some(WindowAction::CancelInteraction),
             });
         }
 

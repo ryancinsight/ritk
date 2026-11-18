@@ -88,15 +88,16 @@ pub(crate) fn append_measurement_preview(
     tool_state: &ToolState,
     location: Option<AnnotationLocation>,
 ) -> Result<()> {
-    if !matches!(tool_state, ToolState::LengthDrag { .. })
-        || location.is_some_and(|source| {
-            source
-                != (AnnotationLocation {
-                    plane: view.axis,
-                    slice: view.slice_index,
-                })
-        })
-    {
+    if !matches!(
+        tool_state,
+        ToolState::LengthDrag { .. } | ToolState::ArrowDrag { .. }
+    ) || location.is_some_and(|source| {
+        source
+            != (AnnotationLocation {
+                plane: view.axis,
+                slice: view.slice_index,
+            })
+    }) {
         return Ok(());
     }
     let output_size = view.transform.output_size(view.source_size);
@@ -111,6 +112,8 @@ pub(crate) fn append_measurement_preview(
     };
     if let ToolState::LengthDrag { start, current } = tool_state {
         pane.segment(overlay, [*start, *current], MEASUREMENT_COLOR)?;
+    } else if let ToolState::ArrowDrag { start, current } = tool_state {
+        pane.arrow(overlay, [*start, *current], MEASUREMENT_COLOR)?;
     }
     Ok(())
 }
@@ -175,6 +178,41 @@ impl Pane<'_> {
             image_point([points[1].y(), points[1].x()]),
             color,
         )
+    }
+
+    fn arrow(
+        &self,
+        overlay: &mut OverlayCommands,
+        points: [ImagePoint; 2],
+        color: Color,
+    ) -> Result<()> {
+        let a = image_point([points[0].y(), points[0].x()]);
+        let b = image_point([points[1].y(), points[1].x()]);
+        let tail = self.point(a)?;
+        let tip = self.point(b)?;
+        overlay.push(metis_ui_lang::DisplayCommand::DrawLine {
+            start: tail,
+            end: tip,
+            color,
+        });
+        if let Some(wings) = metis_ui_lang::arrow_wings(
+            [f64::from(tail.0), f64::from(tail.1)],
+            [f64::from(tip.0), f64::from(tip.1)],
+            8.0,
+            4.0,
+        ) {
+            for wing in wings {
+                overlay.push(metis_ui_lang::DisplayCommand::DrawLine {
+                    start: tip,
+                    end: (
+                        screen_coordinate(wing[0], "arrow wing x")?,
+                        screen_coordinate(wing[1], "arrow wing y")?,
+                    ),
+                    color,
+                });
+            }
+        }
+        Ok(())
     }
 
     fn label(&self, overlay: &mut OverlayCommands, anchor: [f64; 2], text: String) -> Result<()> {
@@ -385,6 +423,16 @@ impl Pane<'_> {
                 if let Some(first) = polyline.first() {
                     self.label(overlay, *first, format!("{length_mm:.1} mm"))?;
                 }
+            }
+            Annotation::Arrow { tail, head, .. } => {
+                self.arrow(
+                    overlay,
+                    [
+                        ImagePoint::new(tail[1], tail[0]),
+                        ImagePoint::new(head[1], head[0]),
+                    ],
+                    MEASUREMENT_COLOR,
+                )?;
             }
             _ => {}
         }

@@ -241,6 +241,13 @@ pub enum Annotation {
         /// Physical polyline length in millimetres.
         length_mm: f32,
     },
+    /// Directional arrow with image-space tail and head points.
+    Arrow {
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
+        tail: [f32; 2],
+        head: [f32; 2],
+    },
 }
 
 impl Annotation {

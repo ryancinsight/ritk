@@ -168,7 +168,7 @@ fn csv_hu_point_row_analytical() {
 
 #[test]
 fn csv_multi_annotation_indices_are_sequential() {
-    // Analytical: three annotations → data rows must carry indices 0, 1, 2
+    // Rows carry the annotation index even when the mark has no measured value.
     let annotations = vec![
         Annotation::Length {
             plane: 0,
@@ -189,10 +189,16 @@ fn csv_multi_annotation_indices_are_sequential() {
             p3: [1.0, 1.0],
             angle_deg: 90.0,
         },
+        Annotation::Arrow {
+            location: None,
+            tail: [0.0, 0.0],
+            head: [1.0, 0.0],
+        },
     ];
     let csv = csv_for(&annotations);
     let rows: Vec<&str> = csv.lines().skip(1).collect();
-    assert_eq!(rows.len(), 3, "expected 3 data rows");
+    assert_eq!(rows.len(), 4, "expected 4 data rows");
+    assert_eq!(rows[3], "3,Arrow,,,");
     assert!(
         rows[0].starts_with("0,"),
         "first data row must have index 0"

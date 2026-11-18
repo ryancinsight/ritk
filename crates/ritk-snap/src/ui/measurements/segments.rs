@@ -3,6 +3,7 @@
 use super::{egui_point, label_font, COLOR_LABEL, COLOR_MEASURE, HANDLE_RADIUS, LINE_WIDTH};
 use crate::tools::interaction::ImagePoint;
 use egui::{Align2, Painter, Pos2, Stroke, Vec2};
+use eunomia::FloatElement;
 
 pub(super) fn draw_deviation(
     painter: &Painter,
@@ -75,4 +76,28 @@ pub(super) fn draw_angle_annotation(
         label_font(),
         COLOR_LABEL,
     );
+}
+
+pub(super) fn draw_arrow(painter: &Painter, tail: egui::Pos2, tip: egui::Pos2) {
+    let stroke = Stroke::new(LINE_WIDTH, COLOR_MEASURE);
+    painter.line_segment([tail, tip], stroke);
+    if let Some(wings) = metis_ui_lang::arrow_wings(
+        [f64::from(tail.x), f64::from(tail.y)],
+        [f64::from(tip.x), f64::from(tip.y)],
+        8.0,
+        4.0,
+    ) {
+        for wing in wings {
+            painter.line_segment(
+                [
+                    tip,
+                    egui::Pos2::new(
+                        <f32 as FloatElement>::from_f64(wing[0]),
+                        <f32 as FloatElement>::from_f64(wing[1]),
+                    ),
+                ],
+                stroke,
+            );
+        }
+    }
 }
