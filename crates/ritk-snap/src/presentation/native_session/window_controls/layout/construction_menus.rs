@@ -69,10 +69,15 @@ pub(super) fn menu_item_count(
             }
         }
         Menu::Tools => {
+            #[cfg(windows)]
+            let calibration_rows = usize::from(app.last_active_length().is_some());
+            #[cfg(not(windows))]
+            let calibration_rows = 0;
             ToolKind::all()
                 .iter()
                 .filter(|tool| !(workspace_layout.is_grid() && **tool == ToolKind::Crosshair))
                 .count()
+                + calibration_rows
                 + POINTER_BUTTON_ROWS.len()
         }
         Menu::Window => 6,
@@ -171,8 +176,33 @@ pub(super) fn menu_item(
                     app.active_tool == tool,
                 ));
             }
+            #[cfg(windows)]
+            if app.last_active_length().is_some() && index == tool_rows {
+                let calibrated = app.has_active_length_calibration();
+                return Ok((
+                    if calibrated {
+                        "Reset length calibration"
+                    } else {
+                        "Calibrate last distance..."
+                    },
+                    if calibrated {
+                        WindowAction::ResetCalibration
+                    } else {
+                        WindowAction::OpenCalibration
+                    },
+                    false,
+                ));
+            }
+            #[cfg(windows)]
+            let calibration_rows = usize::from(app.last_active_length().is_some());
+            #[cfg(not(windows))]
+            let calibration_rows = 0;
             let (label, button) = POINTER_BUTTON_ROWS
-                .get(index - tool_rows)
+                .get(
+                    index
+                        .saturating_sub(tool_rows)
+                        .saturating_sub(calibration_rows),
+                )
                 .ok_or_else(|| anyhow!("native Tools menu row is outside its items"))?;
             Ok((
                 label,
@@ -264,7 +294,7 @@ pub(super) fn menu_item(
                 3 => Ok(("Rotate 90 CW  R", WindowAction::RotateCw, false)),
                 4 => Ok(("Rotate 90 CCW  Shift+R", WindowAction::RotateCcw, false)),
                 5 => Ok((
-                    "Reset orientation  Shift+O",
+                    "Reset orientation  O",
                     WindowAction::ResetOrientation,
                     false,
                 )),
