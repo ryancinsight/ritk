@@ -104,8 +104,14 @@ pub(crate) struct PointerGestureOwner {
     /// gesture: it never places measurement anchors and its release never runs
     /// the click path of the still-selected tool.
     pub(crate) modified: bool,
-    /// An unmodified primary click can pick a polygon when the host draws handles.
-    pub(crate) selects_polygon: bool,
+    pub(crate) polygon_click: PolygonClick,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PolygonClick {
+    None,
+    Select,
+    Finish,
 }
 
 #[derive(Debug, Clone, PartialEq)]

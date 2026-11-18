@@ -3,7 +3,7 @@ use super::{WindowAction, WindowChrome, WindowChromeEvent};
 use crate::app::{LengthCalibrationReference, SnapApp};
 use crate::presentation::PresentationEvent;
 use anyhow::Result;
-use metis_platform::rasterizer::{fill_rect, CornerRadius};
+use metis_platform::rasterizer::{CornerRadius, fill_rect};
 use metis_platform::{Color, Framebuffer, Rect};
 use metis_ui_lang::{DecimalEdit, DecimalEntry};
 
@@ -48,7 +48,6 @@ impl WindowChrome {
         match event {
             PresentationEvent::FocusLost => {
                 self.calibration = None;
-                self.control_down = false;
                 self.cancel_pointer_capture();
                 return Some(WindowChromeEvent {
                     consumed: false,

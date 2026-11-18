@@ -1,7 +1,7 @@
 //! Native-window pointer, keyboard and dialog input ownership.
 
 use super::super::layout::{
-    panel_header_action_at, NativeViewport, PanelHeaderAction, WorkspaceLayout,
+    NativeViewport, PanelHeaderAction, WorkspaceLayout, panel_header_action_at,
 };
 use super::super::pressed_buttons::PressedButtons;
 use super::super::series_browser::SeriesBrowser;
@@ -11,7 +11,7 @@ use super::slice_drag::SliceDrag;
 use super::{PanelCloseKind, PointerOwner, WindowAction, WindowChrome, WindowChromeEvent};
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 impl WindowChrome {
     pub(in crate::presentation::native_session) fn handle_event(
@@ -31,6 +31,12 @@ impl WindowChrome {
             self.cancel_pointer_capture();
             return Ok(WindowChromeEvent::passed());
         }
+        self.observe_modifiers(event);
+        if matches!(event, PresentationEvent::PointerDoubleClick { .. })
+            && self.modifiers != PresentationModifiers::NONE
+        {
+            return Ok(WindowChromeEvent::consumed(false));
+        }
         if let Some(event) = self.edit_calibration(event) {
             return Ok(event);
         }
@@ -49,26 +55,13 @@ impl WindowChrome {
         if !self.visible {
             return Ok(WindowChromeEvent::passed());
         }
-        match event {
-            PresentationEvent::KeyDown {
-                virtual_key,
-                modifiers,
-                ..
-            } => self.control_down = modifiers.ctrl() || *virtual_key == 0x11,
-            PresentationEvent::KeyUp {
-                virtual_key,
-                modifiers,
-            } => self.control_down = *virtual_key != 0x11 && modifiers.ctrl(),
-            PresentationEvent::FocusLost => self.control_down = false,
-            _ => {}
-        }
         if let Some(dialog) = self.multi_series_dialog.as_mut() {
             let Some(series_browser) = browser.as_ref() else {
                 self.multi_series_dialog = None;
                 return Ok(WindowChromeEvent::consumed(true));
             };
             let result =
-                dialog.handle_event(event, width, height, series_browser, self.control_down)?;
+                dialog.handle_event(event, width, height, series_browser, self.modifiers.ctrl())?;
             let action = match result.action {
                 Some(DialogAction::Confirm) => Some(WindowAction::LoadSelectedSeries),
                 Some(DialogAction::Cancel) => {
@@ -201,7 +194,7 @@ impl WindowChrome {
                             PanelHeaderAction::Maximize => WindowAction::MaximizePanel(index),
                             PanelHeaderAction::Close => WindowAction::ClosePanel {
                                 index,
-                                kind: if self.control_down {
+                                kind: if self.modifiers.ctrl() {
                                     PanelCloseKind::Clear
                                 } else {
                                     PanelCloseKind::Close
@@ -347,7 +340,7 @@ impl WindowChrome {
                             } else if layout.series_index_at(browser.as_ref(), *x, *y)
                                 == Some(index)
                             {
-                                Some(if self.control_down {
+                                Some(if self.modifiers.ctrl() {
                                     WindowAction::OpenSeriesInNextPanel(index)
                                 } else {
                                     WindowAction::SelectSeries(index)

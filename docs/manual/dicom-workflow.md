@@ -87,7 +87,8 @@ the measurements based on the original image spacing.
    starting vertex to close it. The overlay reports area in square
    millimetres and perimeter in millimetres.
 
-Choose another tool to discard an unfinished path.
+Double-click the final vertex to finish either path after placing its minimum
+number of vertices. Choose another tool to discard an unfinished path.
 
 ### Select, move, and delete a polygon
 
@@ -132,6 +133,7 @@ cargo nextest run --locked -p ritk-snap -E '
   or test(native_length_calibration_scales_labels_and_resets)
   or test(arrow_)
   or test(native_pencil_)
+  or test(double_click_)
   or test(length_measurement_first_click_then_drag_completes_through_the_adapter)
   or test(deviation_measurement_completes_from_one_pointer_drag)
   or test(open_polygon_enter_commits_physical_length_and_consumes_release)
@@ -142,8 +144,7 @@ cargo nextest run --locked -p ritk-snap -E '
 '
 ```
 
-Cobb angle, polygon edge insertion, and double-click completion
-are tracked in the
+Cobb angle and polygon edge insertion are tracked in the
 [native measurement work](../../backlog.md#RITK-SNAP-NATIVE-MEASURE-SET-001).
 
 ## Actual application gallery

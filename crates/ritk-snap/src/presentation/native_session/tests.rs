@@ -21,6 +21,7 @@ mod measurement_overlay;
 mod overlay_text;
 mod pencil_overlay;
 mod pointer_capture;
+mod polygon_double_click;
 mod repair;
 mod series_browser;
 mod series_loads;

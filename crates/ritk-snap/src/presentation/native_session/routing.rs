@@ -195,6 +195,7 @@ fn event_view_index(
     let candidate = match event {
         PresentationEvent::PointerCaptureLost => active_view,
         PresentationEvent::PointerDown { x, y, .. }
+        | PresentationEvent::PointerDoubleClick { x, y, .. }
         | PresentationEvent::PointerMove { x, y }
         | PresentationEvent::PointerUp { x, y, .. }
         | PresentationEvent::PointerCancel { x, y, .. }
