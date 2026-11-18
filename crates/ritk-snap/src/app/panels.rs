@@ -4,7 +4,7 @@ use super::state::SnapApp;
 #[cfg(not(target_arch = "wasm32"))]
 use super::volume_input::VolumeInput;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::session::ViewerSessionSnapshot;
+use crate::session::{LengthCalibrationSnapshot, ViewerSessionSnapshot};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::tools::interaction::{ToolState, ViewportOffset};
 #[cfg(not(target_arch = "wasm32"))]
@@ -68,6 +68,7 @@ impl SnapApp {
             cine_enabled: self.cine.enabled,
             cine_fps: self.cine.fps,
             annotations: self.annotations.clone(),
+            length_calibrations: self.session_length_calibrations(),
         }
     }
 
@@ -76,6 +77,7 @@ impl SnapApp {
         &mut self,
         mut snapshot: ViewerSessionSnapshot,
     ) -> anyhow::Result<()> {
+        let restores_source = snapshot.source.is_some();
         // Decode and validate before changing either presentation or loaded state.
         if let Some(source) = snapshot.source.take() {
             let volume = VolumeInput::restore(source)?.load()?;
@@ -99,6 +101,10 @@ impl SnapApp {
         self.zoom = snapshot.zoom.clamp(MIN_ZOOM, MAX_ZOOM);
         self.cine.restore(snapshot.cine_enabled, snapshot.cine_fps);
         self.annotations = snapshot.annotations;
+        let calibrations = restores_source
+            .then_some(snapshot.length_calibrations)
+            .unwrap_or_default();
+        self.restore_session_length_calibrations(calibrations)?;
         self.pointer.selected_polygon = None;
         self.tool_state = ToolState::Idle;
         self.bump_visual_revision();
@@ -110,6 +116,36 @@ impl SnapApp {
                 self.sagittal_slice,
             )
         });
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    fn session_length_calibrations(&self) -> Vec<LengthCalibrationSnapshot> {
+        self.length_calibrations
+            .iter()
+            .map(super::calibration::ManualLengthCalibration::snapshot)
+            .collect()
+    }
+
+    #[cfg(not(windows))]
+    fn session_length_calibrations(&self) -> Vec<LengthCalibrationSnapshot> {
+        Vec::new()
+    }
+
+    #[cfg(windows)]
+    fn restore_session_length_calibrations(
+        &mut self,
+        snapshots: Vec<LengthCalibrationSnapshot>,
+    ) -> anyhow::Result<()> {
+        self.restore_length_calibrations(snapshots)
+            .map_err(|error| anyhow::anyhow!(error))
+    }
+
+    #[cfg(not(windows))]
+    fn restore_session_length_calibrations(
+        &mut self,
+        _snapshots: Vec<LengthCalibrationSnapshot>,
+    ) -> anyhow::Result<()> {
         Ok(())
     }
 

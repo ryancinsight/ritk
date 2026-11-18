@@ -1,3 +1,4 @@
+use crate::session::LengthCalibrationSnapshot;
 use crate::tools::interaction::{Annotation, AnnotationLocation, MeasurementError};
 
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
@@ -43,6 +44,29 @@ impl ManualLengthCalibration {
         self.location == location
     }
 
+    pub(crate) fn snapshot(self) -> LengthCalibrationSnapshot {
+        LengthCalibrationSnapshot {
+            plane: self.location.plane,
+            slice: self.location.slice,
+            scale: self.scale,
+        }
+    }
+
+    fn from_snapshot(
+        snapshot: LengthCalibrationSnapshot,
+    ) -> Result<Self, CalibrationError> {
+        let location = AnnotationLocation {
+            plane: snapshot.plane,
+            slice: snapshot.slice,
+        };
+        (snapshot.plane < 3 && snapshot.scale.is_finite() && snapshot.scale > 0.0)
+            .then_some(Self {
+                location,
+                scale: snapshot.scale,
+            })
+            .ok_or(CalibrationError::InvalidReference)
+    }
+
     pub(crate) fn apply(self, measured_mm: f32) -> Result<f32, CalibrationError> {
         let calibrated = measured_mm * self.scale;
         (calibrated.is_finite() && calibrated > 0.0)
@@ -53,6 +77,34 @@ impl ManualLengthCalibration {
 
 #[cfg(windows)]
 impl super::state::SnapApp {
+    pub(crate) fn session_length_calibrations(&self) -> Vec<LengthCalibrationSnapshot> {
+        self.length_calibrations
+            .iter()
+            .copied()
+            .map(ManualLengthCalibration::snapshot)
+            .collect()
+    }
+
+    pub(crate) fn restore_length_calibrations(
+        &mut self,
+        snapshots: Vec<LengthCalibrationSnapshot>,
+    ) -> Result<(), CalibrationError> {
+        let restored = snapshots
+            .into_iter()
+            .map(ManualLengthCalibration::from_snapshot)
+            .collect::<Result<Vec<_>, _>>()?;
+        if let Some(volume) = &self.loaded {
+            if restored.iter().any(|item| {
+                item.location.plane >= volume.shape.len()
+                    || item.location.slice >= volume.shape[item.location.plane]
+            }) {
+                return Err(CalibrationError::InvalidReference);
+            }
+        }
+        self.length_calibrations = restored;
+        Ok(())
+    }
+
     fn active_length_location(&self) -> AnnotationLocation {
         AnnotationLocation {
             plane: self.axis,

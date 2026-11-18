@@ -21,6 +21,17 @@ use std::path::Path;
 mod source;
 pub use source::{SessionFormat, StudySource};
 
+/// Persisted scale for one source image plane.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct LengthCalibrationSnapshot {
+    /// Image-plane axis.
+    pub plane: usize,
+    /// Slice index along `plane`.
+    pub slice: usize,
+    /// Dimensionless replacement scale applied to image-space lengths.
+    pub scale: f32,
+}
+
 /// Serializable viewer state used for save/load session workflows.
 ///
 /// # Invariants
@@ -84,6 +95,9 @@ pub struct ViewerSessionSnapshot {
     /// that measurement remains meaningful without the volume loaded.
     #[serde(default)]
     pub annotations: Vec<Annotation>,
+    /// Manual millimetre scales keyed by source image plane and slice.
+    #[serde(default)]
+    pub length_calibrations: Vec<LengthCalibrationSnapshot>,
 }
 
 impl ViewerSessionSnapshot {
@@ -111,6 +125,7 @@ impl ViewerSessionSnapshot {
             cine_enabled: false,
             cine_fps: 12.0,
             annotations: Vec::new(),
+            length_calibrations: Vec::new(),
         }
     }
 }

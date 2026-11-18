@@ -34,7 +34,31 @@ fn canonical_snapshot_no_annotations() -> ViewerSessionSnapshot {
         cine_enabled: true,
         cine_fps: 18.0,
         annotations: Vec::new(),
+        length_calibrations: Vec::new(),
     }
+}
+
+#[test]
+fn length_calibration_snapshot_round_trips_and_legacy_defaults_empty() {
+    let mut snapshot = canonical_snapshot_no_annotations();
+    snapshot.length_calibrations = vec![LengthCalibrationSnapshot {
+        plane: 0,
+        slice: 2,
+        scale: 2.0,
+    }];
+    let encoded = serde_json::to_vec(&snapshot).expect("serialize calibration snapshot");
+    let recovered: ViewerSessionSnapshot =
+        serde_json::from_slice(&encoded).expect("deserialize calibration snapshot");
+    assert_eq!(recovered.length_calibrations, snapshot.length_calibrations);
+
+    let mut legacy = serde_json::to_value(snapshot).expect("serialize legacy shape");
+    legacy
+        .as_object_mut()
+        .expect("snapshot object")
+        .remove("length_calibrations");
+    let recovered_legacy: ViewerSessionSnapshot =
+        serde_json::from_value(legacy).expect("legacy snapshot remains readable");
+    assert!(recovered_legacy.length_calibrations.is_empty());
 }
 
 /// Build all Annotation variants with analytically exact values.
