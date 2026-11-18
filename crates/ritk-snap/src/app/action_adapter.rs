@@ -209,7 +209,8 @@ impl SnapApp {
                 if *button == PointerButton::Left
                     && !modifiers.ctrl()
                     && !modifiers.shift()
-                    && self.begin_polygon_vertex_move(*viewport, *position, image)
+                    && (self.begin_polygon_vertex_move(*viewport, *position, image)
+                        || self.begin_polygon_edge_insert(*viewport, *position, image))
                 {
                     self.pointer.owner = Some(PointerGestureOwner {
                         button: *button,
@@ -325,10 +326,17 @@ impl SnapApp {
                 };
                 let mapped = viewport.and_then(|viewport| viewport.map(*position));
                 if self.pointer.pending_polygon_move.is_some() {
-                    if *gesture == PointerGesture::Drag
-                        && mapped.is_some_and(|image| self.preview_polygon_vertex_move(image))
-                    {
-                        self.commit_polygon_vertex_move();
+                    match *gesture {
+                        PointerGesture::Drag
+                            if mapped
+                                .is_some_and(|image| self.preview_polygon_vertex_move(image)) =>
+                        {
+                            self.commit_polygon_vertex_move()
+                        }
+                        PointerGesture::Click if mapped.is_some() => {
+                            self.commit_polygon_vertex_move()
+                        }
+                        _ => {}
                     }
                     self.on_drag_end(None);
                     return Ok(ViewerActionDisposition::Continue { repaint: true });

@@ -120,6 +120,7 @@ pub(crate) struct PendingPolygonMove {
     pub(crate) source_location: AnnotationLocation,
     pub(crate) original: Annotation,
     pub(crate) node_index: usize,
+    pub(crate) inserted: bool,
     pub(crate) candidate: Annotation,
     pub(crate) start: ImagePoint,
     pub(crate) current: ImagePoint,
