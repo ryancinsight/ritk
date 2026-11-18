@@ -52,6 +52,9 @@ pub use patient_length::PatientLength;
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
 #[non_exhaustive]
 pub enum MeasurementError {
+    /// One of the physical segments has no direction.
+    #[error("{kind} needs two nonzero segments")]
+    DegenerateSegment { kind: &'static str },
     /// A spacing component is not finite and strictly positive.
     #[error("voxel spacing component {index} is not finite and positive: {value}")]
     InvalidSpacing { index: usize, value: f64 },

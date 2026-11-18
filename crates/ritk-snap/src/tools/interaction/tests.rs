@@ -4,6 +4,8 @@ use crate::render::WindowLevel;
 use crate::tools::ToolKind;
 use iris::color::{ColorMap, Normalized};
 
+#[path = "tests/cobb.rs"]
+mod cobb;
 #[path = "tests/patient_length.rs"]
 mod patient_length;
 

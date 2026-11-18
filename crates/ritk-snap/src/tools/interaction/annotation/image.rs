@@ -59,6 +59,59 @@ impl Annotation {
         self
     }
 
+    /// Measure the acute angle in degrees between two physical segments.
+    ///
+    /// Scaling each physical direction by its largest component keeps the
+    /// dot product and determinant bounded without changing their ratio.
+    /// Taking both magnitudes makes the result invariant to endpoint order.
+    ///
+    /// Endpoints are [row, column] in image pixels. Spacing is [row, column]
+    /// in millimetres per pixel.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if spacing is invalid, a segment has no direction,
+    /// or a physical component cannot be represented.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ritk_snap::tools::interaction::Annotation;
+    ///
+    /// assert_eq!(
+    ///     Annotation::compute_cobb_angle(
+    ///         [0.0, 0.0], [0.0, 4.0], [3.0, 2.0], [-1.0, 2.0], [1.0; 2],
+    ///     ),
+    ///     Ok(90.0),
+    /// );
+    /// ```
+    pub fn compute_cobb_angle(
+        p1: [f32; 2],
+        p2: [f32; 2],
+        p3: [f32; 2],
+        p4: [f32; 2],
+        spacing: [f64; 2],
+    ) -> Result<f32, MeasurementError> {
+        let spacing = Self::validate_spacing(spacing)?;
+        let direction = |start: [f32; 2], end: [f32; 2]| {
+            let row = (end[0] - start[0]) * spacing[0];
+            let col = (end[1] - start[1]) * spacing[1];
+            if !row.is_finite() || !col.is_finite() {
+                return Err(MeasurementError::NonFiniteResult { kind: "Cobb angle" });
+            }
+            let scale = row.abs().max(col.abs());
+            if scale == 0.0 {
+                return Err(MeasurementError::DegenerateSegment { kind: "Cobb angle" });
+            }
+            Ok([row / scale, col / scale])
+        };
+        let [ar, ac] = direction(p1, p2)?;
+        let [br, bc] = direction(p3, p4)?;
+        let dot = (ar * br + ac * bc).abs();
+        let determinant = (ar * bc - ac * br).abs();
+        Ok(determinant.atan2(dot).to_degrees())
+    }
+
     /// Compute a finite length after validating physical spacing.
     pub fn compute_length_checked(
         p1: [f32; 2],
