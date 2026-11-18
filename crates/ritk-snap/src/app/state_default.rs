@@ -35,6 +35,8 @@ impl Default for SnapApp {
             pointer: Default::default(),
             presentation_dispatcher: PresentationDispatcher::new(),
             annotations: Vec::new(),
+            #[cfg(windows)]
+            length_calibrations: Vec::new(),
             label_editor: None,
             label_brush_radius: 1,
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]

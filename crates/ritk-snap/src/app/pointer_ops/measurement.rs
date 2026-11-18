@@ -112,6 +112,9 @@ impl SnapApp {
                     p2,
                     length_mm,
                 });
+                #[cfg(windows)]
+                let length_mm =
+                    f64::from(length_mm) * self.length_scale(Some(self.annotation_location()));
                 self.status_message = format!("Length: {length_mm:.2} mm");
             }
             Err(error) => {

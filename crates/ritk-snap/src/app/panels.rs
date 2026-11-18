@@ -99,6 +99,8 @@ impl SnapApp {
         self.zoom = snapshot.zoom.clamp(MIN_ZOOM, MAX_ZOOM);
         self.cine.restore(snapshot.cine_enabled, snapshot.cine_fps);
         self.annotations = snapshot.annotations;
+        #[cfg(windows)]
+        self.length_calibrations.clear();
         self.pointer.selected_polygon = None;
         self.tool_state = ToolState::Idle;
         self.bump_visual_revision();

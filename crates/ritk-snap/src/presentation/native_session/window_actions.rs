@@ -175,6 +175,27 @@ impl NativeViewerSession {
                 }
                 Ok(true)
             }
+            WindowAction::LengthCalibration => Err(NativeViewerError::new(
+                "length calibration menu action must be handled by window controls",
+            )),
+            WindowAction::ApplyLengthCalibration {
+                panel,
+                reference,
+                known_mm,
+            } => {
+                let accepted = panel == self.active_panel
+                    && self
+                        .active_app_mut()
+                        .set_length_calibration(reference, known_mm.map(f32::from_bits));
+                self.active_app_mut().status_message = match (accepted, known_mm) {
+                    (false, _) => "Length calibration rejected: reference changed".to_owned(),
+                    (true, Some(mm)) => {
+                        format!("Length calibrated to {:.2} mm", f32::from_bits(mm))
+                    }
+                    (true, None) => "Length calibration reset to image spacing".to_owned(),
+                };
+                Ok(true)
+            }
             WindowAction::ToggleCrosshair => {
                 if self.workspace_layout.is_grid() {
                     return Ok(false);

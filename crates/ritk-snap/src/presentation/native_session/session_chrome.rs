@@ -47,6 +47,7 @@ impl NativeViewerSession {
                     .as_ref()
                     .map(|pending| &pending.candidate),
                 volume_affine(app),
+                |location| app.length_scale(location),
             )?;
             if preview {
                 append_measurement_preview(

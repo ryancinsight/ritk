@@ -30,6 +30,7 @@ pub(crate) fn append_measurement_overlay(
     selected_polygon: Option<usize>,
     pending_polygon: Option<&Annotation>,
     affine: Option<AffineTransform>,
+    length_scale: impl Fn(Option<AnnotationLocation>) -> f64,
 ) -> Result<()> {
     for (view, viewport) in views.iter().zip(viewports.iter()) {
         let output_size = view.transform.output_size(view.source_size);
@@ -49,7 +50,12 @@ pub(crate) fn append_measurement_overlay(
             let annotation = pending_polygon
                 .filter(|_| selected_polygon == Some(index))
                 .unwrap_or(annotation);
-            pane.draw(annotation, overlay, affine)?;
+            pane.draw(
+                annotation,
+                overlay,
+                affine,
+                length_scale(annotation.location()),
+            )?;
             if selected_polygon == Some(index)
                 && let Annotation::OpenPolygon { points, .. }
                 | Annotation::ClosedPolygon { points, .. } = annotation
@@ -216,6 +222,7 @@ impl Pane<'_> {
         annotation: &Annotation,
         overlay: &mut OverlayCommands,
         affine: Option<AffineTransform>,
+        length_scale: f64,
     ) -> Result<()> {
         match annotation {
             Annotation::Length {
@@ -231,7 +238,7 @@ impl Pane<'_> {
                     overlay,
                     image_point(*p1),
                     image_point(*p2),
-                    format!("{length_mm:.1} mm"),
+                    format!("{:.1} mm", f64::from(*length_mm) * length_scale),
                 )?;
             }
             Annotation::PatientLength { plane, length, .. } if *plane == self.view.axis => {

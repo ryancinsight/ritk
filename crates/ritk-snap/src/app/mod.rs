@@ -15,6 +15,10 @@
 
 pub(crate) mod action_adapter;
 mod annotation_edit;
+#[cfg(windows)]
+mod calibration;
+#[cfg(windows)]
+pub(crate) use calibration::LengthCalibrationReference;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_cine;
 #[cfg(any(target_arch = "wasm32", test))]
