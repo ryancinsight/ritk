@@ -63,25 +63,16 @@ impl ScreenImageGeometry {
     /// Map a host point into continuous image-edge coordinates.
     pub(crate) fn map_edge(self, point: ViewportPoint) -> Option<[f64; 2]> {
         let position = [point.x(), point.y()];
-        if !position.into_iter().all(f64::is_finite)
-            || (0..2).any(|axis| {
-                position[axis] < self.origin[axis] || position[axis] >= self.far_edge[axis]
-            })
-        {
+        if position.into_iter().enumerate().any(|(axis, coordinate)| {
+            coordinate < self.origin[axis] || coordinate >= self.far_edge[axis]
+        }) {
             return None;
         }
-        let mut pixel = std::array::from_fn(|axis| {
-            let distance = position[axis] - self.origin[axis];
-            if distance.is_finite() {
-                distance / self.pixel_size[axis]
-            } else {
-                position[axis] / self.pixel_size[axis] - self.origin[axis] / self.pixel_size[axis]
-            }
-        });
+        let mut pixel = self.map_edge_unbounded(point)?;
         for axis in 0..2 {
             let coordinate = pixel[axis];
             let extent = f64::from(self.dimensions[axis]);
-            if !coordinate.is_finite() || coordinate < 0.0 || coordinate > extent {
+            if coordinate < 0.0 || coordinate > extent {
                 return None;
             }
             if coordinate == extent {
@@ -89,6 +80,23 @@ impl ScreenImageGeometry {
             }
         }
         Some(pixel)
+    }
+
+    /// Map a finite host point without clipping it to the raster rectangle.
+    pub(crate) fn map_edge_unbounded(self, point: ViewportPoint) -> Option<[f64; 2]> {
+        let position = [point.x(), point.y()];
+        if !position.into_iter().all(f64::is_finite) {
+            return None;
+        }
+        let pixel = std::array::from_fn(|axis| {
+            let distance = position[axis] - self.origin[axis];
+            if distance.is_finite() {
+                distance / self.pixel_size[axis]
+            } else {
+                position[axis] / self.pixel_size[axis] - self.origin[axis] / self.pixel_size[axis]
+            }
+        });
+        pixel.into_iter().all(f64::is_finite).then_some(pixel)
     }
 
     /// Map a host point into continuous pixel-centre coordinates.

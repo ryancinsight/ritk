@@ -268,6 +268,8 @@ impl SnapApp {
                 if !places_next_anchor {
                     self.on_drag_start(tool, Some(image));
                 }
+                self.pointer
+                    .capture_navigation_viewport(&self.tool_state, *viewport);
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerDragged {
@@ -282,7 +284,8 @@ impl SnapApp {
                 let Some(viewport) = viewport else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
-                let Some(image) = viewport.map(*current) else {
+                let Some(image) = self.pointer.map_drag(&self.tool_state, *viewport, *current)
+                else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
                 if self.pointer.pending_polygon_move.is_some() {

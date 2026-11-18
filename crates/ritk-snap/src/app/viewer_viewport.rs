@@ -130,13 +130,8 @@ impl ViewerViewport {
     }
 
     pub(crate) fn map(self, point: ViewportPoint) -> Option<ImagePoint> {
-        let output = self.geometry.map_edge(point)?;
+        let output = self.output_coordinates(self.geometry.map_edge(point)?);
         let output_size = self.geometry.dimensions().map(f64::from);
-        let center = [output_size[0] / 2.0, output_size[1] / 2.0];
-        let output = [
-            ((output[0] - center[0] - self.pan[0]) / self.zoom) + center[0],
-            ((output[1] - center[1] - self.pan[1]) / self.zoom) + center[1],
-        ];
         if output[0] < 0.0
             || output[0] >= output_size[0]
             || output[1] < 0.0
@@ -144,6 +139,31 @@ impl ViewerViewport {
         {
             return None;
         }
+        let image = self.image_point(output)?;
+        if f64::from(image.x()) >= f64::from(self.source_dimensions[0])
+            || f64::from(image.y()) >= f64::from(self.source_dimensions[1])
+        {
+            return None;
+        }
+        Some(image)
+    }
+
+    /// Map a display gesture beyond the image bounds in its captured basis.
+    pub(crate) fn map_unbounded(self, point: ViewportPoint) -> Option<ImagePoint> {
+        let output = self.output_coordinates(self.geometry.map_edge_unbounded(point)?);
+        self.image_point(output)
+    }
+
+    fn output_coordinates(self, output: [f64; 2]) -> [f64; 2] {
+        let output_size = self.geometry.dimensions().map(f64::from);
+        let center = [output_size[0] / 2.0, output_size[1] / 2.0];
+        [
+            ((output[0] - center[0] - self.pan[0]) / self.zoom) + center[0],
+            ((output[1] - center[1] - self.pan[1]) / self.zoom) + center[1],
+        ]
+    }
+
+    fn image_point(self, output: [f64; 2]) -> Option<ImagePoint> {
         let [source_x, source_y] = self
             .transform
             .output_to_source_coordinates(output, self.source_size);
@@ -166,11 +186,6 @@ impl ViewerViewport {
             reason = "the pointer-action contract stores f32 image coordinates; the dimensions bound the pixel index"
         )]
         let image_y = source_y as f32;
-        if f64::from(image_x) >= f64::from(self.source_dimensions[0])
-            || f64::from(image_y) >= f64::from(self.source_dimensions[1])
-        {
-            return None;
-        }
         Some(ImagePoint::new(image_x, image_y))
     }
 }
