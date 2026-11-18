@@ -43,6 +43,10 @@ impl ManualLengthCalibration {
         self.location == location
     }
 
+    pub(crate) fn scale(self) -> f32 {
+        self.scale
+    }
+
     pub(crate) fn apply(self, measured_mm: f32) -> Result<f32, CalibrationError> {
         let calibrated = measured_mm * self.scale;
         (calibrated.is_finite() && calibrated > 0.0)
