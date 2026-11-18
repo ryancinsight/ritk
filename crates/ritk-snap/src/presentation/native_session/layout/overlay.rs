@@ -10,7 +10,9 @@ use metis_ui_lang::{DisplayCommand, DisplayList};
 use super::super::frame::RenderedView;
 use super::super::projection::RenderedProjection;
 use super::geometry::NativeViewport;
-use super::text::{fit_text, text_command, text_style, PANEL_DETAIL_SIZE, PANEL_TITLE_SIZE};
+use super::text::{
+    fit_text, text_command, text_style, TextStyle, PANEL_DETAIL_SIZE, PANEL_TITLE_SIZE,
+};
 use crate::ui::coordinate_system::OrientationLabels;
 use crate::ui::coordinate_system::{edge_slot, orientation_labels, remap_labels_by_slots};
 use crate::ui::ViewTransform;
@@ -318,18 +320,79 @@ impl OverlayCommands {
     }
 
     pub(super) fn overlaps_text(&self, region: Rect) -> bool {
-        self.commands.iter().any(|command| {
-            if let DisplayCommand::DrawText { text, x, y, style } = command {
-                style.extent(*x, *y, text).is_some_and(|text| {
-                    text.x < region.x + region.width
-                        && region.x < text.x + text.width
-                        && text.y < region.y + region.height
-                        && region.y < text.y + text.height
-                })
-            } else {
-                false
-            }
+        self.text_overlapping(region).next().is_some()
+    }
+
+    fn text_overlapping(&self, region: Rect) -> impl Iterator<Item = Rect> + '_ {
+        self.commands.iter().filter_map(move |command| {
+            let DisplayCommand::DrawText { text, x, y, style } = command else {
+                return None;
+            };
+            style.extent(*x, *y, text).filter(|text| {
+                text.x < region.x + region.width
+                    && region.x < text.x + text.width
+                    && text.y < region.y + region.height
+                    && region.y < text.y + text.height
+            })
         })
+    }
+
+    pub(super) fn measurement_label_bounds(panel: Rect, margin: i32) -> Rect {
+        Rect::new(
+            panel.x + margin,
+            panel.y + OVERLAY_BAR_HEIGHT,
+            panel.width
+                - super::super::slice_scrollbar::RIGHT_GUTTER
+                - super::overlay_display::COLORBAR_WIDTH
+                - 2 * margin,
+            panel.height - 2 * OVERLAY_BAR_HEIGHT,
+        )
+    }
+
+    pub(super) fn push_text_inside(
+        &mut self,
+        text: String,
+        style: TextStyle,
+        origin: (i32, i32),
+        bounds: Rect,
+    ) {
+        let Some(glyph) = style.extent(0, 0, &text) else {
+            return;
+        };
+        if glyph.width > bounds.width || glyph.height > bounds.height {
+            return;
+        }
+        let right = bounds.x + bounds.width - glyph.width;
+        let bottom = bounds.y + bounds.height - glyph.height;
+        let x = origin.0.saturating_add(glyph.x).clamp(bounds.x, right);
+        let y = origin.1.saturating_add(glyph.y).clamp(bounds.y, bottom);
+        for row in (y..=bottom).chain((bounds.y..y).rev()) {
+            let mut region = Rect::new(x, row, glyph.width, glyph.height);
+            while region.x <= right {
+                let edge = self
+                    .text_overlapping(region)
+                    .map(|rect| rect.x + rect.width)
+                    .max();
+                let Some(edge) = edge else {
+                    break;
+                };
+                region.x = edge;
+            }
+            if region.x > right {
+                region.x = x;
+                while region.x >= bounds.x {
+                    let edge = self.text_overlapping(region).map(|rect| rect.x).min();
+                    let Some(edge) = edge else {
+                        break;
+                    };
+                    region.x = edge - glyph.width;
+                }
+            }
+            if region.x >= bounds.x {
+                self.push(text_command(text, region.x - glyph.x, row - glyph.y, style));
+                return;
+            }
+        }
     }
 
     /// Appends another overlay's commands after this one's.
@@ -344,5 +407,46 @@ impl OverlayCommands {
     /// Hands the commands to the display list that renders them.
     pub(crate) fn into_display_list(self) -> DisplayList {
         DisplayList::from_commands(self.commands)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn measurement_labels_fit_before_the_colorbar() {
+        let mut overlay = OverlayCommands::with_capacity(6).expect("overlay storage");
+        let style = text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE).expect("detail typeface");
+        let pane = Rect::new(0, 0, 336, 260);
+        let bounds = OverlayCommands::measurement_label_bounds(pane, 8);
+        let colorbar_x = bounds.x + bounds.width - 12;
+        overlay.push(text_command("1000", colorbar_x, 86, style));
+        let labels = ["90.0 deg", "80.0 deg", "70.0 deg", "60.0 deg", "12.0 mm"];
+        for label in labels {
+            overlay.push_text_inside(label.into(), style, (colorbar_x, 86), bounds);
+        }
+        assert_eq!(overlay.commands.len(), labels.len() + 1);
+        let mut placed = OverlayCommands::with_capacity(6).expect("overlay storage");
+        for (command, expected) in overlay
+            .commands
+            .into_iter()
+            .zip(["1000"].into_iter().chain(labels))
+        {
+            let DisplayCommand::DrawText { text, x, y, style } = &command else {
+                panic!("all commands are text");
+            };
+            assert_eq!(text.as_ref(), expected);
+            let glyph = style.extent(*x, *y, text).expect("glyph bounds");
+            assert!(
+                !placed.overlaps_text(glyph),
+                "label {text} overlaps prior text"
+            );
+            if expected != "1000" {
+                assert!(bounds.contains(glyph.x, glyph.y));
+                assert!(bounds.contains(glyph.x + glyph.width - 1, glyph.y + glyph.height - 1));
+            }
+            placed.push(command);
+        }
     }
 }

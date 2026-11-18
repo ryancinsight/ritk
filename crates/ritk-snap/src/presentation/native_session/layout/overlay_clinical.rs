@@ -51,7 +51,7 @@ const MIN_SCALE_BAR_PX: f64 = 24.0;
 /// Thickness of the scale bar, in screen pixels.
 const SCALE_BAR_HEIGHT: i32 = 3;
 
-/// Scale bar for one composed view, drawn bottom-right inside the image.
+/// Scale bar for one composed view, drawn in the left image lane.
 ///
 /// The bar length follows the displayed spacing so one bar always reads an
 /// exact physical length; cramped panes keep their bars without a ruler.
@@ -71,7 +71,7 @@ pub(crate) fn append_scale_bar(
     if !mm_per_px.is_finite() || mm_per_px <= 0.0 {
         return Ok(());
     }
-    let max_px = viewport.image.width - f64::from(2 * OVERLAY_MARGIN);
+    let max_px = viewport.image.width / 2.0 - f64::from(2 * OVERLAY_MARGIN);
     let Some((length_mm, bar_px)) = scale_bar_for_scale(1.0 / mm_per_px, max_px) else {
         return Ok(());
     };
@@ -79,11 +79,11 @@ pub(crate) fn append_scale_bar(
     let line = screen_coordinate(style.line_height(), "scale bar label height")?;
     let bar_width = screen_coordinate(bar_px, "scale bar width")?;
     let label = format!("{} mm", format_scale_length(length_mm));
-    let label_width = screen_coordinate(style.advance(&label).round(), "scale bar label width")?;
-    let right = screen_coordinate(
-        (viewport.image.x + viewport.image.width).round(),
-        "scale bar right edge",
-    )? - OVERLAY_MARGIN;
+    let left = screen_coordinate(viewport.image.x.round(), "scale bar left edge")? + OVERLAY_MARGIN;
+    let image_mid = screen_coordinate(
+        (viewport.image.x + viewport.image.width / 2.0).round(),
+        "scale bar lane midpoint",
+    )?;
     let image_bottom = screen_coordinate(
         (viewport.image.y + viewport.image.height).round(),
         "scale bar bottom edge",
@@ -95,13 +95,18 @@ pub(crate) fn append_scale_bar(
     if label_top < chrome_top || image_bottom > chrome_bottom {
         return Ok(());
     }
-    let bar = Rect::new(right - bar_width, bar_top, bar_width, SCALE_BAR_HEIGHT);
-    let label_x = right - label_width;
-    if overlay.overlaps_text(bar)
-        || style
-            .extent(label_x, label_top, &label)
-            .is_some_and(|bounds| overlay.overlaps_text(bounds))
-    {
+    let bar = Rect::new(left, bar_top, bar_width, SCALE_BAR_HEIGHT);
+    if bar.x + bar.width > image_mid {
+        return Ok(());
+    }
+    let label_x = left;
+    let Some(label_bounds) = style.extent(label_x, label_top, &label) else {
+        return Ok(());
+    };
+    if label_bounds.x + label_bounds.width > image_mid {
+        return Ok(());
+    }
+    if overlay.overlaps_text(bar) || overlay.overlaps_text(label_bounds) {
         return Ok(());
     }
     overlay.push(DisplayCommand::FillRect {

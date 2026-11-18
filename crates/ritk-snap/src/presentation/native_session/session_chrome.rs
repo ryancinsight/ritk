@@ -10,7 +10,7 @@ use anyhow::{anyhow, Result};
 use arrayvec::ArrayVec;
 
 impl NativeViewerSession {
-    pub(super) fn render_measurements(&mut self) -> Result<()> {
+    pub(super) fn render_pane_overlays(&mut self) -> Result<()> {
         for (index, viewport) in self.viewports.iter().enumerate() {
             let (app, view) = if self.workspace_layout.is_grid() && index > 0 {
                 let panel = self
@@ -25,6 +25,12 @@ impl NativeViewerSession {
                     .ok_or_else(|| anyhow!("native viewport has no slice frame"))?;
                 (&self.app, view)
             };
+            if app.loaded.is_none() || viewport.panel_width == 0 || viewport.panel_height == 0 {
+                continue;
+            }
+            let mut overlay = OverlayCommands::with_capacity(384 + app.annotations.len())?;
+            let (center, width) = app.browser_window_level_values();
+            append_colorbar_overlay(&mut overlay, viewport, app.colormap, center, width)?;
             let preview = matches!(
                 app.tool_state,
                 crate::tools::interaction::ToolState::LengthDrag { .. }
@@ -33,13 +39,6 @@ impl NativeViewerSession {
                     | crate::tools::interaction::ToolState::CobbDrag { .. }
                     | crate::tools::interaction::ToolState::CobbPending { .. }
             );
-            if (app.annotations.is_empty() && !preview)
-                || viewport.panel_width == 0
-                || viewport.panel_height == 0
-            {
-                continue;
-            }
-            let mut overlay = OverlayCommands::with_capacity(app.annotations.len())?;
             append_measurement_overlay(
                 &mut overlay,
                 std::slice::from_ref(view),
@@ -63,33 +62,6 @@ impl NativeViewerSession {
                         .or(app.pointer.drag_measurement_location),
                 )?;
             }
-            self.framebuffer
-                .render_clipped(viewport.panel_rect()?, |framebuffer| {
-                    overlay.into_display_list().render_to(framebuffer);
-                });
-        }
-        Ok(())
-    }
-
-    /// Renders the Display menu colorbars (every pane) and the histogram
-    /// window panel (active pane) once a study is loaded.
-    pub(super) fn render_display_overlays(&mut self) -> Result<()> {
-        for (index, viewport) in self.viewports.iter().enumerate() {
-            let app = if self.workspace_layout.is_grid() && index > 0 {
-                &self
-                    .compare_panels
-                    .get(index - 1)
-                    .ok_or_else(|| anyhow!("series panel state is missing"))?
-                    .app
-            } else {
-                &self.app
-            };
-            if app.loaded.is_none() || viewport.panel_width == 0 || viewport.panel_height == 0 {
-                continue;
-            }
-            let mut overlay = OverlayCommands::with_capacity(384)?;
-            let (center, width) = app.browser_window_level_values();
-            append_colorbar_overlay(&mut overlay, viewport, app.colormap, center, width)?;
             if index == self.active_panel
                 && let Some(histogram) = &app.cached_histogram
             {

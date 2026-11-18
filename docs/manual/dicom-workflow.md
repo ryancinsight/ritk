@@ -46,6 +46,8 @@ The image corners show the image count, window width and centre, and
 displayed frame dimensions. When clinical text runs out of room, the viewer shortens long
 corner labels with an ellipsis. Resize the window to compare the corner
 readouts and orientation letters in wide and narrow panes.
+The colorbar numbers have their own rows, and measurement labels stay inside
+the image pane.
 
 ### Measure a length and a deviation
 

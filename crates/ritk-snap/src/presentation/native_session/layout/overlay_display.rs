@@ -15,6 +15,7 @@ use metis_ui_lang::DisplayCommand;
 
 use super::crosshair::screen_coordinate;
 use super::geometry::NativeViewport;
+use super::overlay::{OVERLAY_BAR_HEIGHT, OVERLAY_MARGIN};
 use super::text::{text_command, text_style, PANEL_DETAIL_SIZE};
 use super::OverlayCommands;
 use crate::render::histogram::{bar_height_log, histogram_peak_count, wl_to_x, Histogram};
@@ -136,17 +137,47 @@ pub(crate) fn append_colorbar_overlay(
     });
     let half = width / 2.0;
     let style = text_style(LABEL_COLOR, PANEL_DETAIL_SIZE)?;
+    let orientation_style = text_style(LABEL_COLOR, super::text::PANEL_TITLE_SIZE)?;
+    let orientation_height = orientation_style
+        .extent(0, 0, "R")
+        .map_or(0, |bounds| bounds.height);
+    let line = screen_coordinate(style.line_height(), "colorbar label height")?;
+    let center_intensity = center;
+    let center = panel.y + panel.height / 2;
+    let orientation_top = center - orientation_height / 2;
+    let orientation_bottom = orientation_top + orientation_height;
+    // Clinical corners show at most three upper and two lower detail lines.
+    let chrome = OVERLAY_BAR_HEIGHT.max(orientation_height) + orientation_height + OVERLAY_MARGIN;
+    let upper = panel.y + chrome + 3 * line;
+    let lower = panel.y + panel.height - chrome - 2 * line;
+    let right_rail = panel.x + panel.width / 2;
     for (value, y) in [
-        (center + half, strip_y + 5),
-        (center, strip_y + strip_height / 2),
-        (center - half, strip_y + strip_height - 18),
+        (
+            center_intensity + half,
+            (strip_y + OVERLAY_MARGIN).max(upper),
+        ),
+        (
+            center_intensity - half,
+            (strip_y + strip_height - line - OVERLAY_MARGIN).min(lower - line),
+        ),
+        (center_intensity, orientation_bottom + OVERLAY_MARGIN),
     ] {
         let label = intensity_label(value);
-        let label_width = i32::try_from(label.len())
-            .map_err(|_| anyhow!("colorbar label length overflows"))?
-            .checked_mul(8)
-            .ok_or_else(|| anyhow!("colorbar label width overflows"))?;
-        overlay.push(text_command(label, strip_x - 4 - label_width, y, style));
+        let Some(bounds) = style.extent(0, y, &label) else {
+            continue;
+        };
+        let x = strip_x - OVERLAY_MARGIN - bounds.width - bounds.x;
+        let Some(bounds) = style.extent(x, y, &label) else {
+            continue;
+        };
+        if bounds.x >= right_rail
+            && bounds.y >= upper
+            && bounds.y + bounds.height <= lower
+            && (bounds.y + bounds.height <= orientation_top || bounds.y >= orientation_bottom)
+            && !overlay.overlaps_text(bounds)
+        {
+            overlay.push(text_command(label, x, y, style));
+        }
     }
     Ok(())
 }

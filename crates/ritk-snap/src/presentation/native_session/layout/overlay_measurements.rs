@@ -5,7 +5,7 @@ mod cobb;
 use super::super::frame::RenderedView;
 use super::crosshair::screen_coordinate;
 use super::geometry::NativeViewport;
-use super::text::{text_command, text_style, PANEL_DETAIL_SIZE};
+use super::text::{text_style, PANEL_DETAIL_SIZE};
 use super::OverlayCommands;
 use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
@@ -223,13 +223,14 @@ impl Pane<'_> {
 
     fn label(&self, overlay: &mut OverlayCommands, anchor: [f64; 2], text: String) -> Result<()> {
         let (x, y) = self.point(anchor)?;
-        overlay.push(text_command(
+        self.draw_label(
+            overlay,
             text,
-            x.saturating_add(LABEL_OFFSET),
-            y.saturating_add(LABEL_OFFSET),
-            text_style(MEASUREMENT_COLOR, PANEL_DETAIL_SIZE)?,
-        ));
-        Ok(())
+            (
+                x.saturating_add(LABEL_OFFSET),
+                y.saturating_add(LABEL_OFFSET),
+            ),
+        )
     }
 
     fn length_label(
@@ -252,12 +253,25 @@ impl Pane<'_> {
                 dx / norm * LENGTH_LABEL_OFFSET,
             )
         };
-        overlay.push(text_command(
+        let x = screen_coordinate((x0 + x1) * 0.5 + ox, "length label x")?;
+        let y = screen_coordinate((y0 + y1) * 0.5 + oy, "length label y")?;
+        self.draw_label(overlay, text, (x, y))
+    }
+
+    fn draw_label(
+        &self,
+        overlay: &mut OverlayCommands,
+        text: String,
+        origin: (i32, i32),
+    ) -> Result<()> {
+        let bounds =
+            OverlayCommands::measurement_label_bounds(self.viewport.panel_rect()?, LABEL_OFFSET);
+        overlay.push_text_inside(
             text,
-            screen_coordinate((x0 + x1) * 0.5 + ox, "length label x")?,
-            screen_coordinate((y0 + y1) * 0.5 + oy, "length label y")?,
             text_style(MEASUREMENT_COLOR, PANEL_DETAIL_SIZE)?,
-        ));
+            origin,
+            bounds,
+        );
         Ok(())
     }
 
