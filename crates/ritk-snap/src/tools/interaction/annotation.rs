@@ -40,6 +40,7 @@
 //! area = (max_r − min_r + 1) · s_r × (max_c − min_c + 1) · s_c [mm²]
 //! ```
 
+mod ellipse;
 mod image;
 mod paths;
 mod patient_length;
@@ -51,6 +52,9 @@ pub use patient_length::PatientLength;
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
 #[non_exhaustive]
 pub enum MeasurementError {
+    /// One of the physical segments has no direction.
+    #[error("{kind} needs two nonzero segments")]
+    DegenerateSegment { kind: &'static str },
     /// A spacing component is not finite and strictly positive.
     #[error("voxel spacing component {index} is not finite and positive: {value}")]
     InvalidSpacing { index: usize, value: f64 },
@@ -461,38 +465,5 @@ impl Annotation {
         let area_mm2 = std::f32::consts::PI * a * spacing[0] * b * spacing[1];
 
         (center, radii, mean, std_dev, min, max, area_mm2)
-    }
-
-    /// Compute ellipse statistics after validating physical spacing and the
-    /// f32-backed derived area.
-    #[expect(
-        clippy::type_complexity,
-        reason = "the checked API mirrors the established ellipse statistics tuple"
-    )]
-    pub fn compute_roi_ellipse_stats_checked(
-        p1: [f32; 2],
-        p2: [f32; 2],
-        pixels: &[f32],
-        width: usize,
-        height: usize,
-        spacing: [f64; 2],
-    ) -> Result<([f32; 2], [f32; 2], f32, f32, f32, f32, f32), MeasurementError> {
-        let spacing = Self::validate_spacing(spacing)?;
-        let result = Self::compute_roi_ellipse_stats(p1, p2, pixels, width, height, spacing);
-        let finite = result
-            .0
-            .iter()
-            .chain(result.1.iter())
-            .all(|value| value.is_finite())
-            && result.2.is_finite()
-            && result.3.is_finite()
-            && result.4.is_finite()
-            && result.5.is_finite()
-            && result.6.is_finite();
-        finite
-            .then_some(result)
-            .ok_or(MeasurementError::NonFiniteResult {
-                kind: "ellipse ROI",
-            })
     }
 }

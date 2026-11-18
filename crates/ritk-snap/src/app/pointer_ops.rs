@@ -1,3 +1,4 @@
+mod drag;
 mod measurement;
 mod pencil;
 
@@ -7,10 +8,7 @@ use crate::tools::interaction::{Annotation, ImagePoint, PolygonKind, RoiKind, To
 use crate::tools::kind::ToolKind;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
-use crate::ui::{
-    image_point_to_voxel, intensity_at_voxel, pan_from_drag_delta, window_level_from_drag_delta,
-    zoom_from_drag_delta, WINDOW_LEVEL_SENSITIVITY,
-};
+use crate::ui::{image_point_to_voxel, intensity_at_voxel};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 use metis_ui_lang::{PathCapture, PathPush};
 
@@ -83,87 +81,6 @@ impl SnapApp {
         )
         .then(|| self.annotation_location());
         self.tool_state = gesture;
-    }
-
-    pub(crate) fn on_drag(&mut self, pos: Option<ImagePoint>) {
-        let Some(pos) = pos else { return };
-        if let ToolState::PencilDrag { capture } = &mut self.tool_state {
-            if matches!(capture.push(pos), PathPush::Full) {
-                self.status_message = "Pencil sample limit reached".to_owned();
-            }
-            return;
-        }
-        match self.tool_state.clone() {
-            ToolState::Panning {
-                start,
-                viewport_origin,
-            } => {
-                let offset = pan_from_drag_delta(viewport_origin, start, pos);
-                self.pan_offset = offset;
-            }
-            ToolState::Zooming {
-                start,
-                original_zoom,
-            } => {
-                let drag_delta_y = pos.y() - start.y();
-                self.zoom = zoom_from_drag_delta(original_zoom, drag_delta_y);
-                self.status_message = format!("Zoom: {:.0}%", self.zoom * 100.0);
-            }
-            ToolState::WindowLevelDrag {
-                start,
-                original_center,
-                original_width,
-            } => {
-                let (new_center, new_width) = window_level_from_drag_delta(
-                    original_center,
-                    original_width,
-                    pos.x() - start.x(),
-                    pos.y() - start.y(),
-                    WINDOW_LEVEL_SENSITIVITY,
-                );
-                self.viewer_state.window_center = Some(new_center as f32);
-                self.viewer_state.window_width = Some(new_width as f32);
-                self.bump_visual_revision();
-            }
-            ToolState::RoiDrag { start, kind, .. } => {
-                self.tool_state = ToolState::RoiDrag {
-                    start,
-                    current: pos,
-                    kind,
-                };
-            }
-            ToolState::LengthDrag { start, .. } => {
-                self.tool_state = ToolState::LengthDrag {
-                    start,
-                    current: pos,
-                };
-            }
-            ToolState::MeasureLength1 { p1 }
-                if self.active_tool == ToolKind::MeasureLength
-                    && self.pointer.pending_measurement_location
-                        == Some(self.annotation_location()) =>
-            {
-                self.pointer.drag_measurement_location =
-                    self.pointer.pending_measurement_location.take();
-                self.tool_state = ToolState::LengthDrag {
-                    start: p1,
-                    current: pos,
-                };
-            }
-            ToolState::DeviationDrag { start, .. } => {
-                self.tool_state = ToolState::DeviationDrag {
-                    start,
-                    current: pos,
-                };
-            }
-            ToolState::ArrowDrag { start, .. } => {
-                self.tool_state = ToolState::ArrowDrag {
-                    start,
-                    current: pos,
-                };
-            }
-            _ => {}
-        }
     }
 
     pub(crate) fn on_drag_end(&mut self, pos: Option<ImagePoint>) {
