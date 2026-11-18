@@ -48,6 +48,25 @@ pub(super) fn draw_deviation_preview(
     );
 }
 
+pub(super) fn draw_cobb_annotation(
+    painter: &Painter,
+    points: [[f32; 2]; 4],
+    angle_deg: f32,
+    project: &impl Fn(Pos2) -> Pos2,
+) {
+    let [a, b, c, d] = points.map(|[row, col]| project(Pos2::new(col, row)));
+    let stroke = Stroke::new(LINE_WIDTH, COLOR_MEASURE);
+    painter.line_segment([a, b], stroke);
+    painter.line_segment([c, d], stroke);
+    painter.text(
+        b + Vec2::new(8.0, -12.0),
+        Align2::LEFT_CENTER,
+        format!("{angle_deg:.1}°"),
+        label_font(),
+        COLOR_LABEL,
+    );
+}
+
 /// Draw an angle measurement annotation: two rays from the vertex `p2` to
 /// `p1` and `p3`, with a small arc at the vertex and an angle label.
 ///

@@ -66,6 +66,10 @@ impl SnapApp {
                 }
                 Annotation::Arrow { .. } => None,
                 Annotation::Pencil { .. } => None,
+                Annotation::CobbAngle { angle_deg, .. } => Some(AnnotationSummary::new(
+                    AnnotationKind::Angle,
+                    f64::from(*angle_deg),
+                )),
             });
         PresentationSnapshot::from_parts(
             self.visual_revision,

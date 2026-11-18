@@ -48,6 +48,8 @@ pub enum ToolKind {
     Arrow,
     /// Freehand pencil mark on the active image.
     Pencil,
+    /// Drag two directed segments to measure their acute Cobb angle.
+    MeasureCobb,
 }
 
 impl ToolKind {
@@ -70,6 +72,7 @@ impl ToolKind {
             ToolKind::RoiOpenPolygon => "Open Polygon",
             ToolKind::Arrow => "Arrow",
             ToolKind::Pencil => "Pencil",
+            ToolKind::MeasureCobb => "Cobb Angle",
         }
     }
 
@@ -127,6 +130,7 @@ impl ToolKind {
             }
             ToolKind::Arrow => "Arrow: drag from the tail to the head to annotate the image.",
             ToolKind::Pencil => "Pencil: draw a freehand mark on the active image.",
+            ToolKind::MeasureCobb => "Cobb angle: drag two directed segments on one slice.",
         }
     }
 
@@ -149,6 +153,7 @@ impl ToolKind {
             ToolKind::RoiOpenPolygon => "〽",
             ToolKind::Arrow => "➜",
             ToolKind::Pencil => "✎",
+            ToolKind::MeasureCobb => "∠",
         }
     }
 
@@ -175,6 +180,7 @@ impl ToolKind {
             ToolKind::RoiOpenPolygon,
             ToolKind::Arrow,
             ToolKind::Pencil,
+            ToolKind::MeasureCobb,
         ]
     }
 }

@@ -86,6 +86,9 @@ impl MeasurementLayer {
                 Annotation::Pencil { points, .. } => {
                     segments::draw_pencil(painter, points, &img_to_screen);
                 }
+                Annotation::CobbAngle {
+                    points, angle_deg, ..
+                } => segments::draw_cobb_annotation(painter, *points, *angle_deg, &img_to_screen),
                 // Patient-space annotations require the reslice plane that
                 // created them. Orthogonal views must not project them as if
                 // their endpoints were two-dimensional image coordinates.

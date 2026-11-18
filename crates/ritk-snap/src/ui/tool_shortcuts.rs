@@ -95,6 +95,8 @@ pub const VIRTUAL_KEY_MEASURE_ANGLE: u32 = 0x41;
 pub const VIRTUAL_KEY_MEASURE_DEVIATION: u32 = 0x44;
 /// Host virtual-key value for the Arrow shortcut.
 pub const VIRTUAL_KEY_ARROW: u32 = 0x59;
+/// Host virtual-key value for the Cobb angle shortcut.
+pub const VIRTUAL_KEY_MEASURE_COBB: u32 = 0x43;
 
 /// Host virtual-key value for the ROI Rectangle shortcut.
 pub const VIRTUAL_KEY_ROI_RECT: u32 = 0x52;

@@ -262,6 +262,7 @@ impl SnapApp {
                 }
                 let places_next_anchor = *button == PointerButton::Left
                     && !modified
+                    && tool != ToolKind::MeasureCobb
                     && self.tool_state.is_pending_measurement();
                 if !places_next_anchor {
                     self.on_drag_start(tool, Some(image));
@@ -345,7 +346,9 @@ impl SnapApp {
                                 self.pick_polygon(*viewport, *position);
                             }
                         }
-                        self.on_click(mapped);
+                        if owner.tool != ToolKind::MeasureCobb {
+                            self.on_click(mapped);
+                        }
                     }
                     self.on_click_end();
                 } else {

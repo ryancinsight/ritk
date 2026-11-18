@@ -1,5 +1,7 @@
 //! RITK-owned measurement and region overlays for native panes.
 
+mod cobb;
+
 use super::super::frame::RenderedView;
 use super::crosshair::screen_coordinate;
 use super::geometry::NativeViewport;
@@ -85,7 +87,11 @@ pub(crate) fn append_measurement_preview(
 ) -> Result<()> {
     if !matches!(
         tool_state,
-        ToolState::LengthDrag { .. } | ToolState::ArrowDrag { .. } | ToolState::PencilDrag { .. }
+        ToolState::LengthDrag { .. }
+            | ToolState::ArrowDrag { .. }
+            | ToolState::PencilDrag { .. }
+            | ToolState::CobbDrag { .. }
+            | ToolState::CobbPending { .. }
     ) || location.is_some_and(|source| {
         source
             != (AnnotationLocation {
@@ -113,6 +119,8 @@ pub(crate) fn append_measurement_preview(
         for pair in capture.as_slice().windows(2) {
             pane.segment(overlay, [pair[0], pair[1]], MEASUREMENT_COLOR)?;
         }
+    } else {
+        pane.cobb_preview(overlay, tool_state)?;
     }
     Ok(())
 }
@@ -442,6 +450,9 @@ impl Pane<'_> {
                     MEASUREMENT_COLOR,
                 )?;
             }
+            Annotation::CobbAngle {
+                points, angle_deg, ..
+            } => self.cobb(overlay, *points, *angle_deg)?,
             _ => {}
         }
         Ok(())

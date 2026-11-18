@@ -29,6 +29,13 @@ impl WindowChrome {
     ) -> Result<WindowChromeEvent> {
         if matches!(event, PresentationEvent::PointerCaptureLost) {
             self.cancel_pointer_capture();
+            if app.cobb_location().is_some() {
+                return Ok(WindowChromeEvent {
+                    consumed: true,
+                    repaint: true,
+                    action: Some(WindowAction::CancelInteraction),
+                });
+            }
             return Ok(WindowChromeEvent::passed());
         }
         self.observe_modifiers(event);

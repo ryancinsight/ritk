@@ -318,7 +318,14 @@ impl EguiApp {
                 );
             }
             let tool_state = match self.tool_state {
-                ToolState::ArrowDrag { .. } | ToolState::PencilDrag { .. }
+                ToolState::CobbPending { .. }
+                    if self.pointer.pending_measurement_location != Some(location) =>
+                {
+                    &ToolState::Idle
+                }
+                ToolState::ArrowDrag { .. }
+                | ToolState::PencilDrag { .. }
+                | ToolState::CobbDrag { .. }
                     if self.pointer.drag_measurement_location != Some(location) =>
                 {
                     &ToolState::Idle

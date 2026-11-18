@@ -1,3 +1,4 @@
+mod cobb;
 mod drag;
 mod measurement;
 mod pencil;
@@ -66,6 +67,18 @@ impl SnapApp {
                 current: pos,
             },
             ToolKind::Pencil => self.pencil_start(pos),
+            ToolKind::MeasureCobb => ToolState::CobbDrag {
+                first: match self.tool_state {
+                    ToolState::CobbPending { segment }
+                        if self.cobb_location() == Some(self.annotation_location()) =>
+                    {
+                        Some(segment)
+                    }
+                    _ => None,
+                },
+                start: pos,
+                current: pos,
+            },
             _ => return,
         };
         if self.tool_state.is_pending_measurement() {
@@ -77,6 +90,7 @@ impl SnapApp {
                 | ToolState::DeviationDrag { .. }
                 | ToolState::ArrowDrag { .. }
                 | ToolState::PencilDrag { .. }
+                | ToolState::CobbDrag { .. }
                 | ToolState::RoiDrag { .. }
         )
         .then(|| self.annotation_location());
@@ -86,6 +100,11 @@ impl SnapApp {
     pub(crate) fn on_drag_end(&mut self, pos: Option<ImagePoint>) {
         if pos.is_none() {
             self.pointer.pending_polygon_move = None;
+            if self.cobb_location().is_some() {
+                self.pointer.suspended_measurement = None;
+                self.pointer.pending_measurement_location = None;
+                self.tool_state = ToolState::Idle;
+            }
         }
         let recorded = self.pointer.drag_measurement_location.take();
         if pos.is_some() && recorded.is_none_or(|location| location == self.annotation_location()) {
@@ -99,6 +118,7 @@ impl SnapApp {
                     | ToolState::DeviationDrag { .. }
                     | ToolState::ArrowDrag { .. }
                     | ToolState::PencilDrag { .. }
+                    | ToolState::CobbDrag { .. }
             ) {
                 self.on_drag(pos);
             }
@@ -131,6 +151,11 @@ impl SnapApp {
                     });
                 }
                 ToolState::PencilDrag { .. } => self.finish_pencil(recorded),
+                ToolState::CobbDrag {
+                    first,
+                    start,
+                    current,
+                } if start != current => self.finish_cobb(first, [start, current], recorded),
                 _ => {}
             }
         }

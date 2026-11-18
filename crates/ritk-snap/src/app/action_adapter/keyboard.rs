@@ -28,6 +28,7 @@ impl SnapApp {
                     ToolState::DeviationDrag { .. }
                         | ToolState::ArrowDrag { .. }
                         | ToolState::PencilDrag { .. }
+                        | ToolState::CobbDrag { .. }
                 ))
         {
             self.tool_state = ToolState::Idle;

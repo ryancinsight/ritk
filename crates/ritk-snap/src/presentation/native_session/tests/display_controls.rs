@@ -195,7 +195,7 @@ fn colormap_key_cycles_all_maps_in_stable_order_and_wraps() {
             .handle_events(&[WindowEvent::KeyDown {
                 virtual_key: VIRTUAL_KEY_COLORMAP_CYCLE,
                 repeated: false,
-                modifiers: ModifierState::NONE,
+                modifiers: ModifierState::SHIFT,
             }])
             .expect("colormap cycle key");
         assert_eq!(flow, NativeFlow::Continue { repaint: true });

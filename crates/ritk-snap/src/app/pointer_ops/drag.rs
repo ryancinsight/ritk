@@ -86,6 +86,13 @@ impl SnapApp {
                     current: pos,
                 };
             }
+            ToolState::CobbDrag { first, start, .. } => {
+                self.tool_state = ToolState::CobbDrag {
+                    first,
+                    start,
+                    current: pos,
+                };
+            }
             _ => {}
         }
     }
