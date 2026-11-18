@@ -258,6 +258,13 @@ pub enum Annotation {
         location: Option<AnnotationLocation>,
         points: Vec<[f32; 2]>,
     },
+    /// Two directed image segments and their acute physical Cobb angle.
+    CobbAngle {
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
+        points: [[f32; 2]; 4],
+        angle_deg: f32,
+    },
 }
 
 impl Annotation {

@@ -140,6 +140,19 @@ impl MeasurementLayer {
                     .collect();
                 segments::draw_pencil(painter, &points, &img_to_screen);
             }
+            ToolState::CobbDrag {
+                first,
+                start,
+                current,
+            } => {
+                if let Some(first) = first {
+                    segments::draw_deviation_preview(painter, *first, &img_to_screen);
+                }
+                segments::draw_deviation_preview(painter, [*start, *current], &img_to_screen);
+            }
+            ToolState::CobbPending { segment } => {
+                segments::draw_deviation_preview(painter, *segment, &img_to_screen);
+            }
         }
     }
 }

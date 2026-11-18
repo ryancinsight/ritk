@@ -126,6 +126,9 @@ pub fn csv_for(annotations: &[Annotation]) -> String {
             }
             Annotation::Arrow { .. } => format!("{i},Arrow,,,\n"),
             Annotation::Pencil { .. } => format!("{i},Pencil,,,\n"),
+            Annotation::CobbAngle { angle_deg, .. } => {
+                format!("{i},Cobb Angle,{angle_deg:.2},deg,\n")
+            }
         };
         out.push_str(&row);
     }
@@ -191,6 +194,7 @@ fn annotation_label(i: usize, ann: &Annotation) -> String {
         }
         Annotation::Arrow { .. } => format!("#{i}  Arrow"),
         Annotation::Pencil { .. } => format!("#{i}  Pencil"),
+        Annotation::CobbAngle { angle_deg, .. } => format!("#{i}  Cobb angle: {angle_deg:.2}°"),
     }
 }
 

@@ -17,7 +17,8 @@ use crate::tools::kind::ToolKind;
 /// Route one non-repeated key press to its window action, if any.
 ///
 /// Digit keys select the loaded modality's preset table entries; `I`
-/// toggles negative display and `C` advances the intensity colormap.
+/// toggles negative display; `C` selects Cobb and `Shift+C` advances the
+/// intensity colormap.
 /// `Alt` plus a digit applies a numbered custom slot, while `Shift` plus a
 /// digit saves the current window into that custom slot.
 pub(super) fn global_key_action(
@@ -49,6 +50,21 @@ pub(super) fn global_key_action(
     }
     match (virtual_key, ctrl, shift) {
         (0x4d, false, false) => Some(WindowAction::SelectTool(ToolKind::Pan)),
+        (key, false, false) if key == crate::ui::tool_shortcuts::VIRTUAL_KEY_MEASURE_COBB => {
+            Some(WindowAction::SelectTool(ToolKind::MeasureCobb))
+        }
+        (key, false, true) if key == VIRTUAL_KEY_COLORMAP_CYCLE => {
+            let maps = crate::render::NamedColorMap::ALL;
+            let position = maps
+                .iter()
+                .position(|map| *map == app.colormap)
+                .unwrap_or(0);
+            let next = maps
+                .get(position.saturating_add(1).rem_euclid(maps.len()))
+                .copied()
+                .unwrap_or(maps[0]);
+            Some(WindowAction::SetColormap(next))
+        }
         (key, false, false) if key == crate::ui::tool_shortcuts::VIRTUAL_KEY_ARROW => {
             Some(WindowAction::SelectTool(ToolKind::Arrow))
         }
@@ -75,17 +91,6 @@ pub(super) fn global_key_action(
         (key, false, false) => {
             if key == VIRTUAL_KEY_INVERT_DISPLAY {
                 Some(WindowAction::ToggleInvert)
-            } else if key == VIRTUAL_KEY_COLORMAP_CYCLE {
-                let maps = crate::render::NamedColorMap::ALL;
-                let position = maps
-                    .iter()
-                    .position(|map| *map == app.colormap)
-                    .unwrap_or(0);
-                let next = maps
-                    .get(position.saturating_add(1).rem_euclid(maps.len()))
-                    .copied()
-                    .unwrap_or(maps[0]);
-                Some(WindowAction::SetColormap(next))
             } else {
                 VIRTUAL_KEY_PRESET_KEYS
                     .iter()
@@ -105,7 +110,7 @@ pub(super) fn global_key_event(
     if menu.is_some()
         && matches!(
             action,
-            WindowAction::SelectTool(ToolKind::Arrow | ToolKind::Pencil)
+            WindowAction::SelectTool(ToolKind::Arrow | ToolKind::Pencil | ToolKind::MeasureCobb)
         )
     {
         return super::WindowChromeEvent::consumed(false);

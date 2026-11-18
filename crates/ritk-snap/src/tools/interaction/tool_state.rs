@@ -83,6 +83,14 @@ pub enum ToolState {
         /// Captured image-space samples.
         capture: PathCapture<ImagePoint>,
     },
+    /// One or two directed Cobb segments are being dragged.
+    CobbDrag {
+        first: Option<[ImagePoint; 2]>,
+        start: ImagePoint,
+        current: ImagePoint,
+    },
+    /// The first Cobb segment awaits the second segment.
+    CobbPending { segment: [ImagePoint; 2] },
 
     /// ROI drag in progress.
     RoiDrag {
@@ -134,6 +142,7 @@ impl ToolState {
                 | ToolState::DeviationDrag { .. }
                 | ToolState::ArrowDrag { .. }
                 | ToolState::PencilDrag { .. }
+                | ToolState::CobbDrag { .. }
         )
     }
 
@@ -144,6 +153,7 @@ impl ToolState {
             ToolState::MeasureLength1 { .. }
                 | ToolState::MeasureAngle2 { .. }
                 | ToolState::Polygon { .. }
+                | ToolState::CobbPending { .. }
         )
     }
 
@@ -160,6 +170,9 @@ impl ToolState {
             ToolState::DeviationDrag { .. } => Some(ToolKind::MeasureDeviation),
             ToolState::ArrowDrag { .. } => Some(ToolKind::Arrow),
             ToolState::PencilDrag { .. } => Some(ToolKind::Pencil),
+            ToolState::CobbDrag { .. } | ToolState::CobbPending { .. } => {
+                Some(ToolKind::MeasureCobb)
+            }
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
             ToolState::Polygon {
                 kind: PolygonKind::Closed,

@@ -103,10 +103,13 @@ impl SnapApp {
             .map(|v| axis_total(v.shape, axis))
             .unwrap_or(1);
         let next = clamp_index(index, total);
-        if let Some(edit) = &self.pointer.pending_polygon_move
-            && edit.source_location.plane == axis
-            && edit.source_location.slice != next
-        {
+        let source = self
+            .pointer
+            .pending_polygon_move
+            .as_ref()
+            .map(|edit| edit.source_location)
+            .or_else(|| self.cobb_location());
+        if source.is_some_and(|source| source.plane == axis && source.slice != next) {
             self.on_drag_end(None);
         }
         match axis {

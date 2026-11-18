@@ -15,6 +15,7 @@ impl Annotation {
             | Self::ClosedPolygon { location, .. }
             | Self::OpenPolygon { location, .. }
             | Self::Arrow { location, .. }
+            | Self::CobbAngle { location, .. }
             | Self::Pencil { location, .. } => *location,
         }
     }
@@ -53,6 +54,9 @@ impl Annotation {
                 location: value, ..
             }
             | Self::Pencil {
+                location: value, ..
+            }
+            | Self::CobbAngle {
                 location: value, ..
             } => *value = Some(location),
         }

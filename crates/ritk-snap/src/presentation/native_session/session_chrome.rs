@@ -30,6 +30,8 @@ impl NativeViewerSession {
                 crate::tools::interaction::ToolState::LengthDrag { .. }
                     | crate::tools::interaction::ToolState::ArrowDrag { .. }
                     | crate::tools::interaction::ToolState::PencilDrag { .. }
+                    | crate::tools::interaction::ToolState::CobbDrag { .. }
+                    | crate::tools::interaction::ToolState::CobbPending { .. }
             );
             if (app.annotations.is_empty() && !preview)
                 || viewport.panel_width == 0
@@ -57,7 +59,8 @@ impl NativeViewerSession {
                     view,
                     viewport,
                     &app.tool_state,
-                    app.pointer.drag_measurement_location,
+                    app.cobb_location()
+                        .or(app.pointer.drag_measurement_location),
                 )?;
             }
             self.framebuffer
