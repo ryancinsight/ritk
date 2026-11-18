@@ -62,6 +62,10 @@ impl SnapApp {
                 start: pos,
                 current: pos,
             },
+            ToolKind::Arrow => ToolState::ArrowDrag {
+                start: pos,
+                current: pos,
+            },
             _ => return,
         };
         if self.tool_state.is_pending_measurement() {
@@ -71,6 +75,7 @@ impl SnapApp {
             gesture,
             ToolState::LengthDrag { .. }
                 | ToolState::DeviationDrag { .. }
+                | ToolState::ArrowDrag { .. }
                 | ToolState::RoiDrag { .. }
         )
         .then(|| self.annotation_location());
@@ -142,6 +147,12 @@ impl SnapApp {
                     current: pos,
                 };
             }
+            ToolState::ArrowDrag { start, .. } => {
+                self.tool_state = ToolState::ArrowDrag {
+                    start,
+                    current: pos,
+                };
+            }
             _ => {}
         }
     }
@@ -160,6 +171,7 @@ impl SnapApp {
                 ToolState::RoiDrag { .. }
                     | ToolState::LengthDrag { .. }
                     | ToolState::DeviationDrag { .. }
+                    | ToolState::ArrowDrag { .. }
             ) {
                 self.on_drag(pos);
             }
@@ -183,6 +195,13 @@ impl SnapApp {
                 }
                 ToolState::DeviationDrag { start, current } if start != current => {
                     self.finalise_deviation(start, current);
+                }
+                ToolState::ArrowDrag { start, current } if start != current => {
+                    self.push_annotation(Annotation::Arrow {
+                        location: recorded,
+                        tail: [start.y(), start.x()],
+                        head: [current.y(), current.x()],
+                    });
                 }
                 _ => {}
             }

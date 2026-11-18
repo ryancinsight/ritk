@@ -13,7 +13,8 @@ impl Annotation {
             | Self::RoiEllipse { location, .. }
             | Self::HuPoint { location, .. }
             | Self::ClosedPolygon { location, .. }
-            | Self::OpenPolygon { location, .. } => *location,
+            | Self::OpenPolygon { location, .. }
+            | Self::Arrow { location, .. } => *location,
         }
     }
 
@@ -45,6 +46,9 @@ impl Annotation {
                 location: value, ..
             }
             | Self::OpenPolygon {
+                location: value, ..
+            }
+            | Self::Arrow {
                 location: value, ..
             } => *value = Some(location),
         }
