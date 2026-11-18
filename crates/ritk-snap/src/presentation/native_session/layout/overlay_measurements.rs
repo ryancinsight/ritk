@@ -1,8 +1,5 @@
 //! RITK-owned measurement and region overlays for native panes.
 
-use anyhow::Result;
-use metis_platform::Color;
-
 use super::super::frame::RenderedView;
 use super::crosshair::screen_coordinate;
 use super::geometry::NativeViewport;
@@ -11,7 +8,8 @@ use super::OverlayCommands;
 use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
 use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
-
+use anyhow::Result;
+use metis_platform::Color;
 pub(crate) const MEASUREMENT_COLOR: Color = Color::rgba(255, 255, 0, 255);
 const ROI_COLOR: Color = Color::rgba(0, 255, 0, 255);
 const POINT_COLOR: Color = Color::rgba(0, 255, 255, 255);
@@ -20,7 +18,6 @@ const LENGTH_LABEL_OFFSET: f64 = 10.0;
 // The projected ellipse's chord deviation is bounded by the maximum
 // projected radius times 1 - cos(π / ELLIPSE_SEGMENTS).
 const ELLIPSE_SEGMENTS: u16 = 64;
-
 /// Draws every completed annotation that belongs to the displayed plane.
 pub(crate) fn append_measurement_overlay(
     overlay: &mut OverlayCommands,
@@ -79,8 +76,6 @@ pub(crate) fn append_measurement_overlay(
     }
     Ok(())
 }
-
-/// Draws the active length drag only on its owning native pane.
 pub(crate) fn append_measurement_preview(
     overlay: &mut OverlayCommands,
     view: &RenderedView,
@@ -90,7 +85,7 @@ pub(crate) fn append_measurement_preview(
 ) -> Result<()> {
     if !matches!(
         tool_state,
-        ToolState::LengthDrag { .. } | ToolState::ArrowDrag { .. }
+        ToolState::LengthDrag { .. } | ToolState::ArrowDrag { .. } | ToolState::PencilDrag { .. }
     ) || location.is_some_and(|source| {
         source
             != (AnnotationLocation {
@@ -114,10 +109,13 @@ pub(crate) fn append_measurement_preview(
         pane.segment(overlay, [*start, *current], MEASUREMENT_COLOR)?;
     } else if let ToolState::ArrowDrag { start, current } = tool_state {
         pane.arrow(overlay, [*start, *current], MEASUREMENT_COLOR)?;
+    } else if let ToolState::PencilDrag { capture } = tool_state {
+        for pair in capture.as_slice().windows(2) {
+            pane.segment(overlay, [pair[0], pair[1]], MEASUREMENT_COLOR)?;
+        }
     }
     Ok(())
 }
-
 fn annotation_visible(annotation: &Annotation, plane: usize, slice: usize) -> bool {
     if let Some(AnnotationLocation {
         plane: recorded,
@@ -291,6 +289,16 @@ impl Pane<'_> {
                 };
                 self.line(overlay, a, b, MEASUREMENT_COLOR)?;
                 self.length_label(overlay, a, b, format!("{:.1} mm", length.length_mm()))?;
+            }
+            Annotation::Pencil { points, .. } => {
+                points.windows(2).try_for_each(|pair| {
+                    self.line(
+                        overlay,
+                        image_point(pair[0]),
+                        image_point(pair[1]),
+                        MEASUREMENT_COLOR,
+                    )
+                })?;
             }
             Annotation::Angle {
                 p1,

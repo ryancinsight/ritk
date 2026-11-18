@@ -248,6 +248,12 @@ pub enum Annotation {
         tail: [f32; 2],
         head: [f32; 2],
     },
+    /// Freehand image-space pencil mark with no physical measurement.
+    Pencil {
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
+        points: Vec<[f32; 2]>,
+    },
 }
 
 impl Annotation {

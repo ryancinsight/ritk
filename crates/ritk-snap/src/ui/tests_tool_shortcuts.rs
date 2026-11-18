@@ -36,10 +36,16 @@ fn h_key_selects_point_hu() {
     assert_eq!(tool_kind_for_key(Key::H), Some(ToolKind::PointHu));
 }
 
-/// P key maps to Pan.
+/// M key maps to Pan.
 #[test]
-fn p_key_selects_pan() {
-    assert_eq!(tool_kind_for_key(Key::P), Some(ToolKind::Pan));
+fn m_key_selects_pan() {
+    assert_eq!(tool_kind_for_key(Key::M), Some(ToolKind::Pan));
+}
+
+/// P key maps to Pencil.
+#[test]
+fn p_key_selects_pencil() {
+    assert_eq!(tool_kind_for_key(Key::P), Some(ToolKind::Pencil));
 }
 
 /// Z key maps to Zoom.
@@ -79,7 +85,8 @@ fn virtual_key_shortcuts_match_egui_shortcuts() {
         (VIRTUAL_KEY_ROI_RECT, Key::R),
         (VIRTUAL_KEY_ROI_ELLIPSE, Key::E),
         (VIRTUAL_KEY_HU_POINT, Key::H),
-        (VIRTUAL_KEY_PAN, Key::P),
+        (VIRTUAL_KEY_PAN, Key::M),
+        (VIRTUAL_KEY_PENCIL, Key::P),
         (VIRTUAL_KEY_ZOOM, Key::Z),
         (VIRTUAL_KEY_WINDOW_LEVEL, Key::W),
         (VIRTUAL_KEY_LABEL_PAINT, Key::B),
@@ -105,6 +112,7 @@ fn all_shortcuts_distinct() {
         Key::R,
         Key::E,
         Key::H,
+        Key::M,
         Key::P,
         Key::Z,
         Key::W,
@@ -118,5 +126,5 @@ fn all_shortcuts_distinct() {
         }
     }
     // If there were duplicates, this would fail (we'd see fewer unique tools than keys).
-    assert_eq!(mapped.len(), 10);
+    assert_eq!(mapped.len(), 12);
 }

@@ -83,6 +83,9 @@ impl MeasurementLayer {
                     let head = img_to_screen(egui::pos2((*head)[1], (*head)[0]));
                     segments::draw_arrow(painter, tail, head);
                 }
+                Annotation::Pencil { points, .. } => {
+                    segments::draw_pencil(painter, points, &img_to_screen);
+                }
                 // Patient-space annotations require the reslice plane that
                 // created them. Orthogonal views must not project them as if
                 // their endpoints were two-dimensional image coordinates.
@@ -328,6 +331,14 @@ impl MeasurementLayer {
                 let tail = img_to_screen(egui_point(*start));
                 let head = img_to_screen(egui_point(*current));
                 segments::draw_arrow(painter, tail, head);
+            }
+            ToolState::PencilDrag { capture } => {
+                let points: Vec<_> = capture
+                    .as_slice()
+                    .iter()
+                    .map(|point| [point.y(), point.x()])
+                    .collect();
+                segments::draw_pencil(painter, &points, &img_to_screen);
             }
         }
     }

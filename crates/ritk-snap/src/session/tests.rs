@@ -393,3 +393,16 @@ fn session_formats_preserve_values_and_reject_unknown_versions() {
         .to_string()
         .contains("unsupported viewer session format version"));
 }
+
+#[test]
+fn current_session_round_trips_pencil_samples_and_image() {
+    let mut snapshot = canonical_snapshot_no_annotations();
+    snapshot.annotations.push(Annotation::Pencil {
+        location: Some(crate::tools::interaction::AnnotationLocation { plane: 0, slice: 3 }),
+        points: vec![[1.0, 2.0], [2.0, 3.0], [2.0, 4.0]],
+    });
+    let json = serde_json::to_vec(&snapshot).expect("serialize Pencil mark");
+    let restored: ViewerSessionSnapshot =
+        serde_json::from_slice(&json).expect("restore Pencil mark");
+    assert_eq!(restored, snapshot);
+}

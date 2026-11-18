@@ -29,6 +29,7 @@ impl NativeViewerSession {
                 app.tool_state,
                 crate::tools::interaction::ToolState::LengthDrag { .. }
                     | crate::tools::interaction::ToolState::ArrowDrag { .. }
+                    | crate::tools::interaction::ToolState::PencilDrag { .. }
             );
             if (app.annotations.is_empty() && !preview)
                 || viewport.panel_width == 0

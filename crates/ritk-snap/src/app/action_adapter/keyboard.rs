@@ -25,7 +25,9 @@ impl SnapApp {
             && (self.tool_state.is_pending_measurement()
                 || matches!(
                     self.tool_state,
-                    ToolState::DeviationDrag { .. } | ToolState::ArrowDrag { .. }
+                    ToolState::DeviationDrag { .. }
+                        | ToolState::ArrowDrag { .. }
+                        | ToolState::PencilDrag { .. }
                 ))
         {
             self.tool_state = ToolState::Idle;

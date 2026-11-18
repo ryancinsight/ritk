@@ -134,7 +134,10 @@ impl NativeViewerSession {
                 self.close_all_panels().map_err(NativeViewerError::from)
             }
             WindowAction::CancelInteraction => {
-                if matches!(self.active_app().tool_state, ToolState::ArrowDrag { .. }) {
+                if matches!(
+                    self.active_app().tool_state,
+                    ToolState::ArrowDrag { .. } | ToolState::PencilDrag { .. }
+                ) {
                     self.end_held_gestures();
                     Ok(true)
                 } else {
