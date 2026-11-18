@@ -169,7 +169,7 @@ Manual figures with a `.webp` suffix are pixel-identical lossless encodings of
 the original PNG captures. Their provenance records retain the original PNG
 name, byte count, and digest and identify the derived manual figure separately.
 
-![Complete Métis application window showing the saved CT study and axial MIP](images/dicom-metis-real-ct-mip-window.webp)
+![Historical 2026-09-14 Métis application window showing the saved CT study and axial MIP; see the window provenance record](images/dicom-metis-real-ct-mip-window.webp)
 
 The merged Windows default-shell build was rerun against the same saved public
 series on 2026-09-14. RITK selected all 409 files, rendered the three
@@ -193,14 +193,6 @@ The detailed synthetic, native, eframe, browser, and saved-study workflows
 below explain how to reproduce and inspect each component boundary. RITK owns
 scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
 host, canvas, and window lifecycle.
-
-The current standalone lock pins the browser canvas provider to Moirai
-`b3b37f7fae9de019939a53eaaaf5ada5ba5e806e` and the six Metis packages to
-`d93a45688713fd4d57371243f6afa5413560d75d`. Repeated RGBA frames with the
-current extent retain the validated bitmap; a changed width or height takes
-the bounded resize path. This keeps the browser presentation lifecycle stable
-without changing DICOM decoding or the displayed pixels. It is an allocation
-lifecycle guard, not a measurement of WebAssembly or browser memory.
 
 RITK's presentation boundary exposes the same lifecycle primitive to every
 host. A `PresentationFrame` swaps its completed RGBA storage with
@@ -1498,11 +1490,11 @@ python $captureUtility `
   --output scratch\viewer\radiant-clone\real-mri-ct-multiseries-window.png
 ```
 
-![Full RITK/Métis viewer window with menus and a compact separated toolbar above the workspace, a left study-and-series preview bar with thumbnail counts, status bar, three orthogonal RITK MPR panes and one MIP projection, and the real public MRI phantom](images/dicom-metis-real-mri-application-window.webp)
+![Historical 2026-09-14 RITK/Métis viewer window with menus, toolbar, study-and-series preview bar, three orthogonal panes, one MIP projection, and the public MRI phantom; see the MPR capture provenance](images/dicom-metis-real-mri-application-window.webp)
 
-![Full RITK/Métis viewer window with menus and a compact separated toolbar above the workspace, left preview bar showing real MRI and CT thumbnails, image-count badges and panel assignments, status bar, and both actual public series side by side](images/dicom-metis-real-mri-ct-multiseries-window.webp)
+![Historical 2026-09-14 RITK/Métis viewer window showing MRI and CT thumbnails, image counts, panel assignments, and both public series; see the two-series viewer provenance](images/dicom-metis-real-mri-ct-multiseries-window.webp)
 
-The two-panel screenshot shows the current native application with the actual
+The two-panel screenshot is a historical native application capture showing the actual
 94-image MRI and 409-image CT loaded in independent P1 and P2 panels. This
 capture launches the app with both series UIDs to make the displayed result
 repeatable; it does not depict the picker interaction. To open the same series
@@ -1575,7 +1567,7 @@ the committed image byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10
 This replay is tied to the updated provider lock; earlier provenance records
 remain historical records for the revisions that generated them.
 
-A current standalone-lock replay on 2026-09-22 rebuilt RITK from source
+A standalone-lock replay recorded on 2026-09-22 rebuilt RITK from source
 commit `e88a94219fac9f07339393da2cd0e7a19164f93b` against Metis revision
 `1b10541c2ef7a849e6ff66a3c778874bdf96de7b` and the Atlas clean Moirai pin
 `b77239dd10bcaf803394c26255c462bc858c1340`. The same saved 94-file MRI-DIR
@@ -2982,12 +2974,13 @@ with the reviewed manual image.
 
 Temporal multiframe organization and default DICOM LINEAR/VOI semantics are
 covered by the completed [RITK-SNAP-FRAMES-001](../../backlog.md#RITK-SNAP-FRAMES-001)
-item. These workflows prepare the egui baseline for the Métis migration. The
-browser handoff now has a compiled RITK adapter, manual workflow, and a local
-synthetic runtime visual smoke. Browser WebGPU is an explicit opt-in path;
-physical browser input, a real GPU visual run and full browser-window
-capture remain separate acceptance items in
-[RITK-SNAP-METIS-001](../../backlog.md#RITK-SNAP-METIS-001).
+item. These workflows retain the eframe compatibility baseline while the native
+Métis path remains the default Windows shell. The browser handoff has a compiled
+RITK adapter, manual workflow, and a local synthetic runtime visual smoke.
+Browser WebGPU, physical browser input, a real GPU visual run, and full
+browser-window capture remain separate acceptance items in
+[RITK-BROWSER-WEBGPU-001](../../backlog.md#RITK-BROWSER-WEBGPU-001) and
+[RITK-BROWSER-TOOL-TRACE-001](../../backlog.md#RITK-BROWSER-TOOL-TRACE-001).
 
 The browser presentation seam is now explicit as well. `metis_web::CanvasFrame`
 is implemented by RITK's `PresentationFrame`, and

@@ -37,8 +37,10 @@ cargo run --locked -p ritk-snap -- path/to/study
 
 The [synthetic DICOM workflow](../../docs/manual/dicom-workflow.md) explains
 the deterministic study used to check real file decoding, coordinates, and
-rendered slice pixels. It includes reproducible captures and the current
-verification limits.
+rendered slice pixels. The [native slice and annotation guide](../../docs/manual/dicom-workflow.md#try-the-windows-slice-and-annotation-tools)
+covers the current scrollbar, measurement, polygon editing, deletion, and
+Escape-cancellation behavior; gallery images remain dated records tied to
+their provenance files.
 
 Select a DICOM instance to choose its acquisition in a mixed-series folder.
 Scripted launches from a mixed directory require `--series-instance-uid`;
@@ -121,11 +123,14 @@ controls the image readouts separately from measurement marks.
 
 Choose **Open Polygon** from **Tools** or press **O**. Click to add vertices
 and double-click or press **Enter** to measure the path in millimetres.
-**Escape** cancels the unfinished path. Choose **Closed Polygon** with **G**
+**Escape** cancels the unfinished path and any pending polygon edit without
+changing the committed mark. Choose **Closed Polygon** with **G**
 and click the starting vertex, double-click, or press **Enter** to close it
 and measure area and perimeter.
 With **Pan** selected, click a polygon edge to show its handles. Press
-**Delete** to remove the selected polygon from that image.
+**Delete** to remove the selected polygon from that image; drag a handle to
+move a vertex or press a selected segment away from its handles to insert a
+node and drag it immediately.
 
 On Windows the same command works without `--metis-native`; the flag remains an
 explicit spelling for scripts and existing workflows. The separately named
