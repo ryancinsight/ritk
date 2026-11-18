@@ -283,7 +283,7 @@ fn native_session_scalar_projection_modes_render_and_label() {
         let overlay = super::layout::projection_overlay(projection, 640, 400, 640, 400)
             .expect("projection overlay")
             .into_display_list();
-        let expected_title = format!("{PRODUCT_NAME}  3D {label}");
+        let expected_title = format!("AsterSlice  3D {label}");
         assert!(overlay.commands().iter().any(|command| matches!(
             command,
             DisplayCommand::DrawText { text, .. }
