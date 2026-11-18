@@ -58,6 +58,9 @@ mod tests {
 
     #[test]
     fn browser_code_maps_to_shared_virtual_key() {
+        let pan = virtual_key_for_browser("p", "KeyP")
+            .and_then(crate::ui::tool_shortcuts::tool_kind_for_virtual_key);
+        assert_eq!(pan, Some(crate::tools::kind::ToolKind::Pan));
         assert_eq!(
             virtual_key_for_browser("+", "Equal"),
             Some(VIRTUAL_KEY_CINE_FPS_UP)

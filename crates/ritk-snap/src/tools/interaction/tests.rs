@@ -230,6 +230,12 @@ fn test_tool_state_non_idle_variants() {
             },
             ToolKind::RoiEllipse,
         ),
+        (
+            ToolState::PencilDrag {
+                capture: metis_ui_lang::PathCapture::new(ImagePoint::new(0.0, 0.0)),
+            },
+            ToolKind::Pencil,
+        ),
     ];
 
     for (state, expected_kind) in cases {

@@ -91,7 +91,7 @@ Choose another tool to discard an unfinished path.
 
 ### Select, move, and delete a polygon
 
-1. Choose **Tools → Pan** and left-click the edge of a completed polygon
+1. Choose **Tools → Pan** or press **M**, then left-click the edge of a completed polygon
    without holding a modifier key. Cross-shaped handles appear at its
    vertices. You can select a closed polygon by its closing edge.
 2. Press and drag one handle. The outline previews the new shape. Release
@@ -107,6 +107,12 @@ Choose another tool to discard an unfinished path.
 Choose **Tools → Arrow** or press **Y**. Drag from the tail to the tip and
 release. Press **Esc** during the drag to cancel. Scroll off the image and
 back to see that the completed arrow belongs to the image where you drew it.
+
+### Draw a freehand mark
+
+Choose **Tools → Pencil** or press **P**. Hold the left button and trace
+a feature. Release to keep the mark on that slice. Press **Esc** during
+the drag to discard the unfinished stroke.
 
 ### Run the reference checks
 
@@ -125,6 +131,7 @@ cargo nextest run --locked -p ritk-snap -E '
   or test(native_length_preview_draws_only_on_its_owning_slice)
   or test(native_length_calibration_scales_labels_and_resets)
   or test(arrow_)
+  or test(native_pencil_)
   or test(length_measurement_first_click_then_drag_completes_through_the_adapter)
   or test(deviation_measurement_completes_from_one_pointer_drag)
   or test(open_polygon_enter_commits_physical_length_and_consumes_release)
@@ -135,7 +142,7 @@ cargo nextest run --locked -p ritk-snap -E '
 '
 ```
 
-Pencil, Cobb angle, polygon edge insertion, and double-click completion
+Cobb angle, polygon edge insertion, and double-click completion
 are tracked in the
 [native measurement work](../../backlog.md#RITK-SNAP-NATIVE-MEASURE-SET-001).
 

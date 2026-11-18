@@ -125,6 +125,7 @@ pub fn csv_for(annotations: &[Annotation]) -> String {
                 format!("{i},Open Polygon,{length_mm:.2},mm,\n")
             }
             Annotation::Arrow { .. } => format!("{i},Arrow,,,\n"),
+            Annotation::Pencil { .. } => format!("{i},Pencil,,,\n"),
         };
         out.push_str(&row);
     }
@@ -189,6 +190,7 @@ fn annotation_label(i: usize, ann: &Annotation) -> String {
             format!("#{i}  Open polygon: {length_mm:.1} mm")
         }
         Annotation::Arrow { .. } => format!("#{i}  Arrow"),
+        Annotation::Pencil { .. } => format!("#{i}  Pencil"),
     }
 }
 

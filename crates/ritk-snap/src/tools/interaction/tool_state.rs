@@ -78,6 +78,11 @@ pub enum ToolState {
         start: ImagePoint,
         current: ImagePoint,
     },
+    /// Pencil drag with bounded freehand samples.
+    PencilDrag {
+        /// Captured image-space samples.
+        capture: PathCapture<ImagePoint>,
+    },
 
     /// ROI drag in progress.
     RoiDrag {
@@ -128,6 +133,7 @@ impl ToolState {
                 | ToolState::LengthDrag { .. }
                 | ToolState::DeviationDrag { .. }
                 | ToolState::ArrowDrag { .. }
+                | ToolState::PencilDrag { .. }
         )
     }
 
@@ -153,6 +159,7 @@ impl ToolState {
             }
             ToolState::DeviationDrag { .. } => Some(ToolKind::MeasureDeviation),
             ToolState::ArrowDrag { .. } => Some(ToolKind::Arrow),
+            ToolState::PencilDrag { .. } => Some(ToolKind::Pencil),
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
             ToolState::Polygon {
                 kind: PolygonKind::Closed,

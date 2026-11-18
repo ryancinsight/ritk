@@ -46,6 +46,8 @@ pub enum ToolKind {
     RoiOpenPolygon,
     /// Drag from a tail to a head to place an image annotation arrow.
     Arrow,
+    /// Freehand pencil mark on the active image.
+    Pencil,
 }
 
 impl ToolKind {
@@ -67,6 +69,7 @@ impl ToolKind {
             ToolKind::RoiClosedPolygon => "Closed Polygon",
             ToolKind::RoiOpenPolygon => "Open Polygon",
             ToolKind::Arrow => "Arrow",
+            ToolKind::Pencil => "Pencil",
         }
     }
 
@@ -123,6 +126,7 @@ impl ToolKind {
                 "Open polygon: click polyline nodes, then press Enter to finish."
             }
             ToolKind::Arrow => "Arrow: drag from the tail to the head to annotate the image.",
+            ToolKind::Pencil => "Pencil: draw a freehand mark on the active image.",
         }
     }
 
@@ -144,6 +148,7 @@ impl ToolKind {
             ToolKind::RoiClosedPolygon => "⬟",
             ToolKind::RoiOpenPolygon => "〽",
             ToolKind::Arrow => "➜",
+            ToolKind::Pencil => "✎",
         }
     }
 
@@ -169,6 +174,7 @@ impl ToolKind {
             ToolKind::RoiClosedPolygon,
             ToolKind::RoiOpenPolygon,
             ToolKind::Arrow,
+            ToolKind::Pencil,
         ]
     }
 }

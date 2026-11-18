@@ -48,8 +48,12 @@ pub(super) fn global_key_action(
         return Some(WindowAction::SaveCustomPreset { index: Some(index) });
     }
     match (virtual_key, ctrl, shift) {
+        (0x4d, false, false) => Some(WindowAction::SelectTool(ToolKind::Pan)),
         (key, false, false) if key == crate::ui::tool_shortcuts::VIRTUAL_KEY_ARROW => {
             Some(WindowAction::SelectTool(ToolKind::Arrow))
+        }
+        (key, false, false) if key == crate::ui::tool_shortcuts::VIRTUAL_KEY_PENCIL => {
+            Some(WindowAction::SelectTool(ToolKind::Pencil))
         }
         (0x47, false, false) => Some(WindowAction::SelectTool(ToolKind::RoiClosedPolygon)),
         (0x73, false, false) => Some(WindowAction::OpenSeriesPicker),
@@ -98,7 +102,12 @@ pub(super) fn global_key_event(
     menu: Option<super::Menu>,
     action: WindowAction,
 ) -> super::WindowChromeEvent {
-    if menu.is_some() && action == WindowAction::SelectTool(ToolKind::Arrow) {
+    if menu.is_some()
+        && matches!(
+            action,
+            WindowAction::SelectTool(ToolKind::Arrow | ToolKind::Pencil)
+        )
+    {
         return super::WindowChromeEvent::consumed(false);
     }
     super::WindowChromeEvent {
