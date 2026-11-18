@@ -37,8 +37,10 @@ cargo run --locked -p ritk-snap -- path/to/study
 
 The [synthetic DICOM workflow](../../docs/manual/dicom-workflow.md) explains
 the deterministic study used to check real file decoding, coordinates, and
-rendered slice pixels. It includes reproducible captures and the current
-verification limits.
+rendered slice pixels. The [native slice and annotation guide](../../docs/manual/dicom-workflow.md#try-the-windows-slice-and-annotation-tools)
+covers the current scrollbar, measurement, polygon editing, deletion, and
+Escape-cancellation behavior; gallery images remain dated records tied to
+their provenance files.
 
 Select a DICOM instance to choose its acquisition in a mixed-series folder.
 Scripted launches from a mixed directory require `--series-instance-uid`;
@@ -121,11 +123,17 @@ controls the image readouts separately from measurement marks.
 
 Choose **Open Polygon** from **Tools** or press **O**. Click to add vertices
 and double-click or press **Enter** to measure the path in millimetres.
-**Escape** cancels the unfinished path. Choose **Closed Polygon** with **G**
+Switch tools to discard an unfinished path. **Escape** cancels a
+pending vertex edit. Choose **Closed Polygon** with **G**
 and click the starting vertex, double-click, or press **Enter** to close it
 and measure area and perimeter.
 With **Pan** selected, click a polygon edge to show its handles. Press
-**Delete** to remove the selected polygon from that image.
+**Delete** to remove the selected polygon from that image; drag a handle to
+move a vertex or press a selected segment away from its handles to insert a
+node and drag it immediately.
+
+The [Windows shortcuts](../../docs/manual/dicom-workflow.md#windows-tool-shortcuts)
+list the current measurement and drawing keys.
 
 On Windows the same command works without `--metis-native`; the flag remains an
 explicit spelling for scripts and existing workflows. The separately named
@@ -164,7 +172,7 @@ first three panels and the display-only projection is in the lower-right
 panel. Color volumes reject every projection mode because the typed RITK
 contract is scalar-only.
 
-The reviewed capture is shown in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#present-validated-ritk-views-through-metis).
+The reviewed capture is shown in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#present-validated-ritk-views-through-m%C3%A9tis).
 
 The native host also provides a responsive layout that selects one, two or
 four panes from the current surface extent:

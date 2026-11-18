@@ -1,36 +1,23 @@
-# Verify DICOM viewer workflows
+# RITK DICOM viewer manual
 
-This workflow generates three small Part 10 instances, opens them through
-the viewer's directory and dropped-byte loaders, checks their decoded values
-and physical coordinates, and captures three orthogonal scalar and RGB slice
-buffers plus a patient-coordinate fusion buffer.
-It needs no downloaded datasets or patient information.
+Use the native Windows viewer to browse a study and measure or mark an image.
+See the [viewer launch commands](../../crates/ritk-snap/README.md) to start
+RITK. The [technical workflows](#actual-application-gallery) below document
+the fixtures and captures used to verify viewer behavior.
 
-RITK owns the DICOM boundary used by presentation hosts. A host that receives
-files or browser drops passes the named Part 10 byte batch to
-`ritk_io::scan_dicom_part10_bytes` (or its budgeted form), then passes the
-validated descriptor to `ritk_io::load_dicom_from_series`. The scanner and
-loader retain the validated bytes, enforce the parser, retained-study, and
-decoded-workspace budgets, and return the RITK `Image` plus
-`DicomReadMetadata`. No GUI framework type or parser object crosses this
-boundary; the host owns only input and presentation lifecycle.
-
-The [workspace lockfile](../../Cargo.lock) records the Métis and Moirai
-revisions used for the current build. Historical captures retain the
-provider revisions in their own provenance files. RITK owns DICOM
-scanning, decoding, geometry and clinical presentation.
-
-This workflow is the DICOM opening demonstration for the default Windows Métis
-shell and the explicit eframe compatibility shell. The code, fixtures, visual
-goldens, and rejection tests remain in RITK so a framework migration cannot
-fork medical-data semantics.
+- [Scroll through a slice stack](#scroll-through-a-slice-stack)
+- [Measure a length and calibrate it](#calibrate-a-length-on-one-image)
+- [Measure angles and regions](#measure-an-angle-or-a-region-of-interest)
+- [Draw and edit polygons](#trace-an-open-path-and-a-closed-outline)
+- [Draw an arrow or a freehand mark](#draw-an-arrow)
+- [Windows tool shortcuts](#windows-tool-shortcuts)
 
 ## Try the Windows slice and annotation tools
 
 Open the public T2 phantom at `test_data/2_head_mri_t2/DICOM` in the default
 Windows viewer. The steps below also work on another multi-slice DICOM
-series with image spacing. For a side-by-side check, choose
-**Window → Three-plane MPR**.
+series with image spacing. Use **Window → Three-plane MPR** to show axial,
+coronal, and sagittal views together.
 
 ### Scroll through a slice stack
 
@@ -45,9 +32,10 @@ series with image spacing. For a side-by-side check, choose
 The image corners show the image count, window width and centre, and
 displayed frame dimensions. When clinical text runs out of room, the viewer shortens long
 corner labels with an ellipsis. Resize the window to compare the corner
-readouts and orientation letters in wide and narrow panes.
-The colorbar numbers have their own rows, and measurement labels stay inside
-the image pane.
+readouts and orientation letters in wide and narrow panes. Colorbar values
+have their own rows. Measurement labels move to stay visible inside the pane.
+
+![Current Windows viewer with independent slice scrollbars at the right edge of each MPR pane](images/dicom-native-slices.webp)
 
 ### Measure a length and a deviation
 
@@ -76,8 +64,19 @@ the image pane.
 4. Scroll to another slice and back. Choose **Tools → Reset length
    calibration** on the reference image to restore image-spacing readings.
 
-Calibration lasts for the current viewer session. Saved sessions retain
-the measurements based on the original image spacing.
+![RITK Tools calibration dialog over the current DICOM slice with a 100 mm reference entered](images/dicom-native-calibration.webp)
+
+Calibration lasts for the loaded study. Reopen the study to restore its DICOM
+spacing.
+
+### Measure an angle or a region of interest
+
+1. Choose **Tools → Angle** or press **A**. Click a point on the first arm,
+   the vertex, and a point on the second arm. Read the included angle in degrees.
+2. Choose **Tools → ROI Rect** or **ROI Ellipse**. **E** also selects ROI
+   Ellipse. Drag between opposite corners of the bounding box and release. The
+   overlay shows mean intensity, standard deviation, and area in square millimetres.
+3. Choose **Tools → HU Point** and click a voxel to mark its numeric intensity.
 
 ### Measure a Cobb angle
 
@@ -106,8 +105,8 @@ number of vertices. Choose another tool to discard an unfinished path.
    vertices. You can select a closed polygon by its closing edge.
 2. Press and drag one handle. The outline previews the new shape. Release
    within the image to keep the new shape and update the length or the
-   area and perimeter. If pointer capture is lost during the drag, the
-   original shape stays in place.
+   area and perimeter. Press **Esc** during the drag to keep the
+   original shape. The same happens if pointer capture is lost.
 3. Press an already-selected segment away from its handles to insert a node
    on the projected segment. Keep holding the button to drag that new node;
    release commits the updated measurement. Pressing a handle takes priority,
@@ -128,6 +127,25 @@ Choose **Tools → Pencil** or press **P**. Hold the left button and trace
 a feature. Release to keep the mark on that slice. Press **Esc** during
 the drag to discard the unfinished stroke.
 
+### Windows tool shortcuts
+
+| Key | Tool |
+| --- | --- |
+| **M** | Pan |
+| **L** | Length |
+| **D** | Deviation |
+| **A** / **C** | Angle / Cobb Angle |
+| **E** | ROI Ellipse |
+| **O** / **G** | Open Polygon / Closed Polygon |
+| **Y** | Arrow |
+| **P** | Pencil |
+| **Shift+C** | Cycle the display colormap |
+
+![Current native RITK viewer with calibrated lengths, Cobb angle, a selected edited polygon, an arrow and a pencil mark on a public MRI phantom](images/dicom-native-annotations.webp)
+
+The figures show the native Windows viewer's client area with the public T2
+phantom loaded. See the [capture inputs and image digests](images/dicom-native-annotations.json).
+
 ### Run the reference checks
 
 The Windows regression fixtures exercise native-session rendering and the
@@ -139,6 +157,8 @@ a vertex and checks that its path grows from 7 mm to 11 mm on release.
 ```powershell
 cargo nextest run --locked -p ritk-snap -E '
   test(slice_scrollbar_)
+  or test(measurement_labels_fit_before_the_colorbar)
+  or test(colorbar_labels_clear_orientation_and_scale_ruler_lanes)
   or test(clinical_labels_stay_inside_the_pane_and_clear_one_another)
   or test(transform_keys_route_orientation_and_repaint)
   or test(native_toolbar_length_then_drag_records_measurement)
@@ -150,6 +170,7 @@ cargo nextest run --locked -p ritk-snap -E '
   or test(length_measurement_first_click_then_drag_completes_through_the_adapter)
   or test(deviation_measurement_completes_from_one_pointer_drag)
   or test(native_cobb_) or test(native_polygon_edge_insert_)
+  or test(native_manual_annotation_frames)
   or test(open_polygon_enter_commits_physical_length_and_consumes_release)
   or test(closed_polygon_commits_area_perimeter_and_slice_location)
   or test(pan_click_selects_a_visible_closing_edge_and_delete_keeps_other_slices)
@@ -158,7 +179,48 @@ cargo nextest run --locked -p ritk-snap -E '
 '
 ```
 
+On Windows, regenerate the walkthrough frames from the repository root.
+
+```powershell
+$env:RITK_MANUAL_STUDY = (Resolve-Path 'test_data/2_head_mri_t2/DICOM').Path
+$env:RITK_MANUAL_CAPTURE_DIR = (New-Item -ItemType Directory -Force 'output/manual').FullName
+cargo nextest run --locked -p ritk-snap -E 'test(native_manual_annotation_frames)'
+Remove-Item Env:RITK_MANUAL_STUDY, Env:RITK_MANUAL_CAPTURE_DIR
+```
+
 ## Actual application gallery
+
+These historical captures document the viewer and providers identified in
+their provenance records. The screenshots above show the controls and
+annotations in the Windows walkthrough.
+
+### DICOM viewer verification
+
+This workflow generates three small Part 10 instances, opens them through
+the viewer's directory and dropped-byte loaders, checks their decoded values
+and physical coordinates, and captures three orthogonal scalar and RGB slice
+buffers plus a patient-coordinate fusion buffer.
+It needs no downloaded datasets or patient information.
+
+RITK owns the DICOM boundary used by presentation hosts. A host that receives
+files or browser drops passes the named Part 10 byte batch to
+`ritk_io::scan_dicom_part10_bytes` (or its budgeted form), then passes the
+validated descriptor to `ritk_io::load_dicom_from_series`. The scanner and
+loader retain the validated bytes, enforce the parser, retained-study, and
+decoded-workspace budgets, and return the RITK `Image` plus
+`DicomReadMetadata`. No GUI framework type or parser object crosses this
+boundary; the host owns only input and presentation lifecycle.
+
+The [workspace lockfile](../../Cargo.lock) records the Métis and Moirai
+revisions used for the current build. Historical captures retain the
+provider revisions in their own provenance files. RITK owns DICOM
+scanning, decoding, geometry and clinical presentation.
+
+The technical workflow includes the DICOM opening demonstration for the default Windows Métis
+shell and the explicit eframe compatibility shell. The code, fixtures, visual
+goldens, and rejection tests remain in RITK so a framework migration cannot
+fork medical-data semantics.
+
 
 The 94-file T2 and 409-file CT captures below use the public MRI-DIR
 porcine-head phantom, not patient studies. Dataset citation: Ger et al. (2018),
@@ -176,7 +238,7 @@ Manual figures with a `.webp` suffix are pixel-identical lossless encodings of
 the original PNG captures. Their provenance records retain the original PNG
 name, byte count, and digest and identify the derived manual figure separately.
 
-![Complete Métis application window showing the saved CT study and axial MIP](images/dicom-metis-real-ct-mip-window.webp)
+![Historical Métis application window showing the saved CT study and axial MIP; see the window provenance record](images/dicom-metis-real-ct-mip-window.webp)
 
 The merged Windows default-shell build was rerun against the same saved public
 series on 2026-09-14. RITK selected all 409 files, rendered the three
@@ -200,14 +262,6 @@ The detailed synthetic, native, eframe, browser, and saved-study workflows
 below explain how to reproduce and inspect each component boundary. RITK owns
 scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
 host, canvas, and window lifecycle.
-
-The current standalone lock pins the browser canvas provider to Moirai
-`b3b37f7fae9de019939a53eaaaf5ada5ba5e806e` and the six Metis packages to
-`d93a45688713fd4d57371243f6afa5413560d75d`. Repeated RGBA frames with the
-current extent retain the validated bitmap; a changed width or height takes
-the bounded resize path. This keeps the browser presentation lifecycle stable
-without changing DICOM decoding or the displayed pixels. It is an allocation
-lifecycle guard, not a measurement of WebAssembly or browser memory.
 
 RITK's presentation boundary exposes the same lifecycle primitive to every
 host. A `PresentationFrame` swaps its completed RGBA storage with
@@ -1505,11 +1559,11 @@ python $captureUtility `
   --output scratch\viewer\radiant-clone\real-mri-ct-multiseries-window.png
 ```
 
-![Full RITK/Métis viewer window with menus and a compact separated toolbar above the workspace, a left study-and-series preview bar with thumbnail counts, status bar, three orthogonal RITK MPR panes and one MIP projection, and the real public MRI phantom](images/dicom-metis-real-mri-application-window.webp)
+![Historical 2026-10-02 RITK/Métis viewer window with menus, toolbar, study-and-series preview bar, three orthogonal panes, one MIP projection, and the public MRI phantom; see the MPR capture provenance](images/dicom-metis-real-mri-application-window.webp)
 
-![Full RITK/Métis viewer window with menus and a compact separated toolbar above the workspace, left preview bar showing real MRI and CT thumbnails, image-count badges and panel assignments, status bar, and both actual public series side by side](images/dicom-metis-real-mri-ct-multiseries-window.webp)
+![Historical 2026-10-02 RITK/Métis viewer window showing MRI and CT thumbnails, image counts, panel assignments, and both public series; see the two-series viewer provenance](images/dicom-metis-real-mri-ct-multiseries-window.webp)
 
-The two-panel screenshot shows the current native application with the actual
+The two-panel screenshot is a historical native application capture showing the actual
 94-image MRI and 409-image CT loaded in independent P1 and P2 panels. This
 capture launches the app with both series UIDs to make the displayed result
 repeatable; it does not depict the picker interaction. To open the same series
@@ -1563,7 +1617,7 @@ frame byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7
 `05aa4f42b075fd3913d2c43a152148e2dc1f9a946729a278f7d2c0dbac068b88`
 (26,376,704 bytes) and standalone lock digest
 `a602ec28d9fb3d2c73b6245067ec33e4648d66434de07087b0153c90aea12fbb`
-are recorded in the [current replay evidence](images/dicom-metis-real-mri.json).
+are recorded in the [recorded replay evidence](images/dicom-metis-real-mri.json).
 The capture excludes operating-system chrome and remains a visual-content
 check; native IME, accessibility and cross-platform host evidence are separate
 gates. Replace the path with a private clinical study only for a local run;
@@ -1582,7 +1636,7 @@ the committed image byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10
 This replay is tied to the updated provider lock; earlier provenance records
 remain historical records for the revisions that generated them.
 
-A current standalone-lock replay on 2026-09-22 rebuilt RITK from source
+A standalone-lock replay recorded on 2026-09-22 rebuilt RITK from source
 commit `e88a94219fac9f07339393da2cd0e7a19164f93b` against Metis revision
 `1b10541c2ef7a849e6ff66a3c778874bdf96de7b` and the Atlas clean Moirai pin
 `b77239dd10bcaf803394c26255c462bc858c1340`. The same saved 94-file MRI-DIR
@@ -2987,14 +3041,15 @@ with the reviewed manual image.
 
 ![Transformed depth slice pixel grid](images/dicom-orientation.png)
 
-Temporal multiframe organization and default DICOM LINEAR/VOI semantics are
-covered by the completed [RITK-SNAP-FRAMES-001](../../backlog.md#RITK-SNAP-FRAMES-001)
-item. These workflows prepare the egui baseline for the Métis migration. The
-browser handoff now has a compiled RITK adapter, manual workflow, and a local
-synthetic runtime visual smoke. Browser WebGPU is an explicit opt-in path;
-physical browser input, a real GPU visual run and full browser-window
-capture remain separate acceptance items in
-[RITK-SNAP-METIS-001](../../backlog.md#RITK-SNAP-METIS-001).
+See [Open a multi-frame object](#open-a-multi-frame-object) for the frame
+ordering and [Present signed grayscale data](#present-signed-grayscale-data)
+for the DICOM LINEAR/VOI checks. These workflows retain the eframe compatibility baseline while the native
+Métis path remains the default Windows shell. The browser handoff has a compiled
+RITK adapter, manual workflow, and a local synthetic runtime visual smoke.
+Browser WebGPU, physical browser input, a real GPU visual run, and full
+browser-window capture remain separate acceptance items in
+[RITK-BROWSER-WEBGPU-001](../../backlog.md#RITK-BROWSER-WEBGPU-001) and
+[RITK-BROWSER-TOOL-TRACE-001](../../backlog.md#RITK-BROWSER-TOOL-TRACE-001).
 
 The browser presentation seam is now explicit as well. `metis_web::CanvasFrame`
 is implemented by RITK's `PresentationFrame`, and

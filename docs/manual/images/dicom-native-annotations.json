@@ -1,0 +1,36 @@
+{
+  "viewer_revision": "8f08c027efb16ad57723233c6810339b44e52d90",
+  "fixture": {
+    "path": "test_data/2_head_mri_t2/DICOM",
+    "dicom_images": 94
+  },
+  "cargo_lock_sha256": "cc18b46bd4a8fbf4c2180b9f14636fbc6a001d27a79a1cddc29691c84902a6e5",
+  "capture": "Native Windows RITK client framebuffer",
+  "command": "cargo nextest run --locked -p ritk-snap -E 'test(native_manual_annotation_frames)'",
+  "frames": {
+    "dicom-native-slices.webp": {
+      "width_px": 1280,
+      "height_px": 800,
+      "webp_bytes": 114398,
+      "webp_sha256": "4f58eea03960968ab8255d27c096a557a9f8500e444178f0948123ce54c95f70",
+      "source_png_bytes": 431175,
+      "source_png_sha256": "056f3743642af68bfa53376adb0aebbb1aba893fb895f474a477383762171fe1"
+    },
+    "dicom-native-calibration.webp": {
+      "width_px": 1280,
+      "height_px": 800,
+      "webp_bytes": 116764,
+      "webp_sha256": "90fd95ffe8c249724a329b0c45ce5d6528499c136d9e3376b1ab7c46d7bbbe20",
+      "source_png_bytes": 399401,
+      "source_png_sha256": "768691d5e9fe320967ea14d85316a911bd38f474dbd4207287968edf514f684a"
+    },
+    "dicom-native-annotations.webp": {
+      "width_px": 1280,
+      "height_px": 800,
+      "webp_bytes": 126622,
+      "webp_sha256": "5316883603f054c7c44e47c859762c665ba9c0ba05f95e5b91775f5eeaf3c4b7",
+      "source_png_bytes": 429082,
+      "source_png_sha256": "3e792d10afec00f7f74afd102996feeb4ce8bd7469bb720845f51f4d1d1c5c4c"
+    }
+  }
+}
