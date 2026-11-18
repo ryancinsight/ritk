@@ -92,6 +92,8 @@ pub(crate) struct SnapApp {
     pub(crate) presentation_dispatcher: PresentationDispatcher,
     /// Completed measurement annotations.
     pub(crate) annotations: Vec<Annotation>,
+    #[cfg(windows)]
+    pub(crate) length_calibrations: Vec<super::calibration::ManualLengthCalibration>,
     #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     /// Last hovered or interacted axis for status/info display.
     pub(crate) status_axis: usize,

@@ -95,7 +95,8 @@ impl SnapApp {
             self.sagittal_slice,
         ));
         self.annotations.clear();
-        self.pointer.selected_polygon = None;
+        #[cfg(windows)]
+        self.length_calibrations.clear();
         self.label_editor = Some(LabelEditor::new(shape));
         #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
         {
@@ -268,7 +269,8 @@ impl SnapApp {
         self.compare_axes = [0, 0];
         self.dual_axes = [0, 1];
         self.annotations.clear();
-        self.pointer.selected_polygon = None;
+        #[cfg(windows)]
+        self.length_calibrations.clear();
         self.label_editor = None;
         self.rt_struct = None;
         self.rt_dose = None;

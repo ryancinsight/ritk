@@ -14,7 +14,6 @@
 //! | `true`         | 2×2 grid: Axial / Coronal / Sagittal / 3D-MIP, with Info below.|
 
 pub(crate) mod action_adapter;
-mod annotation_edit;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_cine;
 #[cfg(any(target_arch = "wasm32", test))]
@@ -29,11 +28,12 @@ mod browser_semantics;
 mod browser_slice_selection;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_tool;
-mod polygon_selection;
 // Window/level preset tables route browser, eframe and native sessions;
 // the selection logic is host-independent, so the module ships on every
 // target (only the wasm ABI error variants stay gated).
 mod browser_window_preset;
+#[cfg(any(windows, test))]
+mod calibration;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) mod clinical_distribution;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]

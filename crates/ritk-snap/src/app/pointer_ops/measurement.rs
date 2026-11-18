@@ -53,10 +53,17 @@ impl SnapApp {
             .into_iter()
             .map(|point| [point.y(), point.x()])
             .collect();
+        let polyline_mm = Annotation::compute_polyline_length(&points, spacing);
         match kind {
             PolygonKind::Closed => {
+                let Some(first) = points.first().copied() else {
+                    return;
+                };
+                let Some(last) = points.last().copied() else {
+                    return;
+                };
                 let area_mm2 = Annotation::compute_polygon_area(&points, spacing);
-                let perimeter_mm = Annotation::compute_polygon_perimeter(&points, spacing);
+                let perimeter_mm = polyline_mm + Annotation::compute_length(last, first, spacing);
                 if !area_mm2.is_finite() || !perimeter_mm.is_finite() {
                     self.status_message = "Polygon measurement exceeds the supported range".into();
                     return;
@@ -69,7 +76,6 @@ impl SnapApp {
                 });
             }
             PolygonKind::Open => {
-                let polyline_mm = Annotation::compute_polyline_length(&points, spacing);
                 if !polyline_mm.is_finite() {
                     self.status_message = "Polygon measurement exceeds the supported range".into();
                     return;
@@ -89,7 +95,7 @@ impl SnapApp {
             .push(annotation.with_location(self.annotation_location()));
     }
 
-    pub(in crate::app) fn annotation_location(&self) -> AnnotationLocation {
+    pub(super) fn annotation_location(&self) -> AnnotationLocation {
         AnnotationLocation {
             plane: self.axis,
             slice: self.axis_slice_info(self.axis).0,
@@ -103,6 +109,16 @@ impl SnapApp {
         let measured = self
             .slice_plane_spacing()
             .and_then(|spacing| Annotation::compute_length_checked(p1, p2, spacing));
+        #[cfg(windows)]
+        let measured = measured.and_then(|value| {
+            self.length_calibrations
+                .iter()
+                .find(|item| item.applies_to(self.annotation_location()))
+                .map_or(Ok(value), |item| {
+                    item.apply(value)
+                        .map_err(|_| MeasurementError::NonFiniteResult { kind: "length" })
+                })
+        });
         match measured {
             Ok(length_mm) => {
                 self.push_annotation(Annotation::Length {
