@@ -1,5 +1,4 @@
 <a id="RITK-SNAP-OBLIQUE-SESSION-WIRING-001"></a>
-
 ## RITK-SNAP-OBLIQUE-SESSION-WIRING-001 — Wire the oblique session pane — blocked
 - milestone: M-viewer-compare
 - outcome: initialize and update the fourth pane from the active volume and patient cursor.
@@ -7,6 +6,5 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/{composition,session,events}.rs`
 - next: connect the plane lifecycle to native session state.
 - basis: 3fcdc3dd
-- blocker: Prerequisite items must merge before this item is ready.
 - needs: RITK-SNAP-OBLIQUE-SESSION-MODULES-001
 - priority: correctness

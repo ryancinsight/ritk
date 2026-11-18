@@ -1,5 +1,4 @@
 <a id="RITK-RASTER-CONVERSION-001"></a>
-
 ## RITK-RASTER-CONVERSION-001 — Convert PNG TIFF and JPEG rasters — blocked
 - milestone: M-viewer-reading
 - outcome: Convert raster inputs through image-specific models without inventing physical geometry.

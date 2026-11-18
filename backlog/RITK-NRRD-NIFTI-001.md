@@ -1,5 +1,4 @@
 <a id="RITK-NRRD-NIFTI-001"></a>
-
 ## RITK-NRRD-NIFTI-001 — Convert NRRD and NIfTI volumes — blocked
 - milestone: M-viewer-reading
 - outcome: Convert representable NRRD and NIfTI volumes without changing sample bits or physical meaning.

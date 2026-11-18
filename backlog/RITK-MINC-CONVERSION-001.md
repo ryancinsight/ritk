@@ -1,5 +1,4 @@
 <a id="RITK-MINC-CONVERSION-001"></a>
-
 ## RITK-MINC-CONVERSION-001 — Preserve MINC volume semantics — blocked
 - milestone: M-viewer-reading
 - outcome: Route MINC volumes through stored models and shared image-format dispatch.

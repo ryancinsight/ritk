@@ -1,5 +1,4 @@
 <a id="RITK-MIF-CONVERSION-001"></a>
-
 ## RITK-MIF-CONVERSION-001 — Preserve MRtrix image semantics — blocked
 - milestone: M-viewer-reading
 - outcome: Connect MIF read/write operations to stored models and shared dispatch.

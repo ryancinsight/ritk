@@ -1,5 +1,4 @@
 <a id="RITK-BROWSER-READ-001"></a>
-
 ## RITK-BROWSER-READ-001 — Resolve WebKit study-file reads — blocked
 - milestone: M-viewer-compare
 - outcome: Read the public MRI-DIR study through the supported browser file chooser.

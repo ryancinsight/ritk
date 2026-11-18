@@ -1,5 +1,4 @@
 <a id="RITK-SNAP-OBLIQUE-APP-ADAPTER-001"></a>
-
 ## RITK-SNAP-OBLIQUE-APP-ADAPTER-001 — Route oblique viewer actions — todo
 - milestone: M-viewer-compare
 - outcome: apply pointer and navigation actions to the RITK oblique view model.

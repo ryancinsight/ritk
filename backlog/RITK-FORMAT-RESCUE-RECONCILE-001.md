@@ -1,5 +1,4 @@
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>
-
 ## RITK-FORMAT-RESCUE-RECONCILE-001 — Rehome format work from stale rescue branches — blocked
 - milestone: M-viewer-reading
 - outcome: Re-derive preserved format changes under their current RITK owners.
