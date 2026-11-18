@@ -201,6 +201,10 @@ fn viewer_viewport_uses_half_open_image_edges() {
     );
     assert_eq!(viewport.map(ViewportPoint::new(18.0, 24.0)), None);
     assert_eq!(viewport.map(ViewportPoint::new(16.0, 28.0)), None);
+    assert_eq!(
+        viewport.map_unbounded(ViewportPoint::new(20.0, 16.0)),
+        Some(ImagePoint::new(5.0, -1.0))
+    );
 }
 
 #[test]

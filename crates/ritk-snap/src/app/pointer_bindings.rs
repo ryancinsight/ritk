@@ -5,7 +5,8 @@
 //! the left button runs the selected tool, while the other buttons keep fixed
 //! tools so a reader can adjust the display without leaving a measurement.
 
-use crate::presentation::PointerButton;
+use crate::app::viewer_viewport::ViewerViewport;
+use crate::presentation::{PointerButton, ViewportPoint};
 use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(any(windows, test))]
@@ -133,6 +134,8 @@ pub(crate) struct PointerGestures {
     pub(crate) bindings: PointerBindings,
     /// Button and tool that own the gesture in progress.
     pub(crate) owner: Option<PointerGestureOwner>,
+    /// Press-time mapping used by pan and zoom for their whole displacement.
+    pub(crate) navigation_drag_viewport: Option<ViewerViewport>,
     /// Multi-click measurement held while another gesture runs.
     pub(crate) suspended_measurement: Option<ToolState>,
     pub(crate) pending_measurement_location: Option<AnnotationLocation>,
@@ -143,12 +146,45 @@ pub(crate) struct PointerGestures {
 }
 
 impl PointerGestures {
+    /// Retain the press mapping only when a navigation drag actually started.
+    pub(crate) fn capture_navigation_viewport(
+        &mut self,
+        tool_state: &ToolState,
+        viewport: ViewerViewport,
+    ) {
+        self.navigation_drag_viewport = matches!(
+            tool_state,
+            ToolState::Panning { .. } | ToolState::Zooming { .. }
+        )
+        .then_some(viewport);
+    }
+
+    /// Map a drag through its stable navigation basis or live image bounds.
+    pub(crate) fn map_drag(
+        &self,
+        tool_state: &ToolState,
+        viewport: ViewerViewport,
+        current: ViewportPoint,
+    ) -> Option<ImagePoint> {
+        if matches!(
+            tool_state,
+            ToolState::Panning { .. } | ToolState::Zooming { .. }
+        ) {
+            self.navigation_drag_viewport
+                .expect("invariant: an active pan or zoom retains its press-time viewport")
+                .map_unbounded(current)
+        } else {
+            viewport.map(current)
+        }
+    }
+
     /// Forget the running gesture and any measurement it suspended.
     ///
     /// Used when the state a gesture would return to no longer exists, such as
     /// after the volume is replaced or another tool is selected.
     pub(crate) fn abandon(&mut self) {
         self.owner = None;
+        self.navigation_drag_viewport = None;
         self.suspended_measurement = None;
         self.pending_measurement_location = None;
         self.drag_measurement_location = None;

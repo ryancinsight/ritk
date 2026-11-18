@@ -167,6 +167,7 @@ impl SnapApp {
     /// State that no drag owns, such as a waiting measurement anchor, stays.
     fn finish_gesture(&mut self) {
         self.pointer.owner = None;
+        self.pointer.navigation_drag_viewport = None;
         if self.tool_state.is_drag_gesture() {
             self.tool_state = self
                 .pointer
@@ -187,6 +188,7 @@ impl SnapApp {
             self.finish_gesture();
         } else {
             self.pointer.owner = None;
+            self.pointer.navigation_drag_viewport = None;
             self.pointer.suspended_measurement = None;
         }
     }

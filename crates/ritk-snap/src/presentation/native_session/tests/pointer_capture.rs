@@ -3,8 +3,10 @@
 use super::super::layout::{PanelGrid, WorkspaceLayout};
 use super::super::window_controls::WindowAction;
 use super::*;
-use crate::presentation::PointerButton;
+use crate::presentation::{PointerButton, ViewportPoint};
 use crate::tools::kind::ToolKind;
+use crate::ui::{pan_from_drag_delta, zoom_from_drag_delta};
+use eunomia::FloatElement;
 use metis_platform::native::MouseButton;
 
 pub(super) fn down(x: i32, y: i32, button: MouseButton) -> WindowEvent {
@@ -100,6 +102,7 @@ fn a_release_after_focus_loss_is_ordinary_input() {
 
     assert_eq!(session.active_view, None);
     assert_eq!(session.app.pointer.owner, None);
+    assert_eq!(session.app.pointer.navigation_drag_viewport, None);
     session
         .handle_events(&[down(x, y, MouseButton::Right)])
         .expect("the button starts a new gesture");
@@ -188,4 +191,127 @@ fn a_stationary_release_leaves_a_display_gesture_where_its_last_move_put_it() {
         .handle_events(&[up(x + 40, y, MouseButton::X1)])
         .expect("release where the last move ended");
     assert_eq!(session.app.pan_offset, pan);
+}
+
+fn navigation_session() -> (NativeViewerSession, tempfile::TempDir) {
+    let (mut session, root) = session();
+    let texel_width =
+        session.viewports[0].image.width / f64::from(session.views[0].frame().width());
+    let texel_height =
+        session.viewports[0].image.height / f64::from(session.views[0].frame().height());
+    session.app.zoom = f32::from_f64(4.0 / texel_width.min(texel_height));
+    session
+        .refresh_frame()
+        .expect("render a viewport with at least four screen pixels per image pixel");
+    (session, root)
+}
+
+fn apply_drag_moves(
+    session: &mut NativeViewerSession,
+    moves: &[WindowEvent; 3],
+    separate_moves: bool,
+) {
+    if separate_moves {
+        for event in moves {
+            session
+                .handle_events(std::slice::from_ref(event))
+                .expect("apply one drag move batch");
+        }
+    } else {
+        session
+            .handle_events(moves)
+            .expect("apply one combined drag move batch");
+    }
+}
+
+fn drag_pan_in_batches(
+    separate_moves: bool,
+    step: i32,
+) -> crate::tools::interaction::ViewportOffset {
+    let (mut session, _root) = navigation_session();
+    let (x, y) = session.viewports[0].center();
+    session
+        .handle_events(&[down(x, y, MouseButton::X1)])
+        .expect("begin panning");
+    let moves =
+        [step, step * 2, step * 3].map(|delta_x| WindowEvent::PointerMove { x: x + delta_x, y });
+    apply_drag_moves(&mut session, &moves, separate_moves);
+    session
+        .handle_events(&[up(x + step * 3, y, MouseButton::X1)])
+        .expect("finish panning");
+    assert_eq!(session.app.pointer.owner, None);
+    assert_eq!(session.app.pointer.navigation_drag_viewport, None);
+    assert_eq!(session.active_view, None);
+    session.app.pan_offset
+}
+
+fn drag_zoom_in_batches(separate_moves: bool, step: i32) -> f32 {
+    let (mut session, _root) = navigation_session();
+    let (x, y) = session.viewports[0].center();
+    session
+        .handle_events(&[down(x, y, MouseButton::Right)])
+        .expect("begin zooming");
+    let moves =
+        [step, step * 2, step * 3].map(|delta_y| WindowEvent::PointerMove { x, y: y - delta_y });
+    apply_drag_moves(&mut session, &moves, separate_moves);
+    session
+        .handle_events(&[up(x, y - step * 3, MouseButton::Right)])
+        .expect("finish zooming");
+    assert_eq!(session.app.pointer.owner, None);
+    assert_eq!(session.app.pointer.navigation_drag_viewport, None);
+    assert_eq!(session.active_view, None);
+    session.app.zoom
+}
+
+#[test]
+fn display_drags_use_full_displacement_independent_of_event_batches() {
+    let (session, _root) = navigation_session();
+    let mapping = session.viewports[0].mapping();
+    let (x, y) = session.viewports[0].center();
+    let start = mapping
+        .map(ViewportPoint::new(f64::from(x), f64::from(y)))
+        .expect("viewport center maps to the source image");
+    let pan_end = mapping
+        .map(ViewportPoint::new(f64::from(x + 3), f64::from(y)))
+        .expect("pan endpoint maps to the source image");
+    let zoom_end = mapping
+        .map(ViewportPoint::new(f64::from(x), f64::from(y - 3)))
+        .expect("zoom endpoint maps to the source image");
+    let expected_pan = pan_from_drag_delta(session.app.pan_offset, start, pan_end);
+    let expected_zoom = zoom_from_drag_delta(session.app.zoom, zoom_end.y() - start.y());
+
+    let combined_pan = drag_pan_in_batches(false, 1);
+    let separated_pan = drag_pan_in_batches(true, 1);
+    let combined_zoom = drag_zoom_in_batches(false, 1);
+    let separated_zoom = drag_zoom_in_batches(true, 1);
+
+    assert_eq!(combined_pan, expected_pan);
+    assert_eq!(separated_pan, expected_pan);
+    assert_eq!(combined_pan, separated_pan);
+    assert_eq!(combined_zoom, expected_zoom);
+    assert_eq!(separated_zoom, expected_zoom);
+    assert_eq!(combined_zoom, separated_zoom);
+}
+
+#[test]
+fn captured_display_drags_continue_beyond_the_press_image_bounds() {
+    let (session, _root) = navigation_session();
+    let mapping = session.viewports[0].mapping();
+    let (x, y) = session.viewports[0].center();
+    let start = mapping
+        .map(ViewportPoint::new(f64::from(x), f64::from(y)))
+        .expect("viewport center maps to the source image");
+    let pan_end = mapping
+        .map_unbounded(ViewportPoint::new(f64::from(x + 24), f64::from(y)))
+        .expect("captured pan maps beyond the press image bounds");
+    let zoom_end = mapping
+        .map_unbounded(ViewportPoint::new(f64::from(x), f64::from(y - 24)))
+        .expect("captured zoom maps beyond the press image bounds");
+    let expected_pan = pan_from_drag_delta(session.app.pan_offset, start, pan_end);
+    let expected_zoom = zoom_from_drag_delta(session.app.zoom, zoom_end.y() - start.y());
+
+    assert_eq!(drag_pan_in_batches(false, 8), expected_pan);
+    assert_eq!(drag_pan_in_batches(true, 8), expected_pan);
+    assert_eq!(drag_zoom_in_batches(false, 8), expected_zoom);
+    assert_eq!(drag_zoom_in_batches(true, 8), expected_zoom);
 }
