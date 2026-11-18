@@ -48,7 +48,6 @@ impl WindowChrome {
         match event {
             PresentationEvent::FocusLost => {
                 self.calibration = None;
-                self.control_down = false;
                 self.cancel_pointer_capture();
                 return Some(WindowChromeEvent {
                     consumed: false,

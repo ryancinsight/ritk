@@ -120,9 +120,9 @@ were placed, including in comparison views. The clinical overlay toggle
 controls the image readouts separately from measurement marks.
 
 Choose **Open Polygon** from **Tools** or press **O**. Click to add vertices
-and press **Enter** to measure the path in millimetres.
+and double-click or press **Enter** to measure the path in millimetres.
 **Escape** cancels the unfinished path. Choose **Closed Polygon** with **G**
-and click the starting vertex or press **Enter** to close it
+and click the starting vertex, double-click, or press **Enter** to close it
 and measure area and perimeter.
 With **Pan** selected, click a polygon edge to show its handles. Press
 **Delete** to remove the selected polygon from that image.

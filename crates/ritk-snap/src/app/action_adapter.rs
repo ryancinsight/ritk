@@ -7,7 +7,7 @@
 
 #[cfg(any(windows, test))]
 use super::pointer_bindings::PointerBindingError;
-use super::pointer_bindings::PointerGestureOwner;
+use super::pointer_bindings::{PointerGestureOwner, PolygonClick};
 use super::state::SnapApp;
 use super::viewer_viewport::ViewerViewport;
 use crate::presentation::{
@@ -215,7 +215,7 @@ impl SnapApp {
                         button: *button,
                         tool: self.active_tool,
                         modified: false,
-                        selects_polygon: false,
+                        polygon_click: PolygonClick::None,
                     });
                     return Ok(ViewerActionDisposition::Continue { repaint: true });
                 }
@@ -241,9 +241,21 @@ impl SnapApp {
                     button: *button,
                     tool,
                     modified,
-                    selects_polygon: tool == ToolKind::Pan
+                    polygon_click: if *button == PointerButton::Left
                         && *modifiers == PresentationModifiers::NONE
-                        && viewport.shows_polygon_handles(),
+                    {
+                        match tool {
+                            ToolKind::Pan if viewport.shows_polygon_handles() => {
+                                PolygonClick::Select
+                            }
+                            ToolKind::RoiClosedPolygon | ToolKind::RoiOpenPolygon => {
+                                PolygonClick::Finish
+                            }
+                            _ => PolygonClick::None,
+                        }
+                    } else {
+                        PolygonClick::None
+                    },
                 });
                 if is_label_tool(tool) {
                     self.apply_label_at_pointer(viewport.axis(), Some(image));
@@ -289,6 +301,20 @@ impl SnapApp {
                 }
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
+            ViewerAction::PointerDoubleClicked { button, position } => {
+                let owned_polygon = self.pointer.owner.is_some_and(|owner| {
+                    owner.button == *button && owner.polygon_click == PolygonClick::Finish
+                }) && viewport
+                    .and_then(|viewport| viewport.map(*position))
+                    .is_some()
+                    && matches!(&self.tool_state, ToolState::Polygon { .. });
+                if owned_polygon {
+                    self.finish_pending_polygon();
+                    self.pointer.owner = None;
+                    return Ok(ViewerActionDisposition::Continue { repaint: true });
+                }
+                Ok(ViewerActionDisposition::Continue { repaint: false })
+            }
             ViewerAction::PointerReleased {
                 button,
                 position,
@@ -315,7 +341,7 @@ impl SnapApp {
                             && let Some(image) = mapped
                         {
                             self.update_linked_cursor_from_pointer(viewport.axis(), Some(image));
-                            if owner.selects_polygon {
+                            if owner.polygon_click == PolygonClick::Select {
                                 self.pick_polygon(*viewport, *position);
                             }
                         }

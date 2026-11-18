@@ -131,6 +131,70 @@ fn native_coordinates_preserve_values_above_f32_integer_precision() {
 }
 
 #[test]
+fn native_double_click_preserves_marker_coordinates_and_following_release() {
+    let events = [
+        WindowEvent::PointerDown {
+            x: 20,
+            y: 30,
+            button: metis_platform::native::MouseButton::Left,
+        },
+        WindowEvent::PointerUp {
+            x: 20,
+            y: 30,
+            button: metis_platform::native::MouseButton::Left,
+        },
+        WindowEvent::PointerDown {
+            x: 21,
+            y: 31,
+            button: metis_platform::native::MouseButton::Left,
+        },
+        WindowEvent::PointerDoubleClick {
+            x: 22,
+            y: 32,
+            button: metis_platform::native::MouseButton::Left,
+        },
+        WindowEvent::PointerUp {
+            x: 23,
+            y: 33,
+            button: metis_platform::native::MouseButton::Left,
+        },
+    ];
+    let translated = translate_native_events(&events).expect("translated double-click sequence");
+    assert_eq!(
+        translated.as_ref(),
+        &[
+            PresentationEvent::PointerDown {
+                x: 20.0,
+                y: 30.0,
+                button: PointerButton::Left,
+                modifiers: PresentationModifiers::NONE,
+            },
+            PresentationEvent::PointerUp {
+                x: 20.0,
+                y: 30.0,
+                button: PointerButton::Left,
+            },
+            PresentationEvent::PointerDown {
+                x: 21.0,
+                y: 31.0,
+                button: PointerButton::Left,
+                modifiers: PresentationModifiers::NONE,
+            },
+            PresentationEvent::PointerDoubleClick {
+                x: 22.0,
+                y: 32.0,
+                button: PointerButton::Left,
+            },
+            PresentationEvent::PointerUp {
+                x: 23.0,
+                y: 33.0,
+                button: PointerButton::Left,
+            },
+        ]
+    );
+}
+
+#[test]
 fn native_events_reject_oversized_batch() {
     let events = vec![WindowEvent::FocusGained; MAX_PRESENTATION_EVENTS + 1];
     let error = translate_native_events(&events).expect_err("oversized batch");

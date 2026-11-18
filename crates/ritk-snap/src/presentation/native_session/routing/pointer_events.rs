@@ -8,6 +8,7 @@ pub(in crate::presentation::native_session) fn activates_panel(event: &Presentat
     matches!(
         event,
         PresentationEvent::PointerDown { .. }
+            | PresentationEvent::PointerDoubleClick { .. }
             | PresentationEvent::PointerMove { .. }
             | PresentationEvent::PointerWheel { .. }
     )

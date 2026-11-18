@@ -14,7 +14,9 @@ use super::layout::{ViewportArea, WorkspaceLayout};
 use super::pressed_buttons::PressedButtons;
 use super::series_browser::SeriesBrowser;
 use crate::app::SnapApp;
-use crate::presentation::{PointerButton, PresentationFrame};
+use crate::presentation::{
+    PointerButton, PresentationEvent, PresentationFrame, PresentationModifiers,
+};
 use crate::tools::kind::ToolKind;
 use anyhow::Result;
 use metis_platform::Framebuffer;
@@ -150,12 +152,40 @@ pub(super) struct WindowChrome {
     multi_series_dialog: Option<MultiSeriesDialog>,
     calibration: Option<calibration::CalibrationDialog>,
     show_series_preview: bool,
-    control_down: bool,
+    modifiers: PresentationModifiers,
     pointer_owner: PointerOwner,
     pressed_buttons: PressedButtons,
 }
 
 impl WindowChrome {
+    fn observe_modifiers(&mut self, event: &PresentationEvent) {
+        self.modifiers = match event {
+            PresentationEvent::KeyDown {
+                virtual_key,
+                modifiers,
+                ..
+            } if *virtual_key == 0x11 => PresentationModifiers::new(
+                true,
+                modifiers.shift(),
+                modifiers.alt(),
+                modifiers.meta(),
+            ),
+            PresentationEvent::KeyUp {
+                virtual_key,
+                modifiers,
+            } if *virtual_key == 0x11 => PresentationModifiers::new(
+                false,
+                modifiers.shift(),
+                modifiers.alt(),
+                modifiers.meta(),
+            ),
+            PresentationEvent::KeyDown { modifiers, .. }
+            | PresentationEvent::KeyUp { modifiers, .. } => *modifiers,
+            PresentationEvent::FocusLost => PresentationModifiers::NONE,
+            _ => return,
+        };
+    }
+
     pub(super) const fn new(visible: bool) -> Self {
         Self {
             visible,
@@ -163,7 +193,7 @@ impl WindowChrome {
             multi_series_dialog: None,
             calibration: None,
             show_series_preview: true,
-            control_down: false,
+            modifiers: PresentationModifiers::NONE,
             pointer_owner: PointerOwner::None,
             pressed_buttons: PressedButtons::EMPTY,
         }
