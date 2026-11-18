@@ -1,7 +1,11 @@
 //! Native histogram window panel and per-pane colorbar overlays.
 
+use super::super::layout::overlay_display::append_colorbar_overlay;
+use super::super::layout::{application_overlay, ClinicalOverlay};
 use super::support::session;
 use iris::color::{ColorMap, Normalized};
+use metis_platform::rasterizer::CornerRadius;
+use metis_ui_lang::DisplayCommand;
 
 #[test]
 fn cached_histogram_counts_every_finite_voxel() {
@@ -144,4 +148,124 @@ fn histogram_strip_shows_window_mark_and_bars() {
         }
     }
     assert!(marked, "fixture histogram needs a bar outside the window");
+}
+
+#[test]
+fn colorbar_labels_clear_orientation_and_scale_ruler_lanes() {
+    let (session, _root) = session();
+    let volume = session.app.loaded.as_ref().expect("study loaded");
+    let clinical = ClinicalOverlay {
+        direction: volume.direction,
+        patient_name: volume.patient_name.as_deref(),
+        patient_id: volume.patient_id.as_deref(),
+        series_description: volume.series_description.as_deref(),
+        modality: volume.modality.as_deref(),
+        study_date: volume.study_date.as_deref(),
+        spacing: volume.spacing,
+        zoom: session.app.zoom,
+        cursor_value: None,
+        anonymize: false,
+    };
+    let mut overlay = application_overlay(
+        &session.views,
+        &session.viewports,
+        false,
+        30.0,
+        Some(&clinical),
+    )
+    .expect("compose clinical lanes");
+    let (center, width) = session.app.browser_window_level_values();
+    append_colorbar_overlay(
+        &mut overlay,
+        &session.viewports[0],
+        session.app.colormap,
+        center,
+        width,
+    )
+    .expect("compose colorbar labels");
+    let commands = overlay.into_display_list();
+    let half = width / 2.0;
+    let labels = [
+        super::super::layout::overlay_display::intensity_label(center + half),
+        super::super::layout::overlay_display::intensity_label(center),
+        super::super::layout::overlay_display::intensity_label(center - half),
+    ];
+    let label_bounds: Vec<_> = commands
+        .commands()
+        .iter()
+        .filter_map(|command| match command {
+            DisplayCommand::DrawText { text, x, y, style }
+                if labels.iter().any(|label| label == text.as_ref()) =>
+            {
+                style.extent(*x, *y, text)
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(label_bounds.len(), labels.len());
+    let orientation_bounds: Vec<_> = commands
+        .commands()
+        .iter()
+        .filter_map(|command| match command {
+            DisplayCommand::DrawText { text, x, y, style }
+                if ["R", "L", "A", "P", "S", "I"].contains(&text.as_ref()) =>
+            {
+                style.extent(*x, *y, text)
+            }
+            _ => None,
+        })
+        .collect();
+    let scale_bars: Vec<_> = commands
+        .commands()
+        .iter()
+        .filter_map(|command| match command {
+            DisplayCommand::FillRect { rect, radius, .. }
+                if *radius == CornerRadius::SQUARE && rect.height == 3 && rect.width >= 24 =>
+            {
+                Some(*rect)
+            }
+            _ => None,
+        })
+        .collect();
+    let scale_labels: Vec<_> = commands
+        .commands()
+        .iter()
+        .filter_map(|command| match command {
+            DisplayCommand::DrawText { text, x, y, style } if text.as_ref().ends_with(" mm") => {
+                style.extent(*x, *y, text)
+            }
+            _ => None,
+        })
+        .collect();
+    assert!(!scale_bars.is_empty(), "fixture must draw a scale ruler");
+    assert!(scale_bars.iter().all(|bar| {
+        scale_labels.iter().any(|label| {
+            label.x < bar.x + bar.width
+                && bar.x < label.x + label.width
+                && label.y + label.height <= bar.y
+                && bar.y - (label.y + label.height) <= super::super::layout::overlay::OVERLAY_MARGIN
+        })
+    }));
+    let overlaps = |left: metis_platform::Rect, right: metis_platform::Rect| {
+        left.x < right.x + right.width
+            && right.x < left.x + left.width
+            && left.y < right.y + right.height
+            && right.y < left.y + left.height
+    };
+    for label in &label_bounds {
+        assert!(
+            orientation_bounds
+                .iter()
+                .all(|orientation| !overlaps(*label, *orientation)),
+            "colorbar labels must clear orientation lanes"
+        );
+        assert!(
+            scale_bars.iter().all(|bar| !overlaps(*label, *bar)),
+            "colorbar labels must clear the scale-ruler lane"
+        );
+        assert!(
+            scale_labels.iter().all(|ruler| !overlaps(*label, *ruler)),
+            "colorbar labels must clear the scale-ruler text"
+        );
+    }
 }
