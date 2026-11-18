@@ -333,7 +333,9 @@ impl SnapApp {
                         {
                             self.commit_polygon_vertex_move()
                         }
-                        PointerGesture::Click => self.commit_polygon_vertex_move(),
+                        PointerGesture::Click if mapped.is_some() => {
+                            self.commit_polygon_vertex_move()
+                        }
                         _ => {}
                     }
                     self.on_drag_end(None);
