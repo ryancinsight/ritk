@@ -1,11 +1,11 @@
 //! RITK-owned measurement and region overlays for native panes.
 
 mod cobb;
+mod labels;
 
 use super::super::frame::RenderedView;
 use super::crosshair::screen_coordinate;
 use super::geometry::NativeViewport;
-use super::text::{text_command, text_style, PANEL_DETAIL_SIZE};
 use super::OverlayCommands;
 use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
@@ -15,8 +15,6 @@ use metis_platform::Color;
 pub(crate) const MEASUREMENT_COLOR: Color = Color::rgba(255, 255, 0, 255);
 const ROI_COLOR: Color = Color::rgba(0, 255, 0, 255);
 const POINT_COLOR: Color = Color::rgba(0, 255, 255, 255);
-const LABEL_OFFSET: i32 = 8;
-const LENGTH_LABEL_OFFSET: f64 = 10.0;
 // The projected ellipse's chord deviation is bounded by the maximum
 // projected radius times 1 - cos(π / ELLIPSE_SEGMENTS).
 const ELLIPSE_SEGMENTS: u16 = 64;
@@ -218,46 +216,6 @@ impl Pane<'_> {
                 });
             }
         }
-        Ok(())
-    }
-
-    fn label(&self, overlay: &mut OverlayCommands, anchor: [f64; 2], text: String) -> Result<()> {
-        let (x, y) = self.point(anchor)?;
-        overlay.push(text_command(
-            text,
-            x.saturating_add(LABEL_OFFSET),
-            y.saturating_add(LABEL_OFFSET),
-            text_style(MEASUREMENT_COLOR, PANEL_DETAIL_SIZE)?,
-        ));
-        Ok(())
-    }
-
-    fn length_label(
-        &self,
-        overlay: &mut OverlayCommands,
-        a: [f64; 2],
-        b: [f64; 2],
-        text: String,
-    ) -> Result<()> {
-        let (start, end) = (self.point(a)?, self.point(b)?);
-        let (x0, y0) = (f64::from(start.0), f64::from(start.1));
-        let (x1, y1) = (f64::from(end.0), f64::from(end.1));
-        let (dx, dy) = (x1 - x0, y1 - y0);
-        let norm = dx.hypot(dy);
-        let (ox, oy) = if norm == 0.0 {
-            (0.0, -LENGTH_LABEL_OFFSET)
-        } else {
-            (
-                -dy / norm * LENGTH_LABEL_OFFSET,
-                dx / norm * LENGTH_LABEL_OFFSET,
-            )
-        };
-        overlay.push(text_command(
-            text,
-            screen_coordinate((x0 + x1) * 0.5 + ox, "length label x")?,
-            screen_coordinate((y0 + y1) * 0.5 + oy, "length label y")?,
-            text_style(MEASUREMENT_COLOR, PANEL_DETAIL_SIZE)?,
-        ));
         Ok(())
     }
 
