@@ -52,7 +52,7 @@ pub(super) fn volume_affine(app: &SnapApp) -> Option<AffineTransform> {
 ///
 /// Resolves the linked-cursor voxel intensity beside the demographics so each
 /// pane reads out the value under the cursor.
-fn clinical_overlay(app: &SnapApp, anonymize: bool) -> Option<ClinicalOverlay<'_>> {
+pub(super) fn clinical_overlay(app: &SnapApp, anonymize: bool) -> Option<ClinicalOverlay<'_>> {
     let volume = app.loaded.as_ref()?;
     let cursor_value = app
         .linked_cursor
@@ -207,8 +207,7 @@ impl NativeViewerSession {
             session.refresh_frame()?;
         } else {
             session.render_crosshair_overlay()?;
-            session.render_measurements()?;
-            session.render_display_overlays()?;
+            session.render_pane_overlays()?;
             session.render_slice_scrollbars()?;
             session.render_chrome()?;
             record_state(&session.observation, &session.app, 96, false)?;
@@ -385,8 +384,7 @@ impl NativeViewerSession {
         self.framebuffer = framebuffer;
         self.viewports = viewports;
         self.render_crosshair_overlay()?;
-        self.render_measurements()?;
-        self.render_display_overlays()?;
+        self.render_pane_overlays()?;
         self.render_slice_scrollbars()?;
         self.render_chrome()?;
         self.observation
