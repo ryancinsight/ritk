@@ -12,7 +12,8 @@
 //! - **R**   → ROI Rectangle (rectangular region of interest)
 //! - **E**   → ROI Ellipse (elliptical region of interest)
 //! - **H**   → HU Point (single-point intensity readout)
-//! - **P**   → Pan (drag to scroll viewport without changing zoom/W&L)
+//! - **M**   → Pan (drag to scroll viewport without changing zoom/W&L)
+//! - **P**   → Pencil (freehand image mark)
 //! - **Z**   → Zoom (scroll wheel or drag to zoom)
 //! - **W**   → Window/Level (adjust display intensity mapping)
 //! - **B**   → LabelPaint (paint segmentation labels)
@@ -63,7 +64,11 @@ pub const KEY_HU_POINT: Key = Key::H;
 
 /// Single-key shortcut for Pan tool.
 #[cfg(feature = "eframe-shell")]
-pub const KEY_PAN: Key = Key::P;
+pub const KEY_PAN: Key = Key::M;
+
+/// Single-key shortcut for Pencil.
+#[cfg(feature = "eframe-shell")]
+pub const KEY_PENCIL: Key = Key::P;
 
 /// Single-key shortcut for Zoom tool.
 #[cfg(feature = "eframe-shell")]
@@ -101,7 +106,10 @@ pub const VIRTUAL_KEY_ROI_ELLIPSE: u32 = 0x45;
 pub const VIRTUAL_KEY_HU_POINT: u32 = 0x48;
 
 /// Host virtual-key value for the Pan shortcut.
-pub const VIRTUAL_KEY_PAN: u32 = 0x50;
+pub const VIRTUAL_KEY_PAN: u32 = 0x4d;
+
+/// Host virtual-key value for Pencil.
+pub const VIRTUAL_KEY_PENCIL: u32 = 0x50;
 
 /// Host virtual-key value for the Zoom shortcut.
 pub const VIRTUAL_KEY_ZOOM: u32 = 0x5a;
@@ -136,6 +144,7 @@ pub fn tool_kind_for_virtual_key(virtual_key: u32) -> Option<ToolKind> {
         VIRTUAL_KEY_ROI_ELLIPSE => Some(ToolKind::RoiEllipse),
         VIRTUAL_KEY_HU_POINT => Some(ToolKind::PointHu),
         VIRTUAL_KEY_PAN => Some(ToolKind::Pan),
+        VIRTUAL_KEY_PENCIL => Some(ToolKind::Pencil),
         VIRTUAL_KEY_ZOOM => Some(ToolKind::Zoom),
         VIRTUAL_KEY_WINDOW_LEVEL => Some(ToolKind::WindowLevel),
         VIRTUAL_KEY_LABEL_PAINT => Some(ToolKind::LabelPaint),
@@ -160,7 +169,8 @@ pub fn tool_kind_for_virtual_key(virtual_key: u32) -> Option<ToolKind> {
 /// - **R** → Rectangle ROI
 /// - **E** → Ellipse ROI
 /// - **H** → HU point readout
-/// - **P** → Pan
+/// - **M** → Pan
+/// - **P** → Pencil
 /// - **Z** → Zoom
 /// - **W** → Window/Level
 /// - **B** → Label Paint
@@ -178,6 +188,7 @@ pub fn tool_kind_for_key(key: Key) -> Option<ToolKind> {
         KEY_ROI_ELLIPSE => tool_kind_for_virtual_key(VIRTUAL_KEY_ROI_ELLIPSE),
         KEY_HU_POINT => tool_kind_for_virtual_key(VIRTUAL_KEY_HU_POINT),
         KEY_PAN => tool_kind_for_virtual_key(VIRTUAL_KEY_PAN),
+        KEY_PENCIL => tool_kind_for_virtual_key(VIRTUAL_KEY_PENCIL),
         KEY_ZOOM => tool_kind_for_virtual_key(VIRTUAL_KEY_ZOOM),
         KEY_WINDOW_LEVEL => tool_kind_for_virtual_key(VIRTUAL_KEY_WINDOW_LEVEL),
         KEY_LABEL_PAINT => tool_kind_for_virtual_key(VIRTUAL_KEY_LABEL_PAINT),

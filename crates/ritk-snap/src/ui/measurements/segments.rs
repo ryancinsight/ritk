@@ -4,6 +4,18 @@ use super::{egui_point, label_font, COLOR_LABEL, COLOR_MEASURE, HANDLE_RADIUS, L
 use crate::tools::interaction::ImagePoint;
 use egui::{Align2, Painter, Pos2, Stroke, Vec2};
 
+pub(super) fn draw_pencil(painter: &Painter, points: &[[f32; 2]], project: impl Fn(Pos2) -> Pos2) {
+    for pair in points.windows(2) {
+        painter.line_segment(
+            [
+                project(Pos2::new(pair[0][1], pair[0][0])),
+                project(Pos2::new(pair[1][1], pair[1][0])),
+            ],
+            Stroke::new(LINE_WIDTH, COLOR_MEASURE),
+        );
+    }
+}
+
 pub(super) fn draw_deviation(
     painter: &Painter,
     points: [[f32; 2]; 3],

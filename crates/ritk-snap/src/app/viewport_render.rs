@@ -318,7 +318,7 @@ impl EguiApp {
                 );
             }
             let tool_state = match self.tool_state {
-                ToolState::ArrowDrag { .. }
+                ToolState::ArrowDrag { .. } | ToolState::PencilDrag { .. }
                     if self.pointer.drag_measurement_location != Some(location) =>
                 {
                     &ToolState::Idle

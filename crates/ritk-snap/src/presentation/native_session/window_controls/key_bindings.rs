@@ -48,6 +48,7 @@ pub(super) fn global_key_action(
         return Some(WindowAction::SaveCustomPreset { index: Some(index) });
     }
     match (virtual_key, ctrl, shift) {
+        (0x4d, false, false) => Some(WindowAction::SelectTool(ToolKind::Pan)),
         (key, false, false) if key == crate::ui::tool_shortcuts::VIRTUAL_KEY_ARROW => {
             Some(WindowAction::SelectTool(ToolKind::Arrow))
         }

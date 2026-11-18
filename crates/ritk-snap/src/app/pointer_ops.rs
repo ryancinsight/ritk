@@ -1,4 +1,5 @@
 mod measurement;
+mod pencil;
 
 use super::state::SnapApp;
 use crate::render::NamedColorMap;
@@ -66,6 +67,7 @@ impl SnapApp {
                 start: pos,
                 current: pos,
             },
+            ToolKind::Pencil => self.pencil_start(pos),
             _ => return,
         };
         if self.tool_state.is_pending_measurement() {
@@ -76,6 +78,7 @@ impl SnapApp {
             ToolState::LengthDrag { .. }
                 | ToolState::DeviationDrag { .. }
                 | ToolState::ArrowDrag { .. }
+                | ToolState::PencilDrag { .. }
                 | ToolState::RoiDrag { .. }
         )
         .then(|| self.annotation_location());
@@ -153,6 +156,7 @@ impl SnapApp {
                     current: pos,
                 };
             }
+            ToolState::PencilDrag { .. } => self.pencil_drag(pos),
             _ => {}
         }
     }
@@ -172,6 +176,7 @@ impl SnapApp {
                     | ToolState::LengthDrag { .. }
                     | ToolState::DeviationDrag { .. }
                     | ToolState::ArrowDrag { .. }
+                    | ToolState::PencilDrag { .. }
             ) {
                 self.on_drag(pos);
             }
@@ -203,6 +208,7 @@ impl SnapApp {
                         head: [current.y(), current.x()],
                     });
                 }
+                ToolState::PencilDrag { .. } => self.finish_pencil(recorded),
                 _ => {}
             }
         }

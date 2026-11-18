@@ -9,8 +9,8 @@ use crate::app::action_adapter::{
 #[cfg(any(target_arch = "wasm32", test))]
 use crate::ui::tool_shortcuts::{
     VIRTUAL_KEY_HU_POINT, VIRTUAL_KEY_LABEL_PAINT, VIRTUAL_KEY_MEASURE_ANGLE,
-    VIRTUAL_KEY_MEASURE_LENGTH, VIRTUAL_KEY_PAN, VIRTUAL_KEY_ROI_ELLIPSE, VIRTUAL_KEY_ROI_RECT,
-    VIRTUAL_KEY_WINDOW_LEVEL, VIRTUAL_KEY_ZOOM,
+    VIRTUAL_KEY_MEASURE_LENGTH, VIRTUAL_KEY_PAN, VIRTUAL_KEY_PENCIL, VIRTUAL_KEY_ROI_ELLIPSE,
+    VIRTUAL_KEY_ROI_RECT, VIRTUAL_KEY_WINDOW_LEVEL, VIRTUAL_KEY_ZOOM,
 };
 
 /// Returns the shared virtual-key value for a bounded browser key snapshot.
@@ -37,7 +37,8 @@ pub(crate) fn virtual_key_for_browser(key: &str, code: &str) -> Option<u32> {
         "KeyE" => Some(VIRTUAL_KEY_ROI_ELLIPSE),
         "KeyH" => Some(VIRTUAL_KEY_HU_POINT),
         "KeyL" => Some(VIRTUAL_KEY_MEASURE_LENGTH),
-        "KeyP" => Some(VIRTUAL_KEY_PAN),
+        "KeyM" => Some(VIRTUAL_KEY_PAN),
+        "KeyP" => Some(VIRTUAL_KEY_PENCIL),
         "KeyR" => Some(VIRTUAL_KEY_ROI_RECT),
         "KeyW" => Some(VIRTUAL_KEY_WINDOW_LEVEL),
         "KeyZ" => Some(VIRTUAL_KEY_ZOOM),
@@ -87,5 +88,17 @@ mod tests {
             Some(VIRTUAL_KEY_CINE_FPS_DOWN)
         );
         assert_eq!(virtual_key_for_browser("unmapped", "Unknown"), None);
+    }
+
+    #[test]
+    fn browser_tools_follow_radiant_shortcuts() {
+        assert_eq!(
+            virtual_key_for_browser("m", "KeyM"),
+            Some(crate::ui::tool_shortcuts::VIRTUAL_KEY_PAN)
+        );
+        assert_eq!(
+            virtual_key_for_browser("p", "KeyP"),
+            Some(crate::ui::tool_shortcuts::VIRTUAL_KEY_PENCIL)
+        );
     }
 }

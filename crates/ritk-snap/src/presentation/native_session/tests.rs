@@ -19,6 +19,7 @@ mod display_overlays;
 mod interaction;
 mod measurement_overlay;
 mod overlay_text;
+mod pencil_overlay;
 mod pointer_capture;
 mod repair;
 mod series_browser;

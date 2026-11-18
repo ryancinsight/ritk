@@ -94,6 +94,10 @@ fn all_annotation_variants() -> Vec<Annotation> {
             pos: [5.0, 8.0],
             value: -150.0,
         },
+        Annotation::Pencil {
+            location: None,
+            points: vec![[1.0, 2.0], [2.0, 3.0]],
+        },
     ]
 }
 
@@ -147,15 +151,15 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
     snapshot.annotations = all_annotation_variants();
     assert_eq!(
         snapshot.annotations.len(),
-        6,
-        "expected 6 annotation variants"
+        7,
+        "expected 7 annotation variants"
     );
 
     let json = serde_json::to_string_pretty(&snapshot).expect("serialize snapshot");
     let recovered: ViewerSessionSnapshot =
         serde_json::from_str(&json).expect("deserialize snapshot");
 
-    assert_eq!(recovered.annotations.len(), 6);
+    assert_eq!(recovered.annotations.len(), 7);
 
     // Verify Length annotation values round-trip exactly.
     match &recovered.annotations[0] {
