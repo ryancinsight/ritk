@@ -15,16 +15,10 @@ decoded-workspace budgets, and return the RITK `Image` plus
 `DicomReadMetadata`. No GUI framework type or parser object crosses this
 boundary; the host owns only input and presentation lifecycle.
 
-The current standalone lock used by the viewer resolves the six Metis packages
-to `d93a45688713fd4d57371243f6afa5413560d75d`. Fifteen Moirai packages are
-locked across two revisions: eleven resolve to
-`b3b37f7fae9de019939a53eaaaf5ada5ba5e806e`; `moirai-iter`,
-`moirai-parallel`, `moirai-runtime`, and `moirai-sync` resolve to
-`d601877978b847a33e1bca28c912ccaa6c28be99`. `Cargo.lock` contains 63
-first-party Git sources. The browser chooser and Windows package workflows
-use these provider pins. Historical hosted captures
-retain the provider revisions recorded in their own provenance files. RITK
-continues to own DICOM scanning, decoding, geometry and clinical presentation.
+The [workspace lockfile](../../Cargo.lock) records the Métis and Moirai
+revisions used for the current build. Historical captures retain the
+provider revisions in their own provenance files. RITK owns DICOM
+scanning, decoding, geometry and clinical presentation.
 
 This workflow is the DICOM opening demonstration for the default Windows Métis
 shell and the explicit eframe compatibility shell. The code, fixtures, visual
@@ -55,16 +49,16 @@ readouts and orientation letters in wide and narrow panes.
 
 ### Measure a length and a deviation
 
-1. Choose **Tools → Length**. Press and hold the left button on a landmark,
-   then drag toward another landmark in the same image. The line follows the
+1. Choose **Tools → Length** or press **L**. Hold the left button on a
+   landmark, then drag toward another landmark in the same image. The line follows the
    pointer while the button is down. Release to show the length in millimetres
    beside the line.
 2. Try the same length as two left clicks. You can make a display adjustment
    with a button assigned to **W/L**, **Zoom**, or **Pan** between the clicks.
    The first endpoint stays in place. You can also drag after placing the
    first endpoint to complete the measurement.
-3. Choose **Tools → Deviation**. Drag one slanted segment in the image and
-   release. The overlay shows the segment and its reference along the closer
+3. Choose **Tools → Deviation** or press **D**. Drag a slanted segment
+   in the image and release. The overlay shows the segment and its reference along the closer
    image axis. Its label gives the perpendicular offset in millimetres and
    the angle from that axis in degrees.
 4. Scroll to another slice and back. The measurements appear on the slice
@@ -75,10 +69,12 @@ readouts and orientation letters in wide and narrow panes.
 1. Press **O** or choose **Tools → Open Polygon**. Click at least two
    landmarks along a path, then press **Enter**. The label gives the sum of
    the segment lengths in millimetres. **Shift+O** resets image orientation.
-2. Choose **Tools → Closed Polygon**. Place at least three vertices around
-   an outline and press **Enter**, or click the first vertex again to close
-   it. The overlay reports area in square millimetres and perimeter in
-   millimetres.
+2. Choose **Tools → Closed Polygon** or press **G**. Place at least three
+   vertices around an outline and press **Enter**, or click near the
+   starting vertex to close it. The overlay reports area in square
+   millimetres and perimeter in millimetres.
+
+Choose another tool to discard an unfinished path.
 
 ### Select, move, and delete a polygon
 
@@ -86,8 +82,9 @@ readouts and orientation letters in wide and narrow panes.
    without holding a modifier key. Cross-shaped handles appear at its
    vertices. You can select a closed polygon by its closing edge.
 2. Press and drag one handle. The outline previews the new shape. Release
-   within the image to keep the moved vertex and update the length or the
-   area and perimeter.
+   within the image to keep the new shape and update the length or the
+   area and perimeter. If pointer capture is lost during the drag, the
+   original shape stays in place.
 3. Scroll off the source slice and return to it to see that the mark stays
    with its image. Select its edge again and press **Delete** to remove it.
    Marks on other slices stay in place.
