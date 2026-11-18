@@ -24,6 +24,8 @@ mod pencil_overlay;
 mod pointer_capture;
 mod polygon_double_click;
 mod polygon_edge_insert;
+#[cfg(feature = "eframe-shell")]
+mod polygon_edit_session;
 mod repair;
 mod series_browser;
 mod series_loads;
