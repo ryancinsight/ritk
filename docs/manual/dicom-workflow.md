@@ -42,8 +42,8 @@ series with image spacing. For a side-by-side check, choose
    three-plane layout, repeat in another pane and compare the slice readouts.
    The scrollbar changes the slice of its own pane without panning the image.
 
-The image corners show the image count, window width and centre, and source
-dimensions. When clinical text runs out of room, the viewer shortens long
+The image corners show the image count, window width and centre, and
+displayed frame dimensions. When clinical text runs out of room, the viewer shortens long
 corner labels with an ellipsis. Resize the window to compare the corner
 readouts and orientation letters in wide and narrow panes.
 
@@ -91,9 +91,9 @@ Choose another tool to discard an unfinished path.
 
 ### Run the reference checks
 
-The Windows regression fixtures drive the same viewer inputs. The open-path
-fixture measures a two-point path with physical offsets of 3 mm and 4 mm and
-checks a length of 5 mm. The closed-path fixture checks a square with 20 mm
+The Windows regression fixtures exercise native-session rendering and the
+presentation action adapter. The open-path fixture measures a two-point
+path with physical offsets of 3 mm and 4 mm and checks a length of 5 mm. The closed-path fixture checks a square with 20 mm
 sides for an area of 400 mm² and a perimeter of 80 mm. The edit fixture moves
 a vertex and checks that its path grows from 7 mm to 11 mm on release.
 
@@ -1350,7 +1350,7 @@ left of the image workspace, and the status bar. The second full-window
 capture shows MRI and CT from the same porcine phantom loaded simultaneously
 in two independent image panels. The left preview bar shows decoded
 thumbnails, per-series image-count badges, and panel assignments. Each panel
-displays the image number and count, window width and centre, and source pixel
+displays the image number and count, window width and centre, and displayed frame
 dimensions in its image corners.
 These readouts track the active series render state. Scanned image counts
 include the frames declared by `NumberOfFrames`; a file without that attribute
@@ -1406,7 +1406,7 @@ groups, study-and-series preview bar, multi-panel image grid, F4 multi-series
 picker, Ctrl-click and drag assignment, and per-panel maximize/restore/close
 controls. The **Tools** menu can assign the selected tool to another mouse
 button. Remaining viewer work is tracked in the
-[native viewer work](../../backlog.md#RITK-SNAP-RADIANT-INPUT-001) and
+[native viewer work](../../backlog.md#RITK-SNAP-RADIANT-UI-001) and
 [oblique MPR work](../../backlog.md#RITK-SNAP-OBLIQUE-NATIVE-001). The
 reference behavior appears in [series browsing](https://www.radiantviewer.com/dicom-viewer-manual/browse_series_and_images.html),
 [multiple-series viewing](https://www.radiantviewer.com/dicom-viewer-manual/view_multiple_series.html),
