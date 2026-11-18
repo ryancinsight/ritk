@@ -166,6 +166,13 @@ pub enum ViewerAction {
         /// Modifier keys held when the press event was received.
         modifiers: PresentationModifiers,
     },
+    /// The host reported a native double-click marker at a client position.
+    PointerDoubleClicked {
+        /// Double-clicked button.
+        button: PointerButton,
+        /// Client position where the marker was delivered.
+        position: ViewportPoint,
+    },
     /// A pressed pointer button moved by a non-zero checked displacement.
     PointerDragged {
         /// Dragging button.
