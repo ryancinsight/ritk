@@ -15,21 +15,108 @@ decoded-workspace budgets, and return the RITK `Image` plus
 `DicomReadMetadata`. No GUI framework type or parser object crosses this
 boundary; the host owns only input and presentation lifecycle.
 
-The current standalone lock used by the viewer resolves the six Metis packages
-to `d93a45688713fd4d57371243f6afa5413560d75d`. Fifteen Moirai packages are
-locked across two revisions: eleven resolve to
-`b3b37f7fae9de019939a53eaaaf5ada5ba5e806e`; `moirai-iter`,
-`moirai-parallel`, `moirai-runtime`, and `moirai-sync` resolve to
-`d601877978b847a33e1bca28c912ccaa6c28be99`. `Cargo.lock` contains 63
-first-party Git sources. The browser chooser and Windows package workflows
-use these provider pins. Historical hosted captures
-retain the provider revisions recorded in their own provenance files. RITK
-continues to own DICOM scanning, decoding, geometry and clinical presentation.
+The [workspace lockfile](../../Cargo.lock) records the Métis and Moirai
+revisions used for the current build. Historical captures retain the
+provider revisions in their own provenance files. RITK owns DICOM
+scanning, decoding, geometry and clinical presentation.
 
 This workflow is the DICOM opening demonstration for the default Windows Métis
 shell and the explicit eframe compatibility shell. The code, fixtures, visual
 goldens, and rejection tests remain in RITK so a framework migration cannot
 fork medical-data semantics.
+
+## Try the Windows slice and annotation tools
+
+Open the public T2 phantom at `test_data/2_head_mri_t2/DICOM` in the default
+Windows viewer. The steps below also work on another multi-slice DICOM
+series with image spacing. For a side-by-side check, choose
+**Window → Three-plane MPR**.
+
+### Scroll through a slice stack
+
+1. Grab the scrollbar thumb at the right edge of an image pane and drag it
+   toward the bottom. Watch the pane's image number and the anatomy change.
+2. Drag above the track and release. The pane stops at its first slice.
+   Drag below the track to reach the last slice.
+3. Click the track away from the thumb to jump to that position. In the
+   three-plane layout, repeat in another pane and compare the slice readouts.
+   The scrollbar changes the slice of its own pane without panning the image.
+
+The image corners show the image count, window width and centre, and
+displayed frame dimensions. When clinical text runs out of room, the viewer shortens long
+corner labels with an ellipsis. Resize the window to compare the corner
+readouts and orientation letters in wide and narrow panes.
+
+### Measure a length and a deviation
+
+1. Choose **Tools → Length** or press **L**. Hold the left button on a
+   landmark, then drag toward another landmark in the same image. The line follows the
+   pointer while the button is down. Release to show the length in millimetres
+   beside the line.
+2. Try the same length as two left clicks. You can make a display adjustment
+   with a button assigned to **W/L**, **Zoom**, or **Pan** between the clicks.
+   The first endpoint stays in place. You can also drag after placing the
+   first endpoint to complete the measurement.
+3. Choose **Tools → Deviation** or press **D**. Drag a slanted segment
+   in the image and release. The overlay shows the segment and its reference along the closer
+   image axis. Its label gives the perpendicular offset in millimetres and
+   the angle from that axis in degrees.
+4. Scroll to another slice and back. The measurements appear on the slice
+   where you drew them.
+
+### Trace an open path and a closed outline
+
+1. Press **O** or choose **Tools → Open Polygon**. Click at least two
+   landmarks along a path, then press **Enter**. The label gives the sum of
+   the segment lengths in millimetres. **Shift+O** resets image orientation.
+2. Choose **Tools → Closed Polygon** or press **G**. Place at least three
+   vertices around an outline and press **Enter**, or click near the
+   starting vertex to close it. The overlay reports area in square
+   millimetres and perimeter in millimetres.
+
+Choose another tool to discard an unfinished path.
+
+### Select, move, and delete a polygon
+
+1. Choose **Tools → Pan** and left-click the edge of a completed polygon
+   without holding a modifier key. Cross-shaped handles appear at its
+   vertices. You can select a closed polygon by its closing edge.
+2. Press and drag one handle. The outline previews the new shape. Release
+   within the image to keep the new shape and update the length or the
+   area and perimeter. If pointer capture is lost during the drag, the
+   original shape stays in place.
+3. Scroll off the source slice and return to it to see that the mark stays
+   with its image. Select its edge again and press **Delete** to remove it.
+   Marks on other slices stay in place.
+
+### Run the reference checks
+
+The Windows regression fixtures exercise native-session rendering and the
+presentation action adapter. The open-path fixture measures a two-point
+path with physical offsets of 3 mm and 4 mm and checks a length of 5 mm. The closed-path fixture checks a square with 20 mm
+sides for an area of 400 mm² and a perimeter of 80 mm. The edit fixture moves
+a vertex and checks that its path grows from 7 mm to 11 mm on release.
+
+```powershell
+cargo nextest run --locked -p ritk-snap -E '
+  test(slice_scrollbar_)
+  or test(clinical_labels_stay_inside_the_pane_and_clear_one_another)
+  or test(transform_keys_route_orientation_and_repaint)
+  or test(native_toolbar_length_then_drag_records_measurement)
+  or test(native_length_preview_draws_only_on_its_owning_slice)
+  or test(length_measurement_first_click_then_drag_completes_through_the_adapter)
+  or test(deviation_measurement_completes_from_one_pointer_drag)
+  or test(open_polygon_enter_commits_physical_length_and_consumes_release)
+  or test(closed_polygon_commits_area_perimeter_and_slice_location)
+  or test(pan_click_selects_a_visible_closing_edge_and_delete_keeps_other_slices)
+  or test(selected_polygon_draws_one_handle_at_each_projected_vertex)
+  or test(selected_vertex_drag_)
+'
+```
+
+Manual length calibration, Arrow, Pencil, Cobb angle, polygon edge insertion,
+and double-click completion are tracked in the
+[native measurement work](../../backlog.md#RITK-SNAP-NATIVE-MEASURE-SET-001).
 
 ## Actual application gallery
 
@@ -1263,7 +1350,7 @@ left of the image workspace, and the status bar. The second full-window
 capture shows MRI and CT from the same porcine phantom loaded simultaneously
 in two independent image panels. The left preview bar shows decoded
 thumbnails, per-series image-count badges, and panel assignments. Each panel
-displays the image number and count, window width and centre, and source pixel
+displays the image number and count, window width and centre, and displayed frame
 dimensions in its image corners.
 These readouts track the active series render state. Scanned image counts
 include the frames declared by `NumberOfFrames`; a file without that attribute
@@ -1317,9 +1404,9 @@ RadiAnt DICOM Viewer clone. This native slice follows its desktop organization:
 a Windows menu bar, dark compact toolbar with vertical separators between tool
 groups, study-and-series preview bar, multi-panel image grid, F4 multi-series
 picker, Ctrl-click and drag assignment, and per-panel maximize/restore/close
-controls. Configurable mouse-button mappings and the full image annotation set
-remain open parity gaps, tracked in the
-[native viewer work](../../backlog.md#RITK-SNAP-RADIANT-INPUT-001) and
+controls. The **Tools** menu can assign the selected tool to another mouse
+button. Remaining viewer work is tracked in the
+[native viewer work](../../backlog.md#RITK-SNAP-RADIANT-UI-001) and
 [oblique MPR work](../../backlog.md#RITK-SNAP-OBLIQUE-NATIVE-001). The
 reference behavior appears in [series browsing](https://www.radiantviewer.com/dicom-viewer-manual/browse_series_and_images.html),
 [multiple-series viewing](https://www.radiantviewer.com/dicom-viewer-manual/view_multiple_series.html),
