@@ -4,17 +4,12 @@
 //! plane, projecting endpoints through the same plane mapping the crosshair
 //! uses, with the value label beside the segment.
 
-use super::super::layout::{
-    append_measurement_overlay, append_measurement_preview, OverlayCommands,
-};
+use super::super::layout::{append_measurement_overlay, OverlayCommands};
 use super::support::session;
 use super::*;
 use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
-use crate::tools::interaction::{
-    Annotation, AnnotationLocation, ImagePoint, PatientLength, ToolState,
-};
-use crate::ui::{RotationSteps, ViewTransform};
+use crate::tools::interaction::{Annotation, AnnotationLocation, PatientLength};
 use metis_platform::Color;
 use metis_ui_lang::DisplayCommand;
 
@@ -49,6 +44,77 @@ fn grid_measurement_draws_on_its_slice_and_disappears_on_the_adjacent_slice() {
     session.refresh_frame().expect("compose the adjacent slice");
     assert_ne!(session.framebuffer.get_pixel(x, y), measurement_color);
 }
+
+#[cfg(windows)]
+#[test]
+fn calibration_pins_reference_frame_and_preserves_other_slice() {
+    let (mut session, _root) = session();
+    let slice = session.views[0].slice_index;
+    let other_slice = (slice + 1) % session.views[0].slice_count;
+    let p1 = [0.5, 0.5];
+    let p2 = [1.5, 2.5];
+    let raw = session
+        .app
+        .measured_length(p1, p2)
+        .expect("anisotropic spacing");
+    session.app.annotations.push(Annotation::Length {
+        plane: 0,
+        location: Some(AnnotationLocation { plane: 0, slice }),
+        p1,
+        p2,
+        length_mm: raw,
+    });
+    session.app.annotations.push(Annotation::Length {
+        plane: 0,
+        location: Some(AnnotationLocation {
+            plane: 0,
+            slice: other_slice,
+        }),
+        p1,
+        p2,
+        length_mm: raw,
+    });
+    session
+        .apply_window_action(WindowAction::OpenCalibration)
+        .expect("open calibration");
+    session.app.set_slice_for_axis(0, other_slice);
+    let stale_error = session
+        .handle_events(&[
+            WindowEvent::TextInput { character: '8' },
+            WindowEvent::KeyDown {
+                virtual_key: 0x0d,
+                repeated: false,
+                modifiers: ModifierState::NONE,
+            },
+        ])
+        .expect_err("stale confirmation must be rejected");
+    assert!(stale_error
+        .to_string()
+        .contains("calibration reference no longer matches"));
+    assert!(session.app.length_calibrations.is_empty());
+    assert_eq!(session.app.annotations[0].length_mm, raw);
+    session.app.set_slice_for_axis(0, slice);
+    session
+        .apply_window_action(WindowAction::OpenCalibration)
+        .expect("reopen calibration");
+    session
+        .handle_events(&[
+            WindowEvent::TextInput { character: '8' },
+            WindowEvent::KeyDown {
+                virtual_key: 0x0d,
+                repeated: false,
+                modifiers: ModifierState::NONE,
+            },
+        ])
+        .expect("calibrate active distance");
+    assert_eq!(session.app.annotations[0].length_mm, 8.0);
+    session
+        .apply_window_action(WindowAction::ResetCalibration)
+        .expect("reset calibration");
+    assert!((session.app.annotations[0].length_mm - raw).abs() <= f32::EPSILON * raw);
+    assert_eq!(session.app.annotations[1].length_mm, raw);
+}
+
 fn draw_lines(commands: &[DisplayCommand]) -> Vec<((i32, i32), (i32, i32))> {
     commands
         .iter()
@@ -95,8 +161,6 @@ fn composed(session: &NativeViewerSession, affine: Option<AffineTransform>) -> V
         &session.views,
         &session.viewports,
         &session.app.annotations,
-        session.app.pointer.selected_polygon,
-        None,
         affine,
     )
     .expect("compose the measurement overlay");
@@ -158,8 +222,6 @@ fn measurement_length_skips_panes_beside_its_recorded_plane() {
         &views,
         &viewports,
         &session.app.annotations,
-        session.app.pointer.selected_polygon,
-        None,
         None,
     )
     .expect("compose the measurement overlay");
@@ -171,80 +233,6 @@ fn measurement_length_skips_panes_beside_its_recorded_plane() {
     assert!(
         draw_texts(&commands).is_empty(),
         "a coronal length must not label the axial pane"
-    );
-}
-
-#[test]
-fn native_length_preview_draws_only_on_its_owning_slice() {
-    let (mut session, _root) = session();
-    session.app.view_transform = ViewTransform {
-        flip_h: true,
-        flip_v: false,
-        rotation: RotationSteps::Ninety,
-    };
-    session
-        .refresh_frame()
-        .expect("compose transformed preview view");
-    let index = session
-        .views
-        .iter()
-        .position(|view| view.axis == 0)
-        .expect("session composes an axial pane");
-    let view = &session.views[index];
-    let viewport = &session.viewports[index];
-    let tool_state = ToolState::LengthDrag {
-        start: ImagePoint::new(0.5, 0.25),
-        current: ImagePoint::new(3.25, 1.5),
-    };
-    let location = Some(AnnotationLocation {
-        plane: view.axis,
-        slice: view.slice_index,
-    });
-    let mut overlay = OverlayCommands::with_capacity(2).expect("reserve preview commands");
-    append_measurement_preview(&mut overlay, view, viewport, &tool_state, location)
-        .expect("compose native length preview");
-    let commands = overlay.into_display_list().commands().to_vec();
-    let lines = draw_lines(&commands);
-    assert_eq!(lines.len(), 1, "preview draws one segment");
-    let output_size = view.transform.output_size(view.source_size);
-    let output_width = f64::from(u32::try_from(output_size[0]).expect("output width fits"));
-    let output_height = f64::from(u32::try_from(output_size[1]).expect("output height fits"));
-    let expected = [[1.75, 3.5], [0.5, 0.75]].map(|[x, y]| {
-        (
-            super::layout::screen_coordinate(
-                viewport.image.x + x / output_width * viewport.image.width,
-                "preview endpoint x",
-            )
-            .expect("preview x fits"),
-            super::layout::screen_coordinate(
-                viewport.image.y + y / output_height * viewport.image.height,
-                "preview endpoint y",
-            )
-            .expect("preview y fits"),
-        )
-    });
-    assert_eq!(
-        lines[0],
-        (expected[0], expected[1]),
-        "transformed endpoints"
-    );
-
-    let mut overlay = OverlayCommands::with_capacity(2).expect("reserve preview commands");
-    append_measurement_preview(
-        &mut overlay,
-        view,
-        viewport,
-        &tool_state,
-        Some(AnnotationLocation {
-            plane: view.axis,
-            slice: view.slice_index + 1,
-        }),
-    )
-    .expect("compose mismatched native preview");
-    let commands = overlay.into_display_list().commands().to_vec();
-    assert!(
-        draw_lines(&commands).is_empty(),
-        "preview skips another slice"
     );
 }
 
@@ -355,39 +343,4 @@ fn native_toolbar_length_then_drag_records_measurement() {
         [crate::tools::interaction::Annotation::Length { length_mm, .. }]
             if (f64::from(*length_mm) - expected_mm).abs() <= bound
     ));
-}
-
-#[test]
-fn selected_polygon_draws_one_handle_at_each_projected_vertex() {
-    let (mut session, _root) = session();
-    let (index, origin_x, origin_y, texel_x, texel_y) = axial_panel(&session);
-    let view = &session.views[index];
-    session.app.annotations.push(Annotation::OpenPolygon {
-        location: Some(AnnotationLocation {
-            plane: view.axis,
-            slice: view.slice_index,
-        }),
-        points: vec![[0.0, 0.0], [1.0, 2.0]],
-        length_mm: 3.0,
-    });
-    let unselected = draw_lines(&composed(&session, None));
-    assert_eq!(unselected.len(), 1);
-    session.app.pointer.selected_polygon = Some(0);
-    let selected = draw_lines(&composed(&session, None));
-    let first = (origin_x.round(), origin_y.round());
-    let second = (
-        (origin_x + 2.0 * texel_x).round(),
-        (origin_y + texel_y).round(),
-    );
-    assert_eq!(selected.len(), 5);
-    for (x, y) in [first, second] {
-        assert!(selected.iter().any(|&(start, end)| {
-            (f64::from(start.0), f64::from(start.1)) == (x - 2.0, y)
-                && (f64::from(end.0), f64::from(end.1)) == (x + 2.0, y)
-        }));
-        assert!(selected.iter().any(|&(start, end)| {
-            (f64::from(start.0), f64::from(start.1)) == (x, y - 2.0)
-                && (f64::from(end.0), f64::from(end.1)) == (x, y + 2.0)
-        }));
-    }
 }
