@@ -118,7 +118,7 @@ fn recompute(mut candidate: Annotation, spacing: [f64; 2]) -> Option<Annotation>
 
 #[cfg(test)]
 mod tests {
-    use super::move_node;
+    use super::{insert_node, move_node};
     use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint};
 
     fn open() -> Annotation {
