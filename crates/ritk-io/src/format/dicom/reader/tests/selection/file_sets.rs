@@ -4,6 +4,14 @@ use super::super::super::loader::load_dicom_from_series;
 use super::super::super::scan::{scan_dicom_files, scan_dicom_part10_bytes, scan_dicom_path};
 use super::fixtures::{instance, OTHER, SERIES};
 use crate::DicomStudyCatalog;
+use crate::{DicomSliceMetadata, DicomTag};
+use dicom_core::header::Header;
+
+fn retained_geometry(slice: &DicomSliceMetadata, tag: DicomTag) -> Option<&str> {
+    let node = slice.preservation.object.get(tag)?;
+    assert_eq!(node.vr.as_deref(), Some("DS"));
+    node.value.as_text()
+}
 
 #[test]
 fn decoded_pixels_are_the_validated_bytes_after_file_replacement() {
@@ -30,6 +38,21 @@ fn decoded_pixels_are_the_validated_bytes_after_file_replacement() {
         assert_eq!(metadata.series_instance_uid.as_deref(), Some(SERIES));
         assert_eq!(metadata.origin, [10.0, 20.0, 2.0]);
         assert_eq!(metadata.spacing, [2.0, 0.5, 0.5]);
+        let [slice] = metadata.slices.as_slice() else {
+            panic!("invariant: the snapshot contains one image");
+        };
+        assert_eq!(
+            retained_geometry(slice, DicomTag::new(0x0020, 0x0032)),
+            Some("10\\20\\2")
+        );
+        assert_eq!(
+            retained_geometry(slice, DicomTag::new(0x0020, 0x0037)),
+            Some("1\\0\\0\\0\\1\\0")
+        );
+        assert_eq!(
+            retained_geometry(slice, DicomTag::new(0x0028, 0x0030)),
+            Some("0.5\\0.5")
+        );
         assert!(
             metadata
                 .slices
@@ -76,7 +99,14 @@ fn selected_file_and_exact_members_preserve_minority_pixels_and_metadata() {
         );
         assert_eq!(scanned.metadata.origin, [10.0, 20.0, 2.0]);
         assert_eq!(scanned.metadata.spacing, [2.0, 0.5, 0.5]);
-        let (image, _) = load_dicom_from_series(scanned, &backend).expect("decode selected series");
+        let (image, metadata) =
+            load_dicom_from_series(scanned, &backend).expect("decode selected series");
+        let retained_positions: Vec<_> = metadata
+            .slices
+            .iter()
+            .map(|slice| retained_geometry(slice, DicomTag::new(0x0020, 0x0032)))
+            .collect();
+        assert_eq!(retained_positions, [Some("10\\20\\2"), Some("10\\20\\4")]);
         assert_eq!(image.shape(), [2, 2, 2]);
         assert_eq!(
             image
@@ -228,4 +258,155 @@ fn named_bytes_and_disk_preserve_identical_values_and_geometry() {
             .as_ref(),
         &[11.0, 11.0, 11.0, 11.0, 13.0, 13.0, 13.0, 13.0]
     );
+}
+
+#[test]
+fn source_orientation_survives_effective_gantry_tilt_synthesis() {
+    use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
+    let tag = Tag(0x0020, 0x0037);
+    for original in [Some("1\\0\\0\\0\\1\\0"), None] {
+        let bytes = instance(Some(SERIES), 1, 43);
+        let mut input = dicom::object::from_reader(bytes.as_slice())
+            .expect("invariant: generated image is readable");
+        assert!(
+            input.remove_element(tag),
+            "fixture contains source orientation"
+        );
+        if let Some(original) = original {
+            input.put(DataElement::new(
+                tag,
+                VR::DS,
+                PrimitiveValue::from(original),
+            ));
+        }
+        input.put(DataElement::new(
+            Tag(0x0018, 0x1120),
+            VR::DS,
+            PrimitiveValue::from("15"),
+        ));
+        let mut bytes = Vec::new();
+        input
+            .write_all(&mut bytes)
+            .expect("invariant: generated image is writable");
+        let series = scan_dicom_part10_bytes(&[("tilted", bytes.as_slice())])
+            .expect("invariant: tilted image is readable");
+        let (image, metadata) = load_dicom_from_series(series, &coeus_core::SequentialBackend)
+            .expect("invariant: tilted image has four decodable samples");
+        assert_eq!(image.shape(), [1, 2, 2]);
+        let [slice] = metadata.slices.as_slice() else {
+            panic!("invariant: the fixture contains one image");
+        };
+        assert_eq!(slice.part10_bytes.as_deref(), None);
+        assert_eq!(
+            retained_geometry(slice, DicomTag::new(0x0020, 0x0037)),
+            original
+        );
+        let effective = slice
+            .image_orientation_patient
+            .expect("invariant: nonzero gantry tilt synthesizes an effective orientation");
+        assert_eq!(&effective[..4], &[1.0, 0.0, 0.0, 0.0]);
+        assert_ne!(effective, [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
+    }
+}
+
+#[test]
+fn malformed_source_geometry_is_retained_as_source_text() {
+    use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
+    let bytes = instance(Some(SERIES), 1, 43);
+    let mut input = dicom::object::from_reader(bytes.as_slice())
+        .expect("invariant: generated image is readable");
+    input.put(DataElement::new(
+        Tag(0x0028, 0x0030),
+        VR::DS,
+        PrimitiveValue::from("3\\bad\\5"),
+    ));
+    let mut bytes = Vec::new();
+    input
+        .write_all(&mut bytes)
+        .expect("invariant: generated image is writable");
+    let series = scan_dicom_part10_bytes(&[("malformed", bytes.as_slice())])
+        .expect("invariant: optional geometry does not prevent scanning");
+    let [slice] = series.metadata.slices.as_slice() else {
+        panic!("invariant: the fixture contains one image");
+    };
+    assert_eq!(
+        retained_geometry(slice, DicomTag::new(0x0028, 0x0030)),
+        Some("3\\bad\\5")
+    );
+}
+
+#[test]
+fn regenerated_geometry_wins_over_preserved_source_values() {
+    use dicom::core::Tag;
+    use ritk_spatial::{Direction, Point, Spacing};
+    let bytes = instance(Some(SERIES), 1, 43);
+    let series = scan_dicom_part10_bytes(&[("source", bytes.as_slice())])
+        .expect("invariant: generated image is readable");
+    let (image, mut metadata) = load_dicom_from_series(series, &coeus_core::SequentialBackend)
+        .expect("invariant: generated image has four decodable samples");
+    assert_eq!(
+        retained_geometry(&metadata.slices[0], DicomTag::new(0x0028, 0x0030)),
+        Some("0.5\\0.5")
+    );
+    let (pixels, origin, spacing, direction, map) = image.into_parts();
+    assert_eq!(origin.to_array(), [10.0, 20.0, 2.0]);
+    assert_eq!(spacing.to_array(), [2.0, 0.5, 0.5]);
+    assert_eq!(
+        direction.axis_directions_array()[0].to_array(),
+        [0.0, 0.0, 1.0]
+    );
+    // Columns map depth to +Z, rows to -X, and columns to +Y.
+    let direction = Direction::from_row_major([0.0, -1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0]);
+    let rewritten = ritk_core::image::Image::new(
+        pixels,
+        Point::new([100.0, 200.0, 300.0]),
+        Spacing::try_new([2.0, 7.0, 11.0]).expect("invariant: fixture pitches are positive"),
+        direction,
+    )
+    .and_then(|image| image.with_coordinate_map(map))
+    .expect("invariant: rewritten image retains its coordinate map");
+    // This writer takes effective output geometry from the supplied metadata.
+    metadata.origin = rewritten.origin().to_array();
+    metadata.spacing = rewritten.spacing().to_array();
+    metadata.direction = rewritten.direction().to_column_major();
+    for tag in [
+        DicomTag::new(0x0020, 0x0032),
+        DicomTag::new(0x0020, 0x0037),
+        DicomTag::new(0x0028, 0x0030),
+    ] {
+        let original = metadata.slices[0]
+            .preservation
+            .object
+            .get(tag)
+            .expect("invariant: scanned image retains its original geometry")
+            .clone();
+        metadata.preservation.object.insert(original);
+    }
+    let directory = tempfile::tempdir().expect("invariant: fixture directory is writable");
+    super::super::super::super::writer::write_dicom_series_with_metadata(
+        directory.path(),
+        &rewritten,
+        Some(&metadata),
+    )
+    .expect("invariant: output image satisfies DICOM writer input requirements");
+    let output = dicom::object::open_file(directory.path().join("slice_0000.dcm"))
+        .expect("invariant: rewritten image is readable");
+    for (tag, expected) in [
+        (Tag(0x0028, 0x0030), vec![7.0, 11.0]),
+        (Tag(0x0020, 0x0032), vec![100.0, 200.0, 300.0]),
+        (Tag(0x0020, 0x0037), vec![0.0, 1.0, 0.0, -1.0, 0.0, 0.0]),
+    ] {
+        assert_eq!(
+            output
+                .element(tag)
+                .expect("invariant: geometry tag is emitted")
+                .to_multi_float64()
+                .expect("invariant: emitted geometry is numeric"),
+            expected
+        );
+        assert_eq!(
+            output.iter().filter(|element| element.tag() == tag).count(),
+            1
+        );
+    }
 }
