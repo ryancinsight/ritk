@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 mod anonymize;
 mod arrow_overlay;
 mod cobb_overlay;
+mod crosshair_tool;
 mod display;
 mod display_controls;
 mod display_custom_presets;

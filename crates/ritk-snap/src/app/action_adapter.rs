@@ -352,6 +352,9 @@ impl SnapApp {
                         if let Some(viewport) = viewport
                             && let Some(image) = mapped
                         {
+                            if owner.tool == ToolKind::Crosshair {
+                                self.show_crosshair = true;
+                            }
                             self.update_linked_cursor_from_pointer(viewport.axis(), Some(image));
                             if owner.polygon_click == PolygonClick::Select {
                                 self.pick_polygon(*viewport, *position);
