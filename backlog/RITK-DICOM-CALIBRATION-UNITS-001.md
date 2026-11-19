@@ -1,6 +1,6 @@
 <a id="RITK-DICOM-CALIBRATION-UNITS-001"></a>
 ## RITK-DICOM-CALIBRATION-UNITS-001 — Preserve DICOM values and units — blocked
-- milestone: M-viewer-reading
+- priority: correctness; milestone: M-viewer-reading
 - outcome: Represent DICOM stored-to-physical transforms and units without changing stored samples.
 - acceptance: Rescale slope/intercept, per-frame transforms, real-world value mappings, and coded units become typed values or scoped losses; rendering applies transforms once and conversions preserve or reject before output mutation.
 - scope: crates/ritk-image-io/, crates/ritk-io/src/format/dicom/, calibration tests, and ADR 0055
@@ -8,4 +8,3 @@
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
 - status: todo
 - needs: none
-- priority: correctness

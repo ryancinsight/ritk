@@ -6,6 +6,5 @@
 - next: the Python SimpleITK direction test (acceptance test 2); the VTK (ritk#878) and Analyze (ritk#881) writers relabel signed permutations and `OrientImageFilter` delegates to `SignedAxisPermutation::reexpress` (ritk#887, ritk#888).
 - risk: re-expressing to identity instead would write X and Z swapped for SimpleITK, VTK and ParaView, while in-memory round trips still pass because the readers undo the same swap.
 - basis: 729bbd78254c1eada68211225f350ecfebaa3666
-- milestone: M-viewer-reading
+- priority: correctness; milestone: M-viewer-reading
 - needs: none
-- priority: correctness

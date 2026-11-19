@@ -138,7 +138,7 @@ impl NativeViewerSession {
                     self.active_app_mut().cancel_presentation_gesture();
                     self.end_held_gestures();
                     Ok(true)
-                } else if self.active_app().pointer.pending_polygon_move.is_some()
+                } else if self.active_app().pointer.pending_annotation_move.is_some()
                     || matches!(
                         self.active_app().tool_state,
                         ToolState::ArrowDrag { .. } | ToolState::PencilDrag { .. }

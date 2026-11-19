@@ -53,11 +53,11 @@ fn native_polygon_edge_insert_escape_preserves_the_annotation() {
             },
         ])
         .expect("native Pan selects and previews the polygon edge");
-    assert_eq!(session.app.pointer.selected_polygon, Some(0));
+    assert_eq!(session.app.pointer.selected_annotation, Some(0));
     let pending = session
         .app
         .pointer
-        .pending_polygon_move
+        .pending_annotation_move
         .as_ref()
         .expect("edge drag owns a pending insertion");
     assert_ne!(pending.candidate, before[0]);
@@ -72,5 +72,5 @@ fn native_polygon_edge_insert_escape_preserves_the_annotation() {
         ])
         .expect("native Escape cancels polygon edge insertion");
     assert_eq!(session.app.annotations, before);
-    assert!(session.app.pointer.pending_polygon_move.is_none());
+    assert!(session.app.pointer.pending_annotation_move.is_none());
 }

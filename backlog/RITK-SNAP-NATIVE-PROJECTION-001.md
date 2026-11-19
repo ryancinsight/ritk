@@ -6,5 +6,4 @@
 - next: Add runtime layout and thickness actions.
 - basis: 30b8ba098
 - needs: none
-- milestone: M-viewer-compare
-- priority: feature
+- priority: feature; milestone: M-viewer-compare

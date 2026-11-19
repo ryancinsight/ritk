@@ -6,5 +6,4 @@
 - next: Route `render_fused_slice` into a compare panel. Deleted shell source: `414da7491:crates/ritk-snap/src/app/viewport_compare.rs`, `414da7491:crates/ritk-snap/src/app/menu.rs`.
 - basis: 30b8ba098
 - needs: RITK-SNAP-NATIVE-LINK-001
-- milestone: M-viewer-advanced
-- priority: feature
+- priority: feature; milestone: M-viewer-advanced

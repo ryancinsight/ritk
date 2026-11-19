@@ -6,5 +6,4 @@
 - next: Specify the frame-time model from DICOM attributes.
 - basis: 30b8ba098
 - needs: none
-- milestone: M-viewer-advanced
-- priority: feature
+- priority: feature; milestone: M-viewer-advanced

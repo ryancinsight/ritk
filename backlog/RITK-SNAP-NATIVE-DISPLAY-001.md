@@ -6,5 +6,4 @@
 - next: Add the remaining direct rotation action; existing preset and transform tests remain unchanged.
 - basis: 746c615198743d9b946dac2014cf3a0776f20f14
 - needs: none
-- milestone: M-viewer-reading
-- priority: feature
+- priority: feature; milestone: M-viewer-reading

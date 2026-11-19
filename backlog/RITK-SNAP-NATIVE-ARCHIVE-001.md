@@ -6,5 +6,4 @@
 - next: Specify the storage layout in an ADR first.
 - basis: 30b8ba098
 - needs: RITK-SNAP-NATIVE-OPEN-001
-- milestone: M-viewer-access
-- priority: feature
+- priority: feature; milestone: M-viewer-access

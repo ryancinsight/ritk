@@ -15,7 +15,7 @@ impl SnapApp {
             plane,
             slice: self.axis_slice_info(plane).0,
         };
-        self.pointer.selected_polygon = self
+        self.pointer.selected_annotation = self
             .annotations
             .iter()
             .enumerate()
@@ -44,7 +44,7 @@ impl SnapApp {
     }
 
     pub(super) fn delete_selected_polygon(&mut self) -> bool {
-        let Some(index) = self.pointer.selected_polygon.take() else {
+        let Some(index) = self.pointer.selected_annotation.take() else {
             return false;
         };
         let plane = self.axis;

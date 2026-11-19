@@ -140,7 +140,10 @@ have their own rows. Measurement labels move to stay visible inside the pane.
 ![AsterSlice Tools calibration dialog over the current DICOM slice with a 100 mm reference entered](images/dicom-native-calibration.webp)
 
 Calibration lasts for the loaded study. Reopen the study to restore its DICOM
-spacing.
+spacing. This control currently rescales ordinary Length labels only.
+Patient-space lengths, deviation, polygon values, and ROI areas retain their
+image-spacing values. Inch/French-size input and source-specific calibration
+colors remain [calibration work](features.md#reading-and-annotations).
 
 ### Measure an angle or a region of interest
 

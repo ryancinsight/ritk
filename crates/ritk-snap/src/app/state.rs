@@ -197,6 +197,7 @@ pub(crate) struct SnapApp {
     #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     /// Axis assignment for compare layout: [primary_axis, secondary_axis].
     pub(crate) compare_axes: [usize; 2],
+    #[cfg(any(windows, all(not(target_arch = "wasm32"), feature = "eframe-shell")))]
     /// `true` when the DICOM 4-corner overlay is drawn on viewports.
     /// Both shells honor this flag.
     pub(crate) show_overlay: bool,

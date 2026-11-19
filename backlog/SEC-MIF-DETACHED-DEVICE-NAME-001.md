@@ -5,6 +5,5 @@
 - scope: crates/ritk-mif/src/{reader.rs,error.rs,reader_tests.rs,reader_tests/detached_path.rs}, docs/book/mif_format.md
 - next: establish from Microsoft's file-naming documentation which reserved names still resolve to devices inside a directory path on the supported Windows versions; choose the ordering observable (a Unix FIFO or an opener seam).
 - basis: 729bbd78254c1eada68211225f350ecfebaa3666
-- milestone: M-viewer-reading
+- priority: correctness; milestone: M-viewer-reading
 - needs: none
-- priority: correctness
