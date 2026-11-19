@@ -83,7 +83,7 @@ fn native_double_click_finishes_polygon_once_in_its_pane() {
 #[test]
 fn native_tool_switch_discards_open_polygon_before_a_fresh_path() {
     let (mut session, _root) = session();
-    let (pane, _, _, sx, sy) = axial_panel(&session);
+    let (pane, origin_x, origin_y, sx, sy) = axial_panel(&session);
     let view = &session.views[pane];
     let source_slice = view.slice_index;
     let source_plane = view.axis;
@@ -151,6 +151,22 @@ fn native_tool_switch_discards_open_polygon_before_a_fresh_path() {
     let bound =
         f64::from(f32::EPSILON) * (f64::from(frame_width) * col + f64::from(frame_height) * row);
     assert_eq!(points.len(), 2);
+    assert!(session.app.view_transform.is_identity());
+    // The viewport maps the image's outer edges, so this inverse has no
+    // half-pixel offset. Annotation storage narrows row and column once.
+    let expected_points = [fresh_start, fresh_end].map(|(screen_x, screen_y)| {
+        [
+            (f64::from(screen_y) - origin_y) / sy,
+            (f64::from(screen_x) - origin_x) / sx,
+        ]
+    });
+    for (actual, expected_point) in points.iter().zip(expected_points) {
+        for (actual_axis, expected_axis) in actual.iter().zip(expected_point) {
+            assert!(expected_axis.abs() >= f64::from(f32::MIN_POSITIVE));
+            let axis_bound = f64::from(f32::EPSILON) / 2.0 * expected_axis.abs();
+            assert!((f64::from(*actual_axis) - expected_axis).abs() <= axis_bound);
+        }
+    }
     assert_eq!(
         *location,
         Some(AnnotationLocation {
