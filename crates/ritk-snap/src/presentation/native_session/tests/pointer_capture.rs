@@ -195,16 +195,55 @@ fn a_stationary_release_leaves_a_display_gesture_where_its_last_move_put_it() {
 }
 
 fn navigation_session() -> (NativeViewerSession, tempfile::TempDir) {
-    let (mut session, root) = session();
+    navigation_session_at_display_scale(4.0)
+}
+
+fn navigation_session_at_display_scale(
+    display_pixels_per_image_pixel: f64,
+) -> (NativeViewerSession, tempfile::TempDir) {
+    let (mut session, root) = session_with_volume(crate::app::tests::test_volume([1, 100, 100]));
     let texel_width =
         session.viewports[0].image.width / f64::from(session.views[0].frame().width());
     let texel_height =
         session.viewports[0].image.height / f64::from(session.views[0].frame().height());
-    session.app.zoom = f32::from_f64(4.0 / texel_width.min(texel_height));
+    session.app.zoom =
+        f32::from_f64(display_pixels_per_image_pixel / texel_width.min(texel_height));
     session
         .refresh_frame()
-        .expect("render a viewport with at least four screen pixels per image pixel");
+        .expect("render a viewport at the requested display scale");
     (session, root)
+}
+
+fn pan_and_render_displacement(
+    session: &mut NativeViewerSession,
+    displacement: [i32; 2],
+) -> (ViewportOffset, [f64; 2]) {
+    let before = session.viewports[0].image;
+    let (x, y) = session.viewports[0].center();
+    let end = [x + displacement[0], y + displacement[1]];
+    session
+        .handle_events(&[
+            down(x, y, MouseButton::X1),
+            WindowEvent::PointerMove {
+                x: end[0],
+                y: end[1],
+            },
+            up(end[0], end[1], MouseButton::X1),
+        ])
+        .expect("pan in captured native coordinates");
+    let after = session.viewports[0].image;
+    (
+        session.app.pan_offset,
+        [after.x - before.x, after.y - before.y],
+    )
+}
+
+#[test]
+fn native_identity_pan_matches_physical_pixel_displacement() {
+    let (mut session, _root) = navigation_session_at_display_scale(1.0);
+    let (pan, rendered) = pan_and_render_displacement(&mut session, [24, -12]);
+    assert_eq!(pan, ViewportOffset::new(24.0, -12.0));
+    assert_eq!(rendered, [24.0, -12.0]);
 }
 
 fn apply_drag_moves(

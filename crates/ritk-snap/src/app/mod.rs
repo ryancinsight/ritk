@@ -112,7 +112,7 @@ mod web_surface;
 mod web_viewer;
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) use eframe::EguiApp;
