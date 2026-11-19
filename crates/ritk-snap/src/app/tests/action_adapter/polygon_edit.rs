@@ -1,8 +1,8 @@
 use super::{apply_app_event, viewport};
-use crate::app::SnapApp;
 use crate::app::pointer_bindings::{AnnotationMoveKind, PendingAnnotationMove};
 use crate::app::tests::test_volume;
 use crate::app::viewer_viewport::ViewerViewport;
+use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers, ViewportPoint};
 use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint};
 use crate::tools::kind::ToolKind;
