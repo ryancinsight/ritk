@@ -3,6 +3,7 @@
 use anyhow::{anyhow, Result};
 use arrayvec::ArrayVec;
 use ritk_io::DicomSeriesInfo;
+use std::path::Path;
 use std::sync::Arc;
 
 use crate::app::SnapApp;
@@ -27,6 +28,7 @@ pub(crate) struct SeriesChoice {
     pub(crate) image_count: usize,
     pub(crate) patient_name: Box<str>,
     pub(crate) study_date: Option<Box<str>>,
+    pub(super) study_uid: Option<Arc<str>>,
     pub(crate) series_time: Option<Box<str>>,
     pub(crate) patient_number: usize,
     pub(crate) study_number: usize,
@@ -61,6 +63,7 @@ impl SeriesBrowser {
                 .ok_or_else(|| anyhow!("study count overflows usize"))?;
             for (study_index, study) in patient.studies.iter().enumerate() {
                 let study_series_count = study.series.len();
+                let study_uid = study.study_uid.as_deref().map(Arc::from);
                 for (series_index, series) in study.series.iter().enumerate() {
                     let acquisition = Arc::clone(&series.acquisition);
                     let description = acquisition.series_description.trim();
@@ -79,6 +82,7 @@ impl SeriesBrowser {
                         description: description.into_boxed_str(),
                         patient_name: patient.patient_name.as_ref().into(),
                         study_date: study.study_date.as_deref().map(|value| value.into()),
+                        study_uid: study_uid.clone(),
                         series_time: study.series_time.as_deref().map(|value| value.into()),
                         patient_number: patient_index.saturating_add(1),
                         study_number: study_index.saturating_add(1),
@@ -137,6 +141,16 @@ impl SeriesBrowser {
         self.choices.get(index)
     }
 
+    /// Match the DICOM study even when its series appear in separate patient rows.
+    pub(super) fn study_choices<'a>(
+        &'a self,
+        uid: &'a str,
+    ) -> impl Iterator<Item = &'a SeriesChoice> {
+        self.choices
+            .iter()
+            .filter(move |choice| choice.study_uid.as_deref() == Some(uid))
+    }
+
     /// Decode a displayed row on first use, retaining only its bounded frame.
     /// Missing or unsupported instances remain unavailable until eviction.
     #[cfg(test)]
@@ -188,6 +202,18 @@ impl SeriesBrowser {
         self.choices
             .iter()
             .position(|choice| choice.acquisition.series_instance_uid() == uid)
+    }
+
+    /// Locate a resolved instance by file-set membership, including DICOMDIR.
+    pub(super) fn index_for_instance(&self, instance: &Path) -> Option<usize> {
+        self.choices.iter().position(|choice| {
+            choice.acquisition.file_paths.iter().any(|member| {
+                member == instance
+                    || member
+                        .canonicalize()
+                        .is_ok_and(|resolved| resolved == instance)
+            })
+        })
     }
 
     /// Commit a successfully loaded series as active and keep it in view.

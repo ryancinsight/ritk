@@ -20,7 +20,8 @@ impl NativeViewerSession {
                     Ok(true)
                 }
             },
-            WindowAction::AnonymizeStudy(level) => match self.anonymize_study_from_dialog(level) {
+            WindowAction::Anonymize(scope, level) => match self.anonymize_from_dialog(scope, level)
+            {
                 Ok(changed) => Ok(changed),
                 Err(error) => {
                     self.active_app_mut().status_message =
