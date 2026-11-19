@@ -95,7 +95,7 @@ fn svg_panel(svg: &mut String, values: &[f32], title: &str, offset_x: u32) -> Re
     }
     let mut png = Vec::new();
     PngEncoder::new(&mut png)
-        .write_image(&raster, width_u32, height_u32, ColorType::Rgb8)
+        .write_image(&raster, width_u32, height_u32, ColorType::Rgb8.into())
         .context("encode filter panel as PNG")?;
     let encoded = STANDARD.encode(png);
     writeln!(svg, "<g transform=\"translate({offset_x},0)\">")?;

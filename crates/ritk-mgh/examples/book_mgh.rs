@@ -192,7 +192,7 @@ fn grayscale_png(values: &[f32], lower: f32, upper: f32) -> Result<String> {
 
     let mut png = Vec::new();
     PngEncoder::new(&mut png)
-        .write_image(&raster, DISPLAY_SIZE, DISPLAY_SIZE, ColorType::Rgb8)
+        .write_image(&raster, DISPLAY_SIZE, DISPLAY_SIZE, ColorType::Rgb8.into())
         .context("encode grayscale panel")?;
     Ok(STANDARD.encode(png))
 }
@@ -224,7 +224,7 @@ fn error_png(values: &[f32]) -> Result<String> {
 
     let mut png = Vec::new();
     PngEncoder::new(&mut png)
-        .write_image(&raster, DISPLAY_SIZE, DISPLAY_SIZE, ColorType::Rgb8)
+        .write_image(&raster, DISPLAY_SIZE, DISPLAY_SIZE, ColorType::Rgb8.into())
         .context("encode error panel")?;
     Ok(STANDARD.encode(png))
 }

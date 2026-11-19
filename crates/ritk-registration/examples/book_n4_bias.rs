@@ -148,7 +148,7 @@ fn panel_data_uri(panel: &RgbImage) -> Result<String> {
             panel.as_raw(),
             panel.width(),
             panel.height(),
-            ColorType::Rgb8,
+            ColorType::Rgb8.into(),
         )
         .context("encode N4 figure panel as PNG")?;
     Ok(STANDARD.encode(png))

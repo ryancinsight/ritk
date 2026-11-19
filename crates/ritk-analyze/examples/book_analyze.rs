@@ -161,7 +161,7 @@ fn difference_png(source: &[f32], decoded: &[f32]) -> Result<(String, f32)> {
 fn encode_png(raster: &[u8]) -> Result<String> {
     let mut png = Vec::new();
     PngEncoder::new(&mut png)
-        .write_image(raster, DISPLAY_SIZE, DISPLAY_SIZE, ColorType::Rgb8)
+        .write_image(raster, DISPLAY_SIZE, DISPLAY_SIZE, ColorType::Rgb8.into())
         .context("encode Analyze book panel")?;
     Ok(STANDARD.encode(png))
 }

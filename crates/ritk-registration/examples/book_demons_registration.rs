@@ -254,7 +254,7 @@ fn png_data_uri(image: &RgbImage) -> Result<String> {
             image.as_raw(),
             image.width(),
             image.height(),
-            ColorType::Rgb8,
+            ColorType::Rgb8.into(),
         )
         .context("encode deformable-registration panel as PNG")?;
     Ok(format!(

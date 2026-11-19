@@ -142,7 +142,7 @@ fn panel_png(panel: Panel<'_>) -> Result<String> {
     let height = u32::try_from(height).context("binary morphology height exceeds u32")?;
     let mut png = Vec::new();
     PngEncoder::new(&mut png)
-        .write_image(&raster, width, height, ColorType::Rgb8)
+        .write_image(&raster, width, height, ColorType::Rgb8.into())
         .context("encode binary morphology panel as PNG")?;
     Ok(STANDARD.encode(png))
 }

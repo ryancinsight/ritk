@@ -171,10 +171,10 @@ wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 getrandom = "0.3"
 getrandom_02 = { package = "getrandom", version = "0.2" }
-image = "0.24"
-base64 = "0.22"
+image = "0.25"
+base64 = "0.23"
 quick-xml = "0.41"
-tiff = "0.9"
+tiff = "0.11"
 
 dicom-core = "0.10"
 dicom-ul = "0.10"

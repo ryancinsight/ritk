@@ -137,7 +137,7 @@ fn display_slice(volume: &Volume) -> Result<&[f32]> {
 fn encode_png(raster: &[u8]) -> Result<String> {
     let mut png = Vec::new();
     PngEncoder::new(&mut png)
-        .write_image(raster, DISPLAY_SIZE, DISPLAY_SIZE, ColorType::Rgb8)
+        .write_image(raster, DISPLAY_SIZE, DISPLAY_SIZE, ColorType::Rgb8.into())
         .context("encode MINC2 book panel")?;
     Ok(STANDARD.encode(png))
 }
