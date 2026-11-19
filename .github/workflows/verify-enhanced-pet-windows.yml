@@ -1,0 +1,76 @@
+name: Enhanced PET Windows verification
+
+on:
+  push:
+    branches: [codex/verify-enhanced-pet-20261119]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+  RUST_BACKTRACE: '1'
+
+jobs:
+  enhanced-pet:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Load the two unpublished locked source revisions
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Invoke-Git {
+            & git @args
+            if ($LASTEXITCODE -ne 0) { throw "git $args failed" }
+          }
+          $sources = @{
+            aequitas = @('243844f3bcadc6229cd3bedc4ef88bae2e8039d7', 'e2a9359869d20b5f9052f8d3e4fbd8886e0db9c0')
+            gaia = @('0f520de6e2fdef7a027bf8cbf13eb40b06656337', '2e3d95d0775c09fb71ea9ebe3ebbe05c7a58cbf5')
+          }
+          foreach ($name in $sources.Keys) {
+            $upstream = "https://github.com/ryancinsight/$name"
+            $provider = Join-Path $env:RUNNER_TEMP "$name.git"
+            $bundle = Join-Path $PWD ".github/verification/$name.bundle"
+            $base, $locked = $sources[$name]
+            Invoke-Git init --bare $provider
+            Invoke-Git -C $provider fetch --no-tags $upstream $base
+            Invoke-Git -C $provider bundle verify $bundle
+            Invoke-Git -C $provider bundle unbundle $bundle
+            Invoke-Git -C $provider update-ref refs/heads/locked-candidate $locked
+            $sourceUri = ([Uri]::new((Resolve-Path $provider).Path)).AbsoluteUri
+            Invoke-Git config --global "url.$sourceUri.insteadOf" $upstream
+          }
+      - name: Check out the exact candidate and locate the Windows SDK
+        shell: pwsh
+        run: |
+          git switch --detach HEAD^
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git log -1 --format=%H
+          $sdk = Join-Path ${Env:ProgramFiles(x86)} 'Windows Kits\10\Include'
+          $headers = Get-ChildItem $sdk -Filter assert.h -Recurse
+          if (!$headers) { throw 'Windows SDK CRT assert.h is absent' }
+          $headers.FullName
+          rustup show active-toolchain
+      - name: Build the default Windows viewer and prepare runtime tests
+        shell: pwsh
+        run: |
+          cargo build --locked -p ritk-snap --bin ritk-snap
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked -p ritk-io -p ritk-snap --lib --no-run
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Execute Enhanced PET reader and Windows viewer tests
+        timeout-minutes: 1
+        shell: pwsh
+        run: |
+          cargo test --locked -p ritk-io -p ritk-snap --lib enhanced_pet -- --test-threads=1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & target\debug\ritk-snap.exe --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
