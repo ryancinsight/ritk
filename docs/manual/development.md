@@ -32,6 +32,8 @@ cargo nextest run --locked -p ritk-snap -E '
   or test(length_measurement_first_click_then_drag_completes_through_the_adapter)
   or test(deviation_measurement_completes_from_one_pointer_drag)
   or test(native_cobb_) or test(native_polygon_edge_insert_)
+  or test(native_pan_edits_both_length_endpoints_transactionally)
+  or test(native_pan_translates_length_transactionally)
   or test(native_manual_annotation_frames)
   or test(open_polygon_enter_commits_physical_length_and_consumes_release)
   or test(closed_polygon_commits_area_perimeter_and_slice_location)
@@ -49,6 +51,10 @@ $env:RITK_MANUAL_CAPTURE_DIR = (New-Item -ItemType Directory -Force 'output/manu
 cargo nextest run --locked -p ritk-snap -E 'test(native_manual_annotation_frames)'
 Remove-Item Env:RITK_MANUAL_STUDY, Env:RITK_MANUAL_CAPTURE_DIR
 ```
+
+The [frame record](images/dicom-native-annotations.json) preserves each figure's
+source revision and lock digest. Per-frame fields identify newer captures;
+figures without overrides retain the record's original revision and lock.
 
 ## Actual application gallery
 
@@ -78,6 +84,14 @@ loader retain the validated bytes, enforce the parser, retained-study, and
 decoded-workspace budgets, and return the RITK `Image` plus
 `DicomReadMetadata`. No GUI framework type or parser object crosses this
 boundary; the host owns only input and presentation lifecycle.
+
+Scanned images retain original decoded PixelSpacing, ImagePositionPatient,
+and ImageOrientationPatient in each slice's preservation inventory alongside
+effective geometry. This survives release of encoded bytes after loading.
+The compatibility tag-table model retains these values beside effective slice
+fields; its aggregate Preserved group does not identify a source frame.
+Retention alone does not certify physical units or select enhanced-frame
+geometry; see [ADR 0055](../adr/0055-dicom-metadata-retention-inventory.md).
 
 The [workspace lockfile](../../Cargo.lock) records the Métis and Moirai
 revisions used for the current build. Historical captures retain the
@@ -588,42 +602,23 @@ The supplied study must load and the PNG must save before success is reported.
 Native window images depend on the host renderer and fonts; the exact pixel
 goldens above remain the deterministic software-rendering check.
 
-### Capture the saved MRI in the eframe compatibility shell
+### Capture native study content
 
-Build the existing eframe-shell feature, then capture the full compatibility
-window from the public MRI fixture. Resolve the configured Cargo target
-directory instead of assuming a repository-local build cache:
+From the RITK repository root, build the current native viewer, resolve
+Cargo's configured target directory, and create the ignored `output/`
+run-output directory before running these commands:
 
 ~~~powershell
-cargo build --locked -p ritk-snap --features eframe-shell
+cargo build --locked -p ritk-snap --bin asterslice
 $target = (cargo metadata --locked --format-version 1 --no-deps |
   ConvertFrom-Json).target_directory
 $viewer = Join-Path $target 'debug\asterslice.exe'
 $captureRoot = Join-Path $PWD 'output\viewer'
 New-Item -ItemType Directory -Path $captureRoot -Force | Out-Null
-& $viewer test_data\2_head_mri_t2\DICOM --eframe `
-  --capture (Join-Path $captureRoot 'real-mri-eframe.png')
 ~~~
 
-The historical [eframe MRI figure](images/dicom-eframe-real-mri.webp)
-and its [resource record](images/dicom-eframe-real-mri-resource.json)
-retain their original executable, dimensions, and measurements. They do not
-establish current memory or latency, or a comparison with the native host.
-
-### Capture the matched eframe orthogonal surface
-
-The [matched orthogonal figure](images/dicom-eframe-orthogonal-surface.png)
-is a historical capture from the source revisions in its
-[resource record](images/dicom-eframe-orthogonal-surface-resource.json).
-The current CLI exposes the full eframe capture above; the historical
-shell-free presentation and viewport-size arguments are absent from its Args
-definition. Keep those historical measurements separate from current-host
-performance claims.
-
-### Capture native study content
-
-The same executable can capture native three-plane content, with or without
-the RITK application overlay:
+The viewer can capture native three-plane content, with or without the RITK
+application overlay:
 
 ~~~powershell
 & $viewer test_data\2_head_mri_t2\DICOM --metis-native `
@@ -1084,34 +1079,6 @@ volume-rendering path and emits a diagnostic instead of panicking in wgpu. The
 GPU path remains available for volumes within the device limits; this guard
 keeps a real saved study displayable on either path.
 
-### Capture the saved CT study in the eframe compatibility shell
-
-The same public series can be opened in the complete eframe application with an
-explicit acquisition selection:
-
-```powershell
-cargo run --locked -p ritk-snap --features eframe-shell -- `
-  test_data\3_head_ct_mridir\DICOM `
-  --eframe `
-  --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
-  --capture scratch\viewer\real-dicom-eframe.png
-```
-
-This run decoded the saved 409-slice CT series and exited successfully with a
-1600 × 1000 application-content capture. The image includes the Series Browser,
-axial, coronal, sagittal and 3D MIP views, plus the RITK geometry and
-window/level state. The scalar volume exceeds the reference adapter's GPU
-storage-buffer limit, so the guard above selected the existing CPU projection
-path and kept the actual DICOM pixels visible:
-
-![Actual MRI-DIR CT series rendered in the eframe application](images/dicom-eframe-real-ct.png)
-
-The capture is byte-identical across two independent runs (SHA-256
-`f4b30c71bd57f54227f5eeec524cd72e93f56f68e834fed909b907f9ecace048`). Its
-source revisions, executable digest, selected UID and command bounds are in
-[`dicom-eframe-real-ct.json`](images/dicom-eframe-real-ct.json). The PNG is
-committed because this is public CC BY 4.0 phantom data; private clinical
-captures remain local and ignored.
 
 ### Capture a fitting CT volume through the eframe GPU projection
 

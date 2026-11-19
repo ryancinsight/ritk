@@ -3,7 +3,7 @@ use super::super::polygon_selection::PICK_RADIUS_PIXELS;
 use super::super::viewer_viewport::ViewerViewport;
 use crate::presentation::ViewportPoint;
 use crate::tools::interaction::{Annotation, ImagePoint};
-use metis_ui_lang::nearest_polyline_vertex;
+use metis_ui_lang::{nearest_polyline_segment, nearest_polyline_vertex, PathTopology};
 
 pub(super) fn pick(
     annotation: &Annotation,
@@ -16,16 +16,21 @@ pub(super) fn pick(
     let projected = [*p1, *p2].map(|point| viewport.project(point));
     let target = [target.x(), target.y()];
     let vertex = nearest_polyline_vertex(projected, target).ok()?;
-    match vertex.index() {
-        0 if vertex.distance() <= PICK_RADIUS_PIXELS => Some(LengthMove::FirstEndpoint),
-        1 if vertex.distance() <= PICK_RADIUS_PIXELS => Some(LengthMove::SecondEndpoint),
-        _ => None,
+    if vertex.distance() <= PICK_RADIUS_PIXELS {
+        return match vertex.index() {
+            0 => Some(LengthMove::FirstEndpoint),
+            1 => Some(LengthMove::SecondEndpoint),
+            _ => None,
+        };
     }
+    let segment = nearest_polyline_segment(projected, target, PathTopology::Open).ok()?;
+    (segment.distance() <= PICK_RADIUS_PIXELS).then_some(LengthMove::WholeLine)
 }
 
 pub(super) fn move_candidate(
     original: &Annotation,
     mode: LengthMove,
+    start: ImagePoint,
     current: ImagePoint,
     spacing: [f64; 2],
 ) -> Option<Annotation> {
@@ -39,6 +44,13 @@ pub(super) fn move_candidate(
     match mode {
         LengthMove::FirstEndpoint => *p1 = [current.y(), current.x()],
         LengthMove::SecondEndpoint => *p2 = [current.y(), current.x()],
+        LengthMove::WholeLine => {
+            let delta = [current.y() - start.y(), current.x() - start.x()];
+            p1[0] += delta[0];
+            p1[1] += delta[1];
+            p2[0] += delta[0];
+            p2[1] += delta[1];
+        }
     }
     *length_mm = Annotation::compute_length_checked(*p1, *p2, spacing).ok()?;
     Some(candidate)
