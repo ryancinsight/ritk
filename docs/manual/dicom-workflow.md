@@ -106,7 +106,9 @@ The image corners show the image count, window width and centre, and
 displayed frame dimensions. When clinical text runs out of room, the viewer shortens long
 corner labels with an ellipsis. Resize the window to compare the corner
 readouts and orientation letters in wide and narrow panes. Colorbar values
-have their own rows. Measurement labels move to stay visible inside the pane.
+have their own rows. Measurement labels stay inside the pane and move clear
+of clinical text, colorbars, histogram controls, completed marks, edit
+handles, other labels, and the mark currently following the pointer.
 
 ![AsterSlice Windows viewer with independent slice scrollbars at the right edge of each MPR pane](images/dicom-native-slices.webp)
 
