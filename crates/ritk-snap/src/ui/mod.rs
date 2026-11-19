@@ -103,7 +103,7 @@ pub use mpr_cursor::{
 pub use mpr_cursor::{viewport_point_to_voxel, voxel_to_viewport_point};
 #[cfg(feature = "eframe-shell")]
 pub use overlay::OverlayRenderer;
-pub use pan::pan_from_drag_delta;
+pub use pan::{pan_from_drag_delta, PanError};
 #[cfg(feature = "eframe-shell")]
 pub use pet_suv_panel::{draw_pet_suv_panel, PetSuvPanelAction};
 pub use pointer_intensity::intensity_at_voxel;

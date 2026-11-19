@@ -4,6 +4,7 @@ use super::super::layout::{PanelGrid, WorkspaceLayout};
 use super::super::window_controls::WindowAction;
 use super::*;
 use crate::presentation::{PointerButton, ViewportPoint};
+use crate::tools::interaction::ViewportOffset;
 use crate::tools::kind::ToolKind;
 use crate::ui::{pan_from_drag_delta, zoom_from_drag_delta};
 use eunomia::FloatElement;
@@ -277,7 +278,11 @@ fn display_drags_use_full_displacement_independent_of_event_batches() {
     let zoom_end = mapping
         .map(ViewportPoint::new(f64::from(x), f64::from(y - 3)))
         .expect("zoom endpoint maps to the source image");
-    let expected_pan = pan_from_drag_delta(session.app.pan_offset, start, pan_end);
+    let expected_pan = pan_from_drag_delta(
+        session.app.pan_offset,
+        ViewportOffset::new(pan_end.x() - start.x(), pan_end.y() - start.y()),
+    )
+    .expect("finite mapped pan displacement");
     let expected_zoom = zoom_from_drag_delta(session.app.zoom, zoom_end.y() - start.y());
 
     let combined_pan = drag_pan_in_batches(false, 1);
@@ -307,7 +312,11 @@ fn captured_display_drags_continue_beyond_the_press_image_bounds() {
     let zoom_end = mapping
         .map_unbounded(ViewportPoint::new(f64::from(x), f64::from(y - 24)))
         .expect("captured zoom maps beyond the press image bounds");
-    let expected_pan = pan_from_drag_delta(session.app.pan_offset, start, pan_end);
+    let expected_pan = pan_from_drag_delta(
+        session.app.pan_offset,
+        ViewportOffset::new(pan_end.x() - start.x(), pan_end.y() - start.y()),
+    )
+    .expect("finite mapped pan displacement");
     let expected_zoom = zoom_from_drag_delta(session.app.zoom, zoom_end.y() - start.y());
 
     assert_eq!(drag_pan_in_batches(false, 8), expected_pan);

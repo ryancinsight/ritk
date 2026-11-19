@@ -1,95 +1,64 @@
-use super::*;
-use crate::tools::interaction::{ImagePoint, ViewportOffset};
+use super::{pan_from_drag_delta, PanError};
+use crate::tools::interaction::ViewportOffset;
 
 #[test]
-fn identity_zero_delta_preserves_viewport_origin() {
-    let origin = ViewportOffset::new(100.0, 50.0);
-    let start = ImagePoint::new(200.0, 150.0);
-    let result = pan_from_drag_delta(origin, start, start);
-    assert_eq!(result.x(), 100.0);
-    assert_eq!(result.y(), 50.0);
+fn four_directions_update_only_their_axis_from_negative_origins() {
+    for (displacement, expected) in [
+        ([4.0, 0.0], [-7.0, -7.0]),
+        ([-4.0, 0.0], [-15.0, -7.0]),
+        ([0.0, 4.0], [-11.0, -3.0]),
+        ([0.0, -4.0], [-11.0, -11.0]),
+        ([2.5, -1.75], [-8.5, -8.75]),
+        ([100.0, 200.0], [89.0, 193.0]),
+        ([-100.0, -100.0], [-111.0, -107.0]),
+    ] {
+        let result = pan_from_drag_delta(
+            ViewportOffset::new(-11.0, -7.0),
+            ViewportOffset::new(displacement[0], displacement[1]),
+        )
+        .expect("finite directional displacement");
+        assert_eq!(result, ViewportOffset::new(expected[0], expected[1]));
+    }
 }
 
 #[test]
-fn rightward_drag_increases_x_offset() {
-    let origin = ViewportOffset::new(0.0, 0.0);
-    let start = ImagePoint::new(100.0, 100.0);
-    let current = ImagePoint::new(130.0, 100.0);
-    let result = pan_from_drag_delta(origin, start, current);
-    assert_eq!(result.x(), 30.0);
-    assert_eq!(result.y(), 0.0);
+fn every_nonfinite_component_reports_its_argument() {
+    for component in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        for origin in [
+            ViewportOffset::new(component, 3.0),
+            ViewportOffset::new(3.0, component),
+        ] {
+            assert_eq!(
+                pan_from_drag_delta(origin, ViewportOffset::new(2.0, -5.0)),
+                Err(PanError::InvalidOrigin)
+            );
+        }
+        for displacement in [
+            ViewportOffset::new(component, 3.0),
+            ViewportOffset::new(3.0, component),
+        ] {
+            assert_eq!(
+                pan_from_drag_delta(ViewportOffset::new(-2.0, 5.0), displacement),
+                Err(PanError::InvalidDisplacement)
+            );
+        }
+    }
 }
 
 #[test]
-fn leftward_drag_decreases_x_offset() {
-    let origin = ViewportOffset::new(100.0, 100.0);
-    let start = ImagePoint::new(100.0, 100.0);
-    let current = ImagePoint::new(60.0, 100.0);
-    let result = pan_from_drag_delta(origin, start, current);
-    assert_eq!(result.x(), 60.0);
-    assert_eq!(result.y(), 100.0);
-}
-
-#[test]
-fn downward_drag_increases_y_offset() {
-    let origin = ViewportOffset::new(0.0, 0.0);
-    let start = ImagePoint::new(100.0, 100.0);
-    let current = ImagePoint::new(100.0, 130.0);
-    let result = pan_from_drag_delta(origin, start, current);
-    assert_eq!(result.x(), 0.0);
-    assert_eq!(result.y(), 30.0);
-}
-
-#[test]
-fn upward_drag_decreases_y_offset() {
-    let origin = ViewportOffset::new(100.0, 100.0);
-    let start = ImagePoint::new(100.0, 100.0);
-    let current = ImagePoint::new(100.0, 60.0);
-    let result = pan_from_drag_delta(origin, start, current);
-    assert_eq!(result.x(), 100.0);
-    assert_eq!(result.y(), 60.0);
-}
-
-#[test]
-fn diagonal_drag_updates_both_components_independently() {
-    let origin = ViewportOffset::new(50.0, 75.0);
-    let start = ImagePoint::new(200.0, 150.0);
-    let current = ImagePoint::new(220.0, 130.0);
-    let result = pan_from_drag_delta(origin, start, current);
-    // delta = (20.0, -20.0)
-    // new_pan = (70.0, 55.0)
-    assert_eq!(result.x(), 70.0);
-    assert_eq!(result.y(), 55.0);
-}
-
-#[test]
-fn large_positive_drag_produces_proportional_offset_increase() {
-    let origin = ViewportOffset::new(0.0, 0.0);
-    let start = ImagePoint::new(0.0, 0.0);
-    let current = ImagePoint::new(100.0, 200.0);
-    let result = pan_from_drag_delta(origin, start, current);
-    assert_eq!(result.x(), 100.0);
-    assert_eq!(result.y(), 200.0);
-}
-
-#[test]
-fn large_negative_drag_produces_proportional_offset_decrease() {
-    let origin = ViewportOffset::new(500.0, 400.0);
-    let start = ImagePoint::new(100.0, 100.0);
-    let current = ImagePoint::new(0.0, 0.0);
-    let result = pan_from_drag_delta(origin, start, current);
-    assert_eq!(result.x(), 400.0);
-    assert_eq!(result.y(), 300.0);
-}
-
-#[test]
-fn fractional_delta_is_preserved() {
-    let origin = ViewportOffset::new(10.0, 20.0);
-    let start = ImagePoint::new(50.0, 50.0);
-    let current = ImagePoint::new(52.5, 48.3);
-    let result = pan_from_drag_delta(origin, start, current);
-    // delta = (2.5, -1.7)
-    // new_pan = (12.5, 18.3)
-    assert_eq!(result.x(), 12.5);
-    assert!((result.y() - 18.3).abs() < 1e-6);
+fn finite_overflow_in_either_direction_and_axis_is_rejected() {
+    for (origin, displacement) in [
+        ([f32::MAX, 4.0], [f32::MAX, 2.0]),
+        ([-f32::MAX, 4.0], [-f32::MAX, 2.0]),
+        ([4.0, f32::MAX], [2.0, f32::MAX]),
+        ([4.0, -f32::MAX], [2.0, -f32::MAX]),
+    ] {
+        assert_eq!(
+            pan_from_drag_delta(
+                ViewportOffset::new(origin[0], origin[1]),
+                ViewportOffset::new(displacement[0], displacement[1]),
+            ),
+            Err(PanError::UnrepresentableResult)
+        );
+    }
 }
