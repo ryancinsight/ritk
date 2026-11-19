@@ -461,7 +461,7 @@ First-party Atlas stack providers:
 | `coeus-core` / `-tensor` / `-ops` / `-leto` / `-autograd` / `-nn` / `-optim` | Tensor, backend, and autodiff contracts |
 | `leto` / `leto-ops` | Array storage, linear algebra, and numerical operations |
 | `eunomia` | Scalar and numeric trait vocabulary |
-| `aequitas` | Statistical distributions and estimators |
+| `aequitas` | Physical dimensions, units, geometry, and PET activity |
 | `apollo-fft` / `apollo-sht` | FFT and spherical-harmonic transforms |
 | `moirai` | CPU parallelism and task execution |
 | `mnemosyne` | Workspace allocator |
