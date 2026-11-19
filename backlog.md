@@ -97,7 +97,6 @@
 <a id="RITK-SNAP-EFRAME-PORT-002"></a>- [RITK-SNAP-EFRAME-PORT-002](backlog/RITK-SNAP-EFRAME-PORT-002.md) — Port morphology, geometry, CPR and pointwise filter ranges — todo
 <a id="RITK-SNAP-EFRAME-PORT-003"></a>- [RITK-SNAP-EFRAME-PORT-003](backlog/RITK-SNAP-EFRAME-PORT-003.md) — Port filter labels and starting parameters — todo
 <a id="RITK-SNAP-DICOM-GRAPHICS-001"></a>- [RITK-SNAP-DICOM-GRAPHICS-001](backlog/RITK-SNAP-DICOM-GRAPHICS-001.md) — Display DICOM graphic overlay planes — todo
-<a id="RITK-SNAP-ANNOTATION-EDIT-LIFECYCLE-001"></a>- [RITK-SNAP-ANNOTATION-EDIT-LIFECYCLE-001](backlog/RITK-SNAP-ANNOTATION-EDIT-LIFECYCLE-001.md) — Share annotation edit transactions — todo
 <a id="RITK-SNAP-LENGTH-EDIT-001"></a>- [RITK-SNAP-LENGTH-EDIT-001](backlog/RITK-SNAP-LENGTH-EDIT-001.md) — Edit completed length endpoints — todo
 <a id="RITK-SNAP-LENGTH-TRANSLATE-001"></a>- [RITK-SNAP-LENGTH-TRANSLATE-001](backlog/RITK-SNAP-LENGTH-TRANSLATE-001.md) — Translate completed lengths — todo
 <a id="RITK-SNAP-ROI-EDIT-001"></a>- [RITK-SNAP-ROI-EDIT-001](backlog/RITK-SNAP-ROI-EDIT-001.md) — Move and resize image regions — todo
