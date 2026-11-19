@@ -48,6 +48,7 @@ class ManualImageProvenanceTests(unittest.TestCase):
             "dicom-native-slices.webp",
             "dicom-native-calibration.webp",
             "dicom-native-annotations.webp",
+            "dicom-native-length-edit.webp",
         }
         self.assertEqual(set(record["frames"]), expected)
         self.assertEqual(record["fixture"]["dicom_images"], 94)

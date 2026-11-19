@@ -132,6 +132,8 @@ have their own rows. Measurement labels move to stay visible inside the pane.
 5. Scroll to another slice and back. The measurements appear on the slice
    where you drew them.
 
+![A selected length after endpoint editing and whole-line translation, with its unchanged 100 mm calibration reference](images/dicom-native-length-edit.webp)
+
 ### Calibrate a length on one image
 
 1. Measure a reference of known length with **Tools → Length**.
