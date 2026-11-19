@@ -1,12 +1,24 @@
 {
-  "viewer_revision": "e7f17246db7a7f57cb60c3c1fcea379505747737",
+  "viewer_revision": "523b8e9afad64114e108f855c00280b60fdb596f",
   "fixture": {
     "path": "test_data/2_head_mri_t2/DICOM",
     "dicom_images": 94
   },
-  "cargo_lock_sha256": "cc18b46bd4a8fbf4c2180b9f14636fbc6a001d27a79a1cddc29691c84902a6e5",
+  "cargo_lock_sha256": "f4beba06edbad2918accc9e936a2ff342a182078279768c5ab0f90ccc9a3e484",
   "capture": "Native Windows RITK client framebuffer",
   "command": "cargo nextest run --locked -p ritk-snap -E 'test(native_manual_annotation_frames)'",
+  "comparison_command": "Set RITK_MANUAL_CAPTURE_DIR to the fresh PNG directory, then run python -m unittest scripts.tests.test_manual_provenance",
+  "comparison": {
+    "method": "Pillow Image.convert('RGBA').tobytes() byte equality",
+    "unchanged_frames": [
+      "dicom-native-slices.webp",
+      "dicom-native-calibration.webp",
+      "dicom-native-length-edit.webp"
+    ],
+    "reencoded_frames": [
+      "dicom-native-annotations.webp"
+    ]
+  },
   "frames": {
     "dicom-native-slices.webp": {
       "width_px": 1280,
@@ -27,26 +39,22 @@
     "dicom-native-annotations.webp": {
       "width_px": 1280,
       "height_px": 800,
-      "webp_bytes": 126622,
-      "webp_sha256": "5316883603f054c7c44e47c859762c665ba9c0ba05f95e5b91775f5eeaf3c4b7",
-      "source_png_bytes": 429082,
-      "source_png_sha256": "3e792d10afec00f7f74afd102996feeb4ce8bd7469bb720845f51f4d1d1c5c4c"
+      "webp_bytes": 126208,
+      "webp_sha256": "8d9998d423c9bce49b40af804139f86ffa5d089b7f636dcc7d6f369a4ac5db3f",
+      "source_png_bytes": 429445,
+      "source_png_sha256": "697645af380f07e9caea967c59f2a31e85c5d45c20a8b937b3d2f28a05ebb6dd",
+      "encoding": {
+        "tool": "Pillow",
+        "version": "12.1.1",
+        "format": "WEBP",
+        "lossless": true,
+        "quality": 100,
+        "method": 6,
+        "exact": true,
+        "decoded_rgba_equal": true
+      }
     },
     "dicom-native-length-edit.webp": {
-      "viewer_revision": "ab4127a56ca359b78729d78c060d0ca2818d8761",
-      "cargo_lock_sha256": "ec67bb7229c55e1cdf7c83cc8c0898e5ac78110289c6ea84e2da1eaa4fd24b38",
-      "command": [
-        "cargo",
-        "--config",
-        "C:\\Users\\RyanClanton\\AppData\\Local\\Temp\\codex-01a1e69e-3076-72e1-9852-7a0d3886d2f0\\product-bin-build.toml",
-        "nextest",
-        "run",
-        "--locked",
-        "-p",
-        "ritk-snap",
-        "-E",
-        "test(native_pan_edits_both_length_endpoints_transactionally) | test(native_pan_translates_length_transactionally) | test(failed_admission_preserves_pending_transaction) | test(pending_edge_insert_cancellation_preserves_geometry) | test(pan_click_selects_a_visible_closing_edge_and_delete_keeps_other_slices) | test(native_manual_annotation_frames)"
-      ],
       "width_px": 1280,
       "height_px": 800,
       "webp_bytes": 122688,

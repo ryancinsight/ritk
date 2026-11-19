@@ -2,6 +2,7 @@
 
 mod cobb;
 mod handles;
+mod labels;
 
 use super::super::frame::RenderedView;
 use super::crosshair::screen_coordinate;
@@ -11,7 +12,7 @@ use super::OverlayCommands;
 use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
 use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use metis_platform::{Color, Rect};
 use metis_ui_lang::PlacementObstacle;
 pub(crate) const MEASUREMENT_COLOR: Color = Color::rgba(255, 255, 0, 255);
@@ -32,6 +33,7 @@ pub(crate) fn append_measurement_overlay(
     pending_annotation: Option<(usize, &Annotation)>,
     affine: Option<AffineTransform>,
     length_scale: impl Fn(Option<AnnotationLocation>) -> f64,
+    preview: Option<(&ToolState, Option<AnnotationLocation>)>,
     frame: Rect,
     reserved: &[PlacementObstacle],
 ) -> Result<()> {
@@ -45,26 +47,36 @@ pub(crate) fn append_measurement_overlay(
             viewport,
             output_width: f64::from(u32::try_from(output_size[0])?),
             output_height: f64::from(u32::try_from(output_size[1])?),
-            frame,
-            reserved,
         };
+        let mut labels = Vec::new();
+        labels
+            .try_reserve(annotations.len())
+            .map_err(|_| anyhow!("native measurement label allocation failed"))?;
+        let pending_index = pending_annotation.map(|(pending_index, _)| pending_index);
         for (index, annotation) in annotations.iter().enumerate() {
             if !annotation_visible(annotation, view.axis, view.slice_index) {
                 continue;
             }
-            let pending_index = pending_annotation.map(|(pending_index, _)| pending_index);
+
             let annotation = pending_annotation
                 .filter(|(pending_index, _)| *pending_index == index)
                 .map_or(annotation, |(_, candidate)| candidate);
             pane.draw(
                 annotation,
                 overlay,
+                &mut labels,
                 affine,
                 length_scale(annotation.location()),
             )?;
             if selected_annotation == Some(index) || pending_index == Some(index) {
                 handles::append(&pane, annotation, overlay)?;
             }
+        }
+        if let Some((tool_state, location)) = preview {
+            append_measurement_preview(overlay, view, viewport, tool_state, location)?;
+        }
+        for (text, origin) in labels {
+            pane.draw_label(overlay, text, origin, frame, reserved)?;
         }
     }
     Ok(())
@@ -101,8 +113,6 @@ pub(crate) fn append_measurement_preview(
         viewport,
         output_width: f64::from(u32::try_from(output_size[0])?),
         output_height: f64::from(u32::try_from(output_size[1])?),
-        frame: viewport.panel_rect()?,
-        reserved: &[],
     };
     if let ToolState::LengthDrag { start, current } = tool_state {
         pane.segment(overlay, [*start, *current], MEASUREMENT_COLOR)?;
@@ -137,8 +147,6 @@ struct Pane<'a> {
     viewport: &'a NativeViewport,
     output_width: f64,
     output_height: f64,
-    frame: Rect,
-    reserved: &'a [PlacementObstacle],
 }
 
 impl Pane<'_> {
@@ -216,65 +224,11 @@ impl Pane<'_> {
         Ok(())
     }
 
-    fn label(&self, overlay: &mut OverlayCommands, anchor: [f64; 2], text: String) -> Result<()> {
-        let (x, y) = self.point(anchor)?;
-        self.draw_label(
-            overlay,
-            text,
-            (
-                x.saturating_add(LABEL_OFFSET),
-                y.saturating_add(LABEL_OFFSET),
-            ),
-        )
-    }
-
-    fn length_label(
-        &self,
-        overlay: &mut OverlayCommands,
-        a: [f64; 2],
-        b: [f64; 2],
-        text: String,
-    ) -> Result<()> {
-        let (start, end) = (self.point(a)?, self.point(b)?);
-        let (x0, y0) = (f64::from(start.0), f64::from(start.1));
-        let (x1, y1) = (f64::from(end.0), f64::from(end.1));
-        let (dx, dy) = (x1 - x0, y1 - y0);
-        let norm = dx.hypot(dy);
-        let (ox, oy) = if norm == 0.0 {
-            (0.0, -LENGTH_LABEL_OFFSET)
-        } else {
-            (
-                -dy / norm * LENGTH_LABEL_OFFSET,
-                dx / norm * LENGTH_LABEL_OFFSET,
-            )
-        };
-        let x = screen_coordinate((x0 + x1) * 0.5 + ox, "length label x")?;
-        let y = screen_coordinate((y0 + y1) * 0.5 + oy, "length label y")?;
-        self.draw_label(overlay, text, (x, y))
-    }
-
-    fn draw_label(
-        &self,
-        overlay: &mut OverlayCommands,
-        text: String,
-        origin: (i32, i32),
-    ) -> Result<()> {
-        let bounds =
-            OverlayCommands::measurement_label_bounds(self.viewport.panel_rect()?, LABEL_OFFSET);
-        overlay.push_text_inside(
-            text,
-            text_style(MEASUREMENT_COLOR, PANEL_DETAIL_SIZE)?,
-            origin,
-            bounds,
-            self.frame,
-            self.reserved,
-        )
-    }
-
     fn draw(
         &self,
         annotation: &Annotation,
         overlay: &mut OverlayCommands,
+        labels: &mut Vec<(String, (i32, i32))>,
         affine: Option<AffineTransform>,
         length_scale: f64,
     ) -> Result<()> {
@@ -289,7 +243,7 @@ impl Pane<'_> {
                 let segment = [ImagePoint::new(p1[1], p1[0]), ImagePoint::new(p2[1], p2[0])];
                 self.segment(overlay, segment, MEASUREMENT_COLOR)?;
                 self.length_label(
-                    overlay,
+                    labels,
                     image_point(*p1),
                     image_point(*p2),
                     format!("{:.1} mm", f64::from(*length_mm) * length_scale),
@@ -306,7 +260,7 @@ impl Pane<'_> {
                     return Ok(());
                 };
                 self.line(overlay, a, b, MEASUREMENT_COLOR)?;
-                self.length_label(overlay, a, b, format!("{:.1} mm", length.length_mm()))?;
+                self.length_label(labels, a, b, format!("{:.1} mm", length.length_mm()))?;
             }
             Annotation::Pencil { points, .. } => {
                 points.windows(2).try_for_each(|pair| {
@@ -329,7 +283,7 @@ impl Pane<'_> {
                 let second = [ImagePoint::new(p2[1], p2[0]), ImagePoint::new(p3[1], p3[0])];
                 self.segment(overlay, first, MEASUREMENT_COLOR)?;
                 self.segment(overlay, second, MEASUREMENT_COLOR)?;
-                self.label(overlay, image_point(*p2), format!("{angle_deg:.1} deg"))?;
+                self.label(labels, image_point(*p2), format!("{angle_deg:.1} deg"))?;
             }
             Annotation::Deviation {
                 start,
@@ -350,7 +304,7 @@ impl Pane<'_> {
                 self.segment(overlay, first, MEASUREMENT_COLOR)?;
                 self.segment(overlay, baseline, MEASUREMENT_COLOR)?;
                 self.label(
-                    overlay,
+                    labels,
                     image_point(*end),
                     format!("{distance_mm:.1} mm {angle_deg:.1} deg"),
                 )?;
@@ -371,7 +325,7 @@ impl Pane<'_> {
                 }
                 self.line(overlay, corners[3], corners[0], ROI_COLOR)?;
                 self.label(
-                    overlay,
+                    labels,
                     b,
                     format!("Mean {mean:.1} SD {std_dev:.1} {area_mm2:.1} mm2"),
                 )?;
@@ -398,7 +352,7 @@ impl Pane<'_> {
                     previous = Some(current);
                 }
                 self.label(
-                    overlay,
+                    labels,
                     image_point(*center),
                     format!("Mean {mean:.1} SD {std_dev:.1} {area_mm2:.1} mm2"),
                 )?;
@@ -418,7 +372,7 @@ impl Pane<'_> {
                     [p[0], p[1] + half],
                     POINT_COLOR,
                 )?;
-                self.label(overlay, p, format!("{value:.0}"))?;
+                self.label(labels, p, format!("{value:.0}"))?;
             }
             Annotation::ClosedPolygon {
                 points,
@@ -433,7 +387,7 @@ impl Pane<'_> {
                 if let (Some(first), Some(last)) = (polygon.first(), polygon.last()) {
                     self.line(overlay, *last, *first, ROI_COLOR)?;
                     self.label(
-                        overlay,
+                        labels,
                         *first,
                         format!("{area_mm2:.1} mm2  {perimeter_mm:.1} mm"),
                     )?;
@@ -447,7 +401,7 @@ impl Pane<'_> {
                     self.line(overlay, pair[0], pair[1], ROI_COLOR)?;
                 }
                 if let Some(first) = polyline.first() {
-                    self.label(overlay, *first, format!("{length_mm:.1} mm"))?;
+                    self.label(labels, *first, format!("{length_mm:.1} mm"))?;
                 }
             }
             Annotation::Arrow { tail, head, .. } => {
@@ -462,7 +416,7 @@ impl Pane<'_> {
             }
             Annotation::CobbAngle {
                 points, angle_deg, ..
-            } => self.cobb(overlay, *points, *angle_deg)?,
+            } => self.cobb(overlay, labels, *points, *angle_deg)?,
             _ => {}
         }
         Ok(())

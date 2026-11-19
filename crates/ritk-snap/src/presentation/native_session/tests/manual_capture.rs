@@ -2,12 +2,13 @@ use super::super::composition::save_capture;
 use super::super::layout::{screen_coordinate, PanelGrid, WorkspaceLayout};
 use super::super::startup::prepare_initial_study;
 use super::super::window_controls::Menu;
-use super::measurement_overlay::axial_panel;
+use super::measurement_overlay::{axial_panel, composed};
 use super::support::control_center;
 use super::*;
-use crate::tools::interaction::Annotation;
+use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
 use eunomia::FloatElement;
-use metis_platform::native::MouseButton;
+use metis_platform::{native::MouseButton, Color, RasterLine, Rect};
+use metis_ui_lang::DisplayCommand;
 use std::path::PathBuf;
 
 fn key(virtual_key: u32) -> WindowEvent {
@@ -32,6 +33,13 @@ fn up((x, y): (i32, i32)) -> WindowEvent {
         y,
         button: MouseButton::Left,
     }
+}
+
+fn rectangles_overlap(a: Rect, b: Rect) -> bool {
+    i64::from(a.x) < i64::from(b.x) + i64::from(b.width)
+        && i64::from(b.x) < i64::from(a.x) + i64::from(a.width)
+        && i64::from(a.y) < i64::from(b.y) + i64::from(b.height)
+        && i64::from(b.y) < i64::from(a.y) + i64::from(a.height)
 }
 
 fn click(point: (i32, i32)) -> [WindowEvent; 2] {
@@ -221,6 +229,65 @@ fn native_manual_annotation_frames() {
     assert_eq!(*angle_deg, 90.0);
     assert_eq!(points.len(), 4);
     assert_eq!(freehand.len(), 3);
+    let target = composed(&viewer, None)
+        .iter()
+        .find_map(|command| match command {
+            DisplayCommand::DrawText { text, x, y, style } => style.extent(*x, *y, text),
+            _ => None,
+        })
+        .expect("measurement label");
+    let y = target.y + target.height / 2;
+    let [row0, col0] = stored((target.x - 2, y));
+    let [row1, col1] = stored((target.x + target.width + 2, y));
+    viewer.app.tool_state = ToolState::LengthDrag {
+        start: ImagePoint::new(col0, row0),
+        current: ImagePoint::new(col1, row1),
+    };
+    viewer.app.pointer.drag_measurement_location = Some(AnnotationLocation {
+        plane: viewer.views[pane].axis,
+        slice: viewer.views[pane].slice_index,
+    });
+    let commands = composed(&viewer, None);
+    let labels: Vec<_> = commands
+        .iter()
+        .filter_map(|command| {
+            let DisplayCommand::DrawText { text, x, y, style } = command else {
+                return None;
+            };
+            (style.color == Color::rgba(255, 255, 0, 255))
+                .then(|| style.extent(*x, *y, text))
+                .flatten()
+        })
+        .collect();
+    assert_eq!(labels.len(), 4);
+    let strokes: Vec<_> = commands
+        .iter()
+        .filter_map(|command| {
+            let DisplayCommand::DrawLine { start, end, color } = command else {
+                return None;
+            };
+            [
+                Color::rgba(255, 255, 0, 255),
+                Color::rgba(0, 255, 0, 255),
+                Color::rgba(0, 255, 255, 255),
+            ]
+            .contains(color)
+            .then_some((*start, *end))
+        })
+        .collect();
+    assert_eq!(strokes.len(), 21);
+    assert!(RasterLine::new(strokes[20].0, strokes[20].1).intersects(target));
+    for (start, end) in strokes {
+        let stroke = RasterLine::new(start, end);
+        for label in &labels {
+            assert!(!stroke.intersects(*label));
+        }
+    }
+    for (index, label) in labels.iter().enumerate() {
+        for other in labels.iter().skip(index + 1) {
+            assert!(!rectangles_overlap(*label, *other));
+        }
+    }
     if let Some(output) = output {
         save_capture(
             &viewer.framebuffer,

@@ -93,15 +93,23 @@ pub(super) fn composed(
 ) -> Vec<DisplayCommand> {
     let mut overlay = OverlayCommands::with_capacity(session.app.annotations.len() * 2 + 8)
         .expect("reserve the measurement overlay commands");
+    let app = &session.app;
+    let pointer = &app.pointer;
+    let pending = pointer
+        .pending_annotation_move
+        .as_ref()
+        .map(|pending| (pending.annotation_index, &pending.candidate));
+    let preview_location = app.cobb_location().or(pointer.drag_measurement_location);
     append_measurement_overlay(
         &mut overlay,
         &session.views,
         &session.viewports,
-        &session.app.annotations,
-        session.app.pointer.selected_annotation,
-        None,
+        &app.annotations,
+        pointer.selected_annotation,
+        pending,
         affine,
-        |location| session.app.length_scale(location),
+        |location| app.length_scale(location),
+        Some((&app.tool_state, preview_location)),
         Rect::new(
             0,
             0,
@@ -173,6 +181,7 @@ fn measurement_length_skips_panes_beside_its_recorded_plane() {
         None,
         None,
         |_| 1.0,
+        None,
         Rect::new(0, 0, 800, 600),
         &[],
     )

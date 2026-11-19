@@ -50,6 +50,7 @@ fn overlay_lines(session: &NativeViewerSession) -> Vec<((i32, i32), (i32, i32))>
             .map(|pending| (pending.annotation_index, &pending.candidate)),
         None,
         |location| session.app.length_scale(location),
+        None,
         Rect::new(
             0,
             0,
