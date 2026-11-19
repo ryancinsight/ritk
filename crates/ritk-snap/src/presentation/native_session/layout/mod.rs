@@ -29,6 +29,8 @@ pub(super) use overlay::{
 pub(super) use overlay::{clinical_labels_for_view, projection_overlay};
 #[cfg(test)]
 pub(super) use overlay_clinical::scale_bar_for_scale;
-pub(super) use overlay_measurements::{append_measurement_overlay, append_measurement_preview};
+pub(super) use overlay_measurements::append_measurement_overlay;
+#[cfg(test)]
+pub(super) use overlay_measurements::append_measurement_preview;
 pub(super) use responsive::surface_frames_responsive;
 pub(super) use text::{draw_text, text_style, TextStyle};

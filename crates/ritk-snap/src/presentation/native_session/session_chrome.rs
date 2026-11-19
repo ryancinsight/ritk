@@ -4,8 +4,8 @@ use super::layout::overlay_display::{
     append_colorbar_overlay, append_histogram_overlay, histogram_bounds,
 };
 use super::layout::{
-    append_measurement_overlay, append_measurement_preview, application_overlay, crosshair_overlay,
-    OverlayCommands, MAX_GRID_PANELS,
+    append_measurement_overlay, application_overlay, crosshair_overlay, OverlayCommands,
+    MAX_GRID_PANELS,
 };
 use super::session::{clinical_overlay, volume_affine, NativeViewerSession};
 use anyhow::{anyhow, Result};
@@ -92,20 +92,15 @@ impl NativeViewerSession {
                     .map(|pending| (pending.annotation_index, &pending.candidate)),
                 volume_affine(app),
                 |location| app.length_scale(location),
+                preview.then_some((
+                    &app.tool_state,
+                    app.cobb_location()
+                        .or(app.pointer.drag_measurement_location),
+                )),
                 frame,
                 &reserved,
             )?;
             reserved.truncate(reserved_len);
-            if preview {
-                append_measurement_preview(
-                    &mut overlay,
-                    view,
-                    viewport,
-                    &app.tool_state,
-                    app.cobb_location()
-                        .or(app.pointer.drag_measurement_location),
-                )?;
-            }
             if let Some(histogram) = histogram {
                 append_histogram_overlay(&mut overlay, viewport, histogram, center, width)?;
             }

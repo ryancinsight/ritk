@@ -99,9 +99,21 @@ pub(super) fn composed(
         &session.viewports,
         &session.app.annotations,
         session.app.pointer.selected_annotation,
-        None,
+        session
+            .app
+            .pointer
+            .pending_annotation_move
+            .as_ref()
+            .map(|pending| (pending.annotation_index, &pending.candidate)),
         affine,
         |location| session.app.length_scale(location),
+        Some((
+            &session.app.tool_state,
+            session
+                .app
+                .cobb_location()
+                .or(session.app.pointer.drag_measurement_location),
+        )),
         Rect::new(
             0,
             0,
@@ -173,6 +185,7 @@ fn measurement_length_skips_panes_beside_its_recorded_plane() {
         None,
         None,
         |_| 1.0,
+        None,
         Rect::new(0, 0, 800, 600),
         &[],
     )
