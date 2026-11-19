@@ -386,7 +386,14 @@ replacement study can be opened, the prior catalog and every populated panel
 remain unchanged and the failure appears in the status bar. Selecting an
 unreadable series likewise preserves its assigned panel image.
 
-**Open DICOMDIR…** uses the index's referenced image set. Missing references or
+In the default standalone Métis viewer on Windows, use **File → Open Study…**
+and select the file-set root containing `DICOMDIR`, or select the study folder
+if it has no index. To pass an index file directly, supply its path when
+launching, for example `asterslice.exe "C:\studies\example\DICOMDIR"`.
+The separate **File → Open DICOMDIR…** command is available only in the
+optional eframe compatibility shell.
+
+An index limits discovery to its referenced image set. Missing references or
 an invalid index report an error; unreferenced subdirectories do not supply a
 replacement study. The reader follows the linked PATIENT/STUDY/SERIES/IMAGE
 record tree, excludes inactive or unreachable records, rejects cycles and
