@@ -30,7 +30,7 @@ fn native_enhanced_pet_concatenation_captures_and_selects_another_gate() {
         .expect("create native session");
         (selected, capture, session)
     });
-    let (captured, changed) = tracing::info_span!("act").in_scope(|| {
+    let captured = tracing::info_span!("act").in_scope(|| {
         let captured = run_native_viewer(
             &selected,
             None,
@@ -39,20 +39,26 @@ fn native_enhanced_pet_concatenation_captures_and_selects_another_gate() {
             true,
         )
         .expect("capture on the Métis Windows host");
-        let changed = session
-            .apply_window_action(WindowAction::StepEnhancedPetVolume(3))
-            .expect("select the last temporal gate");
-        (captured, changed)
+        for _ in 0..3 {
+            assert!(session
+                .apply_window_action(WindowAction::StepEnhancedPetVolume(1))
+                .expect("advance the temporal gate"));
+        }
+        captured
     });
     let _assert = tracing::info_span!("assert").entered();
     let image = image::open(capture)
         .expect("read native window capture")
         .to_rgb8();
-    assert_eq!(image.dimensions(), (INITIAL_WIDTH, INITIAL_HEIGHT));
-    assert!(image.pixels().any(|pixel| pixel.0 != [0; 3]));
+    // Windows may clamp the requested window size to the monitor work area.
+    assert_eq!(
+        image.dimensions(),
+        (captured.surface_width(), captured.surface_height())
+    );
+    assert!(captured.presented_frames() > 0);
+    assert!(image.pixels().any(|pixel| pixel.0 == [255, 255, 160]));
     assert!(captured.snapshot().loaded());
     assert_eq!(captured.snapshot().slice_counts(), [2, 1, 1]);
-    assert!(changed);
     let selected = session.app.enhanced_pet_selection().expect("PET selector");
     assert_eq!(selected.selected_index(), 3);
     let volume = &selected.volumes()[3];
