@@ -19,6 +19,7 @@ impl SnapApp {
         if !matches!(tool, ToolKind::Pan | ToolKind::MeasureLength) {
             return false;
         }
+        let selected = self.pointer.selected_annotation;
         let location = self.annotation_location();
         let spacing = self.slice_plane_spacing().ok();
         let pending = self
@@ -41,8 +42,11 @@ impl SnapApp {
                             original.clone(),
                         )
                     } else {
-                        let spacing = spacing?;
                         let (edge, fraction) = polygon::nearest_edge(original, viewport, screen)?;
+                        if selected != Some(annotation_index) {
+                            return Some(Err(()));
+                        }
+                        let spacing = spacing?;
                         let candidate = polygon::insert_node(original, edge, fraction, spacing)?;
                         (
                             AnnotationMoveKind::Polygon {
@@ -55,7 +59,7 @@ impl SnapApp {
                 } else {
                     return None;
                 };
-                Some(PendingAnnotationMove {
+                Some(Ok(PendingAnnotationMove {
                     annotation_index,
                     source_location: location,
                     original: original.clone(),
@@ -63,8 +67,9 @@ impl SnapApp {
                     candidate,
                     start: point,
                     current: point,
-                })
-            });
+                }))
+            })
+            .and_then(Result::ok);
         let Some(pending) = pending else {
             return false;
         };
