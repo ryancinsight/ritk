@@ -69,6 +69,10 @@ enum Cancellation {
 fn native_pan_edits_both_length_endpoints_transactionally() {
     let (mut session, _root) = session();
     session.app.axis = 0;
+    let grid = super::layout::PanelGrid::new(1, 1).expect("single-panel layout");
+    session
+        .set_workspace_layout(super::layout::WorkspaceLayout::Panels(grid))
+        .expect("show the measured plane");
     session.app.loaded.as_mut().expect("fixture volume").spacing = [1.0, 2.0, 3.0];
     session
         .refresh_frame()
@@ -135,7 +139,10 @@ fn native_pan_edits_both_length_endpoints_transactionally() {
     let pan = control_center(&session, None, WindowAction::SelectTool(ToolKind::Pan));
     apply(&mut session, &[pointer(pan, true), pointer(pan, false)]);
     assert_eq!(session.app.active_tool, ToolKind::Pan);
-    apply(&mut session, &drag((x + 30, y + 40), (x + 60, y + 80)));
+    let before = session.app.annotations.clone();
+    apply(&mut session, &preview((x + 30, y + 40), (x + 60, y + 80)));
+    assert_eq!(session.app.annotations, before);
+    apply(&mut session, &[pointer((x + 60, y + 80), false)]);
     assert_length(
         &session.app.annotations[0],
         physical(x, y),
