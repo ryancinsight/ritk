@@ -357,6 +357,11 @@ locate_stack() {
 tmp_base="${TMPDIR:-/tmp}"
 run_temps=()
 remove_run_temps() {
+  # Ref locks are shared paths, not private temporary directories. Release
+  # them under the same guard and ownership check used for reclamation.
+  if [ "${push_lock_owned:-0}" -eq 1 ]; then
+    release_push_lock
+  fi
   local temp
   for temp in ${run_temps[@]+"${run_temps[@]}"}; do
     rm -rf "$temp" 2>/dev/null || true
@@ -736,11 +741,33 @@ export_revision() (
 # so it spawns none per entry: ages compare against two marker files
 # (`-ot`), and owners and holders read by `read`, which unlike a command
 # substitution keeps the carriage return of a file written on Windows. A marker
-# that could not be written compares false, so a failed `touch` keeps every
-# entry.
+# that could not be timestamped is not published, so an age-marker failure
+# retains every ownerless entry.
 new_run_temp age_marks pl
-touch -d '1 day ago' "$age_marks/day" 2>/dev/null || true
-touch -d '7 days ago' "$age_marks/week" 2>/dev/null || true
+# Set both ages portably: BSD touch has no GNU `-d` relative-date syntax.
+# Without an interpreter or on an I/O error, leave absent markers and retain
+# ownerless entries rather than guessing their age.
+if [ -n "$python_bin" ]; then
+  "$python_bin" - "$age_marks" <<'PY_AGES' 2>/dev/null || true
+import os
+import sys
+import time
+
+now = time.time()
+for name, days in (("day", 1), ("week", 7)):
+    path = os.path.join(sys.argv[1], name)
+    staged = path + ".pending"
+    age = now - days * 86400
+    try:
+        with open(staged, "w"):
+            pass
+        os.utime(staged, (age, age))
+        os.rename(staged, path)
+    except OSError:
+        # Never publish a marker whose timestamp could not be set.
+        pass
+PY_AGES
+fi
 for stale in "$tmp_base"/pre-push-lock.* "$tmp_base"/pre-push-gate.* "$tmp_base"/pl.* "$tmp_base"/pg.* "$tmp_base"/pg-log.* "$tmp_base"/pg-casts.*; do
   [ -e "$stale" ] || continue
   stale_owner=""
@@ -886,29 +913,78 @@ fi
 # after the multi-ref dispatch above, so a batch push's parent holds no ref's
 # lock while its per-ref re-entry takes it.
 if [ "$gate_phase" = "push" ] && [ "${#content_lines[@]}" -eq 1 ]; then
+  if [ -z "$python_bin" ]; then
+    echo "pre-push: BLOCKED -- no python interpreter found; cannot acquire the push lock" >&2
+    exit 1
+  fi
   read -r _push_local_ref _push_sha _push_remote_ref _push_remote_sha <<<"${content_lines[0]}"
-  push_lock_key="$(printf '%s' "$_push_remote_ref" | git hash-object --stdin | cut -c1-16)"
+  push_lock_hash="$(printf '%s' "$_push_remote_ref" | git hash-object --stdin)"
+  push_lock_key="${push_lock_hash:0:16}"
   push_lock_root="$repo_store/atlas-push-locks"
   push_lock="$push_lock_root/$push_lock_key"
   mkdir -p "$push_lock_root"
+  push_lock_guard="$push_lock.reclaim"
+  push_lock_owned=0
+  release_push_lock() {
+    # Never reap this guard: a killed guard owner makes recovery unavailable
+    # until the owner investigates it, rather than recreating the same race.
+    mkdir "$push_lock_guard" 2>/dev/null || return 0
+    local owner=""
+    { read -r owner < "$push_lock/pid"; } 2>/dev/null || true
+    if [ "$owner" = "$$" ]; then
+      rm -rf "$push_lock" 2>/dev/null || true
+    fi
+    rmdir "$push_lock_guard" 2>/dev/null || true
+  }
   claim_push_lock() {
+    # All publishers hold the guard. Preserve empty/ambiguous incumbents;
+    # os.rename alone could replace an existing empty directory.
+    [ ! -e "$push_lock" ] && [ ! -L "$push_lock" ] || return 1
     local staged="$push_lock.$$"
     mkdir "$staged" 2>/dev/null || return 1
-    printf '%s\n' "$$" > "$staged/pid"
-    if mv -T "$staged" "$push_lock" 2>/dev/null; then
-      run_temps+=("$push_lock")
+    if ! printf '%s\n' "$$" > "$staged/pid"; then
+      rm -rf "$staged" 2>/dev/null || true
+      return 1
+    fi
+    # Rename the populated directory atomically, without mv's GNU-only -T.
+    # A live incumbent contains pid, so rename refuses to replace it rather
+    # than nesting the staging directory inside it as plain mv would do.
+    if "$python_bin" -c 'import os, sys; os.rename(sys.argv[1], sys.argv[2])' \
+      "$staged" "$push_lock" 2>/dev/null; then
+      push_lock_owned=1
       return 0
     fi
     rm -rf "$staged" 2>/dev/null || true
     return 1
   }
+  if ! mkdir "$push_lock_guard" 2>/dev/null; then
+    echo "pre-push: BLOCKED -- another push may own a busy or abandoned push-lock guard: $push_lock_guard" >&2
+    echo "Wait for its owner; an abandoned guard requires owner investigation." >&2
+    exit 1
+  fi
   if ! claim_push_lock; then
     push_holder="$(cat "$push_lock/pid" 2>/dev/null || true)"
-    if [ -n "$push_holder" ] && ! kill -0 "$push_holder" 2>/dev/null; then
-      # A killed gate leaves its lock: its owner is gone, so take it over.
+    # Only ESRCH proves the observed owner is dead. Malformed PIDs, EPERM,
+    # missing interpreters and other errors retain the incumbent. Native
+    # Windows Python cannot probe Git Bash/MSYS $$ in its PID namespace;
+    # retain every Windows incumbent rather than misclassify a live shell.
+    if "$python_bin" -c 'import os, sys
+if os.name == "nt":
+    sys.exit(1)
+try:
+    pid = int(sys.argv[1])
+    if pid <= 0:
+        sys.exit(1)
+    os.kill(pid, 0)
+except ProcessLookupError:
+    sys.exit(0)
+except (ValueError, OverflowError, OSError):
+    pass
+sys.exit(1)' "$push_holder" 2>/dev/null; then
       rm -rf "$push_lock" 2>/dev/null || true
     fi
     if ! claim_push_lock; then
+      rmdir "$push_lock_guard" 2>/dev/null || true
       cat >&2 <<MESSAGE
 
 pre-push: BLOCKED -- another push of ${_push_remote_ref} is already running
@@ -919,6 +995,7 @@ MESSAGE
       exit 1
     fi
   fi
+  rmdir "$push_lock_guard" 2>/dev/null || true
 fi
 prepared_stack_scripts=""
 if [ "$prepared_tools_selected" -eq 1 ]; then
@@ -1080,7 +1157,7 @@ budget_args=()
 
 budget_checker="${stack_scripts:+$stack_scripts/atlas-artifact-budget.py}"
 if [ -f "$budget_checker" ] && [ -n "$python_bin" ]; then
-  if ! "$python_bin" "$budget_checker" check --root "$repo_root" --rev "$range_rev" "${budget_args[@]}"; then
+  if ! "$python_bin" "$budget_checker" check --root "$repo_root" --rev "$range_rev" ${budget_args[@]+"${budget_args[@]}"}; then
     echo "pre-push: BLOCKED -- a PM board grew past its line budget or a tracked" >&2
     echo "image exceeds the byte budget. Compact the board (done items delete)," >&2
     echo "move evidence captures out of git, and push again." >&2
@@ -1120,7 +1197,7 @@ if [ -z "$member_baseline" ]; then
 fi
 secret_status=0
 "$python_bin" -I "$secret_checker" check --root "$repo_root" --rev "$range_rev" \
-    --allowlist-rev "$member_baseline" "${range_args[@]}" || secret_status=$?
+    --allowlist-rev "$member_baseline" ${range_args[@]+"${range_args[@]}"} || secret_status=$?
 if [ "$secret_status" -eq 1 ]; then
   echo "pre-push: BLOCKED -- the pushed range adds a credential. Remove it from" >&2
   echo "every commit in the range; if it ever reached a remote, rotate it." >&2
@@ -1318,12 +1395,15 @@ done
 # claims it with a lock naming its pid; while a live run holds it, this run
 # builds in a temporary export instead of waiting, and a dead holder's lock
 # is taken over.
-gate_key="$(printf '%s' "$repo_root" | git hash-object --stdin | cut -c1-10)"
+gate_hash="$(printf '%s' "$repo_root" | git hash-object --stdin)"
+gate_key="${gate_hash:0:10}"
 gate_root="$tmp_base/pg-$gate_key"
 claim_gate_root() {
   local staged="$gate_root.lock.$$"
   mkdir -p "$staged" && printf '%s\n' "$$" > "$staged/pid" || return 1
-  if mv -T "$staged" "$gate_root.lock" 2>/dev/null; then
+  # Publish without GNU mv -T, preserving a populated incumbent lock.
+  if "$python_bin" -c 'import os, sys; os.rename(sys.argv[1], sys.argv[2])' \
+    "$staged" "$gate_root.lock" 2>/dev/null; then
     run_temps+=("$gate_root.lock")
     return 0
   fi

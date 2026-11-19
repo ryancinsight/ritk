@@ -506,10 +506,13 @@ cd crates/ritk-python && maturin develop --release
 cargo install --path crates/ritk-cli
 ```
 
-Hosted workflows check out RITK at `ritk/` and let Cargo resolve the Atlas
-providers directly from their `git + version` sources. RITK declares no sibling
-path dependencies and no `[patch]` sections, so provider URLs and revisions have
-a single home in `Cargo.toml` and `Cargo.lock` with no second RITK-owned list.
+Hosted workflows normally check out RITK at `ritk/` and resolve providers from
+their `git + version` sources. Required Rustdoc instead uses a pinned Atlas
+parent with RITK at `atlas/repos/ritk`, so the bounded documentation phase and
+push gate share the exported candidate and package selection under
+[Atlas ADR 0064](https://github.com/ryancinsight/atlas/blob/152264a7df2f6d76feb74cf57155c217dd64a6c7/docs/adr/0064-shared-build-source-identity.md#build-entry-points-and-cargo-applicability).
+RITK declares no sibling path dependencies or `[patch]` sections; provider URLs
+and revisions have one home in `Cargo.toml` and `Cargo.lock`.
 
 ### Rust package distribution
 
