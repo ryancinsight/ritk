@@ -20,6 +20,11 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+### Dependencies
+
+- [minor] Admit the Aequitas 0.4 quantity surface alongside the existing 0.3 requirement.
+
+
 ### Changed
 
 - [patch] Admit the Leto 0.50 line. The Leto and Leto-ops requirements widen
