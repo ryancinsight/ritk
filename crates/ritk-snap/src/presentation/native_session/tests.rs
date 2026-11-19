@@ -18,6 +18,8 @@ mod display;
 mod display_controls;
 mod display_custom_presets;
 mod display_overlays;
+#[cfg(windows)]
+mod host_capture;
 mod interaction;
 mod manual_capture;
 mod measurement_overlay;

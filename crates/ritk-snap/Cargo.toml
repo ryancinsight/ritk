@@ -76,5 +76,8 @@ ritk-core = { workspace = true, features = ["test-helpers"] }
 # through the format crate rather than hand-rolling one.
 ritk-io = { workspace = true, features = ["test-util"] }
 
+[target.'cfg(windows)'.dev-dependencies]
+windows = { workspace = true }
+
 [lints]
 workspace = true

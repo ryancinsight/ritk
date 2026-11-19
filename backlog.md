@@ -83,7 +83,6 @@
 <a id="RITK-SNAP-NATIVE-OPEN-001"></a>- [RITK-SNAP-NATIVE-OPEN-001](backlog/RITK-SNAP-NATIVE-OPEN-001.md) — Open files, archives and drops natively — todo
 <a id="RITK-SNAP-NATIVE-OVERLAY-TEXT-001"></a>- [RITK-SNAP-NATIVE-OVERLAY-TEXT-001](backlog/RITK-SNAP-NATIVE-OVERLAY-TEXT-001.md) — Draw clinical image overlays natively — todo
 <a id="RITK-SNAP-NATIVE-PACS-001"></a>- [RITK-SNAP-NATIVE-PACS-001](backlog/RITK-SNAP-NATIVE-PACS-001.md) — Query and receive PACS studies natively — todo
-<a id="RITK-SNAP-NATIVE-POINTER-CAPTURE-001"></a>- [RITK-SNAP-NATIVE-POINTER-CAPTURE-001](backlog/RITK-SNAP-NATIVE-POINTER-CAPTURE-001.md) — End a drag released off the window — todo
 <a id="RITK-SNAP-NATIVE-PROJECTION-001"></a>- [RITK-SNAP-NATIVE-PROJECTION-001](backlog/RITK-SNAP-NATIVE-PROJECTION-001.md) — Select projections from the native menu — todo
 <a id="RITK-SNAP-NATIVE-RT-001"></a>- [RITK-SNAP-NATIVE-RT-001](backlog/RITK-SNAP-NATIVE-RT-001.md) — Show RT structures and dose natively — todo
 <a id="RITK-SNAP-NATIVE-SHELL-001"></a>- [RITK-SNAP-NATIVE-SHELL-001](backlog/RITK-SNAP-NATIVE-SHELL-001.md) — Finish native shell integration — todo

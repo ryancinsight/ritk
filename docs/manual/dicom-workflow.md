@@ -42,10 +42,12 @@ describes startup selection and capture options.
 ## Adjust the image display
 
 Use **W/L**, **Pan**, or **Zoom** on the toolbar to choose the left-button
-gesture. Drag within the image to apply it. The **Display** menu offers the
-loaded modality's window presets, inversion, and color maps. Number keys
-apply available presets; **I** inverts and **Shift+C** cycles the color map.
-Custom presets currently last for the running application.
+gesture. Drag within the image to apply it. On Windows, the active drag stays
+captured until release, including when the pointer leaves the viewer. The
+**Display** menu offers the loaded modality's window presets, inversion, and
+color maps. Number keys apply available presets; **I** inverts and **Shift+C**
+cycles the color map. Custom presets currently last for the running
+application.
 
 Pan distance and zoom/window drag sensitivity currently depend on image fit
 and orientation. The [navigation correction](../../backlog/RITK-SNAP-NAVIGATION-UNITS-001.md)
