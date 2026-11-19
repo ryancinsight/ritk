@@ -1,5 +1,5 @@
 {
-  "viewer_revision": "523b8e9afad64114e108f855c00280b60fdb596f",
+  "viewer_revision": "e89f3209e7c4064f92c46304a4f2e8d5d5e4df1c",
   "fixture": {
     "path": "test_data/2_head_mri_t2/DICOM",
     "dicom_images": 94
@@ -39,10 +39,10 @@
     "dicom-native-annotations.webp": {
       "width_px": 1280,
       "height_px": 800,
-      "webp_bytes": 126208,
-      "webp_sha256": "8d9998d423c9bce49b40af804139f86ffa5d089b7f636dcc7d6f369a4ac5db3f",
-      "source_png_bytes": 429445,
-      "source_png_sha256": "697645af380f07e9caea967c59f2a31e85c5d45c20a8b937b3d2f28a05ebb6dd",
+      "webp_bytes": 126202,
+      "webp_sha256": "0aaa9e0be5f6cc49d2786708a9bde84e70709ace138d362bdc16d43c2cf43723",
+      "source_png_bytes": 429459,
+      "source_png_sha256": "9fda283bfe890883b661340c0b56bff6a3739bf08c3640e97e7484f48342a374",
       "encoding": {
         "tool": "Pillow",
         "version": "12.1.1",
