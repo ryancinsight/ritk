@@ -457,8 +457,7 @@ mod tests {
             let glyph = style.extent(*x, *y, text).expect("glyph bounds");
             if expected != "1000" {
                 let extent = style.extent(0, 0, text).expect("relative glyph bounds");
-                let region =
-                    PlacementRegion::new(extent, bounds, &occupied).expect("label region");
+                let region = PlacementRegion::new(extent, bounds, &occupied).expect("label region");
                 assert!(
                     region.contains((*x, *y)),
                     "label {text} overlaps prior text"
