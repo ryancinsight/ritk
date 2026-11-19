@@ -577,181 +577,73 @@ goldens above remain the deterministic software-rendering check.
 
 ### Capture the saved MRI in the eframe compatibility shell
 
-The compatibility shell can open the same saved public MRI-DIR T2 study. This
-is a real DICOM run through the RITK loader, not a generated illustration:
+Build the existing eframe-shell feature, then capture the full compatibility
+window from the public MRI fixture. Resolve the configured Cargo target
+directory instead of assuming a repository-local build cache:
 
-```powershell
-target\debug\ritk-snap.exe `
-  test_data\2_head_mri_t2\DICOM `
-  --eframe `
-  --capture scratch\viewer\real-mri-eframe.png
-```
+~~~powershell
+cargo build --locked -p ritk-snap --features eframe-shell
+$target = (cargo metadata --locked --format-version 1 --no-deps |
+  ConvertFrom-Json).target_directory
+$viewer = Join-Path $target 'debug\ritk-snap.exe'
+$captureRoot = Join-Path $PWD 'output\viewer'
+New-Item -ItemType Directory -Path $captureRoot -Force | Out-Null
+& $viewer test_data\2_head_mri_t2\DICOM --eframe `
+  --capture (Join-Path $captureRoot 'real-mri-eframe.png')
+~~~
 
-The reviewed capture is a 1600 × 1000 eframe application surface containing
-the series browser, axial, coronal and sagittal planes, and the `3D MIP · GPU`
-projection. Three bounded lifecycle repeats exited with code 0 and produced
-the same PNG digest:
-
-![Actual MRI-DIR T2 series rendered in the eframe compatibility shell](images/dicom-eframe-real-mri.webp)
-
-The image and resource measurements are recorded in
-[`dicom-eframe-real-mri-resource.json`](images/dicom-eframe-real-mri-resource.json).
-This is a useful egui/eframe baseline, but it is not a matched performance
-fixture for the current 1280 × 800 Métis three-plane surface: eframe includes
-the browser and GPU MIP. A common output contract is required before comparing
-framework resource or latency numbers; GPUI and Tauri fixtures remain open.
+The historical [eframe MRI figure](images/dicom-eframe-real-mri.webp)
+and its [resource record](images/dicom-eframe-real-mri-resource.json)
+retain their original executable, dimensions, and measurements. They do not
+establish current memory or latency, or a comparison with the native host.
 
 ### Capture the matched eframe orthogonal surface
 
-The eframe-shell feature build also exposes a shell-free measurement surface.
-It uses the same RITK loader, decoded pixels and spacing-aware `ImagePlacement`
-path, while presenting only the three planes that the Métis host exposes:
+The [matched orthogonal figure](images/dicom-eframe-orthogonal-surface.png)
+is a historical capture from the source revisions in its
+[resource record](images/dicom-eframe-orthogonal-surface-resource.json).
+The current CLI exposes the full eframe capture above; the historical
+shell-free presentation and viewport-size arguments are absent from its Args
+definition. Keep those historical measurements separate from current-host
+performance claims.
 
-```powershell
-cargo run --locked -p ritk-snap --features eframe-shell -- `
-  test_data\2_head_mri_t2\DICOM `
-  --eframe `
-  --presentation orthogonal-surface `
-  --viewport-size 1024x640 `
-  --capture scratch\viewer\real-mri-eframe-matched.png
-```
+### Capture native study content
 
-The eframe viewport size is logical points. On the controlled Windows host,
-the display scale is 125%, so `--viewport-size 1024x640` produces the same
-1280×800 physical surface as the Métis native capture. Pass that option to the
-command above when producing the matched resource fixture. The provenance
-record keeps the requested logical size and observed physical PNG dimensions
-together, so a DPI-dependent fixture cannot be mistaken for a rescaled image.
+The same executable can capture native three-plane content, with or without
+the RITK application overlay:
 
-The reviewed capture below contains real saved MRI pixels in axial, coronal
-and sagittal panels. The three panels preserve voxel spacing when they fit the
-host rectangles; the shell-free mode does not add a series browser or MIP. The
-committed manual figure is a 640×400 display of the 1280×800 source capture;
-the provenance retains the source dimensions and digest.
-
-![Actual MRI-DIR T2 planes rendered in the matched eframe surface (640×400 figure from a 1280×800 capture)](images/dicom-eframe-orthogonal-surface.png)
-
-Three bounded lifecycle repeats exited with code 0 and produced the same source
-PNG digest. Dimensions, resource samples, source revisions and the exact semantic
-surface list are recorded in
-[`dicom-eframe-orthogonal-surface-resource.json`](images/dicom-eframe-orthogonal-surface-resource.json).
-The current standalone-lock sample records mean peak private bytes of
-416,867,669 ± 30,202,762 and lifecycle duration of 2,123 ± 203 ms across three
-bounded runs. The record binds RITK lock commit
-`f1a556786e849696caa73d8c341adf309e87d163` with merged Metis
-`8d4ab58e8731c51547bbca3ec87100facb698322` and Moirai
-`f038622d24907884ce5f386da4e04d05bdb60d62`.
-The matched 1280×800 record is the eframe half of the common fixture for
-`METIS-PERF-001`; it does not rank frameworks. GPUI and Tauri captures still
-require the same semantic surface and host-size contract before their resource
-numbers can be compared.
-
-For the migrated Windows host, run the same generated study through Métis:
-
-```console
-target/debug/ritk-snap.exe scratch/viewer/study --metis-native
-```
-
-On Windows the `--metis-native` spelling is optional for this command; the
-Métis host is the default shell. Existing scripts may retain the explicit flag.
-
-To open a saved study through the same host without typing its path, omit the
-positional argument on Windows:
-
-```powershell
-target\debug\ritk-snap.exe --metis-native
-```
-
-Moirai opens the bounded native folder picker and returns only the selected
-path to Metis. RITK then scans that folder, applies its DICOM series contract,
-decodes the stored pixels, and renders the selected study. Cancelling the
-picker returns an error before a window is created. A folder containing more
-than one acquisition must use the explicit path and
-`--series-instance-uid` command above; the picker path never selects a series
-implicitly.
-
-The Windows picker was exercised on 2026-09-14 with the saved public MRI-DIR
-T2 study: launch without PATH, navigate to its parent directory, click `DICOM`,
-then click **Select Folder**. The actual interactive window shows all three
-RITK MRI planes and closes with exit 0:
-
-![RITK MRI window after native folder selection](images/dicom-metis-picker-mri-window.jpg)
-
-Repeating the same selection with `--capture-application --capture <PNG>`
-exits 0 and produces the existing [MRI framebuffer](images/dicom-metis-real-mri.png):
-1280 × 800 with 411,589 non-black pixels. Its PNG is byte-identical to an
-explicit-path capture from the same executable. Clicking **Cancel** in a third
-pathless launch exits 1 with `native Métis file selection was cancelled` and
-creates no viewer window. [Capture provenance](images/dicom-metis-real-mri.json)
-records the binary hash, provider revisions, commands and evidence limits.
-This closes Windows single-series folder selection; native permission-denial
-UI, process coverage and other host workflows remain separate acceptance work.
-
-While a study is open, press **Ctrl+O** to reopen the bounded native folder
-picker. Selecting a folder loads its DICOM study through the same RITK scanner,
-decoder and three-plane compositor, then presents the replacement frame in the
-existing Métis window. The current frame remains intact when the picker is
-cancelled. A selected folder that is not a readable DICOM study returns an
-explicit load error and leaves the prior volume unmodified; the browser
-`Ctrl+O` shortcut remains owned by the browser file chooser.
-
-The Métis host owns the window handle, finite event wait, retained framebuffer,
-resize/minimize handling, DPI updates and terminal cleanup. RITK owns the file
-open, DICOM decode, selected volume, window/level, colormap, slice navigation
-and action reduction. The host receives only a bounded RGBA
-`PresentationFrame`; no DICOM identifier, path, parser object or decoded volume
-crosses the seam. Plain vertical wheel input steps the active slice, and
-Ctrl/Command plus vertical wheel applies the existing zoom policy. Focus loss
-cancels an in-progress pointer gesture.
-
-Each `PresentationFrame` also carries its validated `PresentationSpacing` row
-and column sample distances. RITK derives these values once from the loaded
-volume and axis. Native placement and the browser
-`data-ritk-display-aspect` attribute consume that same frame metadata. An
-anisotropic slice therefore keeps its physical extent
-when the host changes, while Metis only validates the format-neutral positive
-finite contract.
-
-The deterministic Métis capture path is hidden and bounded: it exits after the
-first idle event batch and writes the complete three-panel RITK composition as
-PNG. The fixed capture surface is 1280 × 800 pixels; the panels are axial,
-coronal, and sagittal from left to right, separated by four-pixel black gaps.
-
-```console
-target/debug/ritk-snap.exe scratch/viewer/study --metis-native --capture scratch/viewer/metis-frame.png
-```
-
-This capture checks real DICOM opening, RITK rendering, orthogonal slice
-selection, physical-aspect placement, and Métis framebuffer transfer. It is a
-content capture without OS chrome or application overlays; the native host owns
-the surface while RITK owns every DICOM and clinical display decision. This
-pixel-only form remains the deterministic framebuffer check. To demonstrate
-the viewer content state as it appears in the Métis surface, request the
-bounded RITK application overlay explicitly:
-
-```powershell
-cargo build --locked -p ritk-snap
-target\debug\ritk-snap.exe `
-  test_data\3_head_ct_mridir\DICOM `
-  --metis-native `
+~~~powershell
+& $viewer test_data\2_head_mri_t2\DICOM --metis-native `
+  --capture (Join-Path $captureRoot 'real-mri-metis.png')
+& $viewer test_data\3_head_ct_mridir\DICOM --metis-native `
   --capture-application `
-  --capture scratch\viewer\real-dicom-metis-application.png
-```
+  --capture (Join-Path $captureRoot 'real-ct-metis-application.png')
+~~~
 
-The overlay is emitted as a Métis `metis_ui_lang::DisplayList` and rendered
-into the same 1280 × 800 framebuffer after the real decoded planes are
-composed. It identifies the Métis/RITK host, plane, slice range, frame
-dimensions, and window/level values without adding patient metadata.
-Operating-system decorations remain outside the capture contract.
-The reviewed public CT result is [the application-content capture](images/dicom-metis-real-ct-application.png), with machine-readable
-[provenance](images/dicom-metis-real-ct-application.json).
+These bounded captures render RITK's image content; operating-system
+decorations remain outside that contract. The original
+[MRI framebuffer](images/dicom-metis-real-mri.png) and
+[provenance](images/dicom-metis-real-mri.json), and
+[CT application overlay](images/dicom-metis-real-ct-application.png) and
+[provenance](images/dicom-metis-real-ct-application.json), are historical
+records rather than outputs of the current command.
 
-![Actual MRI-DIR CT series rendered through the Métis native surface with the RITK application overlay](images/dicom-metis-real-ct-application.png)
+To use the Windows folder picker, run the same viewer without a path:
 
-This image is application output from the saved public DICOM pixel data; it is
-not an illustration or a generated image. The default capture and the
-application-content capture share the same RITK decode and presentation path;
-the latter adds only bounded viewer labels for visual inspection.
+~~~powershell
+& $viewer --metis-native
+~~~
+
+The [historical picker capture](images/dicom-metis-picker-mri-window.jpg)
+shows that earlier workflow. Use the [current user guide](dicom-workflow.md)
+for folder/series selection, Ctrl+O replacement, cancellation, and input
+controls. Cancellation preserves the displayed study; an invalid replacement
+surfaces an error before replacing its volume.
+
+Métis owns the window, event wait, framebuffer transfer, resize, DPI, and
+cleanup. RITK owns DICOM discovery/decoding, volume geometry, display state,
+annotations, and action reduction. The host receives bounded RGBA frames
+and validated row/column display spacing.
 
 ### Show the real study with a native scalar projection panel
 
@@ -1279,9 +1171,6 @@ python $captureUtility `
   --argument=--metis-native `
   --argument=--metis-native-layout `
   --argument=orthogonal-with-mip `
-  --title 'AsterSlice' `
-  --width 1280 `
-  --height 800 `
   --output (Join-Path $captureOutput 'real-mri-mpr-application-window.png')
 $comparisonStudy = Join-Path $captureOutput ("multiseries-" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $comparisonStudy | Out-Null
@@ -1304,15 +1193,12 @@ python $captureUtility `
   --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213 `
   --argument=--compare-series-instance-uid `
   --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
-  --title 'AsterSlice' `
-  --width 1280 `
-  --height 800 `
   --output (Join-Path $captureOutput 'real-mri-ct-multiseries-window.png')
 ```
 
-![AsterSlice window with menus, toolbar, series preview, three orthogonal panes, one MIP projection, and the public MRI phantom](images/dicom-metis-real-mri-application-window.webp)
+![Historical 2026-10-02 RITK/Métis window with menus, toolbar, series preview, three orthogonal panes, one MIP projection, and the public MRI phantom](images/dicom-metis-real-mri-application-window.webp)
 
-![AsterSlice window showing MRI and CT thumbnails, image counts, panel assignments, and both public series](images/dicom-metis-real-mri-ct-multiseries-window.webp)
+![Historical 2026-10-02 RITK/Métis window showing MRI and CT thumbnails, image counts, panel assignments, and both public series](images/dicom-metis-real-mri-ct-multiseries-window.webp)
 
 The full-window captures show the running application, not an annotated or
 generated framebuffer. The two-series command selects both series by UID to
