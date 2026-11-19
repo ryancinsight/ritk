@@ -1,84 +1,66 @@
-//! Pan viewport drag interaction as a testable SSOT.
-//!
-//! # Mathematical Specification
-//!
-//! Given:
-//! - `viewport_origin: ViewportOffset` — the viewport pan offset at the time the drag started
-//! - `start: ImagePoint` — the pointer position (screen pixels) where the drag started
-//! - `current: ImagePoint` — the current pointer position (screen pixels)
-//!
-//! The new pan offset is:
-//!
-//! ```text
-//! delta = current − start
-//! new_offset = viewport_origin + delta
-//! ```
-//!
-//! Pan offset is additive: each pixel of pointer motion in a direction translates
-//! the viewport by one pixel in that same direction (no sensitivity scaling).
-//!
-//! # Property-Based Invariants
-//!
-//! **Identity**: When `current == start`, then `pan_from_drag_delta(...)` returns
-//! `viewport_origin` unchanged (zero delta produces zero change).
-//!
-//! **Additive commutativity**: If two disjoint drags produce deltas δ₁ and δ₂,
-//! their combined effect is the same as applying δ₁ + δ₂ in a single drag.
-//!
-//! **Directional independence**: Horizontal and vertical components are computed
-//! independently; movement in the x direction does not affect the y component
-//! of the result and vice versa.
+//! Checked arithmetic for viewport pan offsets.
 
-use crate::tools::interaction::{ImagePoint, ViewportOffset};
+use crate::tools::interaction::ViewportOffset;
+use thiserror::Error;
 
-/// Calculate the new pan offset given drag start, current pointer position, and
-/// the original viewport origin at drag start.
+/// Failure to apply a pan displacement in viewer precision.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[non_exhaustive]
+pub enum PanError {
+    /// The captured viewport offset is not finite.
+    #[error("the captured pan offset must be finite")]
+    InvalidOrigin,
+    /// The supplied displacement is not finite.
+    #[error("the pan displacement must be finite")]
+    InvalidDisplacement,
+    /// Adding the displacement overflows the viewport range.
+    #[error("the pan result is outside the viewport range")]
+    UnrepresentableResult,
+}
+
+/// Add a press-relative displacement to a captured viewport offset.
 ///
-/// # Mathematical Contract
-///
-/// This function computes:
-/// ```text
-/// delta = current − start
-/// new_pan = viewport_origin + delta
-/// ```
-///
-/// The return value is the viewport's new [`ViewportOffset`].
-///
-/// # Arguments
-///
-/// - `viewport_origin`: The pan offset at the time the drag started.
-/// - `start`: The pointer position (screen pixels) where the drag started.
-/// - `current`: The current pointer position (screen pixels).
-///
-/// # Returns
-///
-/// The new viewport pan offset.
+/// The two `f32` components are returned together or not at all.
 ///
 /// # Examples
-///
 /// ```
-/// # use ritk_snap::tools::interaction::{ImagePoint, ViewportOffset};
-/// # use ritk_snap::ui::pan::pan_from_drag_delta;
-/// let origin = ViewportOffset::new(100.0, 50.0);
-/// let start = ImagePoint::new(200.0, 150.0);
-/// let current = ImagePoint::new(210.0, 145.0);
-/// let new_pan = pan_from_drag_delta(origin, start, current);
-/// // delta = (10.0, -5.0)
-/// // new_pan = (110.0, 45.0)
-/// assert_eq!(new_pan, ViewportOffset::new(110.0, 45.0));
+/// use ritk_snap::tools::interaction::ViewportOffset;
+/// use ritk_snap::ui::{pan_from_drag_delta, PanError};
+///
+/// let moved = pan_from_drag_delta(
+///     ViewportOffset::new(4.0, -2.0),
+///     ViewportOffset::new(3.0, 5.0),
+/// )?;
+/// assert_eq!(moved, ViewportOffset::new(7.0, 3.0));
+///
+/// let overflow = pan_from_drag_delta(
+///     ViewportOffset::new(f32::MAX, 0.0),
+///     ViewportOffset::new(f32::MAX, 0.0),
+/// );
+/// assert_eq!(overflow, Err(PanError::UnrepresentableResult));
+/// # Ok::<(), PanError>(())
 /// ```
 ///
-/// # Property: Identity
-///
-/// When `current == start`, the result is `viewport_origin` (zero delta).
+/// # Errors
+/// Returns [`PanError`] when the origin, displacement, or result is not finite.
 pub fn pan_from_drag_delta(
     viewport_origin: ViewportOffset,
-    start: ImagePoint,
-    current: ImagePoint,
-) -> ViewportOffset {
-    let delta_x = current.x() - start.x();
-    let delta_y = current.y() - start.y();
-    ViewportOffset::new(viewport_origin.x() + delta_x, viewport_origin.y() + delta_y)
+    displacement: ViewportOffset,
+) -> Result<ViewportOffset, PanError> {
+    if !viewport_origin.x().is_finite() || !viewport_origin.y().is_finite() {
+        return Err(PanError::InvalidOrigin);
+    }
+    if !displacement.x().is_finite() || !displacement.y().is_finite() {
+        return Err(PanError::InvalidDisplacement);
+    }
+    let result = ViewportOffset::new(
+        viewport_origin.x() + displacement.x(),
+        viewport_origin.y() + displacement.y(),
+    );
+    if !result.x().is_finite() || !result.y().is_finite() {
+        return Err(PanError::UnrepresentableResult);
+    }
+    Ok(result)
 }
 
 #[cfg(test)]

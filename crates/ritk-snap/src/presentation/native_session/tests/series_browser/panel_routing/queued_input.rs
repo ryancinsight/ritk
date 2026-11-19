@@ -212,15 +212,16 @@ fn queued_drag_keeps_its_original_viewport_mapping_after_maximize() {
     let (start_x, start_y) = original_viewport.center();
     let end_x = start_x.saturating_add(24);
     let end_y = start_y.saturating_add(12);
-    let expected = pan_from_drag_delta(
-        primary_offset,
-        original_mapping
+    let expected = pan_from_drag_delta(primary_offset, {
+        let start = original_mapping
             .map(ViewportPoint::new(f64::from(start_x), f64::from(start_y)))
-            .expect("drag starts over the original image"),
-        original_mapping
+            .expect("drag starts over the original image");
+        let end = original_mapping
             .map(ViewportPoint::new(f64::from(end_x), f64::from(end_y)))
-            .expect("drag ends over the original image"),
-    );
+            .expect("drag ends over the original image");
+        crate::tools::interaction::ViewportOffset::new(end.x() - start.x(), end.y() - start.y())
+    })
+    .expect("finite mapped pan displacement");
     let maximized = viewer.viewports[1];
     let maximize_x = i32::try_from(
         maximized

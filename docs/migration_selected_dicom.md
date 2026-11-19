@@ -34,6 +34,7 @@ parent directory. Invalid indices fail instead of enabling folder fallback.
 | `OverlayRenderer::draw_orientation_labels` | Remove the separate call; `draw` now lays out orientation and corner annotations together. |
 | `Annotation` | Keep a wildcard arm for the non-exhaustive enum; handle `PatientLength` in patient millimetres and retain its full `f64` distance. |
 | `AnnotationSummary::primary_value()` | Consume `f64` so patient-space distances are not narrowed to `f32`. |
+| `pan_from_drag_delta` | Pass captured and displacement `ViewportOffset` values instead of two `ImagePoint` positions, handle `PanError`, and consume the returned `Result`. |
 
 New sessions serialize format 3 and preserve selected DICOM UID and member
 paths. Unversioned and version-1 path sessions remain readable, and version-2
