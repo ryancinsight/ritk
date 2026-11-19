@@ -50,8 +50,9 @@ Custom presets currently last for the running application.
 Press **H** or **V** to flip the image horizontally or vertically.
 **R** rotates clockwise by 90 degrees and **Shift+R** rotates the other way.
 **Shift+O** restores image orientation. **Ctrl+0** fits the image to its pane;
-The **Display → Zoom 1:1** preset currently has a
-[spacing-dependent scale defect](features.md#reading-and-annotations).
+the **Display → Zoom 1:1** preset maps the slice's largest physical pixel
+spacing to one screen pixel. Square pixels therefore map one image texel to
+one screen pixel, while anisotropic pixels retain their physical aspect.
 The measurement and orientation overlays follow the displayed image.
 
 In three-plane MPR, **View → Toggle clinical overlay** shows or hides the

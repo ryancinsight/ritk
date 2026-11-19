@@ -11,6 +11,8 @@ use crate::presentation::ViewportPoint;
 use crate::render::NamedColorMap;
 use crate::ui::RotationSteps;
 
+mod zoom;
+
 #[test]
 fn digit_keys_apply_ct_presets_and_repaint_presented_pixels() {
     let (mut session, _root) = session();
@@ -418,47 +420,6 @@ fn display_menu_transform_rows_change_presented_pixels() {
         ),
         (2, 4)
     );
-}
-
-#[test]
-fn fit_key_restores_unit_zoom_and_repaints() {
-    let (mut session, _root) = session();
-    session.app.zoom = 2.5;
-    session.app.pan_offset = crate::tools::interaction::ViewportOffset::new(3.0, -7.0);
-    let flow = session
-        .handle_events(&[WindowEvent::KeyDown {
-            virtual_key: VIRTUAL_KEY_ZOOM_FIT,
-            repeated: false,
-            modifiers: ModifierState::CONTROL,
-        }])
-        .expect("fit key");
-    assert_eq!(flow, NativeFlow::Continue { repaint: true });
-    assert_eq!(session.app.zoom, 1.0);
-    assert_eq!(
-        session.app.pan_offset,
-        crate::tools::interaction::ViewportOffset::new(0.0, 0.0)
-    );
-}
-
-#[test]
-fn one_to_one_action_undoes_the_panel_fit_scale() {
-    let (mut session, _root) = session();
-    let before = session.framebuffer.clone();
-    let viewport = session.viewports[0];
-    let frame = session.views[0].frame();
-    let expected = crate::ui::zoom::one_to_one_zoom(
-        [viewport.panel_width, viewport.panel_height],
-        [frame.width(), frame.height()],
-        frame.display_spacing().values(),
-    )
-    .expect("finite fixture panel extent");
-    let changed = session
-        .apply_window_action(WindowAction::ZoomOneToOne)
-        .expect("zoom 1:1");
-    assert!(changed);
-    assert_eq!(session.app.zoom, expected);
-    session.refresh_frame().expect("recompose at 1:1 zoom");
-    assert_ne!(session.framebuffer.pixels(), before.pixels());
 }
 
 #[test]

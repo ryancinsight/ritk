@@ -61,18 +61,28 @@ pub fn fit_view_transform() -> ([f32; 2], f32) {
     (FIT_PAN_OFFSET, FIT_ZOOM)
 }
 
-/// Zoom multiplier that renders one frame pixel as one screen pixel.
+/// Zoom multiplier that renders the largest sample distance as one screen pixel.
 ///
-/// This is the exact reciprocal of the native placement fit scale:
-/// with `zoom = 1 / min(panel / physical)` the texel factors reduce to the
-/// spacing-relative unit, so square-pixel data maps 1:1.
+/// This is the exact reciprocal of the native placement fit scale. Row and
+/// column spacing are normalized by their maximum before fitting, so absolute
+/// physical units cancel. Square-pixel data maps one frame pixel to one screen
+/// pixel; anisotropic data retains its spacing-relative aspect.
 ///
 /// Returns `None` when the panel or frame extent is degenerate (zero or
 /// non-finite physical size) or the reciprocal leaves the `f32` range.
 pub fn one_to_one_zoom(panel: [u32; 2], frame: [u32; 2], display_spacing: [f64; 2]) -> Option<f32> {
+    if !display_spacing
+        .iter()
+        .all(|spacing| spacing.is_finite() && *spacing > 0.0)
+    {
+        return None;
+    }
+    let [row_spacing, column_spacing] = display_spacing;
+    let reference = row_spacing.max(column_spacing);
+    let relative = [column_spacing / reference, row_spacing / reference];
     let physical = [
-        f64::from(frame[0]) * display_spacing[0],
-        f64::from(frame[1]) * display_spacing[1],
+        f64::from(frame[0]) * relative[0],
+        f64::from(frame[1]) * relative[1],
     ];
     if !physical
         .iter()
@@ -144,21 +154,43 @@ mod tests {
     }
 
     #[test]
-    fn one_to_one_zoom_is_the_reciprocal_fit_scale() {
-        let zoom = one_to_one_zoom([200, 100], [100, 50], [1.0, 1.0]).expect("finite extent");
-        assert!((zoom - 0.5).abs() < 1e-6, "unexpected 1:1 zoom {zoom}");
-        let anisotropic = one_to_one_zoom([200, 100], [50, 50], [2.0, 1.0]).expect("finite extent");
-        assert!(
-            (anisotropic - 0.5).abs() < 1e-6,
-            "unexpected anisotropic 1:1 zoom {anisotropic}"
-        );
+    fn one_to_one_zoom_uses_spacing_relative_fit() {
+        for spacing in [[0.5, 0.5], [1.0, 1.0], [2.0, 2.0]] {
+            assert_eq!(
+                one_to_one_zoom([200, 100], [100, 50], spacing),
+                Some(0.5),
+                "absolute spacing {spacing:?} changed the 1:1 zoom"
+            );
+        }
+        for (frame, spacing) in [([100, 50], [2.0, 1.0]), ([50, 100], [1.0, 2.0])] {
+            assert_eq!(
+                one_to_one_zoom([200, 100], frame, spacing),
+                Some(0.5),
+                "orientation {frame:?} with spacing {spacing:?} changed the physical fit"
+            );
+        }
     }
 
     #[test]
     fn one_to_one_zoom_rejects_degenerate_extents() {
-        assert_eq!(one_to_one_zoom([200, 100], [0, 50], [1.0, 1.0]), None);
-        assert_eq!(one_to_one_zoom([0, 0], [100, 50], [1.0, 1.0]), None);
-        assert_eq!(one_to_one_zoom([200, 100], [100, 50], [0.0, 1.0]), None);
+        for panel in [[0, 100], [200, 0]] {
+            assert_eq!(one_to_one_zoom(panel, [100, 50], [1.0, 1.0]), None);
+        }
+        for frame in [[0, 50], [100, 0]] {
+            assert_eq!(one_to_one_zoom([200, 100], frame, [1.0, 1.0]), None);
+        }
+        for spacing in [
+            [0.0, 1.0],
+            [1.0, 0.0],
+            [-1.0, 1.0],
+            [1.0, -1.0],
+            [f64::NAN, 1.0],
+            [1.0, f64::NAN],
+            [f64::INFINITY, 1.0],
+            [1.0, f64::NEG_INFINITY],
+        ] {
+            assert_eq!(one_to_one_zoom([200, 100], [100, 50], spacing), None);
+        }
     }
 
     #[test]
