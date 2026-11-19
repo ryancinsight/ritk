@@ -1,4 +1,4 @@
-name: RITK SNAP Métis Package
+name: AsterSlice Métis Package
 
 on:
   workflow_dispatch:
@@ -6,7 +6,6 @@ on:
       metis_revision:
         description: Exact Métis commit resolved by Cargo.lock
         required: true
-        default: 1b10541c2ef7a849e6ff66a3c778874bdf96de7b
         type: string
 
 permissions:
@@ -22,7 +21,7 @@ concurrency:
 
 jobs:
   package:
-    name: Package RITK SNAP
+    name: Package AsterSlice
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -61,7 +60,7 @@ jobs:
         working-directory: metis
         run: cargo build --release --locked --package metis-cli
 
-      - name: Create the RITK SNAP package
+      - name: Create the AsterSlice package
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path "$PWD/output" -Force | Out-Null
@@ -77,16 +76,16 @@ jobs:
           $root = Join-Path $PWD "output/ritk-snap"
           $inventory = Get-Content (Join-Path $root "inventory.json") -Raw | ConvertFrom-Json
           $files = @($inventory.files)
-          if ($files.Count -ne 1 -or $files[0].destination -ne "ritk-snap.exe") {
-            throw "package inventory must contain exactly the RITK SNAP executable"
+          if ($files.Count -ne 1 -or $files[0].destination -ne "asterslice.exe") {
+            throw "package inventory must contain exactly the AsterSlice executable"
           }
           if (@($inventory.application.resources).Count -ne 0) {
-            throw "RITK SNAP package must not carry DICOM or patient-data resources"
+            throw "AsterSlice package must not carry DICOM or patient-data resources"
           }
           if ($inventory.installer.file -ne "org.ritk.snap.msi") {
             throw "unexpected installer name"
           }
-          $exe = Join-Path $root "app/ritk-snap.exe"
+          $exe = Join-Path $root "app/asterslice.exe"
           $msi = Join-Path $root "org.ritk.snap.msi"
           $exeHash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant()
           $msiHash = (Get-FileHash $msi -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -99,6 +98,13 @@ jobs:
           & $exe --help
           if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
+          }
+          $version = & $exe --version
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+          if ($version -ne "asterslice $($inventory.application.version)") {
+            throw "packaged executable version differs from application metadata"
           }
 
       - name: Upload the package artifact

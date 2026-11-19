@@ -30,9 +30,9 @@ RITK provides a comprehensive framework for medical image analysis:
   autodiff
 - **Image Processing Pipeline**: Filtering, segmentation, statistics, normalization
 - **CT Visualization Support**: Bed separation filter for CT foreground/body masking
-- **AsterSlice DICOM Viewer**: the `ritk-snap` desktop application with DICOM
-  folder/DICOMDIR launch, MPR viewports, overlays, and measurements;
-  [feature coverage](docs/manual/features.md) distinguishes
+- **AsterSlice DICOM Viewer**: the `asterslice` executable from the `ritk-snap`
+  package, with DICOM folder/DICOMDIR launch, MPR viewports, overlays, and
+  measurements; [feature coverage](docs/manual/features.md) distinguishes
   Windows controls from optional-shell and library capabilities
 - **Python Bindings**: PyO3 + maturin with NumPy bridge, packaged type stubs, and `py.typed`
 - **CLI**: `ritk` binary with `convert`, `filter`, `register`, `segment`, and `stats` subcommands
@@ -73,7 +73,7 @@ from the public [Iris](https://github.com/ryancinsight/iris) provider.
 
 ### AsterSlice viewer (`ritk-snap`)
 
-AsterSlice launches through `ritk-snap [PATH]` directly against a DICOM folder,
+AsterSlice launches through `asterslice [PATH]` directly against a DICOM folder,
 a single DICOM file, a `DICOMDIR` file, or a supported medical image file. The viewer keeps DICOM
 I/O in `ritk-io` and presentation logic in `ritk-snap`, with a vertical module
 split for input path normalization, hanging-protocol selection, series
@@ -88,7 +88,7 @@ cargo run --locked -p ritk-snap --features eframe-shell -- \
   path/to/study --eframe --capture window.png
 ```
 
-`ritk-snap --metis-native` may omit `PATH` on Windows. The Métis host then
+`asterslice --metis-native` may omit `PATH` on Windows. The Métis host then
 opens Moirai's bounded native folder picker; RITK scans, decodes, and renders
 the selected saved study. Use the series browser to choose another acquisition
 interactively. An unattended `--capture` of a multi-series folder requires
@@ -126,9 +126,10 @@ slab reduction; native and browser host wiring remains an adapter concern.
   plus one display-only scalar projection; `statistic` is `0` MIP, `1` MinIP,
   or `2` average)
 
-The native binary (`ritk-snap`) remains desktop-only. For browser execution,
+The native binary (`asterslice`) remains desktop-only. For browser execution,
 build the `ritk-snap` library target for `wasm32-unknown-unknown` and run
-`wasm-bindgen 0.2.128` over the resulting `ritk_snap.wasm`:
+`wasm-bindgen` at the version resolved in [Cargo.lock](Cargo.lock) over
+`ritk_snap.wasm`:
 
 ```powershell
 cargo build --locked -p ritk-snap --lib --target wasm32-unknown-unknown --release
