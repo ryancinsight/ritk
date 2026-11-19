@@ -136,7 +136,7 @@ fn panel_png(intensities: &[f32], labels: &[f32]) -> Result<String> {
     let height = u32::try_from(height).context("GrowCut panel height exceeds u32")?;
     let mut png = Vec::new();
     PngEncoder::new(&mut png)
-        .write_image(&raster, width, height, ColorType::Rgb8)
+        .write_image(&raster, width, height, ColorType::Rgb8.into())
         .context("encode GrowCut panel as PNG")?;
     Ok(STANDARD.encode(png))
 }

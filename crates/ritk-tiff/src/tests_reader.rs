@@ -127,6 +127,24 @@ fn integer_page_appends_directly_in_value_order() -> Result<()> {
 }
 
 #[test]
+fn half_float_page_widens_losslessly_to_binary32() -> Result<()> {
+    use half::f16;
+    let mut output = Vec::new();
+    super::append_page_to_scalar(
+        &mut output,
+        DecodingResult::F16(vec![
+            f16::from_f32(1.0),
+            f16::from_f32(-2.5),
+            f16::from_f32(0.5),
+        ]),
+        3,
+        0,
+    )?;
+    assert_eq!(output, vec![1.0, -2.5, 0.5]);
+    Ok(())
+}
+
+#[test]
 fn first_float_page_becomes_the_output_allocation() -> Result<()> {
     let page = vec![-1.0, 0.0, 42.5];
     let page_pointer = page.as_ptr();

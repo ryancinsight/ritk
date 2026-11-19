@@ -143,7 +143,7 @@ fn to_png(values: &[f32], lower: f32, upper: f32, color_map: ColorMap) -> Result
 
     let mut png = Vec::new();
     PngEncoder::new(&mut png)
-        .write_image(&raster, IMAGE_SIZE, IMAGE_SIZE, ColorType::Rgb8)
+        .write_image(&raster, IMAGE_SIZE, IMAGE_SIZE, ColorType::Rgb8.into())
         .context("encode panel as PNG")?;
     Ok(STANDARD.encode(png))
 }

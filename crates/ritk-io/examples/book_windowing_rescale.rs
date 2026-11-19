@@ -113,7 +113,7 @@ fn draw_image_panel(svg: &mut String, panel: ImagePanel<'_>) -> Result<()> {
     }
     let mut png = Vec::new();
     PngEncoder::new(&mut png)
-        .write_image(&raster, IMAGE_SIZE, IMAGE_SIZE, ColorType::Rgb8)
+        .write_image(&raster, IMAGE_SIZE, IMAGE_SIZE, ColorType::Rgb8.into())
         .context("encode image panel as PNG")?;
     let encoded = STANDARD.encode(png);
     writeln!(svg, "<g transform=\"translate({offset_x},{offset_y})\">")?;

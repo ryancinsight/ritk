@@ -295,7 +295,7 @@ fn panel_png_data_uri(content: &PanelContent<'_>, shape: [usize; 3]) -> Result<S
     let display_side = u32::try_from(DISPLAY_SIDE).context("display side exceeds u32")?;
     let mut png = Vec::new();
     PngEncoder::new(&mut png)
-        .write_image(&raster, display_side, display_side, ColorType::Rgb8)
+        .write_image(&raster, display_side, display_side, ColorType::Rgb8.into())
         .context("encode registration panel as PNG")?;
     Ok(STANDARD.encode(png))
 }
