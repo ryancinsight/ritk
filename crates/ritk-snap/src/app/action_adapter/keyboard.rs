@@ -16,7 +16,7 @@ impl SnapApp {
         virtual_key: u32,
         repeated: bool,
     ) -> ViewerActionDisposition {
-        if virtual_key == 0x1b && !repeated && self.pointer.pending_polygon_move.is_some() {
+        if virtual_key == 0x1b && !repeated && self.pointer.pending_annotation_move.is_some() {
             self.on_drag_end(None);
             return ViewerActionDisposition::Continue { repaint: true };
         }
