@@ -72,6 +72,9 @@ Use **Ctrl+M** to maximize or restore the active pane, **Ctrl+F4** to close
 it, or **Shift+F4** to close all panes. Choose **Window → Three-plane MPR**
 to return to the axial, coronal, and sagittal views.
 
+Choose **Tools → Crosshair**, then click an image to place a visible linked
+cursor in all three MPR panes. Choose **Pan** to move without hiding the cursor.
+
 Patient-position synchronization and cross-reference lines between different
 series remain [linking work](features.md#reading-and-annotations).
 
