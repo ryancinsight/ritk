@@ -226,7 +226,7 @@ impl SnapApp {
                     .unwrap_or_else(|| self.pointer.bindings.tool_for(*button, self.active_tool));
                 if *button == PointerButton::Left
                     && !modified
-                    && self.begin_annotation_move(*viewport, *position, image)
+                    && self.begin_annotation_move(*viewport, *position, image, tool)
                 {
                     self.pointer.owner = Some(PointerGestureOwner {
                         button: *button,

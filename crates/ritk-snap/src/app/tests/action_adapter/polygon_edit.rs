@@ -181,7 +181,8 @@ fn failed_admission_preserves_pending_transaction() {
     let mut app = app_with_polygon();
     app.pointer.selected_annotation = Some(0);
     let point = ImagePoint::new(3.0, 0.0);
-    assert!(app.begin_annotation_move(native_viewport(), ViewportPoint::new(3.0, 0.0), point,));
+    let pan = ToolKind::Pan;
+    assert!(app.begin_annotation_move(native_viewport(), ViewportPoint::new(3.0, 0.0), point, pan));
     let original = app.annotations[0].clone();
     let pending = PendingAnnotationMove {
         annotation_index: 0,
@@ -200,6 +201,7 @@ fn failed_admission_preserves_pending_transaction() {
         native_viewport(),
         ViewportPoint::new(63.0, 63.0),
         ImagePoint::new(63.0, 63.0),
+        pan,
     ));
     assert_eq!(app.pointer.pending_annotation_move, Some(pending));
 }

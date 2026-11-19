@@ -21,6 +21,7 @@ mod display_overlays;
 #[cfg(windows)]
 mod host_capture;
 mod interaction;
+mod length_edit;
 mod manual_capture;
 mod measurement_overlay;
 mod overlay_text;
