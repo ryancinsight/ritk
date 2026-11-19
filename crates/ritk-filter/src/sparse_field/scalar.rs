@@ -17,6 +17,7 @@ pub(crate) trait SparseScalar:
     + Neg<Output = Self>
 {
     fn zero() -> Self;
+    fn from_count(n: usize) -> Self;
     fn from_f64(v: f64) -> Self;
     fn to_f64(self) -> f64;
     fn abs(self) -> Self;
@@ -27,6 +28,10 @@ impl SparseScalar for f32 {
     #[inline]
     fn zero() -> Self {
         0.0
+    }
+    #[inline]
+    fn from_count(n: usize) -> Self {
+        n as f32
     }
     #[inline]
     fn from_f64(v: f64) -> Self {
@@ -50,6 +55,10 @@ impl SparseScalar for f64 {
     #[inline]
     fn zero() -> Self {
         0.0
+    }
+    #[inline]
+    fn from_count(n: usize) -> Self {
+        n as f64
     }
     #[inline]
     fn from_f64(v: f64) -> Self {

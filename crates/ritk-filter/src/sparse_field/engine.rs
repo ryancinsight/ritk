@@ -51,8 +51,8 @@ pub(crate) fn evolve<T: SparseScalar, S: SparseFieldStep<T>>(
     let num = 2 * cfg.number_of_layers as i32 + 1;
     let cgv = cfg.constant_gradient;
     let half = T::from_f64(2.0);
-    let bg = T::from_f64((cfg.number_of_layers + 1) as f64);
-    let neg_bg = T::from_f64(-((cfg.number_of_layers + 1) as f64));
+    let bg = T::from_count(cfg.number_of_layers + 1);
+    let neg_bg = -T::from_count(cfg.number_of_layers + 1);
     let cf = cgv / half;
 
     // ── ZeroCrossing(shifted) → active set (float-exact to ITK) ──────────────
