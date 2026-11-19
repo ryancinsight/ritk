@@ -22,13 +22,11 @@ pub(super) use crosshair::{crosshair_overlay, screen_coordinate};
 #[cfg(test)]
 pub(super) use geometry::VIEW_GAP_PIXELS;
 pub(super) use geometry::{NativeViewport, ViewportArea};
-pub(super) use overlay::ClinicalOverlay;
-pub(super) use overlay::OverlayCommands;
-#[cfg(test)]
 pub(super) use overlay::{
-    application_overlay, clinical_labels_for_view, projection_overlay, OVERLAY_BAR_HEIGHT,
-    OVERLAY_TEXT,
+    application_overlay, ClinicalOverlay, OverlayCommands, OVERLAY_BAR_HEIGHT, OVERLAY_TEXT,
 };
+#[cfg(test)]
+pub(super) use overlay::{clinical_labels_for_view, projection_overlay};
 #[cfg(test)]
 pub(super) use overlay_clinical::scale_bar_for_scale;
 pub(super) use overlay_measurements::{append_measurement_overlay, append_measurement_preview};

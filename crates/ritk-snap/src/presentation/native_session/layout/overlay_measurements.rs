@@ -12,7 +12,8 @@ use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
 use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
 use anyhow::Result;
-use metis_platform::Color;
+use metis_platform::{Color, Rect};
+use metis_ui_lang::PlacementObstacle;
 pub(crate) const MEASUREMENT_COLOR: Color = Color::rgba(255, 255, 0, 255);
 const ROI_COLOR: Color = Color::rgba(0, 255, 0, 255);
 const POINT_COLOR: Color = Color::rgba(0, 255, 255, 255);
@@ -31,6 +32,8 @@ pub(crate) fn append_measurement_overlay(
     pending_annotation: Option<(usize, &Annotation)>,
     affine: Option<AffineTransform>,
     length_scale: impl Fn(Option<AnnotationLocation>) -> f64,
+    frame: Rect,
+    reserved: &[PlacementObstacle],
 ) -> Result<()> {
     for (view, viewport) in views.iter().zip(viewports.iter()) {
         let output_size = view.transform.output_size(view.source_size);
@@ -42,6 +45,8 @@ pub(crate) fn append_measurement_overlay(
             viewport,
             output_width: f64::from(u32::try_from(output_size[0])?),
             output_height: f64::from(u32::try_from(output_size[1])?),
+            frame,
+            reserved,
         };
         for (index, annotation) in annotations.iter().enumerate() {
             if !annotation_visible(annotation, view.axis, view.slice_index) {
@@ -96,6 +101,8 @@ pub(crate) fn append_measurement_preview(
         viewport,
         output_width: f64::from(u32::try_from(output_size[0])?),
         output_height: f64::from(u32::try_from(output_size[1])?),
+        frame: viewport.panel_rect()?,
+        reserved: &[],
     };
     if let ToolState::LengthDrag { start, current } = tool_state {
         pane.segment(overlay, [*start, *current], MEASUREMENT_COLOR)?;
@@ -130,6 +137,8 @@ struct Pane<'a> {
     viewport: &'a NativeViewport,
     output_width: f64,
     output_height: f64,
+    frame: Rect,
+    reserved: &'a [PlacementObstacle],
 }
 
 impl Pane<'_> {
@@ -257,8 +266,9 @@ impl Pane<'_> {
             text_style(MEASUREMENT_COLOR, PANEL_DETAIL_SIZE)?,
             origin,
             bounds,
-        );
-        Ok(())
+            self.frame,
+            self.reserved,
+        )
     }
 
     fn draw(
