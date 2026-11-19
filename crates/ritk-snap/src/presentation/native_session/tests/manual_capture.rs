@@ -2,11 +2,13 @@ use super::super::composition::save_capture;
 use super::super::layout::{screen_coordinate, PanelGrid, WorkspaceLayout};
 use super::super::startup::prepare_initial_study;
 use super::super::window_controls::Menu;
-use super::measurement_overlay::axial_panel;
+use super::measurement_overlay::{axial_panel, composed};
 use super::support::control_center;
 use super::*;
-use crate::tools::interaction::Annotation;
-use metis_platform::native::MouseButton;
+use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
+use eunomia::FloatElement;
+use metis_platform::{native::MouseButton, Color, RasterLine, Rect};
+use metis_ui_lang::DisplayCommand;
 use std::path::PathBuf;
 
 fn key(virtual_key: u32) -> WindowEvent {
@@ -31,6 +33,13 @@ fn up((x, y): (i32, i32)) -> WindowEvent {
         y,
         button: MouseButton::Left,
     }
+}
+
+fn rectangles_overlap(a: Rect, b: Rect) -> bool {
+    i64::from(a.x) < i64::from(b.x) + i64::from(b.width)
+        && i64::from(b.x) < i64::from(a.x) + i64::from(a.width)
+        && i64::from(a.y) < i64::from(b.y) + i64::from(b.height)
+        && i64::from(b.y) < i64::from(a.y) + i64::from(a.height)
 }
 
 fn click(point: (i32, i32)) -> [WindowEvent; 2] {
@@ -82,7 +91,7 @@ fn native_manual_annotation_frames() {
         .set_workspace_layout(WorkspaceLayout::Panels(grid))
         .expect("show a single annotation pane");
     viewer.refresh_frame().expect("display the annotation pane");
-    let (pane, ..) = axial_panel(&viewer);
+    let (pane, origin_x, origin_y, sx, sy) = axial_panel(&viewer);
     let image = viewer.viewports[pane].image;
     let point = |x: f64, y: f64| {
         (
@@ -125,10 +134,46 @@ fn native_manual_annotation_frames() {
     else {
         panic!("the reference length is recorded");
     };
-    assert_eq!(
-        viewer.app.length_scale(*location),
-        100.0 / f64::from(*length_mm)
-    );
+    let calibration = 100.0 / f64::from(*length_mm);
+    assert_eq!(viewer.app.length_scale(*location), calibration);
+
+    let original_measurements = viewer.app.annotations.clone();
+    viewer.handle_events(&[key(0x4d)]).expect("select Pan");
+    viewer
+        .handle_events(&drag(point(0.42, 0.23), point(0.48, 0.23)))
+        .expect("edit the first length endpoint");
+    viewer
+        .handle_events(&drag(point(0.32, 0.23), point(0.32, 0.29)))
+        .expect("translate the edited length");
+    assert_eq!(viewer.app.pointer.selected_annotation, Some(0));
+    let Some(Annotation::Length {
+        p1, p2, location, ..
+    }) = viewer.app.annotations.first()
+    else {
+        panic!("the edited length is recorded");
+    };
+    let stored = |(x, y): (i32, i32)| {
+        [
+            (f64::from(y) - origin_y) / sy,
+            (f64::from(x) - origin_x) / sx,
+        ]
+        .map(<f32 as FloatElement>::from_f64)
+    };
+    let start = stored(point(0.32, 0.23));
+    let end = stored(point(0.32, 0.29));
+    let delta = [end[0] - start[0], end[1] - start[1]];
+    let expected = [stored(point(0.16, 0.23)), stored(point(0.48, 0.23))]
+        .map(|point| [point[0] + delta[0], point[1] + delta[1]]);
+    assert_eq!([*p1, *p2], expected);
+    assert_eq!(viewer.app.annotations[1], original_measurements[1]);
+    assert_eq!(viewer.app.length_scale(*location), calibration);
+    if let Some(output) = &output {
+        save_capture(
+            &viewer.framebuffer,
+            &output.join("dicom-native-length-edit.png"),
+        )
+        .expect("capture selected edited length");
+    }
 
     viewer
         .handle_events(&[key(0x43)])
@@ -184,6 +229,65 @@ fn native_manual_annotation_frames() {
     assert_eq!(*angle_deg, 90.0);
     assert_eq!(points.len(), 4);
     assert_eq!(freehand.len(), 3);
+    let target = composed(&viewer, None)
+        .iter()
+        .find_map(|command| match command {
+            DisplayCommand::DrawText { text, x, y, style } => style.extent(*x, *y, text),
+            _ => None,
+        })
+        .expect("measurement label");
+    let y = target.y + target.height / 2;
+    let [row0, col0] = stored((target.x - 2, y));
+    let [row1, col1] = stored((target.x + target.width + 2, y));
+    viewer.app.tool_state = ToolState::LengthDrag {
+        start: ImagePoint::new(col0, row0),
+        current: ImagePoint::new(col1, row1),
+    };
+    viewer.app.pointer.drag_measurement_location = Some(AnnotationLocation {
+        plane: viewer.views[pane].axis,
+        slice: viewer.views[pane].slice_index,
+    });
+    let commands = composed(&viewer, None);
+    let labels: Vec<_> = commands
+        .iter()
+        .filter_map(|command| {
+            let DisplayCommand::DrawText { text, x, y, style } = command else {
+                return None;
+            };
+            (style.color == Color::rgba(255, 255, 0, 255))
+                .then(|| style.extent(*x, *y, text))
+                .flatten()
+        })
+        .collect();
+    assert_eq!(labels.len(), 4);
+    let strokes: Vec<_> = commands
+        .iter()
+        .filter_map(|command| {
+            let DisplayCommand::DrawLine { start, end, color } = command else {
+                return None;
+            };
+            [
+                Color::rgba(255, 255, 0, 255),
+                Color::rgba(0, 255, 0, 255),
+                Color::rgba(0, 255, 255, 255),
+            ]
+            .contains(color)
+            .then_some((*start, *end))
+        })
+        .collect();
+    assert_eq!(strokes.len(), 21);
+    assert!(RasterLine::new(strokes[20].0, strokes[20].1).intersects(target));
+    for (start, end) in strokes {
+        let stroke = RasterLine::new(start, end);
+        for label in &labels {
+            assert!(!stroke.intersects(*label));
+        }
+    }
+    for (index, label) in labels.iter().enumerate() {
+        for other in labels.iter().skip(index + 1) {
+            assert!(!rectangles_overlap(*label, *other));
+        }
+    }
     if let Some(output) = output {
         save_capture(
             &viewer.framebuffer,

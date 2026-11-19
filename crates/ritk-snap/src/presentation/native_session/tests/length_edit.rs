@@ -1,13 +1,14 @@
 use super::measurement_overlay::{axial_panel, draw_lines};
 use super::support::{control_center, session};
 use super::*;
-use crate::app::pointer_bindings::AnnotationMoveKind;
+use crate::app::pointer_bindings::{AnnotationMoveKind, LengthMove};
 use crate::presentation::native_session::layout::{append_measurement_overlay, OverlayCommands};
 use crate::presentation::native_session::window_controls::WindowAction;
 use crate::tools::interaction::{Annotation, AnnotationLocation};
 use crate::tools::kind::ToolKind;
 use eunomia::FloatElement;
 use metis_platform::native::MouseButton;
+use metis_platform::Rect;
 fn pointer((x, y): (i32, i32), down: bool) -> WindowEvent {
     if down {
         WindowEvent::PointerDown {
@@ -49,6 +50,14 @@ fn overlay_lines(session: &NativeViewerSession) -> Vec<((i32, i32), (i32, i32))>
             .map(|pending| (pending.annotation_index, &pending.candidate)),
         None,
         |location| session.app.length_scale(location),
+        None,
+        Rect::new(
+            0,
+            0,
+            i32::try_from(session.framebuffer.width()).expect("frame width fits"),
+            i32::try_from(session.framebuffer.height()).expect("frame height fits"),
+        ),
+        &[],
     )
     .expect("compose edit overlay");
     draw_lines(overlay.into_display_list().commands())
@@ -58,6 +67,39 @@ enum Cancellation {
     Escape,
     CaptureLoss,
     SliceReturn,
+}
+fn assert_preview_cancelled(
+    session: &mut NativeViewerSession,
+    start: (i32, i32),
+    end: (i32, i32),
+    expected_segment: ((i32, i32), (i32, i32)),
+    cancellation: Cancellation,
+) {
+    let committed = session.app.annotations.clone();
+    apply(session, &drag(start, end)[..2]);
+    assert_eq!(session.app.annotations, committed);
+    assert!(overlay_lines(session).contains(&expected_segment));
+    match cancellation {
+        Cancellation::Escape => apply(
+            session,
+            &[WindowEvent::KeyDown {
+                virtual_key: 0x1b,
+                repeated: false,
+                modifiers: ModifierState::NONE,
+            }],
+        ),
+        Cancellation::CaptureLoss => apply(session, &[WindowEvent::PointerCaptureLost]),
+        Cancellation::SliceReturn => {
+            let (slice, count) = session.app.axis_slice_info(0);
+            session.app.set_slice_for_axis(0, (slice + 1) % count);
+            session.app.set_slice_for_axis(0, slice);
+        }
+    }
+    assert_eq!(session.app.annotations, committed);
+    assert_eq!(session.app.pointer.pending_annotation_move, None);
+    apply(session, &[pointer(end, false)]);
+    assert_eq!(session.app.annotations, committed);
+    assert_eq!(session.app.pointer.pending_annotation_move, None);
 }
 #[test]
 fn native_pan_edits_both_length_endpoints_transactionally() {
@@ -158,27 +200,13 @@ fn native_pan_edits_both_length_endpoints_transactionally() {
         Cancellation::CaptureLoss,
         Cancellation::SliceReturn,
     ] {
-        let committed = session.app.annotations.clone();
-        apply(&mut session, &drag((x + 60, y + 80), (x + 70, y + 90))[..2]);
-        assert_eq!(session.app.annotations, committed);
-        assert!(overlay_lines(&session).contains(&((x - 30, y - 40), (x + 70, y + 90))));
-        let event = match cancellation {
-            Cancellation::Escape => WindowEvent::KeyDown {
-                virtual_key: 0x1b,
-                repeated: false,
-                modifiers: ModifierState::NONE,
-            },
-            Cancellation::CaptureLoss => WindowEvent::PointerCaptureLost,
-            Cancellation::SliceReturn => {
-                let (slice, count) = session.app.axis_slice_info(0);
-                session.app.set_slice_for_axis(0, (slice + 1) % count);
-                session.app.set_slice_for_axis(0, slice);
-                pointer((x + 70, y + 90), false)
-            }
-        };
-        apply(&mut session, &[event]);
-        assert_eq!(session.app.annotations, committed);
-        assert_eq!(session.app.pointer.pending_annotation_move, None);
+        assert_preview_cancelled(
+            &mut session,
+            (x + 60, y + 80),
+            (x + 70, y + 90),
+            ((x - 30, y - 40), (x + 70, y + 90)),
+            cancellation,
+        );
     }
     let committed = session.app.annotations[0].clone();
     apply(
@@ -232,4 +260,169 @@ fn native_pan_edits_both_length_endpoints_transactionally() {
         .iter()
         .any(|&(start, end)| start == (x - 25, y - 40) || end == (x - 25, y - 40)));
     assert_eq!(session.app.annotations[1], committed);
+}
+
+#[test]
+fn native_pan_translates_length_transactionally() {
+    let (mut session, _root) = session();
+    session.app.axis = 0;
+    let grid = super::layout::PanelGrid::new(1, 1).expect("single-panel layout");
+    session
+        .set_workspace_layout(super::layout::WorkspaceLayout::Panels(grid))
+        .expect("show the measured plane");
+    session.app.loaded.as_mut().expect("fixture volume").spacing = [1.0, 2.0, 3.0];
+    session
+        .refresh_frame()
+        .expect("refresh anisotropic fixture");
+    let (pane, origin_x, origin_y, sx, sy) = axial_panel(&session);
+    let (x, y) = session.viewports[pane].center();
+    let physical = |x, y| {
+        [
+            (f64::from(y) - origin_y) / sy,
+            (f64::from(x) - origin_x) / sx,
+        ]
+    };
+    let stored = |x, y| physical(x, y).map(<f32 as FloatElement>::from_f64);
+    let spacing = session.app.slice_plane_spacing().expect("spacing");
+    let a = (30.0 * spacing[1] / sx).hypot(40.0 * spacing[0] / sy);
+    let raw = <f32 as FloatElement>::from_f64(3.0 * a);
+    let location = AnnotationLocation {
+        plane: 0,
+        slice: session.app.axis_slice_info(0).0,
+    };
+    let initial = Annotation::Length {
+        plane: 0,
+        location: Some(location),
+        p1: stored(x - 30, y - 40),
+        p2: stored(x + 60, y + 80),
+        length_mm: raw,
+    };
+    let other_source = initial.clone().with_location(AnnotationLocation {
+        slice: location.slice + 1,
+        ..location
+    });
+    session.app.annotations = vec![initial, other_source.clone()];
+    let reference = session.app.length_calibration_reference();
+    assert!(session
+        .app
+        .set_length_calibration(reference, Some(raw * 2.0)));
+    let pan = control_center(&session, None, WindowAction::SelectTool(ToolKind::Pan));
+    apply(&mut session, &[pointer(pan, true), pointer(pan, false)]);
+
+    let committed = session.app.annotations.clone();
+    apply(&mut session, &drag((x + 15, y + 20), (x + 25, y + 30))[..2]);
+    assert_eq!(session.app.annotations, committed);
+    assert!(matches!(
+        session.app.pointer.pending_annotation_move.as_ref(),
+        Some(edit) if edit.annotation_index == 0
+            && edit.kind == AnnotationMoveKind::Length(LengthMove::WholeLine)
+    ));
+    assert!(overlay_lines(&session).contains(&((x - 20, y - 30), (x + 70, y + 90))));
+    apply(&mut session, &[pointer((x + 25, y + 30), false)]);
+
+    let delta = {
+        let start = stored(x + 15, y + 20);
+        let end = stored(x + 25, y + 30);
+        [end[0] - start[0], end[1] - start[1]]
+    };
+    let translated = |point: [f32; 2]| [point[0] + delta[0], point[1] + delta[1]];
+    let expected_p1 = translated(stored(x - 30, y - 40));
+    let expected_p2 = translated(stored(x + 60, y + 80));
+    let Annotation::Length {
+        plane,
+        location: actual_location,
+        p1,
+        p2,
+        length_mm,
+    } = &session.app.annotations[0]
+    else {
+        panic!("translated annotation is a length");
+    };
+    assert_eq!((*plane, *actual_location), (location.plane, Some(location)));
+    assert_eq!((*p1, *p2), (expected_p1, expected_p2));
+    let unit = f64::from(f32::EPSILON) / 2.0;
+    let ideal_p1 = physical(x - 20, y - 30);
+    let ideal_p2 = physical(x + 70, y + 90);
+    let row_error = ((f64::from(p1[0]) - ideal_p1[0]).abs()
+        + (f64::from(p2[0]) - ideal_p2[0]).abs())
+        * spacing[0];
+    let column_error = ((f64::from(p1[1]) - ideal_p1[1]).abs()
+        + (f64::from(p2[1]) - ideal_p2[1]).abs())
+        * spacing[1];
+    let endpoint = row_error.hypot(column_error);
+    let roundings = 8.0;
+    let gamma = roundings * unit / (1.0 - roundings * unit);
+    let bound = endpoint + gamma * (3.0 * a + endpoint);
+    assert!((f64::from(*length_mm) - 3.0 * a).abs() <= bound);
+    assert_eq!(session.app.length_scale(Some(location)), 2.0);
+    assert_eq!(session.app.annotations[1], other_source);
+
+    for cancellation in [
+        Cancellation::Escape,
+        Cancellation::CaptureLoss,
+        Cancellation::SliceReturn,
+    ] {
+        assert_preview_cancelled(
+            &mut session,
+            (x + 25, y + 30),
+            (x + 45, y + 50),
+            ((x, y - 10), (x + 90, y + 110)),
+            cancellation,
+        );
+    }
+
+    let translated = session.app.annotations[0].clone();
+    apply(
+        &mut session,
+        &[WindowEvent::KeyDown {
+            virtual_key: crate::ui::tool_shortcuts::VIRTUAL_KEY_ARROW,
+            repeated: false,
+            modifiers: ModifierState::NONE,
+        }],
+    );
+    apply(&mut session, &drag((x + 25, y + 30), (x + 35, y + 40)));
+    assert_eq!(session.app.annotations[0], translated);
+    assert!(matches!(
+        session.app.annotations.last(),
+        Some(Annotation::Arrow { .. })
+    ));
+
+    let Annotation::Length { p1, p2, .. } = translated.clone() else {
+        unreachable!("invariant: translated annotation is a length");
+    };
+    let polygon = Annotation::OpenPolygon {
+        location: Some(location),
+        points: vec![p1, p2],
+        length_mm: raw,
+    };
+    session.app.annotations = vec![translated.clone(), polygon.clone()];
+    session.app.pointer.selected_annotation = None;
+    apply(&mut session, &[pointer(pan, true), pointer(pan, false)]);
+    let pan_before = session.app.pan_offset;
+    let raw_annotations = session.app.annotations.clone();
+    apply(
+        &mut session,
+        &[
+            pointer((x + 25, y + 30), true),
+            pointer((x + 25, y + 30), false),
+        ],
+    );
+    assert_eq!(session.app.annotations, raw_annotations);
+    assert_eq!(session.app.pointer.selected_annotation, Some(1));
+    assert_eq!(session.app.pointer.pending_annotation_move, None);
+    assert_eq!(session.app.pan_offset, pan_before);
+
+    session.app.annotations = vec![polygon, translated.clone()];
+    session.app.pointer.selected_annotation = Some(0);
+    apply(&mut session, &drag((x + 25, y + 30), (x + 30, y + 35))[..2]);
+    assert!(matches!(
+        session.app.pointer.pending_annotation_move.as_ref(),
+        Some(edit) if edit.annotation_index == 1
+            && edit.kind == AnnotationMoveKind::Length(LengthMove::WholeLine)
+    ));
+    assert_eq!(session.app.annotations[1], translated);
+    assert_eq!(session.app.pan_offset, pan_before);
+    assert!(overlay_lines(&session).contains(&((x - 15, y - 25), (x + 75, y + 95))));
+    apply(&mut session, &[WindowEvent::PointerCaptureLost]);
+    assert_eq!(session.app.annotations[1], translated);
 }

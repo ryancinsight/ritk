@@ -26,7 +26,8 @@ pub(super) fn tag_key(group: u16, element: u16) -> u32 {
 /// Return the set of DICOM tags already extracted by the named parsing logic.
 ///
 /// Elements whose `tag_key` is in this set are skipped during full-preservation
-/// iteration to avoid double-capturing named fields.
+/// iteration. Image-plane attributes stay outside this set: effective geometry
+/// can differ from the source after synthesis or normalization.
 ///
 /// # Optimization
 ///
@@ -40,9 +41,6 @@ pub(super) fn known_handled_tags() -> &'static HashSet<u32> {
         s.insert(tag_key(0x0008, 0x0018)); // SOP Instance UID
         s.insert(tag_key(0x0020, 0x0013)); // Instance Number
         s.insert(tag_key(0x0020, 0x1041)); // Slice Location
-        s.insert(tag_key(0x0020, 0x0032)); // ImagePositionPatient
-        s.insert(tag_key(0x0020, 0x0037)); // ImageOrientationPatient
-        s.insert(tag_key(0x0028, 0x0030)); // PixelSpacing
         s.insert(tag_key(0x0018, 0x0050)); // SliceThickness
         s.insert(tag_key(0x0018, 0x5100)); // PatientPosition
         s.insert(tag_key(0x0028, 0x1053)); // RescaleSlope
