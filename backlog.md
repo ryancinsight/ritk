@@ -140,7 +140,6 @@
 <a id="RITK-SNAP-EFRAME-NAVIGATION-001"></a>- [RITK-SNAP-EFRAME-NAVIGATION-001](backlog/RITK-SNAP-EFRAME-NAVIGATION-001.md) — Paint pan and retain the press origin — todo
 <a id="RITK-SNAP-ARROW-PROPERTIES-001"></a>- [RITK-SNAP-ARROW-PROPERTIES-001](backlog/RITK-SNAP-ARROW-PROPERTIES-001.md) — Edit arrow text and appearance — todo
 <a id="RITK-SNAP-CALIBRATION-INPUT-001"></a>- [RITK-SNAP-CALIBRATION-INPUT-001](backlog/RITK-SNAP-CALIBRATION-INPUT-001.md) — Complete calibration units and properties — todo
-<a id="RITK-SNAP-CALIBRATION-MEASURES-001"></a>- [RITK-SNAP-CALIBRATION-MEASURES-001](backlog/RITK-SNAP-CALIBRATION-MEASURES-001.md) — Propagate image calibration to measurements — todo
 <a id="RITK-SNAP-MEASUREMENT-UNITS-001"></a>- [RITK-SNAP-MEASUREMENT-UNITS-001](backlog/RITK-SNAP-MEASUREMENT-UNITS-001.md) — Retain missing-spacing measurement units — todo
 <a id="RITK-SNAP-ELLIPSE-CONSTRAINT-001"></a>- [RITK-SNAP-ELLIPSE-CONSTRAINT-001](backlog/RITK-SNAP-ELLIPSE-CONSTRAINT-001.md) — Constrain ellipse drawing to a circle — todo
 <a id="RITK-SNAP-ELLIPSE-PIXEL-MASK-001"></a>- [RITK-SNAP-ELLIPSE-PIXEL-MASK-001](backlog/RITK-SNAP-ELLIPSE-PIXEL-MASK-001.md) — Show ellipse contributing-pixel outlines — todo

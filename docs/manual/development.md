@@ -1079,44 +1079,6 @@ volume-rendering path and emits a diagnostic instead of panicking in wgpu. The
 GPU path remains available for volumes within the device limits; this guard
 keeps a real saved study displayable on either path.
 
-
-### Capture a fitting CT volume through the eframe GPU projection
-
-The same RITK-owned viewer also exercises its asynchronous wgpu projection
-when the selected volume fits the device storage-buffer limits. The complete
-409-file series above exceeds the reference adapter limit, so this reproducible
-GPU check selects the first nine public Part 10 files as a small fitting volume:
-
-```powershell
-$subset = 'scratch\viewer\gpu-ct-input'
-New-Item -ItemType Directory -Force $subset | Out-Null
-Get-ChildItem test_data\3_head_ct_mridir\DICOM -Filter '*.dcm' |
-  Sort-Object Name | Select-Object -First 9 |
-  Copy-Item -Destination $subset
-$env:WGPU_BACKEND = 'gl'
-cargo run --locked -p ritk-snap --features eframe-shell -- `
-  $subset `
-  --eframe `
-  --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
-  --capture scratch\viewer\real-dicom-eframe-gpu.png
-```
-
-This command decodes the saved DICOM files, renders the axial, coronal and
-sagittal views, submits the 3D projection to wgpu, waits for the matching
-asynchronous readback, and exits successfully. The reviewed 1600 × 1000
-capture below shows the public phantom anatomy and the `3D MIP · GPU` status
-label in the running application:
-
-![Actual MRI-DIR CT slices and GPU MIP rendered in the eframe application](images/dicom-eframe-real-gpu-ct.webp)
-
-The capture is byte-identical across two runs (SHA-256
-`d8c82a0c51b9172ca11a0947f10cc31e80b135a2f23f10ba879f18b228575a7c`). The
-input file list, concatenated input digest, executable digest, graphics-backend
-selection and bounds are recorded in
-[`dicom-eframe-real-gpu-ct.json`](images/dicom-eframe-real-gpu-ct.json). The
-GL selector makes the run reproducible on this host; the evidence records the
-backend without claiming hardware acceleration.
-
 ### Capture the saved MRI study through Métis
 
 Use the public CC BY 4.0 porcine-head phantom in
