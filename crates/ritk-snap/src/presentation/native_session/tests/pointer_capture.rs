@@ -195,7 +195,16 @@ fn a_stationary_release_leaves_a_display_gesture_where_its_last_move_put_it() {
 }
 
 fn navigation_session() -> (NativeViewerSession, tempfile::TempDir) {
-    navigation_session_at_display_scale(4.0)
+    let (mut session, root) = session();
+    let texel_width =
+        session.viewports[0].image.width / f64::from(session.views[0].frame().width());
+    let texel_height =
+        session.viewports[0].image.height / f64::from(session.views[0].frame().height());
+    session.app.zoom = f32::from_f64(4.0 / texel_width.min(texel_height));
+    session
+        .refresh_frame()
+        .expect("render a viewport with at least four screen pixels per image pixel");
+    (session, root)
 }
 
 fn navigation_session_at_display_scale(
