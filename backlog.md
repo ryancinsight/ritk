@@ -10,10 +10,16 @@
 - Local evidence: 31 focused RITK DICOM tests pass. The borrow-identity
   regression checks both explicit byte orders and implicit little endian,
   distinguishes nested and compound values, and rejects truncated input.
-- Remaining: complete the mutable dataset and writer, implicit-VR dictionary
-  and transfer-syntax parity, migrate DIMSE and downstream consumers, then
-  verify the locked graph removes dicom-rs and its Chrono edge. Coordinate
-  against the current clinical, viewer, and Helios interfaces.
+- The native SCU supplies C-ECHO, C-FIND, C-MOVE, and C-STORE transport.
+  The locked DICOM suite passes 524 selected tests including real independent
+  loopback peers. The prior command codec failed those peers until the PS3.7
+  command encoding and PS3.8 release frame were corrected.
+- A 16,777,690-byte synthetic 32-frame file yields 16,790,724 allocated bytes
+  per full-object parse and zero for the identical borrowed tag selection.
+  The probe is scoped to selection with the encoded input already resident.
+- Remaining: complete the mutable dataset and writer, implicit-VR dictionary,
+  character repertoires, and transfer-syntax parity. Migrate dataset consumers
+  including Helios and verify removal of dicom-rs and its Chrono edge.
 # Milestones
 <a id="M-viewer-reading"></a>
 ## M-viewer-reading — 0.2.0 — read a single study on the native shell

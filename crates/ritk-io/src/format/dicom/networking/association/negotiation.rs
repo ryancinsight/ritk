@@ -113,21 +113,6 @@ impl Association {
     }
 }
 
-/// Build a map of presentation-context ID → abstract-syntax UID from an RQ PDU.
-pub(super) fn rq_iter_abstracts(pdu: &Pdu) -> HashMap<u8, ArrayString<64>> {
-    let mut m = if let Pdu::AssociateRq(rq) = pdu {
-        HashMap::with_capacity(rq.presentation_contexts.len())
-    } else {
-        HashMap::new()
-    };
-    if let Pdu::AssociateRq(rq) = pdu {
-        for pc in &rq.presentation_contexts {
-            m.insert(pc.presentation_context_id, pc.abstract_syntax_uid);
-        }
-    }
-    m
-}
-
 /// Build the transfer-syntax list for a presentation context, ensuring
 /// Implicit VR Little Endian (PS 3.7 §7.1.1.13) is always present as fallback.
 ///
@@ -143,12 +128,4 @@ pub(super) fn build_ts_list(uids: &[arrayvec::ArrayString<64>]) -> Vec<arrayvec:
         ts.push(literal_arraystring(transfer_syntax::IMPLICIT_VR_LE));
         ts
     }
-}
-
-/// Return `true` if the P-Data-TF contains a last-fragment data-set PDV.
-pub(super) fn pdv_last_data(pd: &PDataTfPdu) -> bool {
-    pd.presentation_data_value_items.iter().any(|p| {
-        p.message_control_header.message_type == CommandType::DataSet
-            && p.message_control_header.fragment_position == FragmentPosition::Last
-    })
 }

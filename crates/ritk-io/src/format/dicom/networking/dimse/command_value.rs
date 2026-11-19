@@ -1,6 +1,6 @@
 //! DIMSE command element types — VR, value representation, and element structure.
 
-/// VR types used in command sets (Explicit VR LE, PS3.5 Table 6.2-1).
+/// Value representations associated with command elements (PS3.7 Annex E).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommandVr {
     Us,

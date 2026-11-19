@@ -6,10 +6,11 @@
 
 mod command_value;
 mod factory;
+mod wire;
 
 pub use command_value::{CommandElement, CommandValue, CommandVr};
 
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 use arrayvec::ArrayString;
 
 // ── DIMSE Command Field Values ────────────────────────────────────────────────
@@ -127,129 +128,7 @@ pub(crate) const TAG_NUM_SUBOPS: (u16, u16) = (0x0000, 0x1001);
 pub(crate) const NO_DATASET: u16 = 0x0101;
 pub(crate) const HAS_DATASET: u16 = 0x0001;
 
-// ── Encoding / Decoding ───────────────────────────────────────────────────────
-
 impl DimseMessage {
-    /// Write the Explicit VR LE encoding of a single command element into `buf`.
-    pub(crate) fn encode_element_into(
-        buf: &mut Vec<u8>,
-        tag: (u16, u16),
-        vr: CommandVr,
-        value: &[u8],
-    ) {
-        buf.extend_from_slice(&tag.0.to_le_bytes());
-        buf.extend_from_slice(&tag.1.to_le_bytes());
-        buf.extend_from_slice(&vr.code());
-        if vr.is_short() {
-            buf.extend_from_slice(&(value.len() as u16).to_le_bytes());
-        } else {
-            buf.extend_from_slice(&0u16.to_le_bytes()); // reserved
-            buf.extend_from_slice(&(value.len() as u32).to_le_bytes());
-        }
-        buf.extend_from_slice(value);
-    }
-
-    /// Encode the command set as DICOM Explicit VR Little Endian bytes.
-    /// (0000,0000) CommandGroupLength is computed and prepended.
-    ///
-    /// # Allocation profile
-    ///
-    /// All encoded element bytes are written directly into a single pre-grown
-    /// `Vec<u8>`, avoiding per-element intermediate `Vec` allocations and the
-    /// associated resize/copy overhead.
-    pub fn encode_command_set(&self) -> Vec<u8> {
-        // Pre-compute total body size for a single allocation.
-        let body_size: usize = self
-            .command_set
-            .iter()
-            .filter(|e| e.tag != TAG_CMD_GROUP_LENGTH)
-            .map(|e| {
-                let overhead = if e.vr.is_short() { 8 } else { 12 };
-                overhead + e.value.len()
-            })
-            .sum();
-
-        let mut body = Vec::with_capacity(body_size);
-        for elem in &self.command_set {
-            if elem.tag == TAG_CMD_GROUP_LENGTH {
-                continue;
-            }
-            Self::encode_element_into(&mut body, elem.tag, elem.vr, elem.value.as_bytes());
-        }
-
-        // Encode the group-length element (always UL — long-form: 12 bytes overhead)
-        let mut full = Vec::with_capacity(12 + 4 + body_size);
-        Self::encode_element_into(
-            &mut full,
-            TAG_CMD_GROUP_LENGTH,
-            CommandVr::Ul,
-            &(body.len() as u32).to_le_bytes(),
-        );
-        full.extend_from_slice(&body);
-        full
-    }
-
-    /// Decode a command set from Explicit VR Little Endian bytes.
-    /// Returns `DimseMessage` with `data_set` = None (caller attaches data set).
-    pub fn decode_command_set(data: &[u8]) -> Result<Self> {
-        let mut elements = Vec::with_capacity(16);
-        let mut cursor = 0usize;
-
-        while cursor + 6 <= data.len() {
-            let group = u16::from_le_bytes([data[cursor], data[cursor + 1]]);
-            let element = u16::from_le_bytes([data[cursor + 2], data[cursor + 3]]);
-            let vr_code = [data[cursor + 4], data[cursor + 5]];
-            let vr = CommandVr::from_code(vr_code)
-                .with_context(|| format!("unknown VR {:?} at offset {}", vr_code, cursor))?;
-            cursor += 6;
-
-            let value_len = if vr.is_short() {
-                if cursor + 2 > data.len() {
-                    break;
-                }
-                u16::from_le_bytes([data[cursor], data[cursor + 1]]) as usize
-            } else {
-                if cursor + 6 > data.len() {
-                    break;
-                }
-                cursor += 2; // skip reserved
-                let len = u32::from_le_bytes([
-                    data[cursor],
-                    data[cursor + 1],
-                    data[cursor + 2],
-                    data[cursor + 3],
-                ]) as usize;
-                cursor += 4;
-                len
-            };
-
-            if vr.is_short() {
-                cursor += 2;
-            }
-
-            if cursor + value_len > data.len() {
-                bail!(
-                    "value length {} at offset {} exceeds buffer ({})",
-                    value_len,
-                    cursor,
-                    data.len()
-                );
-            }
-
-            elements.push(CommandElement {
-                tag: (group, element),
-                vr,
-                value: CommandValue::Heap(data[cursor..cursor + value_len].to_vec()),
-            });
-            cursor += value_len;
-        }
-
-        Ok(Self {
-            command_set: elements,
-            data_set: None,
-        })
-    }
-
     /// CommandField from (0000,0100).
     pub fn command_field(&self) -> Option<CommandField> {
         self.find_element(TAG_COMMAND_FIELD)

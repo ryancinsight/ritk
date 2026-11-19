@@ -22,6 +22,11 @@
 
 ### Changed
 
+- [patch] Route C-ECHO, C-FIND, C-MOVE, and C-STORE through RITK's native
+  association. Encode PS3.7 command sets as implicit VR little endian and
+  send the reserved A-RELEASE body. Honor negotiated fragment limits and
+  assemble command/data fragments from the same presentation data PDU.
+
 - [patch] Select series catalog metadata directly from the bounded Part 10
   traversal. The catalog reads the source bytes without creating a second
   object or copying pixel values. The scanner retains structural, size,

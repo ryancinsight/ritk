@@ -42,7 +42,6 @@ ritk-tiff = { workspace = true }
 ritk-minc = { workspace = true }
 dicom = { workspace = true }
 dicom-core = { workspace = true }
-dicom-ul = { workspace = true }
 eunomia = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
@@ -70,6 +69,7 @@ dicom-pixeldata = { workspace = true }
 dicom-transfer-syntax-registry = { workspace = true }
 
 [dev-dependencies]
+dicom-ul = { workspace = true }
 ritk-codecs = { path = "../ritk-codecs" }  # path-only: dev-deps form a publish cycle
 # Rejection assertions shared across the workspace's test modules.
 ritk-core = { path = "../ritk-core", features = ["test-helpers"] }
