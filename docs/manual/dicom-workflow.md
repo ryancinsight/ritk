@@ -47,6 +47,10 @@ loaded modality's window presets, inversion, and color maps. Number keys
 apply available presets; **I** inverts and **Shift+C** cycles the color map.
 Custom presets currently last for the running application.
 
+Pan distance and zoom/window drag sensitivity currently depend on image fit
+and orientation. The [navigation correction](../../backlog/RITK-SNAP-NAVIGATION-UNITS-001.md)
+tracks this known limitation; menu presets and slice rails remain available.
+
 Press **H** or **V** to flip the image horizontally or vertically.
 **R** rotates clockwise by 90 degrees and **Shift+R** rotates the other way.
 **Shift+O** restores image orientation. **Ctrl+0** fits the image to its pane;

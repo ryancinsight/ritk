@@ -3,6 +3,11 @@
 Use the [AsterSlice user guide](dicom-workflow.md) for the current Windows
 controls. This page retains the reproduction commands and capture records.
 
+The optional eframe shell does not currently paint pan offsets and loses
+movement before its drag threshold. Its [navigation work](../../backlog/RITK-SNAP-EFRAME-NAVIGATION-001.md)
+requires rendered-shape tests; session-state assertions alone do not establish
+visible movement.
+
 ## Run the reference checks
 
 The Windows regression fixtures exercise native-session rendering and the
