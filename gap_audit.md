@@ -141,6 +141,7 @@ currently selected gate. The decoded-byte budget includes provenance.
 The separate GPU rerun exercises the Metal projection paths on macOS.
 Windows-specific display-command coverage is separate from the macOS run.
 
-The reproducible lock selects published Eunomia and Eunomia Derive
-0.12.1. Leto and Gaia still exclude Aequitas 0.5.0 in public inputs.
-The manifest migration resolves a single 0.5.0 registry identity locally.
+The worktree lock selects published Eunomia and Eunomia Derive 0.12.1.
+Leto and Gaia still exclude Aequitas 0.5.0 in public inputs. The isolated
+migration resolves one registry Aequitas 0.5.0 and passes 21 focused PET
+and projection tests with Metal selected.
