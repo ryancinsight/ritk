@@ -1,7 +1,7 @@
 # AsterSlice user manual
 
 Use AsterSlice to browse a study and measure or mark an image on Windows.
-The executable and Cargo package are named `ritk-snap`. The
+The executable is `asterslice`; its Cargo package is `ritk-snap`. The
 [feature comparison](features.md) covers the supplied RadiAnt 2021.2 manual,
 the current Windows controls, the tests, and the work needed for parity.
 The [developer reference](development.md) contains reproduction procedures
@@ -27,7 +27,7 @@ cargo run --locked -p ritk-snap -- test_data/2_head_mri_t2/DICOM
 ```
 
 A startup path can also name a DICOM instance or DICOMDIR. To select a series
-explicitly, add `--series-instance-uid UID`. The [launch reference](../../crates/ritk-snap/README.md)
+explicitly from a study folder, add `--series-instance-uid UID`. The [launch reference](../../crates/ritk-snap/README.md)
 describes startup selection and capture options.
 
 - [Adjust the image display](#adjust-the-image-display)

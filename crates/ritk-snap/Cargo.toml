@@ -18,7 +18,7 @@ default = []
 eframe-shell = ["dep:eframe", "dep:egui", "dep:rfd"]
 
 [[bin]]
-name = "ritk-snap"
+name = "asterslice"
 path = "src/main.rs"
 
 [[example]]

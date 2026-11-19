@@ -55,7 +55,7 @@ impl CliNativeLayout {
 /// AsterSlice medical-image viewer.
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Parser)]
-#[command(author, version, about)]
+#[command(name = "asterslice", bin_name = "asterslice", author, version, about)]
 struct Args {
     /// Optional DICOM folder or medical image file loaded at startup.
     #[arg(value_name = "PATH")]
@@ -209,12 +209,31 @@ fn main() -> anyhow::Result<()> {
 #[cfg(all(not(target_arch = "wasm32"), test))]
 mod tests {
     use super::Args;
-    use clap::Parser;
+    use clap::{CommandFactory, Parser};
+
+    #[test]
+    fn command_identity_matches_the_executable() {
+        let mut command = Args::command();
+        command
+            .try_get_matches_from_mut(["C:/build/asterslice.exe"])
+            .expect("parse the Windows executable path");
+        assert_eq!(
+            command.render_usage().to_string(),
+            "Usage: asterslice [OPTIONS] [PATH]"
+        );
+        let version = Args::try_parse_from(["C:/build/asterslice.exe", "--version"])
+            .expect_err("version output exits argument parsing");
+        assert_eq!(version.kind(), clap::error::ErrorKind::DisplayVersion);
+        assert_eq!(
+            version.to_string(),
+            concat!("asterslice ", env!("CARGO_PKG_VERSION"), "\n")
+        );
+    }
 
     #[test]
     fn comparison_arguments_require_a_study_and_primary_series() {
         let args = Args::try_parse_from([
-            "ritk-snap",
+            "asterslice",
             "study",
             "--series-instance-uid",
             "2.25.1",
@@ -225,19 +244,23 @@ mod tests {
         assert_eq!(args.initial_series_uid.as_deref(), Some("2.25.1"));
         assert_eq!(args.comparison_series_uid.as_deref(), Some("2.25.2"));
 
-        assert!(Args::try_parse_from([
-            "ritk-snap",
+        let error = Args::try_parse_from([
+            "asterslice",
             "study",
             "--compare-series-instance-uid",
             "2.25.2",
         ])
-        .is_err());
+        .expect_err("comparison requires a primary series");
+        assert_eq!(
+            error.kind(),
+            clap::error::ErrorKind::MissingRequiredArgument
+        );
     }
 }
 
 #[cfg(target_arch = "wasm32")]
 fn main() -> anyhow::Result<()> {
     anyhow::bail!(
-        "ritk-snap binary is native-only on wasm32; use ritk_snap::start_web or start_web_canvas from JavaScript"
+        "asterslice binary is native-only on wasm32; use ritk_snap::start_web or start_web_canvas from JavaScript"
     )
 }

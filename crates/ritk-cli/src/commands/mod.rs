@@ -58,7 +58,7 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<f32, Backend, 3>> {
             if is_rgb_dicom_series(path).unwrap_or(false) {
                 bail!(
                     "RGB DICOM colour series are not supported by the CLI. \
-                     Use `ritk-snap` (the graphical viewer) to load and inspect RGB DICOM volumes."
+                     Use `asterslice` (the graphical viewer) to load and inspect RGB DICOM volumes."
                 );
             }
             ImageReader::read(

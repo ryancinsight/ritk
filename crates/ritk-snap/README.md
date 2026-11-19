@@ -1,11 +1,12 @@
 # AsterSlice
 
-AsterSlice is the RITK medical-image viewer, distributed as the `ritk-snap`
-package. On Windows the Métis host is the default desktop shell. The default
+AsterSlice is the RITK medical-image viewer. The `ritk-snap` package provides
+the `asterslice` executable. On Windows the Métis host is the default desktop shell. The default
 dependency graph has no eframe, egui, or rfd dependency. Enable the optional
 `eframe-shell` feature to build the compatibility shell from the same package.
-The migration is described in
-[ADR 0026](../../docs/adr/0026-viewer-presentation-migration.md).
+The shell migration is described in
+[ADR 0026](../../docs/adr/0026-viewer-presentation-migration.md);
+[ADR 0061](../../docs/adr/0061-asterslice-executable.md) records the executable name.
 
 RITK owns DICOM opening, decoding, geometry, and medical display semantics.
 The `presentation` module exposes a validated format-neutral RGBA frame for a
@@ -129,7 +130,7 @@ The [Windows shortcuts](../../docs/manual/dicom-workflow.md#windows-tool-shortcu
 list the current measurement and drawing keys.
 
 On Windows the same command works without `--metis-native`; the flag remains an
-explicit spelling for scripts and existing workflows. The `ritk-snap` binary
+explicit spelling for scripts and existing workflows. The `asterslice` binary
 selects the compatibility shell with `--eframe` when built with the
 `eframe-shell` feature.
 
