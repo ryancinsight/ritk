@@ -1519,8 +1519,8 @@ checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
 
 [[package]]
 name = "consus-compression"
-version = "0.4.1"
-source = "git+https://github.com/ryancinsight/consus.git#30c999fa9727ee9ccc41ac61ec26a1f451d4b962"
+version = "0.5.0"
+source = "git+https://github.com/ryancinsight/consus.git#2193675bd5e1fbb726cb9f6b324feb91167311b4"
 dependencies = [
  "byteorder",
  "consus-core",
@@ -1529,8 +1529,8 @@ dependencies = [
 
 [[package]]
 name = "consus-core"
-version = "0.4.1"
-source = "git+https://github.com/ryancinsight/consus.git#30c999fa9727ee9ccc41ac61ec26a1f451d4b962"
+version = "0.5.0"
+source = "git+https://github.com/ryancinsight/consus.git#2193675bd5e1fbb726cb9f6b324feb91167311b4"
 dependencies = [
  "byteorder",
  "smallvec",
@@ -1539,8 +1539,8 @@ dependencies = [
 
 [[package]]
 name = "consus-hdf5"
-version = "0.4.1"
-source = "git+https://github.com/ryancinsight/consus.git#30c999fa9727ee9ccc41ac61ec26a1f451d4b962"
+version = "0.5.0"
+source = "git+https://github.com/ryancinsight/consus.git#2193675bd5e1fbb726cb9f6b324feb91167311b4"
 dependencies = [
  "byteorder",
  "consus-compression",
@@ -1550,21 +1550,21 @@ dependencies = [
 
 [[package]]
 name = "consus-io"
-version = "0.4.1"
-source = "git+https://github.com/ryancinsight/consus.git#30c999fa9727ee9ccc41ac61ec26a1f451d4b962"
+version = "0.5.0"
+source = "git+https://github.com/ryancinsight/consus.git#2193675bd5e1fbb726cb9f6b324feb91167311b4"
 dependencies = [
  "consus-core",
 ]
 
 [[package]]
 name = "consus-onnx"
-version = "0.4.1"
-source = "git+https://github.com/ryancinsight/consus.git#30c999fa9727ee9ccc41ac61ec26a1f451d4b962"
+version = "0.5.0"
+source = "git+https://github.com/ryancinsight/consus.git#2193675bd5e1fbb726cb9f6b324feb91167311b4"
 
 [[package]]
 name = "consus-raster"
-version = "0.4.1"
-source = "git+https://github.com/ryancinsight/consus.git#543f65a438dd323294192e5bea0498505e21c4cc"
+version = "0.5.0"
+source = "git+https://github.com/ryancinsight/consus.git#2193675bd5e1fbb726cb9f6b324feb91167311b4"
 dependencies = [
  "apollo-dctdst-core",
  "jpeg-encoder",
@@ -1572,8 +1572,8 @@ dependencies = [
 
 [[package]]
 name = "consus-zip"
-version = "0.4.1"
-source = "git+https://github.com/ryancinsight/consus.git#30c999fa9727ee9ccc41ac61ec26a1f451d4b962"
+version = "0.5.0"
+source = "git+https://github.com/ryancinsight/consus.git#2193675bd5e1fbb726cb9f6b324feb91167311b4"
 dependencies = [
  "consus-compression",
  "consus-core",
@@ -2790,7 +2790,7 @@ dependencies = [
 [[package]]
 name = "gaia-mesh"
 version = "0.6.10"
-source = "git+https://github.com/ryancinsight/gaia#bbd8f08730f16c4fca4e73039fd90b39280d87d1"
+source = "git+https://github.com/ryancinsight/gaia#c35981b5ebe90461dae232e78776f5eae3d35bdb"
 dependencies = [
  "aequitas",
  "consus-zip",
@@ -4192,7 +4192,7 @@ dependencies = [
 [[package]]
 name = "metis-core"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#b9945d089a27def92a5bbf652b103ab914af62d3"
+source = "git+https://github.com/ryancinsight/metis.git#3bb5a46a48cec623b95256d05246e99f72ddf691"
 dependencies = [
  "moirai-crypto",
 ]
@@ -4200,7 +4200,7 @@ dependencies = [
 [[package]]
 name = "metis-frontend"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#b9945d089a27def92a5bbf652b103ab914af62d3"
+source = "git+https://github.com/ryancinsight/metis.git#3bb5a46a48cec623b95256d05246e99f72ddf691"
 dependencies = [
  "iris-viz",
  "metis-core",
@@ -4212,7 +4212,7 @@ dependencies = [
 [[package]]
 name = "metis-ipc"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#b9945d089a27def92a5bbf652b103ab914af62d3"
+source = "git+https://github.com/ryancinsight/metis.git#3bb5a46a48cec623b95256d05246e99f72ddf691"
 dependencies = [
  "metis-core",
  "moirai-async",
@@ -4225,7 +4225,7 @@ dependencies = [
 [[package]]
 name = "metis-platform"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#b9945d089a27def92a5bbf652b103ab914af62d3"
+source = "git+https://github.com/ryancinsight/metis.git#3bb5a46a48cec623b95256d05246e99f72ddf691"
 dependencies = [
  "eunomia",
  "hermes-simd",
@@ -4239,7 +4239,7 @@ dependencies = [
 [[package]]
 name = "metis-ui-lang"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#b9945d089a27def92a5bbf652b103ab914af62d3"
+source = "git+https://github.com/ryancinsight/metis.git#3bb5a46a48cec623b95256d05246e99f72ddf691"
 dependencies = [
  "consus-raster",
  "eunomia",
@@ -4253,7 +4253,7 @@ dependencies = [
 [[package]]
 name = "metis-web"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#b9945d089a27def92a5bbf652b103ab914af62d3"
+source = "git+https://github.com/ryancinsight/metis.git#3bb5a46a48cec623b95256d05246e99f72ddf691"
 dependencies = [
  "metis-core",
  "metis-frontend",
