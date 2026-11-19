@@ -8,6 +8,7 @@ use crate::tools::interaction::{Annotation, AnnotationLocation};
 use crate::tools::kind::ToolKind;
 use eunomia::FloatElement;
 use metis_platform::native::MouseButton;
+use metis_platform::Rect;
 fn pointer((x, y): (i32, i32), down: bool) -> WindowEvent {
     if down {
         WindowEvent::PointerDown {
@@ -49,6 +50,13 @@ fn overlay_lines(session: &NativeViewerSession) -> Vec<((i32, i32), (i32, i32))>
             .map(|pending| (pending.annotation_index, &pending.candidate)),
         None,
         |location| session.app.length_scale(location),
+        Rect::new(
+            0,
+            0,
+            i32::try_from(session.framebuffer.width()).expect("frame width fits"),
+            i32::try_from(session.framebuffer.height()).expect("frame height fits"),
+        ),
+        &[],
     )
     .expect("compose edit overlay");
     draw_lines(overlay.into_display_list().commands())

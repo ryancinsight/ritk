@@ -15,7 +15,7 @@ use crate::tools::interaction::{
     Annotation, AnnotationLocation, ImagePoint, PatientLength, ToolState,
 };
 use crate::ui::{RotationSteps, ViewTransform};
-use metis_platform::Color;
+use metis_platform::{Color, Rect};
 use metis_ui_lang::DisplayCommand;
 
 const IDENTITY_DIRECTION: [f64; 9] = [
@@ -102,6 +102,13 @@ pub(super) fn composed(
         None,
         affine,
         |location| session.app.length_scale(location),
+        Rect::new(
+            0,
+            0,
+            i32::try_from(session.framebuffer.width()).expect("frame width fits"),
+            i32::try_from(session.framebuffer.height()).expect("frame height fits"),
+        ),
+        &[],
     )
     .expect("compose the measurement overlay");
     overlay.into_display_list().commands().to_vec()
@@ -166,6 +173,8 @@ fn measurement_length_skips_panes_beside_its_recorded_plane() {
         None,
         None,
         |_| 1.0,
+        Rect::new(0, 0, 800, 600),
+        &[],
     )
     .expect("compose the measurement overlay");
     let commands = overlay.into_display_list().commands().to_vec();

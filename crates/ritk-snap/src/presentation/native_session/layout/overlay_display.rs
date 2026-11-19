@@ -11,7 +11,7 @@ use eunomia::FloatElement;
 use iris::color::{ColorMap, Normalized};
 use metis_platform::rasterizer::CornerRadius;
 use metis_platform::{Color, Rect};
-use metis_ui_lang::DisplayCommand;
+use metis_ui_lang::{DisplayCommand, PlacementRegion};
 
 use super::crosshair::screen_coordinate;
 use super::geometry::NativeViewport;
@@ -47,6 +47,23 @@ const HISTOGRAM_BAR: Color = Color::rgba(160, 160, 160, 255);
 const HISTOGRAM_BAND: Color = Color::rgba(40, 100, 200, 50);
 const HISTOGRAM_CENTER: Color = Color::rgba(255, 190, 60, 255);
 const LABEL_COLOR: Color = Color::rgba(255, 255, 255, 255);
+
+/// Occupied strip when a histogram has visible content.
+pub(crate) fn histogram_bounds(
+    viewport: &NativeViewport,
+    histogram: &Histogram,
+) -> Result<Option<Rect>> {
+    if histogram.bins == 0 || histogram.counts.is_empty() {
+        return Ok(None);
+    }
+    let panel = viewport.panel_rect()?;
+    Ok(Some(Rect::new(
+        panel.x,
+        panel.y + panel.height - HISTOGRAM_STRIP_HEIGHT,
+        panel.width,
+        HISTOGRAM_STRIP_HEIGHT,
+    )))
+}
 
 /// Format one window intensity for overlay labels.
 ///
@@ -170,11 +187,14 @@ pub(crate) fn append_colorbar_overlay(
         let Some(bounds) = style.extent(x, y, &label) else {
             continue;
         };
+        let extent = Rect::new(0, 0, bounds.width, bounds.height);
+        let obstacles = overlay.placement_obstacles(panel, &[])?;
+        let clear = PlacementRegion::new(extent, panel, &obstacles)?.contains((bounds.x, bounds.y));
         if bounds.x >= right_rail
             && bounds.y >= upper
             && bounds.y + bounds.height <= lower
             && (bounds.y + bounds.height <= orientation_top || bounds.y >= orientation_bottom)
-            && !overlay.overlaps_text(bounds)
+            && clear
         {
             overlay.push(text_command(label, x, y, style));
         }
@@ -191,16 +211,13 @@ pub(crate) fn append_histogram_overlay(
     center: f32,
     width: f32,
 ) -> Result<()> {
-    if histogram.bins == 0 || histogram.counts.is_empty() {
+    let Some(widget) = histogram_bounds(viewport, histogram)? else {
         return Ok(());
-    }
+    };
     let panel = viewport.panel_rect()?;
-    let strip_y = screen_coordinate(
-        f64::from(panel.y + panel.height) - f64::from(HISTOGRAM_STRIP_HEIGHT),
-        "histogram strip top",
-    )?;
+    let strip_y = widget.y;
     overlay.push(DisplayCommand::FillRect {
-        rect: Rect::new(panel.x, strip_y, panel.width, HISTOGRAM_STRIP_HEIGHT),
+        rect: widget,
         radius: CornerRadius::SQUARE,
         color: HISTOGRAM_BACKGROUND,
     });
