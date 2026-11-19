@@ -5,7 +5,7 @@ use super::super::window_controls::Menu;
 use super::measurement_overlay::{axial_panel, composed};
 use super::support::control_center;
 use super::*;
-use crate::tools::interaction::Annotation;
+use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
 use eunomia::FloatElement;
 use metis_platform::{native::MouseButton, Color, RasterLine, Rect};
 use metis_ui_lang::DisplayCommand;
