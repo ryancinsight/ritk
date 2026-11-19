@@ -118,6 +118,13 @@ pub(crate) enum PolygonClick {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AnnotationMoveKind {
     Polygon { node_index: usize, inserted: bool },
+    Length(LengthMove),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LengthMove {
+    FirstEndpoint,
+    SecondEndpoint,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -144,7 +151,7 @@ pub(crate) struct PointerGestures {
     pub(crate) suspended_measurement: Option<ToolState>,
     pub(crate) pending_measurement_location: Option<AnnotationLocation>,
     pub(crate) drag_measurement_location: Option<AnnotationLocation>,
-    /// Index of the completed polygon selected in this panel.
+    /// Index of the completed annotation selected in this panel.
     pub(crate) selected_annotation: Option<usize>,
     pub(crate) pending_annotation_move: Option<PendingAnnotationMove>,
 }

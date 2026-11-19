@@ -8,12 +8,13 @@ pub(super) fn append(
     annotation: &Annotation,
     overlay: &mut OverlayCommands,
 ) -> Result<()> {
-    let (Annotation::OpenPolygon { points, .. } | Annotation::ClosedPolygon { points, .. }) =
-        annotation
-    else {
-        return Ok(());
-    };
-    append_points(pane, points.iter().copied(), overlay)
+    match annotation {
+        Annotation::Length { p1, p2, .. } => append_points(pane, [*p1, *p2], overlay),
+        Annotation::OpenPolygon { points, .. } | Annotation::ClosedPolygon { points, .. } => {
+            append_points(pane, points.iter().copied(), overlay)
+        }
+        _ => Ok(()),
+    }
 }
 
 fn append_points(

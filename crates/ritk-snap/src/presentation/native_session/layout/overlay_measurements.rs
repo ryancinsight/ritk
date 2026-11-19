@@ -47,10 +47,9 @@ pub(crate) fn append_measurement_overlay(
             if !annotation_visible(annotation, view.axis, view.slice_index) {
                 continue;
             }
+            let pending_index = pending_annotation.map(|(pending_index, _)| pending_index);
             let annotation = pending_annotation
-                .filter(|(pending_index, _)| {
-                    *pending_index == index && selected_annotation == Some(index)
-                })
+                .filter(|(pending_index, _)| *pending_index == index)
                 .map_or(annotation, |(_, candidate)| candidate);
             pane.draw(
                 annotation,
@@ -58,7 +57,7 @@ pub(crate) fn append_measurement_overlay(
                 affine,
                 length_scale(annotation.location()),
             )?;
-            if selected_annotation == Some(index) {
+            if selected_annotation == Some(index) || pending_index == Some(index) {
                 handles::append(&pane, annotation, overlay)?;
             }
         }
