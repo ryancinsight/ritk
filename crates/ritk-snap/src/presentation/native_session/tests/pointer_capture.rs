@@ -196,21 +196,11 @@ fn a_stationary_release_leaves_a_display_gesture_where_its_last_move_put_it() {
 
 fn navigation_session() -> (NativeViewerSession, tempfile::TempDir) {
     let (mut session, root) = session();
-    let texel_width =
-        session.viewports[0].image.width / f64::from(session.views[0].frame().width());
-    let texel_height =
-        session.viewports[0].image.height / f64::from(session.views[0].frame().height());
-    session.app.zoom = f32::from_f64(4.0 / texel_width.min(texel_height));
-    session
-        .refresh_frame()
-        .expect("render a viewport with at least four screen pixels per image pixel");
+    set_display_scale(&mut session, 4.0);
     (session, root)
 }
 
-fn navigation_session_at_display_scale(
-    display_pixels_per_image_pixel: f64,
-) -> (NativeViewerSession, tempfile::TempDir) {
-    let (mut session, root) = session_with_volume(crate::app::tests::test_volume([1, 100, 100]));
+fn set_display_scale(session: &mut NativeViewerSession, display_pixels_per_image_pixel: f64) {
     let texel_width =
         session.viewports[0].image.width / f64::from(session.views[0].frame().width());
     let texel_height =
@@ -220,6 +210,13 @@ fn navigation_session_at_display_scale(
     session
         .refresh_frame()
         .expect("render a viewport at the requested display scale");
+}
+
+fn navigation_session_at_display_scale(
+    display_pixels_per_image_pixel: f64,
+) -> (NativeViewerSession, tempfile::TempDir) {
+    let (mut session, root) = session_with_volume(crate::app::tests::test_volume([1, 100, 100]));
+    set_display_scale(&mut session, display_pixels_per_image_pixel);
     (session, root)
 }
 
