@@ -33,7 +33,7 @@ describes startup selection and capture options.
 - [Adjust the image display](#adjust-the-image-display)
 - [Compare series](#compare-series)
 - [Scroll through a slice stack](#scroll-through-a-slice-stack)
-- [Measure a length and calibrate it](#calibrate-a-length-on-one-image)
+- [Measure and calibrate image-plane geometry](#calibrate-measurements-on-one-image)
 - [Measure angles and regions](#measure-an-angle-or-a-region-of-interest)
 - [Draw and edit polygons](#trace-an-open-path-and-a-closed-outline)
 - [Draw an arrow or a freehand mark](#draw-an-arrow)
@@ -127,23 +127,28 @@ have their own rows. Measurement labels move to stay visible inside the pane.
 4. Scroll to another slice and back. The measurements appear on the slice
    where you drew them.
 
-### Calibrate a length on one image
+### Calibrate measurements on one image
 
 1. Measure a reference of known length with **Tools → Length**.
 2. Choose **Tools → Calibrate last distance…**. Enter the known distance in
    millimetres and press **Enter**. **Esc** cancels.
 3. Check the labels on that image. If a 5 mm reading is calibrated to
-   10 mm, a 3 mm reading on that image becomes 6 mm.
+   10 mm, image-plane lengths, deviations, and perimeters double while
+   rectangular, elliptical, and closed-polygon areas become four times as
+   large. Angles and intensity statistics do not change.
 4. Scroll to another slice and back. Choose **Tools → Reset length
    calibration** on the reference image to restore image-spacing readings.
 
 ![AsterSlice Tools calibration dialog over the current DICOM slice with a 100 mm reference entered](images/dicom-native-calibration.webp)
 
-Calibration lasts for the loaded study. Reopen the study to restore its DICOM
-spacing. This control currently rescales ordinary Length labels only.
-Patient-space lengths, deviation, polygon values, and ROI areas retain their
-image-spacing values. Inch/French-size input and source-specific calibration
-colors remain [calibration work](features.md#reading-and-annotations).
+Calibration lasts for the loaded study and applies only to the source image.
+It rescales image-plane Length, Deviation, Open Polygon, Closed Polygon,
+ROI Rect, and ROI Ellipse labels without changing the saved annotations.
+Patient-space lengths remain the Euclidean distance between their validated
+DICOM patient-coordinate endpoints and are never rescaled by this control.
+Reopen the study or use **Reset length calibration** to restore image-spacing
+readings. Inch/French-size input and source-specific calibration colors remain
+[calibration work](features.md#reading-and-annotations).
 
 ### Measure an angle or a region of interest
 

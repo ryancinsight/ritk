@@ -52,8 +52,11 @@ impl SnapApp {
             return false;
         }
         let scale = match (known_mm, reference.raw_mm.map(f32::from_bits)) {
-            // Both operands are positive finite f32 values. Their ratio and
-            // its product with any finite f32 length fit the f64 display range.
+            // Both operands are positive finite f32 values, so the scale
+            // magnitude is below 2^277. A finite stored area has magnitude
+            // below 2^128; applying scale squared stays below 2^682, while
+            // the smallest nonzero result stays above 2^-703. Both bounds fit
+            // the f64 display range (maximum exponent 1024, minimum -1074).
             (Some(known), Some(raw)) if known.is_finite() && known > 0.0 => {
                 Some(f64::from(known) / f64::from(raw))
             }
