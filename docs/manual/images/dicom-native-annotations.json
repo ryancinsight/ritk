@@ -1,12 +1,22 @@
 {
-  "viewer_revision": "e7f17246db7a7f57cb60c3c1fcea379505747737",
+  "viewer_revision": "d50c5118e9f565bdf79e5b60961a64b6ab04f511",
   "fixture": {
     "path": "test_data/2_head_mri_t2/DICOM",
     "dicom_images": 94
   },
-  "cargo_lock_sha256": "cc18b46bd4a8fbf4c2180b9f14636fbc6a001d27a79a1cddc29691c84902a6e5",
+  "cargo_lock_sha256": "ec67bb7229c55e1cdf7c83cc8c0898e5ac78110289c6ea84e2da1eaa4fd24b38",
   "capture": "Native Windows RITK client framebuffer",
   "command": "cargo nextest run --locked -p ritk-snap -E 'test(native_manual_annotation_frames)'",
+  "regeneration": {
+    "previous_viewer_revision": "e7f17246db7a7f57cb60c3c1fcea379505747737",
+    "pixel_identical_frames": [
+      "dicom-native-slices.webp",
+      "dicom-native-calibration.webp"
+    ],
+    "changed_frames": [
+      "dicom-native-annotations.webp"
+    ]
+  },
   "frames": {
     "dicom-native-slices.webp": {
       "width_px": 1280,
@@ -27,10 +37,10 @@
     "dicom-native-annotations.webp": {
       "width_px": 1280,
       "height_px": 800,
-      "webp_bytes": 126622,
-      "webp_sha256": "5316883603f054c7c44e47c859762c665ba9c0ba05f95e5b91775f5eeaf3c4b7",
-      "source_png_bytes": 429082,
-      "source_png_sha256": "3e792d10afec00f7f74afd102996feeb4ce8bd7469bb720845f51f4d1d1c5c4c"
+      "webp_bytes": 126516,
+      "webp_sha256": "a02efe41faa7f0180bc477d941ec3f6a6179f288d2c32ecad9b867c24044d1dd",
+      "source_png_bytes": 429106,
+      "source_png_sha256": "f16554fec019b3b346ab76962993bd3f293988a16758c208affd2632a1ff47cc"
     }
   }
 }
