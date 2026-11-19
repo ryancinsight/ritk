@@ -105,7 +105,7 @@ impl SnapApp {
         let next = clamp_index(index, total);
         let source = self
             .pointer
-            .pending_polygon_move
+            .pending_annotation_move
             .as_ref()
             .map(|edit| edit.source_location)
             .or_else(|| self.cobb_location());

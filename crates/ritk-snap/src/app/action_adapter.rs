@@ -206,20 +206,6 @@ impl SnapApp {
                 let Some(image) = viewport.map(*position) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
-                if *button == PointerButton::Left
-                    && !modifiers.ctrl()
-                    && !modifiers.shift()
-                    && (self.begin_polygon_vertex_move(*viewport, *position, image)
-                        || self.begin_polygon_edge_insert(*viewport, *position, image))
-                {
-                    self.pointer.owner = Some(PointerGestureOwner {
-                        button: *button,
-                        tool: self.active_tool,
-                        modified: false,
-                        polygon_click: PolygonClick::None,
-                    });
-                    return Ok(ViewerActionDisposition::Continue { repaint: true });
-                }
                 // A modified left press runs a display gesture without leaving
                 // the selected tool: Control adjusts window/level and Shift
                 // pans, matching the RadiAnt 2D modifier table. Control wins
@@ -238,6 +224,18 @@ impl SnapApp {
                 let modified = override_tool.is_some();
                 let tool = override_tool
                     .unwrap_or_else(|| self.pointer.bindings.tool_for(*button, self.active_tool));
+                if *button == PointerButton::Left
+                    && !modified
+                    && self.begin_annotation_move(*viewport, *position, image)
+                {
+                    self.pointer.owner = Some(PointerGestureOwner {
+                        button: *button,
+                        tool,
+                        modified: false,
+                        polygon_click: PolygonClick::None,
+                    });
+                    return Ok(ViewerActionDisposition::Continue { repaint: true });
+                }
                 self.pointer.owner = Some(PointerGestureOwner {
                     button: *button,
                     tool,
@@ -288,8 +286,8 @@ impl SnapApp {
                 else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
-                if self.pointer.pending_polygon_move.is_some() {
-                    let repaint = self.preview_polygon_vertex_move(image);
+                if self.pointer.pending_annotation_move.is_some() {
+                    let repaint = self.preview_annotation_move(image);
                     return Ok(ViewerActionDisposition::Continue { repaint });
                 }
                 if is_label_tool(owner.tool) {
@@ -329,17 +327,14 @@ impl SnapApp {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
                 let mapped = viewport.and_then(|viewport| viewport.map(*position));
-                if self.pointer.pending_polygon_move.is_some() {
+                if self.pointer.pending_annotation_move.is_some() {
                     match *gesture {
                         PointerGesture::Drag
-                            if mapped
-                                .is_some_and(|image| self.preview_polygon_vertex_move(image)) =>
+                            if mapped.is_some_and(|image| self.preview_annotation_move(image)) =>
                         {
-                            self.commit_polygon_vertex_move()
+                            self.commit_annotation_move()
                         }
-                        PointerGesture::Click if mapped.is_some() => {
-                            self.commit_polygon_vertex_move()
-                        }
+                        PointerGesture::Click if mapped.is_some() => self.commit_annotation_move(),
                         _ => {}
                     }
                     self.on_drag_end(None);

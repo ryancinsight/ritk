@@ -98,7 +98,7 @@ pub(super) fn composed(
         &session.views,
         &session.viewports,
         &session.app.annotations,
-        session.app.pointer.selected_polygon,
+        session.app.pointer.selected_annotation,
         None,
         affine,
         |location| session.app.length_scale(location),
@@ -162,7 +162,7 @@ fn measurement_length_skips_panes_beside_its_recorded_plane() {
         &views,
         &viewports,
         &session.app.annotations,
-        session.app.pointer.selected_polygon,
+        session.app.pointer.selected_annotation,
         None,
         None,
         |_| 1.0,
@@ -363,7 +363,7 @@ fn native_toolbar_length_then_drag_records_measurement() {
 }
 
 #[test]
-fn selected_polygon_draws_one_handle_at_each_projected_vertex() {
+fn selected_annotation_draws_one_handle_at_each_projected_vertex() {
     let (mut session, _root) = session();
     let (index, origin_x, origin_y, texel_x, texel_y) = axial_panel(&session);
     let view = &session.views[index];
@@ -377,7 +377,7 @@ fn selected_polygon_draws_one_handle_at_each_projected_vertex() {
     });
     let unselected = draw_lines(&composed(&session, None));
     assert_eq!(unselected.len(), 1);
-    session.app.pointer.selected_polygon = Some(0);
+    session.app.pointer.selected_annotation = Some(0);
     let selected = draw_lines(&composed(&session, None));
     let first = (origin_x.round(), origin_y.round());
     let second = (

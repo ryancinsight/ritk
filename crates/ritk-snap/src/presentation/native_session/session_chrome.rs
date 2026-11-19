@@ -44,11 +44,11 @@ impl NativeViewerSession {
                 std::slice::from_ref(view),
                 std::slice::from_ref(viewport),
                 &app.annotations,
-                app.pointer.selected_polygon,
+                app.pointer.selected_annotation,
                 app.pointer
-                    .pending_polygon_move
+                    .pending_annotation_move
                     .as_ref()
-                    .map(|pending| &pending.candidate),
+                    .map(|pending| (pending.annotation_index, &pending.candidate)),
                 volume_affine(app),
                 |location| app.length_scale(location),
             )?;

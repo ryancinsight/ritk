@@ -97,7 +97,7 @@ impl SnapApp {
         self.annotations.clear();
         #[cfg(windows)]
         self.length_calibrations.clear();
-        self.pointer.selected_polygon = None;
+        self.pointer.selected_annotation = None;
         self.label_editor = Some(LabelEditor::new(shape));
         #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
         {
@@ -272,7 +272,7 @@ impl SnapApp {
         self.annotations.clear();
         #[cfg(windows)]
         self.length_calibrations.clear();
-        self.pointer.selected_polygon = None;
+        self.pointer.selected_annotation = None;
         self.label_editor = None;
         self.rt_struct = None;
         self.rt_dose = None;
