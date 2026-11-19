@@ -85,6 +85,14 @@ decoded-workspace budgets, and return the RITK `Image` plus
 `DicomReadMetadata`. No GUI framework type or parser object crosses this
 boundary; the host owns only input and presentation lifecycle.
 
+Scanned images retain original decoded PixelSpacing, ImagePositionPatient,
+and ImageOrientationPatient in each slice's preservation inventory alongside
+effective geometry. This survives release of encoded bytes after loading.
+The compatibility tag-table model retains these values beside effective slice
+fields; its aggregate Preserved group does not identify a source frame.
+Retention alone does not certify physical units or select enhanced-frame
+geometry; see [ADR 0055](../adr/0055-dicom-metadata-retention-inventory.md).
+
 The [workspace lockfile](../../Cargo.lock) records the Métis and Moirai
 revisions used for the current build. Historical captures retain the
 provider revisions in their own provenance files. RITK owns DICOM

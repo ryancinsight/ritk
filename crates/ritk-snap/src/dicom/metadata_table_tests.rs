@@ -164,3 +164,36 @@ fn metadata_scope_labels_are_stable() {
     assert_eq!(MetadataScope::PreservedRaw.label(), "Raw");
     assert_eq!(MetadataScope::PrivateTag.label(), "Private");
 }
+
+#[test]
+fn metadata_rows_keep_original_and_effective_geometry_values() {
+    let mut fixture = metadata_fixture();
+    fixture.preservation.object.insert(DicomObjectNode::text(
+        DicomTag::new(0x0020, 0x0032),
+        "DS",
+        "1\\2\\3",
+    ));
+    let slice = fixture
+        .slices
+        .first_mut()
+        .expect("invariant: fixture has one image");
+    slice.preservation.object.insert(DicomObjectNode::text(
+        DicomTag::new(0x0020, 0x0032),
+        "DS",
+        "9\\8\\7",
+    ));
+    let rows = build_metadata_rows(&fixture);
+    let positions: Vec<_> = rows
+        .iter()
+        .filter(|row| row.tag == "0020,0032")
+        .map(|row| (row.scope, row.value.as_ref()))
+        .collect();
+    assert_eq!(
+        positions,
+        [
+            (MetadataScope::FirstSlice, "1.000000 x 2.000000 x 3.000000"),
+            (MetadataScope::PreservedNode, "1\\2\\3"),
+            (MetadataScope::PreservedNode, "9\\8\\7"),
+        ]
+    );
+}
