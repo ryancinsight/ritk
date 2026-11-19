@@ -1,4 +1,5 @@
 use super::measurement_overlay::{axial_panel, composed};
+use super::pointer_capture::{down, up};
 use super::support::{control_center, session};
 use super::*;
 use crate::geometry::affine::AffineTransform;
@@ -40,27 +41,12 @@ fn calibration_clicks(session: &NativeViewerSession) -> [WindowEvent; 4] {
     let (menu_x, menu_y) = control_center(session, None, WindowAction::OpenMenu(Menu::Tools));
     let (row_x, row_y) =
         control_center(session, Some(Menu::Tools), WindowAction::LengthCalibration);
+    let button = MouseButton::Left;
     [
-        WindowEvent::PointerDown {
-            x: menu_x,
-            y: menu_y,
-            button: MouseButton::Left,
-        },
-        WindowEvent::PointerUp {
-            x: menu_x,
-            y: menu_y,
-            button: MouseButton::Left,
-        },
-        WindowEvent::PointerDown {
-            x: row_x,
-            y: row_y,
-            button: MouseButton::Left,
-        },
-        WindowEvent::PointerUp {
-            x: row_x,
-            y: row_y,
-            button: MouseButton::Left,
-        },
+        down(menu_x, menu_y, button),
+        up(menu_x, menu_y, button),
+        down(row_x, row_y, button),
+        up(row_x, row_y, button),
     ]
 }
 
