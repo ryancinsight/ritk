@@ -6,5 +6,4 @@
 - next: Add `ModifierState` to the provider press events and translate it in `native.rs`; define the settings file schema and restore `pointer_bindings` at startup.
 - basis: bf7d80cd9
 - needs: none
-- milestone: M-viewer-reading
-- priority: feature
+- priority: feature; milestone: M-viewer-reading

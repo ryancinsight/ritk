@@ -6,5 +6,4 @@
 - next: Derive the declared syntax set from source and add missing loader-to-frame assertions. Reference: RadiAnt 2021.2; [feature comparison](../docs/manual/features.md#reading-and-annotations)
 - basis: eb9a81dabb62777be2103fa16b8a2dcbab50f1e3
 - needs: none
-- milestone: M-viewer-reading
-- priority: verification
+- priority: verification; milestone: M-viewer-reading

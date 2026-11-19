@@ -6,5 +6,4 @@
 - next: Extend the table with the morphology radius and voting thresholds first.
 - basis: 6d0f66501
 - needs: RITK-SNAP-EFRAME-PORT-001
-- milestone: M-viewer-reading
-- priority: architecture
+- priority: architecture; milestone: M-viewer-reading

@@ -6,5 +6,4 @@
 - next: Add a patient-position sync model over `ComparePanel`.
 - basis: 30b8ba098
 - needs: none
-- milestone: M-viewer-compare
-- priority: feature
+- priority: feature; milestone: M-viewer-compare

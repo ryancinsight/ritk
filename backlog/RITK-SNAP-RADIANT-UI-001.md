@@ -6,5 +6,4 @@
 - next: Exercise multi-series selection and pane controls end to end, then capture the full shell with its menus, browser, and panes.
 - basis: b2fe302b3659ec1dc69bba01849fab7f0e453d1c
 - needs: none
-- milestone: M-viewer-reading
-- priority: feature
+- priority: feature; milestone: M-viewer-reading
