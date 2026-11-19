@@ -36,11 +36,11 @@ pub struct LoadedVolume {
     /// Series time from metadata (TM VR, max 16 chars).
     pub series_time: Option<ArrayString<16>>,
     /// Patient weight in kg (for PET SUV computation).
-    pub patient_weight_kg: Option<f64>,
+    pub patient_weight_kg: Option<aequitas::systems::si::quantities::Mass>,
     /// Injected radionuclide total dose in Bq (for PET SUV computation).
-    pub injected_dose_bq: Option<f64>,
+    pub injected_dose_bq: Option<ritk_io::Radioactivity>,
     /// Radionuclide physical half-life in seconds (for PET SUV computation).
-    pub radionuclide_half_life_s: Option<f64>,
+    pub radionuclide_half_life_s: Option<aequitas::systems::si::quantities::Time>,
     /// Radiopharmaceutical start time (TM VR, max 16 chars).
     pub radiopharmaceutical_start_time: Option<ArrayString<16>>,
     /// Pixel decay-correction mode from (0054,1102) (CS VR, max 16 chars).

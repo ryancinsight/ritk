@@ -164,8 +164,8 @@ pub fn load_dicom_series_stored(
         [depth, rows, cols],
         samples,
         ImageMetadata::new(
-            Point::new(metadata.origin),
-            Spacing::new(metadata.spacing),
+            Point::new(metadata.origin_mm()),
+            Spacing::new(metadata.spacing_mm()),
             Direction::from_column_major(metadata.direction),
         ),
         CoordinateMap::Cartesian,
@@ -212,7 +212,7 @@ fn validate_uniform_geometry(metadata: &DicomReadMetadata) -> Result<(), DicomSt
     };
     let mut positions = Vec::with_capacity(slices.len());
     for slice in slices {
-        let Some(intercept) = slice.image_position_patient else {
+        let Some(intercept) = slice.image_position_mm() else {
             return Err(DicomStoredImportError::NonUniformGeometry);
         };
         positions.push(dot(intercept, normal));

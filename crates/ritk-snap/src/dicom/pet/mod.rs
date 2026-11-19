@@ -22,6 +22,10 @@
 //! }
 //! ```
 
+use aequitas::systems::si::quantities::{Mass, Time};
+use aequitas::systems::si::units::Gram;
+use ritk_io::Radioactivity;
+
 use super::suv::{compute_suvbw, SuvParams};
 use crate::LoadedVolume;
 
@@ -60,15 +64,15 @@ impl DecayCorrectionKind {
 ///
 /// All numeric fields are strictly positive (enforced by
 /// [`from_loaded_volume`][Self::from_loaded_volume], which returns `None` when
-/// any required field is absent or ≤ 0).
+/// any required field is absent, nonfinite, or ≤ 0).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PetAcquisitionParams {
     /// Patient body weight \[kg\]. Converted to \[g\] internally for `SuvParams`.
-    pub patient_weight_kg: f64,
+    pub patient_weight_kg: Mass,
     /// Injected radionuclide total dose at injection time \[Bq\].
-    pub injected_dose_bq: f64,
+    pub injected_dose_bq: Radioactivity,
     /// Radionuclide physical half-life \[s\].
-    pub radionuclide_half_life_s: f64,
+    pub radionuclide_half_life_s: Time,
     /// Pixel decay-correction mode from (0054,1102).
     pub decay_correction: DecayCorrectionKind,
 }
@@ -80,11 +84,22 @@ impl PetAcquisitionParams {
     /// `radionuclide_half_life_s` is absent or ≤ 0.
     ///
     /// `decay_correction` defaults to [`DecayCorrectionKind::None`] when the
-    /// DICOM field is absent.
+    /// DICOM field is absent. Scanned DICOM data must declare Bq/mL pixel units.
     pub fn from_loaded_volume(vol: &LoadedVolume) -> Option<Self> {
-        let patient_weight_kg = vol.patient_weight_kg.filter(|&w| w > 0.0)?;
-        let injected_dose_bq = vol.injected_dose_bq.filter(|&d| d > 0.0)?;
-        let radionuclide_half_life_s = vol.radionuclide_half_life_s.filter(|&h| h > 0.0)?;
+        if vol
+            .metadata
+            .as_ref()
+            .is_some_and(|metadata| !metadata.pet_pixels_in_bq_per_ml)
+        {
+            return None;
+        }
+        let patient_weight_kg = vol
+            .patient_weight_kg
+            .filter(|w| w.as_base().is_finite() && *w.as_base() > 0.0)?;
+        let injected_dose_bq = vol.injected_dose_bq?;
+        let radionuclide_half_life_s = vol
+            .radionuclide_half_life_s
+            .filter(|h| h.as_base().is_finite() && *h.as_base() > 0.0)?;
 
         let decay_correction = vol
             .decay_correction
@@ -106,15 +121,15 @@ impl PetAcquisitionParams {
     /// Ignored (forced to 0) when `decay_correction` is
     /// [`Start`][DecayCorrectionKind::Start] or [`Admin`][DecayCorrectionKind::Admin].
     pub fn to_suv_params(&self, delta_t_s: f64) -> SuvParams {
-        let weight_g = self.patient_weight_kg * 1_000.0;
+        let weight_g = self.patient_weight_kg.in_unit::<Gram>();
         match self.decay_correction {
             DecayCorrectionKind::Start | DecayCorrectionKind::Admin => {
-                SuvParams::without_decay_correction(self.injected_dose_bq, weight_g)
+                SuvParams::without_decay_correction(self.injected_dose_bq.becquerels(), weight_g)
             }
             DecayCorrectionKind::None => SuvParams::with_decay_correction(
-                self.injected_dose_bq,
+                self.injected_dose_bq.becquerels(),
                 weight_g,
-                self.radionuclide_half_life_s,
+                self.radionuclide_half_life_s.into_base(),
                 delta_t_s,
             ),
         }

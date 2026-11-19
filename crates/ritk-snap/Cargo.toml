@@ -1,6 +1,6 @@
 [package]
 name = "ritk-snap"
-version = "0.1.0"
+version = "0.2.0"
 authors.workspace = true
 repository.workspace = true
 publish = false
@@ -26,6 +26,7 @@ name = "dicom_workflow"
 required-features = ["eframe-shell"]
 
 [dependencies]
+aequitas.workspace = true
 iris = { workspace = true, features = ["serde"] }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }

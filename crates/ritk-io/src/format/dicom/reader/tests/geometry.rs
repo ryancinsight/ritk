@@ -274,8 +274,16 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
         series_date: None,
         series_time: None,
         dimensions: [rows, cols, depth],
-        spacing: [1.5, 1.0, 1.0],
-        origin: [0.0, 0.0, 0.0],
+        spacing: [1.5, 1.0, 1.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
+        origin: [0.0, 0.0, 0.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
         direction: [0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 1.0, 0.0, 0.0],
         bits_allocated: Some(16),
         bits_stored: Some(16),
@@ -285,6 +293,7 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
         private_tags: HashMap::new(),
         preservation: crate::format::dicom::DicomPreservationSet::new(),
         patient_weight_kg: None,
+        pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,
         radiopharmaceutical_start_time: None,

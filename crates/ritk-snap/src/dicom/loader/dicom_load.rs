@@ -141,6 +141,12 @@ fn loaded_volume_from_scalar_data(
     let patient_id = meta.patient_id.clone();
     let study_date = meta.study_date;
     let series_description = meta.series_description.clone();
+    let series_time = meta.series_time;
+    let patient_weight_kg = meta.patient_weight_kg;
+    let injected_dose_bq = meta.radionuclide_total_dose_bq;
+    let radionuclide_half_life_s = meta.radionuclide_half_life_s;
+    let radiopharmaceutical_start_time = meta.radiopharmaceutical_start_time;
+    let decay_correction = meta.decay_correction;
     let volume = LoadedVolume {
         data: Arc::new(pixels),
         shape,
@@ -155,12 +161,12 @@ fn loaded_volume_from_scalar_data(
         patient_id,
         study_date,
         series_description,
-        series_time: None,
-        patient_weight_kg: None,
-        injected_dose_bq: None,
-        radionuclide_half_life_s: None,
-        radiopharmaceutical_start_time: None,
-        decay_correction: None,
+        series_time,
+        patient_weight_kg,
+        injected_dose_bq,
+        radionuclide_half_life_s,
+        radiopharmaceutical_start_time,
+        decay_correction,
     };
     crate::render::GrayscalePresentation::for_volume(&volume)
         .map_err(|error| anyhow::anyhow!("invalid DICOM grayscale presentation: {error}"))?;
@@ -207,8 +213,16 @@ fn load_dicom_multiframe_volume_from_scanned_series(
         })?;
         let mut metadata = series.metadata;
         metadata.dimensions = [color.shape[1], color.shape[2], color.shape[0]];
-        metadata.spacing = color.spacing.to_array();
-        metadata.origin = color.origin.to_array();
+        metadata.spacing = color.spacing.to_array().map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        );
+        metadata.origin = color.origin.to_array().map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        );
         metadata.direction = color.direction.to_column_major();
         return Ok(loaded_volume_from_color_flat(
             color.data,
@@ -233,15 +247,23 @@ fn load_dicom_multiframe_volume_from_scanned_series(
 
     let mut metadata = series.metadata;
     metadata.dimensions = [flat.shape[1], flat.shape[2], flat.shape[0]];
-    metadata.spacing = flat.spacing.to_array();
-    metadata.origin = flat.origin.to_array();
+    metadata.spacing = flat.spacing.to_array().map(
+        aequitas::systems::si::quantities::Length::from_unit::<
+            aequitas::systems::si::units::Millimeter,
+        >,
+    );
+    metadata.origin = flat.origin.to_array().map(
+        aequitas::systems::si::quantities::Length::from_unit::<
+            aequitas::systems::si::units::Millimeter,
+        >,
+    );
     let direction = flat.direction.to_row_major();
     metadata.direction = flat.direction.to_column_major();
     loaded_volume_from_scalar_data(
         flat.data,
         flat.shape,
-        metadata.spacing,
-        metadata.origin,
+        metadata.spacing_mm(),
+        metadata.origin_mm(),
         direction,
         metadata,
         None,
@@ -273,8 +295,8 @@ fn loaded_volume_from_color_flat(
 ) -> LoadedVolume {
     let [depth, rows, cols, _channels] = dims;
     let shape = [depth, rows, cols];
-    let spacing = meta.spacing;
-    let origin = meta.origin;
+    let spacing = meta.spacing_mm();
+    let origin = meta.origin_mm();
     // `meta.direction` is column-major; the scalar path and the former
     // `RgbVolume` carrier both surface direction cosines in row-major order,
     // i.e. the transpose of the stored column-major array.
@@ -285,6 +307,12 @@ fn loaded_volume_from_color_flat(
     let patient_id = meta.patient_id.clone();
     let study_date = meta.study_date;
     let series_description = meta.series_description.clone();
+    let series_time = meta.series_time;
+    let patient_weight_kg = meta.patient_weight_kg;
+    let injected_dose_bq = meta.radionuclide_total_dose_bq;
+    let radionuclide_half_life_s = meta.radionuclide_half_life_s;
+    let radiopharmaceutical_start_time = meta.radiopharmaceutical_start_time;
+    let decay_correction = meta.decay_correction;
     LoadedVolume {
         data: Arc::new(flat),
         shape,
@@ -299,12 +327,12 @@ fn loaded_volume_from_color_flat(
         patient_id,
         study_date,
         series_description,
-        series_time: None,
-        patient_weight_kg: None,
-        injected_dose_bq: None,
-        radionuclide_half_life_s: None,
-        radiopharmaceutical_start_time: None,
-        decay_correction: None,
+        series_time,
+        patient_weight_kg,
+        injected_dose_bq,
+        radionuclide_half_life_s,
+        radiopharmaceutical_start_time,
+        decay_correction,
     }
 }
 

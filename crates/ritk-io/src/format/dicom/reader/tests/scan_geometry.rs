@@ -63,8 +63,16 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
             series_date: None,
             series_time: None,
             dimensions: [2, 2, 1],
-            spacing: [1.0, 1.0, 1.0],
-            origin: [0.0, 0.0, 0.0],
+            spacing: [1.0, 1.0, 1.0].map(
+                aequitas::systems::si::quantities::Length::from_unit::<
+                    aequitas::systems::si::units::Millimeter,
+                >,
+            ),
+            origin: [0.0, 0.0, 0.0].map(
+                aequitas::systems::si::quantities::Length::from_unit::<
+                    aequitas::systems::si::units::Millimeter,
+                >,
+            ),
             direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
             bits_allocated: Some(16),
             bits_stored: Some(16),
@@ -74,6 +82,7 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
             private_tags: HashMap::new(),
             preservation: crate::format::dicom::DicomPreservationSet::new(),
             patient_weight_kg: None,
+            pet_pixels_in_bq_per_ml: false,
             decay_correction: None,
             radionuclide_total_dose_bq: None,
             radiopharmaceutical_start_time: None,
@@ -108,8 +117,16 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
             series_date: None,
             series_time: None,
             dimensions: [2, 2, 1],
-            spacing: [1.0, 1.0, 1.0],
-            origin: [0.0, 1.0, 0.0],
+            spacing: [1.0, 1.0, 1.0].map(
+                aequitas::systems::si::quantities::Length::from_unit::<
+                    aequitas::systems::si::units::Millimeter,
+                >,
+            ),
+            origin: [0.0, 1.0, 0.0].map(
+                aequitas::systems::si::quantities::Length::from_unit::<
+                    aequitas::systems::si::units::Millimeter,
+                >,
+            ),
             direction: [0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 1.0, 0.0, 0.0],
             bits_allocated: Some(16),
             bits_stored: Some(16),
@@ -119,6 +136,7 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
             private_tags: HashMap::new(),
             preservation: crate::format::dicom::DicomPreservationSet::new(),
             patient_weight_kg: None,
+            pet_pixels_in_bq_per_ml: false,
             decay_correction: None,
             radionuclide_total_dose_bq: None,
             radiopharmaceutical_start_time: None,
@@ -207,8 +225,16 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
             series_date: None,
             series_time: None,
             dimensions: [2, 2, 1],
-            spacing: [1.0, 0.8, 0.8],
-            origin: [0.0, 0.0, 0.0],
+            spacing: [1.0, 0.8, 0.8].map(
+                aequitas::systems::si::quantities::Length::from_unit::<
+                    aequitas::systems::si::units::Millimeter,
+                >,
+            ),
+            origin: [0.0, 0.0, 0.0].map(
+                aequitas::systems::si::quantities::Length::from_unit::<
+                    aequitas::systems::si::units::Millimeter,
+                >,
+            ),
             direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
             bits_allocated: Some(16),
             bits_stored: Some(16),
@@ -218,6 +244,7 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
             private_tags: HashMap::new(),
             preservation: crate::format::dicom::DicomPreservationSet::new(),
             patient_weight_kg: None,
+            pet_pixels_in_bq_per_ml: false,
             decay_correction: None,
             radionuclide_total_dose_bq: None,
             radiopharmaceutical_start_time: None,
@@ -251,8 +278,16 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
             series_date: None,
             series_time: None,
             dimensions: [2, 2, 1],
-            spacing: [1.0, 1.0, 1.0],
-            origin: [0.0, 0.0, 1.0],
+            spacing: [1.0, 1.0, 1.0].map(
+                aequitas::systems::si::quantities::Length::from_unit::<
+                    aequitas::systems::si::units::Millimeter,
+                >,
+            ),
+            origin: [0.0, 0.0, 1.0].map(
+                aequitas::systems::si::quantities::Length::from_unit::<
+                    aequitas::systems::si::units::Millimeter,
+                >,
+            ),
             direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
             bits_allocated: Some(16),
             bits_stored: Some(16),
@@ -262,6 +297,7 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
             private_tags: HashMap::new(),
             preservation: crate::format::dicom::DicomPreservationSet::new(),
             patient_weight_kg: None,
+            pet_pixels_in_bq_per_ml: false,
             decay_correction: None,
             radionuclide_total_dose_bq: None,
             radiopharmaceutical_start_time: None,
@@ -299,14 +335,14 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
     // RITK convention: spacing = [Δz, ΔRow, ΔCol].
     let tol = 1e-5_f64;
     assert!(
-        (info.metadata.spacing[1] - 0.8).abs() < tol,
+        (info.metadata.spacing_mm()[1] - 0.8).abs() < tol,
         "spacing[1] (ΔRow) must be 0.8 ± 1e-5 (first slice pixel spacing row); got {}",
-        info.metadata.spacing[1]
+        info.metadata.spacing_mm()[1]
     );
     assert!(
-        (info.metadata.spacing[2] - 0.8).abs() < tol,
+        (info.metadata.spacing_mm()[2] - 0.8).abs() < tol,
         "spacing[2] (ΔCol) must be 0.8 ± 1e-5 (first slice pixel spacing col); got {}",
-        info.metadata.spacing[2]
+        info.metadata.spacing_mm()[2]
     );
 }
 

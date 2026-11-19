@@ -75,8 +75,16 @@ fn rt_dose_plan_link_status_reports_linked_uid() {
 fn geometry_summary_preserves_dicom_geometry() {
     let metadata = ritk_io::DicomReadMetadata {
         dimensions: [3, 4, 5],
-        spacing: [0.8, 0.8, 1.5],
-        origin: [10.0, 20.0, -30.0],
+        spacing: [0.8, 0.8, 1.5].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
+        origin: [10.0, 20.0, -30.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
         direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
         ..Default::default()
     };
@@ -84,8 +92,8 @@ fn geometry_summary_preserves_dicom_geometry() {
     let summary = crate::GeometrySummary::from_dicom(&metadata);
 
     assert_eq!(summary.dimensions, metadata.dimensions);
-    assert_eq!(summary.spacing, metadata.spacing);
-    assert_eq!(summary.origin, metadata.origin);
+    assert_eq!(summary.spacing, metadata.spacing_mm());
+    assert_eq!(summary.origin, metadata.origin_mm());
     assert_eq!(summary.direction, metadata.direction);
 }
 

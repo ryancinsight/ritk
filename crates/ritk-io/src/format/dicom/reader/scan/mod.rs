@@ -1,5 +1,6 @@
 //! Single-series scanning with explicit input identity.
 
+use aequitas::systems::si::units::Millimeter;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
@@ -378,10 +379,10 @@ fn build_series_object(path: &Path, slices: &[DicomSliceMetadata]) -> DicomObjec
             series_object.insert(DicomObjectNode::with_value(
                 DicomTag::new(0x0020, 0x1041),
                 "DS",
-                slice_location,
+                slice_location.in_unit::<Millimeter>(),
             ));
         }
-        if let Some(position) = slice.image_position_patient {
+        if let Some(position) = slice.image_position_mm() {
             series_object.insert(DicomObjectNode::text(
                 DicomTag::new(0x0020, 0x0032),
                 "DS",
@@ -403,7 +404,7 @@ fn build_series_object(path: &Path, slices: &[DicomSliceMetadata]) -> DicomObjec
                 ),
             ));
         }
-        if let Some(pixel_spacing) = slice.pixel_spacing {
+        if let Some(pixel_spacing) = slice.pixel_spacing_mm() {
             series_object.insert(DicomObjectNode::text(
                 DicomTag::new(0x0028, 0x0030),
                 "DS",
@@ -414,7 +415,7 @@ fn build_series_object(path: &Path, slices: &[DicomSliceMetadata]) -> DicomObjec
             series_object.insert(DicomObjectNode::with_value(
                 DicomTag::new(0x0018, 0x0050),
                 "DS",
-                slice_thickness,
+                slice_thickness.in_unit::<Millimeter>(),
             ));
         }
         if let Some(sop_class_uid) = slice.sop_class_uid.as_ref() {

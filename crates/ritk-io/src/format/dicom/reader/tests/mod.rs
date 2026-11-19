@@ -2,6 +2,7 @@ mod gantry;
 mod geometry;
 mod load_transfer;
 mod patient;
+mod pet_metadata;
 mod pixel;
 mod preservation_roundtrip;
 mod sample;

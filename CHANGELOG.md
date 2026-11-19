@@ -20,6 +20,15 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+### Breaking
+
+- [major] In ritk-io 0.6.0, DICOM series and slice geometry carry Aequitas
+  quantities. Use millimetre and degree accessors at DICOM and image boundaries.
+  PET metadata carries mass, radionuclide activity and half-life.
+- [major] In ritk-snap 0.2.0, loaded PET metadata and acquisition parameters
+  carry typed mass, activity, and time. Classic PET SUV conversion requires
+  a DICOM Bq/mL pixel declaration.
+
 ### Dependencies
 
 - [minor] Admit the Aequitas 0.4 quantity surface alongside the existing 0.3 requirement.

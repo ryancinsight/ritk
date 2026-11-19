@@ -70,8 +70,16 @@ pub(super) fn make_test_metadata() -> DicomReadMetadata {
         dimensions: [4, 4, 3],
         // Axial convention: spacing=[Δz,ΔRow,ΔCol], direction cols=[NÌ‚, F_c, F_r]
         // NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
-        spacing: [2.5, 0.5, 0.5],
-        origin: [10.0, 20.0, 30.0],
+        spacing: [2.5, 0.5, 0.5].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
+        origin: [10.0, 20.0, 30.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
         direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
         bits_allocated: Some(16),
         bits_stored: Some(16),
@@ -81,6 +89,7 @@ pub(super) fn make_test_metadata() -> DicomReadMetadata {
         private_tags,
         preservation: crate::format::dicom::DicomPreservationSet::new(),
         patient_weight_kg: None,
+        pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,
         radiopharmaceutical_start_time: None,

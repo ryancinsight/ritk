@@ -149,8 +149,8 @@ dependencies = [
 
 [[package]]
 name = "aequitas"
-version = "0.3.2"
-source = "git+https://github.com/ryancinsight/aequitas#75a453aead7faa33ae8fd929dbff75b726afda9d"
+version = "0.4.0"
+source = "git+https://github.com/ryancinsight/aequitas#113b0bb5f87ec4133a1906f576de17453798dd0c"
 dependencies = [
  "eunomia",
  "typenum",
@@ -2454,7 +2454,7 @@ checksum = "0b5343afd4a8365a643ac588dab4cf234a190c7f6c88c9f6dd6ffe00837661b7"
 [[package]]
 name = "eunomia"
 version = "0.12.0"
-source = "git+https://github.com/ryancinsight/eunomia#eacd3d22c217b0f2e03e9a5e5386652505231270"
+source = "git+https://github.com/ryancinsight/eunomia#9ab3beda702d4fc211ba94c9503c3220b7f5cbda"
 dependencies = [
  "bytemuck",
  "eunomia-derive",
@@ -2466,7 +2466,7 @@ dependencies = [
 [[package]]
 name = "eunomia-derive"
 version = "0.12.0"
-source = "git+https://github.com/ryancinsight/eunomia#eacd3d22c217b0f2e03e9a5e5386652505231270"
+source = "git+https://github.com/ryancinsight/eunomia#9ab3beda702d4fc211ba94c9503c3220b7f5cbda"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2790,7 +2790,7 @@ dependencies = [
 [[package]]
 name = "gaia-mesh"
 version = "0.6.10"
-source = "git+https://github.com/ryancinsight/gaia#bbd8f08730f16c4fca4e73039fd90b39280d87d1"
+source = "git+https://github.com/ryancinsight/gaia#2e3d95d0775c09fb71ea9ebe3ebbe05c7a58cbf5"
 dependencies = [
  "aequitas",
  "consus-zip",
@@ -6389,8 +6389,9 @@ dependencies = [
 
 [[package]]
 name = "ritk-io"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
+ "aequitas",
  "anyhow",
  "arrayvec",
  "base64 0.22.1",
@@ -6701,8 +6702,9 @@ dependencies = [
 
 [[package]]
 name = "ritk-snap"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
+ "aequitas",
  "anyhow",
  "arrayvec",
  "clap",

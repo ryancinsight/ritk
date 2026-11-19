@@ -68,3 +68,4 @@
 | [0057](0057-viewer-release-scope.md) | Viewer release scope | Proposed |
 | [0058](0058-read-budget-ownership.md) | Read budgets are owned by `ritk-codecs` | Accepted |
 | [0059](0059-release-scope-1-0.md) | Release scope for 1.0 | Accepted |
+| [0060](0060-type-dicom-geometry-and-pet-activity.md) | Type DICOM geometry and PET activity | Proposed |

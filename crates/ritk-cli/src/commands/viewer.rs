@@ -126,11 +126,15 @@ fn print_geometry(meta: &DicomReadMetadata) {
     );
     println!(
         "  spacing: [{:.6}, {:.6}, {:.6}]",
-        meta.spacing[0], meta.spacing[1], meta.spacing[2]
+        meta.spacing_mm()[0],
+        meta.spacing_mm()[1],
+        meta.spacing_mm()[2]
     );
     println!(
         "  origin: [{:.6}, {:.6}, {:.6}]",
-        meta.origin[0], meta.origin[1], meta.origin[2]
+        meta.origin_mm()[0],
+        meta.origin_mm()[1],
+        meta.origin_mm()[2]
     );
     println!(
         "  direction:\n    [{:.6}, {:.6}, {:.6}]\n    [{:.6}, {:.6}, {:.6}]\n    [{:.6}, {:.6}, {:.6}]",

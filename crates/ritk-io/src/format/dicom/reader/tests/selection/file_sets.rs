@@ -28,8 +28,8 @@ fn decoded_pixels_are_the_validated_bytes_after_file_replacement() {
         let (image, metadata) =
             load_dicom_from_series(snapshot, &backend).expect("snapshot decode");
         assert_eq!(metadata.series_instance_uid.as_deref(), Some(SERIES));
-        assert_eq!(metadata.origin, [10.0, 20.0, 2.0]);
-        assert_eq!(metadata.spacing, [2.0, 0.5, 0.5]);
+        assert_eq!(metadata.origin_mm(), [10.0, 20.0, 2.0]);
+        assert_eq!(metadata.spacing_mm(), [2.0, 0.5, 0.5]);
         assert!(
             metadata
                 .slices
@@ -74,8 +74,8 @@ fn selected_file_and_exact_members_preserve_minority_pixels_and_metadata() {
             scanned.metadata.series_description.as_deref(),
             Some("Acquisition 31")
         );
-        assert_eq!(scanned.metadata.origin, [10.0, 20.0, 2.0]);
-        assert_eq!(scanned.metadata.spacing, [2.0, 0.5, 0.5]);
+        assert_eq!(scanned.metadata.origin_mm(), [10.0, 20.0, 2.0]);
+        assert_eq!(scanned.metadata.spacing_mm(), [2.0, 0.5, 0.5]);
         let (image, _) = load_dicom_from_series(scanned, &backend).expect("decode selected series");
         assert_eq!(image.shape(), [2, 2, 2]);
         assert_eq!(

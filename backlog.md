@@ -119,3 +119,6 @@
 <a id="RITK-SNAP-EFRAME-PORT-001"></a>- [RITK-SNAP-EFRAME-PORT-001](backlog/RITK-SNAP-EFRAME-PORT-001.md) — Port smoothing and segmentation filter ranges — todo
 <a id="RITK-SNAP-EFRAME-PORT-002"></a>- [RITK-SNAP-EFRAME-PORT-002](backlog/RITK-SNAP-EFRAME-PORT-002.md) — Port morphology, geometry, CPR and pointwise filter ranges — todo
 <a id="RITK-SNAP-EFRAME-PORT-003"></a>- [RITK-SNAP-EFRAME-PORT-003](backlog/RITK-SNAP-EFRAME-PORT-003.md) — Port filter labels and starting parameters — todo
+
+- [x] [major] Carry typed DICOM geometry and isotope activity into the viewer.
+  Validate file round trips, isotope units by SOP class, and SUV pixel units.

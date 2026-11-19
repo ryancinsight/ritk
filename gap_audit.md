@@ -67,3 +67,9 @@
 - risk: `anonymize/file_meta.rs` says the dicom-rs reader refuses a file meta (0002,0003) that is not a UID, but it accepts `1..2` and `01.2`; `repair/study.rs` `failed` duplicates the anonymize helper and its `!=` against the default summary has a surviving `==` mutant; no test reaches `Instance`, `Write` or `Retained`; the viewer ends held gestures before a dialog the reader may cancel, and repeats the left-out sentence in two modules.
 - evidence: filed findings in the judge verdict comments on ritk#926, #927, #928 and #929.
 - reopen: at the next change under `crates/ritk-io/src/format/dicom/repair/`, `anonymize/file_meta.rs` or `crates/ritk-snap/src/presentation/native_session/{repair,deidentify}.rs`, or when the backlog has room (1,000 of 1,000 lines once ritk#928 lands).
+
+## DICOM geometry and isotope quantities [major]
+
+Series and slice geometry and PET activity now have dimensional storage. The
+viewer gates SUV calculation on classic PET activity-concentration pixels.
+Enhanced PET real-world pixel mapping and compound time metadata remain open.

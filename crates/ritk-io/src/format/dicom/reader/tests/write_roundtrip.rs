@@ -187,8 +187,16 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
         series_date: None,
         series_time: None,
         dimensions: [rows, cols, depth],
-        spacing: [1.5, 0.5, 0.5],
-        origin: [5.0, 10.0, -20.0],
+        spacing: [1.5, 0.5, 0.5].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
+        origin: [5.0, 10.0, -20.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
         // RITK axial: NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
         direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
         bits_allocated: Some(16),
@@ -199,6 +207,7 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
         private_tags: HashMap::new(),
         preservation: crate::format::dicom::DicomPreservationSet::new(),
         patient_weight_kg: None,
+        pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,
         radiopharmaceutical_start_time: None,
@@ -246,33 +255,33 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
     // --- Spatial metadata round-trip ---
     let pos_tol = 1e-4_f64;
     assert!(
-        (loaded_meta.origin[0] - 5.0).abs() < pos_tol,
+        (loaded_meta.origin_mm()[0] - 5.0).abs() < pos_tol,
         "origin[0] must be 5.0; got {}",
-        loaded_meta.origin[0]
+        loaded_meta.origin_mm()[0]
     );
     assert!(
-        (loaded_meta.origin[1] - 10.0).abs() < pos_tol,
+        (loaded_meta.origin_mm()[1] - 10.0).abs() < pos_tol,
         "origin[1] must be 10.0; got {}",
-        loaded_meta.origin[1]
+        loaded_meta.origin_mm()[1]
     );
     assert!(
-        (loaded_meta.origin[2] - (-20.0_f64)).abs() < pos_tol,
+        (loaded_meta.origin_mm()[2] - (-20.0_f64)).abs() < pos_tol,
         "origin[2] must be -20.0; got {}",
-        loaded_meta.origin[2]
+        loaded_meta.origin_mm()[2]
     );
     assert!(
-        (loaded_meta.spacing[0] - 1.5).abs() < pos_tol,
+        (loaded_meta.spacing_mm()[0] - 1.5).abs() < pos_tol,
         "spacing[0] (Δz) must be 1.5; got {}",
-        loaded_meta.spacing[0]
+        loaded_meta.spacing_mm()[0]
     );
     assert!(
-        (loaded_meta.spacing[1] - 0.5).abs() < pos_tol,
+        (loaded_meta.spacing_mm()[1] - 0.5).abs() < pos_tol,
         "spacing[1] (ΔRow) must be 0.5; got {}",
-        loaded_meta.spacing[1]
+        loaded_meta.spacing_mm()[1]
     );
     assert!(
-        (loaded_meta.spacing[2] - 0.5).abs() < pos_tol,
+        (loaded_meta.spacing_mm()[2] - 0.5).abs() < pos_tol,
         "spacing[2] (ΔCol) must be 0.5; got {}",
-        loaded_meta.spacing[2]
+        loaded_meta.spacing_mm()[2]
     );
 }
