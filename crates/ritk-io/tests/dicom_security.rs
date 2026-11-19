@@ -74,6 +74,7 @@ fn make_test_metadata() -> ritk_io::DicomReadMetadata {
         preservation: ritk_io::DicomPreservationSet::new(),
         patient_weight_kg: None,
         enhanced_pet_suv: None,
+        enhanced_pet_selection: None,
         pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,

@@ -60,6 +60,8 @@ mod bytes;
 mod enhanced_pet;
 pub use enhanced_pet::BodyWeightSuvVolume;
 mod per_frame;
+mod pet_dimensions;
+pub use pet_dimensions::{EnhancedPetCoordinate, EnhancedPetDimension};
 mod reader;
 mod temporal;
 mod types;
@@ -82,3 +84,8 @@ pub use writer::{
 
 #[cfg(test)]
 mod tests;
+
+pub use reader::{
+    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes, EnhancedPetSelection,
+    EnhancedPetVolume,
+};

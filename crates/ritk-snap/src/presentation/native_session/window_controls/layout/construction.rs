@@ -229,7 +229,7 @@ impl ChromeLayout {
         } else if let Some(menu) = open_menu {
             let popup_width = 210_u32.min(width);
             let menu_x = menu_tab_geometry(menu).min(width.saturating_sub(popup_width));
-            let count = menu_item_count(menu, workspace_layout);
+            let count = menu_item_count(menu, app, workspace_layout);
             let available_height = height.saturating_sub(geometry.menu_height);
             let count_u32 =
                 u32::try_from(count).map_err(|_| anyhow!("native menu item count exceeds u32"))?;
@@ -280,15 +280,15 @@ fn menu_tab_geometry(menu: Menu) -> u32 {
     0
 }
 
-fn menu_item_count(menu: Menu, workspace_layout: WorkspaceLayout) -> usize {
+fn menu_item_count(menu: Menu, app: &SnapApp, workspace_layout: WorkspaceLayout) -> usize {
     match menu {
         Menu::File => 5,
         Menu::View => {
-            if workspace_layout.is_grid() {
-                3
-            } else {
-                4
-            }
+            let base = if workspace_layout.is_grid() { 3 } else { 4 };
+            let pet = app
+                .enhanced_pet_selection()
+                .is_some_and(|s| s.volumes().len() > 1);
+            base + if pet { 2 } else { 0 }
         }
         Menu::Tools => ToolKind::all()
             .iter()
@@ -334,6 +334,16 @@ fn menu_item(
                 app.cine.enabled,
             )),
             2 => Ok(("Reset view", WindowAction::ResetView, false)),
+            3 => Ok((
+                "Previous PET volume",
+                WindowAction::StepEnhancedPetVolume(-1),
+                false,
+            )),
+            4 => Ok((
+                "Next PET volume",
+                WindowAction::StepEnhancedPetVolume(1),
+                false,
+            )),
             _ => Err(anyhow!("native View menu row is outside its items")),
         },
         Menu::View => match index {
@@ -353,6 +363,16 @@ fn menu_item(
                 app.cine.enabled,
             )),
             3 => Ok(("Reset view", WindowAction::ResetView, false)),
+            4 => Ok((
+                "Previous PET volume",
+                WindowAction::StepEnhancedPetVolume(-1),
+                false,
+            )),
+            5 => Ok((
+                "Next PET volume",
+                WindowAction::StepEnhancedPetVolume(1),
+                false,
+            )),
             _ => Err(anyhow!("native View menu row is outside its items")),
         },
         Menu::Tools => {

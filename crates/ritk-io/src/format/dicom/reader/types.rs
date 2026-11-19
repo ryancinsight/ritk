@@ -253,6 +253,8 @@ pub struct DicomReadMetadata {
     pub private_tags: HashMap<String, String>,
     /// Quantity-mapped Enhanced PET samples aligned with the decoded viewer volume.
     pub enhanced_pet_suv: Option<crate::BodyWeightSuvVolume>,
+    /// Shared temporal and gated volume selection, when loaded as a volume set.
+    pub enhanced_pet_selection: Option<crate::EnhancedPetSelection>,
     pub preservation: DicomPreservationSet,
     /// (0010,1030) Patient Weight \[kg\].
     pub patient_weight_kg: Option<Mass>,
@@ -462,6 +464,7 @@ pub(super) fn assemble_metadata(
             losses: Vec::new(),
         },
         enhanced_pet_suv: None,
+        enhanced_pet_selection: None,
         patient_weight_kg: first.patient_weight_kg,
         decay_correction: first.decay_correction,
         pet_pixels_in_bq_per_ml: first.pet_pixels_in_bq_per_ml.unwrap_or(false),

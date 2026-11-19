@@ -125,3 +125,5 @@
 
 - [x] [major] Quantify Enhanced PET spatial voxels using the declared real-world
   mapping and frame-appropriate isotope activity.
+
+- [x] [major] Reconstruct and select temporal and gated Enhanced PET volumes within one object.

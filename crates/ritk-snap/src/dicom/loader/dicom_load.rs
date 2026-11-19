@@ -8,7 +8,8 @@ use coeus_core::SequentialBackend;
 use ritk_io::{
     load_color_multiframe_flat, load_color_multiframe_flat_from_bytes, load_color_volume_flat,
     load_dicom_from_series, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
-    read_multiframe_info, read_multiframe_info_from_bytes,
+    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes, read_multiframe_info,
+    read_multiframe_info_from_bytes, EnhancedPetSelection,
 };
 #[cfg(windows)]
 use ritk_io::{load_dicom_from_series_with_budget, scan_dicom_files_with_budget};
@@ -32,7 +33,10 @@ const SERIES_PREVIEW_DECODED_BYTE_BUDGET: usize = 64 * 1024 * 1024;
 pub fn load_volume_from_scanned_series(
     series: ritk_io::ScannedDicomSeries,
 ) -> Result<LoadedVolume> {
-    if multiframe_count_for_series(&series)?.is_some() || is_enhanced_pet(&series) {
+    if is_enhanced_pet(&series) {
+        return load_enhanced_pet_from_scanned_series(series);
+    }
+    if multiframe_count_for_series(&series)?.is_some() {
         return load_dicom_multiframe_volume_from_scanned_series(series);
     }
 
@@ -130,14 +134,22 @@ fn loaded_volume_from_scalar_image(
     let origin = image.origin().to_array();
     let direction = image.direction().to_row_major();
     let pixels = image.data_cow_on(backend)?.into_owned();
-    loaded_volume_from_scalar_data(pixels, shape, spacing, origin, direction, meta, source)
+    loaded_volume_from_scalar_data(
+        Arc::new(pixels),
+        shape,
+        spacing,
+        origin,
+        direction,
+        meta,
+        source,
+    )
 }
 
 /// Convert a substrate-free scalar buffer and resolved DICOM metadata into a
 /// viewer volume. This is shared by the conventional series reader and the
 /// single-object multi-frame reader.
 fn loaded_volume_from_scalar_data(
-    pixels: Vec<f32>,
+    pixels: Arc<Vec<f32>>,
     shape: [usize; 3],
     spacing: [f64; 3],
     origin: [f64; 3],
@@ -157,7 +169,7 @@ fn loaded_volume_from_scalar_data(
     let radiopharmaceutical_start_time = meta.radiopharmaceutical_start_time;
     let decay_correction = meta.decay_correction;
     let volume = LoadedVolume {
-        data: Arc::new(pixels),
+        data: pixels,
         shape,
         channels: 1,
         spacing,
@@ -180,6 +192,38 @@ fn loaded_volume_from_scalar_data(
     crate::render::GrayscalePresentation::for_volume(&volume)
         .map_err(|error| anyhow::anyhow!("invalid DICOM grayscale presentation: {error}"))?;
     Ok(volume)
+}
+
+fn load_enhanced_pet_from_scanned_series(
+    series: ritk_io::ScannedDicomSeries,
+) -> Result<LoadedVolume> {
+    let [slice] = series.metadata.slices.as_slice() else {
+        anyhow::bail!("Select one Enhanced PET object");
+    };
+    let volumes = match slice.part10_bytes.as_deref() {
+        Some(bytes) => load_enhanced_pet_volumes_from_bytes(
+            &slice.path,
+            bytes,
+            &ritk_io::DicomReadBudget::DEFAULT,
+        ),
+        None => load_enhanced_pet_volumes(&slice.path),
+    }?;
+    let mut meta = series.metadata;
+    let selection =
+        EnhancedPetSelection::new(volumes).context("Enhanced PET has no spatial volume")?;
+    let first = &selection.volumes()[0];
+    let data = Arc::clone(&first.data);
+    let shape = first.shape;
+    let spacing = first.spacing.to_array();
+    let origin = first.origin.to_array();
+    let direction = first.direction.to_row_major();
+    meta.enhanced_pet_selection = Some(selection);
+    let mut loaded =
+        loaded_volume_from_scalar_data(data, shape, spacing, origin, direction, meta, None)?;
+    loaded
+        .select_enhanced_pet_volume(0)
+        .context("Enhanced PET initial volume is unavailable")?;
+    Ok(loaded)
 }
 
 /// Load one scalar multi-frame object through the RITK multi-frame reader.
@@ -270,7 +314,7 @@ fn load_dicom_multiframe_volume_from_scanned_series(
     let direction = flat.direction.to_row_major();
     metadata.direction = flat.direction.to_column_major();
     loaded_volume_from_scalar_data(
-        flat.data,
+        Arc::new(flat.data),
         flat.shape,
         metadata.spacing_mm(),
         metadata.origin_mm(),

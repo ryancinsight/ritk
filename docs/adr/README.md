@@ -70,3 +70,4 @@
 | [0059](0059-release-scope-1-0.md) | Release scope for 1.0 | Accepted |
 | [0060](0060-type-dicom-geometry-and-pet-activity.md) | Type DICOM geometry and PET activity | Proposed |
 | [0061](0061-enhanced-pet-quantitative-voxels.md) | Quantify Enhanced PET stored voxels | Proposed |
+| [0062](0062-enhanced-pet-temporal-and-gated-volumes.md) | Reconstruct temporal and gated Enhanced PET volumes | Proposed |

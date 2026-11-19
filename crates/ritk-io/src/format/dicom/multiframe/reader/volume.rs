@@ -116,8 +116,25 @@ pub(crate) fn load_multiframe_flat_from_object(
     obj: &DefaultDicomObject,
     budget: &DicomReadBudget,
 ) -> Result<MultiFrameVolume> {
+    if super::super::pet_dimensions::is_enhanced_pet(&obj.meta().media_storage_sop_class_uid) {
+        let (geometry, mut groups) = super::pet::pet_spatial_groups(path, obj, budget)?;
+        if groups.len() != 1 {
+            bail!("Enhanced PET has multiple temporal or gated volumes; use load_enhanced_pet_volumes");
+        }
+        let group = groups.pop().expect("one PET volume");
+        return decode_spatial_frames(path, obj, budget, Some(&group.frames), Some(&geometry));
+    }
     reject_temporal_organization(path, obj)?;
+    decode_spatial_frames(path, obj, budget, None, None)
+}
 
+pub(super) fn decode_spatial_frames(
+    path: &Path,
+    obj: &DefaultDicomObject,
+    budget: &DicomReadBudget,
+    selected: Option<&[usize]>,
+    geometry: Option<&[super::super::types::PerFrameInfo]>,
+) -> Result<MultiFrameVolume> {
     // Guard: compressed transfer syntaxes are not natively decodable by ritk-io.
     // Pixel data from compressed objects cannot be interpreted as raw u16/u8 samples.
     let ts_uid = obj.meta().transfer_syntax();
@@ -140,7 +157,7 @@ pub(crate) fn load_multiframe_flat_from_object(
         );
     }
 
-    let info = extract_multiframe_header(path, obj)?;
+    let mut info = extract_multiframe_header(path, obj)?;
     if info.rows == 0 || info.cols == 0 {
         bail!(
             "DICOM multiframe: rows={} cols={} must be >0 in {:?}",
@@ -166,7 +183,25 @@ pub(crate) fn load_multiframe_flat_from_object(
         );
     }
 
-    let per_frame = extract_functional_groups(obj, info.n_frames);
+    let owned_geometry;
+    let per_frame = if let Some(geometry) = geometry {
+        geometry
+    } else {
+        owned_geometry = extract_functional_groups(obj, info.n_frames);
+        &owned_geometry
+    };
+    let actual_n = selected.map_or(info.n_frames, <[usize]>::len);
+    let source_index = |position| selected.map_or(position, |frames| frames[position]);
+    if let Some(first) = selected
+        .and_then(|frames| frames.first())
+        .and_then(|&index| per_frame.get(index))
+    {
+        info.image_position = first.image_position.or(info.image_position);
+        info.image_orientation = first.image_orientation.or(info.image_orientation);
+        info.pixel_spacing = first.pixel_spacing.or(info.pixel_spacing);
+        info.frame_thickness = first.slice_thickness.or(info.frame_thickness);
+    }
+
     tracing::debug!(
         n_frames = info.n_frames,
         per_frame_len = per_frame.len(),
@@ -177,8 +212,7 @@ pub(crate) fn load_multiframe_flat_from_object(
         .rows
         .checked_mul(info.cols)
         .context("DICOM multiframe frame pixel count overflows usize")?;
-    let decoded_elements = info
-        .n_frames
+    let decoded_elements = actual_n
         .checked_mul(frame_pixels)
         .context("DICOM multiframe decoded element count overflows usize")?;
     let decoded_bytes = decoded_elements
@@ -192,7 +226,7 @@ pub(crate) fn load_multiframe_flat_from_object(
     // `Vec::with_capacity`. The buffer still grows to its true size as frames
     // decode, and each frame is bounds-validated below.
     let mut floats = Vec::with_capacity(ritk_core::io_bounds::bounded_capacity(
-        info.n_frames.saturating_mul(frame_pixels),
+        actual_n.saturating_mul(frame_pixels),
         std::mem::size_of::<f32>(),
     ));
 
@@ -225,7 +259,7 @@ pub(crate) fn load_multiframe_flat_from_object(
             first.min(last)..=first.max(last)
         });
 
-    for frame_idx in 0..info.n_frames {
+    for frame_idx in (0..actual_n).map(source_index) {
         let frame_info = per_frame.get(frame_idx);
         let slope = frame_info
             .and_then(|pfi| pfi.rescale_slope)
@@ -285,7 +319,6 @@ pub(crate) fn load_multiframe_flat_from_object(
         }
     }
 
-    let actual_n = info.n_frames;
     if actual_n == 0 {
         bail!("DICOM multiframe: no pixel data decoded from {:?}", path);
     }
@@ -299,14 +332,15 @@ pub(crate) fn load_multiframe_flat_from_object(
     // shared slice normal NÌ‚ = normalize(row × col). Use the median as nominal
     // spacing; warn and resample when nonuniform or missing frames are detected.
     let (final_floats, final_n, spacing_z) = 'geometry: {
-        if per_frame.len() < 2 {
+        if per_frame.len() < 2 || actual_n < 2 {
             // Fewer than 2 per-frame positions: cannot derive inter-frame spacing.
             break 'geometry (floats, actual_n, info.frame_thickness.unwrap_or(1.0));
         }
 
         // Resolve IOP: per-frame override first, then global.
-        let iop = per_frame
-            .iter()
+        let iop = (0..actual_n)
+            .map(source_index)
+            .filter_map(|index| per_frame.get(index))
             .find_map(|pf| pf.image_orientation)
             .or(info.image_orientation);
 
@@ -314,11 +348,12 @@ pub(crate) fn load_multiframe_flat_from_object(
             break 'geometry (floats, actual_n, info.frame_thickness.unwrap_or(1.0));
         };
 
-        let proj: Vec<Option<f64>> = per_frame
-            .iter()
-            .take(actual_n)
-            .map(|pf| {
-                pf.image_position
+        let proj: Vec<Option<f64>> = (0..actual_n)
+            .map(source_index)
+            .map(|index| {
+                per_frame
+                    .get(index)
+                    .and_then(|pf| pf.image_position)
                     .map(|p| crate::format::dicom::reader::dot(p, normal))
             })
             .collect();

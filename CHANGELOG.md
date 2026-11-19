@@ -22,6 +22,12 @@
 
 ### Breaking
 
+- Enhanced PET volume sets reconstruct each temporal position and gate
+  separately. Use the volume-set reader for dynamic or gated Part 10
+  objects. Viewers can select a reconstruction and its corresponding
+  geometry and SUV.
+
+
 - Enhanced PET multi-frame decode can return a typed SUVbw volume. The native
   viewer uses calibrated voxels for the pointer, linked cursor, and fusion.
   Diagnostic rescale and quantitative mapping use independent pixel paths.
@@ -35,7 +41,7 @@
 
 ### Dependencies
 
-- [minor] Admit the Aequitas 0.4 quantity surface alongside the existing 0.3 requirement.
+- [minor] Require the Aequitas 0.4 radiation quantity surface.
 
 
 ### Changed

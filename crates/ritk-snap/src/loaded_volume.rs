@@ -48,6 +48,25 @@ pub struct LoadedVolume {
 }
 
 impl LoadedVolume {
+    /// Replace the active PET reconstruction and its SUV and geometry together.
+    pub fn select_enhanced_pet_volume(&mut self, index: usize) -> Option<()> {
+        use aequitas::systems::si::{quantities::Length, units::Millimeter};
+
+        let metadata = self.metadata.as_deref_mut()?;
+        let volume = metadata.enhanced_pet_selection.as_mut()?.select(index)?;
+        self.data = std::sync::Arc::clone(&volume.data);
+        self.shape = volume.shape;
+        self.origin = volume.origin.to_array();
+        self.spacing = volume.spacing.to_array();
+        self.direction = volume.direction.to_row_major();
+        metadata.dimensions = [self.shape[1], self.shape[2], self.shape[0]];
+        metadata.origin = self.origin.map(Length::from_unit::<Millimeter>);
+        metadata.spacing = self.spacing.map(Length::from_unit::<Millimeter>);
+        metadata.direction = volume.direction.to_column_major();
+        metadata.enhanced_pet_suv = volume.suv_bw.clone();
+        Some(())
+    }
+
     /// Read an Enhanced PET quantitative voxel in grams per millilitre.
     #[must_use]
     pub fn enhanced_pet_suv_at(&self, [depth, row, col]: [usize; 3]) -> Option<f64> {

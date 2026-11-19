@@ -85,3 +85,8 @@ pub use dispatch::{
     write_image_native, write_image_series_native, ImageFormat, NativeBackend, NativeImage,
     NativeSeries,
 };
+
+pub use format::dicom::{
+    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes, EnhancedPetCoordinate,
+    EnhancedPetDimension, EnhancedPetSelection, EnhancedPetVolume,
+};

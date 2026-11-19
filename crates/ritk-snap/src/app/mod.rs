@@ -52,6 +52,12 @@ mod oblique_viewport;
 mod pacs_ops;
 #[cfg(feature = "eframe-shell")]
 mod panels;
+#[cfg(any(
+    windows,
+    test,
+    all(not(target_arch = "wasm32"), feature = "eframe-shell")
+))]
+mod pet_volume;
 pub(crate) mod pointer_bindings;
 mod pointer_ops;
 #[cfg(any(target_arch = "wasm32", windows, test))]

@@ -135,3 +135,8 @@ pub mod native {
         }
     }
 }
+
+pub use multiframe::{
+    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes, EnhancedPetCoordinate,
+    EnhancedPetDimension, EnhancedPetSelection, EnhancedPetVolume,
+};

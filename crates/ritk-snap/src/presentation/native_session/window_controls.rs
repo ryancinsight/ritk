@@ -59,6 +59,7 @@ pub(super) enum WindowAction {
     SetLayout(WorkspaceLayout),
     ToggleCrosshair,
     ToggleCine,
+    StepEnhancedPetVolume(isize),
     ResetView,
 }
 

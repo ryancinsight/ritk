@@ -79,5 +79,19 @@ Compound time metadata outside spatial Enhanced PET quantification remains open.
 The spatial multi-frame reader applies frame-scoped real-world mappings,
 retains diagnostic values separately, and routes body-weight SUV to the
 pointer, linked cursor, and fusion. The native Metal suite exercises the
-viewer alongside the Part 10 quantification regression. Time-resolved
-multi-volume organization is a separate reader contract.
+viewer alongside the Part 10 quantification regression. The temporal and gated reader is recorded below.
+
+
+## Temporal and gated Enhanced PET [major]
+
+The volume-set reader groups explicit nonspatial DICOM indices and keeps
+the original frame identity for quantitative mapping. A Part 10 fixture
+interleaves time, separate cardiac and respiratory gates, and slice position. It verifies
+per-frame decay, lookup tables, patient origin, and the decoded-byte limit.
+The eframe selector and the Windows native View menu use the shared
+selection operation. Metal tests verify the reader and eframe viewer. The
+Windows cross-check requires SDK headers for ring. DICOM concatenations
+that span several SOP instances remain a separate loading contract.
+
+Locked all-target compilation passes on macOS with the eframe shell enabled.
+The combined I/O and viewer gate passes 1,482 cases on Metal.

@@ -5,11 +5,16 @@
 //! from reached 520 lines when the volume path landed.
 
 mod header;
+mod pet;
 mod volume;
 
 pub(crate) use header::parse_ds_backslash;
 pub use header::read_multiframe_info;
 pub(super) use header::read_multiframe_info_from_object;
+pub use pet::{
+    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes, EnhancedPetSelection,
+    EnhancedPetVolume,
+};
 pub(super) use volume::load_multiframe_flat_from_object;
 pub use volume::{
     load_dicom_multiframe, load_dicom_multiframe_flat, load_dicom_multiframe_native,
