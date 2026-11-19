@@ -1,6 +1,6 @@
 //! Structural Part 10 scanner used by the budget-aware backend.
 
-use std::str;
+use std::{ops::Range, str};
 
 use anyhow::{bail, Context, Result};
 use consus_core::{read_integer, ByteOrder, EndianScalar, ParseBudget};
@@ -19,6 +19,7 @@ const PIXEL_DATA: Tag = Tag(0x7FE0, 0x0010);
 const FILE_META_GROUP_LENGTH: Tag = Tag(FILE_META_GROUP, 0x0000);
 const TRANSFER_SYNTAX_UID: Tag = Tag(FILE_META_GROUP, 0x0010);
 
+pub(super) mod attributes;
 mod sequence;
 
 #[derive(Debug, Clone, Copy)]
@@ -92,9 +93,16 @@ pub struct DicomParseSummary {
     pub encoded_bytes: usize,
 }
 
-struct Scanner<'input> {
+#[derive(Debug)]
+struct RootValue {
+    range: Range<usize>,
+    compound: bool,
+}
+
+struct Scanner<'input, Visit> {
     data: &'input [u8],
     budget: &'input ParseBudget,
+    visit: Visit,
     accounted_bytes: usize,
     elements: usize,
     max_depth: u16,
@@ -113,12 +121,12 @@ struct Scanner<'input> {
 /// syntax, malformed headers or delimiters, truncated values, and exceeded
 /// byte, element, or depth ceilings.
 pub fn validate_part10(data: &[u8], budget: &ParseBudget) -> Result<DicomParseSummary> {
-    let mut scanner = Scanner::new(data, budget)?;
+    let mut scanner = Scanner::new(data, budget, |_, _| {})?;
     scanner.scan()
 }
 
-impl<'input> Scanner<'input> {
-    fn new(data: &'input [u8], budget: &'input ParseBudget) -> Result<Self> {
+impl<'input, Visit: FnMut(Tag, RootValue)> Scanner<'input, Visit> {
+    fn new(data: &'input [u8], budget: &'input ParseBudget, visit: Visit) -> Result<Self> {
         let length = u64::try_from(data.len()).context("DICOM input length does not fit u64")?;
         budget
             .checked_bytes(length, "DICOM encoded input")
@@ -126,6 +134,7 @@ impl<'input> Scanner<'input> {
         Ok(Self {
             data,
             budget,
+            visit,
             accounted_bytes: 0,
             elements: 0,
             max_depth: 0,

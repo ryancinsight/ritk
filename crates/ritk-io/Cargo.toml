@@ -18,6 +18,7 @@ license.workspace = true
 test-util = []
 
 [dependencies]
+horae-civil-time.workspace = true
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 ritk-core = { path = "../ritk-core", version = "0.11.0" }

@@ -22,6 +22,14 @@
 
 ### Changed
 
+- [patch] Select series catalog metadata directly from the bounded Part 10
+  traversal. The catalog reads the source bytes without creating a second
+  object or copying pixel values. The scanner retains structural, size,
+  and nesting validation for each file.
+
+- [patch] Share Gregorian date validation with Horae in DICOM DA repair.
+  RITK continues to own the spelling, validation, and repair of DICOM values.
+
 - [patch] Admit the Leto 0.50 line. The Leto and Leto-ops requirements widen
   from `>=0.47.1, <0.49.0` to `>=0.47.1, <0.51.0`. The lock moves Leto and
   Leto-ops from 0.48.0 to 0.50.0 at `6483eac3`, the eight Coeus rows to

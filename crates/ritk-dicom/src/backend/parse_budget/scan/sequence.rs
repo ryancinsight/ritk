@@ -4,11 +4,11 @@ use dicom::core::{Tag, VR};
 use dicom::dictionary_std::StandardDataDictionary;
 
 use super::{
-    ElementHeader, Scanner, SyntaxEncoding, ITEM_DELIMITER_ELEMENT, ITEM_ELEMENT, ITEM_GROUP,
-    PIXEL_DATA, SEQUENCE_DELIMITER_ELEMENT, UNDEFINED_LENGTH,
+    ElementHeader, RootValue, Scanner, SyntaxEncoding, ITEM_DELIMITER_ELEMENT, ITEM_ELEMENT,
+    ITEM_GROUP, PIXEL_DATA, SEQUENCE_DELIMITER_ELEMENT, UNDEFINED_LENGTH,
 };
 
-impl<'input> Scanner<'input> {
+impl<Visit: FnMut(Tag, RootValue)> Scanner<'_, Visit> {
     pub(super) fn scan_dataset_until_item_delimiter(
         &mut self,
         start: usize,
@@ -64,27 +64,39 @@ impl<'input> Scanner<'input> {
         let implicit_container = encoding.implicit_vr
             && header.length == UNDEFINED_LENGTH
             && self.next_tag_is_item(value_start);
-        if sequence || implicit_container {
-            return self.scan_sequence(
+        let compound = sequence || implicit_container;
+        let value_end = if compound {
+            self.scan_sequence(
                 value_start,
                 parent_end,
                 header.length,
                 encoding,
                 depth,
                 header.tag == PIXEL_DATA,
+            )?
+        } else {
+            if header.length == UNDEFINED_LENGTH {
+                bail!(
+                    "DICOM element {} has undefined length without a sequence or encapsulated pixel value",
+                    header.tag
+                );
+            }
+            let end = self.span_end(value_start, header.length, parent_end)?;
+            self.account_value(
+                usize::try_from(header.length).context("DICOM value length does not fit usize")?,
+                "DICOM element value",
+            )?;
+            end
+        };
+        if depth == 0 {
+            (self.visit)(
+                header.tag,
+                RootValue {
+                    range: value_start..value_end,
+                    compound,
+                },
             );
         }
-        if header.length == UNDEFINED_LENGTH {
-            bail!(
-                "DICOM element {} has undefined length without a sequence or encapsulated pixel value",
-                header.tag
-            )
-        }
-        let value_end = self.span_end(value_start, header.length, parent_end)?;
-        self.account_value(
-            usize::try_from(header.length).context("DICOM value length does not fit usize")?,
-            "DICOM element value",
-        )?;
         Ok(value_end)
     }
 

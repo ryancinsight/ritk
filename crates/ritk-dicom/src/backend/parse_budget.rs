@@ -15,6 +15,7 @@ use moirai_pal::fs::open_file_within_root;
 
 use super::DicomParseBackend;
 
+pub use scan::attributes::{scan_part10_attributes, Part10Attributes};
 pub use scan::{validate_part10, DicomParseSummary};
 
 /// Read one DICOM file through the supplied byte ceiling.

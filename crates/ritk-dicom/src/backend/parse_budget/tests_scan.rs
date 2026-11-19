@@ -311,3 +311,68 @@ fn rejects_deflated_dataset_without_decoder() {
         .to_string()
         .contains("requires a bounded deflate adapter"));
 }
+
+#[test]
+fn selected_primitives_borrow_original_bytes_and_ignore_nested_tags() {
+    use crate::{scan_part10_attributes, DicomTag};
+    let scalar = Tag(0x0028, 0x0010);
+    let nested_only = Tag(0x0028, 0x0011);
+    let sequence = Tag(0x5200, 0x9229);
+    let scalar_key = DicomTag::new(scalar.group(), scalar.element());
+    let nested_key = DicomTag::new(nested_only.group(), nested_only.element());
+    let sequence_key = DicomTag::new(sequence.group(), sequence.element());
+
+    for (syntax, little) in [
+        ("1.2.840.10008.1.2.1", true),
+        ("1.2.840.10008.1.2.2", false),
+        ("1.2.840.10008.1.2", true),
+    ] {
+        let order = if little {
+            71_u16.to_le_bytes()
+        } else {
+            71_u16.to_be_bytes()
+        };
+        let implicit = syntax == "1.2.840.10008.1.2";
+        let encode = |tag, value| {
+            if implicit {
+                implicit_element(tag, value, little)
+            } else {
+                explicit_element(tag, *b"US", value, little)
+            }
+        };
+        let nested = encode(nested_only, &order);
+        let item = item(
+            &nested,
+            u32::try_from(nested.len()).expect("short item"),
+            little,
+        );
+        let length = u32::try_from(item.len()).expect("short sequence");
+        let sequence = if implicit {
+            implicit_sequence(sequence, &item, length, little)
+        } else {
+            explicit_sequence(sequence, &item, length, little)
+        };
+        let mut dataset = encode(scalar, &order);
+        dataset.extend_from_slice(&sequence);
+        let encoded = part10(&dataset, syntax);
+        let request = [scalar_key, nested_key, sequence_key];
+        let parsed = scan_part10_attributes(&encoded, &ParseBudget::DEFAULT, request)
+            .expect("bounded part 10");
+        let borrowed = parsed
+            .primitive(scalar_key)
+            .expect("scalar")
+            .expect("selected rows");
+        let expected = &encoded[encoded.len() - dataset.len() + 8..][..2];
+        assert_eq!(parsed.transfer_syntax().uid(), syntax);
+        assert_eq!(borrowed, &order);
+        assert!(core::ptr::eq(borrowed, expected));
+        assert_eq!(parsed.primitive(nested_key).expect("absent"), None);
+        assert!(parsed.primitive(sequence_key).is_err());
+        assert!(scan_part10_attributes(
+            &encoded[..encoded.len() - 1],
+            &ParseBudget::DEFAULT,
+            request
+        )
+        .is_err());
+    }
+}

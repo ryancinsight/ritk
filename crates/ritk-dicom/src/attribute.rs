@@ -79,6 +79,19 @@ pub mod tags {
 
     // ── Identification ────────────────────────────────────────────────
 
+    /// Specific Character Set (0008,0005).
+    pub const SPECIFIC_CHARACTER_SET: DicomTag = DicomTag::new(0x0008, 0x0005);
+    /// SOP Class UID (0008,0016).
+    pub const SOP_CLASS_UID: DicomTag = DicomTag::new(0x0008, 0x0016);
+    /// Modality (0008,0060).
+    pub const MODALITY: DicomTag = DicomTag::new(0x0008, 0x0060);
+    /// Series Description (0008,103E).
+    pub const SERIES_DESCRIPTION: DicomTag = DicomTag::new(0x0008, 0x103E);
+    /// Patient ID (0010,0020).
+    pub const PATIENT_ID: DicomTag = DicomTag::new(0x0010, 0x0020);
+    /// Series Instance UID (0020,000E).
+    pub const SERIES_INSTANCE_UID: DicomTag = DicomTag::new(0x0020, 0x000E);
+
     /// Instance Number (0020,0013).
     pub const INSTANCE_NUMBER: DicomTag = DicomTag::new(0x0020, 0x0013);
 }

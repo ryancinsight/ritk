@@ -3255,6 +3255,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "horae-civil-time"
+version = "0.1.0"
+source = "git+https://github.com/ryancinsight/horae#fd117ce2b2b92d11a4e8bc92322e7fb40aa61aae"
+
+[[package]]
 name = "http"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6408,6 +6413,7 @@ dependencies = [
  "flate2",
  "gaia-mesh",
  "getrandom 0.3.4",
+ "horae-civil-time",
  "image 0.24.9",
  "moirai-runtime",
  "reqwest",

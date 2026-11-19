@@ -63,6 +63,7 @@ categories = [
 ]
 
 [workspace.dependencies]
+horae-civil-time = { version = "0.1.0", git = "https://github.com/ryancinsight/horae" }
 # crates.io reserves `iris`, so the crate is published as `iris-viz`; the
 # import path stays `iris` via its `[lib] name`, so no source changes.
 iris = { package = "iris-viz", version = "0.1.0", git = "https://github.com/ryancinsight/iris" }

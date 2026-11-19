@@ -14,8 +14,8 @@ pub mod syntax;
 pub use attribute::{tags, DicomAttributeRead, DicomTag};
 pub use backend::parse_budget::{
     parse_bytes_with_budget, parse_file_with_budget, read_file_with_budget,
-    read_file_within_root_with_budget, validate_part10, BoundedDicomParseBackend,
-    DicomParseSummary,
+    read_file_within_root_with_budget, scan_part10_attributes, validate_part10,
+    BoundedDicomParseBackend, DicomParseSummary, Part10Attributes,
 };
 pub use backend::{
     decode_frame_with, parse_bytes_with, parse_file_with, write_bytes_with, write_file_with,

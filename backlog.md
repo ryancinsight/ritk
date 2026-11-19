@@ -1,4 +1,19 @@
 # RITK execution backlog
+
+<a id="ritk-native-dicom"></a>
+## RITK-NATIVE-DICOM — Own the dataset and DIMSE backend [arch] — in progress
+
+- The catalog uses a fixed-size set of top-level attribute spans obtained
+  during the existing bounded traversal. N selections retain at most N
+  borrowed value spans, independent of pixel data size. RITK DA repair
+  shares Horae's Gregorian validation.
+- Local evidence: 31 focused RITK DICOM tests pass. The borrow-identity
+  regression checks both explicit byte orders and implicit little endian,
+  distinguishes nested and compound values, and rejects truncated input.
+- Remaining: complete the mutable dataset and writer, implicit-VR dictionary
+  and transfer-syntax parity, migrate DIMSE and downstream consumers, then
+  verify the locked graph removes dicom-rs and its Chrono edge. Coordinate
+  against the current clinical, viewer, and Helios interfaces.
 # Milestones
 <a id="M-viewer-reading"></a>
 ## M-viewer-reading — 0.2.0 — read a single study on the native shell
