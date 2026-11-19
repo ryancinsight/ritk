@@ -92,7 +92,7 @@ impl SnapApp {
         }
         let Some(candidate) = (match pending.kind {
             AnnotationMoveKind::Length(mode) => {
-                length::move_candidate(&pending.original, mode, point, spacing)
+                length::move_candidate(&pending.original, mode, pending.start, point, spacing)
             }
             AnnotationMoveKind::Polygon {
                 node_index,

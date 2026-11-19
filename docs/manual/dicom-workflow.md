@@ -120,12 +120,19 @@ have their own rows. Measurement labels move to stay visible inside the pane.
    with a button assigned to **W/L**, **Zoom**, or **Pan** between the clicks.
    The first endpoint stays in place. You can also drag after placing the
    first endpoint to complete the measurement.
-3. Choose **Tools → Deviation** or press **D**. Drag a slanted segment
+3. Choose **Tools → Pan** or press **M**. Drag either endpoint of a completed
+   length to change the measurement. Drag the line away from its endpoint
+   handles to move the complete mark without changing its measured value or
+   image calibration. The preview follows the pointer; release to keep it or
+   press **Esc** to retain the last committed position.
+4. Choose **Tools → Deviation** or press **D**. Drag a slanted segment
    in the image and release. The overlay shows the segment and its reference along the closer
    image axis. Its label gives the perpendicular offset in millimetres and
    the angle from that axis in degrees.
-4. Scroll to another slice and back. The measurements appear on the slice
+5. Scroll to another slice and back. The measurements appear on the slice
    where you drew them.
+
+![A selected length after endpoint editing and whole-line translation, with its unchanged 100 mm calibration reference](images/dicom-native-length-edit.webp)
 
 ### Calibrate a length on one image
 

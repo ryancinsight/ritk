@@ -6,6 +6,7 @@ use super::measurement_overlay::axial_panel;
 use super::support::control_center;
 use super::*;
 use crate::tools::interaction::Annotation;
+use eunomia::FloatElement;
 use metis_platform::native::MouseButton;
 use std::path::PathBuf;
 
@@ -82,7 +83,7 @@ fn native_manual_annotation_frames() {
         .set_workspace_layout(WorkspaceLayout::Panels(grid))
         .expect("show a single annotation pane");
     viewer.refresh_frame().expect("display the annotation pane");
-    let (pane, ..) = axial_panel(&viewer);
+    let (pane, origin_x, origin_y, sx, sy) = axial_panel(&viewer);
     let image = viewer.viewports[pane].image;
     let point = |x: f64, y: f64| {
         (
@@ -125,10 +126,46 @@ fn native_manual_annotation_frames() {
     else {
         panic!("the reference length is recorded");
     };
-    assert_eq!(
-        viewer.app.length_scale(*location),
-        100.0 / f64::from(*length_mm)
-    );
+    let calibration = 100.0 / f64::from(*length_mm);
+    assert_eq!(viewer.app.length_scale(*location), calibration);
+
+    let original_measurements = viewer.app.annotations.clone();
+    viewer.handle_events(&[key(0x4d)]).expect("select Pan");
+    viewer
+        .handle_events(&drag(point(0.42, 0.23), point(0.48, 0.23)))
+        .expect("edit the first length endpoint");
+    viewer
+        .handle_events(&drag(point(0.32, 0.23), point(0.32, 0.29)))
+        .expect("translate the edited length");
+    assert_eq!(viewer.app.pointer.selected_annotation, Some(0));
+    let Some(Annotation::Length {
+        p1, p2, location, ..
+    }) = viewer.app.annotations.first()
+    else {
+        panic!("the edited length is recorded");
+    };
+    let stored = |(x, y): (i32, i32)| {
+        [
+            (f64::from(y) - origin_y) / sy,
+            (f64::from(x) - origin_x) / sx,
+        ]
+        .map(<f32 as FloatElement>::from_f64)
+    };
+    let start = stored(point(0.32, 0.23));
+    let end = stored(point(0.32, 0.29));
+    let delta = [end[0] - start[0], end[1] - start[1]];
+    let expected = [stored(point(0.16, 0.23)), stored(point(0.48, 0.23))]
+        .map(|point| [point[0] + delta[0], point[1] + delta[1]]);
+    assert_eq!([*p1, *p2], expected);
+    assert_eq!(viewer.app.annotations[1], original_measurements[1]);
+    assert_eq!(viewer.app.length_scale(*location), calibration);
+    if let Some(output) = &output {
+        save_capture(
+            &viewer.framebuffer,
+            &output.join("dicom-native-length-edit.png"),
+        )
+        .expect("capture selected edited length");
+    }
 
     viewer
         .handle_events(&[key(0x43)])

@@ -125,6 +125,7 @@ pub(crate) enum AnnotationMoveKind {
 pub(crate) enum LengthMove {
     FirstEndpoint,
     SecondEndpoint,
+    WholeLine,
 }
 
 #[derive(Debug, Clone, PartialEq)]

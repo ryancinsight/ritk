@@ -32,6 +32,8 @@ cargo nextest run --locked -p ritk-snap -E '
   or test(length_measurement_first_click_then_drag_completes_through_the_adapter)
   or test(deviation_measurement_completes_from_one_pointer_drag)
   or test(native_cobb_) or test(native_polygon_edge_insert_)
+  or test(native_pan_edits_both_length_endpoints_transactionally)
+  or test(native_pan_translates_length_transactionally)
   or test(native_manual_annotation_frames)
   or test(open_polygon_enter_commits_physical_length_and_consumes_release)
   or test(closed_polygon_commits_area_perimeter_and_slice_location)
@@ -49,6 +51,10 @@ $env:RITK_MANUAL_CAPTURE_DIR = (New-Item -ItemType Directory -Force 'output/manu
 cargo nextest run --locked -p ritk-snap -E 'test(native_manual_annotation_frames)'
 Remove-Item Env:RITK_MANUAL_STUDY, Env:RITK_MANUAL_CAPTURE_DIR
 ```
+
+The [frame record](images/dicom-native-annotations.json) preserves each figure's
+source revision and lock digest. Per-frame fields identify newer captures;
+figures without overrides retain the record's original revision and lock.
 
 ## Actual application gallery
 
