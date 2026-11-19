@@ -233,6 +233,7 @@ fn native_pan_edits_both_length_endpoints_transactionally() {
     assert!(
         matches!(session.app.pointer.pending_annotation_move.as_ref(), Some(edit) if edit.annotation_index == 1 && matches!(edit.kind, AnnotationMoveKind::Length(_)))
     );
+    session.app.pointer.selected_annotation = Some(0);
     assert!(overlay_lines(&session)
         .iter()
         .any(|&(start, end)| start == (x - 25, y - 40) || end == (x - 25, y - 40)));
