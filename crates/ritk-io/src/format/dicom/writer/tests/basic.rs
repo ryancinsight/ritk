@@ -2,9 +2,8 @@
 use super::super::pixel_encoding::PixelEncodingPlan;
 use super::super::{generate_series_uid, write_dicom_series, DicomWriteError};
 use super::fixtures::{make_image, Backend};
-use dicom::core::Tag;
-use dicom::object::open_file;
 use ritk_core::image::Image;
+use ritk_dicom::dataset::DicomTag;
 use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -138,9 +137,9 @@ fn test_series_writer_has_samples_per_pixel_one() {
     write_dicom_series(&series_path, &image).expect("write_dicom_series");
 
     let slice_path = series_path.join("slice_0000.dcm");
-    let obj = open_file(&slice_path).expect("open_file");
+    let obj = ritk_dicom::dataset::DicomFile::open(&slice_path).expect("open_file");
     let spp: u16 = obj
-        .element(Tag(0x0028, 0x0002))
+        .element(DicomTag::new(0x0028, 0x0002))
         .expect("SamplesPerPixel (0028,0002) must be present in written slice")
         .to_str()
         .expect("SamplesPerPixel must be readable as string")
@@ -157,7 +156,8 @@ fn test_series_writer_pixel_tags_match_payload_width() {
     let path = temp.path().join("word_series");
     write_dicom_series(&path, &image).expect("series write");
 
-    let object = open_file(path.join("slice_0000.dcm")).expect("written slice parses");
+    let object = ritk_dicom::dataset::DicomFile::open(path.join("slice_0000.dcm"))
+        .expect("written slice parses");
     let read_unsigned_pixel_tag = |tag| {
         object
             .element(tag)
@@ -168,12 +168,12 @@ fn test_series_writer_pixel_tags_match_payload_width() {
             .parse::<u16>()
             .expect("US attribute must parse")
     };
-    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0100)), 16);
-    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0101)), 16);
-    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0102)), 15);
-    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0103)), 0);
+    assert_eq!(read_unsigned_pixel_tag(DicomTag::new(0x0028, 0x0100)), 16);
+    assert_eq!(read_unsigned_pixel_tag(DicomTag::new(0x0028, 0x0101)), 16);
+    assert_eq!(read_unsigned_pixel_tag(DicomTag::new(0x0028, 0x0102)), 15);
+    assert_eq!(read_unsigned_pixel_tag(DicomTag::new(0x0028, 0x0103)), 0);
     let pixel_bytes = object
-        .element(Tag(0x7FE0, 0x0010))
+        .element(DicomTag::new(0x7FE0, 0x0010))
         .expect("PixelData must exist")
         .value()
         .to_bytes()
@@ -215,8 +215,8 @@ fn test_series_pixel_clamp_unsigned_range() {
         if path.extension().and_then(|e| e.to_str()) != Some("dcm") {
             continue;
         }
-        let obj = dicom::object::open_file(&path).expect("open_file");
-        let element = obj.element(dicom::core::Tag(0x7FE0, 0x0010));
+        let obj = ritk_dicom::dataset::DicomFile::open(&path).expect("open_file");
+        let element = obj.element(ritk_dicom::dataset::DicomTag::new(0x7FE0, 0x0010));
         if let Ok(elem) = element {
             let pixel_bytes = elem.value().to_bytes();
             if let Ok(bytes) = pixel_bytes {
@@ -251,9 +251,9 @@ fn test_series_writer_has_conversion_type_wsd() {
     write_dicom_series(&out_path, &image).expect("write_dicom_series");
 
     let first_slice = out_path.join("slice_0000.dcm");
-    let obj = open_file(&first_slice).expect("open_file");
+    let obj = ritk_dicom::dataset::DicomFile::open(&first_slice).expect("open_file");
     let conv_type = obj
-        .element(Tag(0x0008, 0x0064))
+        .element(DicomTag::new(0x0008, 0x0064))
         .expect("ConversionType (0008,0064) must be present")
         .to_str()
         .expect("ConversionType must be a string")
@@ -273,25 +273,25 @@ fn test_basic_series_writer_has_type2_patient_tags() {
     write_dicom_series(&out_path, &image).expect("write_dicom_series");
 
     let first_slice = out_path.join("slice_0000.dcm");
-    let obj = open_file(&first_slice).expect("open_file");
+    let obj = ritk_dicom::dataset::DicomFile::open(&first_slice).expect("open_file");
     assert!(
-        obj.element(Tag(0x0010, 0x0010)).is_ok(),
+        obj.element(DicomTag::new(0x0010, 0x0010)).is_ok(),
         "PatientName (0010,0010) must be present"
     );
     assert!(
-        obj.element(Tag(0x0010, 0x0020)).is_ok(),
+        obj.element(DicomTag::new(0x0010, 0x0020)).is_ok(),
         "PatientID (0010,0020) must be present"
     );
     assert!(
-        obj.element(Tag(0x0008, 0x0090)).is_ok(),
+        obj.element(DicomTag::new(0x0008, 0x0090)).is_ok(),
         "ReferringPhysicianName (0008,0090) must be present"
     );
     assert!(
-        obj.element(Tag(0x0008, 0x0020)).is_ok(),
+        obj.element(DicomTag::new(0x0008, 0x0020)).is_ok(),
         "StudyDate (0008,0020) must be present"
     );
     assert!(
-        obj.element(Tag(0x0020, 0x0011)).is_ok(),
+        obj.element(DicomTag::new(0x0020, 0x0011)).is_ok(),
         "SeriesNumber (0020,0011) must be present"
     );
 }

@@ -1,18 +1,24 @@
 //! Bounded selection of top-level DICOM values by tag.
 
 use anyhow::{bail, Result};
+use bytes::Bytes;
 use consus_core::ParseBudget;
-use dicom::core::Tag;
+use std::ops::Range;
 
 use crate::{DicomTag, TransferSyntaxKind};
 
-use super::{RootValue, Scanner};
+use super::{Event, Scanner};
+
+#[derive(Debug)]
+struct RootValue {
+    range: Range<usize>,
+    compound: bool,
+}
 
 /// Select top-level values from a structurally validated Part 10 file.
 ///
-/// The records borrow the original value bytes. The selection stores N tag
-/// slots, so its storage depends on the requested tags and remains independent
-/// of the pixel size, total tag count, and number of nested items.
+/// Selection stores N tag slots and borrows existing value spans. Deflated
+/// input owns one bounded inflated buffer that supplies those spans.
 ///
 /// # Errors
 /// Returns the same framing, transfer syntax, and budget failures as
@@ -24,15 +30,40 @@ pub fn scan_part10_attributes<'a, const N: usize>(
     tags: [DicomTag; N],
 ) -> Result<Part10Attributes<'a, N>> {
     let mut values: [Option<RootValue>; N] = [const { None }; N];
-    let summary = Scanner::new(data, budget, |tag: Tag, value| {
-        let key = DicomTag::new(tag.group(), tag.element());
-        if let Some(position) = tags.iter().position(|wanted| *wanted == key) {
-            values[position] = Some(value);
+    let mut inflated = None;
+    let summary = Scanner::new(data, budget, |event| {
+        let (tag, range, compound) = match event {
+            Event::Primitive {
+                header,
+                range,
+                depth: 0,
+                ..
+            } => (header.tag, range, false),
+            Event::SequenceEnd {
+                tag,
+                range,
+                depth: 0,
+            } => (tag, range, true),
+            Event::Inflated(bytes) => {
+                inflated = Some(bytes);
+                return Ok(());
+            }
+            _ => return Ok(()),
+        };
+        for (index, wanted) in tags.iter().enumerate() {
+            if *wanted == tag {
+                values[index] = Some(RootValue {
+                    range: range.clone(),
+                    compound,
+                });
+            }
         }
+        Ok(())
     })?
     .scan()?;
     Ok(Part10Attributes {
         data,
+        inflated,
         tags,
         values,
         transfer_syntax: summary.transfer_syntax,
@@ -43,6 +74,7 @@ pub fn scan_part10_attributes<'a, const N: usize>(
 #[derive(Debug)]
 pub struct Part10Attributes<'a, const N: usize> {
     data: &'a [u8],
+    inflated: Option<Bytes>,
     tags: [DicomTag; N],
     values: [Option<RootValue>; N],
     transfer_syntax: TransferSyntaxKind,
@@ -62,7 +94,7 @@ impl<'a, const N: usize> Part10Attributes<'a, N> {
     ///
     /// # Errors
     /// Fails for sequences and encapsulated pixel fragments.
-    pub fn primitive(&self, tag: DicomTag) -> Result<Option<&'a [u8]>> {
+    pub fn primitive(&self, tag: DicomTag) -> Result<Option<&[u8]>> {
         let selected = self
             .tags
             .iter()
@@ -78,6 +110,7 @@ impl<'a, const N: usize> Part10Attributes<'a, N> {
                 tag.element
             );
         }
-        Ok(Some(&self.data[value.range.clone()]))
+        let data = self.inflated.as_deref().unwrap_or(self.data);
+        Ok(Some(&data[value.range.clone()]))
     }
 }

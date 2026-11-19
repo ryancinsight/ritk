@@ -1,8 +1,8 @@
 //! DicomPreservedElement and DicomPreservationSet.
 
 use super::model::DicomObjectModel;
-use super::tag::DicomTag;
 use arrayvec::ArrayString;
+use ritk_dicom::DicomTag;
 
 /// A shallow preservation record for unsupported elements.
 ///
@@ -10,7 +10,7 @@ use arrayvec::ArrayString;
 /// that the series-oriented reader does not yet interpret semantically.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DicomPreservedElement {
-    /// Tag of the preserved element.
+    /// DicomTag of the preserved element.
     pub tag: DicomTag,
     /// Raw VR if known.
     pub vr: Option<ArrayString<2>>,
@@ -64,7 +64,7 @@ impl DicomRetentionReason {
 /// silently producing a volume with missing metadata.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DicomRetentionLoss {
-    /// Tag of the element whose value was dropped.
+    /// DicomTag of the element whose value was dropped.
     pub tag: DicomTag,
     /// Why the value could not be retained.
     pub reason: DicomRetentionReason,

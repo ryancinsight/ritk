@@ -6,52 +6,72 @@ pub(super) const OTHER: &str = "2.25.73002";
 const CT: &str = "1.2.840.10008.5.1.4.1.1.2";
 
 pub(super) fn instance(uid: Option<&str>, number: u16, value: u16) -> Vec<u8> {
-    let mut object = InMemDicomObject::new_empty();
+    let mut object = Dataset::new();
     for (tag, vr, text) in [
-        (Tag(0x0008, 0x0016), VR::UI, CT.to_owned()),
-        (Tag(0x0008, 0x0018), VR::UI, format!("2.25.74001.{number}")),
-        (Tag(0x0008, 0x0060), VR::CS, "CT".to_owned()),
-        (Tag(0x0020, 0x000D), VR::UI, "2.25.75001".to_owned()),
-        (Tag(0x0008, 0x103E), VR::LO, format!("Acquisition {value}")),
-        (Tag(0x0020, 0x0013), VR::IS, number.to_string()),
+        (DicomTag::new(0x0008, 0x0016), VR::UI, CT.to_owned()),
         (
-            Tag(0x0020, 0x0032),
+            DicomTag::new(0x0008, 0x0018),
+            VR::UI,
+            format!("2.25.74001.{number}"),
+        ),
+        (DicomTag::new(0x0008, 0x0060), VR::CS, "CT".to_owned()),
+        (
+            DicomTag::new(0x0020, 0x000D),
+            VR::UI,
+            "2.25.75001".to_owned(),
+        ),
+        (
+            DicomTag::new(0x0008, 0x103E),
+            VR::LO,
+            format!("Acquisition {value}"),
+        ),
+        (DicomTag::new(0x0020, 0x0013), VR::IS, number.to_string()),
+        (
+            DicomTag::new(0x0020, 0x0032),
             VR::DS,
             format!("10\\20\\{}", 2 * number),
         ),
-        (Tag(0x0020, 0x0037), VR::DS, "1\\0\\0\\0\\1\\0".to_owned()),
-        (Tag(0x0028, 0x0030), VR::DS, "0.5\\0.5".to_owned()),
-        (Tag(0x0018, 0x0050), VR::DS, "2".to_owned()),
-        (Tag(0x0028, 0x0004), VR::CS, "MONOCHROME2".to_owned()),
+        (
+            DicomTag::new(0x0020, 0x0037),
+            VR::DS,
+            "1\\0\\0\\0\\1\\0".to_owned(),
+        ),
+        (DicomTag::new(0x0028, 0x0030), VR::DS, "0.5\\0.5".to_owned()),
+        (DicomTag::new(0x0018, 0x0050), VR::DS, "2".to_owned()),
+        (
+            DicomTag::new(0x0028, 0x0004),
+            VR::CS,
+            "MONOCHROME2".to_owned(),
+        ),
     ] {
         object.put(DataElement::new(tag, vr, PrimitiveValue::from(text)));
     }
     if let Some(uid) = uid {
         object.put(DataElement::new(
-            Tag(0x0020, 0x000E),
+            DicomTag::new(0x0020, 0x000E),
             VR::UI,
             PrimitiveValue::from(uid),
         ));
     }
     for (tag, value) in [
-        (Tag(0x0028, 0x0010), 2_u16),
-        (Tag(0x0028, 0x0011), 2),
-        (Tag(0x0028, 0x0002), 1),
-        (Tag(0x0028, 0x0100), 16),
-        (Tag(0x0028, 0x0101), 16),
-        (Tag(0x0028, 0x0102), 15),
-        (Tag(0x0028, 0x0103), 0),
+        (DicomTag::new(0x0028, 0x0010), 2_u16),
+        (DicomTag::new(0x0028, 0x0011), 2),
+        (DicomTag::new(0x0028, 0x0002), 1),
+        (DicomTag::new(0x0028, 0x0100), 16),
+        (DicomTag::new(0x0028, 0x0101), 16),
+        (DicomTag::new(0x0028, 0x0102), 15),
+        (DicomTag::new(0x0028, 0x0103), 0),
     ] {
         object.put(DataElement::new(tag, VR::US, PrimitiveValue::from(value)));
     }
     object.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OW,
         PrimitiveValue::U16(vec![value; 4].into()),
     ));
     let file = object
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid(CT)
                 .media_storage_sop_instance_uid(format!("2.25.74001.{number}"))
                 .transfer_syntax("1.2.840.10008.1.2.1"),

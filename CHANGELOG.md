@@ -8,6 +8,37 @@
 
 # CHANGELOG
 
+## ritk-dicom 0.5.0 and ritk-io 0.6.0
+
+### Breaking
+
+- [arch] Migrate from `DicomRsBackend` to `NativeBackend` and from external
+  DICOM object types to `ritk_dicom::dataset::{DicomFile, Dataset}`.
+  Use `DicomFile::open` or `DicomFile::parse` to load the object,
+  `Dataset::put_value` to edit primitive values, and
+  `DicomFile::write_all` or `write_to_file` for Part 10 output.
+  Implementations of `EncapsulatedFrameSource` return `Cow<[u8]>`
+  so contiguous frames can be borrowed. Use
+  `TransferSyntaxKind::is_encapsulated` for codec classification.
+- [arch] `ritk-io` uses the provider's `DicomTag`, dataset, and file
+  types throughout. `StoredInstance::make_part10_bytes` returns a
+  fallible result for invalid DIMSE metadata. The implementation class
+  UID lives in `ritk_dicom::dataset::IMPLEMENTATION_CLASS_UID`.
+
+### Added
+
+- [minor] Emit implicit and explicit VR datasets, defined or undefined
+  sequences, deflated datasets, and encapsulated Pixel Data with the
+  native writer. Decode JPEG XL directly with `jxl-oxide` and handle
+  Basic and Extended Offset Tables in the dataset layer.
+
+### Fixed
+
+- [patch] C-STORE preserves the source transfer syntax for encapsulated
+  frames. Incoming DIMSE data use the native Part 10 metadata writer.
+- [patch] Use File Meta Information when a cached slice has no transfer
+  syntax. Reject incompatible pixel framing before opening a write target.
+
 ## ritk-registration 0.55.1
 
 ### Fixed

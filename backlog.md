@@ -1,7 +1,7 @@
 # RITK execution backlog
 
 <a id="ritk-native-dicom"></a>
-## RITK-NATIVE-DICOM — Own the dataset and DIMSE backend [arch] — in progress
+## RITK-NATIVE-DICOM — Own the dataset and DIMSE backend [arch] — done
 
 - The catalog uses a fixed-size set of top-level attribute spans obtained
   during the existing bounded traversal. N selections retain at most N
@@ -19,9 +19,15 @@
 - A 16,777,690-byte synthetic 32-frame file yields 16,790,724 allocated bytes
   per full-object parse and zero for the identical borrowed tag selection.
   The probe is scoped to selection with the encoded input already resident.
-- Remaining: complete the mutable dataset and writer, implicit-VR dictionary,
-  character repertoires, and transfer-syntax parity. Migrate dataset consumers
-  including Helios and verify removal of dicom-rs and its Chrono edge.
+- Delivered in `ritk-dicom` 0.5.0 and `ritk-io` 0.6.0. The native
+  dataset writer handles nested lengths, all previously supported frame
+  codecs, file metadata, and DIMSE framing. The implicit dictionary is
+  generated from PS3.6. See [ADR 0062](docs/adr/0062-native-dicom-dataset.md).
+- Locked continuation gate: 635 tests pass for `ritk-dicom`, `ritk-io`,
+  and `ritk-diffusion-scheme` with all features. The independent DIMSE
+  peer remains a dev dependency and retains its separate graph.
+- Release evidence follows [RITK-REGISTRY-PUBLICATION-001](backlog.md#RITK-REGISTRY-PUBLICATION-001).
+
 # Milestones
 <a id="M-viewer-reading"></a>
 ## M-viewer-reading — 0.2.0 — read a single study on the native shell

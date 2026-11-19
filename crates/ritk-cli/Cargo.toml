@@ -22,7 +22,7 @@ serde_json = { workspace = true }
 ritk-transform = { path = "../ritk-transform", version = "0.3.0" }
 ritk-filter = { path = "../ritk-filter", version = "0.5.0" }
 ritk-segmentation = { path = "../ritk-segmentation", version = "0.5.0" }
-ritk-io = { path = "../ritk-io", version = "0.5.0" }
+ritk-io = { path = "../ritk-io", version = "0.6.0" }
 ritk-registration = { path = "../ritk-registration", version = "0.56.0" }
 ritk-diffusion = { path = "../ritk-diffusion", version = "0.1.0" }
 ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.3.0" }

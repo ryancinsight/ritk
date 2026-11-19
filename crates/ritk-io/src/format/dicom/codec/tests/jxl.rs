@@ -1,9 +1,9 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::decode_compressed_frame;
-use dicom::core::smallvec::SmallVec;
-use dicom::core::value::PixelFragmentSequence;
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::{FileMetaTableBuilder, InMemDicomObject};
+use ritk_dicom::dataset::PixelFragments;
+use ritk_dicom::dataset::SmallVec;
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+use ritk_dicom::dataset::{Dataset, FileMetaBuilder};
 
 /// Build and write a minimal JPEG XL Lossless DICOM Part 10 file.
 ///
@@ -35,104 +35,104 @@ fn write_jxl_lossless_dicom_file(
     let jxl_bytes = encoder.encode().expect("JXL encode failed");
 
     let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![jxl_bytes]);
-    let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);
+    let pfs: PixelFragments = PixelFragments::from_fragments(fragments);
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.99999911"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0010, 0x0010),
+        DicomTag::new(0x0010, 0x0010),
         VR::PN,
         PrimitiveValue::from(""),
     ));
     obj.put(DataElement::new(
-        Tag(0x0010, 0x0020),
+        DicomTag::new(0x0010, 0x0020),
         VR::LO,
         PrimitiveValue::from(""),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000D),
+        DicomTag::new(0x0020, 0x000D),
         VR::UI,
         PrimitiveValue::from("2.25.99999912"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
+        DicomTag::new(0x0020, 0x000E),
         VR::UI,
         PrimitiveValue::from("2.25.99999913"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(height as u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(width as u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(8u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::from(8u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
+        DicomTag::new(0x0028, 0x0102),
         VR::US,
         PrimitiveValue::from(7u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
+        DicomTag::new(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
+        DicomTag::new(0x0028, 0x0002),
         VR::US,
         PrimitiveValue::from(1u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0004),
+        DicomTag::new(0x0028, 0x0004),
         VR::CS,
         PrimitiveValue::from("MONOCHROME2"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0008),
+        DicomTag::new(0x0028, 0x0008),
         VR::IS,
         PrimitiveValue::from("1"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x1053),
+        DicomTag::new(0x0028, 0x1053),
         VR::DS,
         PrimitiveValue::from("1.000000"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x1052),
+        DicomTag::new(0x0028, 0x1052),
         VR::DS,
         PrimitiveValue::from("0.000000"),
     ));
-    obj.put(DataElement::new(Tag(0x7FE0, 0x0010), VR::OB, pfs));
+    obj.put(DataElement::new(DicomTag::new(0x7FE0, 0x0010), VR::OB, pfs));
 
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7.3")
                 .media_storage_sop_instance_uid("2.25.99999911")
                 .transfer_syntax("1.2.840.10008.1.2.4.110"),
         )
-        .expect("FileMetaTableBuilder failed");
+        .expect("FileMetaBuilder failed");
     file_obj.write_to_file(path).expect("write_to_file failed");
 }
 
@@ -156,7 +156,7 @@ fn test_decode_compressed_frame_jxl_lossless_round_trip() {
     let path = tmp.path().join("test_jxl_lossless.dcm");
     write_jxl_lossless_dicom_file(&path, width, height, &original);
 
-    let obj = dicom::object::open_file(&path).expect("open_file failed");
+    let obj = ritk_dicom::dataset::DicomFile::open(&path).expect("open_file failed");
     let decoded = decode_compressed_frame(
         &obj,
         0,

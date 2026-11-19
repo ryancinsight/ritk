@@ -1,5 +1,19 @@
 # RITK Gap Audit
 
+<a id="ritk-native-dicom"></a>
+## RITK-NATIVE-DICOM — Application cutover verified
+
+- The RITK dataset, writer, frame dispatch, and DIMSE wrappers form one
+  production graph. The `dicom-ul` test peer retains `dicom-core` and
+  Chrono only in RITK’s development graph.
+- Frame assembly uses Basic or Extended Offset Tables when supplied.
+  An empty table supports one frame or one fragment per frame. Ambiguous
+  multi-fragment layouts and unclassified transfer syntaxes report an error.
+  The parity scope covers the former backend’s supported pixel layouts.
+- Explicit big-endian Part 10 parsing, writing, and stored-sample decode
+  are covered at the provider boundary. Higher-level RITK I/O series
+  loaders retain their existing explicit big-endian policy.
+
 <a id="RITK-REGISTRY-PUBLICATION-001"></a>
 ## RITK-REGISTRY-PUBLICATION-001: Git validation does not establish registry publication [patch]
 - risk: a corrected Git revision passes native checks while the registry resolves older incompatible dependencies or lacks required packages.

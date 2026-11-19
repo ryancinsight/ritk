@@ -3,8 +3,8 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use super::tag::DicomTag;
 use super::types::DicomObjectNode;
+use ritk_dicom::DicomTag;
 
 /// A DICOM object consisting of ordered nodes.
 #[derive(Debug, Clone, PartialEq)]

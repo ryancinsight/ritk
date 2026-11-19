@@ -7,8 +7,8 @@
 //!
 //! They are co-located to satisfy Rust's type system without indirection.
 
-use super::tag::{is_private_tag, DicomTag};
 use arrayvec::ArrayString;
+use ritk_dicom::{is_private_tag, DicomTag};
 
 /// DICOM value multiplicity container.
 #[derive(Debug, Clone, PartialEq)]

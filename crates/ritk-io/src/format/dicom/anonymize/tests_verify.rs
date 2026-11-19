@@ -10,65 +10,61 @@ use super::super::anonymize::verify::{
     ensure_dicom_file_clean, verify_dicom_directory, verify_dicom_file, verify_dicom_instances,
     VerifyIssue, VerifyOptions,
 };
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::{meta::FileMetaTableBuilder, FileDicomObject, InMemDicomObject};
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+use ritk_dicom::dataset::{Dataset, DicomFile, FileMetaBuilder};
 
-pub(super) fn build_object(
-    study_uid: &str,
-    series_uid: &str,
-    sop_uid: &str,
-) -> FileDicomObject<InMemDicomObject> {
-    let mut obj = InMemDicomObject::new_empty();
+pub(super) fn build_object(study_uid: &str, series_uid: &str, sop_uid: &str) -> DicomFile {
+    let mut obj = Dataset::new();
     // Identification / UIDs
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000D),
+        DicomTag::new(0x0020, 0x000D),
         VR::UI,
         PrimitiveValue::from(study_uid),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
+        DicomTag::new(0x0020, 0x000E),
         VR::UI,
         PrimitiveValue::from(series_uid),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from(sop_uid),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x0052),
+        DicomTag::new(0x0020, 0x0052),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.1.2.3.4.5.6"),
     ));
     // Geometry: 2x2x1, 16-bit
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(2_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(2_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
+        DicomTag::new(0x0028, 0x0002),
         VR::US,
         PrimitiveValue::from(1_u16),
     ));
     // PixelData: 2*2*2 = 8 bytes (16-bit).
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OW,
-        PrimitiveValue::U16(dicom::core::smallvec::SmallVec::from_vec(vec![0, 1, 2, 3])),
+        PrimitiveValue::U16(ritk_dicom::dataset::SmallVec::from_vec(vec![0, 1, 2, 3])),
     ));
     obj.with_meta(
-        FileMetaTableBuilder::new()
+        FileMetaBuilder::new()
             .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
             .media_storage_sop_instance_uid(sop_uid)
             .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -76,10 +72,7 @@ pub(super) fn build_object(
     .expect("synthetic metadata valid")
 }
 
-pub(super) fn write_to_temp(
-    obj: &FileDicomObject<InMemDicomObject>,
-    name: &str,
-) -> std::path::PathBuf {
+pub(super) fn write_to_temp(obj: &DicomFile, name: &str) -> std::path::PathBuf {
     // Leak the tempdir guard so the file survives for the duration of the test;
     // the OS temp dir is cleaned up eventually. Tests never accumulate enough
     // to matter.
@@ -127,7 +120,7 @@ fn truncated_file_reports_parse_failure() {
 #[test]
 fn missing_uid_reported_when_required() {
     let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
-    obj.remove_element(Tag(0x0020, 0x000D)); // StudyInstanceUID
+    obj.remove_element(DicomTag::new(0x0020, 0x000D)); // StudyInstanceUID
     let path = write_to_temp(&obj, "missing_study.dcm");
 
     let report = verify_dicom_file(&path, &VerifyOptions::default()).unwrap();
@@ -158,7 +151,7 @@ fn invalid_uid_format_reported() {
 fn prohibited_value_leak_reported() {
     let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
     obj.put(DataElement::new(
-        Tag(0x0010, 0x0010),
+        DicomTag::new(0x0010, 0x0010),
         VR::PN,
         PrimitiveValue::from("Doe^John"),
     ));
@@ -239,7 +232,7 @@ fn clean_directory_passes_gate() {
 #[test]
 fn ensure_clean_errors_on_first_issue() {
     let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
-    obj.remove_element(Tag(0x0020, 0x000E)); // SeriesInstanceUID
+    obj.remove_element(DicomTag::new(0x0020, 0x000E)); // SeriesInstanceUID
     let path = write_to_temp(&obj, "bad.dcm");
 
     let err = ensure_dicom_file_clean(&path, &VerifyOptions::default()).unwrap_err();
@@ -255,17 +248,17 @@ fn leak_options(values: &[&str]) -> VerifyOptions {
 
 #[test]
 fn a_prohibited_value_inside_a_sequence_item_is_reported() {
-    let mut item = InMemDicomObject::new_empty();
+    let mut item = Dataset::new();
     item.put(DataElement::new(
-        Tag(0x0040, 0xA123),
+        DicomTag::new(0x0040, 0xA123),
         VR::PN,
         PrimitiveValue::from("Doe^John"),
     ));
     let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
     obj.put(DataElement::new(
-        Tag(0x0040, 0xA730),
+        DicomTag::new(0x0040, 0xA730),
         VR::SQ,
-        dicom::core::value::DataSetSequence::from(vec![item]),
+        ritk_dicom::dataset::Sequence::from(vec![item]),
     ));
     let path = write_to_temp(&obj, "nested.dcm");
 
@@ -283,7 +276,7 @@ fn a_prohibited_value_inside_a_sequence_item_is_reported() {
 fn a_short_identifier_is_found_as_a_word_and_not_inside_uids_or_numbers() {
     let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
     obj.put(DataElement::new(
-        Tag(0x0008, 0x103E),
+        DicomTag::new(0x0008, 0x103E),
         VR::LO,
         PrimitiveValue::from("series 17 axial 740"),
     ));
@@ -313,7 +306,7 @@ fn an_empty_prohibited_value_matches_nothing() {
     // Between the space and the hyphen an empty string has no letter or digit
     // on either side, so only the emptiness rule keeps it from matching.
     obj.put(DataElement::new(
-        Tag(0x0008, 0x103E),
+        DicomTag::new(0x0008, 0x103E),
         VR::LO,
         PrimitiveValue::from("ward - 7"),
     ));
@@ -325,7 +318,7 @@ fn an_empty_prohibited_value_matches_nothing() {
 #[test]
 fn a_missing_frame_of_reference_passes_and_a_malformed_one_is_reported() {
     let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
-    obj.remove_element(Tag(0x0020, 0x0052));
+    obj.remove_element(DicomTag::new(0x0020, 0x0052));
     let absent = write_to_temp(&obj, "no_frame.dcm");
     assert_eq!(
         verify_dicom_file(&absent, &VerifyOptions::default())
@@ -335,7 +328,7 @@ fn a_missing_frame_of_reference_passes_and_a_malformed_one_is_reported() {
     );
 
     obj.put(DataElement::new(
-        Tag(0x0020, 0x0052),
+        DicomTag::new(0x0020, 0x0052),
         VR::UI,
         PrimitiveValue::from("1.02.3"),
     ));
@@ -396,7 +389,7 @@ fn an_instance_set_reports_a_repeated_sop_uid_and_a_series_in_two_studies() {
 fn an_occurrence_overlapping_a_rejected_one_is_still_found() {
     let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
     obj.put(DataElement::new(
-        Tag(0x0008, 0x103E),
+        DicomTag::new(0x0008, 0x103E),
         VR::LO,
         PrimitiveValue::from("112-12-12"),
     ));
@@ -416,7 +409,7 @@ fn an_occurrence_overlapping_a_rejected_one_is_still_found() {
 fn a_uid_or_date_is_leaked_only_as_a_whole_value() {
     let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
     obj.put(DataElement::new(
-        Tag(0x0010, 0x0030),
+        DicomTag::new(0x0010, 0x0030),
         VR::DA,
         PrimitiveValue::from("19750101"),
     ));

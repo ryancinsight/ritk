@@ -74,7 +74,7 @@ iris = { package = "iris-viz", version = "0.1.0", git = "https://github.com/ryan
 ritk-filter = { path = "crates/ritk-filter", version = "0.5.0" }
 ritk-segmentation = { path = "crates/ritk-segmentation", version = "0.5.0" }
 ritk-core = { path = "crates/ritk-core", version = "0.11.0" }
-ritk-dicom = { path = "crates/ritk-dicom", version = "0.4.0" }
+ritk-dicom = { path = "crates/ritk-dicom", version = "0.5.0" }
 ritk-codecs = { path = "crates/ritk-codecs", version = "0.8.0" }
 ritk-image-io = { path = "crates/ritk-image-io", version = "0.1.0" }
 ritk-nifti = { path = "crates/ritk-nifti", version = "0.4.0" }
@@ -87,7 +87,7 @@ ritk-jpeg = { path = "crates/ritk-jpeg", version = "0.4.0" }
 ritk-tiff = { path = "crates/ritk-tiff", version = "0.3.0" }
 ritk-minc = { path = "crates/ritk-minc", version = "0.4.0" }
 ritk-vtk = { path = "crates/ritk-vtk", version = "0.4.0" }
-ritk-io = { path = "crates/ritk-io", version = "0.5.0" }
+ritk-io = { path = "crates/ritk-io", version = "0.6.0" }
 ritk-model = { path = "crates/ritk-model", version = "0.4.0" }
 ritk-registration = { path = "crates/ritk-registration", version = "0.56.0" }
 ritk-transform = { path = "crates/ritk-transform", version = "0.3.0" }
@@ -117,7 +117,6 @@ coeus-nn = { version = "0.12.0", git = "https://github.com/ryancinsight/Coeus.gi
 coeus-optim = { version = "0.12.0", git = "https://github.com/ryancinsight/Coeus.git" }
 pyo3 = { version = "0.29.2", default-features = false }
 numpy = { version = "0.29.0", git = "https://github.com/PyO3/rust-numpy", rev = "9df402373716a60f0e7825b6043568abe4e63b46" }
-dicom = { version = "0.10.0", default-features = false }
 moirai = { package = "moirai-runtime", version = "0.12.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
 moirai-pal = { package = "moirai-pal", version = "0.12.0", git = "https://github.com/ryancinsight/Moirai.git", default-features = false }
 metis-platform = { package = "metis-platform", version = "0.5.0", git = "https://github.com/ryancinsight/metis.git" }
@@ -177,10 +176,7 @@ base64 = "0.22"
 quick-xml = "0.41"
 tiff = "0.9"
 
-dicom-core = "0.10"
 dicom-ul = "0.10"
-dicom-pixeldata = { version = "0.10", default-features = false }
-dicom-transfer-syntax-registry = { version = "0.10", default-features = false }
 consus-hdf5 = { version = "0.5.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
 consus-core = { version = "0.5.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
 consus-io = { version = "0.5.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }

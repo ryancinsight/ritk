@@ -1,20 +1,16 @@
 //! Temporal-dimension validation for DICOM multi-frame objects.
 
 use anyhow::{bail, Context, Result};
-use dicom::core::{
-    value::{PrimitiveValue, Value},
-    Tag,
-};
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::{Dataset, DicomTag, PrimitiveValue, Value};
 use std::path::Path;
 
 /// Reject a multi-frame object whose frame dimension is temporal rather than
 /// spatial. The viewer's volume carrier has one spatial frame axis; accepting a
 /// temporal organization here would present time points as anatomy slices.
-pub(super) fn reject_temporal_organization(path: &Path, obj: &InMemDicomObject) -> Result<()> {
-    if let Ok(element) = obj.element(Tag(0x0020, 0x0105)) {
+pub(super) fn reject_temporal_organization(path: &Path, obj: &Dataset) -> Result<()> {
+    if let Ok(element) = obj.element(DicomTag::new(0x0020, 0x0105)) {
         let temporal_positions = element
-            .to_int::<u32>()
+            .to_num::<u32>()
             .with_context(|| format!("NumberOfTemporalPositions is invalid in {:?}", path))?;
         if temporal_positions == 0 {
             bail!(
@@ -58,8 +54,8 @@ pub(super) fn reject_temporal_organization(path: &Path, obj: &InMemDicomObject) 
 
 /// Return whether the enhanced dimension index sequence names the temporal
 /// position index tag `(0020,9128)`.
-fn dimension_index_contains_temporal(obj: &InMemDicomObject, path: &Path) -> Result<bool> {
-    let Some(element) = obj.element(Tag(0x0020, 0x9222)).ok() else {
+fn dimension_index_contains_temporal(obj: &Dataset, path: &Path) -> Result<bool> {
+    let Some(element) = obj.element(DicomTag::new(0x0020, 0x9222)).ok() else {
         return Ok(false);
     };
     let Value::Sequence(sequence) = element.value() else {
@@ -69,7 +65,7 @@ fn dimension_index_contains_temporal(obj: &InMemDicomObject, path: &Path) -> Res
         );
     };
     for (item_index, item) in sequence.items().iter().enumerate() {
-        let pointer = item.element(Tag(0x0020, 0x9165)).with_context(|| {
+        let pointer = item.element(DicomTag::new(0x0020, 0x9165)).with_context(|| {
             format!(
                 "DICOM multiframe: DimensionIndexPointer is missing from DimensionIndexSequence item {} in {:?}",
                 item_index, path
@@ -82,7 +78,7 @@ fn dimension_index_contains_temporal(obj: &InMemDicomObject, path: &Path) -> Res
                 path
             );
         };
-        if tags.contains(&Tag(0x0020, 0x9128)) {
+        if tags.contains(&DicomTag::new(0x0020, 0x9128)) {
             return Ok(true);
         }
     }
@@ -91,11 +87,11 @@ fn dimension_index_contains_temporal(obj: &InMemDicomObject, path: &Path) -> Res
 
 /// Collect temporal position indices from shared and per-frame functional
 /// groups. A single value of one is spatially compatible; any variation is not.
-fn temporal_position_indices(obj: &InMemDicomObject, path: &Path) -> Result<Vec<u32>> {
-    const FRAME_CONTENT_SEQUENCE: Tag = Tag(0x0020, 0x9111);
-    const TEMPORAL_POSITION_INDEX: Tag = Tag(0x0020, 0x9128);
+fn temporal_position_indices(obj: &Dataset, path: &Path) -> Result<Vec<u32>> {
+    const FRAME_CONTENT_SEQUENCE: DicomTag = DicomTag::new(0x0020, 0x9111);
+    const TEMPORAL_POSITION_INDEX: DicomTag = DicomTag::new(0x0020, 0x9128);
     let mut indices = Vec::new();
-    for sequence_tag in [Tag(0x5200, 0x9229), Tag(0x5200, 0x9230)] {
+    for sequence_tag in [DicomTag::new(0x5200, 0x9229), DicomTag::new(0x5200, 0x9230)] {
         let Some(sequence_element) = obj.element(sequence_tag).ok() else {
             continue;
         };
@@ -124,7 +120,7 @@ fn temporal_position_indices(obj: &InMemDicomObject, path: &Path) -> Result<Vec<
             else {
                 continue;
             };
-            indices.push(index_element.to_int::<u32>().with_context(|| {
+            indices.push(index_element.to_num::<u32>().with_context(|| {
                 format!(
                     "DICOM multiframe: TemporalPositionIndex is invalid in group {} in {:?}",
                     group_index, path

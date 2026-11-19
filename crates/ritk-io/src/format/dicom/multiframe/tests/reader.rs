@@ -19,75 +19,75 @@ fn test_load_multiframe_rejects_rgb_scalar_volume() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let path = tmp.path().join("rgb_multiframe.dcm");
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from(MF_GRAYSCALE_WORD_SC_UID),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.999992"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0060),
+        DicomTag::new(0x0008, 0x0060),
         VR::CS,
         PrimitiveValue::from("OT"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0008),
+        DicomTag::new(0x0028, 0x0008),
         VR::IS,
         PrimitiveValue::from("1"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
+        DicomTag::new(0x0028, 0x0002),
         VR::US,
         PrimitiveValue::from(3_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(1_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(1_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(8_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::from(8_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
+        DicomTag::new(0x0028, 0x0102),
         VR::US,
         PrimitiveValue::from(7_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
+        DicomTag::new(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0004),
+        DicomTag::new(0x0028, 0x0004),
         VR::CS,
         PrimitiveValue::from("RGB"),
     ));
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OB,
-        PrimitiveValue::U8(SmallVec::from_vec(vec![120, 64, 32])),
+        PrimitiveValue::from(vec![120, 64, 32]),
     ));
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid(MF_GRAYSCALE_WORD_SC_UID)
                 .media_storage_sop_instance_uid("2.25.999992")
                 .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -104,93 +104,75 @@ fn test_load_multiframe_rejects_rgb_scalar_volume() {
 }
 
 #[test]
-fn test_load_multiframe_compressed_ts_errors() {
+fn malformed_jpeg_ls_multiframe_returns_the_codec_error() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let path = tmp.path().join("compressed.dcm");
 
-    // Construct a minimal DICOM dataset that declares JPEG Baseline TS (1.2.840.10008.1.2.4.50)
-    // but contains no real compressed pixels. The TS guard must fire before pixel decode.
-    let mut obj = InMemDicomObject::new_empty();
+    use ritk_dicom::dataset::PixelFragments;
+
+    // Valid encapsulation around a deliberately truncated JPEG-LS segment.
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.99999"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(2_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(2_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
+        DicomTag::new(0x0028, 0x0102),
         VR::US,
         PrimitiveValue::from(15_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
-        VR::OW,
-        PrimitiveValue::U8(dicom::core::smallvec::SmallVec::from_vec(vec![0u8; 8])),
+        DicomTag::new(0x7FE0, 0x0010),
+        VR::OB,
+        PixelFragments::from_fragments([vec![0xff, 0xd8, 0xff, 0xf7, 0x00, 0x0b]]),
     ));
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7.3")
                 .media_storage_sop_instance_uid("2.25.99999")
-                .transfer_syntax("1.2.840.10008.1.2.4.80"), // JPEG-LS Lossless (no charls)
+                .transfer_syntax("1.2.840.10008.1.2.4.80"),
         )
         .expect("meta build");
     file_obj
         .write_to_file(&path)
         .expect("write compressed stub");
 
-    let result = load_dicom_multiframe_native(&path);
-    // JPEG-LS lossless routes through the RITK native codec boundary. This synthetic
-    // payload is intentionally minimal, so either a valid load or a JPEG-contextual
-    // decode error preserves the boundary contract.
-    match result {
-        Ok(tensor) => {
-            // If it succeeds, verify tensor shape is correct
-            let shape = tensor.shape();
-            assert!(shape.len() >= 3, "tensor must have at least 3 dimensions");
-        }
-        Err(e) => {
-            // If it fails, error should reference JPEG-LS
-            let msg = format!("{:?}", e);
-            assert!(
-                msg.contains("1.2.840.10008.1.2.4.80")
-                    || msg.to_lowercase().contains("compress")
-                    || msg.contains("JPEG"),
-                "error must reference JPEG-LS TS UID or 'compress'; got: {msg}"
-            );
-        }
-    }
+    let error = load_dicom_multiframe_native(&path).expect_err("truncated JPEG-LS segment");
+    assert!(format!("{error:#}").contains("JPEG-LS"), "{error:#}");
 }
 
 #[test]
 fn test_load_multiframe_jpeg_baseline_codec_round_trip() {
-    use dicom::core::smallvec::SmallVec;
-    use dicom::core::value::PixelFragmentSequence;
     use image::{DynamicImage, GrayImage};
+    use ritk_dicom::dataset::PixelFragments;
+    use ritk_dicom::dataset::SmallVec;
 
     let n_frames = 2usize;
     let rows = 4u32;
@@ -217,99 +199,99 @@ fn test_load_multiframe_jpeg_baseline_codec_round_trip() {
         fragments.push(jpeg_bytes);
     }
 
-    let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);
+    let pfs: PixelFragments = PixelFragments::from_fragments(fragments);
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from(MF_GRAYSCALE_WORD_SC_UID),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.77777701"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0010, 0x0010),
+        DicomTag::new(0x0010, 0x0010),
         VR::PN,
         PrimitiveValue::from(""),
     ));
     obj.put(DataElement::new(
-        Tag(0x0010, 0x0020),
+        DicomTag::new(0x0010, 0x0020),
         VR::LO,
         PrimitiveValue::from(""),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000D),
+        DicomTag::new(0x0020, 0x000D),
         VR::UI,
         PrimitiveValue::from("2.25.77777702"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
+        DicomTag::new(0x0020, 0x000E),
         VR::UI,
         PrimitiveValue::from("2.25.77777703"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(rows as u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(cols as u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0008),
+        DicomTag::new(0x0028, 0x0008),
         VR::IS,
         PrimitiveValue::from(format!("{n_frames}")),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(8u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::from(8u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
+        DicomTag::new(0x0028, 0x0102),
         VR::US,
         PrimitiveValue::from(7u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
+        DicomTag::new(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
+        DicomTag::new(0x0028, 0x0002),
         VR::US,
         PrimitiveValue::from(1u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0004),
+        DicomTag::new(0x0028, 0x0004),
         VR::CS,
         PrimitiveValue::from("MONOCHROME2"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x1053),
+        DicomTag::new(0x0028, 0x1053),
         VR::DS,
         PrimitiveValue::from("1.000000"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x1052),
+        DicomTag::new(0x0028, 0x1052),
         VR::DS,
         PrimitiveValue::from("0.000000"),
     ));
-    obj.put(DataElement::new(Tag(0x7FE0, 0x0010), VR::OB, pfs));
+    obj.put(DataElement::new(DicomTag::new(0x7FE0, 0x0010), VR::OB, pfs));
 
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid(MF_GRAYSCALE_WORD_SC_UID)
                 .media_storage_sop_instance_uid("2.25.77777701")
                 .transfer_syntax("1.2.840.10008.1.2.4.50"), // JPEG Baseline
@@ -362,61 +344,61 @@ fn test_load_multiframe_signed_short_roundtrip() {
         .flat_map(|&v| v.to_le_bytes())
         .collect();
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from(MF_GRAYSCALE_WORD_SC_UID),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.999888777"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0008),
+        DicomTag::new(0x0028, 0x0008),
         VR::IS,
         PrimitiveValue::from("1"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(2_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(2_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
+        DicomTag::new(0x0028, 0x0102),
         VR::US,
         PrimitiveValue::from(15_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
+        DicomTag::new(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(1_u16), // signed
     ));
     // Identity rescale: slope=1.0, intercept=0.0 (defaults when absent).
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OW,
-        PrimitiveValue::U8(dicom::core::smallvec::SmallVec::from_vec(pixel_bytes)),
+        PrimitiveValue::from(pixel_bytes),
     ));
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid(MF_GRAYSCALE_WORD_SC_UID)
                 .media_storage_sop_instance_uid("2.25.999888777")
                 .transfer_syntax("1.2.840.10008.1.2.1"), // Explicit VR LE
@@ -453,27 +435,27 @@ fn test_multiframe_rejects_big_endian_ts() {
     let path = dir.path().join("be_test.dcm");
 
     // Build a minimal multiframe object with BigEndian TS in meta.
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     // PixelData — 4 bytes (1 frame, 1x1 pixel, 16-bit LE; BE interpretation is wrong)
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OW,
-        PrimitiveValue::U16(dicom::core::smallvec::SmallVec::from_slice(&[0u16])),
+        PrimitiveValue::U16(ritk_dicom::dataset::SmallVec::from_slice(&[0u16])),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(1u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(1u16),
     ));
     // Build file meta with BigEndian TS UID
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7.3")
                 .media_storage_sop_instance_uid("2.25.999")
                 .transfer_syntax("1.2.840.10008.1.2.2"), // ExplicitVrBigEndian

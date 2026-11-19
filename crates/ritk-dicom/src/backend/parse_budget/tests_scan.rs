@@ -301,15 +301,15 @@ fn rejects_sequence_with_nonzero_delimiter_length() {
 }
 
 #[test]
-fn rejects_deflated_dataset_without_decoder() {
+fn rejects_truncated_deflated_dataset() {
     let data = part10(&[], "1.2.840.10008.1.2.1.99");
 
     let error = validate_part10(&data, &ParseBudget::DEFAULT)
-        .expect_err("deflated input needs a bounded decoder");
+        .expect_err("deflated dataset ends before the DEFLATE end marker");
 
     assert!(error
         .to_string()
-        .contains("requires a bounded deflate adapter"));
+        .contains("deflated DICOM dataset is truncated"));
 }
 
 #[test]

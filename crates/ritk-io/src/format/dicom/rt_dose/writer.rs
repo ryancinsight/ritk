@@ -1,14 +1,12 @@
 //! RT Dose writer — serialize an [`RtDoseGrid`] to a DICOM Part-10 file.
 
-use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{Context, Result};
-use dicom::core::smallvec::SmallVec;
-use dicom::core::value::DataSetSequence;
-use dicom::core::value::Value;
-use dicom::core::Tag;
-use dicom::core::{DataElement, PrimitiveValue, VR};
-use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::DicomTag;
+use ritk_dicom::dataset::FileMetaBuilder;
+use ritk_dicom::dataset::Sequence;
+use ritk_dicom::dataset::Value;
+use ritk_dicom::dataset::{DataElement, PrimitiveValue, VR};
 use std::path::Path;
 
 use super::types::{RtDoseGrid, RT_DOSE_SOP_CLASS_UID};
@@ -93,29 +91,45 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
         pixel_bytes.extend_from_slice(&raw.to_le_bytes());
     }
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
 
-    obj.put_value(Tag(0x0008, 0x0016), VR::UI, RT_DOSE_SOP_CLASS_UID);
-    obj.put_value(Tag(0x0008, 0x0018), VR::UI, sop_instance_uid.as_str());
-    obj.put_value(Tag(0x0008, 0x0060), VR::CS, "RTDOSE");
-    obj.put_value(Tag(0x0028, 0x0002), VR::US, 1u16);
-    obj.put_value(Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
+    obj.put_value(DicomTag::new(0x0008, 0x0016), VR::UI, RT_DOSE_SOP_CLASS_UID);
     obj.put_value(
-        Tag(0x0028, 0x0008),
+        DicomTag::new(0x0008, 0x0018),
+        VR::UI,
+        sop_instance_uid.as_str(),
+    );
+    obj.put_value(DicomTag::new(0x0008, 0x0060), VR::CS, "RTDOSE");
+    obj.put_value(DicomTag::new(0x0028, 0x0002), VR::US, 1u16);
+    obj.put_value(DicomTag::new(0x0028, 0x0004), VR::CS, MONOCHROME2);
+    obj.put_value(
+        DicomTag::new(0x0028, 0x0008),
         VR::IS,
         grid.n_frames.to_string().as_str(),
     );
-    obj.put_value(Tag(0x0028, 0x0010), VR::US, dimensions.rows_attribute);
-    obj.put_value(Tag(0x0028, 0x0011), VR::US, dimensions.columns_attribute);
+    obj.put_value(
+        DicomTag::new(0x0028, 0x0010),
+        VR::US,
+        dimensions.rows_attribute,
+    );
+    obj.put_value(
+        DicomTag::new(0x0028, 0x0011),
+        VR::US,
+        dimensions.columns_attribute,
+    );
     emit_pixel_format_tags::<u32>(&mut obj);
     obj.put_value(
-        Tag(0x3004, 0x0002),
+        DicomTag::new(0x3004, 0x0002),
         VR::CS,
         grid.dose_summation_type.as_dicom_str(),
     );
-    obj.put_value(Tag(0x3004, 0x0004), VR::CS, grid.dose_type.as_dicom_str());
     obj.put_value(
-        Tag(0x3004, 0x000E),
+        DicomTag::new(0x3004, 0x0004),
+        VR::CS,
+        grid.dose_type.as_dicom_str(),
+    );
+    obj.put_value(
+        DicomTag::new(0x3004, 0x000E),
         VR::DS,
         format_dicom_decimal(grid.dose_grid_scaling)?,
     );
@@ -126,19 +140,19 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
         .map(|v| format_dicom_decimal(*v))
         .collect::<Result<Vec<_>>>()?
         .join("\\");
-    obj.put_value(Tag(0x3004, 0x000C), VR::DS, offset_str.as_str());
+    obj.put_value(DicomTag::new(0x3004, 0x000C), VR::DS, offset_str.as_str());
 
     if let Some(pos) = grid.image_position {
         let s = format_triplet(pos)?;
-        obj.put_value(Tag(0x0020, 0x0032), VR::DS, s.as_str());
+        obj.put_value(DicomTag::new(0x0020, 0x0032), VR::DS, s.as_str());
     }
     if let Some(ori) = grid.image_orientation {
         let s = format_six(ori)?;
-        obj.put_value(Tag(0x0020, 0x0037), VR::DS, s.as_str());
+        obj.put_value(DicomTag::new(0x0020, 0x0037), VR::DS, s.as_str());
     }
     if let Some(ps) = grid.pixel_spacing {
         let s = format_pair(ps)?;
-        obj.put_value(Tag(0x0028, 0x0030), VR::DS, s.as_str());
+        obj.put_value(DicomTag::new(0x0028, 0x0030), VR::DS, s.as_str());
     }
 
     if let Some(plan_uid) = grid
@@ -147,28 +161,28 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
     {
-        let mut item = InMemDicomObject::new_empty();
-        item.put_value(Tag(0x0008, 0x1150), VR::UI, RT_PLAN_SOP_CLASS_UID);
-        item.put_value(Tag(0x0008, 0x1155), VR::UI, plan_uid);
+        let mut item = Dataset::new();
+        item.put_value(DicomTag::new(0x0008, 0x1150), VR::UI, RT_PLAN_SOP_CLASS_UID);
+        item.put_value(DicomTag::new(0x0008, 0x1155), VR::UI, plan_uid);
         obj.put(DataElement::new(
-            Tag(0x300C, 0x0002),
+            DicomTag::new(0x300C, 0x0002),
             VR::SQ,
-            Value::from(DataSetSequence::new(
+            Value::from(Sequence::new(
                 vec![item],
-                dicom::core::header::Length::UNDEFINED,
+                ritk_dicom::dataset::Length::Undefined,
             )),
         ));
     }
 
     obj.put_value(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OW,
-        PrimitiveValue::U8(SmallVec::from_vec(pixel_bytes)),
+        PrimitiveValue::from(pixel_bytes),
     );
 
     let file = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid(RT_DOSE_SOP_CLASS_UID)
                 .media_storage_sop_instance_uid(sop_instance_uid.as_str())
                 .transfer_syntax(EXPLICIT_VR_LE),

@@ -3,8 +3,8 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use dicom::object::DefaultDicomObject;
-use ritk_dicom::{parse_bytes_with_budget, DicomRsBackend};
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::{parse_bytes_with_budget, NativeBackend};
 
 use super::reader::{
     load_multiframe_flat_from_object, read_multiframe_info_from_object, MultiFrameVolume,
@@ -31,7 +31,7 @@ pub fn read_multiframe_info_from_bytes_with_budget(
     budget: &DicomReadBudget,
 ) -> Result<MultiFrameInfo> {
     let name = name.as_ref();
-    let obj = parse_bytes_with_budget::<DicomRsBackend>(bytes, &budget.parser())
+    let obj = parse_bytes_with_budget::<NativeBackend>(bytes, &budget.parser())
         .with_context(|| format!("failed to parse DICOM multiframe bytes {:?}", name))?;
     read_multiframe_info_from_object(name, &obj)
 }
@@ -52,8 +52,7 @@ pub fn load_dicom_multiframe_flat_from_bytes_with_budget(
     budget: &DicomReadBudget,
 ) -> Result<MultiFrameVolume> {
     let name = name.as_ref();
-    let obj: DefaultDicomObject =
-        parse_bytes_with_budget::<DicomRsBackend>(bytes, &budget.parser())
-            .with_context(|| format!("failed to parse DICOM multiframe bytes {:?}", name))?;
+    let obj: DicomFile = parse_bytes_with_budget::<NativeBackend>(bytes, &budget.parser())
+        .with_context(|| format!("failed to parse DICOM multiframe bytes {:?}", name))?;
     load_multiframe_flat_from_object(name, &obj, budget)
 }

@@ -19,12 +19,12 @@
 //! 12. anonymize_object_keeps_a_readable_file_meta_uid_when_the_data_set_has_none_to_copy
 
 use super::{AnonymizationProfile, AnonymizeOptions};
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::{meta::FileMetaTableBuilder, FileDicomObject, InMemDicomObject};
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+use ritk_dicom::dataset::{Dataset, DicomFile, FileMetaBuilder};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/// Build a minimal, self-consistent `FileDicomObject` with:
+/// Build a minimal, self-consistent `DicomFile` with:
 /// - PatientName (0010,0010) PN "Doe^John"
 /// - PatientID (0010,0020) LO "PAT001"
 /// - PatientBirthDate (0010,0030) DA "19900101"
@@ -41,95 +41,95 @@ use dicom::object::{meta::FileMetaTableBuilder, FileDicomObject, InMemDicomObjec
 /// - ImagePositionPatient (0020,0032) DS "0\\0\\0"
 /// - ImageOrientationPatient (0020,0037) DS "1\\0\\0\\0\\1\\0"
 /// - SliceThickness (0018,0050) DS "1.0"
-fn make_test_object() -> FileDicomObject<InMemDicomObject> {
-    let mut obj = InMemDicomObject::new_empty();
+fn make_test_object() -> DicomFile {
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0010, 0x0010),
+        DicomTag::new(0x0010, 0x0010),
         VR::PN,
         PrimitiveValue::from("Doe^John"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0010, 0x0020),
+        DicomTag::new(0x0010, 0x0020),
         VR::LO,
         PrimitiveValue::from("PAT001"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0010, 0x0030),
+        DicomTag::new(0x0010, 0x0030),
         VR::DA,
         PrimitiveValue::from("19900101"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0080),
+        DicomTag::new(0x0008, 0x0080),
         VR::LO,
         PrimitiveValue::from("General Hospital"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0050),
+        DicomTag::new(0x0008, 0x0050),
         VR::SH,
         PrimitiveValue::from("ACC123"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("1.2.3.4.5"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000D),
+        DicomTag::new(0x0020, 0x000D),
         VR::UI,
         PrimitiveValue::from("1.2.3.4.6"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
+        DicomTag::new(0x0020, 0x000E),
         VR::UI,
         PrimitiveValue::from("1.2.3.4.7"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0060),
+        DicomTag::new(0x0008, 0x0060),
         VR::CS,
         PrimitiveValue::from("CT"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(512u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(512u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0030),
+        DicomTag::new(0x0028, 0x0030),
         VR::DS,
         PrimitiveValue::from("0.5\\0.5"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x0032),
+        DicomTag::new(0x0020, 0x0032),
         VR::DS,
         PrimitiveValue::from("0\\0\\0"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x0037),
+        DicomTag::new(0x0020, 0x0037),
         VR::DS,
         PrimitiveValue::from("1\\0\\0\\0\\1\\0"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0018, 0x0050),
+        DicomTag::new(0x0018, 0x0050),
         VR::DS,
         PrimitiveValue::from("1.0"),
     ));
     obj.with_meta(
-        FileMetaTableBuilder::new()
+        FileMetaBuilder::new()
             .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
             .media_storage_sop_instance_uid("1.2.3.4.5")
             .transfer_syntax("1.2.840.10008.1.2.1"),
     )
-    .expect("FileMetaTableBuilder must succeed for test fixture")
+    .expect("FileMetaBuilder must succeed for test fixture")
 }
 
 // ─── anonymize_object (core integration) ─────────────────────────────────────
@@ -141,7 +141,7 @@ fn anonymize_object_replaces_patient_name_with_default() {
     let (anon, _result) =
         super::anonymize_object(obj, &opts).expect("anonymize_object must succeed");
     let name = anon
-        .element(Tag(0x0010, 0x0010))
+        .element(DicomTag::new(0x0010, 0x0010))
         .expect("PatientName must be present after Dummy action")
         .to_str()
         .expect("PatientName must be readable as string")
@@ -160,7 +160,7 @@ fn anonymize_object_replaces_patient_id_with_default() {
     let (anon, _result) =
         super::anonymize_object(obj, &opts).expect("anonymize_object must succeed");
     let pid = anon
-        .element(Tag(0x0010, 0x0020))
+        .element(DicomTag::new(0x0010, 0x0020))
         .expect("PatientID must be present after Dummy action")
         .to_str()
         .expect("PatientID must be readable as string")
@@ -179,7 +179,7 @@ fn anonymize_object_removes_institution_name() {
     let (anon, _result) =
         super::anonymize_object(obj, &opts).expect("anonymize_object must succeed");
     assert!(
-        anon.element(Tag(0x0008, 0x0080)).is_err(),
+        anon.element(DicomTag::new(0x0008, 0x0080)).is_err(),
         "InstitutionName must be absent after Remove action in Basic profile"
     );
 }
@@ -193,7 +193,7 @@ fn anonymize_object_replace_uids_changes_sop_uid() {
     let (anon, _result) =
         super::anonymize_object(make_test_object(), &opts).expect("anonymize_object must succeed");
     let new_uid = anon
-        .element(Tag(0x0008, 0x0018))
+        .element(DicomTag::new(0x0008, 0x0018))
         .expect("SOPInstanceUID must exist after ReplaceUid")
         .to_str()
         .expect("SOPInstanceUID must be readable as string")
@@ -223,7 +223,7 @@ fn anonymize_object_uid_replacement_is_deterministic() {
     let uid_a = super::anonymize_object(make_test_object(), &opts)
         .expect("first call must succeed")
         .0
-        .element(Tag(0x0008, 0x0018))
+        .element(DicomTag::new(0x0008, 0x0018))
         .expect("SOPInstanceUID must exist")
         .to_str()
         .expect("must be string")
@@ -232,7 +232,7 @@ fn anonymize_object_uid_replacement_is_deterministic() {
     let uid_b = super::anonymize_object(make_test_object(), &opts)
         .expect("second call must succeed")
         .0
-        .element(Tag(0x0008, 0x0018))
+        .element(DicomTag::new(0x0008, 0x0018))
         .expect("SOPInstanceUID must exist")
         .to_str()
         .expect("must be string")
@@ -251,7 +251,7 @@ fn anonymize_object_pixel_data_preserved() {
     let (anon, _result) =
         super::anonymize_object(obj, &opts).expect("anonymize_object must succeed");
     let sop_class = anon
-        .element(Tag(0x0008, 0x0016))
+        .element(DicomTag::new(0x0008, 0x0016))
         .expect("SOPClassUID must be present")
         .to_str()
         .expect("SOPClassUID must be readable as string")
@@ -270,7 +270,7 @@ fn anonymize_object_sop_class_preserved() {
     let (anon, _result) =
         super::anonymize_object(obj, &opts).expect("anonymize_object must succeed");
     let sop_class = anon
-        .element(Tag(0x0008, 0x0016))
+        .element(DicomTag::new(0x0008, 0x0016))
         .expect("SOPClassUID must exist after anonymization")
         .to_str()
         .expect("must be string")
@@ -293,7 +293,7 @@ fn anonymize_object_configurable_patient_name() {
     let (anon, _result) =
         super::anonymize_object(obj, &opts).expect("anonymize_object must succeed");
     let name = anon
-        .element(Tag(0x0010, 0x0010))
+        .element(DicomTag::new(0x0010, 0x0010))
         .expect("PatientName must exist")
         .to_str()
         .expect("must be string")
@@ -301,7 +301,7 @@ fn anonymize_object_configurable_patient_name() {
         .to_owned();
     assert_eq!(name, "REDACTED", "PatientName must use configured value");
     let pid = anon
-        .element(Tag(0x0010, 0x0020))
+        .element(DicomTag::new(0x0010, 0x0020))
         .expect("PatientID must exist")
         .to_str()
         .expect("must be string")
@@ -317,7 +317,7 @@ fn anonymize_object_accession_number_emptied() {
     let (anon, _result) =
         super::anonymize_object(obj, &opts).expect("anonymize_object must succeed");
     let acc = anon
-        .element(Tag(0x0008, 0x0050))
+        .element(DicomTag::new(0x0008, 0x0050))
         .expect("AccessionNumber must be present after Empty action");
     let acc_str = acc.to_str().expect("must be readable");
     let val = acc_str.trim();
@@ -334,12 +334,12 @@ fn anonymize_object_enhanced_removes_private_tags() {
     let mut obj = make_test_object();
     // Insert synthetic private elements.
     obj.put(DataElement::new(
-        Tag(0x0009, 0x0010),
+        DicomTag::new(0x0009, 0x0010),
         VR::LO,
         PrimitiveValue::from("vendor_data"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0019, 0x0010),
+        DicomTag::new(0x0019, 0x0010),
         VR::LO,
         PrimitiveValue::from("another_private"),
     ));
@@ -350,11 +350,11 @@ fn anonymize_object_enhanced_removes_private_tags() {
     let (anon, result) =
         super::anonymize_object(obj, &opts).expect("anonymize_object must succeed");
     assert!(
-        anon.element(Tag(0x0009, 0x0010)).is_err(),
+        anon.element(DicomTag::new(0x0009, 0x0010)).is_err(),
         "private tag (0009,0010) must be removed in Enhanced profile"
     );
     assert!(
-        anon.element(Tag(0x0019, 0x0010)).is_err(),
+        anon.element(DicomTag::new(0x0019, 0x0010)).is_err(),
         "private tag (0019,0010) must be removed in Enhanced profile"
     );
     assert_eq!(
@@ -378,9 +378,9 @@ fn anonymize_object_removes_the_file_meta_origin_and_keeps_the_rest() {
     });
     // A file whose group length ends early leaves these to the data set.
     let misplaced = [
-        (Tag(0x0002, 0x0003), VR::UI, "1.2.3.999"),
-        (Tag(0x0002, 0x0016), VR::AE, "SITE_STRAY"),
-        (Tag(0x0002, 0x0017), VR::AE, "SITE_OTHER"),
+        (DicomTag::new(0x0002, 0x0003), VR::UI, "1.2.3.999"),
+        (DicomTag::new(0x0002, 0x0016), VR::AE, "SITE_STRAY"),
+        (DicomTag::new(0x0002, 0x0017), VR::AE, "SITE_OTHER"),
     ];
     for (tag, vr, value) in misplaced {
         source.put(DataElement::new(tag, vr, PrimitiveValue::from(value)));
@@ -390,7 +390,7 @@ fn anonymize_object_removes_the_file_meta_origin_and_keeps_the_rest() {
     source
         .write_to_file(&source_path)
         .expect("write the source");
-    let source = dicom::object::open_file(&source_path).expect("re-read the source");
+    let source = ritk_dicom::dataset::DicomFile::open(&source_path).expect("re-read the source");
     let stored = source.meta().clone();
     let unpadded = |text: &Option<String>| {
         text.as_deref()
@@ -418,11 +418,11 @@ fn anonymize_object_removes_the_file_meta_origin_and_keeps_the_rest() {
         ],
         ["1.2.840.10008.1.2", "1.2.3.888", "FIXTURE_WRITER"].map(|text| Some(text.to_owned()))
     );
-    let group_two = |object: &FileDicomObject<InMemDicomObject>| -> Vec<Tag> {
+    let group_two = |object: &DicomFile| -> Vec<DicomTag> {
         object
             .iter()
-            .map(|element| element.header().tag)
-            .filter(|tag| tag.group() == 0x0002)
+            .map(|element| element.tag())
+            .filter(|tag| tag.group == 0x0002)
             .collect()
     };
     assert_eq!(group_two(&source), misplaced.map(|(tag, _, _)| tag));
@@ -431,7 +431,8 @@ fn anonymize_object_removes_the_file_meta_origin_and_keeps_the_rest() {
         .expect("anonymize_object must succeed");
     let path = source_dir.path().join("anonymized.dcm");
     anon.write_to_file(&path).expect("write the object");
-    let reread = dicom::object::open_file(&path).expect("the written file must re-read");
+    let reread =
+        ritk_dicom::dataset::DicomFile::open(&path).expect("the written file must re-read");
     assert_eq!(group_two(&reread), []);
     let meta = reread.meta().clone();
 
@@ -474,12 +475,16 @@ fn anonymize_object_keeps_a_readable_file_meta_uid_when_the_data_set_has_none_to
         profile: AnonymizationProfile::Basic,
         ..AnonymizeOptions::default()
     };
-    let not_a_uid = DataElement::new(Tag(0x0008, 0x0018), VR::UI, PrimitiveValue::from("1.2.3.A"));
+    let not_a_uid = DataElement::new(
+        DicomTag::new(0x0008, 0x0018),
+        VR::UI,
+        PrimitiveValue::from("1.2.3.A"),
+    );
     for sop_instance_uid in [Some(not_a_uid), None] {
         let mut source = make_test_object();
         match sop_instance_uid {
             Some(element) => drop(source.put(element)),
-            None => drop(source.remove_element(Tag(0x0008, 0x0018))),
+            None => drop(source.remove_element(DicomTag::new(0x0008, 0x0018))),
         }
         let (anon, _result) =
             super::anonymize_object(source, &opts).expect("anonymize_object must succeed");
@@ -487,7 +492,8 @@ fn anonymize_object_keeps_a_readable_file_meta_uid_when_the_data_set_has_none_to
         let path = dir.path().join("kept-meta.dcm");
         anon.write_to_file(&path).expect("write the object");
 
-        let reread = dicom::object::open_file(&path).expect("the written file must re-read");
+        let reread =
+            ritk_dicom::dataset::DicomFile::open(&path).expect("the written file must re-read");
 
         assert_eq!(reread.meta().media_storage_sop_instance_uid(), "1.2.3.4.5");
     }

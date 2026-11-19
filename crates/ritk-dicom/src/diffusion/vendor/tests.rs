@@ -1,9 +1,9 @@
 use super::*;
 use crate::attribute::{tags, DicomTag};
+use crate::dataset::SmallVec;
+use crate::dataset::{DataElement, PrimitiveValue, VR};
+use crate::dataset::{Dataset, DicomFile};
 use crate::diffusion::extract_diffusion_pair;
-use dicom::core::smallvec::SmallVec;
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::{DefaultDicomObject, InMemDicomObject};
 use ritk_spatial::Vector;
 
 // ── Test helpers ─────────────────────────────────────────────────────────
@@ -62,16 +62,16 @@ fn make_sv10_blob(entries: &[(&str, &str, &[u8])]) -> Vec<u8> {
     blob
 }
 
-fn object_with_bytes(tag: DicomTag, bytes: Vec<u8>) -> DefaultDicomObject {
-    let mut object = InMemDicomObject::new_empty();
+fn object_with_bytes(tag: DicomTag, bytes: Vec<u8>) -> DicomFile {
+    let mut object = Dataset::new();
     object.put(DataElement::new(
-        Tag::from(tag),
+        DicomTag::from(tag),
         VR::OB,
-        PrimitiveValue::U8(SmallVec::from_vec(bytes)),
+        PrimitiveValue::from(bytes),
     ));
     object
         .with_meta(
-            dicom::object::meta::FileMetaTableBuilder::new()
+            crate::dataset::FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.4")
                 .media_storage_sop_instance_uid("2.25.300")
                 .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -79,28 +79,28 @@ fn object_with_bytes(tag: DicomTag, bytes: Vec<u8>) -> DefaultDicomObject {
         .expect("synthetic DICOM metadata")
 }
 
-fn diffusion_elements(weighting: f64, direction: &[f64]) -> Vec<DataElement<InMemDicomObject>> {
+fn diffusion_elements(weighting: f64, direction: &[f64]) -> Vec<DataElement> {
     vec![
         DataElement::new(
-            Tag::from(tags::DIFFUSION_B_VALUE),
+            DicomTag::from(tags::DIFFUSION_B_VALUE),
             VR::FD,
             PrimitiveValue::from(weighting),
         ),
         DataElement::new(
-            Tag::from(tags::DIFFUSION_GRADIENT_DIRECTION),
+            DicomTag::from(tags::DIFFUSION_GRADIENT_DIRECTION),
             VR::FD,
             PrimitiveValue::F64(SmallVec::from_vec(direction.to_vec())),
         ),
     ]
 }
 
-fn object_with(elements: Vec<DataElement<InMemDicomObject>>) -> DefaultDicomObject {
-    let mut obj = InMemDicomObject::new_empty();
+fn object_with(elements: Vec<DataElement>) -> DicomFile {
+    let mut obj = Dataset::new();
     for element in elements {
         obj.put(element);
     }
     obj.with_meta(
-        dicom::object::meta::FileMetaTableBuilder::new()
+        crate::dataset::FileMetaBuilder::new()
             .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.4")
             .media_storage_sop_instance_uid("2.25.400")
             .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -210,9 +210,9 @@ fn standard_tags_take_priority_over_vendor_blocks() -> anyhow::Result<()> {
         ("DiffusionGradientDirection", "FD", &dir_bytes),
     ]);
     elements.push(DataElement::new(
-        Tag::from(crate::diffusion::vendor::SIEMENS_CSA_SERIES),
+        DicomTag::from(crate::diffusion::vendor::SIEMENS_CSA_SERIES),
         VR::OB,
-        PrimitiveValue::U8(SmallVec::from_vec(csa_blob)),
+        PrimitiveValue::from(csa_blob),
     ));
 
     let object = object_with(elements);

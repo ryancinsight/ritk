@@ -4,8 +4,7 @@ use std::borrow::Cow;
 
 use anyhow::{bail, Context, Result};
 use arrayvec::ArrayString;
-use dicom::core::Tag;
-use dicom::object::DefaultDicomObject;
+use ritk_dicom::dataset::DicomFile;
 use ritk_dicom::{tags, DicomTag};
 
 use super::sop_class::{classify_sop_class, SopClassKind};
@@ -22,9 +21,9 @@ pub(super) fn uid_is_valid(uid: &str) -> bool {
 }
 
 /// Non-image storage objects do not participate in image-series selection.
-pub(super) fn image_series_uid(obj: &DefaultDicomObject) -> Result<Option<ArrayString<64>>> {
+pub(super) fn image_series_uid(obj: &DicomFile) -> Result<Option<ArrayString<64>>> {
     image_series_uid_from(|tag| {
-        obj.element(Tag::from(tag))
+        obj.element(DicomTag::from(tag))
             .ok()
             .map(|element| element.to_str().context("invalid DICOM UID value"))
             .transpose()

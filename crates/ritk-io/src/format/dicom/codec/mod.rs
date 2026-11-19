@@ -3,20 +3,12 @@
 //! # Architecture
 //!
 //! Production frame decode is owned by `ritk-dicom` through
-//! `decode_frame_with::<DicomRsBackend>`. This module keeps the historical
+//! `decode_frame_with::<NativeBackend>`. This module keeps the historical
 //! compressed-frame regression helper under `cfg(test)` so codec fixtures still
 //! validate the backend contract.
 //!
-//! - **RLE Lossless**: dispatched to `decode_rle_lossless_frame`, a native
-//!   implementation of DICOM PS3.5 Annex G (PackBits per byte-plane + correct
-//!   LE reassembly). This bypasses `dicom-transfer-syntax-registry v0.8.2`,
-//!   which has an off-by-one write-start offset (`start = 1` instead of `0`)
-//!   for 8-bit grayscale images, silently corrupting `pixel[0]` and losing
-//!   `pixel[N−1]` for any file where `pixel[0] ≠ 0`.
-//! - **JPEG-LS (lossless + near-lossless), JPEG 2000, and RLE Lossless**:
-//!   dispatched through `ritk-dicom::NativeCodecBackend`.
-//! - **Remaining external compressed transfer syntaxes**: calls the configured
-//!   `dicom-rs` backend and then applies the linear modality LUT.
+//! RITK decodes encapsulated samples and applies the modality transform at
+//! the stored-value boundary. JPEG XL uses the Rust jxl-oxide crate.
 //!
 //! # Supported codecs (all pure Rust; no C/C++ FFI)
 //!
@@ -55,10 +47,10 @@
 #[cfg(test)]
 use anyhow::{Context, Result};
 #[cfg(test)]
-use dicom::object::DefaultDicomObject;
+use ritk_dicom::dataset::DicomFile;
 #[cfg(test)]
 use ritk_dicom::{
-    decode_frame_with, DecodeFrameRequest, DicomRsBackend, PixelLayout, PixelSignedness,
+    decode_frame_with, DecodeFrameRequest, NativeBackend, PixelLayout, PixelSignedness,
     TransferSyntaxKind,
 };
 
@@ -84,7 +76,7 @@ use ritk_dicom::{
 /// or missing codec (feature not enabled).
 #[cfg(test)]
 pub(super) fn decode_compressed_frame(
-    obj: &DefaultDicomObject,
+    obj: &DicomFile,
     frame_idx: u32,
     bits_allocated: u16,
     bits_stored: u16,
@@ -93,7 +85,7 @@ pub(super) fn decode_compressed_frame(
     intercept: f32,
 ) -> Result<Vec<f32>> {
     let rows: usize = obj
-        .element(dicom::core::Tag(0x0028, 0x0010))
+        .element(ritk_dicom::dataset::DicomTag::new(0x0028, 0x0010))
         .context("DICOM codec: missing Rows (0028,0010)")?
         .to_str()
         .context("DICOM codec: Rows not string-readable")?
@@ -101,7 +93,7 @@ pub(super) fn decode_compressed_frame(
         .parse()
         .context("DICOM codec: Rows not a valid integer")?;
     let cols: usize = obj
-        .element(dicom::core::Tag(0x0028, 0x0011))
+        .element(ritk_dicom::dataset::DicomTag::new(0x0028, 0x0011))
         .context("DICOM codec: missing Columns (0028,0011)")?
         .to_str()
         .context("DICOM codec: Columns not string-readable")?
@@ -109,7 +101,7 @@ pub(super) fn decode_compressed_frame(
         .parse()
         .context("DICOM codec: Columns not a valid integer")?;
     let samples_per_pixel: usize = obj
-        .element(dicom::core::Tag(0x0028, 0x0002))
+        .element(ritk_dicom::dataset::DicomTag::new(0x0028, 0x0002))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse().ok())
@@ -128,7 +120,7 @@ pub(super) fn decode_compressed_frame(
             rescale_intercept: intercept,
         },
     };
-    Ok(decode_frame_with::<DicomRsBackend>(obj, request)
+    Ok(decode_frame_with::<NativeBackend>(obj, request)
         .with_context(|| format!("codec decode failed for frame {frame_idx}"))?
         .pixels)
 }

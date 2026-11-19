@@ -5,11 +5,11 @@ use crate::format::dicom::anonymize::file_meta::align_media_storage_uid;
 use crate::format::dicom::export_source::{read_source, remove_written, Source};
 use crate::format::dicom::export_tree::{io_error, ExportTree, ExportTreeError};
 use crate::format::dicom::identity::uid_is_valid;
-use dicom::core::Tag;
-use dicom::object::{FileDicomObject, InMemDicomObject};
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::dataset::DicomTag;
 use std::path::PathBuf;
 
-const SOP_CLASS_UID: Tag = Tag(0x0008, 0x0016);
+const SOP_CLASS_UID: DicomTag = DicomTag::new(0x0008, 0x0016);
 
 /// What a completed repair export wrote, corrected and left out.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -57,7 +57,7 @@ pub enum StudyRepairError {
         path: PathBuf,
         /// The underlying failure.
         #[source]
-        source: Box<dicom::object::WriteError>,
+        source: anyhow::Error,
     },
     /// The run failed and some of the files it wrote could not be removed.
     #[error("{} written file(s) could not be removed after a failed run", .paths.len())]
@@ -85,7 +85,7 @@ fn failed(cause: StudyRepairError, written: &[PathBuf]) -> StudyRepairError {
 /// Set Media Storage SOP Class UID (0002,0002) to the data set's SOPClassUID
 /// when that is a single conformant UID naming another class (PS3.10 Table
 /// 7.1-1); returns whether the file meta group changed.
-fn align_media_storage_class(object: &mut FileDicomObject<InMemDicomObject>) -> bool {
+fn align_media_storage_class(object: &mut DicomFile) -> bool {
     let class = object
         .element(SOP_CLASS_UID)
         .ok()
@@ -166,7 +166,7 @@ pub fn repair_dicom_study(
                 .write_to_file(&entry.target)
                 .map_err(|source| StudyRepairError::Write {
                     path: entry.target.clone(),
-                    source: Box::new(source),
+                    source,
                 })
         });
         if let Err(cause) = stored {

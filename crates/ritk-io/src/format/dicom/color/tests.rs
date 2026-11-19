@@ -5,10 +5,9 @@ use ritk_dicom::PixelSignedness;
 
 use super::*;
 use arrayvec::ArrayString;
-use dicom::core::smallvec::SmallVec;
-use dicom::core::{DataElement, PrimitiveValue, VR};
-use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::FileMetaBuilder;
+use ritk_dicom::dataset::{DataElement, PrimitiveValue, VR};
 
 fn write_rgb_slice(
     path: &Path,
@@ -40,107 +39,107 @@ fn write_rgb_slice_with_dimensions(
     planar_configuration: Option<u16>,
 ) {
     let [rows, cols] = dimensions;
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from(sop_instance_uid),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0060),
+        DicomTag::new(0x0008, 0x0060),
         VR::CS,
         PrimitiveValue::from("OT"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000D),
+        DicomTag::new(0x0020, 0x000D),
         VR::UI,
         PrimitiveValue::from("2.25.3000"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
+        DicomTag::new(0x0020, 0x000E),
         VR::UI,
         PrimitiveValue::from("2.25.3001"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x0013),
+        DicomTag::new(0x0020, 0x0013),
         VR::IS,
         PrimitiveValue::from(instance_number.to_string()),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x0032),
+        DicomTag::new(0x0020, 0x0032),
         VR::DS,
         PrimitiveValue::from(format!("0\\0\\{z_mm}")),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x0037),
+        DicomTag::new(0x0020, 0x0037),
         VR::DS,
         PrimitiveValue::from("1\\0\\0\\0\\1\\0"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
+        DicomTag::new(0x0028, 0x0002),
         VR::US,
         PrimitiveValue::from(3_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0004),
+        DicomTag::new(0x0028, 0x0004),
         VR::CS,
         PrimitiveValue::from("RGB"),
     ));
     if let Some(planar_configuration) = planar_configuration {
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0006),
+            DicomTag::new(0x0028, 0x0006),
             VR::US,
             PrimitiveValue::from(planar_configuration),
         ));
     }
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(rows),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(cols),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0030),
+        DicomTag::new(0x0028, 0x0030),
         VR::DS,
         PrimitiveValue::from("0.5\\0.25"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(8_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::from(8_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
+        DicomTag::new(0x0028, 0x0102),
         VR::US,
         PrimitiveValue::from(7_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
+        DicomTag::new(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OB,
-        PrimitiveValue::U8(SmallVec::from_vec(samples.to_vec())),
+        PrimitiveValue::from(samples.to_vec()),
     ));
 
     obj.with_meta(
-        FileMetaTableBuilder::new()
+        FileMetaBuilder::new()
             .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7")
             .media_storage_sop_instance_uid(sop_instance_uid)
             .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -187,69 +186,69 @@ fn native_color_series_preserves_interleaved_rgb_samples() {
 fn native_color_series_rejects_scalar_samples() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("mono.dcm");
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.3201"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
+        DicomTag::new(0x0020, 0x000E),
         VR::UI,
         PrimitiveValue::from("2.25.3202"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
+        DicomTag::new(0x0028, 0x0002),
         VR::US,
         PrimitiveValue::from(1_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0004),
+        DicomTag::new(0x0028, 0x0004),
         VR::CS,
         PrimitiveValue::from("MONOCHROME2"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(1_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(2_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(8_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::from(8_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
+        DicomTag::new(0x0028, 0x0102),
         VR::US,
         PrimitiveValue::from(7_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
+        DicomTag::new(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OB,
-        PrimitiveValue::U8(SmallVec::from_vec(vec![1, 2])),
+        PrimitiveValue::from(vec![1, 2]),
     ));
     obj.with_meta(
-        FileMetaTableBuilder::new()
+        FileMetaBuilder::new()
             .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7")
             .media_storage_sop_instance_uid("2.25.3201")
             .transfer_syntax("1.2.840.10008.1.2.1"),

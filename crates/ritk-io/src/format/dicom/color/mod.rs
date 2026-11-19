@@ -7,10 +7,10 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
-use dicom::core::Tag;
-use dicom::object::DefaultDicomObject;
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::dataset::DicomTag;
 use ritk_dicom::{
-    decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, DicomRsBackend,
+    decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, NativeBackend,
     PixelLayout, PixelSignedness, TransferSyntaxKind,
 };
 
@@ -44,16 +44,20 @@ pub fn is_rgb_dicom_series<P: AsRef<Path>>(path: P) -> Result<bool> {
     // Try each file until one parses as valid DICOM — skips DICOMDIR,
     // thumbnails, and other non-DICOM files.
     for entry in entries {
-        let obj = match parse_file_with::<DicomRsBackend, _>(entry.path()) {
+        let obj = match parse_file_with::<NativeBackend, _>(entry.path()) {
             Ok(o) => o,
             Err(_) => continue,
         };
 
-        let samples = read_optional::<usize>(&obj, Tag(0x0028, 0x0002)).unwrap_or(1);
+        let samples = read_optional::<usize>(&obj, DicomTag::new(0x0028, 0x0002)).unwrap_or(1);
         if samples != RGB_CHANNELS {
             return Ok(false);
         }
-        let photometric = required_string(&obj, Tag(0x0028, 0x0004), "PhotometricInterpretation")?;
+        let photometric = required_string(
+            &obj,
+            DicomTag::new(0x0028, 0x0004),
+            "PhotometricInterpretation",
+        )?;
         return Ok(photometric.trim().eq_ignore_ascii_case("RGB"));
     }
 
@@ -170,7 +174,7 @@ fn read_rgb_slice_samples(
     expected_rows: usize,
     expected_cols: usize,
 ) -> Result<Vec<f32>> {
-    let obj = parse_file_with::<DicomRsBackend, _>(&slice.path)
+    let obj = parse_file_with::<NativeBackend, _>(&slice.path)
         .with_context(|| format!("failed to open DICOM slice {:?}", slice.path))?;
 
     let transfer_syntax = obj.meta().transfer_syntax();
@@ -187,7 +191,7 @@ fn read_rgb_slice_samples_from_bytes(
     expected_rows: usize,
     expected_cols: usize,
 ) -> Result<Vec<f32>> {
-    let obj = parse_bytes_with::<DicomRsBackend>(part10_bytes)
+    let obj = parse_bytes_with::<NativeBackend>(part10_bytes)
         .with_context(|| format!("failed to parse DICOM bytes for {:?}", slice.path))?;
 
     let transfer_syntax = obj.meta().transfer_syntax();
@@ -200,10 +204,10 @@ fn read_rgb_slice_samples_from_bytes(
 /// DICOM object.
 ///
 /// Both [`read_rgb_slice_samples`] and [`read_rgb_slice_samples_from_bytes`]
-/// delegate to this function after obtaining a `DefaultDicomObject` from
+/// delegate to this function after obtaining a `DicomFile` from
 /// their respective parse paths.
 fn validate_and_decode_rgb_slice(
-    obj: &DefaultDicomObject,
+    obj: &DicomFile,
     slice: &DicomSliceMetadata,
     ts: TransferSyntaxKind,
     expected_rows: usize,
@@ -222,8 +226,8 @@ fn validate_and_decode_rgb_slice(
         );
     }
 
-    let rows = read_required::<usize>(obj, Tag(0x0028, 0x0010), "Rows")?;
-    let cols = read_required::<usize>(obj, Tag(0x0028, 0x0011), "Columns")?;
+    let rows = read_required::<usize>(obj, DicomTag::new(0x0028, 0x0010), "Rows")?;
+    let cols = read_required::<usize>(obj, DicomTag::new(0x0028, 0x0011), "Columns")?;
 
     if rows != expected_rows || cols != expected_cols {
         bail!(
@@ -236,7 +240,7 @@ fn validate_and_decode_rgb_slice(
         );
     }
 
-    let samples_per_pixel = read_optional::<usize>(obj, Tag(0x0028, 0x0002)).unwrap_or(1);
+    let samples_per_pixel = read_optional::<usize>(obj, DicomTag::new(0x0028, 0x0002)).unwrap_or(1);
     if samples_per_pixel != RGB_CHANNELS {
         bail!(
             "DICOM color volume loader supports only RGB SamplesPerPixel=3; {:?} declares SamplesPerPixel={}",
@@ -245,7 +249,11 @@ fn validate_and_decode_rgb_slice(
         );
     }
 
-    let photometric = required_string(obj, Tag(0x0028, 0x0004), "PhotometricInterpretation")?;
+    let photometric = required_string(
+        obj,
+        DicomTag::new(0x0028, 0x0004),
+        "PhotometricInterpretation",
+    )?;
     if !photometric.trim().eq_ignore_ascii_case("RGB") {
         bail!(
             "DICOM color volume loader supports only PhotometricInterpretation=RGB; {:?} declares {}",
@@ -254,7 +262,8 @@ fn validate_and_decode_rgb_slice(
         );
     }
 
-    let planar_configuration = read_optional::<u16>(obj, Tag(0x0028, 0x0006)).unwrap_or(0);
+    let planar_configuration =
+        read_optional::<u16>(obj, DicomTag::new(0x0028, 0x0006)).unwrap_or(0);
     if planar_configuration != 0 {
         bail!(
             "DICOM RGB color volume loader supports only interleaved PlanarConfiguration=0; {:?} declares {}",
@@ -264,8 +273,9 @@ fn validate_and_decode_rgb_slice(
     }
 
     let bits_allocated =
-        read_optional::<u16>(obj, Tag(0x0028, 0x0100)).unwrap_or(slice.bits_allocated);
-    let bits_stored = read_optional::<u16>(obj, Tag(0x0028, 0x0101)).unwrap_or(slice.bits_stored);
+        read_optional::<u16>(obj, DicomTag::new(0x0028, 0x0100)).unwrap_or(slice.bits_allocated);
+    let bits_stored =
+        read_optional::<u16>(obj, DicomTag::new(0x0028, 0x0101)).unwrap_or(slice.bits_stored);
     if !matches!(bits_allocated, 8 | 16) {
         bail!(
             "DICOM RGB color volume loader supports BitsAllocated=8 or 16; {:?} declares {}",
@@ -274,9 +284,10 @@ fn validate_and_decode_rgb_slice(
         );
     }
 
-    let pixel_representation: PixelSignedness = read_optional::<u16>(obj, Tag(0x0028, 0x0103))
-        .and_then(|v| PixelSignedness::try_from(v).ok())
-        .unwrap_or(slice.pixel_representation);
+    let pixel_representation: PixelSignedness =
+        read_optional::<u16>(obj, DicomTag::new(0x0028, 0x0103))
+            .and_then(|v| PixelSignedness::try_from(v).ok())
+            .unwrap_or(slice.pixel_representation);
     if pixel_representation != PixelSignedness::Unsigned {
         bail!(
             "DICOM RGB color volume loader supports only unsigned samples; {:?} declares PixelRepresentation={}",
@@ -285,7 +296,7 @@ fn validate_and_decode_rgb_slice(
         );
     }
 
-    let decoded = decode_frame_with::<DicomRsBackend>(
+    let decoded = decode_frame_with::<NativeBackend>(
         obj,
         DecodeFrameRequest {
             frame_index: 0,

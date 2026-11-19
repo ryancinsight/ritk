@@ -1,6 +1,6 @@
 //! General-purpose DICOM object writer.
 //!
-//! Converts a `DicomObjectModel` to a `dicom::object::InMemDicomObject`
+//! Converts a `DicomObjectModel` to a `ritk_dicom::dataset::Dataset`
 //! and writes it as a valid DICOM Part 10 file.
 //!
 //! # Invariants
@@ -14,12 +14,12 @@ use super::writer::elements::node_to_element;
 use super::writer::output::write_file;
 use super::writer::pixel_encoding::DICOM_SOP_CLASS_SECONDARY_CAPTURE;
 use anyhow::Result;
-use dicom::object::{meta::FileMetaTableBuilder, InMemDicomObject};
+use ritk_dicom::dataset::{Dataset, FileMetaBuilder};
 use std::path::Path;
 
-/// Convert a `DicomObjectModel` to an `InMemDicomObject`.
-pub fn model_to_in_mem(model: &DicomObjectModel) -> Result<InMemDicomObject> {
-    let mut obj = InMemDicomObject::new_empty();
+/// Convert a `DicomObjectModel` to an `Dataset`.
+pub fn model_to_in_mem(model: &DicomObjectModel) -> Result<Dataset> {
+    let mut obj = Dataset::new();
     for node in &model.nodes {
         obj.put(node_to_element(node));
     }
@@ -39,7 +39,7 @@ pub fn write_object(model: &DicomObjectModel, path: &Path) -> Result<()> {
         .unwrap_or("2.25.0");
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid(sop_class)
                 .media_storage_sop_instance_uid(sop_inst)
                 .transfer_syntax(EXPLICIT_VR_LE),
@@ -55,8 +55,7 @@ mod tests {
     };
     use super::*;
     use crate::format::dicom::writer::DicomWriteError;
-    use dicom::core::{Tag, VR};
-    use dicom::object::open_file;
+    use ritk_dicom::dataset::VR;
 
     fn pixel_model(
         rows: Option<u16>,
@@ -159,10 +158,10 @@ mod tests {
 
     fn assert_pixels(model: &DicomObjectModel, path: &std::path::Path, expected: &[u8]) {
         write_object(model, path).expect("write_object");
-        let object = open_file(path).expect("open_file");
+        let object = ritk_dicom::dataset::DicomFile::open(path).expect("open_file");
         assert_eq!(
             object
-                .element(Tag(0x7FE0, 0x0010))
+                .element(DicomTag::new(0x7FE0, 0x0010))
                 .expect("PixelData")
                 .to_bytes()
                 .expect("pixel bytes"),
@@ -198,8 +197,10 @@ mod tests {
             pixels.clone(),
         ));
         write_object(&model, &path).expect("write_object");
-        let obj = open_file(&path).expect("open_file");
-        let pixel_data = obj.element(Tag(0x7FE0, 0x0010)).expect("PixelData");
+        let obj = ritk_dicom::dataset::DicomFile::open(&path).expect("open_file");
+        let pixel_data = obj
+            .element(DicomTag::new(0x7FE0, 0x0010))
+            .expect("PixelData");
         assert_eq!(pixel_data.vr(), VR::OB, "PixelData VR");
         assert_eq!(
             pixel_data.to_bytes().expect("pixel bytes").as_ref(),
@@ -343,9 +344,9 @@ mod tests {
             "MR",
         ));
         write_object(&model, &path).expect("write_object");
-        let obj = open_file(&path).expect("open_file");
+        let obj = ritk_dicom::dataset::DicomFile::open(&path).expect("open_file");
         let val = obj
-            .element(Tag(0x0008, 0x0060))
+            .element(DicomTag::new(0x0008, 0x0060))
             .expect("element")
             .to_str()
             .expect("to_str");
@@ -377,9 +378,11 @@ mod tests {
         ));
 
         write_object(&model, &path).expect("write_object");
-        let obj = open_file(&path).expect("open_file");
+        let obj = ritk_dicom::dataset::DicomFile::open(&path).expect("open_file");
 
-        let seq = obj.element(Tag(0x0008, 0x1111)).expect("sequence element");
+        let seq = obj
+            .element(DicomTag::new(0x0008, 0x1111))
+            .expect("sequence element");
         assert_eq!(seq.vr().to_string(), "SQ");
 
         let items = seq.value().items().expect("sequence items");
@@ -387,12 +390,12 @@ mod tests {
 
         let first = &items[0];
         let pn = first
-            .element(Tag(0x0010, 0x0010))
+            .element(DicomTag::new(0x0010, 0x0010))
             .expect("sequence text element");
         assert_eq!(pn.to_str().expect("pn text").trim(), "Test^Patient");
 
         let private = first
-            .element(Tag(0x0009, 0x1001))
+            .element(DicomTag::new(0x0009, 0x1001))
             .expect("sequence private element");
         assert_eq!(private.vr().to_string(), "OB");
         assert_eq!(
@@ -425,11 +428,15 @@ mod tests {
         let obj = model_to_in_mem(&model).expect("model_to_in_mem");
         assert_eq!(obj.iter().count(), 2);
 
-        let preserved = obj.element(Tag(0x0019, 0x10AA)).expect("private bytes");
+        let preserved = obj
+            .element(DicomTag::new(0x0019, 0x10AA))
+            .expect("private bytes");
         assert_eq!(preserved.vr().to_string(), "OB");
         assert_eq!(preserved.to_bytes().expect("bytes").as_ref(), &[9, 8, 7, 6]);
 
-        let seq = obj.element(Tag(0x0008, 0x2222)).expect("sequence");
+        let seq = obj
+            .element(DicomTag::new(0x0008, 0x2222))
+            .expect("sequence");
         assert_eq!(seq.vr().to_string(), "SQ");
         assert_eq!(seq.value().items().expect("sequence items").len(), 1);
     }

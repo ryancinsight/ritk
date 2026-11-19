@@ -87,61 +87,61 @@ fn test_scan_mixed_non_image_and_ct_retains_image_slice() {
 
     // Image-bearing: CT Image Storage -- include Rows/Cols so metadata is populated
     {
-        let mut obj = InMemDicomObject::new_empty();
+        let mut obj = Dataset::new();
         // Successful image-scan fixtures carry the required acquisition identity.
         obj.put(DataElement::new(
-            Tag(0x0020, 0x000E),
+            DicomTag::new(0x0020, 0x000E),
             VR::UI,
             PrimitiveValue::from("2.25.72001"),
         ));
         obj.put(DataElement::new(
-            Tag(0x0008, 0x0016),
+            DicomTag::new(0x0008, 0x0016),
             VR::UI,
             PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
         ));
         obj.put(DataElement::new(
-            Tag(0x0008, 0x0018),
+            DicomTag::new(0x0008, 0x0018),
             VR::UI,
             PrimitiveValue::from("2.25.20002"),
         ));
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0010),
+            DicomTag::new(0x0028, 0x0010),
             VR::US,
             PrimitiveValue::from(4_u16),
         ));
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0011),
+            DicomTag::new(0x0028, 0x0011),
             VR::US,
             PrimitiveValue::from(4_u16),
         ));
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0100),
+            DicomTag::new(0x0028, 0x0100),
             VR::US,
             PrimitiveValue::from(16_u16),
         ));
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0101),
+            DicomTag::new(0x0028, 0x0101),
             VR::US,
             PrimitiveValue::from(16_u16),
         ));
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0102),
+            DicomTag::new(0x0028, 0x0102),
             VR::US,
             PrimitiveValue::from(15_u16),
         ));
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0103),
+            DicomTag::new(0x0028, 0x0103),
             VR::US,
             PrimitiveValue::from(0_u16),
         ));
         obj.put(DataElement::new(
-            Tag(0x0020, 0x0013),
+            DicomTag::new(0x0020, 0x0013),
             VR::IS,
             PrimitiveValue::from("1"),
         ));
         let file_obj = obj
             .with_meta(
-                FileMetaTableBuilder::new()
+                FileMetaBuilder::new()
                     .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
                     .media_storage_sop_instance_uid("2.25.20002")
                     .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -206,86 +206,90 @@ fn test_scan_private_sequence_is_preserved_in_object_model() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("private_sequence.dcm");
 
-    let mut nested_item = InMemDicomObject::new_empty();
+    let mut nested_item = Dataset::new();
     nested_item.put(DataElement::new(
-        Tag(0x0010, 0x0010),
+        DicomTag::new(0x0010, 0x0010),
         VR::PN,
         PrimitiveValue::from("Test^Patient"),
     ));
     nested_item.put(DataElement::new(
-        Tag(0x0009, 0x1001),
+        DicomTag::new(0x0009, 0x1001),
         VR::OB,
-        PrimitiveValue::U8(vec![1, 2, 3, 4].into()),
+        PrimitiveValue::Bytes(vec![1, 2, 3, 4].into()),
     ));
 
-    let seq = dicom::core::value::DataSetSequence::new(
+    let seq = ritk_dicom::dataset::Sequence::new(
         vec![nested_item],
-        dicom::core::header::Length::UNDEFINED,
+        ritk_dicom::dataset::Length::Undefined,
     );
-    let seq_value = dicom::core::value::Value::from(seq);
+    let seq_value = ritk_dicom::dataset::Value::from(seq);
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     // Successful image-scan fixtures carry the required acquisition identity.
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
+        DicomTag::new(0x0020, 0x000E),
         VR::UI,
         PrimitiveValue::from("2.25.72001"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.40001"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(4_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(4_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
+        DicomTag::new(0x0028, 0x0102),
         VR::US,
         PrimitiveValue::from(15_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
+        DicomTag::new(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x0013),
+        DicomTag::new(0x0020, 0x0013),
         VR::IS,
         PrimitiveValue::from("1"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0009, 0x0010),
+        DicomTag::new(0x0009, 0x0010),
         VR::LO,
         PrimitiveValue::from("RITK"),
     ));
-    obj.put(DataElement::new(Tag(0x0009, 0x1000), VR::SQ, seq_value));
+    obj.put(DataElement::new(
+        DicomTag::new(0x0009, 0x1000),
+        VR::SQ,
+        seq_value,
+    ));
 
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
                 .media_storage_sop_instance_uid("2.25.40001")
                 .transfer_syntax("1.2.840.10008.1.2.1"),

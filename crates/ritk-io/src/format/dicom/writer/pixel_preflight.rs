@@ -2,21 +2,21 @@
 
 use super::error::DicomWriteError;
 use anyhow::Result;
-use dicom::core::value::{DicomValueType, PrimitiveValue};
-use dicom::core::{Tag, VR};
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::PrimitiveValue;
+use ritk_dicom::dataset::{DicomTag, VR};
 
-const PIXEL_DATA: Tag = Tag(0x7FE0, 0x0010);
-const ROWS: Tag = Tag(0x0028, 0x0010);
-const COLUMNS: Tag = Tag(0x0028, 0x0011);
-const SAMPLES_PER_PIXEL: Tag = Tag(0x0028, 0x0002);
-const PHOTOMETRIC_INTERPRETATION: Tag = Tag(0x0028, 0x0004);
-const PLANAR_CONFIGURATION: Tag = Tag(0x0028, 0x0006);
-const NUMBER_OF_FRAMES: Tag = Tag(0x0028, 0x0008);
-const BITS_ALLOCATED: Tag = Tag(0x0028, 0x0100);
-const BITS_STORED: Tag = Tag(0x0028, 0x0101);
-const HIGH_BIT: Tag = Tag(0x0028, 0x0102);
-const PIXEL_REPRESENTATION: Tag = Tag(0x0028, 0x0103);
+const PIXEL_DATA: DicomTag = DicomTag::new(0x7FE0, 0x0010);
+const ROWS: DicomTag = DicomTag::new(0x0028, 0x0010);
+const COLUMNS: DicomTag = DicomTag::new(0x0028, 0x0011);
+const SAMPLES_PER_PIXEL: DicomTag = DicomTag::new(0x0028, 0x0002);
+const PHOTOMETRIC_INTERPRETATION: DicomTag = DicomTag::new(0x0028, 0x0004);
+const PLANAR_CONFIGURATION: DicomTag = DicomTag::new(0x0028, 0x0006);
+const NUMBER_OF_FRAMES: DicomTag = DicomTag::new(0x0028, 0x0008);
+const BITS_ALLOCATED: DicomTag = DicomTag::new(0x0028, 0x0100);
+const BITS_STORED: DicomTag = DicomTag::new(0x0028, 0x0101);
+const HIGH_BIT: DicomTag = DicomTag::new(0x0028, 0x0102);
+const PIXEL_REPRESENTATION: DicomTag = DicomTag::new(0x0028, 0x0103);
 
 // PS3.5 A.2 caps Explicit VR Little Endian value fields at 2^32 - 2 bytes.
 const MAX_NATIVE_PIXEL_VALUE_LENGTH: usize = 0xFFFF_FFFE;
@@ -55,7 +55,7 @@ pub(crate) fn pixel_bit_description_is_valid(
 /// [PS3.5 6.2]: https://dicom.nema.org/medical/DICOM/current/output/chtml/part05/sect_6.2.html
 /// [PS3.5 8.2]: https://dicom.nema.org/medical/DICOM/current/output/chtml/part05/sect_8.2.html
 /// [PS3.5 A.2]: https://dicom.nema.org/medical/DICOM/current/output/chtml/part05/sect_A.2.html
-pub(crate) fn preflight_native_pixel_data(object: &InMemDicomObject) -> Result<()> {
+pub(crate) fn preflight_native_pixel_data(object: &Dataset) -> Result<()> {
     let Some(pixel_data) = object.get(PIXEL_DATA) else {
         return Ok(());
     };
@@ -244,21 +244,14 @@ pub(crate) fn preflight_native_pixel_data(object: &InMemDicomObject) -> Result<(
     Ok(())
 }
 
-fn required_tag_unsigned(
-    object: &InMemDicomObject,
-    tag: Tag,
-    attribute: &'static str,
-) -> Result<u16> {
+fn required_tag_unsigned(object: &Dataset, tag: DicomTag, attribute: &'static str) -> Result<u16> {
     let element = object
         .get(tag)
         .ok_or(DicomWriteError::MissingPixelAttribute { attribute })?;
     single_us(element, attribute)
 }
 
-fn single_us(
-    element: &dicom::core::DataElement<InMemDicomObject>,
-    attribute: &'static str,
-) -> Result<u16> {
+fn single_us(element: &ritk_dicom::dataset::DataElement, attribute: &'static str) -> Result<u16> {
     if element.vr() != VR::US {
         return Err(malformed_pixel_attribute(
             attribute,
@@ -284,11 +277,7 @@ fn single_us(
     }
 }
 
-fn required_single_cs(
-    object: &InMemDicomObject,
-    tag: Tag,
-    attribute: &'static str,
-) -> Result<String> {
+fn required_single_cs(object: &Dataset, tag: DicomTag, attribute: &'static str) -> Result<String> {
     let element = object
         .get(tag)
         .ok_or(DicomWriteError::MissingPixelAttribute { attribute })?;
@@ -337,9 +326,7 @@ fn required_single_cs(
     Ok(value.to_owned())
 }
 
-fn required_number_of_frames(
-    element: &dicom::core::DataElement<InMemDicomObject>,
-) -> Result<usize> {
+fn required_number_of_frames(element: &ritk_dicom::dataset::DataElement) -> Result<usize> {
     if element.vr() != VR::IS {
         return Err(malformed_pixel_attribute(
             "NumberOfFrames",
@@ -410,7 +397,7 @@ fn malformed_multiplicity(attribute: &'static str, actual: usize) -> DicomWriteE
 fn primitive_pixel_bytes(value: &PrimitiveValue) -> Result<usize> {
     let (count, width) = match value {
         PrimitiveValue::Empty => return Ok(0),
-        PrimitiveValue::U8(values) => (values.len(), 1),
+        PrimitiveValue::Bytes(values) => (values.len(), 1),
         PrimitiveValue::I16(values) => (values.len(), 2),
         PrimitiveValue::U16(values) => (values.len(), 2),
         PrimitiveValue::I32(values) => (values.len(), 4),
@@ -431,7 +418,7 @@ fn primitive_pixel_bytes(value: &PrimitiveValue) -> Result<usize> {
 
 fn last_explicit_vr_le_byte(value: &PrimitiveValue) -> Option<u8> {
     match value {
-        PrimitiveValue::U8(values) => values.last().copied(),
+        PrimitiveValue::Bytes(values) => values.last().copied(),
         PrimitiveValue::I16(values) => values
             .last()
             .and_then(|value| value.to_le_bytes().last().copied()),

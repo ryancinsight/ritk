@@ -138,9 +138,9 @@ fn nrrd_round_trip(scheme: &GradientScheme) -> GradientScheme {
 // ── DICOM round-trip ─────────────────────────────────────────────────────
 
 fn dicom_round_trip(scheme: &GradientScheme) -> GradientScheme {
-    use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-    use dicom::object::InMemDicomObject;
     use ritk_dicom::attribute::tags;
+    use ritk_dicom::dataset::Dataset;
+    use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
     use std::path::Path;
 
     fn write_instance(
@@ -149,21 +149,19 @@ fn dicom_round_trip(scheme: &GradientScheme) -> GradientScheme {
         direction: &[f64],
         uid: &str,
     ) -> anyhow::Result<()> {
-        let mut object = InMemDicomObject::new_empty();
+        let mut object = Dataset::new();
         object.put(DataElement::new(
-            Tag::from(tags::DIFFUSION_B_VALUE),
+            DicomTag::from(tags::DIFFUSION_B_VALUE),
             VR::FD,
             PrimitiveValue::from(weighting),
         ));
         object.put(DataElement::new(
-            Tag::from(tags::DIFFUSION_GRADIENT_DIRECTION),
+            DicomTag::from(tags::DIFFUSION_GRADIENT_DIRECTION),
             VR::FD,
-            PrimitiveValue::F64(dicom::core::smallvec::SmallVec::from_vec(
-                direction.to_vec(),
-            )),
+            PrimitiveValue::F64(ritk_dicom::dataset::SmallVec::from_vec(direction.to_vec())),
         ));
         let object = object.with_meta(
-            dicom::object::meta::FileMetaTableBuilder::new()
+            ritk_dicom::dataset::FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.4")
                 .media_storage_sop_instance_uid(uid)
                 .transfer_syntax("1.2.840.10008.1.2.1"),

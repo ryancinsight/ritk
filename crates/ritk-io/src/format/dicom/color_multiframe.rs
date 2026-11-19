@@ -7,11 +7,11 @@ use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
-use dicom::core::Tag;
-use dicom::object::DefaultDicomObject;
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::dataset::DicomTag;
 use ritk_dicom::{
     decode_frame_with, parse_bytes_with_budget, parse_file_with_budget, DecodeFrameRequest,
-    DicomRsBackend, PixelLayout, PixelSignedness, TransferSyntaxKind,
+    NativeBackend, PixelLayout, PixelSignedness, TransferSyntaxKind,
 };
 use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -80,7 +80,7 @@ pub fn load_atlas_color_multiframe<P: AsRef<Path>>(
 pub fn load_color_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<ColorMultiFrameVolume> {
     let path = path.as_ref();
     let info = read_multiframe_info(path)?;
-    let obj = parse_file_with_budget::<DicomRsBackend, _>(path, &DicomReadBudget::DEFAULT.parser())
+    let obj = parse_file_with_budget::<NativeBackend, _>(path, &DicomReadBudget::DEFAULT.parser())
         .with_context(|| format!("failed to open DICOM RGB multiframe {:?}", path))?;
     load_color_multiframe_flat_from_object(path, &obj, &info, &DicomReadBudget::DEFAULT)
 }
@@ -106,14 +106,14 @@ pub fn load_color_multiframe_flat_from_bytes_with_budget(
 ) -> Result<ColorMultiFrameVolume> {
     let name = name.as_ref();
     let info = super::multiframe::read_multiframe_info_from_bytes_with_budget(name, bytes, budget)?;
-    let obj = parse_bytes_with_budget::<DicomRsBackend>(bytes, &budget.parser())
+    let obj = parse_bytes_with_budget::<NativeBackend>(bytes, &budget.parser())
         .with_context(|| format!("failed to parse DICOM RGB multiframe bytes {:?}", name))?;
     load_color_multiframe_flat_from_object(name, &obj, &info, budget)
 }
 
 fn load_color_multiframe_flat_from_object(
     path: &Path,
-    obj: &DefaultDicomObject,
+    obj: &DicomFile,
     info: &MultiFrameInfo,
     budget: &DicomReadBudget,
 ) -> Result<ColorMultiFrameVolume> {
@@ -146,7 +146,7 @@ fn load_color_multiframe_flat_from_object(
     ));
 
     for frame_index in 0..info.n_frames {
-        let frame = decode_frame_with::<DicomRsBackend>(
+        let frame = decode_frame_with::<NativeBackend>(
             obj,
             DecodeFrameRequest {
                 frame_index: u32::try_from(frame_index)
@@ -194,7 +194,7 @@ fn load_color_multiframe_flat_from_object(
 
 fn validate_rgb_multiframe(
     path: &Path,
-    obj: &dicom::object::DefaultDicomObject,
+    obj: &ritk_dicom::dataset::DicomFile,
     info: &MultiFrameInfo,
     transfer_syntax_uid: &str,
     transfer_syntax: &TransferSyntaxKind,
@@ -230,7 +230,11 @@ fn validate_rgb_multiframe(
         );
     }
 
-    let photometric = required_string(obj, Tag(0x0028, 0x0004), "PhotometricInterpretation")?;
+    let photometric = required_string(
+        obj,
+        DicomTag::new(0x0028, 0x0004),
+        "PhotometricInterpretation",
+    )?;
     if !photometric.trim().eq_ignore_ascii_case("RGB") {
         bail!(
             "DICOM color multiframe loader supports only PhotometricInterpretation=RGB; {:?} declares {}",
@@ -238,7 +242,8 @@ fn validate_rgb_multiframe(
             photometric.trim()
         );
     }
-    let planar_configuration = read_optional::<u16>(obj, Tag(0x0028, 0x0006)).unwrap_or(0);
+    let planar_configuration =
+        read_optional::<u16>(obj, DicomTag::new(0x0028, 0x0006)).unwrap_or(0);
     if planar_configuration != 0 {
         bail!(
             "DICOM RGB color multiframe loader supports only interleaved PlanarConfiguration=0; {:?} declares {}",

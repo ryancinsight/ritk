@@ -1,0 +1,106 @@
+use std::borrow::Cow;
+use std::fmt::Display;
+use std::str::FromStr;
+
+use anyhow::{anyhow, bail, Result};
+use num_traits::NumCast;
+use smallvec::SmallVec;
+
+use super::PrimitiveValue;
+
+impl PrimitiveValue {
+    pub fn to_str(&self) -> Cow<'_, str> {
+        use PrimitiveValue::*;
+        fn joined<T: Display>(values: &[T]) -> String {
+            values
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("\\")
+        }
+        let text = match self {
+            Empty => return Cow::Borrowed(""),
+            Str(s) => return Cow::Borrowed(s.trim_end_matches([' ', '\0'])),
+            Strs(s) if s.len() == 1 => return Cow::Borrowed(s[0].trim_end_matches([' ', '\0'])),
+            Strs(s) => {
+                return Cow::Owned(
+                    s.iter()
+                        .map(|v| v.trim_end_matches([' ', '\0']))
+                        .collect::<Vec<_>>()
+                        .join("\\"),
+                )
+            }
+            Bytes(v) => joined(v),
+            I16(v) => joined(v),
+            U16(v) => joined(v),
+            I32(v) => joined(v),
+            U32(v) => joined(v),
+            I64(v) => joined(v),
+            U64(v) => joined(v),
+            F32(v) => joined(v),
+            F64(v) => joined(v),
+            Tags(v) => joined(v),
+        };
+        Cow::Owned(text)
+    }
+
+    fn numbers<T: NumCast + FromStr>(&self, maximum: usize) -> Result<SmallVec<[T; 2]>> {
+        use PrimitiveValue::*;
+        fn cast<T: NumCast, U: NumCast + Copy>(
+            values: &[U],
+            maximum: usize,
+        ) -> Result<SmallVec<[T; 2]>> {
+            values
+                .iter()
+                .take(maximum)
+                .enumerate()
+                .map(|(index, &value)| {
+                    T::from(value)
+                        .ok_or_else(|| anyhow!("DICOM numeric value {index} is out of range"))
+                })
+                .collect()
+        }
+
+        let parse = |(index, text): (usize, &str)| {
+            text.trim_matches([' ', '\0'])
+                .parse::<T>()
+                .map_err(|_| anyhow!("invalid DICOM numeric value {index}: {text:?}"))
+        };
+        match self {
+            Empty => Ok(SmallVec::new()),
+            Str(s) => s.split('\\').take(maximum).enumerate().map(parse).collect(),
+            Strs(s) => s
+                .iter()
+                .take(maximum)
+                .map(String::as_str)
+                .enumerate()
+                .map(parse)
+                .collect(),
+            Bytes(v) => cast(v, maximum),
+            I16(v) => cast(v, maximum),
+            U16(v) => cast(v, maximum),
+            I32(v) => cast(v, maximum),
+            U32(v) => cast(v, maximum),
+            I64(v) => cast(v, maximum),
+            U64(v) => cast(v, maximum),
+            F32(v) => cast(v, maximum),
+            F64(v) => cast(v, maximum),
+            Tags(_) => bail!("DICOM tags are not numeric samples"),
+        }
+    }
+
+    /// # Errors
+    /// The first value must exist and fit the requested numeric type.
+    pub fn to_num<T: NumCast + FromStr>(&self) -> Result<T> {
+        self.numbers(1)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("empty DICOM value"))
+    }
+
+    /// # Errors
+    /// Each component must fit the requested numeric type.
+    pub fn to_numbers<T: NumCast + FromStr>(&self) -> Result<Vec<T>> {
+        Ok(self.numbers(usize::MAX)?.into_vec())
+    }
+}

@@ -12,11 +12,11 @@
 
 use std::path::Path;
 
-use dicom::core::header::Length;
-use dicom::core::value::{DataSetSequence, Value};
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::FileMetaBuilder;
+use ritk_dicom::dataset::Length;
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+use ritk_dicom::dataset::{Sequence, Value};
 
 /// One referenced Part 10 instance, as the index must describe it.
 ///
@@ -72,67 +72,83 @@ pub fn write_file_set_index(
 ) {
     let mut records = vec![record("PATIENT"), record("STUDY"), record("SERIES")];
     for (tag, vr, value) in [
-        (Tag(0x0010, 0x0010), VR::PN, "Synthetic"),
-        (Tag(0x0010, 0x0020), VR::LO, "SYNTHETIC"),
+        (DicomTag::new(0x0010, 0x0010), VR::PN, "Synthetic"),
+        (DicomTag::new(0x0010, 0x0020), VR::LO, "SYNTHETIC"),
     ] {
         records[0].put(DataElement::new(tag, vr, PrimitiveValue::from(value)));
     }
     for (tag, vr, value) in [
-        (Tag(0x0008, 0x0020), VR::DA, "20260905"),
-        (Tag(0x0008, 0x0030), VR::TM, "120000"),
-        (Tag(0x0020, 0x0010), VR::SH, "STUDY"),
-        (Tag(0x0020, 0x000D), VR::UI, identity.study_instance_uid),
+        (DicomTag::new(0x0008, 0x0020), VR::DA, "20260905"),
+        (DicomTag::new(0x0008, 0x0030), VR::TM, "120000"),
+        (DicomTag::new(0x0020, 0x0010), VR::SH, "STUDY"),
+        (
+            DicomTag::new(0x0020, 0x000D),
+            VR::UI,
+            identity.study_instance_uid,
+        ),
     ] {
         records[1].put(DataElement::new(tag, vr, PrimitiveValue::from(value)));
     }
     for (tag, vr, value) in [
-        (Tag(0x0008, 0x0060), VR::CS, identity.modality),
-        (Tag(0x0020, 0x0011), VR::IS, "1"),
-        (Tag(0x0020, 0x000E), VR::UI, identity.series_instance_uid),
+        (DicomTag::new(0x0008, 0x0060), VR::CS, identity.modality),
+        (DicomTag::new(0x0020, 0x0011), VR::IS, "1"),
+        (
+            DicomTag::new(0x0020, 0x000E),
+            VR::UI,
+            identity.series_instance_uid,
+        ),
     ] {
         records[2].put(DataElement::new(tag, vr, PrimitiveValue::from(value)));
     }
     for (position, member) in members.iter().enumerate() {
         let mut image = record("IMAGE");
         for (tag, vr, value) in [
-            (Tag(0x0004, 0x1500), VR::CS, member.file_id),
-            (Tag(0x0004, 0x1510), VR::UI, member.sop_class_uid),
-            (Tag(0x0004, 0x1511), VR::UI, member.sop_instance_uid),
-            (Tag(0x0004, 0x1512), VR::UI, member.transfer_syntax_uid),
+            (DicomTag::new(0x0004, 0x1500), VR::CS, member.file_id),
+            (DicomTag::new(0x0004, 0x1510), VR::UI, member.sop_class_uid),
+            (
+                DicomTag::new(0x0004, 0x1511),
+                VR::UI,
+                member.sop_instance_uid,
+            ),
+            (
+                DicomTag::new(0x0004, 0x1512),
+                VR::UI,
+                member.transfer_syntax_uid,
+            ),
         ] {
             image.put(DataElement::new(tag, vr, PrimitiveValue::from(value)));
         }
         image.put(DataElement::new(
-            Tag(0x0020, 0x0013),
+            DicomTag::new(0x0020, 0x0013),
             VR::IS,
             PrimitiveValue::from((position + 1).to_string()),
         ));
         records.push(image);
     }
 
-    let mut object = InMemDicomObject::new_empty();
+    let mut object = Dataset::new();
     object.put(DataElement::new(
-        Tag(0x0004, 0x1130),
+        DicomTag::new(0x0004, 0x1130),
         VR::CS,
         PrimitiveValue::from("SYNTHETIC"),
     ));
-    for tag in [Tag(0x0004, 0x1200), Tag(0x0004, 0x1202)] {
+    for tag in [DicomTag::new(0x0004, 0x1200), DicomTag::new(0x0004, 0x1202)] {
         object.put(DataElement::new(tag, VR::UL, PrimitiveValue::from(0_u32)));
     }
     object.put(DataElement::new(
-        Tag(0x0004, 0x1212),
+        DicomTag::new(0x0004, 0x1212),
         VR::US,
         PrimitiveValue::from(0_u16),
     ));
     object.put(DataElement::new(
-        Tag(0x0004, 0x1220),
+        DicomTag::new(0x0004, 0x1220),
         VR::SQ,
-        Value::from(DataSetSequence::new(records, Length::UNDEFINED)),
+        Value::from(Sequence::new(records, Length::Undefined)),
     ));
 
     let file = object
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.1.3.10")
                 .media_storage_sop_instance_uid("2.25.76001")
                 .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -174,18 +190,18 @@ pub fn write_file_set_index(
     std::fs::write(index, bytes).expect("write linked index");
 }
 
-fn record(kind: &str) -> InMemDicomObject {
-    let mut record = InMemDicomObject::new_empty();
-    for tag in [Tag(0x0004, 0x1400), Tag(0x0004, 0x1420)] {
+fn record(kind: &str) -> Dataset {
+    let mut record = Dataset::new();
+    for tag in [DicomTag::new(0x0004, 0x1400), DicomTag::new(0x0004, 0x1420)] {
         record.put(DataElement::new(tag, VR::UL, PrimitiveValue::from(0_u32)));
     }
     record.put(DataElement::new(
-        Tag(0x0004, 0x1410),
+        DicomTag::new(0x0004, 0x1410),
         VR::US,
         PrimitiveValue::from(RECORD_IN_USE),
     ));
     record.put(DataElement::new(
-        Tag(0x0004, 0x1430),
+        DicomTag::new(0x0004, 0x1430),
         VR::CS,
         PrimitiveValue::from(kind),
     ));

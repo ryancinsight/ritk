@@ -1,20 +1,18 @@
 use super::*;
 use crate::attribute::tags;
-use dicom::core::smallvec::SmallVec;
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::{DefaultDicomObject, InMemDicomObject};
+use crate::dataset::SmallVec;
+use crate::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+use crate::dataset::{Dataset, DicomFile};
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientFrame};
 
-fn object_with(
-    elements: impl IntoIterator<Item = DataElement<InMemDicomObject>>,
-) -> DefaultDicomObject {
-    let mut object = InMemDicomObject::new_empty();
+fn object_with(elements: impl IntoIterator<Item = DataElement>) -> DicomFile {
+    let mut object = Dataset::new();
     for element in elements {
         object.put(element);
     }
     object
         .with_meta(
-            dicom::object::meta::FileMetaTableBuilder::new()
+            crate::dataset::FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.4")
                 .media_storage_sop_instance_uid("2.25.1")
                 .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -22,15 +20,15 @@ fn object_with(
         .expect("synthetic DICOM metadata")
 }
 
-fn diffusion_elements(weighting: f64, direction: &[f64]) -> Vec<DataElement<InMemDicomObject>> {
+fn diffusion_elements(weighting: f64, direction: &[f64]) -> Vec<DataElement> {
     vec![
         DataElement::new(
-            Tag::from(tags::DIFFUSION_B_VALUE),
+            DicomTag::from(tags::DIFFUSION_B_VALUE),
             VR::FD,
             PrimitiveValue::from(weighting),
         ),
         DataElement::new(
-            Tag::from(tags::DIFFUSION_GRADIENT_DIRECTION),
+            DicomTag::from(tags::DIFFUSION_GRADIENT_DIRECTION),
             VR::FD,
             PrimitiveValue::F64(SmallVec::from_vec(direction.to_vec())),
         ),
@@ -38,12 +36,12 @@ fn diffusion_elements(weighting: f64, direction: &[f64]) -> Vec<DataElement<InMe
 }
 
 fn write_instance(path: &Path, weighting: f64, direction: &[f64], uid: &str) -> Result<()> {
-    let mut object = InMemDicomObject::new_empty();
+    let mut object = Dataset::new();
     for element in diffusion_elements(weighting, direction) {
         object.put(element);
     }
     let object = object.with_meta(
-        dicom::object::meta::FileMetaTableBuilder::new()
+        crate::dataset::FileMetaBuilder::new()
             .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.4")
             .media_storage_sop_instance_uid(uid)
             .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -71,7 +69,7 @@ fn absent_standard_elements_return_none() -> Result<()> {
 #[test]
 fn incomplete_wrong_length_and_non_finite_metadata_are_rejected() {
     let weighting_only = object_with([DataElement::new(
-        Tag::from(tags::DIFFUSION_B_VALUE),
+        DicomTag::from(tags::DIFFUSION_B_VALUE),
         VR::FD,
         PrimitiveValue::from(1_000.0),
     )]);
@@ -88,7 +86,7 @@ fn incomplete_wrong_length_and_non_finite_metadata_are_rejected() {
 fn baseline_weighting_without_orientation_is_valid() -> Result<()> {
     for weighting in [0.0, 1.0e-9, 50.0] {
         let b0 = object_with([DataElement::new(
-            Tag::from(tags::DIFFUSION_B_VALUE),
+            DicomTag::from(tags::DIFFUSION_B_VALUE),
             VR::FD,
             PrimitiveValue::from(weighting),
         )]);
@@ -99,7 +97,7 @@ fn baseline_weighting_without_orientation_is_valid() -> Result<()> {
     }
 
     let weighted = object_with([DataElement::new(
-        Tag::from(tags::DIFFUSION_B_VALUE),
+        DicomTag::from(tags::DIFFUSION_B_VALUE),
         VR::FD,
         PrimitiveValue::from(50.0_f64.next_up()),
     )]);

@@ -1,8 +1,7 @@
 //! Resource-bounded DICOM parsing.
 //!
-//! The byte scanner runs before `dicom-rs` constructs an in-memory object. It
-//! validates Part 10 framing, declared spans, sequence delimiters, element
-//! count, and nesting against the existing Consus [`ParseBudget`].
+//! One traversal validates Part 10 framing, value spans, sequence delimiters,
+//! element counts, and nesting for both catalog selection and materialization.
 
 mod scan;
 
@@ -16,7 +15,16 @@ use moirai_pal::fs::open_file_within_root;
 use super::DicomParseBackend;
 
 pub use scan::attributes::{scan_part10_attributes, Part10Attributes};
+pub(crate) use scan::object::materialize;
 pub use scan::{validate_part10, DicomParseSummary};
+
+pub(super) fn check_input_bytes(data: &[u8], budget: &ParseBudget) -> Result<()> {
+    let length = u64::try_from(data.len()).context("DICOM input length does not fit u64")?;
+    budget
+        .checked_bytes(length, "DICOM encoded input")
+        .context("DICOM input exceeds parse budget")?;
+    Ok(())
+}
 
 /// Read one DICOM file through the supplied byte ceiling.
 ///

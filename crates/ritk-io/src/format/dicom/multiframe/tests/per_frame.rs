@@ -1,5 +1,5 @@
 use super::*;
-use dicom::core::value::Value;
+use ritk_dicom::dataset::Value;
 
 // -------------------------------------------------------------------------
 // Sprint 58-C: per-frame functional group tests
@@ -43,7 +43,7 @@ fn test_per_frame_info_default_all_none() {
 /// Invariant: non-enhanced multiframe objects carry no functional group sequences.
 #[test]
 fn test_per_frame_empty_when_no_functional_groups() {
-    let obj = InMemDicomObject::new_empty();
+    let obj = Dataset::new();
     let result = extract_functional_groups(&obj, 3);
     assert!(
         result.is_empty(),
@@ -81,34 +81,42 @@ fn test_multiframe_info_per_frame_field_empty_for_basic_sop() {
 /// - Both values must appear in all n_frames entries (shared template cloned per frame).
 #[test]
 fn test_per_frame_shared_functional_groups() {
-    use dicom::core::header::Length;
-    use dicom::core::value::DataSetSequence;
+    use ritk_dicom::dataset::Length;
+    use ritk_dicom::dataset::Sequence;
 
     // Build PixelMeasuresSequence item with PixelSpacing and SliceThickness.
-    let mut px_item = InMemDicomObject::new_empty();
+    let mut px_item = Dataset::new();
     px_item.put(DataElement::new(
-        Tag(0x0028, 0x0030),
+        DicomTag::new(0x0028, 0x0030),
         VR::DS,
         PrimitiveValue::from("0.5\\0.5"),
     ));
     px_item.put(DataElement::new(
-        Tag(0x0018, 0x0050),
+        DicomTag::new(0x0018, 0x0050),
         VR::DS,
         PrimitiveValue::from("1.0"),
     ));
-    let px_seq = DataSetSequence::new(vec![px_item], Length::UNDEFINED);
+    let px_seq = Sequence::new(vec![px_item], Length::Undefined);
     let px_val = Value::from(px_seq);
 
     // Build shared functional group item containing PixelMeasuresSequence (0028,9110).
-    let mut shared_item = InMemDicomObject::new_empty();
-    shared_item.put(DataElement::new(Tag(0x0028, 0x9110), VR::SQ, px_val));
+    let mut shared_item = Dataset::new();
+    shared_item.put(DataElement::new(
+        DicomTag::new(0x0028, 0x9110),
+        VR::SQ,
+        px_val,
+    ));
 
     // Build (5200,9229) Shared Functional Groups Sequence.
-    let shared_seq = DataSetSequence::new(vec![shared_item], Length::UNDEFINED);
+    let shared_seq = Sequence::new(vec![shared_item], Length::Undefined);
     let shared_val = Value::from(shared_seq);
 
-    let mut obj = InMemDicomObject::new_empty();
-    obj.put(DataElement::new(Tag(0x5200, 0x9229), VR::SQ, shared_val));
+    let mut obj = Dataset::new();
+    obj.put(DataElement::new(
+        DicomTag::new(0x5200, 0x9229),
+        VR::SQ,
+        shared_val,
+    ));
 
     let result = extract_functional_groups(&obj, 2);
     assert_eq!(result.len(), 2, "must produce one entry per frame");
@@ -143,8 +151,8 @@ fn test_per_frame_shared_functional_groups() {
 /// Global slope/intercept set to 99.0 to verify per-frame values override them.
 #[test]
 fn test_load_dicom_multiframe_enhanced_per_frame_rescale() {
-    use dicom::core::header::Length;
-    use dicom::core::value::DataSetSequence;
+    use ritk_dicom::dataset::Length;
+    use ritk_dicom::dataset::Sequence;
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let path = tmp.path().join("enhanced_pf_rescale.dcm");
@@ -160,14 +168,14 @@ fn test_load_dicom_multiframe_enhanced_per_frame_rescale() {
 
     // Helper: build a PixelValueTransformation item with given slope/intercept DS strings.
     let make_pvt_item = |slope: &str, intercept: &str| {
-        let mut item = InMemDicomObject::new_empty();
+        let mut item = Dataset::new();
         item.put(DataElement::new(
-            Tag(0x0028, 0x1053),
+            DicomTag::new(0x0028, 0x1053),
             VR::DS,
             PrimitiveValue::from(slope),
         ));
         item.put(DataElement::new(
-            Tag(0x0028, 0x1052),
+            DicomTag::new(0x0028, 0x1052),
             VR::DS,
             PrimitiveValue::from(intercept),
         ));
@@ -177,10 +185,14 @@ fn test_load_dicom_multiframe_enhanced_per_frame_rescale() {
     // Build per-frame item wrapping a PixelValueTransformationSequence (0028,9145).
     let make_pf_item = |slope: &str, intercept: &str| {
         let pvt_item = make_pvt_item(slope, intercept);
-        let pvt_seq = DataSetSequence::new(vec![pvt_item], Length::UNDEFINED);
+        let pvt_seq = Sequence::new(vec![pvt_item], Length::Undefined);
         let pvt_val = Value::from(pvt_seq);
-        let mut pf = InMemDicomObject::new_empty();
-        pf.put(DataElement::new(Tag(0x0028, 0x9145), VR::SQ, pvt_val));
+        let mut pf = Dataset::new();
+        pf.put(DataElement::new(
+            DicomTag::new(0x0028, 0x9145),
+            VR::SQ,
+            pvt_val,
+        ));
         pf
     };
 
@@ -188,78 +200,82 @@ fn test_load_dicom_multiframe_enhanced_per_frame_rescale() {
     let pf1 = make_pf_item("2.0", "10.0");
 
     // Build (5200,9230) Per-Frame Functional Groups Sequence with 2 items.
-    let pf_seq = DataSetSequence::new(vec![pf0, pf1], Length::UNDEFINED);
+    let pf_seq = Sequence::new(vec![pf0, pf1], Length::Undefined);
     let pf_val = Value::from(pf_seq);
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from(MF_GRAYSCALE_WORD_SC_UID),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.58001"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0008),
+        DicomTag::new(0x0028, 0x0008),
         VR::IS,
         PrimitiveValue::from("2"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(2_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(2_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
+        DicomTag::new(0x0028, 0x0102),
         VR::US,
         PrimitiveValue::from(15_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
+        DicomTag::new(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0_u16),
     ));
     // Global slope/intercept = 99.0: must NOT be used when per-frame groups present.
     obj.put(DataElement::new(
-        Tag(0x0028, 0x1053),
+        DicomTag::new(0x0028, 0x1053),
         VR::DS,
         PrimitiveValue::from("99.0"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x1052),
+        DicomTag::new(0x0028, 0x1052),
         VR::DS,
         PrimitiveValue::from("99.0"),
     ));
     // Per-frame functional groups.
-    obj.put(DataElement::new(Tag(0x5200, 0x9230), VR::SQ, pf_val));
+    obj.put(DataElement::new(
+        DicomTag::new(0x5200, 0x9230),
+        VR::SQ,
+        pf_val,
+    ));
     // Pixel data.
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OW,
-        PrimitiveValue::U8(dicom::core::smallvec::SmallVec::from_vec(pixel_bytes)),
+        PrimitiveValue::from(pixel_bytes),
     ));
 
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid(MF_GRAYSCALE_WORD_SC_UID)
                 .media_storage_sop_instance_uid("2.25.58001")
                 .transfer_syntax("1.2.840.10008.1.2.1"),

@@ -15,7 +15,7 @@ use arrayvec::ArrayString;
 
 // ── DIMSE Command Field Values ────────────────────────────────────────────────
 
-/// DIMSE command field (Tag 0000,0100). PS3.7 Table E.1-1.
+/// DIMSE command field (DicomTag 0000,0100). PS3.7 Table E.1-1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
 pub enum CommandField {
@@ -52,7 +52,7 @@ impl TryFrom<u16> for CommandField {
 
 // ── Status codes ──────────────────────────────────────────────────────────────
 
-/// DIMSE response status codes (Tag 0000,0900). PS3.7 Annex C.
+/// DIMSE response status codes (DicomTag 0000,0900). PS3.7 Annex C.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
 pub enum DimseStatus {

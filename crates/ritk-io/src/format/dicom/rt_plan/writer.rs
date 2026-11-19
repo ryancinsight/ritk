@@ -1,14 +1,13 @@
 //! RT Plan writer — serialize an [`RtPlanInfo`] to a DICOM Part-10 file.
 
-use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{Context, Result};
-use dicom::core::header::Length;
-use dicom::core::value::DataSetSequence;
-use dicom::core::value::Value;
-use dicom::core::Tag;
-use dicom::core::{DataElement, VR};
-use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::DicomTag;
+use ritk_dicom::dataset::FileMetaBuilder;
+use ritk_dicom::dataset::Length;
+use ritk_dicom::dataset::Sequence;
+use ritk_dicom::dataset::Value;
+use ritk_dicom::dataset::{DataElement, VR};
 use std::path::Path;
 
 use super::types::{RtBeamInfo, RtFractionGroup, RtPlanInfo, RT_PLAN_SOP_CLASS_UID};
@@ -34,45 +33,57 @@ pub fn write_rt_plan<P: AsRef<Path>>(path: P, plan: &RtPlanInfo) -> Result<()> {
         plan.sop_instance_uid.trim()
     };
 
-    let beam_items: Vec<InMemDicomObject> = plan.beams.iter().map(build_beam_item).collect();
+    let beam_items: Vec<Dataset> = plan.beams.iter().map(build_beam_item).collect();
 
-    let fg_items: Vec<InMemDicomObject> = plan
+    let fg_items: Vec<Dataset> = plan
         .fraction_groups
         .iter()
         .map(build_fraction_group_item)
         .collect();
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
 
-    obj.put_value(Tag(0x0008, 0x0016), VR::UI, RT_PLAN_SOP_CLASS_UID);
-    obj.put_value(Tag(0x0008, 0x0018), VR::UI, sop_instance_uid);
-    obj.put_value(Tag(0x0008, 0x0060), VR::CS, "RTPLAN");
-    obj.put_value(Tag(0x300A, 0x0002), VR::LO, plan.rt_plan_label.as_str());
-    obj.put_value(Tag(0x300A, 0x0003), VR::LO, plan.rt_plan_name.as_str());
+    obj.put_value(DicomTag::new(0x0008, 0x0016), VR::UI, RT_PLAN_SOP_CLASS_UID);
+    obj.put_value(DicomTag::new(0x0008, 0x0018), VR::UI, sop_instance_uid);
+    obj.put_value(DicomTag::new(0x0008, 0x0060), VR::CS, "RTPLAN");
     obj.put_value(
-        Tag(0x300A, 0x0004),
+        DicomTag::new(0x300A, 0x0002),
+        VR::LO,
+        plan.rt_plan_label.as_str(),
+    );
+    obj.put_value(
+        DicomTag::new(0x300A, 0x0003),
+        VR::LO,
+        plan.rt_plan_name.as_str(),
+    );
+    obj.put_value(
+        DicomTag::new(0x300A, 0x0004),
         VR::ST,
         plan.rt_plan_description.as_str(),
     );
-    obj.put_value(Tag(0x300A, 0x000A), VR::CS, plan.plan_intent.as_str());
+    obj.put_value(
+        DicomTag::new(0x300A, 0x000A),
+        VR::CS,
+        plan.plan_intent.as_str(),
+    );
 
     if !beam_items.is_empty() {
         obj.put(DataElement::new(
-            Tag(0x300A, 0x00B0),
+            DicomTag::new(0x300A, 0x00B0),
             VR::SQ,
-            Value::from(DataSetSequence::new(beam_items, Length::UNDEFINED)),
+            Value::from(Sequence::new(beam_items, Length::Undefined)),
         ));
     }
     if !fg_items.is_empty() {
         obj.put(DataElement::new(
-            Tag(0x300A, 0x0070),
+            DicomTag::new(0x300A, 0x0070),
             VR::SQ,
-            Value::from(DataSetSequence::new(fg_items, Length::UNDEFINED)),
+            Value::from(Sequence::new(fg_items, Length::Undefined)),
         ));
     }
 
     obj.with_meta(
-        FileMetaTableBuilder::new()
+        FileMetaBuilder::new()
             .media_storage_sop_class_uid(RT_PLAN_SOP_CLASS_UID)
             .media_storage_sop_instance_uid(sop_instance_uid)
             .transfer_syntax(EXPLICIT_VR_LE),
@@ -84,55 +95,71 @@ pub fn write_rt_plan<P: AsRef<Path>>(path: P, plan: &RtPlanInfo) -> Result<()> {
     Ok(())
 }
 
-fn build_beam_item(beam: &RtBeamInfo) -> InMemDicomObject {
-    let mut item = InMemDicomObject::new_empty();
+fn build_beam_item(beam: &RtBeamInfo) -> Dataset {
+    let mut item = Dataset::new();
     item.put_value(
-        Tag(0x300A, 0x00C0),
+        DicomTag::new(0x300A, 0x00C0),
         VR::IS,
         beam.beam_number.to_string().as_str(),
     );
-    item.put_value(Tag(0x300A, 0x00C2), VR::LO, beam.beam_name.as_str());
-    item.put_value(Tag(0x300A, 0x00C3), VR::ST, beam.beam_description.as_str());
-    item.put_value(Tag(0x300A, 0x00C6), VR::CS, beam.radiation_type.as_str());
     item.put_value(
-        Tag(0x300A, 0x00CE),
+        DicomTag::new(0x300A, 0x00C2),
+        VR::LO,
+        beam.beam_name.as_str(),
+    );
+    item.put_value(
+        DicomTag::new(0x300A, 0x00C3),
+        VR::ST,
+        beam.beam_description.as_str(),
+    );
+    item.put_value(
+        DicomTag::new(0x300A, 0x00C6),
+        VR::CS,
+        beam.radiation_type.as_str(),
+    );
+    item.put_value(
+        DicomTag::new(0x300A, 0x00CE),
         VR::CS,
         beam.treatment_delivery_type.as_str(),
     );
     item.put_value(
-        Tag(0x300A, 0x0110),
+        DicomTag::new(0x300A, 0x0110),
         VR::IS,
         beam.n_control_points.to_string().as_str(),
     );
     item
 }
 
-fn build_fraction_group_item(fg: &RtFractionGroup) -> InMemDicomObject {
-    let ref_beam_items: Vec<InMemDicomObject> = fg
+fn build_fraction_group_item(fg: &RtFractionGroup) -> Dataset {
+    let ref_beam_items: Vec<Dataset> = fg
         .referenced_beam_numbers
         .iter()
         .map(|&bn| {
-            let mut ref_item = InMemDicomObject::new_empty();
-            ref_item.put_value(Tag(0x300A, 0x00C0), VR::IS, bn.to_string().as_str());
+            let mut ref_item = Dataset::new();
+            ref_item.put_value(
+                DicomTag::new(0x300A, 0x00C0),
+                VR::IS,
+                bn.to_string().as_str(),
+            );
             ref_item
         })
         .collect();
 
-    let mut item = InMemDicomObject::new_empty();
+    let mut item = Dataset::new();
     item.put_value(
-        Tag(0x300A, 0x0071),
+        DicomTag::new(0x300A, 0x0071),
         VR::IS,
         fg.fraction_group_number.to_string().as_str(),
     );
     item.put_value(
-        Tag(0x300A, 0x0078),
+        DicomTag::new(0x300A, 0x0078),
         VR::IS,
         fg.n_fractions_planned.to_string().as_str(),
     );
     item.put(DataElement::new(
-        Tag(0x300A, 0x00B6),
+        DicomTag::new(0x300A, 0x00B6),
         VR::SQ,
-        Value::from(DataSetSequence::new(ref_beam_items, Length::UNDEFINED)),
+        Value::from(Sequence::new(ref_beam_items, Length::Undefined)),
     ));
     item
 }

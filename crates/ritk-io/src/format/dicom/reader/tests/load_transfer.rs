@@ -24,131 +24,39 @@ use ritk_dicom::ParseBudget;
 use ritk_dicom::TransferSyntaxKind;
 use ritk_spatial::{Direction, Point, Spacing};
 #[test]
-fn test_load_series_compressed_ts_errors() {
-    type B = coeus_core::SequentialBackend;
+fn malformed_jpeg_ls_series_is_catalogued_and_returns_the_codec_error() {
+    use ritk_dicom::dataset::PixelFragments;
 
-    let tmp = tempfile::tempdir().expect("tempdir");
-    let series_dir = tmp.path().join("compressed_series");
-    std::fs::create_dir_all(&series_dir).expect("create_dir");
+    let scratch = tempfile::tempdir().expect("temporary series");
+    let path = scratch.path().join("slice.dcm");
+    write_stub_dicom(&path, "1.2.840.10008.5.1.4.1.1.2", "2.25.72001.41");
+    let mut file = ritk_dicom::dataset::DicomFile::open(&path).expect("write_stub_dicom output");
+    file.put_value(ritk_dicom::tags::ROWS, VR::US, 2u16);
+    file.put_value(ritk_dicom::tags::COLUMNS, VR::US, 2u16);
+    let syntax = TransferSyntaxKind::JpegLsLossless;
+    file.update_meta(|meta| meta.transfer_syntax = syntax.uid().to_owned());
+    file.put(DataElement::new(
+        DicomTag::new(0x7fe0, 0x0010),
+        VR::OB,
+        PixelFragments::from_fragments([vec![0xff, 0xd8, 0xff, 0xf7, 0x00, 0x0b]]),
+    ));
+    file.write_to_file(&path)
+        .expect("valid DICOM encapsulation");
 
-    // Write a single-slice DICOM declaring JPEG Baseline TS (compressed).
-    let slice_path = series_dir.join("slice_0000.dcm");
-    let mut obj = InMemDicomObject::new_empty();
-    // Successful image-scan fixtures carry the required acquisition identity.
-    obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
-        VR::UI,
-        PrimitiveValue::from("2.25.72001"),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
-        VR::UI,
-        PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"), // CT Image Storage
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
-        VR::UI,
-        PrimitiveValue::from("2.25.10001"),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0060),
-        VR::CS,
-        PrimitiveValue::from("CT"),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
-        VR::US,
-        PrimitiveValue::from(2_u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
-        VR::US,
-        PrimitiveValue::from(2_u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
-        VR::US,
-        PrimitiveValue::from(16_u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
-        VR::US,
-        PrimitiveValue::from(16_u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
-        VR::US,
-        PrimitiveValue::from(15_u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
-        VR::US,
-        PrimitiveValue::from(0_u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
-        VR::US,
-        PrimitiveValue::from(1_u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
-        VR::OW,
-        PrimitiveValue::U8(dicom::core::smallvec::SmallVec::from_vec(vec![0u8; 8])),
-    ));
-    let file_obj = obj
-        .with_meta(
-            FileMetaTableBuilder::new()
-                .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
-                .media_storage_sop_instance_uid("2.25.10001")
-                .transfer_syntax("1.2.840.10008.1.2.4.80"), // JPEG-LS Lossless (no charls)
-        )
-        .expect("meta build");
-    file_obj
-        .write_to_file(&slice_path)
-        .expect("write compressed slice");
-
-    // scan_dicom_directory should succeed (it only reads metadata, not pixels)
-    let scan_result = scan_dicom_directory(&series_dir);
-    // If scan succeeds, attempt load
-    if let Ok(series_info) = scan_result {
-        // Verify the TS was captured
-        let has_compressed = series_info.metadata.slices.iter().any(|s| {
-            s.transfer_syntax_uid
-                .as_deref()
-                .map(|uid| TransferSyntaxKind::from_uid(uid).is_compressed())
-                .unwrap_or(false)
-        });
-        assert!(
-            has_compressed,
-            "scan must record compressed TS in slice metadata"
-        );
-
-        let device = B::default();
-        let load_result =
-            load_dicom_series_with_metadata::<B, _>(&series_dir, &device).map(|(img, _meta)| img);
-        // JPEG-LS lossless routes through the RITK native codec boundary. This synthetic
-        // payload is intentionally minimal, so either a valid load or a JPEG-contextual
-        // decode error preserves the boundary contract.
-        match load_result {
-            Ok(tensor) => {
-                // If it succeeds, verify tensor shape is correct
-                let shape = tensor.shape();
-                assert!(shape.len() >= 3, "tensor must have at least 3 dimensions");
-            }
-            Err(e) => {
-                // If it fails, error should reference JPEG-LS
-                let msg = format!("{:?}", e);
-                assert!(
-                    msg.contains("1.2.840.10008.1.2.4.80")
-                        || msg.to_lowercase().contains("compress")
-                        || msg.contains("JPEG"),
-                    "error must reference JPEG-LS TS UID or 'compress'; got: {msg}"
-                );
-            }
-        }
-    }
-    // If scan itself fails (e.g. SOP class filter), the test is inconclusive
-    // but not a failure — the scan's SOP-class rejection is also correct behavior.
+    let series = scan_dicom_directory(scratch.path()).expect("catalog reads metadata");
+    assert_eq!(series.metadata.slices.len(), 1);
+    assert_eq!(
+        series.metadata.slices[0].transfer_syntax_uid.as_deref(),
+        Some(syntax.uid())
+    );
+    let device = coeus_core::SequentialBackend::default();
+    let error = load_dicom_series_with_metadata::<coeus_core::SequentialBackend, _>(
+        scratch.path(),
+        &device,
+    )
+    .err()
+    .expect("truncated JPEG-LS segment");
+    assert!(format!("{error:#}").contains("JPEG-LS"), "{error:#}");
 }
 
 #[test]
@@ -226,9 +134,9 @@ fn overflow_test_series(dimensions: [usize; 3]) -> DicomSeriesInfo {
 
 #[test]
 fn test_load_series_jpeg_baseline_codec_round_trip() {
-    use dicom::core::smallvec::SmallVec;
-    use dicom::core::value::PixelFragmentSequence;
     use image::{DynamicImage, GrayImage};
+    use ritk_dicom::dataset::PixelFragments;
+    use ritk_dicom::dataset::SmallVec;
 
     type B = coeus_core::SequentialBackend;
 
@@ -255,86 +163,86 @@ fn test_load_series_jpeg_baseline_codec_round_trip() {
 
     // Build encapsulated pixel data.
     let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![jpeg_bytes]);
-    let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);
+    let pfs: PixelFragments = PixelFragments::from_fragments(fragments);
 
     // Build a Secondary Capture DICOM slice with JPEG Baseline TS.
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     // Successful image-scan fixtures carry the required acquisition identity.
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
+        DicomTag::new(0x0020, 0x000E),
         VR::UI,
         PrimitiveValue::from("2.25.72001"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7"), // SC Image Storage
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.88888801"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0060),
+        DicomTag::new(0x0008, 0x0060),
         VR::CS,
         PrimitiveValue::from("OT"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(height as u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(width as u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(8u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::from(8u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
+        DicomTag::new(0x0028, 0x0102),
         VR::US,
         PrimitiveValue::from(7u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
+        DicomTag::new(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
+        DicomTag::new(0x0028, 0x0002),
         VR::US,
         PrimitiveValue::from(1u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0004),
+        DicomTag::new(0x0028, 0x0004),
         VR::CS,
         PrimitiveValue::from("MONOCHROME2"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x1053),
+        DicomTag::new(0x0028, 0x1053),
         VR::DS,
         PrimitiveValue::from("1.000000"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x1052),
+        DicomTag::new(0x0028, 0x1052),
         VR::DS,
         PrimitiveValue::from("0.000000"),
     ));
-    obj.put(DataElement::new(Tag(0x7FE0, 0x0010), VR::OB, pfs));
+    obj.put(DataElement::new(DicomTag::new(0x7FE0, 0x0010), VR::OB, pfs));
 
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7")
                 .media_storage_sop_instance_uid("2.25.88888801")
                 .transfer_syntax("1.2.840.10008.1.2.4.50"), // JPEG Baseline

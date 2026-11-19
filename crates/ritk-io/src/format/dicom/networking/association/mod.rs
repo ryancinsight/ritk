@@ -107,7 +107,9 @@ impl Association {
                 maximum_length_received: config.max_pdu_length,
             },
             implementation_class_uid: ImplementationClassUidSubItem {
-                implementation_class_uid: literal_arraystring(RITK_IMPLEMENTATION_CLASS_UID),
+                implementation_class_uid: literal_arraystring(
+                    ritk_dicom::dataset::IMPLEMENTATION_CLASS_UID,
+                ),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
                 implementation_version_name: literal_arraystring(RITK_IMPLEMENTATION_VERSION),

@@ -3,7 +3,9 @@
 //! Parsing and frame decode are generic so call sites monomorphize backend
 //! dispatch. Concrete libraries remain replaceable implementation details.
 
-pub mod dicom_rs;
+mod dataset;
+pub use dataset::NativeBackend;
+use parse_budget::BoundedDicomParseBackend;
 pub mod native;
 pub mod parse_budget;
 
@@ -92,8 +94,7 @@ where
 }
 
 pub trait EncapsulatedFrameSource {
-    fn encapsulated_frame(&self, frame_index: u32) -> Result<Vec<u8>>;
+    fn encapsulated_frame(&self, frame_index: u32) -> Result<std::borrow::Cow<'_, [u8]>>;
 }
 
-pub use dicom_rs::DicomRsBackend;
 pub use native::NativeCodecBackend;

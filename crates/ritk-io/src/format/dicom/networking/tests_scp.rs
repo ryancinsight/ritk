@@ -42,7 +42,7 @@ fn scu_config(port: u16) -> AssociationConfig {
 /// Synthetic IVR-LE dataset carrying a single StudyDate tag.
 ///
 /// Format: [group:u16-LE][element:u16-LE][length:u32-LE][value:bytes]
-/// Tag (0008,0020) = "20240115" (8 bytes, even length).
+/// DicomTag (0008,0020) = "20240115" (8 bytes, even length).
 fn synthetic_dataset() -> Vec<u8> {
     let mut buf = Vec::with_capacity(16);
     buf.extend_from_slice(&0x0008u16.to_le_bytes()); // group
@@ -199,67 +199,48 @@ fn test_store_scp_ephemeral_port_is_nonzero() {
 
 // ── Unit tests for SCP-LOAD-01 ───────────────────────────────────────────────
 
-/// `make_part10_bytes` must produce a valid DICOM Part 10 preamble and
-/// File Meta Information header.
-///
-/// Analytical basis (PS3.10 §7, PS3.5 §7.1):
-/// - Bytes 0–127: zero-valued preamble.
-/// - Bytes 128–131: ASCII "DICM" magic.
-/// - Bytes 132–135: File Meta Information Group Length tag (0002,0000).
-/// - Bytes 136–137: VR "UL" for (0002,0000).
 #[test]
-fn test_make_part10_bytes_produces_valid_dicom_preamble() {
-    let inst = super::StoredInstance {
-        sop_class_uid: ArrayString::from("1.2.840.10008.5.1.4.1.1.2")
-            .expect("infallible: validated precondition"),
-        sop_instance_uid: ArrayString::from("1.2.3.4.5.6.7.8.9")
-            .expect("infallible: validated precondition"),
-        dataset_bytes: Vec::new(),
-        transfer_syntax_uid: ArrayString::from("1.2.840.10008.1.2.1")
-            .expect("infallible: validated precondition"),
-    };
-    let bytes = inst.make_part10_bytes();
-
-    // Preamble: 128 zero bytes
-    assert_eq!(
-        &bytes[0..128],
-        &[0u8; 128],
-        "preamble must be 128 zero bytes"
-    );
-
-    // DICM magic at offset 128
-    assert_eq!(
-        &bytes[128..132],
-        b"DICM",
-        "DICM magic must be at offset 128"
-    );
-
-    // File Meta Information Group Length tag (0002,0000)
-    assert_eq!(
-        &bytes[132..136],
-        &[0x00, 0x00, 0x02, 0x00],
-        "first meta tag must be (0002,0000)"
-    );
-
-    // VR must be UL
-    assert_eq!(&bytes[136..138], b"UL", "(0002,0000) VR must be UL");
-}
-
-/// `pad_uid` must append a null byte when the input has odd length,
-/// producing an even-length result per DICOM VR::UI padding rules (PS3.5 §6.2).
-#[test]
-fn test_pad_uid_odd_length_padded_with_null() {
-    // "1.2.3" is 5 bytes (odd)
-    let result = super::pad_uid("1.2.3");
-    assert_eq!(result, b"1.2.3\0");
-    assert_eq!(result.len() % 2, 0, "padded UID must have even length");
-}
-
-/// `pad_uid` must return even-length UIDs unchanged (no padding needed).
-#[test]
-fn test_pad_uid_even_length_unchanged() {
-    // "1.2.840.10008.1.21" is 18 bytes (even) — no padding
-    let result = super::pad_uid("1.2.840.10008.1.21");
-    assert_eq!(result, b"1.2.840.10008.1.21");
-    assert_eq!(result.len() % 2, 0, "even-length UID must remain even");
+fn received_dataset_uses_the_native_file_header() {
+    // PS3.10 §7 places an Explicit VR Little Endian UL group length after DICM.
+    // Independent Explicit VR Little Endian payload for Image Position (Patient).
+    let dataset_bytes = b"\x20\x00\x32\x00DS\x06\x001\\2\\3 ".to_vec();
+    for uid in ["1.2.3", "1.2.34"] {
+        let inst = super::StoredInstance {
+            sop_class_uid: ArrayString::from("1.2.840.10008.5.1.4.1.1.2").unwrap(),
+            sop_instance_uid: ArrayString::from(uid).unwrap(),
+            dataset_bytes: dataset_bytes.clone(),
+            transfer_syntax_uid: ArrayString::from("1.2.840.10008.1.2.1").unwrap(),
+        };
+        let bytes = inst
+            .make_part10_bytes()
+            .expect("valid association metadata");
+        assert_eq!(&bytes[..128], &[0u8; 128]);
+        assert_eq!(&bytes[128..140], b"DICM\x02\x00\x00\x00UL\x04\x00");
+        let size = u32::from_le_bytes(bytes[140..144].try_into().unwrap()) as usize;
+        assert_eq!(&bytes[144 + size..], dataset_bytes);
+        let tag = bytes[144..144 + size]
+            .windows(6)
+            .position(|w| w == b"\x02\x00\x03\x00UI")
+            .expect("file meta SOP instance UID")
+            + 144;
+        let length = usize::from(u16::from_le_bytes(
+            bytes[tag + 6..tag + 8].try_into().unwrap(),
+        ));
+        assert_eq!(length, uid.len() + uid.len() % 2);
+        assert_eq!(&bytes[tag + 8..tag + 8 + uid.len()], uid.as_bytes());
+        assert!(bytes[tag + 8 + uid.len()..tag + 8 + length]
+            .iter()
+            .all(|&byte| byte == 0));
+        let file =
+            ritk_dicom::dataset::DicomFile::parse(bytes.into(), &ritk_dicom::ParseBudget::DEFAULT)
+                .expect("received dataset must parse through the same provider");
+        assert_eq!(file.meta().media_storage_sop_instance_uid(), uid);
+        assert_eq!(
+            file.element(ritk_dicom::tags::IMAGE_POSITION_PATIENT)
+                .unwrap()
+                .to_numbers::<f64>()
+                .unwrap(),
+            [1.0, 2.0, 3.0]
+        );
+    }
 }

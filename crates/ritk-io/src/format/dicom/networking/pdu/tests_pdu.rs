@@ -21,8 +21,10 @@ fn sample_rq() -> AssociateRqPdu {
                 maximum_length_received: 16384,
             },
             implementation_class_uid: ImplementationClassUidSubItem {
-                implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID)
-                    .expect("infallible: validated precondition"),
+                implementation_class_uid: ArrayString::from(
+                    ritk_dicom::dataset::IMPLEMENTATION_CLASS_UID,
+                )
+                .expect("infallible: validated precondition"),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
                 implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION)
