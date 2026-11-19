@@ -1,4 +1,4 @@
-name: RITK SNAP Métis browser DICOM
+name: AsterSlice Métis browser DICOM
 
 on:
   schedule:

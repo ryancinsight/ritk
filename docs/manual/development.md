@@ -555,8 +555,8 @@ recorded in [the resource provenance record](images/dicom-metis-real-ct-resource
 Build the synthetic workflow example with the compatibility feature and run:
 
 ```console
-cargo build --locked -p ritk-snap --features eframe-shell --bin ritk-snap --example dicom_workflow
-python scripts/viewer.py target/debug/examples/dicom_workflow --native-binary target/debug/ritk-snap
+cargo build --locked -p ritk-snap --features eframe-shell --bin asterslice --example dicom_workflow
+python scripts/viewer.py target/debug/examples/dicom_workflow --native-binary target/debug/asterslice
 ```
 
 Use `.exe` suffixes on Windows and the shared Atlas target paths when applicable.
@@ -591,7 +591,7 @@ directory instead of assuming a repository-local build cache:
 cargo build --locked -p ritk-snap --features eframe-shell
 $target = (cargo metadata --locked --format-version 1 --no-deps |
   ConvertFrom-Json).target_directory
-$viewer = Join-Path $target 'debug\ritk-snap.exe'
+$viewer = Join-Path $target 'debug\asterslice.exe'
 $captureRoot = Join-Path $PWD 'output\viewer'
 New-Item -ItemType Directory -Path $captureRoot -Force | Out-Null
 & $viewer test_data\2_head_mri_t2\DICOM --eframe `
@@ -891,7 +891,7 @@ first visible top-level HWND and closes the process with `WM_CLOSE`:
 $target = (cargo metadata --format-version 1 --no-deps |
   ConvertFrom-Json).target_directory
 python ..\metis\scripts\python_native_capture.py `
-  --command (Join-Path $target "debug\ritk-snap.exe") `
+  --command (Join-Path $target "debug\asterslice.exe") `
   --argument=test_data\3_head_ct_mridir\DICOM `
   --argument=--series-instance-uid `
   --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
@@ -921,7 +921,7 @@ RITK checkout after building `ritk-snap`:
 $target = (cargo metadata --format-version 1 --no-deps |
   ConvertFrom-Json).target_directory
 python ..\metis\scripts\python_native_capture.py `
-  --command (Join-Path $target "debug\ritk-snap.exe") `
+  --command (Join-Path $target "debug\asterslice.exe") `
   --cwd (Get-Location).Path `
   --argument=test_data\3_head_ct_mridir\DICOM `
   --argument=--series-instance-uid `
@@ -949,7 +949,7 @@ result includes the operating-system frame as well as the Métis client surface:
 
 ```powershell
 python ..\metis\scripts\python_native_capture.py `
-  --command (Join-Path $target "debug\ritk-snap.exe") `
+  --command (Join-Path $target "debug\asterslice.exe") `
   --argument=test_data\3_head_ct_mridir\DICOM `
   --argument=--series-instance-uid `
   --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
@@ -972,7 +972,7 @@ executable hash, invalid-study rejection and `metis-frame.png` hash in
 `scratch/viewer/workflow.json`:
 
 ```console
-python scripts/viewer.py target/debug/examples/dicom_workflow.exe --native-binary target/debug/ritk-snap.exe --metis-native
+python scripts/viewer.py target/debug/examples/dicom_workflow.exe --native-binary target/debug/asterslice.exe --metis-native
 ```
 
 ![Métis native three-panel DICOM capture](images/dicom-metis-native.png)
@@ -984,7 +984,7 @@ not a screenshot of Windows decorations or host fonts.
 ### Exercise scalar multi-frame and RGB studies in the Windows shell
 
 The same workflow now emits a scalar two-frame study and the two-frame RGB
-study described above. Both are opened by the real Windows `ritk-snap.exe`
+study described above. Both are opened by the real Windows `asterslice.exe`
 process through the Métis native surface. The scalar study decodes shape
 `[2, 2, 2]` and values `[-8,-6,-4,-2,12,14,16,18]`; the RGB study retains
 three interleaved channels and its cyan, magenta, yellow, and neutral second
@@ -1007,12 +1007,12 @@ utility from the RITK checkout:
 ```powershell
 target\debug\examples\dicom_workflow.exe scratch\metis-synthetic
 python ..\metis\scripts\python_native_capture.py `
-  --command target\debug\ritk-snap.exe `
+  --command target\debug\asterslice.exe `
   --argument=scratch\metis-synthetic\multiframe-study `
   --argument=--metis-native `
   --output docs\manual\images\dicom-metis-multiframe-window.png
 python ..\metis\scripts\python_native_capture.py `
-  --command target\debug\ritk-snap.exe `
+  --command target\debug\asterslice.exe `
   --argument=scratch\metis-synthetic\color-study `
   --argument=--metis-native `
   --output docs\manual\images\dicom-metis-color-window.png
@@ -1044,7 +1044,7 @@ and Métis native surface used by the synthetic workflow:
 
 ```powershell
 cargo build --locked -p ritk-snap
-target\debug\ritk-snap.exe `
+target\debug\asterslice.exe `
   test_data\3_head_ct_mridir\DICOM `
   --metis-native `
   --capture scratch\viewer\real-dicom-metis.png
@@ -1163,7 +1163,7 @@ folder; it does not modify the source DICOM files. Captures go to the existing
 ignored `output/` run-output root:
 
 ```powershell
-cargo build --locked -p ritk-snap --bin ritk-snap
+cargo build --locked -p ritk-snap --bin asterslice
 $target = (cargo metadata --format-version 1 --no-deps |
   ConvertFrom-Json).target_directory
 $captureOutput = Join-Path $PWD 'output\viewer\radiant-clone'
@@ -1171,7 +1171,7 @@ New-Item -ItemType Directory -Path $captureOutput -Force | Out-Null
 $atlasRoot = (Get-Item $PWD).Parent.Parent.FullName
 $captureUtility = Join-Path $atlasRoot 'repos\metis\scripts\python_native_capture.py'
 python $captureUtility `
-  --command (Join-Path $target "debug\ritk-snap.exe") `
+  --command (Join-Path $target "debug\asterslice.exe") `
   --cwd (Get-Location).Path `
   --argument=test_data\2_head_mri_t2\DICOM `
   --argument=--metis-native `
@@ -1191,7 +1191,7 @@ foreach ($source in @(
   }
 }
 python $captureUtility `
-  --command (Join-Path $target "debug\ritk-snap.exe") `
+  --command (Join-Path $target "debug\asterslice.exe") `
   --cwd (Get-Location).Path `
   --argument=$comparisonStudy `
   --argument=--metis-native `
@@ -1231,7 +1231,7 @@ be mistaken for a blank image:
 ```powershell
 python scripts/viewer.py `
   target/debug/examples/dicom_workflow.exe `
-  --native-binary target/debug/ritk-snap.exe `
+  --native-binary target/debug/asterslice.exe `
   --metis-native `
   --real-study test_data/2_head_mri_t2/DICOM
 ```
@@ -1774,7 +1774,7 @@ python scripts/browser_drop.py --driver-url http://127.0.0.1:9517 `
 Validate that trace from the RITK checkout:
 
 ```powershell
-ritk-snap.exe --validate-browser-trace `
+asterslice.exe --validate-browser-trace `
   D:/atlas/repos/metis/output/browser/cine/canvas-trace.json `
   --require-cine-rate
 ```
@@ -1886,7 +1886,8 @@ states the supported geometry and inspectable-ancestry requirement.
 
 RITK owns the application manifest at
 [`metis.json`](../../metis.json). It declares
-the single `ritk-snap` Cargo binary and contains no DICOM parser, decoded study,
+the single `asterslice` binary from the `ritk-snap` Cargo package. It contains
+no DICOM parser, decoded study,
 or clinical resource. Métis supplies the packaging tool and Windows Installer
 authoring; the viewer binary remains the RITK-owned DICOM implementation.
 
@@ -1900,9 +1901,9 @@ path\to\metis\target\release\metis.exe package `
   metis.json output\ritk-snap-installer
 ```
 
-The output contains `app\ritk-snap.exe`, the exact `inventory.json`, and the
+The output contains `app\asterslice.exe`, the exact `inventory.json`, and the
 Windows per-user MSI. Launch the portable executable with a study path, for
-example `output\ritk-snap-installer\app\ritk-snap.exe study\`. The installer
+example `output\ritk-snap-installer\app\asterslice.exe study\`. The installer
 does not bundle patient data or choose a study; DICOM opening still follows the
 RITK workflow above. A package output directory is create-new and must not
 already exist.
@@ -1988,8 +1989,8 @@ tests. The standalone consumer lock and graph now use the merged [Mnemosyne
 #393](https://github.com/ryancinsight/Coeus/pull/393), [Apollo
 #386](https://github.com/ryancinsight/apollo/pull/386), and [Leto
 #187](https://github.com/ryancinsight/leto/pull/187) portability fixes. Build
-the RITK library target and package it with the pinned `wasm-bindgen 0.2.128`
-CLI:
+the RITK library target and package it with a `wasm-bindgen` CLI matching
+[Cargo.lock](../../Cargo.lock):
 
 ```powershell
 cargo build --locked -p ritk-snap --lib --target wasm32-unknown-unknown --release

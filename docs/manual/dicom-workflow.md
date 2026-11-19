@@ -1,7 +1,7 @@
 # AsterSlice user manual
 
 Use AsterSlice to browse a study and measure or mark an image on Windows.
-The executable and Cargo package are named `ritk-snap`. The
+The executable is `asterslice`; its Cargo package is `ritk-snap`. The
 [feature comparison](features.md) covers the supplied RadiAnt 2021.2 manual,
 the current Windows controls, the tests, and the work needed for parity.
 The [developer reference](development.md) contains reproduction procedures

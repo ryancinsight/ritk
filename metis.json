@@ -1,16 +1,16 @@
 {
   "schema": 1,
   "id": "org.ritk.snap",
-  "name": "RITK SNAP",
+  "name": "AsterSlice",
   "version": "0.1.0",
   "manufacturer": "RITK",
   "upgrade_code": "{669EFDB7-4962-42C9-8F61-77418910C841}",
   "cargo_manifest": "Cargo.toml",
-  "entry": "ritk-snap",
+  "entry": "asterslice",
   "binaries": [
     {
       "package": "ritk-snap",
-      "bin": "ritk-snap"
+      "bin": "asterslice"
     }
   ],
   "resources": [],
