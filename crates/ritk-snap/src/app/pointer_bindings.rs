@@ -118,6 +118,13 @@ pub(crate) enum PolygonClick {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AnnotationMoveKind {
     Polygon { node_index: usize, inserted: bool },
+    Length(LengthMove),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LengthMove {
+    FirstEndpoint,
+    SecondEndpoint,
 }
 
 #[derive(Debug, Clone, PartialEq)]
