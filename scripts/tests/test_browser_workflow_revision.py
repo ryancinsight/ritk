@@ -124,6 +124,13 @@ class BrowserWorkflowRevisionTests(unittest.TestCase):
                     "python -m pip install -r scripts/requirements-test.txt",
                     workflow[setup:tests],
                 )
+                test_end = workflow.index("\n      - name:", tests + 1)
+                setup_condition = re.search(r"(?m)^        if: (.*)$", workflow[setup:tests])
+                test_condition = re.search(r"(?m)^        if: (.*)$", workflow[tests:test_end])
+                self.assertEqual(
+                    setup_condition.group(1) if setup_condition else None,
+                    test_condition.group(1) if test_condition else None,
+                )
 
     def test_lock_advance_alone_changes_selected_revision(self):
         for revision in ("1" * 40, "2" * 40):
