@@ -6,5 +6,4 @@
 - next: Move the load task out of the eframe gate.
 - basis: 30b8ba098
 - needs: none
-- milestone: M-viewer-compare
-- priority: tightening
+- priority: tightening; milestone: M-viewer-compare

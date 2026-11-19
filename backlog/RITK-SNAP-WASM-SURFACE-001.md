@@ -6,5 +6,4 @@
 - next: gate `SnapApp::show_overlay` and its default to Windows native or non-WASM eframe consumers, move the unchanged private orientation-label family into one host-gated leaf to Windows or `eframe-shell`, then run default WASM, native, and eframe checks.
 - basis: b2fe302b3659ec1dc69bba01849fab7f0e453d1c
 - needs: none
-- milestone: M-viewer-reading
-- priority: verification
+- priority: verification; milestone: M-viewer-reading

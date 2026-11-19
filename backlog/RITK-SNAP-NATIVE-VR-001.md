@@ -6,5 +6,4 @@
 - next: Add the native VR seam (`render_vr_axial_rgba_into` + `OrthogonalWithVr` mode) with pixel-parity tests.
 - basis: f7d05ac2f
 - needs: none
-- milestone: M-viewer-advanced
-- priority: feature
+- priority: feature; milestone: M-viewer-advanced

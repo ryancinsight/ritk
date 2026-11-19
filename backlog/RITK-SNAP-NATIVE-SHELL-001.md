@@ -6,5 +6,4 @@
 - next: Move the key table behind a binding map.
 - basis: 30b8ba098
 - needs: none
-- milestone: M-viewer-advanced
-- priority: feature
+- priority: feature; milestone: M-viewer-advanced
