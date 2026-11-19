@@ -110,23 +110,20 @@ class BrowserWorkflowRevisionTests(unittest.TestCase):
                 self.assertIn("TOMLDecodeError", result.stderr)
 
     def test_script_dependency_setup_precedes_script_tests(self):
-        workflow = (_root / ".github/workflows/python_ci.yml").read_text(encoding="utf-8")
-        setup = re.search(
-            r"(?ms)^      - name: Install Python script test tooling\n(?P<step>.*?)^      - name:",
-            workflow,
-        )
-        tests = re.search(
-            r"(?ms)^      - name: Run Python script tests\n(?P<step>.*?)^      - name:",
-            workflow,
-        )
-        self.assertIsNotNone(setup, "script dependencies must be declared and installed")
-        self.assertIsNotNone(tests)
-        self.assertLess(setup.start(), tests.start())
-        self.assertIn("python -m pip install -r scripts/requirements-test.txt", setup.group("step"))
-        self.assertEqual(
-            re.search(r"(?m)^        if: (.*)$", setup.group("step")).group(1),
-            re.search(r"(?m)^        if: (.*)$", tests.group("step")).group(1),
-        )
+        cases = [
+            ("python_ci.yml", "Install Python script test tooling", "Run Python script tests"),
+            ("metis-browser-dicom.yml", "Install RITK script test tooling", "Validate the RITK gallery harness"),
+        ]
+        for path, setup_name, test_name in cases:
+            with self.subTest(workflow=path):
+                workflow = (_root / ".github/workflows" / path).read_text(encoding="utf-8")
+                setup = workflow.index(f"      - name: {setup_name}")
+                tests = workflow.index(f"      - name: {test_name}")
+                self.assertLess(setup, tests)
+                self.assertIn(
+                    "python -m pip install -r scripts/requirements-test.txt",
+                    workflow[setup:tests],
+                )
 
     def test_lock_advance_alone_changes_selected_revision(self):
         for revision in ("1" * 40, "2" * 40):

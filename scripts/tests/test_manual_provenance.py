@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -85,3 +86,18 @@ class ManualImageProvenanceTests(unittest.TestCase):
                 self.assertEqual(len(image), frame["webp_bytes"])
                 self.assertLessEqual(len(image), 200_000)
                 self.assertEqual((frame["width_px"], frame["height_px"]), (1280, 800))
+
+    def test_current_windows_frames_match_explicit_capture(self):
+        capture_root = os.environ.get("RITK_MANUAL_CAPTURE_DIR")
+        if capture_root is None:
+            self.skipTest("pixel equality requires an explicit RITK_MANUAL_CAPTURE_DIR")
+        capture_root = Path(capture_root)
+        directory = ROOT / "docs/manual/images"
+        record = json.loads(
+            (directory / "dicom-native-annotations.json").read_text(encoding="utf-8")
+        )
+        for name, frame in record["frames"].items():
+            with self.subTest(image=name):
+                capture = capture_root / f"{Path(name).stem}.png"
+                self.assertEqual(decoded_rgba(capture)[0], (frame["width_px"], frame["height_px"]))
+                self.assertTrue(decoded_images_equal(capture, directory / name))

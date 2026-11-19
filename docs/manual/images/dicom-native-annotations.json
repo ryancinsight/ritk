@@ -7,6 +7,7 @@
   "cargo_lock_sha256": "f4beba06edbad2918accc9e936a2ff342a182078279768c5ab0f90ccc9a3e484",
   "capture": "Native Windows RITK client framebuffer",
   "command": "cargo nextest run --locked -p ritk-snap -E 'test(native_manual_annotation_frames)'",
+  "comparison_command": "Set RITK_MANUAL_CAPTURE_DIR to the fresh PNG directory, then run python -m unittest scripts.tests.test_manual_provenance",
   "comparison": {
     "method": "Pillow Image.convert('RGBA').tobytes() byte equality",
     "unchanged_frames": [
