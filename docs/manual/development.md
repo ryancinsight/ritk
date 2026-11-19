@@ -602,42 +602,23 @@ The supplied study must load and the PNG must save before success is reported.
 Native window images depend on the host renderer and fonts; the exact pixel
 goldens above remain the deterministic software-rendering check.
 
-### Capture the saved MRI in the eframe compatibility shell
+### Capture native study content
 
-Build the existing eframe-shell feature, then capture the full compatibility
-window from the public MRI fixture. Resolve the configured Cargo target
-directory instead of assuming a repository-local build cache:
+From the RITK repository root, build the current native viewer, resolve
+Cargo's configured target directory, and create the ignored `output/`
+run-output directory before running these commands:
 
 ~~~powershell
-cargo build --locked -p ritk-snap --features eframe-shell
+cargo build --locked -p ritk-snap --bin asterslice
 $target = (cargo metadata --locked --format-version 1 --no-deps |
   ConvertFrom-Json).target_directory
 $viewer = Join-Path $target 'debug\asterslice.exe'
 $captureRoot = Join-Path $PWD 'output\viewer'
 New-Item -ItemType Directory -Path $captureRoot -Force | Out-Null
-& $viewer test_data\2_head_mri_t2\DICOM --eframe `
-  --capture (Join-Path $captureRoot 'real-mri-eframe.png')
 ~~~
 
-The historical [eframe MRI figure](images/dicom-eframe-real-mri.webp)
-and its [resource record](images/dicom-eframe-real-mri-resource.json)
-retain their original executable, dimensions, and measurements. They do not
-establish current memory or latency, or a comparison with the native host.
-
-### Capture the matched eframe orthogonal surface
-
-The [matched orthogonal figure](images/dicom-eframe-orthogonal-surface.png)
-is a historical capture from the source revisions in its
-[resource record](images/dicom-eframe-orthogonal-surface-resource.json).
-The current CLI exposes the full eframe capture above; the historical
-shell-free presentation and viewport-size arguments are absent from its Args
-definition. Keep those historical measurements separate from current-host
-performance claims.
-
-### Capture native study content
-
-The same executable can capture native three-plane content, with or without
-the RITK application overlay:
+The viewer can capture native three-plane content, with or without the RITK
+application overlay:
 
 ~~~powershell
 & $viewer test_data\2_head_mri_t2\DICOM --metis-native `
