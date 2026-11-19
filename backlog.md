@@ -63,12 +63,9 @@
 <a id="RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001"></a>- [RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001](backlog/RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001.md) — Verify complete native gestures — blocked
 <a id="RITK-SNAP-OBLIQUE-MANUAL-001"></a>- [RITK-SNAP-OBLIQUE-MANUAL-001](backlog/RITK-SNAP-OBLIQUE-MANUAL-001.md) — Demonstrate oblique MPR in the user manual — blocked
 <a id="RITK-FORMAT-BULK-DECODE-001"></a>- [RITK-FORMAT-BULK-DECODE-001](backlog/RITK-FORMAT-BULK-DECODE-001.md) — Decode sample buffers through one bulk path — todo
-<a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>- [RITK-SNAP-INTERACTION-REGIONS-001](backlog/RITK-SNAP-INTERACTION-REGIONS-001.md) — Separate region interaction tests — todo
+<a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>- [RITK-SNAP-INTERACTION-REGIONS-001](backlog/RITK-SNAP-INTERACTION-REGIONS-001.md) — Separate interaction test families — todo
 <a id="RITK-GAP-2026-08-20-05"></a>- [RITK-GAP-2026-08-20-05](backlog/RITK-GAP-2026-08-20-05.md) — Derive test budgets and remove dead filters — todo
 <a id="RITK-GAP-2026-08-20-07"></a>- [RITK-GAP-2026-08-20-07](backlog/RITK-GAP-2026-08-20-07.md) — Restore the changelog version axis — todo
-<a id="RITK-SNAP-INTERACTION-MEASUREMENTS-001"></a>- [RITK-SNAP-INTERACTION-MEASUREMENTS-001](backlog/RITK-SNAP-INTERACTION-MEASUREMENTS-001.md) — Separate measurement tests — blocked
-<a id="RITK-SNAP-INTERACTION-STATE-001"></a>- [RITK-SNAP-INTERACTION-STATE-001](backlog/RITK-SNAP-INTERACTION-STATE-001.md) — Separate interaction state tests — blocked
-<a id="RITK-SNAP-INTERACTION-WINDOW-LEVEL-001"></a>- [RITK-SNAP-INTERACTION-WINDOW-LEVEL-001](backlog/RITK-SNAP-INTERACTION-WINDOW-LEVEL-001.md) — Separate window-level tests — blocked
 <a id="RITK-SNAP-OBLIQUE-APP-ADAPTER-001"></a>- [RITK-SNAP-OBLIQUE-APP-ADAPTER-001](backlog/RITK-SNAP-OBLIQUE-APP-ADAPTER-001.md) — Route oblique viewer actions — todo
 <a id="RITK-SNAP-RADIANT-UI-001"></a>- [RITK-SNAP-RADIANT-UI-001](backlog/RITK-SNAP-RADIANT-UI-001.md) — Organize a multi-series DICOM viewer workspace — todo
 <a id="RITK-SNAP-OBLIQUE-ROUTING-001"></a>- [RITK-SNAP-OBLIQUE-ROUTING-001](backlog/RITK-SNAP-OBLIQUE-ROUTING-001.md) — Route native oblique input — blocked
@@ -110,3 +107,8 @@
 <a id="RITK-SNAP-CUSTOM-WINDOW-001"></a>- [RITK-SNAP-CUSTOM-WINDOW-001](backlog/RITK-SNAP-CUSTOM-WINDOW-001.md) — Retain precise custom window settings — todo
 <a id="RITK-SNAP-LARGE-STUDY-001"></a>- [RITK-SNAP-LARGE-STUDY-001](backlog/RITK-SNAP-LARGE-STUDY-001.md) — Measure native study resource bounds — todo
 <a id="RITK-SNAP-NATIVE-DISPLAY-001"></a>- [RITK-SNAP-NATIVE-DISPLAY-001](backlog/RITK-SNAP-NATIVE-DISPLAY-001.md) — Finish native display actions — todo
+<a id="RITK-SNAP-NAVIGATION-UNITS-001"></a>- [RITK-SNAP-NAVIGATION-UNITS-001](backlog/RITK-SNAP-NAVIGATION-UNITS-001.md) — Keep navigation in display coordinates — todo
+<a id="RITK-SNAP-IMAGE-FIT-001"></a>- [RITK-SNAP-IMAGE-FIT-001](backlog/RITK-SNAP-IMAGE-FIT-001.md) — Share continuous sample-aspect fitting — todo
+<a id="RITK-SNAP-EFRAME-NAVIGATION-001"></a>- [RITK-SNAP-EFRAME-NAVIGATION-001](backlog/RITK-SNAP-EFRAME-NAVIGATION-001.md) — Paint pan and retain the press origin — todo
+<a id="RITK-SNAP-ARROW-PROPERTIES-001"></a>- [RITK-SNAP-ARROW-PROPERTIES-001](backlog/RITK-SNAP-ARROW-PROPERTIES-001.md) — Edit arrow text and appearance — todo
+<a id="RITK-SNAP-PRODUCT-BIN-001"></a>- [RITK-SNAP-PRODUCT-BIN-001](backlog/RITK-SNAP-PRODUCT-BIN-001.md) — Name the executable AsterSlice — todo
