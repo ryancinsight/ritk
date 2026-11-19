@@ -373,3 +373,26 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
         dir[(2, 2)]
     );
 }
+
+#[test]
+fn resampling_distinguishes_interpolated_planes_from_copied_edges() {
+    use super::super::geometry::resample_frames_with_provenance;
+    use crate::SliceProvenance::{Acquired, Copied, Interpolated};
+
+    let _trace = tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+            .with_test_writer()
+            .finish(),
+    );
+    let (frames, positions, mut provenance) = tracing::info_span!("arrange")
+        .in_scope(|| ([2.0, 5.0, 9.0], [0.0, 0.75, 1.75], Vec::new()));
+    let data = tracing::info_span!("act").in_scope(|| {
+        resample_frames_with_provenance(&frames, 1, &positions, 1.0, |source| {
+            provenance.push(source);
+        })
+    });
+    let _assert = tracing::info_span!("assert").entered();
+    assert_eq!(data, [2.0, 6.0, 9.0]);
+    assert_eq!(provenance, [Acquired, Interpolated, Copied]);
+}

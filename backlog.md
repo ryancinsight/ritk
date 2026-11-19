@@ -134,5 +134,7 @@
 - [x] [patch] Use the published Aequitas and Eunomia releases in RITK.
 - [x] [patch] Verify geometry-based interpolation of an interior Enhanced
   PET plane between complete concatenation members.
-- [ ] [minor] Expose reconstructed-plane provenance in the viewer so an
-  operator can distinguish sampled and interpolated planes.
+- [x] [minor] Label synthesized Enhanced PET planes on the storage-depth
+  view. Preserve each selected reconstruction's measured, interpolated,
+  and copied-edge provenance.
+- [ ] [patch] Adopt published Aequitas 0.5.0 after Gaia and Leto accept it.

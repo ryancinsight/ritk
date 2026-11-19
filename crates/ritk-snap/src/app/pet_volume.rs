@@ -119,10 +119,11 @@ mod tests {
             let mut app = SnapApp::default();
             let mut loaded = super::super::tests::test_volume([2, 1, 1]);
             let phase_data = Arc::new(vec![2.5, 7.5]);
-            let phase = |data| EnhancedPetVolume {
+            let phase = |data, slice_provenance| EnhancedPetVolume {
                 dimensions: Vec::new(),
                 data,
                 suv_bw: None,
+                slice_provenance,
                 shape: [2, 1, 1],
                 origin: Point::new(loaded.origin),
                 spacing: Spacing::new(loaded.spacing),
@@ -130,14 +131,24 @@ mod tests {
             };
             loaded.metadata = Some(Box::new(DicomReadMetadata {
                 enhanced_pet_selection: EnhancedPetSelection::new(vec![
-                    phase(Arc::clone(&loaded.data)),
-                    phase(Arc::clone(&phase_data)),
+                    phase(Arc::clone(&loaded.data), None),
+                    phase(
+                        Arc::clone(&phase_data),
+                        Some(vec![
+                            ritk_io::SliceProvenance::Acquired,
+                            ritk_io::SliceProvenance::Interpolated,
+                        ]),
+                    ),
                 ]),
                 ..DicomReadMetadata::default()
             }));
             app.load_volume(loaded, String::new());
             (app, phase_data)
         });
+        assert_eq!(
+            app.loaded.as_ref().unwrap().enhanced_pet_slice_label(0, 1),
+            None
+        );
         let original_revision = app.visual_revision;
         let cursor = app.viewer_state.slice_index;
         let selected = tracing::info_span!("act").in_scope(|| app.select_enhanced_pet_phase(1));
@@ -146,6 +157,12 @@ mod tests {
         let volume = app.loaded.as_ref().unwrap();
         assert!(Arc::ptr_eq(&volume.data, &phase_data));
         assert_eq!(volume.pixel_at(1, 0, 0), 7.5);
+        assert_eq!(
+            volume.enhanced_pet_slice_label(0, 1),
+            Some("Interpolated PET slice")
+        );
+        assert_eq!(volume.enhanced_pet_slice_label(0, 0), None);
+        assert_eq!(volume.enhanced_pet_slice_label(1, 1), None);
         assert_eq!(app.enhanced_pet_selection().unwrap().selected_index(), 1);
         assert_eq!(app.viewer_state.slice_index, cursor);
         assert!(app.visual_revision > original_revision);

@@ -66,6 +66,7 @@ pub use object_model::{
     is_private_tag, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
     DicomRetentionLoss, DicomRetentionReason, DicomSequenceItem, DicomTag, DicomValue,
 };
+pub use reader::geometry::SliceProvenance;
 pub use reader::{
     literal_arraystring, load_dicom_from_series, load_dicom_from_series_with_budget,
     load_dicom_series_stored, load_dicom_series_with_metadata,

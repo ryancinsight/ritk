@@ -134,5 +134,13 @@ with nominal 3 mm spacing. The plane at 10 mm carries the arithmetic mean
 of the adjacent display samples and the corresponding SUV.
 
 Missing SOP members or unavailable temporal gates remain input coverage
-errors when identified. Interpolated-plane provenance is available as
-geometry diagnostics. Exposing per-plane provenance in the viewer remains open.
+errors when identified. The decoder records the source of each resampled
+plane in the same branch that writes the output values. The viewer
+labels interpolation and copied edges on the depth view, using the
+currently selected gate. The decoded-byte budget includes provenance.
+The separate GPU rerun exercises the Metal projection paths on macOS.
+Windows-specific display-command coverage is separate from the macOS run.
+
+The reproducible lock selects published Eunomia and Eunomia Derive
+0.12.1. Leto and Gaia still exclude Aequitas 0.5.0 in public inputs.
+The manifest migration resolves a single 0.5.0 registry identity locally.

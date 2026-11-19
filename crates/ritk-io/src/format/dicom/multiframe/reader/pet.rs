@@ -19,6 +19,7 @@ use crate::format::dicom::{
         BodyWeightSuvVolume, EnhancedPetDimension,
     },
     reader::{scan_dicom_path_with_budget, DicomReadBudget, DicomSliceMetadata},
+    SliceProvenance,
 };
 
 /// One spatial volume in a temporal or gated Enhanced PET object.
@@ -30,6 +31,8 @@ pub struct EnhancedPetVolume {
     pub data: Arc<Vec<f32>>,
     /// Body-weight SUV aligned with the display voxel indices.
     pub suv_bw: Option<BodyWeightSuvVolume>,
+    /// Per-plane source for a resampled reconstruction.
+    pub slice_provenance: Option<Vec<SliceProvenance>>,
     /// Volume shape in depth, row, column order.
     pub shape: [usize; 3],
     /// Patient-space position of the first voxel, in millimetres.
@@ -225,6 +228,10 @@ fn decode_pet(
             .data
             .len()
             .checked_mul(2 * size_of::<f32>())
+            .and_then(|bytes| {
+                let planes = spatial.slice_provenance.as_ref().map_or(0, Vec::len);
+                bytes.checked_add(planes.checked_mul(size_of::<SliceProvenance>())?)
+            })
             .context("Enhanced PET decoded volume size overflows usize")?;
         remaining = remaining
             .checked_sub(bytes)
@@ -233,6 +240,7 @@ fn decode_pet(
             dimensions,
             data: Arc::new(spatial.data),
             suv_bw: spatial.suv_bw,
+            slice_provenance: spatial.slice_provenance,
             shape: spatial.shape,
             origin: spatial.origin,
             spacing: spatial.spacing,

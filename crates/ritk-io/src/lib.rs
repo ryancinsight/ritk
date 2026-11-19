@@ -89,5 +89,5 @@ pub use dispatch::{
 pub use format::dicom::{
     load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes,
     load_enhanced_pet_volumes_from_instances, EnhancedPetCoordinate, EnhancedPetDimension,
-    EnhancedPetSelection, EnhancedPetVolume,
+    EnhancedPetSelection, EnhancedPetVolume, SliceProvenance,
 };

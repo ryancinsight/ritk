@@ -1440,7 +1440,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2454,9 +2454,9 @@ checksum = "0b5343afd4a8365a643ac588dab4cf234a190c7f6c88c9f6dd6ffe00837661b7"
 
 [[package]]
 name = "eunomia"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed06ed5a98e33ab7e70cd371717d70a87b13a3fef566bfe6e947f62df0775352"
+checksum = "3555339ae7116eb610fafe44da23aedf0389b58d725d75a959fed659d010f0a7"
 dependencies = [
  "bytemuck",
  "eunomia-derive",
@@ -2467,9 +2467,9 @@ dependencies = [
 
 [[package]]
 name = "eunomia-derive"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5806836edadeaadb15655c7c831debf6750af746808a6c50f7969dc8c3ddd990"
+checksum = "3e01e52c26273b3cbd8f11b01c6220bb643c576943052fe48daf16ff4a69ca10"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7693,7 +7693,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand 2.5.0",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix 1.1.6",
  "windows-sys 0.61.2",
@@ -8725,7 +8725,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

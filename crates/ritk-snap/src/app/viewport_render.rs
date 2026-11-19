@@ -188,6 +188,15 @@ impl EguiApp {
 
         let (slice_idx, total) = self.axis_slice_info(axis);
         if !self.show_overlay {
+            let mut slice_label = format!("{}/{}", slice_idx + 1, total);
+            if let Some(label) = self
+                .loaded
+                .as_ref()
+                .and_then(|volume| volume.enhanced_pet_slice_label(axis, slice_idx))
+            {
+                slice_label.push('\n');
+                slice_label.push_str(label);
+            }
             OverlayRenderer::draw_text_anchored(
                 &painter,
                 response.rect,
@@ -199,7 +208,7 @@ impl EguiApp {
                 &painter,
                 response.rect,
                 egui::Align2::RIGHT_TOP,
-                &format!("{}/{}", slice_idx + 1, total),
+                &slice_label,
                 OVERLAY_LABEL_COLOR,
             );
         }

@@ -48,7 +48,10 @@ pub(crate) fn application_overlay(
             radius: CornerRadius::SQUARE,
             color: OVERLAY_BACKGROUND,
         });
-        let title = format!("METIS  RITK-SNAP  {}", view.plane_name);
+        let title = match view.slice_label {
+            Some(label) => format!("{}  {label}", view.plane_name),
+            None => format!("METIS  RITK-SNAP  {}", view.plane_name),
+        };
         overlay.push(text_command(
             title,
             panel_x + OVERLAY_MARGIN,

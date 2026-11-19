@@ -19,7 +19,9 @@ use std::path::Path;
 use super::super::enhanced_pet::BodyWeightSuvVolume;
 use super::super::temporal::reject_temporal_organization;
 use super::frame_source::{FrameAddress, FrameSource};
-use crate::format::dicom::reader::geometry::{SliceCoverage, SpacingUniformity};
+use crate::format::dicom::reader::geometry::{
+    resample_frames_with_provenance, SliceCoverage, SliceProvenance, SpacingUniformity,
+};
 use crate::format::dicom::reader::DicomReadBudget;
 /// Substrate-agnostic decoded multi-frame volume: a flat row-major `f32` buffer
 /// in `[frames, rows, cols]` order plus the resolved spatial metadata.
@@ -35,6 +37,8 @@ pub struct MultiFrameVolume {
     pub data: Vec<f32>,
     /// Enhanced PET body-weight SUV samples when quantitative mappings are present.
     pub suv_bw: Option<BodyWeightSuvVolume>,
+    /// Per-plane source for a resampled reconstruction. Absent for acquired-only stacks.
+    pub slice_provenance: Option<Vec<SliceProvenance>>,
     /// Volume shape `[frames, rows, cols]` after any gap/nonuniform resampling.
     pub shape: [usize; 3],
     /// Physical coordinate of the first voxel.
@@ -200,6 +204,7 @@ pub(super) fn decode_spatial_frames(
     // image_position. Compute per-adjacent-pair distances projected onto the
     // shared slice normal NÌ‚ = normalize(row × col). Use the median as nominal
     // spacing; warn and resample when nonuniform or missing frames are detected.
+    let mut slice_provenance = None;
     let (final_floats, final_n, spacing_z) = 'geometry: {
         if actual_n < 2 || sources.iter().all(|source| source.geometry.is_empty()) {
             // Fewer than 2 per-frame positions: cannot derive inter-frame spacing.
@@ -278,16 +283,22 @@ pub(super) fn decode_spatial_frames(
                 .checked_mul(frame_pixels)
                 .and_then(|count| count.checked_mul(std::mem::size_of::<f32>()))
                 .and_then(|count| count.checked_mul(if suv.is_some() { 2 } else { 1 }))
+                .and_then(|count| {
+                    count.checked_add(new_n.checked_mul(size_of::<SliceProvenance>())?)
+                })
                 .context("DICOM multiframe resampling byte count overflows usize")?;
             budget
                 .checked_decoded_bytes(resampled_bytes)
                 .context("DICOM multiframe resampled volume exceeds budget")?;
-            let new_floats = crate::format::dicom::reader::resample_frames_linear(
+            let mut provenance = Vec::with_capacity(new_n);
+            let new_floats = resample_frames_with_provenance(
                 &floats,
                 frame_pixels,
                 &src_positions,
                 report.nominal_spacing,
+                |source| provenance.push(source),
             );
+            slice_provenance = Some(provenance);
             if let Some(samples) = suv.take() {
                 suv = Some(crate::format::dicom::reader::resample_frames_linear(
                     &samples,
@@ -325,6 +336,7 @@ pub(super) fn decode_spatial_frames(
     Ok(MultiFrameVolume {
         data: final_floats,
         suv_bw: suv.and_then(BodyWeightSuvVolume::new),
+        slice_provenance,
         shape: [final_n, info.rows, info.cols],
         origin: Point::new(origin),
         spacing,

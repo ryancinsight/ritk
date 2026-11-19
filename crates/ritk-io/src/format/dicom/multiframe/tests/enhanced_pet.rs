@@ -344,6 +344,11 @@ fn enhanced_pet_interpolates_a_spatial_gap_between_complete_members() {
     assert_eq!(volume.origin.to_array(), [0.0, 0.0, 4.0]);
     assert_eq!(volume.spacing.to_array(), [3.0, 2.0, 2.0]);
     assert_eq!(volume.data.as_slice(), &[1.0, 2.0, 2.5, 3.0, 4.0]);
+    use crate::SliceProvenance::{Acquired, Interpolated};
+    assert_eq!(
+        volume.slice_provenance.as_deref(),
+        Some([Acquired, Acquired, Interpolated, Acquired, Acquired].as_slice())
+    );
     let suv = volume.suv_bw.as_ref().unwrap();
     assert_eq!(
         [0, 1, 2, 3, 4].map(|index| suv.at(index).unwrap().in_unit::<GramPerCubicCentimeter>()),

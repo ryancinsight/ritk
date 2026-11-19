@@ -67,6 +67,23 @@ impl LoadedVolume {
         Some(())
     }
 
+    /// Label a reconstructed plane on the original DICOM stack axis.
+    #[must_use]
+    pub fn enhanced_pet_slice_label(&self, axis: usize, slice: usize) -> Option<&'static str> {
+        use ritk_io::SliceProvenance;
+
+        if axis != 0 {
+            return None;
+        }
+        let selection = self.metadata.as_ref()?.enhanced_pet_selection.as_ref()?;
+        let volume = selection.volumes().get(selection.selected_index())?;
+        match volume.slice_provenance.as_ref()?.get(slice)? {
+            SliceProvenance::Acquired => None,
+            SliceProvenance::Interpolated => Some("Interpolated PET slice"),
+            SliceProvenance::Copied => Some("Copied PET slice"),
+        }
+    }
+
     /// Read an Enhanced PET quantitative voxel in grams per millilitre.
     #[must_use]
     pub fn enhanced_pet_suv_at(&self, [depth, row, col]: [usize; 3]) -> Option<f64> {

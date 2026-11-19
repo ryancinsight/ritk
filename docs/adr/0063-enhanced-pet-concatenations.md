@@ -35,3 +35,18 @@ four-frame members, including voxel values, SUV, and patient geometry.
 
 [groups]: https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.6.16.html
 [dimensions]: https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.6.17.html
+
+## Slice provenance after spatial reconstruction
+
+Store the interpolation decision per target plane when resampling occurs.
+The exact acquired position, a linear combination of neighboring
+positions, and a copy from another position are separate cases. A
+complete regular stack needs no additional allocation. Account for
+provenance in the per-volume and aggregate decoded-byte limits. The
+display and SUV buffers share the same target positions. Provenance is
+independent of the pixel values and follows the selected reconstruction
+when temporal or respiratory gates change.
+
+Show the flag on the storage-depth view, where a displayed slice
+corresponds to one reconstructed plane. An orthogonal reformatted slice
+can contain several such planes.

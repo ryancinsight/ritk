@@ -20,6 +20,11 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+- Label interpolated Enhanced PET slices and planes copied to a different
+  position in the viewer. Each temporal and gated reconstruction carries
+  its own plane provenance.
+- Advance the published Eunomia and derive lock to 0.12.1.
+
 ### Fixed
 
 - Verify linear geometry-based resampling of an Enhanced PET slice gap
