@@ -61,6 +61,10 @@ metis-ui-lang = { workspace = true }
 wgpu = { workspace = true }
 pollster = { workspace = true }
 
+# Select the native Metal backend for Apple viewer builds.
+[target.'cfg(target_vendor = "apple")'.dependencies]
+wgpu = { workspace = true, features = ["metal"] }
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }

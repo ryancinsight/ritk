@@ -1,8 +1,9 @@
 use super::*;
 use crate::render::SliceRenderer;
+use aequitas::systems::si::quantities::{Mass, Time};
 use egui::Color32;
 use iris::color::{ColorMap, Normalized};
-use ritk_io::{literal_arraystring, DicomReadMetadata};
+use ritk_io::{literal_arraystring, DicomReadMetadata, Radioactivity};
 
 fn rgb8(map: NamedColorMap, value: f32) -> [u8; 3] {
     let value = Normalized::new(value).expect("test value is normalized");
@@ -118,9 +119,9 @@ fn pet_secondary_is_windowed_in_suv_units() {
         (injected_dose_bq / (patient_weight_kg * 1_000.0)) as f32,
     ]);
     pet.modality = Some(literal_arraystring::<16>("PT"));
-    pet.patient_weight_kg = Some(patient_weight_kg);
-    pet.injected_dose_bq = Some(injected_dose_bq);
-    pet.radionuclide_half_life_s = Some(6_586.2);
+    pet.patient_weight_kg = Some(Mass::from_base(patient_weight_kg));
+    pet.injected_dose_bq = Radioactivity::from_becquerels(injected_dose_bq);
+    pet.radionuclide_half_life_s = Some(Time::from_base(6_586.2));
     pet.decay_correction = Some(literal_arraystring::<16>("START"));
 
     let fused = render_fused_slice(
@@ -161,9 +162,9 @@ fn non_pet_secondary_with_pet_fields_uses_raw_window_units() {
     let raw_bqml = (injected_dose_bq / (patient_weight_kg * 1_000.0)) as f32;
     secondary.data = std::sync::Arc::new(vec![raw_bqml]);
     secondary.modality = Some(literal_arraystring::<16>("CT"));
-    secondary.patient_weight_kg = Some(patient_weight_kg);
-    secondary.injected_dose_bq = Some(injected_dose_bq);
-    secondary.radionuclide_half_life_s = Some(6_586.2);
+    secondary.patient_weight_kg = Some(Mass::from_base(patient_weight_kg));
+    secondary.injected_dose_bq = Radioactivity::from_becquerels(injected_dose_bq);
+    secondary.radionuclide_half_life_s = Some(Time::from_base(6_586.2));
     secondary.decay_correction = Some(literal_arraystring::<16>("START"));
 
     let fused = render_fused_slice(

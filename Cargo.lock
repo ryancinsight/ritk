@@ -8650,6 +8650,7 @@ dependencies = [
  "arrayvec",
  "ash",
  "bitflags 2.13.2",
+ "block",
  "cfg_aliases 0.1.1",
  "core-graphics-types",
  "glow",
