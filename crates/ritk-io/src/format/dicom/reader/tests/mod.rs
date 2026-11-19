@@ -11,5 +11,5 @@ mod scan_metadata;
 mod scan_policy;
 mod selection;
 mod stored;
-mod support;
+pub(super) mod support;
 mod write_roundtrip;

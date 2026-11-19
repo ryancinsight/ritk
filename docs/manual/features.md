@@ -11,6 +11,12 @@ Use the [user guide](dicom-workflow.md) for instructions and the
 
 ## Reading and annotations
 
+The [source geometry tests](../../crates/ritk-io/src/format/dicom/reader/parse/geometry_tests.rs)
+check exact component counts, finite values, and unchanged anisotropic spacing
+through metadata extraction and Part-10 file scanning. These reader checks do
+not establish physical units for missing spacing or certify reconstructed planes;
+the [measurement-unit work](../../backlog/RITK-SNAP-MEASUREMENT-UNITS-001.md) remains open.
+
 | RadiAnt capability and PDF pages | Current Windows behavior | Test coverage and remaining work |
 | --- | --- | --- |
 | Open folders and choose a series, 43–46 | Folder picker and startup path/series selection | [Catalog tests](../../crates/ritk-snap/src/presentation/native_session/tests/series_browser/catalog.rs) assert selected series and pixels. File-picker, ZIP, and drop workflows remain [opening work](../../backlog/RITK-SNAP-NATIVE-OPEN-001.md). |

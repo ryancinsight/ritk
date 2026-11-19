@@ -152,6 +152,11 @@ Patient-space lengths, deviation, polygon values, and ROI areas retain their
 image-spacing values. Inch/French-size input and source-specific calibration
 colors remain [calibration work](features.md#reading-and-annotations).
 
+Measurements currently require reliable image spacing. Missing or unusable
+DICOM spacing does not yet switch the displayed units to pixels; a millimetre
+suffix alone does not establish physical scale. See the
+[measurement-unit limitation](../../backlog/RITK-SNAP-MEASUREMENT-UNITS-001.md).
+
 ### Measure an angle or a region of interest
 
 1. Choose **Tools → Angle** or press **A**. Click a point on the first arm,
