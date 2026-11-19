@@ -1,97 +1,109 @@
-# ADR 0028: Source picking and display navigation
+# ADR 0028: Transformed viewport coordinate fidelity
 
 Status: Accepted
 
-Revision: 2026-11-18 — separate source-image picking from host navigation
-because inverse-image deltas change pan distance and drag sensitivity.
+Date: 2026-09-09
 
-Delivery: [navigation correction](https://github.com/ryancinsight/ritk/pull/991).
+Revision: 2026-11-18 — separate source picking from display-space pan.
+
+Delivery: [pan correction](https://github.com/ryancinsight/ritk/pull/992).
 
 ## Context
 
-RITK transforms a source slice through flips and quarter turns before display.
-Picking and annotations must follow that transform. Navigation instead acts
-on the displayed image: a pan must follow the pointer regardless of image
-fit, physical sample spacing, zoom, or orientation.
+`ritk-snap` renders each source slice through a discrete flip/rotation
+transform before it reaches the viewport texture. Cursor hit testing,
+crosshairs, measurements, orientation labels, and RT overlays previously used
+the untransformed source rectangle. A rotated or mirrored image could therefore
+show a valid pixel while reporting a cursor, annotation, or anatomical edge at
+the wrong location.
 
-The prior navigation path reused the inverse image mapping. For a 100-pixel
-image fitted to 200 display pixels, a 24-pixel pointer displacement became
-12 image pixels, then a 12-pixel screen pan. At a quarter turn, the same
-inverse also exchanged the drag axes. These are unit mismatches, distinct
-from event batching or image-space measurement accuracy.
+Physical annotation values are stored in `f32` fields for the existing viewer
+serialization contract, while volume spacing is admitted as `f64`. Narrowing a
+finite spacing can produce zero or infinity, and derived lengths or ROI areas
+can overflow. Displaying those results would silently change the measurement's
+meaning.
 
 ## Decision
 
-`ViewTransform` owns continuous source/output edge maps. A source image of
-size `[width,height]` occupies `[0,width] × [0,height]`; flips precede the
-clockwise rotation, and quarter turns exchange output dimensions. Picking
-uses the orientation inverse; annotations, crosshairs, clinical directions,
-and RT overlays use the forward map. Persisted measurements remain in source
-or patient coordinates, never host coordinates.
+`ViewTransform` is the single source of truth for source/display mapping. It
+exposes continuous edge-coordinate forward and inverse maps in addition to the
+pixel transform. A source slice of size `[width, height]` occupies the edge
+domain `[0,width] × [0,height]`; flips are applied before the clockwise
+rotation, and quarter turns swap the output dimensions. Pixel centres therefore
+map without a half-pixel offset.
 
-Navigation has a separate explicit coordinate basis on `ViewerViewport`.
-Native Windows coordinates are client pixels; eframe coordinates are logical
-display points. Both use one navigation unit per host coordinate. Browser
-events are normalized fractions and use captured backing-raster dimensions
-per fraction, as specified by [ADR 0043](0043-browser-viewport-transform.md).
-The basis is independent of texel size, spacing, orientation, zoom, and pan.
+Source picking maps screen coordinates to output edge coordinates and
+then through `output_to_source` before converting to source voxels. Crosshairs,
+measurement annotations, label painting, RT-STRUCT contours, RT-DOSE cells,
+and orientation labels project source coordinates through `source_to_output`.
+The same transformed output dimensions and physical sampling distances drive
+fit layout and hit testing, so the displayed image and its interaction
+rectangle cannot diverge.
 
-On a navigation press over the image, RITK constructs a Métis
-`metis_core::input::PointerDrag` from the raw host position and the validated
-basis. Its displacement is `(current - origin) * units_per_coordinate`.
-The origin and scales remain fixed for the gesture. Native resize or browser
-frame replacement therefore cannot reinterpret an active anchor. Image tools
-retain bounded source-image mapping; captured navigation can leave the image.
+All physical measurement entry points validate positive finite spacing and its
+`f32` representation. Checked length and ROI constructors reject non-finite
+derived values with `MeasurementError`; pointer handlers surface a status and
+do not append an invalid annotation. The older unchecked calculation methods
+remain the arithmetic primitives used by callers that already own a validated
+contract.
 
-Métis owns finite coordinate/scale admission and displacement mechanics.
-RITK owns pan, zoom, window/level sensitivity, source ownership, calibration,
-and measurement values. No DICOM type or policy moves into Métis.
+## Display-space pan
 
-Navigation variants of public `ToolState` contain the captured drag rather
-than an `ImagePoint` start. The public `pan_from_drag_delta` helper is removed;
-all callers migrate together. The [migration guide](../migration_selected_dicom.md)
-records this unreleased breaking change without a forwarding API or a release.
+RITK supplies an explicit navigation basis independent of image spacing,
+fit, zoom, pan, and orientation. Native Windows uses client pixels; eframe
+uses logical display points. Browser fractions use backing-frame dimensions
+per fraction, captured at press, as specified in
+[ADR 0043](0043-browser-viewport-transform.md).
 
-## Numeric and failure contract
+Métis `metis_core::input::PointerDrag` captures finite host origin `p` and
+positive finite scales `s`. It computes `(current - p) * s` on each axis and
+rejects nonfinite input, subtraction, or product. RITK depends directly on
+`metis-core`; measurements, calibration, window policy, and slice state stay
+in RITK. Navigation starts over the image and may leave its bounds while
+captured. Annotation picking retains the bounded source mapping above.
 
-Coordinate arithmetic stays in the host protocol's `f64`; RITK validates its
-`f32` representation before crossing into the existing pan/zoom state.
-Pan and zoom arithmetic remains `f32`; window/level retains its existing
-`f64` formula and checked final narrowing. A candidate update validates every
-component and final value before assigning any field.
+Public `ToolState::Panning` stores the captured drag instead of an
+`ImagePoint` start; `pan_from_drag_delta` is removed with all callers migrated.
+The [migration guide](../migration_selected_dicom.md) covers this unreleased
+API break. No persisted session coordinate changes.
 
-An unrepresentable navigation update produces a visible status and tracing
-diagnostic. It preserves the last valid display values and original anchor,
-then allows later safe movement, cancellation, and release. Earlier valid
-updates in the same batch remain applied. The malformed-event and wheel
-preflight guarantees in [ADR 0026](0026-viewer-presentation-migration.md)
-remain unchanged; this decision does not introduce a UI transaction framework.
+RITK checks displacement at its `f32` boundary and adds to the original pan
+in `f32`. Both candidate components must be finite before either is assigned.
+An invalid update reports status/tracing, retains the last valid pan and
+original anchor, and permits subsequent safe updates and release. Earlier
+valid updates remain applied. Malformed dispatcher/wheel preflight remains
+the [ADR 0026](0026-viewer-presentation-migration.md) contract; this decision
+does not promise rollback of every UI action.
 
-Physical measurement admission continues to reject nonpositive, nonfinite,
-or unrepresentable spacing and nonfinite derived values through typed errors.
+Native rendered origins must follow raw `[24,-12]` pixels at fits 0.5, 1,
+and 2 under all flip/rotation combinations. Split/combined batches agree.
+Invalid-then-valid and release cases check continued ownership; independent
+measurement cases retain source/slice/calibration semantics. Zoom/window drag
+sensitivity and eframe pan painting retain their separately tracked limits.
 
-## Rejected alternatives
+## Alternatives
 
-An inverse-image navigation anchor remains dependent on fit and orientation.
-A live recomputed display basis changes gesture meaning during resize.
-Storing host positions in measurements makes persisted geometry depend on
-window layout and DPI. A sibling re-export of the Métis input value obscures
-dependency ownership; RITK depends directly on `metis-core`.
-Rolling back every earlier UI action exceeds the existing input contract and
-would require ownership of irreversible dialog and operating-system effects.
+Keeping separate transform formulas in each overlay is rejected because every
+new orientation would need several synchronized changes and a missed path
+would create a clinically misleading display. Storing screen coordinates in
+annotations is rejected because screen layout, zoom, and host DPI are
+presentation state; source voxel coordinates remain stable persisted data.
+Clamping invalid physical values to zero or a finite fallback is rejected
+because it hides a malformed or unrepresentable measurement.
 
-## Regression oracles
+## Verification
 
-Native rendered image origins follow raw `[24,-12]` pixel movement at fits
-0.5, 1, and 2 under all flip/rotation combinations. Vertical 24-pixel movement
-from zoom 1 yields 0.76; horizontal movement leaves zoom unchanged.
-Window center/width 40/400 with displacement `[24,-12]` and sensitivity 4
-yields 88/496. Assertions use these display values rather than inverse-image
-helpers. Browser nonidentity tests follow ADR 0043.
+The transform suite checks continuous round trips and pixel-centre agreement
+for all 16 flip/rotation combinations. The linked-cursor suite drives the
+application pointer update path from projected crosshairs on all three axes
+and every transform, then asserts the original voxel. Orientation-label tests
+assert transformed edge slots. Measurement tests reject zero, non-finite,
+unrepresentable spacing and non-finite derived values. Existing physical-aspect
+and deterministic DICOM workflow captures remain the visual baseline; the
+manual documents the transform controls and the source/display coordinate
+contract.
 
-Split and combined event batches agree. Invalid updates preserve both fields
-of a pan/window pair; subsequent safe movement and release remain usable.
-Source picking, calibration, slice ownership, focus/capture loss, modifier
-overrides, and suspended measurements retain their independent regression
-cases. The separate eframe painting and true-press-origin change additionally
-checks image/annotation/crosshair translation and picking within a fixed clip.
+## Revision history
+
+- 2026-09-09: Initial decision and implementation for
+  RITK-SNAP-COORDINATES-001.
