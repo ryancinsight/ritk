@@ -73,3 +73,11 @@
 Series and slice geometry and PET activity now have dimensional storage. The
 viewer gates SUV calculation on classic PET activity-concentration pixels.
 Enhanced PET real-world pixel mapping and compound time metadata remain open.
+
+## Enhanced PET quantitative voxels [major]
+
+The spatial multi-frame reader applies frame-scoped real-world mappings,
+retains diagnostic values separately, and routes body-weight SUV to the
+pointer, linked cursor, and fusion. The native Metal suite exercises the
+viewer alongside the Part 10 quantification regression. Time-resolved
+multi-volume organization is a separate reader contract.

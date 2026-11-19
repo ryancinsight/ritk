@@ -57,6 +57,8 @@
 //!   Reference modules required for Enhanced Multi-Frame objects.
 
 mod bytes;
+mod enhanced_pet;
+pub use enhanced_pet::BodyWeightSuvVolume;
 mod per_frame;
 mod reader;
 mod temporal;

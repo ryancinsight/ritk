@@ -42,6 +42,7 @@ pub use color_multiframe::{
 };
 pub use export_tree::ExportTreeError;
 pub use inventory::dicom_metadata_losses;
+pub use multiframe::BodyWeightSuvVolume;
 pub use multiframe::{
     load_dicom_multiframe, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
     load_dicom_multiframe_flat_from_bytes_with_budget, load_dicom_multiframe_native,

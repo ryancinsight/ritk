@@ -407,6 +407,7 @@ fn native_color_from_series_preserves_values_and_metadata() {
         private_tags: Default::default(),
         preservation: Default::default(),
         patient_weight_kg: None,
+        enhanced_pet_suv: None,
         pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,

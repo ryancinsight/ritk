@@ -24,7 +24,7 @@ mod geometry;
 mod validate;
 
 pub use errors::FusionError;
-use geometry::{nearest_secondary_pixel, slice_center_voxel, voxel_for_slice};
+use geometry::{nearest_secondary_voxel, slice_center_voxel, voxel_for_slice};
 use validate::{
     index_tolerance, validate_axis, validate_frame_of_reference, validate_parallel_planes,
     validate_secondary_plane_coordinate, validate_selection, validate_volume,
@@ -128,19 +128,29 @@ pub fn render_fused_slice(
                 return Err(FusionError::PlaneMismatch);
             }
 
-            let p = primary_value_transform.apply(primary_pixels[row * width + col]);
-            let s = nearest_secondary_pixel(
+            let p = primary_value_transform.apply(
+                primary.volume,
+                primary_voxel.map(|coordinate| coordinate as usize),
+                primary_pixels[row * width + col],
+            );
+            let s = nearest_secondary_voxel(
                 secondary.volume,
                 secondary_voxel,
                 secondary.axis,
                 secondary.slice,
             )
-            .map(|value| secondary_value_transform.apply(value));
+            .and_then(|voxel @ [z, y, x]| {
+                secondary_value_transform.apply(
+                    secondary.volume,
+                    voxel,
+                    secondary.volume.pixel_at(z, y, x),
+                )
+            });
             let p_rgb = primary
                 .colormap
-                .sample(Normalized::from_u8(
-                    primary_presentation.apply(primary.wl, p),
-                ))
+                .sample(Normalized::from_u8(p.map_or(0, |value| {
+                    primary_presentation.apply(primary.wl, value)
+                })))
                 .to_rgba8();
             let s_rgb = s.map_or([0, 0, 0, 0], |value| {
                 secondary
@@ -231,11 +241,20 @@ impl DisplayValueTransform {
     }
 
     #[inline]
-    fn apply(self, pixel: f32) -> f64 {
+    fn apply(self, volume: &LoadedVolume, voxel: [usize; 3], pixel: f32) -> Option<f64> {
+        if volume
+            .metadata
+            .as_ref()
+            .is_some_and(|meta| meta.enhanced_pet_suv.is_some())
+        {
+            return volume.enhanced_pet_suv_at(voxel);
+        }
         let raw = f64::from(pixel);
-        self.pet
-            .map(|pet| pet.pixel_to_suvbw(raw, self.delta_t_s))
-            .unwrap_or(raw)
+        Some(
+            self.pet
+                .map(|pet| pet.pixel_to_suvbw(raw, self.delta_t_s))
+                .unwrap_or(raw),
+        )
     }
 }
 

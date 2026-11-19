@@ -217,7 +217,7 @@ pub(in crate::format::dicom) fn resample_frames_linear(
             let lo = idx - 1;
             let hi = idx;
             let gap = src_positions[hi] - src_positions[lo];
-            if gap < 1e-10 {
+            if gap < 1e-10 || target_pos == src_positions[lo] {
                 dest.copy_from_slice(frame_at(lo));
             } else {
                 let t = ((target_pos - src_positions[lo]) / gap) as f32;

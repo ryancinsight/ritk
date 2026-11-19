@@ -22,6 +22,10 @@
 
 ### Breaking
 
+- Enhanced PET multi-frame decode can return a typed SUVbw volume. The native
+  viewer uses calibrated voxels for the pointer, linked cursor, and fusion.
+  Diagnostic rescale and quantitative mapping use independent pixel paths.
+
 - [major] In ritk-io 0.6.0, DICOM series and slice geometry carry Aequitas
   quantities. Use millimetre and degree accessors at DICOM and image boundaries.
   PET metadata carries mass, radionuclide activity and half-life.

@@ -5,8 +5,8 @@
 //! logic — they are the typed output of the read path.
 
 use aequitas::systems::si::{
-    quantities::{Angle, Length, Mass, ReciprocalTime, Time},
-    units::{Degree, Millimeter},
+    quantities::{Activity, Angle, Length, Mass, Time},
+    units::{Becquerel, Degree, Millimeter},
 };
 use arrayvec::ArrayString;
 use std::collections::HashMap;
@@ -196,19 +196,25 @@ pub(super) fn parse_patient_position(code: &str) -> Option<PatientPosition> {
 /// Radionuclide activity, measured in decays per second.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(transparent)]
-pub struct Radioactivity(ReciprocalTime);
+pub struct Radioactivity(Activity);
 
 impl Radioactivity {
     /// Create a finite, positive activity from a value expressed in becquerels.
     #[must_use]
     pub fn from_becquerels(value: f64) -> Option<Self> {
-        (value.is_finite() && value > 0.0).then_some(Self(ReciprocalTime::from_base(value)))
+        Self::from_activity(Activity::from_unit::<Becquerel>(value))
+    }
+
+    /// Accept a finite, positive radionuclide activity.
+    #[must_use]
+    pub fn from_activity(value: Activity) -> Option<Self> {
+        (value.as_base().is_finite() && *value.as_base() > 0.0).then_some(Self(value))
     }
 
     /// Return the activity in becquerels.
     #[must_use]
     pub fn becquerels(self) -> f64 {
-        self.0.into_base()
+        self.0.in_unit::<Becquerel>()
     }
 }
 
@@ -245,6 +251,8 @@ pub struct DicomReadMetadata {
     pub photometric_interpretation: Option<ArrayString<16>>,
     pub slices: Vec<DicomSliceMetadata>,
     pub private_tags: HashMap<String, String>,
+    /// Quantity-mapped Enhanced PET samples aligned with the decoded viewer volume.
+    pub enhanced_pet_suv: Option<crate::BodyWeightSuvVolume>,
     pub preservation: DicomPreservationSet,
     /// (0010,1030) Patient Weight \[kg\].
     pub patient_weight_kg: Option<Mass>,
@@ -453,6 +461,7 @@ pub(super) fn assemble_metadata(
             // keeps an exact frame scope; see `inventory::dicom_metadata_losses`.
             losses: Vec::new(),
         },
+        enhanced_pet_suv: None,
         patient_weight_kg: first.patient_weight_kg,
         decay_correction: first.decay_correction,
         pet_pixels_in_bq_per_ml: first.pet_pixels_in_bq_per_ml.unwrap_or(false),

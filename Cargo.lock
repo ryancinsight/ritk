@@ -150,7 +150,7 @@ dependencies = [
 [[package]]
 name = "aequitas"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/aequitas#113b0bb5f87ec4133a1906f576de17453798dd0c"
+source = "git+https://github.com/ryancinsight/aequitas#aa22d5f30f21cf6d2402a558a4e9cfa0b4b1cb15"
 dependencies = [
  "eunomia",
  "typenum",
@@ -6437,6 +6437,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tiff",
  "tracing",
+ "tracing-subscriber",
  "zune-core 0.4.12",
  "zune-jpegxl 0.4.0",
 ]

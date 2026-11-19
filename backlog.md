@@ -122,3 +122,6 @@
 
 - [x] [major] Carry typed DICOM geometry and isotope activity into the viewer.
   Validate file round trips, isotope units by SOP class, and SUV pixel units.
+
+- [x] [major] Quantify Enhanced PET spatial voxels using the declared real-world
+  mapping and frame-appropriate isotope activity.

@@ -2,8 +2,8 @@
 
 use super::types::Radioactivity;
 use aequitas::systems::si::{
-    quantities::{Angle, Length, Mass, Time},
-    units::{Degree, Millimeter},
+    quantities::{Activity, Angle, Length, Mass, Time},
+    units::{Becquerel, Degree, Megabecquerel, Millimeter},
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -399,12 +399,15 @@ fn positive_decimal(value: &str) -> Option<f64> {
 
 fn radionuclide_activity(sop_class: &str, value: &str) -> Option<Radioactivity> {
     // PS3.3 C.8.9.2 uses Bq, and C.8.4.10 and C.8.22.4 use MBq.
-    let scale = match sop_class {
-        uids::POSITRON_EMISSION_TOMOGRAPHY_IMAGE_STORAGE => 1.0,
-        uids::ENHANCED_PET_IMAGE_STORAGE | uids::NUCLEAR_MEDICINE_IMAGE_STORAGE => 1_000_000.0,
+    let value = positive_decimal(value)?;
+    let activity = match sop_class {
+        uids::POSITRON_EMISSION_TOMOGRAPHY_IMAGE_STORAGE => Activity::from_unit::<Becquerel>(value),
+        uids::ENHANCED_PET_IMAGE_STORAGE | uids::NUCLEAR_MEDICINE_IMAGE_STORAGE => {
+            Activity::from_unit::<Megabecquerel>(value)
+        }
         _ => return None,
     };
-    Radioactivity::from_becquerels(positive_decimal(value)? * scale)
+    Radioactivity::from_activity(activity)
 }
 
 #[cfg(test)]

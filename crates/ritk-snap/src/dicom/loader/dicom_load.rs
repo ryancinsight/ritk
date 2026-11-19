@@ -32,7 +32,7 @@ const SERIES_PREVIEW_DECODED_BYTE_BUDGET: usize = 64 * 1024 * 1024;
 pub fn load_volume_from_scanned_series(
     series: ritk_io::ScannedDicomSeries,
 ) -> Result<LoadedVolume> {
-    if multiframe_count_for_series(&series)?.is_some() {
+    if multiframe_count_for_series(&series)?.is_some() || is_enhanced_pet(&series) {
         return load_dicom_multiframe_volume_from_scanned_series(series);
     }
 
@@ -68,6 +68,15 @@ pub(crate) fn load_volume_from_dicom_instance(path: &Path) -> Result<LoadedVolum
 /// Part-10 bytes whenever available. The scanner's retained payload is the
 /// same object whose metadata was validated, so frame admission cannot drift
 /// from the subsequent decode.
+fn is_enhanced_pet(series: &ritk_io::ScannedDicomSeries) -> bool {
+    series
+        .metadata
+        .slices
+        .first()
+        .and_then(|slice| slice.sop_class_uid.as_deref())
+        == Some("1.2.840.10008.5.1.4.1.1.130")
+}
+
 fn multiframe_count(slice: &ritk_io::DicomSliceMetadata) -> Result<usize> {
     let info = match slice.part10_bytes.as_deref() {
         Some(bytes) => read_multiframe_info_from_bytes(&slice.path, bytes),
@@ -246,6 +255,7 @@ fn load_dicom_multiframe_volume_from_scanned_series(
     .with_context(|| format!("failed to load DICOM multi-frame object {:?}", slice.path))?;
 
     let mut metadata = series.metadata;
+    metadata.enhanced_pet_suv = flat.suv_bw;
     metadata.dimensions = [flat.shape[1], flat.shape[2], flat.shape[0]];
     metadata.spacing = flat.spacing.to_array().map(
         aequitas::systems::si::quantities::Length::from_unit::<

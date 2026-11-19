@@ -110,6 +110,7 @@ fn metadata_fixture() -> DicomReadMetadata {
         private_tags,
         preservation,
         patient_weight_kg: None,
+        enhanced_pet_suv: None,
         pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,

@@ -6,6 +6,7 @@
 
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
+use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
 use ritk_core::image::Image;
 use ritk_dicom::{
@@ -19,6 +20,7 @@ use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 
+use super::super::enhanced_pet::{BodyWeightSuvVolume, FrameMapping};
 use super::super::per_frame::extract_functional_groups;
 use super::super::temporal::reject_temporal_organization;
 use super::header::extract_multiframe_header;
@@ -36,6 +38,8 @@ pub struct MultiFrameVolume {
     /// Row-major voxels in `[frames, rows, cols]` order, RescaleSlope/Intercept
     /// already applied.
     pub data: Vec<f32>,
+    /// Enhanced PET body-weight SUV samples when quantitative mappings are present.
+    pub suv_bw: Option<BodyWeightSuvVolume>,
     /// Volume shape `[frames, rows, cols]` after any gap/nonuniform resampling.
     pub shape: [usize; 3],
     /// Physical coordinate of the first voxel.
@@ -66,6 +70,7 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         origin,
         spacing,
         direction,
+        ..
     } = load_dicom_multiframe_flat(path)?;
     let tensor = Tensor::<f32, B>::from_slice_on(shape, &data, device)?;
     Image::new(tensor, origin, spacing, direction)
@@ -86,6 +91,7 @@ pub fn load_dicom_multiframe_native<P: AsRef<Path>>(
         origin,
         spacing,
         direction,
+        ..
     } = load_dicom_multiframe_flat(path)?;
     NativeImage::<f32, MoiraiBackend, 3>::from_flat(data, shape, origin, spacing, direction)
 }
@@ -190,6 +196,35 @@ pub(crate) fn load_multiframe_flat_from_object(
         std::mem::size_of::<f32>(),
     ));
 
+    let quantitative = info.bits_allocated == 16
+        && obj
+            .meta()
+            .media_storage_sop_class_uid
+            .trim_end_matches([' ', '\0'])
+            == dicom::dictionary_std::uids::ENHANCED_PET_IMAGE_STORAGE;
+    if quantitative {
+        budget
+            .checked_decoded_bytes(
+                decoded_bytes
+                    .checked_mul(2)
+                    .context("DICOM PET quantitative byte count overflows usize")?,
+            )
+            .context("DICOM PET quantitative volume exceeds budget")?;
+    }
+    let mut suv = quantitative.then(Vec::new);
+    let padding = obj
+        .element(Tag(0x0028, 0x0120))
+        .ok()
+        .and_then(|element| element.to_int::<i32>().ok())
+        .map(|first| {
+            let last = obj
+                .element(Tag(0x0028, 0x0121))
+                .ok()
+                .and_then(|element| element.to_int::<i32>().ok())
+                .unwrap_or(first);
+            first.min(last)..=first.max(last)
+        });
+
     for frame_idx in 0..info.n_frames {
         let frame_info = per_frame.get(frame_idx);
         let slope = frame_info
@@ -212,8 +247,8 @@ pub(crate) fn load_multiframe_flat_from_object(
                     bits_allocated: info.bits_allocated,
                     bits_stored: info.bits_stored,
                     pixel_representation: info.pixel_representation,
-                    rescale_slope: slope,
-                    rescale_intercept: intercept,
+                    rescale_slope: if quantitative { 1.0 } else { slope },
+                    rescale_intercept: if quantitative { 0.0 } else { intercept },
                 },
             },
         )
@@ -230,7 +265,24 @@ pub(crate) fn load_multiframe_flat_from_object(
             );
         }
 
-        floats.extend_from_slice(&frame);
+        if let Some(suv) = &mut suv {
+            let mapping = FrameMapping::read(obj, frame_idx);
+            suv.extend(frame.iter().map(|&stored| {
+                if padding
+                    .as_ref()
+                    .is_some_and(|range| range.contains(&(stored as i32)))
+                {
+                    return f32::NAN;
+                }
+                mapping
+                    .as_ref()
+                    .and_then(|mapping| mapping.sample(stored))
+                    .map_or(f32::NAN, |value| value.into_base() as f32)
+            }));
+            floats.extend(frame.into_iter().map(|stored| stored * slope + intercept));
+        } else {
+            floats.extend_from_slice(&frame);
+        }
     }
 
     let actual_n = info.n_frames;
@@ -315,16 +367,32 @@ pub(crate) fn load_multiframe_flat_from_object(
             // `floats` is already exactly `actual_n` contiguous frames (each
             // extend validated to `frame_pixels` above), so it is the flat
             // source buffer directly -- no jagged intermediate.
+            let new_n = crate::format::dicom::reader::resampled_frame_count(
+                &src_positions,
+                report.nominal_spacing,
+            );
+            let resampled_bytes = new_n
+                .checked_mul(frame_pixels)
+                .and_then(|count| count.checked_mul(std::mem::size_of::<f32>()))
+                .and_then(|count| count.checked_mul(if suv.is_some() { 2 } else { 1 }))
+                .context("DICOM multiframe resampling byte count overflows usize")?;
+            budget
+                .checked_decoded_bytes(resampled_bytes)
+                .context("DICOM multiframe resampled volume exceeds budget")?;
             let new_floats = crate::format::dicom::reader::resample_frames_linear(
                 &floats,
                 frame_pixels,
                 &src_positions,
                 report.nominal_spacing,
             );
-            let new_n = crate::format::dicom::reader::resampled_frame_count(
-                &src_positions,
-                report.nominal_spacing,
-            );
+            if let Some(samples) = suv.take() {
+                suv = Some(crate::format::dicom::reader::resample_frames_linear(
+                    &samples,
+                    frame_pixels,
+                    &src_positions,
+                    report.nominal_spacing,
+                ));
+            }
             (new_floats, new_n, report.nominal_spacing)
         } else {
             (floats, actual_n, report.nominal_spacing)
@@ -353,6 +421,7 @@ pub(crate) fn load_multiframe_flat_from_object(
 
     Ok(MultiFrameVolume {
         data: final_floats,
+        suv_bw: suv.and_then(BodyWeightSuvVolume::new),
         shape: [final_n, info.rows, info.cols],
         origin: Point::new(origin),
         spacing,

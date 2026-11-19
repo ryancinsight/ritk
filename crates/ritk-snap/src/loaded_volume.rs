@@ -48,6 +48,26 @@ pub struct LoadedVolume {
 }
 
 impl LoadedVolume {
+    /// Read an Enhanced PET quantitative voxel in grams per millilitre.
+    #[must_use]
+    pub fn enhanced_pet_suv_at(&self, [depth, row, col]: [usize; 3]) -> Option<f64> {
+        let [planes, rows, cols] = self.shape;
+        if depth >= planes || row >= rows || col >= cols {
+            return None;
+        }
+        let index = depth
+            .checked_mul(rows)?
+            .checked_add(row)?
+            .checked_mul(cols)?
+            .checked_add(col)?;
+        self.metadata
+            .as_ref()?
+            .enhanced_pet_suv
+            .as_ref()?
+            .at(index)
+            .map(|value| value.in_unit::<aequitas::systems::si::units::GramPerCubicCentimeter>())
+    }
+
     /// Get the first channel value at voxel position (d, r, c).
     ///
     /// For multi-channel volumes (e.g. RGB), returns the first channel.

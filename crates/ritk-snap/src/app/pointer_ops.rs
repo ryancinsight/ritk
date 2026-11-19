@@ -419,7 +419,7 @@ impl SnapApp {
             return;
         };
         self.pointer_intensity = intensity_at_voxel(volume, voxel);
-        self.pointer_suv = Self::compute_suv_from_volume(volume, self.pointer_intensity as f64);
+        self.pointer_suv = Self::suv_at_voxel(volume, voxel, f64::from(self.pointer_intensity));
     }
 
     /// Select the default colormap for a modality string.
@@ -455,6 +455,17 @@ impl SnapApp {
         }
     }
 
+    fn suv_at_voxel(volume: &crate::LoadedVolume, voxel: [usize; 3], raw: f64) -> Option<f32> {
+        if volume
+            .metadata
+            .as_ref()
+            .is_some_and(|meta| meta.enhanced_pet_suv.is_some())
+        {
+            return volume.enhanced_pet_suv_at(voxel).map(|value| value as f32);
+        }
+        Self::compute_suv_from_volume(volume, raw)
+    }
+
     /// Compute SUVbw at the linked-cursor voxel position, if available.
     ///
     /// Consumed by the overlay renderer for PET/CT SUV workflow (GAP-176-RAD-02).
@@ -465,7 +476,7 @@ impl SnapApp {
         let cursor = self.linked_cursor?;
         let [z, y, x] = cursor.voxel();
         let pixel = volume.pixel_at(z, y, x) as f64;
-        Self::compute_suv_from_volume(volume, pixel)
+        Self::suv_at_voxel(volume, [z, y, x], pixel)
     }
 
     #[cfg(not(target_arch = "wasm32"))]

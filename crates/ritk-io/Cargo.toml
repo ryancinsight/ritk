@@ -70,6 +70,7 @@ dicom-pixeldata = { workspace = true }
 dicom-transfer-syntax-registry = { workspace = true }
 
 [dev-dependencies]
+tracing-subscriber.workspace = true
 ritk-codecs = { path = "../ritk-codecs" }  # path-only: dev-deps form a publish cycle
 # Rejection assertions shared across the workspace's test modules.
 ritk-core = { path = "../ritk-core", features = ["test-helpers"] }
