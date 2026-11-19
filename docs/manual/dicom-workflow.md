@@ -1,7 +1,7 @@
 # AsterSlice user manual
 
 Use AsterSlice to browse a study and measure or mark an image on Windows.
-The executable and Cargo package are named `ritk-snap`. The
+The executable is `asterslice`; its Cargo package is `ritk-snap`. The
 [feature comparison](features.md) covers the supplied RadiAnt 2021.2 manual,
 the current Windows controls, the tests, and the work needed for parity.
 The [developer reference](development.md) contains reproduction procedures
@@ -27,13 +27,13 @@ cargo run --locked -p ritk-snap -- test_data/2_head_mri_t2/DICOM
 ```
 
 A startup path can also name a DICOM instance or DICOMDIR. To select a series
-explicitly, add `--series-instance-uid UID`. The [launch reference](../../crates/ritk-snap/README.md)
+explicitly from a study folder, add `--series-instance-uid UID`. The [launch reference](../../crates/ritk-snap/README.md)
 describes startup selection and capture options.
 
 - [Adjust the image display](#adjust-the-image-display)
 - [Compare series](#compare-series)
 - [Scroll through a slice stack](#scroll-through-a-slice-stack)
-- [Measure a length and calibrate it](#calibrate-a-length-on-one-image)
+- [Measure and calibrate image-plane geometry](#calibrate-measurements-on-one-image)
 - [Measure angles and regions](#measure-an-angle-or-a-region-of-interest)
 - [Draw and edit polygons](#trace-an-open-path-and-a-closed-outline)
 - [Draw an arrow or a freehand mark](#draw-an-arrow)
@@ -106,7 +106,9 @@ The image corners show the image count, window width and centre, and
 displayed frame dimensions. When clinical text runs out of room, the viewer shortens long
 corner labels with an ellipsis. Resize the window to compare the corner
 readouts and orientation letters in wide and narrow panes. Colorbar values
-have their own rows. Measurement labels move to stay visible inside the pane.
+have their own rows. Measurement labels stay inside the pane and move clear
+of clinical text, colorbars, histogram controls, completed marks, edit
+handles, other labels, and the mark currently following the pointer.
 
 ![AsterSlice Windows viewer with independent slice scrollbars at the right edge of each MPR pane](images/dicom-native-slices.webp)
 
@@ -120,27 +122,47 @@ have their own rows. Measurement labels move to stay visible inside the pane.
    with a button assigned to **W/L**, **Zoom**, or **Pan** between the clicks.
    The first endpoint stays in place. You can also drag after placing the
    first endpoint to complete the measurement.
-3. Choose **Tools → Deviation** or press **D**. Drag a slanted segment
+3. Choose **Tools → Pan** or press **M**. Drag either endpoint of a completed
+   length to change the measurement. Drag the line away from its endpoint
+   handles to move the complete mark without changing its measured value or
+   image calibration. The preview follows the pointer; release to keep it or
+   press **Esc** to retain the last committed position.
+4. Choose **Tools → Deviation** or press **D**. Drag a slanted segment
    in the image and release. The overlay shows the segment and its reference along the closer
    image axis. Its label gives the perpendicular offset in millimetres and
    the angle from that axis in degrees.
-4. Scroll to another slice and back. The measurements appear on the slice
+5. Scroll to another slice and back. The measurements appear on the slice
    where you drew them.
 
-### Calibrate a length on one image
+![A selected length after endpoint editing and whole-line translation, with its unchanged 100 mm calibration reference](images/dicom-native-length-edit.webp)
+
+### Calibrate measurements on one image
 
 1. Measure a reference of known length with **Tools → Length**.
 2. Choose **Tools → Calibrate last distance…**. Enter the known distance in
    millimetres and press **Enter**. **Esc** cancels.
 3. Check the labels on that image. If a 5 mm reading is calibrated to
-   10 mm, a 3 mm reading on that image becomes 6 mm.
+   10 mm, image-plane lengths, deviations, and perimeters double while
+   rectangular, elliptical, and closed-polygon areas become four times as
+   large. Angles and intensity statistics do not change.
 4. Scroll to another slice and back. Choose **Tools → Reset length
    calibration** on the reference image to restore image-spacing readings.
 
 ![AsterSlice Tools calibration dialog over the current DICOM slice with a 100 mm reference entered](images/dicom-native-calibration.webp)
 
-Calibration lasts for the loaded study. Reopen the study to restore its DICOM
-spacing.
+Calibration lasts for the loaded study and applies only to the source image.
+It rescales image-plane Length, Deviation, Open Polygon, Closed Polygon,
+ROI Rect, and ROI Ellipse labels without changing the saved annotations.
+Patient-space lengths remain the Euclidean distance between their validated
+DICOM patient-coordinate endpoints and are never rescaled by this control.
+Reopen the study or use **Reset length calibration** to restore image-spacing
+readings. Inch/French-size input and source-specific calibration colors remain
+[calibration work](features.md#reading-and-annotations).
+
+Measurements currently require reliable image spacing. Missing or unusable
+DICOM spacing does not yet switch the displayed units to pixels; a millimetre
+suffix alone does not establish physical scale. See the
+[measurement-unit limitation](../../backlog/RITK-SNAP-MEASUREMENT-UNITS-001.md).
 
 ### Measure an angle or a region of interest
 

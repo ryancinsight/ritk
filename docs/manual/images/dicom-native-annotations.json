@@ -1,12 +1,24 @@
 {
-  "viewer_revision": "e7f17246db7a7f57cb60c3c1fcea379505747737",
+  "viewer_revision": "e89f3209e7c4064f92c46304a4f2e8d5d5e4df1c",
   "fixture": {
     "path": "test_data/2_head_mri_t2/DICOM",
     "dicom_images": 94
   },
-  "cargo_lock_sha256": "cc18b46bd4a8fbf4c2180b9f14636fbc6a001d27a79a1cddc29691c84902a6e5",
+  "cargo_lock_sha256": "f4beba06edbad2918accc9e936a2ff342a182078279768c5ab0f90ccc9a3e484",
   "capture": "Native Windows RITK client framebuffer",
   "command": "cargo nextest run --locked -p ritk-snap -E 'test(native_manual_annotation_frames)'",
+  "comparison_command": "Set RITK_MANUAL_CAPTURE_DIR to the fresh PNG directory, then run python -m unittest scripts.tests.test_manual_provenance",
+  "comparison": {
+    "method": "Pillow Image.convert('RGBA').tobytes() byte equality",
+    "unchanged_frames": [
+      "dicom-native-slices.webp",
+      "dicom-native-calibration.webp",
+      "dicom-native-length-edit.webp"
+    ],
+    "reencoded_frames": [
+      "dicom-native-annotations.webp"
+    ]
+  },
   "frames": {
     "dicom-native-slices.webp": {
       "width_px": 1280,
@@ -27,10 +39,38 @@
     "dicom-native-annotations.webp": {
       "width_px": 1280,
       "height_px": 800,
-      "webp_bytes": 126622,
-      "webp_sha256": "5316883603f054c7c44e47c859762c665ba9c0ba05f95e5b91775f5eeaf3c4b7",
-      "source_png_bytes": 429082,
-      "source_png_sha256": "3e792d10afec00f7f74afd102996feeb4ce8bd7469bb720845f51f4d1d1c5c4c"
+      "webp_bytes": 126202,
+      "webp_sha256": "0aaa9e0be5f6cc49d2786708a9bde84e70709ace138d362bdc16d43c2cf43723",
+      "source_png_bytes": 429459,
+      "source_png_sha256": "9fda283bfe890883b661340c0b56bff6a3739bf08c3640e97e7484f48342a374",
+      "encoding": {
+        "tool": "Pillow",
+        "version": "12.1.1",
+        "format": "WEBP",
+        "lossless": true,
+        "quality": 100,
+        "method": 6,
+        "exact": true,
+        "decoded_rgba_equal": true
+      }
+    },
+    "dicom-native-length-edit.webp": {
+      "width_px": 1280,
+      "height_px": 800,
+      "webp_bytes": 122688,
+      "webp_sha256": "ac1622796ac84ce8896ef780ad093e54dc8108b81744095cf89a519cf4bdc596",
+      "source_png_bytes": 425624,
+      "source_png_sha256": "766f9a08a30302cb560019f880f6b77ad1f064fa1a9f07e58406bdc31f404eb0",
+      "encoding": {
+        "tool": "Pillow",
+        "version": "12.1.1",
+        "format": "WEBP",
+        "lossless": true,
+        "quality": 100,
+        "method": 6,
+        "exact": true,
+        "decoded_rgba_equal": true
+      }
     }
   }
 }

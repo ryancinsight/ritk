@@ -61,3 +61,20 @@ picker). Callers that use `Default` now select the Métis host on Windows and
 remain on eframe on other native targets. `load_volume_from_series_uid` is the
 RITK-owned path API for non-interactive selection and never chooses an
 arbitrary series.
+
+## AsterSlice executable
+
+[ADR 0061](adr/0061-asterslice-executable.md) names the desktop executable
+`asterslice` (`asterslice.exe` on Windows). Update launch scripts, shortcuts,
+capture commands, and explicit Cargo binary selection:
+
+```console
+cargo build --locked -p ritk-snap --bin asterslice
+asterslice path/to/study
+```
+
+The Cargo package remains `ritk-snap` and the Rust/WebAssembly library remains
+`ritk_snap`. Existing `cargo run -p ritk-snap -- ...` commands select its single
+binary. The installer keeps its application ID and upgrade code, and stored
+sessions and DICOM network identities retain their existing representation.
+There is no second executable under the former name.

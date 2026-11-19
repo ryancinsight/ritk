@@ -101,7 +101,7 @@ impl SnapApp {
         self.annotations = snapshot.annotations;
         #[cfg(windows)]
         self.length_calibrations.clear();
-        self.pointer.selected_polygon = None;
+        self.pointer.selected_annotation = None;
         self.tool_state = ToolState::Idle;
         self.bump_visual_revision();
         self.linked_cursor = self.loaded.as_ref().map(|vol| {

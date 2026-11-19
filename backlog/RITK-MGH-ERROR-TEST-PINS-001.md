@@ -5,6 +5,5 @@
 - scope: crates/ritk-mgh/src/reader/{mod.rs,tests/errors.rs}, crates/ritk-mgh/src/writer/tests/datatypes.rs, crates/ritk-mgh/src/error.rs
 - next: write `InvalidVersion { expected: 1, found: 2 }` at `reader/tests/errors.rs` and `writer/tests/datatypes.rs`, then add the multi-frame fixture.
 - basis: cd8a829ce11bc0adc097dc3b1f5cf950751ee5ec
-- milestone: M-viewer-reading
+- priority: verification; milestone: M-viewer-reading
 - needs: none
-- priority: verification

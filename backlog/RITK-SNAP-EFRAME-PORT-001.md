@@ -6,5 +6,4 @@
 - next: Add `ParameterRange<T>` and the `controls.rs` constants test-first.
 - basis: 6d0f66501
 - needs: none
-- milestone: M-viewer-reading
-- priority: architecture
+- priority: architecture; milestone: M-viewer-reading

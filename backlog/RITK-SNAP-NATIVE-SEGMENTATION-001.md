@@ -6,5 +6,4 @@
 - next: Rebuild the overlay from `draw_label_overlay` in `414da7491:crates/ritk-snap/src/app/rt_overlay.rs`, and bind the existing `undo_label_edit_shortcut` and `redo_label_edit_shortcut`.
 - basis: 60878d06e
 - needs: none
-- milestone: M-viewer-advanced
-- priority: feature
+- priority: feature; milestone: M-viewer-advanced

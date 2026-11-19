@@ -1,4 +1,4 @@
-name: RITK SNAP Métis browser DICOM
+name: AsterSlice Métis browser DICOM
 
 on:
   schedule:
@@ -138,6 +138,10 @@ jobs:
           python scripts/browser.py build \
             --consumer-package "$GITHUB_WORKSPACE/ritk/target/wasm-bindgen/ritk-snap" \
             --consumer-gallery "$GITHUB_WORKSPACE/ritk/crates/ritk-snap/web/gallery"
+
+      - name: Install RITK script test tooling
+        working-directory: ritk
+        run: python -m pip install -r scripts/requirements-test.txt
 
       - name: Validate the RITK gallery harness
         working-directory: ritk

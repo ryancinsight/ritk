@@ -6,7 +6,7 @@
 use anyhow::Result;
 use metis_platform::rasterizer::CornerRadius;
 use metis_platform::Rect;
-use metis_ui_lang::DisplayCommand;
+use metis_ui_lang::{DisplayCommand, PlacementRegion};
 
 use super::super::frame::RenderedView;
 use super::crosshair::screen_coordinate;
@@ -106,7 +106,14 @@ pub(crate) fn append_scale_bar(
     if label_bounds.x + label_bounds.width > image_mid {
         return Ok(());
     }
-    if overlay.overlaps_text(bar) || overlay.overlaps_text(label_bounds) {
+    let panel = viewport.panel_rect()?;
+    let obstacles = overlay.placement_obstacles(panel, &[])?;
+    let is_clear = |candidate: Rect| -> Result<bool> {
+        let extent = Rect::new(0, 0, candidate.width, candidate.height);
+        let region = PlacementRegion::new(extent, panel, &obstacles)?;
+        Ok(region.contains((candidate.x, candidate.y)))
+    };
+    if !is_clear(bar)? || !is_clear(label_bounds)? {
         return Ok(());
     }
     overlay.push(DisplayCommand::FillRect {

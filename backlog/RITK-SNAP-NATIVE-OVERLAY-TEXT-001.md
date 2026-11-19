@@ -6,5 +6,4 @@
 - next: Reuse the existing orthogonal clinical-overlay composition for comparison panes; preserve shared text placement in Métis.
 - basis: 30ade461c3cbf50a286111a44213e195c2fe5d95
 - needs: none
-- milestone: M-viewer-reading
-- priority: feature
+- priority: feature; milestone: M-viewer-reading

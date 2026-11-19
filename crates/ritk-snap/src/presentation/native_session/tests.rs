@@ -12,6 +12,7 @@ use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::time::{Duration, Instant};
 mod anonymize;
 mod arrow_overlay;
+mod calibration_scope;
 mod cobb_overlay;
 mod crosshair_tool;
 mod display;
@@ -21,6 +22,7 @@ mod display_overlays;
 #[cfg(windows)]
 mod host_capture;
 mod interaction;
+mod length_edit;
 mod manual_capture;
 mod measurement_overlay;
 mod overlay_text;

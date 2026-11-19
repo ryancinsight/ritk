@@ -4,8 +4,8 @@ use super::overlay_clinical::{append_clinical_corners, append_scale_bar};
 
 use anyhow::{anyhow, Result};
 use metis_platform::rasterizer::CornerRadius;
-use metis_platform::{Color, Rect};
-use metis_ui_lang::{DisplayCommand, DisplayList};
+use metis_platform::{Color, RasterLine, Rect};
+use metis_ui_lang::{DisplayCommand, DisplayList, PlacementObstacle, PlacementRegion};
 
 use super::super::frame::RenderedView;
 use super::super::projection::RenderedProjection;
@@ -320,22 +320,35 @@ impl OverlayCommands {
         self.commands.push(command);
     }
 
-    pub(super) fn overlaps_text(&self, region: Rect) -> bool {
-        self.text_overlapping(region).next().is_some()
-    }
-
-    fn text_overlapping(&self, region: Rect) -> impl Iterator<Item = Rect> + '_ {
-        self.commands.iter().filter_map(move |command| {
-            let DisplayCommand::DrawText { text, x, y, style } = command else {
-                return None;
+    pub(in crate::presentation::native_session) fn placement_obstacles(
+        &self,
+        frame: Rect,
+        reserved: &[PlacementObstacle],
+    ) -> Result<Vec<PlacementObstacle>> {
+        let mut obstacles = Vec::new();
+        obstacles
+            .try_reserve(reserved.len().saturating_add(self.commands.len()))
+            .map_err(|_| anyhow!("native viewer placement allocation failed"))?;
+        obstacles.extend_from_slice(reserved);
+        for command in &self.commands {
+            let obstacle = match command {
+                DisplayCommand::DrawLine { start, end, .. } => {
+                    RasterLine::clipped(*start, *end, frame).map(PlacementObstacle::Line)
+                }
+                DisplayCommand::DrawText { text, x, y, style } => {
+                    style.extent(*x, *y, text).map(PlacementObstacle::Rect)
+                }
+                DisplayCommand::DrawShadow { rect, .. }
+                | DisplayCommand::FillRect { rect, .. }
+                | DisplayCommand::FillGradient { rect, .. }
+                | DisplayCommand::DrawBorder { rect, .. } => Some(PlacementObstacle::Rect(*rect)),
+                _ => None,
             };
-            style.extent(*x, *y, text).filter(|text| {
-                text.x < region.x + region.width
-                    && region.x < text.x + text.width
-                    && text.y < region.y + region.height
-                    && region.y < text.y + text.height
-            })
-        })
+            if let Some(obstacle) = obstacle {
+                obstacles.push(obstacle);
+            }
+        }
+        Ok(obstacles)
     }
 
     pub(super) fn measurement_label_bounds(panel: Rect, margin: i32) -> Rect {
@@ -350,50 +363,29 @@ impl OverlayCommands {
         )
     }
 
-    pub(super) fn push_text_inside(
+    pub(in crate::presentation::native_session) fn push_text_inside(
         &mut self,
         text: String,
         style: TextStyle,
         origin: (i32, i32),
         bounds: Rect,
-    ) {
+        frame: Rect,
+        reserved: &[PlacementObstacle],
+    ) -> Result<()> {
         let Some(glyph) = style.extent(0, 0, &text) else {
-            return;
+            return Ok(());
         };
-        if glyph.width > bounds.width || glyph.height > bounds.height {
-            return;
+        let obstacles = self.placement_obstacles(frame, reserved)?;
+        let region = PlacementRegion::new(glyph, bounds, &obstacles)?;
+        if let Some(clear) = region.place(origin)? {
+            self.push(text_command(
+                text,
+                clear.x - glyph.x,
+                clear.y - glyph.y,
+                style,
+            ));
         }
-        let right = bounds.x + bounds.width - glyph.width;
-        let bottom = bounds.y + bounds.height - glyph.height;
-        let x = origin.0.saturating_add(glyph.x).clamp(bounds.x, right);
-        let y = origin.1.saturating_add(glyph.y).clamp(bounds.y, bottom);
-        for row in (y..=bottom).chain((bounds.y..y).rev()) {
-            let mut region = Rect::new(x, row, glyph.width, glyph.height);
-            while region.x <= right {
-                let edge = self
-                    .text_overlapping(region)
-                    .map(|rect| rect.x + rect.width)
-                    .max();
-                let Some(edge) = edge else {
-                    break;
-                };
-                region.x = edge;
-            }
-            if region.x > right {
-                region.x = x;
-                while region.x >= bounds.x {
-                    let edge = self.text_overlapping(region).map(|rect| rect.x).min();
-                    let Some(edge) = edge else {
-                        break;
-                    };
-                    region.x = edge - glyph.width;
-                }
-            }
-            if region.x >= bounds.x {
-                self.push(text_command(text, region.x - glyph.x, row - glyph.y, style));
-                return;
-            }
-        }
+        Ok(())
     }
 
     /// Appends another overlay's commands after this one's.
@@ -415,8 +407,30 @@ impl OverlayCommands {
 mod tests {
     use super::*;
 
+    fn assert_frame_clip_phase() {
+        let (frame, panel, glyph) = (
+            Rect::new(0, 0, 400, 400),
+            Rect::new(1, 0, 300, 300),
+            Rect::new(20, 70, 20, 10),
+        );
+        let mut overlay = OverlayCommands::with_capacity(1).expect("overlay storage");
+        overlay.push(DisplayCommand::DrawLine {
+            start: (0, 50),
+            end: (200, 150),
+            color: OVERLAY_TEXT,
+        });
+        let obstacles = overlay.placement_obstacles(frame, &[]).expect("obstacles");
+        assert!(
+            matches!(obstacles.as_slice(), [PlacementObstacle::Line(line)] if line.intersects(glyph))
+        );
+        assert!(!RasterLine::clipped((0, 50), (200, 150), panel)
+            .expect("line crosses panel")
+            .intersects(glyph));
+    }
+
     #[test]
-    fn measurement_labels_fit_before_the_colorbar() {
+    fn measurement_labels_keep_render_phase_and_clear_obstacles() {
+        assert_frame_clip_phase();
         let mut overlay = OverlayCommands::with_capacity(6).expect("overlay storage");
         let style = text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE).expect("detail typeface");
         let pane = Rect::new(0, 0, 336, 260);
@@ -425,10 +439,12 @@ mod tests {
         overlay.push(text_command("1000", colorbar_x, 86, style));
         let labels = ["90.0 deg", "80.0 deg", "70.0 deg", "60.0 deg", "12.0 mm"];
         for label in labels {
-            overlay.push_text_inside(label.into(), style, (colorbar_x, 86), bounds);
+            overlay
+                .push_text_inside(label.into(), style, (colorbar_x, 86), bounds, pane, &[])
+                .expect("place measurement label");
         }
         assert_eq!(overlay.commands.len(), labels.len() + 1);
-        let mut placed = OverlayCommands::with_capacity(6).expect("overlay storage");
+        let mut occupied = Vec::new();
         for (command, expected) in overlay
             .commands
             .into_iter()
@@ -439,15 +455,17 @@ mod tests {
             };
             assert_eq!(text.as_ref(), expected);
             let glyph = style.extent(*x, *y, text).expect("glyph bounds");
-            assert!(
-                !placed.overlaps_text(glyph),
-                "label {text} overlaps prior text"
-            );
             if expected != "1000" {
+                let extent = style.extent(0, 0, text).expect("relative glyph bounds");
+                let region = PlacementRegion::new(extent, bounds, &occupied).expect("label region");
+                assert!(
+                    region.contains((*x, *y)),
+                    "label {text} overlaps prior text"
+                );
                 assert!(bounds.contains(glyph.x, glyph.y));
                 assert!(bounds.contains(glyph.x + glyph.width - 1, glyph.y + glyph.height - 1));
             }
-            placed.push(command);
+            occupied.push(PlacementObstacle::Rect(glyph));
         }
     }
 }

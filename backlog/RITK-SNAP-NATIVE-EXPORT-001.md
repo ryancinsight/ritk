@@ -6,5 +6,4 @@
 - next: Route the capture path through a save dialog.
 - basis: 30b8ba098
 - needs: none
-- milestone: M-viewer-access
-- priority: feature
+- priority: feature; milestone: M-viewer-access
