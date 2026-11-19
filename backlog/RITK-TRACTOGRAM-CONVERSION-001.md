@@ -1,5 +1,4 @@
 <a id="RITK-TRACTOGRAM-CONVERSION-001"></a>
-
 ## RITK-TRACTOGRAM-CONVERSION-001 — Convert supported tractogram formats — todo
 - milestone: M-viewer-reading
 - outcome: convert TCK, TRK, and TRX through RITK tractogram data models.

@@ -1,5 +1,4 @@
 <a id="RITK-DICOM-CALIBRATION-UNITS-001"></a>
-
 ## RITK-DICOM-CALIBRATION-UNITS-001 — Preserve DICOM values and units — blocked
 - milestone: M-viewer-reading
 - outcome: Represent DICOM stored-to-physical transforms and units without changing stored samples.

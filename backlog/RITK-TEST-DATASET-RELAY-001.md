@@ -1,5 +1,4 @@
 <a id="RITK-TEST-DATASET-RELAY-001"></a>
-
 ## RITK-TEST-DATASET-RELAY-001 — Externalize large public test datasets — blocked
 - milestone: M-viewer-reading
 - outcome: Keep small analytical goldens in Git and fetch larger public datasets through the existing checksummed external-data path.

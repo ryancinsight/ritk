@@ -45,7 +45,7 @@ Unknown versions fail.
 Restoring a session validates its source before replacing either the displayed
 study or presentation controls; a failure preserves the current viewer state.
 
-The [user workflow](manual/dicom-workflow.md) contains runnable commands,
+The [developer workflow](manual/development.md) contains runnable commands,
 synthetic pixel/coordinate oracles, and the distinction between software
 slice captures and the rendered application window.
 

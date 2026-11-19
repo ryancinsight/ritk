@@ -1,5 +1,4 @@
 <a id="RITK-MESH-CONVERSION-001"></a>
-
 ## RITK-MESH-CONVERSION-001 — Convert supported mesh formats — todo
 - milestone: M-viewer-reading
 - outcome: convert VTK/VTP, STL, OBJ, PLY, and GLB through RITK mesh models.

@@ -1,5 +1,4 @@
 <a id="RITK-FIXTURE-RETENTION-001"></a>
-
 ## RITK-FIXTURE-RETENTION-001 — Decide imaging fixture retention — blocked
 - milestone: M-viewer-reading
 - outcome: Preserve identifiable or unique imaging data until its owner records a retention decision.

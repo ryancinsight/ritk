@@ -1,8 +1,6 @@
 <a id="RITK-REGISTRY-PUBLICATION-001"></a>
-
 ## RITK-REGISTRY-PUBLICATION-001 — Publish the required registry dependency graph — blocked
 - milestone: M-viewer-access
-
 - outcome: registry consumers can install the corrected registration version after verified prerequisites and release gates succeed.
 - existing failure: main `8af30a9a` release run [38645859355](https://github.com/ryancinsight/ritk/actions/runs/38645859355) fails package verification before authentication. Registry Coeus 0.10 resolves Leto 0.42.0, whose `Quantity::in_unit` calls at `application/stencil.rs:121–122` lack the required `UnitScalar` bound. The working Git lock instead uses Coeus `89cb08b0`, Leto 0.45.0 `03d636a8` and Eunomia 0.9.1 `ee7c6911`.
 - bounded probe: in an isolated unpublished checkout, Coeus 0.11 at its published source `ab2cd24c9e347e7a372d995897c7acf7216f2eb7` resolves using `cargo update --workspace --offline`. Only eight Coeus lock records change; every other package record stays identical. Rust 1.97 registration/all-target compilation passes. Targeted updates that refresh moving provider heads fail the Apollo FFT `^0.27.0` requirement against current 0.28.2; the workspace-only probe avoids that unrelated refresh.

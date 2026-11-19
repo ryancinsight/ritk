@@ -1,5 +1,4 @@
 <a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>
-
 ## RITK-SNAP-INTERACTION-REGIONS-001 — Separate region interaction tests — todo
 - milestone: M-viewer-compare
 - outcome: give region tools one test module without changing behavior.

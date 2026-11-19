@@ -1,5 +1,4 @@
 <a id="RITK-SNAP-OBLIQUE-ROUTING-001"></a>
-
 ## RITK-SNAP-OBLIQUE-ROUTING-001 — Route native oblique input — blocked
 - milestone: M-viewer-compare
 - outcome: route keyboard, pointer, wheel, and repaint events to the active oblique pane.
@@ -7,6 +6,5 @@
 - scope: `crates/ritk-snap/src/presentation/native_session/routing.rs`, `events.rs`
 - next: implement the bounded event state machine and user-visible controls.
 - basis: 3fcdc3dd
-- blocker: Prerequisite items must merge before this item is ready.
 - needs: RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-APP-TESTS-001
 - priority: feature

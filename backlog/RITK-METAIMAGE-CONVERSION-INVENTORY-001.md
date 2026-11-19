@@ -1,5 +1,4 @@
 <a id="RITK-METAIMAGE-CONVERSION-INVENTORY-001"></a>
-
 ## RITK-METAIMAGE-CONVERSION-INVENTORY-001 — Map MetaImage volume semantics — todo
 - milestone: M-viewer-reading
 - outcome: Map MetaImage headers and stored samples to RITK volume fields or typed loss.

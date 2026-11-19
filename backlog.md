@@ -1,27 +1,15 @@
 # RITK execution backlog
-
-> ## Vocabulary policy
->
-> New migration text uses provider/native names directly (Coeus,
-> MoiraiBackend, Leto, Eunomia, native) and does not introduce new
-> Atlas-* migration labels. Historical PM entries retain their original
-> wording unless touched by the current slice. Domain medical-atlas terms are
-> preserved.
-
 # Milestones
-
 <a id="M-viewer-reading"></a>
 ## M-viewer-reading — 0.2.0 — read a single study on the native shell
 - exit: `cargo nextest run -p ritk-snap -E 'test(pointer_bindings) or test(modifier_gesture) or test(native_annotation) or test(native_display) or test(native_view_transform) or test(native_overlay_text) or test(measure_set)'`
 - needs: none
 - non-goals: PACS, archive, 3D rendering
-
 <a id="M-viewer-compare"></a>
 ## M-viewer-compare — 0.3.0 — compare series by patient position
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_link) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
 - needs: M-viewer-reading
 - non-goals: fusion
-
 <a id="M-viewer-access"></a>
 ## M-viewer-access — 0.4.0 — get studies in and images out
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_open) or test(native_tags) or test(native_export) or test(native_session_round_trip) or test(native_pacs) or test(native_archive)'`
@@ -29,7 +17,6 @@
 - exit: `cargo nextest run -p ritk-snap -E 'test(=presentation::native_session::tests::repair::native_repair_writes_a_corrected_copy_and_leaves_the_source)'` (write a repaired study copy)
 - needs: M-viewer-compare
 - non-goals: cloud storage
-
 <a id="M-viewer-advanced"></a>
 ## M-viewer-advanced — 1.0.0 — advanced reading tools
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_filter) or test(native_vr) or test(native_fusion) or test(native_dynamic) or test(native_documents) or test(native_movie) or test(native_shell)'`
@@ -37,9 +24,7 @@
 - exit: `cargo doc` with no new warnings; zero open correctness items (M-1.0 per ADR 0059, authority-gated: release authority sets the API-freeze contents, never forces `publish = true` without it)
 - needs: M-viewer-access
 - non-goals: encrypted ZIP, optical disc burning, unlisted RadiAnt add-ons
-
 # Items
-
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — blocked
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
 <a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Write permuted images to VTK and Analyze — todo
@@ -114,3 +99,16 @@
 <a id="RITK-SNAP-EFRAME-PORT-001"></a>- [RITK-SNAP-EFRAME-PORT-001](backlog/RITK-SNAP-EFRAME-PORT-001.md) — Port smoothing and segmentation filter ranges — todo
 <a id="RITK-SNAP-EFRAME-PORT-002"></a>- [RITK-SNAP-EFRAME-PORT-002](backlog/RITK-SNAP-EFRAME-PORT-002.md) — Port morphology, geometry, CPR and pointwise filter ranges — todo
 <a id="RITK-SNAP-EFRAME-PORT-003"></a>- [RITK-SNAP-EFRAME-PORT-003](backlog/RITK-SNAP-EFRAME-PORT-003.md) — Port filter labels and starting parameters — todo
+<a id="RITK-SNAP-CROSSHAIR-TOOL-001"></a>- [RITK-SNAP-CROSSHAIR-TOOL-001](backlog/RITK-SNAP-CROSSHAIR-TOOL-001.md) — Enable the selected crosshair tool — todo
+<a id="RITK-SNAP-DICOM-GRAPHICS-001"></a>- [RITK-SNAP-DICOM-GRAPHICS-001](backlog/RITK-SNAP-DICOM-GRAPHICS-001.md) — Display DICOM graphic overlay planes — todo
+<a id="RITK-SNAP-LENGTH-EDIT-001"></a>- [RITK-SNAP-LENGTH-EDIT-001](backlog/RITK-SNAP-LENGTH-EDIT-001.md) — Move and resize completed lengths — todo
+<a id="RITK-SNAP-ROI-EDIT-001"></a>- [RITK-SNAP-ROI-EDIT-001](backlog/RITK-SNAP-ROI-EDIT-001.md) — Move and resize image regions — todo
+<a id="RITK-SNAP-MARK-EDIT-001"></a>- [RITK-SNAP-MARK-EDIT-001](backlog/RITK-SNAP-MARK-EDIT-001.md) — Edit completed angles and drawn marks — todo
+<a id="RITK-SNAP-ANNOTATION-TEXT-001"></a>- [RITK-SNAP-ANNOTATION-TEXT-001](backlog/RITK-SNAP-ANNOTATION-TEXT-001.md) — Position readable annotation labels — todo
+<a id="RITK-SNAP-ANNOTATION-COPY-001"></a>- [RITK-SNAP-ANNOTATION-COPY-001](backlog/RITK-SNAP-ANNOTATION-COPY-001.md) — Copy and duplicate image annotations — todo
+<a id="RITK-SNAP-US-REGION-001"></a>- [RITK-SNAP-US-REGION-001](backlog/RITK-SNAP-US-REGION-001.md) — Measure calibrated ultrasound regions — todo
+<a id="RITK-SNAP-FORMAT-VIEWER-001"></a>- [RITK-SNAP-FORMAT-VIEWER-001](backlog/RITK-SNAP-FORMAT-VIEWER-001.md) — Exercise encoded studies in the viewer — todo
+<a id="RITK-SNAP-CUSTOM-WINDOW-001"></a>- [RITK-SNAP-CUSTOM-WINDOW-001](backlog/RITK-SNAP-CUSTOM-WINDOW-001.md) — Retain precise custom window settings — todo
+<a id="RITK-SNAP-LARGE-STUDY-001"></a>- [RITK-SNAP-LARGE-STUDY-001](backlog/RITK-SNAP-LARGE-STUDY-001.md) — Measure native study resource bounds — todo
+<a id="RITK-SNAP-ZOOM-SCALE-001"></a>- [RITK-SNAP-ZOOM-SCALE-001](backlog/RITK-SNAP-ZOOM-SCALE-001.md) — Correct the pixel-scale zoom preset — todo
+<a id="RITK-SNAP-NATIVE-DISPLAY-001"></a>- [RITK-SNAP-NATIVE-DISPLAY-001](backlog/RITK-SNAP-NATIVE-DISPLAY-001.md) — Finish native display actions — todo

@@ -1,5 +1,4 @@
 <a id="RITK-FORMAT-BULK-DECODE-001"></a>
-
 ## RITK-FORMAT-BULK-DECODE-001 — Decode sample buffers through one bulk path — todo
 - milestone: M-viewer-reading
 - outcome: format readers and writers convert whole sample buffers through one bulk byte-order path, choosing the byte order once per buffer, instead of per-type `chunks_exact` loops.

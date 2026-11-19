@@ -1,5 +1,4 @@
 <a id="RITK-DICOM-CONVERSION-001"></a>
-
 ## RITK-DICOM-CONVERSION-001 — Convert DICOM series through RITK — blocked
 - milestone: M-viewer-reading
 - outcome: Convert DICOM series through typed stored models and format adapters.
@@ -7,6 +6,5 @@
 - scope: crates/ritk-io/src/format/dicom/, crates/ritk-image-io/, tests, and manual
 - next: Implement the DICOM adapter after import and metadata preflight pass on real fixtures.
 - basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
-- blocker: RITK-DICOM-CALIBRATION-UNITS-001 must merge before this item is ready.
 - needs: RITK-DICOM-CALIBRATION-UNITS-001
 - priority: architecture

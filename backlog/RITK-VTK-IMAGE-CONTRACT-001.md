@@ -1,5 +1,4 @@
 <a id="RITK-VTK-IMAGE-CONTRACT-001"></a>
-
 ## RITK-VTK-IMAGE-CONTRACT-001 — Separate VTK image semantics — todo
 - milestone: M-viewer-reading
 - outcome: Define the VTK image-data contract independently of mesh and scene formats.

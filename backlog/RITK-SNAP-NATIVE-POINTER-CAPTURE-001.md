@@ -1,10 +1,10 @@
 <a id="RITK-SNAP-NATIVE-POINTER-CAPTURE-001"></a>
 ## RITK-SNAP-NATIVE-POINTER-CAPTURE-001 — End a drag released off the window — todo
-- outcome: A button released outside the window ends its gesture at release, because the native host captures the pointer while a button is held.
-- acceptance: A Windows native test presses inside the window, releases outside it, and asserts the session received the release and holds no pressed button.
-- scope: `repos/moirai` window callback, `repos/metis` host events, `crates/ritk-snap/src/presentation/native_session/routing.rs`
-- next: Add `SetCapture`/`ReleaseCapture` to the Moirai window callback, then advance Métis and RITK in dependency order.
-- basis: 414da7491
+- outcome: A real Windows host release outside the window reaches the session and ends the active gesture.
+- acceptance: Drive a real host press inside and signed release outside the client area; assert the session received the release and holds no pressed button or gesture owner.
+- scope: crates/ritk-snap/src/presentation/native.rs, crates/ritk-snap/src/presentation/native_session/tests/
+- next: Verify the existing Moirai capture callback through Métis to RITK; injected WindowEvent tests cover the session but do not establish the host-to-session path.
+- basis: 30ade461c3cbf50a286111a44213e195c2fe5d95
 - needs: none
 - milestone: M-viewer-reading
 - priority: correctness

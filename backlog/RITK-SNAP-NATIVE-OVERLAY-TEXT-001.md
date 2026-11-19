@@ -1,10 +1,10 @@
 <a id="RITK-SNAP-NATIVE-OVERLAY-TEXT-001"></a>
 ## RITK-SNAP-NATIVE-OVERLAY-TEXT-001 — Draw clinical image overlays natively — todo
-- outcome: Each image pane shows demographics corners, orientation letters, a scale ruler and image number, with a toggle and an anonymized mode. The pane reads out the value under the cursor.
-- acceptance: Native tests assert letters for known direction cosines, ruler length against pixel spacing, and that anonymized mode renders no patient text.
-- scope: `crates/ritk-snap/src/presentation/native_session/layout/{overlay,compare}.rs`, `crates/ritk-snap/src/ui/overlay`, `crates/ritk-snap/src/app/pointer_ops.rs`
-- next: Port `ui/overlay` to the native layout. The spacing line, axis table and overflow disclosure are in `414da7491:crates/ritk-snap/src/ui/overlay/details.rs`.
-- basis: 30b8ba098
+- outcome: Comparison-grid panes show the same clinical corners, orientation, ruler, cursor values, and privacy toggles as orthogonal panes.
+- acceptance: For known direction cosines and spacing, comparison-grid tests assert letters, ruler length, cursor value, and absence of patient text when anonymized.
+- scope: crates/ritk-snap/src/presentation/native_session/layout/compare/, crates/ritk-snap/src/presentation/native_session/tests/
+- next: Reuse the existing orthogonal clinical-overlay composition for comparison panes; preserve shared text placement in Métis.
+- basis: 30ade461c3cbf50a286111a44213e195c2fe5d95
 - needs: none
 - milestone: M-viewer-reading
 - priority: feature

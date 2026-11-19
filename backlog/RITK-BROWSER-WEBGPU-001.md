@@ -1,5 +1,4 @@
 <a id="RITK-BROWSER-WEBGPU-001"></a>
-
 ## RITK-BROWSER-WEBGPU-001 — Demonstrate browser WebGPU presentation — blocked
 - milestone: M-viewer-compare
 - outcome: Render the public MRI-DIR study through the RITK WebGPU canvas path.

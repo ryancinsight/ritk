@@ -1,5 +1,4 @@
 <a id="RITK-CI-MERGE-GATE-001"></a>
-
 ## RITK-CI-MERGE-GATE-001 — Gate pull requests through one CI check — todo
 - milestone: M-viewer-access
 - outcome: preserve an accurate required gate across draft and ready pull requests.
