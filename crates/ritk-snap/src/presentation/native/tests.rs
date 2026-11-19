@@ -28,6 +28,7 @@ fn native_events_preserve_provider_values() {
             y: 4,
             button: metis_platform::native::MouseButton::Right,
         },
+        WindowEvent::PointerCaptureLost,
         WindowEvent::PointerWheel {
             x: -5,
             y: 6,
@@ -83,6 +84,7 @@ fn native_events_preserve_provider_values() {
                 y: 4.0,
                 button: PointerButton::Right,
             },
+            PresentationEvent::PointerCaptureLost,
             PresentationEvent::PointerWheel {
                 x: -5.0,
                 y: 6.0,

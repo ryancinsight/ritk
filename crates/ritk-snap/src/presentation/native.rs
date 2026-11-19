@@ -125,6 +125,7 @@ pub fn translate_native_events(events: &[WindowEvent]) -> Result<Box<[Presentati
                 y: f64::from(*y),
                 button: translate_pointer_button(*button),
             },
+            WindowEvent::PointerCaptureLost => PresentationEvent::PointerCaptureLost,
             WindowEvent::PointerWheel {
                 x,
                 y,

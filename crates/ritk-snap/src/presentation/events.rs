@@ -203,6 +203,12 @@ pub enum PresentationEvent {
         /// Canceled button.
         button: PointerButton,
     },
+    /// The host took pointer capture away without delivering a button release.
+    ///
+    /// Unlike [`PresentationEvent::PointerCancel`], the host supplies no
+    /// position or button with this notification, so there is nothing to
+    /// preserve beyond the loss itself.
+    PointerCaptureLost,
     /// A wheel rotated at client coordinates.
     ///
     /// The deltas retain the host's signed units as finite `f64` values. A

@@ -188,6 +188,42 @@ fn pointer_cancel_clears_one_pressed_button_without_releasing_a_click() {
 }
 
 #[test]
+fn capture_loss_cancels_pressed_buttons_at_last_known_position() {
+    let mut dispatcher = PresentationDispatcher::new();
+    let actions = dispatcher
+        .dispatch(&[
+            PresentationEvent::PointerDown {
+                x: 2.0,
+                y: 3.0,
+                button: PointerButton::Left,
+            },
+            PresentationEvent::PointerCaptureLost,
+        ])
+        .expect("capture loss");
+    assert_eq!(
+        actions.as_ref(),
+        &[
+            ViewerAction::PointerPressed {
+                button: PointerButton::Left,
+                position: ViewportPoint::new(2.0, 3.0),
+            },
+            ViewerAction::PointerCancelled {
+                button: PointerButton::Left,
+                position: ViewportPoint::new(2.0, 3.0),
+            },
+        ]
+    );
+    let release = dispatcher
+        .dispatch(&[PresentationEvent::PointerUp {
+            x: 2.0,
+            y: 3.0,
+            button: PointerButton::Left,
+        }])
+        .expect("a release after capture loss is ordinary host input");
+    assert_eq!(release.as_ref(), &[]);
+}
+
+#[test]
 fn malformed_batch_is_atomic_and_composition_is_bounded() {
     let mut dispatcher = PresentationDispatcher::new();
     let malformed = dispatcher.dispatch(&[

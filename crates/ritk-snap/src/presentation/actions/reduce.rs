@@ -173,6 +173,25 @@ impl PresentationDispatcher {
                     action_limit,
                 )
             }
+            PresentationEvent::PointerCaptureLost => {
+                // The host dropped capture without a release, so every
+                // tracked press is stale: cancel each at its last known
+                // position, mirroring the pointer half of focus loss.
+                for button in POINTER_BUTTONS {
+                    if let Some(press) = self.pointers[button_slot(button)] {
+                        Self::push_action(
+                            actions,
+                            ViewerAction::PointerCancelled {
+                                button,
+                                position: press.last,
+                            },
+                            action_limit,
+                        )?;
+                    }
+                }
+                self.clear_pointers();
+                Ok(())
+            }
             PresentationEvent::KeyDown {
                 virtual_key,
                 repeated,
