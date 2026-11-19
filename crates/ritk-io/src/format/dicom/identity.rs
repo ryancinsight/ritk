@@ -23,7 +23,7 @@ pub(super) fn uid_is_valid(uid: &str) -> bool {
 /// Non-image storage objects do not participate in image-series selection.
 pub(super) fn image_series_uid(obj: &DicomFile) -> Result<Option<ArrayString<64>>> {
     image_series_uid_from(|tag| {
-        obj.element(DicomTag::from(tag))
+        obj.element(tag)
             .ok()
             .map(|element| element.to_str().context("invalid DICOM UID value"))
             .transpose()

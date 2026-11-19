@@ -140,7 +140,7 @@ fn nrrd_round_trip(scheme: &GradientScheme) -> GradientScheme {
 fn dicom_round_trip(scheme: &GradientScheme) -> GradientScheme {
     use ritk_dicom::attribute::tags;
     use ritk_dicom::dataset::Dataset;
-    use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+    use ritk_dicom::dataset::{DataElement, PrimitiveValue, VR};
     use std::path::Path;
 
     fn write_instance(
@@ -151,12 +151,12 @@ fn dicom_round_trip(scheme: &GradientScheme) -> GradientScheme {
     ) -> anyhow::Result<()> {
         let mut object = Dataset::new();
         object.put(DataElement::new(
-            DicomTag::from(tags::DIFFUSION_B_VALUE),
+            tags::DIFFUSION_B_VALUE,
             VR::FD,
             PrimitiveValue::from(weighting),
         ));
         object.put(DataElement::new(
-            DicomTag::from(tags::DIFFUSION_GRADIENT_DIRECTION),
+            tags::DIFFUSION_GRADIENT_DIRECTION,
             VR::FD,
             PrimitiveValue::F64(ritk_dicom::dataset::SmallVec::from_vec(direction.to_vec())),
         ));

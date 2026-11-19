@@ -7,7 +7,7 @@ use flate2::{Decompress, FlushDecompress, Status};
 pub(super) fn dataset(input: &[u8], allowance: usize) -> Result<Bytes> {
     let mut decoder = Decompress::new(false);
     let mut output = Vec::new();
-    let mut block = [0u8; 32 * 1024];
+    let mut block = [0u8; 16 * 1024];
     loop {
         let consumed =
             usize::try_from(decoder.total_in()).context("DICOM deflate input offset overflow")?;

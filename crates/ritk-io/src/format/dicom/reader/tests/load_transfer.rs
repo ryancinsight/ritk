@@ -49,13 +49,12 @@ fn malformed_jpeg_ls_series_is_catalogued_and_returns_the_codec_error() {
         series.metadata.slices[0].transfer_syntax_uid.as_deref(),
         Some(syntax.uid())
     );
-    let device = coeus_core::SequentialBackend::default();
+    let device = coeus_core::SequentialBackend;
     let error = load_dicom_series_with_metadata::<coeus_core::SequentialBackend, _>(
         scratch.path(),
         &device,
     )
-    .err()
-    .expect("truncated JPEG-LS segment");
+    .expect_err("truncated JPEG-LS segment");
     assert!(format!("{error:#}").contains("JPEG-LS"), "{error:#}");
 }
 

@@ -1,7 +1,7 @@
 use super::*;
 use crate::attribute::tags;
 use crate::dataset::SmallVec;
-use crate::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+use crate::dataset::{DataElement, PrimitiveValue, VR};
 use crate::dataset::{Dataset, DicomFile};
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientFrame};
 
@@ -23,12 +23,12 @@ fn object_with(elements: impl IntoIterator<Item = DataElement>) -> DicomFile {
 fn diffusion_elements(weighting: f64, direction: &[f64]) -> Vec<DataElement> {
     vec![
         DataElement::new(
-            DicomTag::from(tags::DIFFUSION_B_VALUE),
+            tags::DIFFUSION_B_VALUE,
             VR::FD,
             PrimitiveValue::from(weighting),
         ),
         DataElement::new(
-            DicomTag::from(tags::DIFFUSION_GRADIENT_DIRECTION),
+            tags::DIFFUSION_GRADIENT_DIRECTION,
             VR::FD,
             PrimitiveValue::F64(SmallVec::from_vec(direction.to_vec())),
         ),
@@ -69,7 +69,7 @@ fn absent_standard_elements_return_none() -> Result<()> {
 #[test]
 fn incomplete_wrong_length_and_non_finite_metadata_are_rejected() {
     let weighting_only = object_with([DataElement::new(
-        DicomTag::from(tags::DIFFUSION_B_VALUE),
+        tags::DIFFUSION_B_VALUE,
         VR::FD,
         PrimitiveValue::from(1_000.0),
     )]);
@@ -86,7 +86,7 @@ fn incomplete_wrong_length_and_non_finite_metadata_are_rejected() {
 fn baseline_weighting_without_orientation_is_valid() -> Result<()> {
     for weighting in [0.0, 1.0e-9, 50.0] {
         let b0 = object_with([DataElement::new(
-            DicomTag::from(tags::DIFFUSION_B_VALUE),
+            tags::DIFFUSION_B_VALUE,
             VR::FD,
             PrimitiveValue::from(weighting),
         )]);
@@ -97,7 +97,7 @@ fn baseline_weighting_without_orientation_is_valid() -> Result<()> {
     }
 
     let weighted = object_with([DataElement::new(
-        DicomTag::from(tags::DIFFUSION_B_VALUE),
+        tags::DIFFUSION_B_VALUE,
         VR::FD,
         PrimitiveValue::from(50.0_f64.next_up()),
     )]);

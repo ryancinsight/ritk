@@ -10,7 +10,6 @@ use super::PrimitiveValue;
 
 impl PrimitiveValue {
     pub fn to_str(&self) -> Cow<'_, str> {
-        use PrimitiveValue::*;
         fn joined<T: Display>(values: &[T]) -> String {
             values
                 .iter()
@@ -19,10 +18,12 @@ impl PrimitiveValue {
                 .join("\\")
         }
         let text = match self {
-            Empty => return Cow::Borrowed(""),
-            Str(s) => return Cow::Borrowed(s.trim_end_matches([' ', '\0'])),
-            Strs(s) if s.len() == 1 => return Cow::Borrowed(s[0].trim_end_matches([' ', '\0'])),
-            Strs(s) => {
+            Self::Empty => return Cow::Borrowed(""),
+            Self::Str(s) => return Cow::Borrowed(s.trim_end_matches([' ', '\0'])),
+            Self::Strs(s) if s.len() == 1 => {
+                return Cow::Borrowed(s[0].trim_end_matches([' ', '\0']))
+            }
+            Self::Strs(s) => {
                 return Cow::Owned(
                     s.iter()
                         .map(|v| v.trim_end_matches([' ', '\0']))
@@ -30,22 +31,21 @@ impl PrimitiveValue {
                         .join("\\"),
                 )
             }
-            Bytes(v) => joined(v),
-            I16(v) => joined(v),
-            U16(v) => joined(v),
-            I32(v) => joined(v),
-            U32(v) => joined(v),
-            I64(v) => joined(v),
-            U64(v) => joined(v),
-            F32(v) => joined(v),
-            F64(v) => joined(v),
-            Tags(v) => joined(v),
+            Self::Bytes(v) => joined(v),
+            Self::I16(v) => joined(v),
+            Self::U16(v) => joined(v),
+            Self::I32(v) => joined(v),
+            Self::U32(v) => joined(v),
+            Self::I64(v) => joined(v),
+            Self::U64(v) => joined(v),
+            Self::F32(v) => joined(v),
+            Self::F64(v) => joined(v),
+            Self::Tags(v) => joined(v),
         };
         Cow::Owned(text)
     }
 
     fn numbers<T: NumCast + FromStr>(&self, maximum: usize) -> Result<SmallVec<[T; 2]>> {
-        use PrimitiveValue::*;
         fn cast<T: NumCast, U: NumCast + Copy>(
             values: &[U],
             maximum: usize,
@@ -67,25 +67,25 @@ impl PrimitiveValue {
                 .map_err(|_| anyhow!("invalid DICOM numeric value {index}: {text:?}"))
         };
         match self {
-            Empty => Ok(SmallVec::new()),
-            Str(s) => s.split('\\').take(maximum).enumerate().map(parse).collect(),
-            Strs(s) => s
+            Self::Empty => Ok(SmallVec::new()),
+            Self::Str(s) => s.split('\\').take(maximum).enumerate().map(parse).collect(),
+            Self::Strs(s) => s
                 .iter()
                 .take(maximum)
                 .map(String::as_str)
                 .enumerate()
                 .map(parse)
                 .collect(),
-            Bytes(v) => cast(v, maximum),
-            I16(v) => cast(v, maximum),
-            U16(v) => cast(v, maximum),
-            I32(v) => cast(v, maximum),
-            U32(v) => cast(v, maximum),
-            I64(v) => cast(v, maximum),
-            U64(v) => cast(v, maximum),
-            F32(v) => cast(v, maximum),
-            F64(v) => cast(v, maximum),
-            Tags(_) => bail!("DICOM tags are not numeric samples"),
+            Self::Bytes(v) => cast(v, maximum),
+            Self::I16(v) => cast(v, maximum),
+            Self::U16(v) => cast(v, maximum),
+            Self::I32(v) => cast(v, maximum),
+            Self::U32(v) => cast(v, maximum),
+            Self::I64(v) => cast(v, maximum),
+            Self::U64(v) => cast(v, maximum),
+            Self::F32(v) => cast(v, maximum),
+            Self::F64(v) => cast(v, maximum),
+            Self::Tags(_) => bail!("DICOM tags are not numeric samples"),
         }
     }
 

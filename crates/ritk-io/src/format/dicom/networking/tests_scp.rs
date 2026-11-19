@@ -206,17 +206,20 @@ fn received_dataset_uses_the_native_file_header() {
     let dataset_bytes = b"\x20\x00\x32\x00DS\x06\x001\\2\\3 ".to_vec();
     for uid in ["1.2.3", "1.2.34"] {
         let inst = super::StoredInstance {
-            sop_class_uid: ArrayString::from("1.2.840.10008.5.1.4.1.1.2").unwrap(),
-            sop_instance_uid: ArrayString::from(uid).unwrap(),
+            sop_class_uid: ArrayString::from("1.2.840.10008.5.1.4.1.1.2")
+                .expect("valid DIMSE fixture"),
+            sop_instance_uid: ArrayString::from(uid).expect("valid DIMSE fixture"),
             dataset_bytes: dataset_bytes.clone(),
-            transfer_syntax_uid: ArrayString::from("1.2.840.10008.1.2.1").unwrap(),
+            transfer_syntax_uid: ArrayString::from("1.2.840.10008.1.2.1")
+                .expect("valid DIMSE fixture"),
         };
         let bytes = inst
             .make_part10_bytes()
             .expect("valid association metadata");
         assert_eq!(&bytes[..128], &[0u8; 128]);
         assert_eq!(&bytes[128..140], b"DICM\x02\x00\x00\x00UL\x04\x00");
-        let size = u32::from_le_bytes(bytes[140..144].try_into().unwrap()) as usize;
+        let size =
+            u32::from_le_bytes(bytes[140..144].try_into().expect("valid DIMSE fixture")) as usize;
         assert_eq!(&bytes[144 + size..], dataset_bytes);
         let tag = bytes[144..144 + size]
             .windows(6)
@@ -224,7 +227,9 @@ fn received_dataset_uses_the_native_file_header() {
             .expect("file meta SOP instance UID")
             + 144;
         let length = usize::from(u16::from_le_bytes(
-            bytes[tag + 6..tag + 8].try_into().unwrap(),
+            bytes[tag + 6..tag + 8]
+                .try_into()
+                .expect("valid DIMSE fixture"),
         ));
         assert_eq!(length, uid.len() + uid.len() % 2);
         assert_eq!(&bytes[tag + 8..tag + 8 + uid.len()], uid.as_bytes());
@@ -237,9 +242,9 @@ fn received_dataset_uses_the_native_file_header() {
         assert_eq!(file.meta().media_storage_sop_instance_uid(), uid);
         assert_eq!(
             file.element(ritk_dicom::tags::IMAGE_POSITION_PATIENT)
-                .unwrap()
+                .expect("valid DIMSE fixture")
                 .to_numbers::<f64>()
-                .unwrap(),
+                .expect("valid DIMSE fixture"),
             [1.0, 2.0, 3.0]
         );
     }

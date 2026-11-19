@@ -13,6 +13,10 @@
 - Explicit big-endian Part 10 parsing, writing, and stored-sample decode
   are covered at the provider boundary. Higher-level RITK I/O series
   loaders retain their existing explicit big-endian policy.
+- A standalone Git consumer resolves the tested graph with its lock and
+  no path overrides. Unlocked resolution selects Aequitas 0.4 on its default
+  branch while `ritk-diffusion-scheme` requires 0.3. That release gate follows
+  the separate Aequitas adoption and registry work.
 
 <a id="RITK-REGISTRY-PUBLICATION-001"></a>
 ## RITK-REGISTRY-PUBLICATION-001: Git validation does not establish registry publication [patch]

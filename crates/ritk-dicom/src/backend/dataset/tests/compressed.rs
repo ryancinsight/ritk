@@ -1,7 +1,6 @@
 //! Tests for `NativeBackend`.
 //!
 //! Extracted to keep the 500-line structural limit.
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::super::*;
 use crate::backend::{

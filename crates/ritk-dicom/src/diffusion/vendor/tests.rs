@@ -64,11 +64,7 @@ fn make_sv10_blob(entries: &[(&str, &str, &[u8])]) -> Vec<u8> {
 
 fn object_with_bytes(tag: DicomTag, bytes: Vec<u8>) -> DicomFile {
     let mut object = Dataset::new();
-    object.put(DataElement::new(
-        DicomTag::from(tag),
-        VR::OB,
-        PrimitiveValue::from(bytes),
-    ));
+    object.put(DataElement::new(tag, VR::OB, PrimitiveValue::from(bytes)));
     object
         .with_meta(
             crate::dataset::FileMetaBuilder::new()
@@ -82,12 +78,12 @@ fn object_with_bytes(tag: DicomTag, bytes: Vec<u8>) -> DicomFile {
 fn diffusion_elements(weighting: f64, direction: &[f64]) -> Vec<DataElement> {
     vec![
         DataElement::new(
-            DicomTag::from(tags::DIFFUSION_B_VALUE),
+            tags::DIFFUSION_B_VALUE,
             VR::FD,
             PrimitiveValue::from(weighting),
         ),
         DataElement::new(
-            DicomTag::from(tags::DIFFUSION_GRADIENT_DIRECTION),
+            tags::DIFFUSION_GRADIENT_DIRECTION,
             VR::FD,
             PrimitiveValue::F64(SmallVec::from_vec(direction.to_vec())),
         ),
@@ -210,7 +206,7 @@ fn standard_tags_take_priority_over_vendor_blocks() -> anyhow::Result<()> {
         ("DiffusionGradientDirection", "FD", &dir_bytes),
     ]);
     elements.push(DataElement::new(
-        DicomTag::from(crate::diffusion::vendor::SIEMENS_CSA_SERIES),
+        crate::diffusion::vendor::SIEMENS_CSA_SERIES,
         VR::OB,
         PrimitiveValue::from(csa_blob),
     ));

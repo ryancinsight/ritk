@@ -208,11 +208,11 @@ impl Designations {
             let scalar = ch.encode_utf8(&mut buffer);
             if g1.is_none()
                 && let Ok(bytes) = encode(first, scalar)
+                && bytes.len() == 1
+                && bytes[0] >= 0x80
             {
-                if bytes.len() == 1 && bytes[0] >= 0x80 {
-                    output.extend_from_slice(&bytes);
-                    continue;
-                }
+                output.extend_from_slice(&bytes);
+                continue;
             }
             let mut written = false;
             for &entry in &self.0 {
