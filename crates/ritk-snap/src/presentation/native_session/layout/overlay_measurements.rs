@@ -1,8 +1,10 @@
 //! RITK-owned measurement and region overlays for native panes.
 
+mod calibration;
 mod cobb;
 mod handles;
 mod labels;
+mod visibility;
 
 use super::super::frame::RenderedView;
 use super::crosshair::screen_coordinate;
@@ -13,8 +15,10 @@ use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
 use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
 use anyhow::{anyhow, Result};
+use calibration::ImageMeasurementScale;
 use metis_platform::{Color, Rect};
 use metis_ui_lang::PlacementObstacle;
+use visibility::annotation_visible;
 pub(crate) const MEASUREMENT_COLOR: Color = Color::rgba(255, 255, 0, 255);
 const ROI_COLOR: Color = Color::rgba(0, 255, 0, 255);
 const POINT_COLOR: Color = Color::rgba(0, 255, 255, 255);
@@ -57,7 +61,6 @@ pub(crate) fn append_measurement_overlay(
             if !annotation_visible(annotation, view.axis, view.slice_index) {
                 continue;
             }
-
             let annotation = pending_annotation
                 .filter(|(pending_index, _)| *pending_index == index)
                 .map_or(annotation, |(_, candidate)| candidate);
@@ -127,21 +130,6 @@ pub(crate) fn append_measurement_preview(
     }
     Ok(())
 }
-fn annotation_visible(annotation: &Annotation, plane: usize, slice: usize) -> bool {
-    if let Some(AnnotationLocation {
-        plane: recorded,
-        slice: index,
-    }) = annotation.location()
-    {
-        return recorded == plane && index == slice;
-    }
-    matches!(
-        annotation,
-        Annotation::Length { plane: recorded, .. }
-            | Annotation::PatientLength { plane: recorded, .. } if *recorded == plane
-    )
-}
-
 struct Pane<'a> {
     view: &'a RenderedView,
     viewport: &'a NativeViewport,
@@ -232,6 +220,7 @@ impl Pane<'_> {
         affine: Option<AffineTransform>,
         length_scale: f64,
     ) -> Result<()> {
+        let image_scale = ImageMeasurementScale::new(length_scale);
         match annotation {
             Annotation::Length {
                 plane,
@@ -246,7 +235,7 @@ impl Pane<'_> {
                     labels,
                     image_point(*p1),
                     image_point(*p2),
-                    format!("{:.1} mm", f64::from(*length_mm) * length_scale),
+                    image_scale.length_label(*length_mm),
                 )?;
             }
             Annotation::PatientLength { plane, length, .. } if *plane == self.view.axis => {
@@ -306,7 +295,7 @@ impl Pane<'_> {
                 self.label(
                     labels,
                     image_point(*end),
-                    format!("{distance_mm:.1} mm {angle_deg:.1} deg"),
+                    image_scale.deviation_label(*distance_mm, *angle_deg),
                 )?;
             }
             Annotation::RoiRect {
@@ -324,11 +313,7 @@ impl Pane<'_> {
                     self.line(overlay, pair[0], pair[1], ROI_COLOR)?;
                 }
                 self.line(overlay, corners[3], corners[0], ROI_COLOR)?;
-                self.label(
-                    labels,
-                    b,
-                    format!("Mean {mean:.1} SD {std_dev:.1} {area_mm2:.1} mm2"),
-                )?;
+                self.label(labels, b, image_scale.roi_label(*mean, *std_dev, *area_mm2))?;
             }
             Annotation::RoiEllipse {
                 center,
@@ -354,7 +339,7 @@ impl Pane<'_> {
                 self.label(
                     labels,
                     image_point(*center),
-                    format!("Mean {mean:.1} SD {std_dev:.1} {area_mm2:.1} mm2"),
+                    image_scale.roi_label(*mean, *std_dev, *area_mm2),
                 )?;
             }
             Annotation::HuPoint { pos, value, .. } => {
@@ -389,7 +374,7 @@ impl Pane<'_> {
                     self.label(
                         labels,
                         *first,
-                        format!("{area_mm2:.1} mm2  {perimeter_mm:.1} mm"),
+                        image_scale.closed_polygon_label(*area_mm2, *perimeter_mm),
                     )?;
                 }
             }
@@ -401,7 +386,7 @@ impl Pane<'_> {
                     self.line(overlay, pair[0], pair[1], ROI_COLOR)?;
                 }
                 if let Some(first) = polyline.first() {
-                    self.label(labels, *first, format!("{length_mm:.1} mm"))?;
+                    self.label(labels, *first, image_scale.length_label(*length_mm))?;
                 }
             }
             Annotation::Arrow { tail, head, .. } => {
