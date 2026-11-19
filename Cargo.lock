@@ -150,7 +150,7 @@ dependencies = [
 [[package]]
 name = "aequitas"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/aequitas#aa22d5f30f21cf6d2402a558a4e9cfa0b4b1cb15"
+source = "git+https://github.com/ryancinsight/aequitas#e2a9359869d20b5f9052f8d3e4fbd8886e0db9c0"
 dependencies = [
  "eunomia",
  "typenum",
