@@ -72,7 +72,7 @@
 
 Series and slice geometry and PET activity now have dimensional storage. The
 viewer gates SUV calculation on classic PET activity-concentration pixels.
-Enhanced PET real-world pixel mapping and compound time metadata remain open.
+Compound time metadata outside spatial Enhanced PET quantification remains open.
 
 ## Enhanced PET quantitative voxels [major]
 
