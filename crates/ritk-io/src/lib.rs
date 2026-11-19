@@ -8,9 +8,6 @@ pub use domain::{
     VtkStructuredGrid, VtkUnstructuredGrid,
 };
 pub use format::analyze::{read_analyze, write_analyze, AnalyzeReader, AnalyzeWriter};
-/// Conformant Part 10 file-set index construction for consumers' tests.
-#[cfg(feature = "test-util")]
-pub use format::dicom::file_set_index_fixture;
 pub use format::dicom::{
     anonymize_dicom_directory, anonymize_dicom_directory_verified, anonymize_dicom_file,
     anonymize_dicom_file_verified, anonymize_object, dicom_echo, dicom_find, dicom_retrieve,
@@ -49,6 +46,9 @@ pub use format::dicom::{
     SegmentAlgorithmType, SegmentationType, StoreResponse, StoreScp, StoreScpHandle,
     StoredInstance, TagAction, TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
 };
+/// Conformant Part 10 file-set index construction for consumers' tests.
+#[cfg(feature = "test-util")]
+pub use format::dicom::{file_set_index_fixture, write_dynamic_gated_pet_concatenation};
 pub use format::dicom::{BodyWeightSuvVolume, Radioactivity};
 #[cfg(not(target_arch = "wasm32"))]
 pub use format::dicomweb::{DicomWebClient, QidoSearchParams, StowFailure, StowResponse};
@@ -87,6 +87,7 @@ pub use dispatch::{
 };
 
 pub use format::dicom::{
-    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes, EnhancedPetCoordinate,
-    EnhancedPetDimension, EnhancedPetSelection, EnhancedPetVolume,
+    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes,
+    load_enhanced_pet_volumes_from_instances, EnhancedPetCoordinate, EnhancedPetDimension,
+    EnhancedPetSelection, EnhancedPetVolume,
 };

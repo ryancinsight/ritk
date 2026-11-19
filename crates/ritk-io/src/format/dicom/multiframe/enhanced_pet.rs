@@ -2,7 +2,7 @@
 
 use aequitas::systems::si::{
     quantities::{Activity, ActivityConcentration, Mass, MassDensity, Time},
-    units::{BecquerelPerMilliliter, GramPerCubicCentimeter, Megabecquerel},
+    units::{BecquerelPerMilliliter, GramPerCubicCentimeter, Megabecquerel, Second},
 };
 use dicom::core::{
     value::{AsRange, PreciseDateTime},
@@ -208,7 +208,7 @@ fn normalization(
     };
     let administered =
         Activity::from_unit::<Megabecquerel>(positive(isotope, Tag(0x0018, 0x1074))?);
-    let half_life = Time::from_base(positive(isotope, Tag(0x0018, 0x1075))?);
+    let half_life = Time::from_unit::<Second>(positive(isotope, Tag(0x0018, 0x1075))?);
     let injection = datetime(isotope, Tag(0x0018, 0x1078))?;
     let corrected = obj.element(Tag(0x0018, 0x9758)).ok()?.to_str().ok()?;
     let reference = match corrected.trim() {
@@ -226,12 +226,9 @@ fn normalization(
         (PreciseDateTime::TimeZone(end), PreciseDateTime::TimeZone(start)) => end - start,
         _ => return None,
     };
-    let seconds = elapsed.num_microseconds()? as f64 * 1.0e-6;
-    if seconds < 0.0 {
-        return None;
-    }
-    let remaining_fraction = (-seconds / half_life.into_base()).exp2();
-    let activity_at_reference = Activity::from_base(administered.into_base() * remaining_fraction);
+    let elapsed = Time::from_unit::<Second>(elapsed.to_std().ok()?.as_secs_f64());
+    let half_lives = (elapsed / half_life).into_base();
+    let activity_at_reference = administered * (-half_lives).exp2();
     let activity = *activity_at_reference.as_base();
     (activity.is_finite() && activity > 0.0).then_some(Normalization {
         mass,

@@ -12,6 +12,7 @@ use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::time::{Duration, Instant};
 mod anonymize;
 mod display;
+mod enhanced_pet;
 mod interaction;
 mod pointer_capture;
 mod repair;

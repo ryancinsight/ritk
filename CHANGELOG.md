@@ -20,6 +20,12 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+### Added
+
+- Reconstruct Enhanced PET time points and gates across DICOM concatenation
+  members. The volume-set reader accepts scanned members and uses each
+  plane's original pixel encoding and quantitative mapping.
+
 ### Breaking
 
 - Enhanced PET volume sets reconstruct each temporal position and gate

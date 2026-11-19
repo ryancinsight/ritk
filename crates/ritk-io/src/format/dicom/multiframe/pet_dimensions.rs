@@ -1,11 +1,10 @@
 //! Group Enhanced PET frames using DICOM Dimension Index Values.
 
 use std::collections::BTreeMap;
-use std::path::Path;
 
 use aequitas::systems::si::{
-    quantities::{Dimensionless, Time},
-    units::Millisecond,
+    quantities::{Dimensionless, Length, Time},
+    units::{Millimeter, Millisecond},
 };
 use anyhow::{bail, ensure, Context, Result};
 use dicom::core::{
@@ -15,8 +14,8 @@ use dicom::core::{
 use dicom::dictionary_std::uids::ENHANCED_PET_IMAGE_STORAGE;
 use dicom::object::InMemDicomObject;
 
+use super::reader::frame_source::{FrameAddress, FrameSource};
 use super::temporal::reject_temporal_organization;
-use super::types::PerFrameInfo;
 use crate::format::dicom::reader::{dot, slice_normal_from_iop};
 
 const DIMENSIONS: Tag = Tag(0x0020, 0x9222);
@@ -58,7 +57,7 @@ pub struct EnhancedPetDimension {
 
 pub(super) struct PetFrameGroup {
     pub dimensions: Vec<EnhancedPetDimension>,
-    pub frames: Vec<usize>,
+    pub frames: Vec<FrameAddress>,
 }
 
 pub(super) fn is_enhanced_pet(uid: &str) -> bool {
@@ -141,15 +140,48 @@ impl Axis {
     }
 }
 
-/// Group by the declared nonspatial ordinals, then sort the planes within each
-/// group by patient position. Pixel decode must use the source frame indices.
+type SpatialPlanes = BTreeMap<Vec<u32>, FrameAddress>;
+type Partitions = BTreeMap<Vec<u32>, (Vec<EnhancedPetDimension>, SpatialPlanes)>;
+
+/// Group by nonspatial ordinals before sorting each volume by patient position.
+/// Source-local addresses preserve encoding and calibration across concatenations.
 pub(super) fn frame_groups(
-    obj: &InMemDicomObject,
-    path: &Path,
-    n_frames: usize,
-    geometry: &[PerFrameInfo],
-    global_orientation: Option<[f64; 6]>,
-) -> Result<Option<Vec<PetFrameGroup>>> {
+    sources: &[FrameSource<'_>],
+    ordered_members: &[usize],
+) -> Result<Vec<PetFrameGroup>> {
+    let mut partitions = Partitions::new();
+    for &source in ordered_members {
+        let instance = &sources[source];
+        if !partition_instance(&mut partitions, source, instance)? {
+            ensure!(
+                sources.len() == 1,
+                "Enhanced PET concatenation requires DimensionIndexSequence"
+            );
+            return Ok(vec![PetFrameGroup {
+                dimensions: Vec::new(),
+                frames: (0..instance.info.n_frames)
+                    .map(|local| FrameAddress { source, local })
+                    .collect(),
+            }]);
+        }
+    }
+    partitions
+        .into_values()
+        .map(|(dimensions, planes)| {
+            let frames = order_planes(planes, sources)?;
+            Ok(PetFrameGroup { dimensions, frames })
+        })
+        .collect()
+}
+
+fn partition_instance(
+    partitions: &mut Partitions,
+    source: usize,
+    instance: &FrameSource<'_>,
+) -> Result<bool> {
+    let FrameSource {
+        obj, path, info, ..
+    } = instance;
     let dynamic = obj
         .element(Tag(0x0008, 0x0008))
         .ok()
@@ -173,7 +205,7 @@ pub(super) fn frame_groups(
             !dynamic && !gated,
             "Dynamic or gated Enhanced PET requires DimensionIndexSequence in {path:?}"
         );
-        return Ok(None);
+        return Ok(false);
     }
     let axes = items(obj, DIMENSIONS)
         .context("Enhanced PET DimensionIndexSequence must be a sequence")?
@@ -213,7 +245,7 @@ pub(super) fn frame_groups(
     let groups = items(obj, PER_FRAME)
         .context("Enhanced PET dimensions require per-frame functional groups")?;
     ensure!(
-        groups.len() == n_frames,
+        groups.len() == info.n_frames,
         "Enhanced PET per-frame group count must equal NumberOfFrames"
     );
     ensure!(
@@ -221,8 +253,6 @@ pub(super) fn frame_groups(
         "Enhanced PET dimensions require an in-stack or patient-position axis"
     );
     let shared = one_item(obj, SHARED);
-    let mut partitions: BTreeMap<Vec<u32>, (Vec<EnhancedPetDimension>, BTreeMap<Vec<u32>, usize>)> =
-        BTreeMap::new();
     for (index, frame) in groups.iter().enumerate() {
         let content =
             one_item(frame, CONTENT).context("Enhanced PET frame is missing Frame Content")?;
@@ -251,51 +281,64 @@ pub(super) fn frame_groups(
             (dimensions, BTreeMap::new())
         });
         ensure!(
-            planes.insert(plane, index).is_none(),
+            planes
+                .insert(
+                    plane,
+                    FrameAddress {
+                        source,
+                        local: index
+                    }
+                )
+                .is_none(),
             "Enhanced PET volume contains duplicate spatial indices"
         );
     }
-    let mut results = Vec::with_capacity(partitions.len());
-    for (dimensions, planes) in partitions.into_values() {
-        let mut frames: Vec<_> = planes.into_values().collect();
-        if frames.len() > 1 {
-            let first = &geometry[frames[0]];
-            let iop = first
-                .image_orientation
-                .or(global_orientation)
-                .context("Enhanced PET volume geometry lacks orientation")?;
-            let normal = slice_normal_from_iop(iop).context("Invalid Enhanced PET orientation")?;
-            let positions = frames
-                .iter()
-                .map(|&index| {
-                    let frame = &geometry[index];
-                    ensure!(
-                        frame.image_orientation.or(global_orientation) == Some(iop)
-                            && frame.pixel_spacing == first.pixel_spacing,
-                        "Enhanced PET geometry changes within one volume"
-                    );
-                    let position = dot(
-                        frame
-                            .image_position
-                            .context("Enhanced PET slice lacks patient position")?,
-                        normal,
-                    );
-                    ensure!(
-                        position.is_finite(),
-                        "Enhanced PET slice has a nonfinite position"
-                    );
-                    Ok((position, index))
-                })
-                .collect::<Result<Vec<_>>>()?;
-            let mut positions = positions;
-            positions.sort_by(|a, b| a.0.total_cmp(&b.0));
-            ensure!(
-                positions.windows(2).all(|pair| pair[0].0 < pair[1].0),
-                "Enhanced PET volume contains duplicate patient slice positions"
-            );
-            frames = positions.into_iter().map(|(_, index)| index).collect();
-        }
-        results.push(PetFrameGroup { dimensions, frames });
+    Ok(true)
+}
+
+fn order_planes(planes: SpatialPlanes, sources: &[FrameSource<'_>]) -> Result<Vec<FrameAddress>> {
+    if planes.len() < 2 {
+        return Ok(planes.into_values().collect());
     }
-    Ok(Some(results))
+    let orientation_and_spacing = |address: FrameAddress| {
+        let source = &sources[address.source];
+        let frame = &source.geometry[address.local];
+        (
+            frame.image_orientation.or(source.info.image_orientation),
+            frame.pixel_spacing.or(source.info.pixel_spacing),
+        )
+    };
+    let first = *planes
+        .first_key_value()
+        .expect("at least two spatial frames")
+        .1;
+    let (iop, spacing) = orientation_and_spacing(first);
+    let normal = iop
+        .and_then(slice_normal_from_iop)
+        .context("Missing or invalid Enhanced PET orientation")?;
+    let mut positions = planes
+        .into_values()
+        .map(|address| {
+            ensure!(
+                orientation_and_spacing(address) == (iop, spacing),
+                "Enhanced PET geometry changes within one volume"
+            );
+            let frame = &sources[address.source].geometry[address.local];
+            let position = frame
+                .image_position
+                .context("Enhanced PET slice lacks patient position")?;
+            let projected = Length::from_unit::<Millimeter>(dot(position, normal));
+            ensure!(
+                projected.as_base().is_finite(),
+                "Enhanced PET slice has a nonfinite position"
+            );
+            Ok((projected, address))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    positions.sort_by(|a, b| a.0.as_base().total_cmp(b.0.as_base()));
+    ensure!(
+        positions.windows(2).all(|pair| pair[0].0 < pair[1].0),
+        "Enhanced PET volume contains duplicate patient slice positions"
+    );
+    Ok(positions.into_iter().map(|(_, address)| address).collect())
 }

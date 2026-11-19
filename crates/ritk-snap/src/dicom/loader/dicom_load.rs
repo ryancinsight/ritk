@@ -8,7 +8,7 @@ use coeus_core::SequentialBackend;
 use ritk_io::{
     load_color_multiframe_flat, load_color_multiframe_flat_from_bytes, load_color_volume_flat,
     load_dicom_from_series, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
-    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes, read_multiframe_info,
+    load_enhanced_pet_volumes_from_instances, read_multiframe_info,
     read_multiframe_info_from_bytes, EnhancedPetSelection,
 };
 #[cfg(windows)]
@@ -197,17 +197,10 @@ fn loaded_volume_from_scalar_data(
 fn load_enhanced_pet_from_scanned_series(
     series: ritk_io::ScannedDicomSeries,
 ) -> Result<LoadedVolume> {
-    let [slice] = series.metadata.slices.as_slice() else {
-        anyhow::bail!("Select one Enhanced PET object");
-    };
-    let volumes = match slice.part10_bytes.as_deref() {
-        Some(bytes) => load_enhanced_pet_volumes_from_bytes(
-            &slice.path,
-            bytes,
-            &ritk_io::DicomReadBudget::DEFAULT,
-        ),
-        None => load_enhanced_pet_volumes(&slice.path),
-    }?;
+    let volumes = load_enhanced_pet_volumes_from_instances(
+        &series.metadata.slices,
+        &ritk_io::DicomReadBudget::DEFAULT,
+    )?;
     let mut meta = series.metadata;
     let selection =
         EnhancedPetSelection::new(volumes).context("Enhanced PET has no spatial volume")?;

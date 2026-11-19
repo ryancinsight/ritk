@@ -137,6 +137,10 @@ pub mod native {
 }
 
 pub use multiframe::{
-    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes, EnhancedPetCoordinate,
-    EnhancedPetDimension, EnhancedPetSelection, EnhancedPetVolume,
+    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes,
+    load_enhanced_pet_volumes_from_instances, EnhancedPetCoordinate, EnhancedPetDimension,
+    EnhancedPetSelection, EnhancedPetVolume,
 };
+
+#[cfg(feature = "test-util")]
+pub use multiframe::test_fixture::write_dynamic_gated_pet_concatenation;

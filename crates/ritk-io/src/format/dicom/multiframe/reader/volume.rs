@@ -6,13 +6,9 @@
 
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
-use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
 use ritk_core::image::Image;
-use ritk_dicom::{
-    decode_frame_with, parse_file_with_budget, DecodeFrameRequest, DicomRsBackend, PixelLayout,
-    TransferSyntaxKind,
-};
+use ritk_dicom::{parse_file_with_budget, DicomRsBackend};
 use ritk_image::tensor::Backend;
 use ritk_image::Image as NativeImage;
 
@@ -20,10 +16,9 @@ use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 
-use super::super::enhanced_pet::{BodyWeightSuvVolume, FrameMapping};
-use super::super::per_frame::extract_functional_groups;
+use super::super::enhanced_pet::BodyWeightSuvVolume;
 use super::super::temporal::reject_temporal_organization;
-use super::header::extract_multiframe_header;
+use super::frame_source::{FrameAddress, FrameSource};
 use crate::format::dicom::reader::geometry::{SliceCoverage, SpacingUniformity};
 use crate::format::dicom::reader::DicomReadBudget;
 /// Substrate-agnostic decoded multi-frame volume: a flat row-major `f32` buffer
@@ -117,96 +112,41 @@ pub(crate) fn load_multiframe_flat_from_object(
     budget: &DicomReadBudget,
 ) -> Result<MultiFrameVolume> {
     if super::super::pet_dimensions::is_enhanced_pet(&obj.meta().media_storage_sop_class_uid) {
-        let (geometry, mut groups) = super::pet::pet_spatial_groups(path, obj, budget)?;
-        if groups.len() != 1 {
-            bail!("Enhanced PET has multiple temporal or gated volumes; use load_enhanced_pet_volumes");
-        }
-        let group = groups.pop().expect("one PET volume");
-        return decode_spatial_frames(path, obj, budget, Some(&group.frames), Some(&geometry));
+        return super::pet::decode_single_spatial_pet(path, obj, budget);
     }
     reject_temporal_organization(path, obj)?;
-    decode_spatial_frames(path, obj, budget, None, None)
+    let instance = FrameSource::read(path, obj, budget)?;
+    decode_spatial_frames(&[instance], budget, None)
 }
 
 pub(super) fn decode_spatial_frames(
-    path: &Path,
-    obj: &DefaultDicomObject,
+    sources: &[FrameSource<'_>],
     budget: &DicomReadBudget,
-    selected: Option<&[usize]>,
-    geometry: Option<&[super::super::types::PerFrameInfo]>,
+    selected: Option<&[FrameAddress]>,
 ) -> Result<MultiFrameVolume> {
-    // Guard: compressed transfer syntaxes are not natively decodable by ritk-io.
-    // Pixel data from compressed objects cannot be interpreted as raw u16/u8 samples.
-    let ts_uid = obj.meta().transfer_syntax();
-    let ts = TransferSyntaxKind::from_uid(ts_uid);
-    if ts.is_compressed() && !ts.is_codec_supported() {
-        bail!(
-            "DICOM multiframe: compressed transfer syntax '{}' in {:?} is not supported \
-             (not natively decoded and no codec registered); \
-             decompress the file or use a supported transfer syntax",
-            ts_uid,
-            path
-        );
+    let actual_n = selected.map_or(sources[0].info.n_frames, <[FrameAddress]>::len);
+    if actual_n == 0 {
+        bail!("DICOM multiframe: selection has no pixel frames");
     }
-    if ts.is_big_endian() {
-        bail!(
-            "DICOM multiframe: big-endian transfer syntax '{}' in {:?} is not supported; \
-             pixel decode requires little-endian byte order",
-            ts_uid,
-            path
-        );
-    }
-
-    let mut info = extract_multiframe_header(path, obj)?;
-    if info.rows == 0 || info.cols == 0 {
-        bail!(
-            "DICOM multiframe: rows={} cols={} must be >0 in {:?}",
-            info.rows,
-            info.cols,
-            path
-        );
-    }
-    if info.samples_per_pixel != 1 {
-        bail!(
-            "DICOM multiframe scalar volume loader supports only SamplesPerPixel=1; \
-             {:?} declares SamplesPerPixel={}. \
-             Decode RGB/color frames through the codec boundary or a color-volume loader",
-            path,
-            info.samples_per_pixel
-        );
-    }
-
-    if info.n_frames == 0 {
-        bail!(
-            "DICOM multiframe: NumberOfFrames must be greater than zero in {:?}",
-            path
-        );
-    }
-
-    let owned_geometry;
-    let per_frame = if let Some(geometry) = geometry {
-        geometry
-    } else {
-        owned_geometry = extract_functional_groups(obj, info.n_frames);
-        &owned_geometry
+    let address = |position| {
+        selected.map_or(
+            FrameAddress {
+                source: 0,
+                local: position,
+            },
+            |frames| frames[position],
+        )
     };
-    let actual_n = selected.map_or(info.n_frames, <[usize]>::len);
-    let source_index = |position| selected.map_or(position, |frames| frames[position]);
-    if let Some(first) = selected
-        .and_then(|frames| frames.first())
-        .and_then(|&index| per_frame.get(index))
-    {
+    let first = address(0);
+    let first_source = &sources[first.source];
+    let path = first_source.path;
+    let mut info = first_source.info.clone();
+    if let Some(first) = selected.and_then(|_| first_source.geometry.get(first.local)) {
         info.image_position = first.image_position.or(info.image_position);
         info.image_orientation = first.image_orientation.or(info.image_orientation);
         info.pixel_spacing = first.pixel_spacing.or(info.pixel_spacing);
         info.frame_thickness = first.slice_thickness.or(info.frame_thickness);
     }
-
-    tracing::debug!(
-        n_frames = info.n_frames,
-        per_frame_len = per_frame.len(),
-        "load_dicom_multiframe: functional groups extracted"
-    );
 
     let frame_pixels = info
         .rows
@@ -231,7 +171,8 @@ pub(super) fn decode_spatial_frames(
     ));
 
     let quantitative = info.bits_allocated == 16
-        && obj
+        && first_source
+            .obj
             .meta()
             .media_storage_sop_class_uid
             .trim_end_matches([' ', '\0'])
@@ -246,81 +187,9 @@ pub(super) fn decode_spatial_frames(
             .context("DICOM PET quantitative volume exceeds budget")?;
     }
     let mut suv = quantitative.then(Vec::new);
-    let padding = obj
-        .element(Tag(0x0028, 0x0120))
-        .ok()
-        .and_then(|element| element.to_int::<i32>().ok())
-        .map(|first| {
-            let last = obj
-                .element(Tag(0x0028, 0x0121))
-                .ok()
-                .and_then(|element| element.to_int::<i32>().ok())
-                .unwrap_or(first);
-            first.min(last)..=first.max(last)
-        });
-
-    for frame_idx in (0..actual_n).map(source_index) {
-        let frame_info = per_frame.get(frame_idx);
-        let slope = frame_info
-            .and_then(|pfi| pfi.rescale_slope)
-            .unwrap_or(info.rescale_slope) as f32;
-        let intercept = frame_info
-            .and_then(|pfi| pfi.rescale_intercept)
-            .unwrap_or(info.rescale_intercept) as f32;
-
-        let frame = decode_frame_with::<DicomRsBackend>(
-            obj,
-            DecodeFrameRequest {
-                frame_index: u32::try_from(frame_idx)
-                    .context("DICOM multiframe frame index exceeds u32")?,
-                transfer_syntax: ts.clone(),
-                layout: PixelLayout {
-                    rows: info.rows,
-                    cols: info.cols,
-                    samples_per_pixel: 1,
-                    bits_allocated: info.bits_allocated,
-                    bits_stored: info.bits_stored,
-                    pixel_representation: info.pixel_representation,
-                    rescale_slope: if quantitative { 1.0 } else { slope },
-                    rescale_intercept: if quantitative { 0.0 } else { intercept },
-                },
-            },
-        )
-        .with_context(|| format!("DICOM backend failed for frame {frame_idx} in {:?}", path))?
-        .pixels;
-
-        if frame.len() != frame_pixels {
-            bail!(
-                "DICOM multiframe: frame {} in {:?} decoded {} pixels; expected {}",
-                frame_idx,
-                path,
-                frame.len(),
-                frame_pixels
-            );
-        }
-
-        if let Some(suv) = &mut suv {
-            let mapping = FrameMapping::read(obj, frame_idx);
-            suv.extend(frame.iter().map(|&stored| {
-                if padding
-                    .as_ref()
-                    .is_some_and(|range| range.contains(&(stored as i32)))
-                {
-                    return f32::NAN;
-                }
-                mapping
-                    .as_ref()
-                    .and_then(|mapping| mapping.sample(stored))
-                    .map_or(f32::NAN, |value| value.into_base() as f32)
-            }));
-            floats.extend(frame.into_iter().map(|stored| stored * slope + intercept));
-        } else {
-            floats.extend_from_slice(&frame);
-        }
-    }
-
-    if actual_n == 0 {
-        bail!("DICOM multiframe: no pixel data decoded from {:?}", path);
+    let selected_frames = || (0..actual_n).map(address);
+    for frame in selected_frames() {
+        sources[frame.source].append_frame(frame.local, frame_pixels, &mut floats, suv.as_mut())?;
     }
 
     // Per-frame geometry analysis: derive z-spacing from actual frame positions
@@ -332,15 +201,14 @@ pub(super) fn decode_spatial_frames(
     // shared slice normal NÌ‚ = normalize(row × col). Use the median as nominal
     // spacing; warn and resample when nonuniform or missing frames are detected.
     let (final_floats, final_n, spacing_z) = 'geometry: {
-        if per_frame.len() < 2 || actual_n < 2 {
+        if actual_n < 2 || sources.iter().all(|source| source.geometry.is_empty()) {
             // Fewer than 2 per-frame positions: cannot derive inter-frame spacing.
             break 'geometry (floats, actual_n, info.frame_thickness.unwrap_or(1.0));
         }
 
         // Resolve IOP: per-frame override first, then global.
-        let iop = (0..actual_n)
-            .map(source_index)
-            .filter_map(|index| per_frame.get(index))
+        let iop = selected_frames()
+            .filter_map(|frame| sources[frame.source].geometry.get(frame.local))
             .find_map(|pf| pf.image_orientation)
             .or(info.image_orientation);
 
@@ -348,11 +216,11 @@ pub(super) fn decode_spatial_frames(
             break 'geometry (floats, actual_n, info.frame_thickness.unwrap_or(1.0));
         };
 
-        let proj: Vec<Option<f64>> = (0..actual_n)
-            .map(source_index)
-            .map(|index| {
-                per_frame
-                    .get(index)
+        let proj: Vec<Option<f64>> = selected_frames()
+            .map(|frame| {
+                sources[frame.source]
+                    .geometry
+                    .get(frame.local)
                     .and_then(|pf| pf.image_position)
                     .map(|p| crate::format::dicom::reader::dot(p, normal))
             })

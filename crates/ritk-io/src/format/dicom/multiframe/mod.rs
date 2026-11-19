@@ -86,6 +86,9 @@ pub use writer::{
 mod tests;
 
 pub use reader::{
-    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes, EnhancedPetSelection,
-    EnhancedPetVolume,
+    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes,
+    load_enhanced_pet_volumes_from_instances, EnhancedPetSelection, EnhancedPetVolume,
 };
+
+#[cfg(any(test, feature = "test-util"))]
+pub(super) mod test_fixture;
