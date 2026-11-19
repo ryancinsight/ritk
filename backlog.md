@@ -113,3 +113,7 @@
 <a id="RITK-SNAP-CALIBRATION-INPUT-001"></a>- [RITK-SNAP-CALIBRATION-INPUT-001](backlog/RITK-SNAP-CALIBRATION-INPUT-001.md) — Complete calibration units and properties — todo
 <a id="RITK-SNAP-CALIBRATION-MEASURES-001"></a>- [RITK-SNAP-CALIBRATION-MEASURES-001](backlog/RITK-SNAP-CALIBRATION-MEASURES-001.md) — Propagate image calibration to measurements — todo
 <a id="RITK-SNAP-MEASUREMENT-UNITS-001"></a>- [RITK-SNAP-MEASUREMENT-UNITS-001](backlog/RITK-SNAP-MEASUREMENT-UNITS-001.md) — Retain missing-spacing measurement units — todo
+<a id="RITK-SNAP-ELLIPSE-CONSTRAINT-001"></a>- [RITK-SNAP-ELLIPSE-CONSTRAINT-001](backlog/RITK-SNAP-ELLIPSE-CONSTRAINT-001.md) — Constrain ellipse drawing to a circle — todo
+<a id="RITK-SNAP-ELLIPSE-PIXEL-MASK-001"></a>- [RITK-SNAP-ELLIPSE-PIXEL-MASK-001](backlog/RITK-SNAP-ELLIPSE-PIXEL-MASK-001.md) — Show ellipse contributing-pixel outlines — todo
+<a id="RITK-SNAP-ROI-NATIVE-001"></a>- [RITK-SNAP-ROI-NATIVE-001](backlog/RITK-SNAP-ROI-NATIVE-001.md) — Test native ROI creation and labels — todo
+<a id="RITK-SNAP-ROI-LABEL-STATISTICS-001"></a>- [RITK-SNAP-ROI-LABEL-STATISTICS-001](backlog/RITK-SNAP-ROI-LABEL-STATISTICS-001.md) — Show complete ROI label statistics — todo
