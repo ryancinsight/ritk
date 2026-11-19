@@ -96,6 +96,7 @@ impl Default for SnapApp {
             dual_axes: [0, 1],
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             compare_axes: [0, 0],
+            #[cfg(any(windows, all(not(target_arch = "wasm32"), feature = "eframe-shell")))]
             show_overlay: true,
             show_crosshair: false,
             linked_cursor: None,
