@@ -164,15 +164,28 @@ fn tool_shortcut_h_selects_point_hu() {
     assert_eq!(app.active_tool, ToolKind::PointHu);
 }
 
-/// Tool shortcut 'P' selects Pan tool.
+/// RadiAnt DICOM Viewer 2021.2 manual, p. 102, assigns P to Pencil.
 #[test]
-fn tool_shortcut_p_selects_pan() {
+fn tool_shortcut_p_selects_pencil() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Zoom;
-    if let Some(tool) = tool_kind_for_key(egui::Key::P) {
-        app.active_tool = tool;
-    }
-    assert_eq!(app.active_tool, ToolKind::Pan);
+    let context = egui::Context::default();
+
+    drop(context.run(
+        egui::RawInput {
+            events: vec![egui::Event::Key {
+                key: egui::Key::P,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+            ..egui::RawInput::default()
+        },
+        |context| app.consume_global_shortcuts(context),
+    ));
+
+    assert_eq!(app.active_tool, ToolKind::Pencil);
 }
 
 /// Tool shortcut 'Z' selects Zoom tool.

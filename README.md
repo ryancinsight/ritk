@@ -102,7 +102,7 @@ active-axis cine playback (Space toggles playback), Ctrl/Cmd+scroll viewport zoo
 Ctrl/Cmd+0 zoom-to-fit,
 Arrow Up/Down and Page Up/Down active-axis slice navigation,
 Home/End active-axis first/last slice navigation,
-tool keyboard shortcuts (L=length, A=angle, R=rect ROI, E=ellipse ROI, H=HU point, P=pan, Z=zoom, W=window/level, B=paint),
+tool keyboard shortcuts (L=length, A=angle, R=rect ROI, E=ellipse ROI, H=HU point, M=pan, P=pencil, Z=zoom, W=window/level, B=paint),
 Zoom tool continuous drag zoom,
 Segmentation keyboard undo/redo shortcuts,
 Pan tool drag mapping (additive viewport offset) via SSOT `ui/pan`,
