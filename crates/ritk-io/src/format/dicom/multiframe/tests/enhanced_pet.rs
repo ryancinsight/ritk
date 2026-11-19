@@ -266,3 +266,87 @@ fn enhanced_pet_concatenation_resolves_shuffled_members_and_rejects_missing_fram
     let error = crate::load_enhanced_pet_volumes(&second).unwrap_err();
     assert!(format!("{error:#}").contains("offset"));
 }
+
+#[test]
+fn enhanced_pet_interpolates_a_spatial_gap_between_complete_members() {
+    let _trace = tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_span_events(FmtSpan::FULL)
+            .with_test_writer()
+            .finish(),
+    );
+    let directory = tempfile::tempdir().unwrap();
+    let selected = tracing::info_span!("arrange").in_scope(|| {
+        let [first, second] = write_dynamic_gated_pet_concatenation(directory.path());
+        let template = dicom::object::open_file(&second).unwrap().into_inner();
+        let frame = template
+            .element(Tag(0x5200, 0x9230))
+            .unwrap()
+            .items()
+            .unwrap()
+            .last()
+            .unwrap();
+        for (index, path) in [&first, &second].into_iter().enumerate() {
+            let mut member = dicom::object::open_file(path).unwrap().into_inner();
+            member.put(DataElement::new(Tag(0x28, 8), VR::IS, "2"));
+            member.put(DataElement::new(
+                Tag(0x20, 0x9228),
+                VR::UL,
+                PrimitiveValue::from(u32::try_from(2 * index).unwrap()),
+            ));
+            let positions = if index == 0 { [4, 7] } else { [13, 16] };
+            let frames = positions
+                .into_iter()
+                .enumerate()
+                .map(|(local, position)| {
+                    let mut frame = frame.clone();
+                    let mut content =
+                        frame.element(Tag(0x20, 0x9111)).unwrap().items().unwrap()[0].clone();
+                    let ordinal = u32::try_from(index * 2 + local + 1).unwrap();
+                    content.put(DataElement::new(
+                        Tag(0x20, 0x9157),
+                        VR::UL,
+                        PrimitiveValue::U32(vec![1, 1, 1, ordinal].into()),
+                    ));
+                    content.put(DataElement::new(
+                        Tag(0x20, 0x9057),
+                        VR::UL,
+                        PrimitiveValue::from(ordinal),
+                    ));
+                    item_with_items(&mut frame, Tag(0x20, 0x9111), vec![content]);
+                    let plane = InMemDicomObject::from_element_iter([DataElement::new(
+                        Tag(0x20, 0x0032),
+                        VR::DS,
+                        format!("0\\0\\{position}"),
+                    )]);
+                    item_with_items(&mut frame, Tag(0x20, 0x9113), vec![plane]);
+                    frame
+                })
+                .collect();
+            item_with_items(&mut member, Tag(0x5200, 0x9230), frames);
+            let start = u16::try_from(2 * index + 1).unwrap();
+            member.put(DataElement::new(
+                Tag(0x7fe0, 0x0010),
+                VR::OW,
+                PrimitiveValue::U16(vec![start, start + 1].into()),
+            ));
+            write_pet_instance(&member, path);
+        }
+        second
+    });
+    let reconstructions =
+        tracing::info_span!("act").in_scope(|| crate::load_enhanced_pet_volumes(selected).unwrap());
+    let _assert = tracing::info_span!("assert").entered();
+    let [volume] = reconstructions.as_slice() else {
+        panic!("expected a single temporal gate");
+    };
+    assert_eq!(volume.shape, [5, 1, 1]);
+    assert_eq!(volume.origin.to_array(), [0.0, 0.0, 4.0]);
+    assert_eq!(volume.spacing.to_array(), [3.0, 2.0, 2.0]);
+    assert_eq!(volume.data.as_slice(), &[1.0, 2.0, 2.5, 3.0, 4.0]);
+    let suv = volume.suv_bw.as_ref().unwrap();
+    assert_eq!(
+        [0, 1, 2, 3, 4].map(|index| suv.at(index).unwrap().in_unit::<GramPerCubicCentimeter>()),
+        [0.5, 1.0, 1.25, 1.5, 2.0]
+    );
+}

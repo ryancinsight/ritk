@@ -119,3 +119,20 @@ builds candidate `a14251cd8123119ded76ff72bbacca65b19579fe` with Windows SDK
 test opens the two-instance PET study, verifies the captured client size
 and overlay, then checks the selected gate's samples and body-weight SUV.
 The executable reports version 0.2.0.
+
+## Published providers and spatial PET slice gaps [patch]
+
+The RITK lock selects crates.io Aequitas 0.4.0 and Eunomia 0.12.0.
+The reader and viewer pass 1,484 tests, and the eight GPU projection
+cases pass a separate Metal rerun.
+
+A complete two-member concatenation can contain an unmeasured spatial plane.
+The reader reports irregular spacing through tracing and linearly
+interpolates display and calibrated SUV samples inside their observed
+spatial range. The regression uses measured planes at 4, 7, 13, and 16 mm
+with nominal 3 mm spacing. The plane at 10 mm carries the arithmetic mean
+of the adjacent display samples and the corresponding SUV.
+
+Missing SOP members or unavailable temporal gates remain input coverage
+errors when identified. Interpolated-plane provenance is available as
+geometry diagnostics. Exposing per-plane provenance in the viewer remains open.

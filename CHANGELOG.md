@@ -20,6 +20,12 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+### Fixed
+
+- Verify linear geometry-based resampling of an Enhanced PET slice gap
+  between complete concatenation members.
+- Resolve Aequitas 0.4.0 and Eunomia 0.12.0 from crates.io.
+
 ### Added
 
 - Reconstruct Enhanced PET time points and gates across DICOM concatenation

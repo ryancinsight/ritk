@@ -130,3 +130,9 @@
 
 - [x] [minor] Reconstruct Enhanced PET concatenations from the exact scanned
   instances. Validate ordinal continuity, geometry, and per-frame SUV.
+
+- [x] [patch] Use the published Aequitas and Eunomia releases in RITK.
+- [x] [patch] Verify geometry-based interpolation of an interior Enhanced
+  PET plane between complete concatenation members.
+- [ ] [minor] Expose reconstructed-plane provenance in the viewer so an
+  operator can distinguish sampled and interpolated planes.
