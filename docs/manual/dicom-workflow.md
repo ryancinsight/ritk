@@ -27,7 +27,7 @@ cargo run --locked -p ritk-snap -- test_data/2_head_mri_t2/DICOM
 ```
 
 A startup path can also name a DICOM instance or DICOMDIR. To select a series
-explicitly, add `--series-instance-uid UID`. The [launch reference](../../crates/ritk-snap/README.md)
+explicitly from a study folder, add `--series-instance-uid UID`. The [launch reference](../../crates/ritk-snap/README.md)
 describes startup selection and capture options.
 
 - [Adjust the image display](#adjust-the-image-display)

@@ -30,7 +30,10 @@ RITK provides a comprehensive framework for medical image analysis:
   autodiff
 - **Image Processing Pipeline**: Filtering, segmentation, statistics, normalization
 - **CT Visualization Support**: Bed separation filter for CT foreground/body masking
-- **AsterSlice DICOM Viewer**: the `ritk-snap` desktop application with DICOM folder/DICOMDIR launch, MPR viewports, overlays, measurements, and tag inspection
+- **AsterSlice DICOM Viewer**: the `ritk-snap` desktop application with DICOM
+  folder/DICOMDIR launch, MPR viewports, overlays, and measurements;
+  [feature coverage](docs/manual/features.md) distinguishes
+  Windows controls from optional-shell and library capabilities
 - **Python Bindings**: PyO3 + maturin with NumPy bridge, packaged type stubs, and `py.typed`
 - **CLI**: `ritk` binary with `convert`, `filter`, `register`, `segment`, and `stats` subcommands
 
@@ -87,35 +90,21 @@ cargo run --locked -p ritk-snap --features eframe-shell -- \
 
 `ritk-snap --metis-native` may omit `PATH` on Windows. The Métis host then
 opens Moirai's bounded native folder picker; RITK scans, decodes, and renders
-the selected saved study. A multi-series folder still requires an explicit
-`PATH` and `--series-instance-uid` so RITK never chooses an acquisition
-implicitly.
+the selected saved study. Use the series browser to choose another acquisition
+interactively. An unattended `--capture` of a multi-series folder requires
+`PATH` and `--series-instance-uid` to select its acquisition explicitly.
 
-Current viewer capabilities include DICOM series browsing, axial/coronal/
-sagittal MPR layout, modality-aware window presets, colormaps, measurement and
-ROI tools, interactive segmentation label paint/erase with brush radius,
-label visibility/active-label controls with undo/redo, viewport label overlays,
-load-time hanging-protocol defaults for CT/MR series, linked MPR cursor
-navigation across all three planes, DICOM-style patient-orientation labels,
-linked-cursor HU overlay readout, linked-cursor physical LPS readout,
-active-axis cine playback (Space toggles playback), Ctrl/Cmd+scroll viewport zoom,
-Ctrl/Cmd+0 zoom-to-fit,
-Arrow Up/Down and Page Up/Down active-axis slice navigation,
-Home/End active-axis first/last slice navigation,
-tool keyboard shortcuts (L=length, A=angle, R=rect ROI, E=ellipse ROI, H=HU point, M=pan, P=pencil, Z=zoom, W=window/level, B=paint),
-Zoom tool continuous drag zoom,
-Segmentation keyboard undo/redo shortcuts,
-Pan tool drag mapping (additive viewport offset) via SSOT `ui/pan`,
-ROI Ellipse true pixel-mask statistics (ellipse membership test `((r−cy)/a)²+((c−cx)/b)²≤1`) via `Annotation::compute_roi_ellipse_stats`,
-W/L drag mapping (horizontal width, vertical center) via SSOT `ui/window_level`,
-PNG slice export, full axial/coronal/sagittal MPR PNG export, DICOM overlays,
-RT-STRUCT contour overlay loading and rendering,
-and a
-deterministic Tags panel covering series metadata, first-slice geometry/display
-tags, private scalar tags, preserved object-model nodes, and raw preserved
-element byte counts. Viewer session save/load stores presentation state as
-JSON, including source path, slice indices, window/level, colormap, active
-tool, layout flags, overlay flags, sidebar tab, pan, and zoom.
+The default Windows viewer provides series selection, orthogonal MPR,
+window presets and color maps, slice rails and cine, linked crosshairs,
+length/calibration, angles, regions, polygons, arrows, and pencil marks.
+The [user manual](docs/manual/dicom-workflow.md) describes the reachable
+controls. The [RadiAnt comparison](docs/manual/features.md) distinguishes
+implemented workflows, library computations, missing controls, and tests.
+
+The optional eframe shell exposes additional segmentation and session
+controls. Its presentation differs from the default Windows shell;
+the [developer reference](docs/manual/development.md) records its current
+limitations and reproduction commands.
 
 The rendering domain also exposes a validated `ReslicePlane` contract for
 anisotropic and oblique scalar planes. It carries patient-space basis vectors,

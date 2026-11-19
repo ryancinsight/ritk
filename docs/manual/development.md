@@ -53,8 +53,14 @@ Remove-Item Env:RITK_MANUAL_STUDY, Env:RITK_MANUAL_CAPTURE_DIR
 ## Actual application gallery
 
 These historical captures document the viewer and providers identified in
-their provenance records. The screenshots above show the controls and
-annotations in the Windows walkthrough.
+their provenance records. The [Windows walkthrough](dicom-workflow.md#try-the-windows-slice-and-annotation-tools)
+shows the workspace controls and annotations.
+
+In the default Windows (Métis) host, `--capture` saves the image presentation
+and exits; it hides the toolbar and series browser. `--capture-application` requests the clinical
+overlay in that presentation. Use the `native_manual_annotation_frames`
+procedure above to reproduce the full workspace controls and measurement
+walkthrough in the native-session fixture.
 
 ### DICOM viewer verification
 
