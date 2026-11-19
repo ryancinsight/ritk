@@ -44,7 +44,7 @@ impl SnapApp {
                     } else {
                         let (edge, fraction) = polygon::nearest_edge(original, viewport, screen)?;
                         if selected != Some(annotation_index) {
-                            return Some(Err(()));
+                            return Some(None);
                         }
                         let spacing = spacing?;
                         let candidate = polygon::insert_node(original, edge, fraction, spacing)?;
@@ -59,7 +59,7 @@ impl SnapApp {
                 } else {
                     return None;
                 };
-                Some(Ok(PendingAnnotationMove {
+                Some(Some(PendingAnnotationMove {
                     annotation_index,
                     source_location: location,
                     original: original.clone(),
@@ -69,7 +69,7 @@ impl SnapApp {
                     current: point,
                 }))
             })
-            .and_then(Result::ok);
+            .flatten();
         let Some(pending) = pending else {
             return false;
         };
