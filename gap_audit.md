@@ -95,3 +95,27 @@ that span several SOP instances remain a separate loading contract.
 
 Locked all-target compilation passes on macOS with the eframe shell enabled.
 The combined I/O and viewer gate passes 1,482 cases on Metal.
+
+## Enhanced PET concatenations [minor]
+
+Select a concatenation by its UID when opening one of its files. The
+volume-set reader reconstructs time points and gates across members and
+preserves source-local calibration and patient geometry. A fixture compares
+a complete object with a shuffled two-member concatenation and verifies
+display samples and SUV. It also rejects frame overlap, a missing first
+member, and aggregate budget overruns. Retained bytes remain decodable after
+source files change. A missing final member is detectable when the DICOM
+objects declare the total.
+
+The macOS reader and viewer suite passes 1,483 cases, including eight
+separately rerun Metal projection cases. The Windows 2025 runner uses its
+installed SDK and builds the default Métis viewer. The first native
+capture reached the Windows client area at 1028 × 749. The request was
+1280 × 800. The test now compares the PNG with the actual client area.
+
+[Windows CI](https://github.com/ryancinsight/ritk/actions/runs/44623546473)
+builds candidate `a14251cd8123119ded76ff72bbacca65b19579fe` with Windows SDK
+10.0.26100.0 and executes four reader tests and two viewer tests. The native
+test opens the two-instance PET study, verifies the captured client size
+and overlay, then checks the selected gate's samples and body-weight SUV.
+The executable reports version 0.2.0.

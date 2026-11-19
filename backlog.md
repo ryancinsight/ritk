@@ -127,3 +127,6 @@
   mapping and frame-appropriate isotope activity.
 
 - [x] [major] Reconstruct and select temporal and gated Enhanced PET volumes within one object.
+
+- [x] [minor] Reconstruct Enhanced PET concatenations from the exact scanned
+  instances. Validate ordinal continuity, geometry, and per-frame SUV.
