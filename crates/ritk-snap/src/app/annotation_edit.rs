@@ -64,9 +64,9 @@ impl SnapApp {
                     source_location: location,
                     original: original.clone(),
                     kind,
-                    candidate,
                     start: point,
                     current: point,
+                    candidate,
                 }))
             })
             .flatten();

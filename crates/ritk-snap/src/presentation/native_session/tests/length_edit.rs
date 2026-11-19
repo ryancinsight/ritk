@@ -30,12 +30,6 @@ fn drag(start: (i32, i32), end: (i32, i32)) -> [WindowEvent; 3] {
         pointer(end, false),
     ]
 }
-fn preview(start: (i32, i32), end: (i32, i32)) -> [WindowEvent; 2] {
-    [
-        pointer(start, true),
-        WindowEvent::PointerMove { x: end.0, y: end.1 },
-    ]
-}
 fn apply(session: &mut NativeViewerSession, events: &[WindowEvent]) {
     session.handle_events(events).expect("length edit event");
 }
@@ -140,7 +134,7 @@ fn native_pan_edits_both_length_endpoints_transactionally() {
     apply(&mut session, &[pointer(pan, true), pointer(pan, false)]);
     assert_eq!(session.app.active_tool, ToolKind::Pan);
     let before = session.app.annotations.clone();
-    apply(&mut session, &preview((x + 30, y + 40), (x + 60, y + 80)));
+    apply(&mut session, &drag((x + 30, y + 40), (x + 60, y + 80))[..2]);
     assert_eq!(session.app.annotations, before);
     apply(&mut session, &[pointer((x + 60, y + 80), false)]);
     assert_length(
@@ -165,7 +159,7 @@ fn native_pan_edits_both_length_endpoints_transactionally() {
         Cancellation::SliceReturn,
     ] {
         let committed = session.app.annotations.clone();
-        apply(&mut session, &preview((x + 60, y + 80), (x + 70, y + 90)));
+        apply(&mut session, &drag((x + 60, y + 80), (x + 70, y + 90))[..2]);
         assert_eq!(session.app.annotations, committed);
         assert!(overlay_lines(&session).contains(&((x - 30, y - 40), (x + 70, y + 90))));
         let event = match cancellation {
@@ -214,7 +208,7 @@ fn native_pan_edits_both_length_endpoints_transactionally() {
     apply(&mut session, &[pointer(pan, true), pointer(pan, false)]);
     let pan_before = session.app.pan_offset;
     let raw = session.app.annotations.clone();
-    apply(&mut session, &preview((x - 30, y - 40), (x - 25, y - 40)));
+    apply(&mut session, &drag((x - 30, y - 40), (x - 25, y - 40))[..2]);
     assert_eq!(session.app.annotations, raw);
     assert_eq!(session.app.pointer.selected_annotation, Some(1));
     assert!(
@@ -229,7 +223,7 @@ fn native_pan_edits_both_length_endpoints_transactionally() {
     assert_eq!(session.app.pan_offset, pan_before);
     session.app.annotations = vec![polygon, committed.clone()];
     session.app.pointer.selected_annotation = Some(0);
-    apply(&mut session, &preview((x - 30, y - 40), (x - 25, y - 40)));
+    apply(&mut session, &drag((x - 30, y - 40), (x - 25, y - 40))[..2]);
     assert!(
         matches!(session.app.pointer.pending_annotation_move.as_ref(), Some(edit) if edit.annotation_index == 1 && matches!(edit.kind, AnnotationMoveKind::Length(_)))
     );
