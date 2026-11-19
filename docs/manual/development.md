@@ -32,6 +32,8 @@ cargo nextest run --locked -p ritk-snap -E '
   or test(length_measurement_first_click_then_drag_completes_through_the_adapter)
   or test(deviation_measurement_completes_from_one_pointer_drag)
   or test(native_cobb_) or test(native_polygon_edge_insert_)
+  or test(native_pan_edits_both_length_endpoints_transactionally)
+  or test(native_pan_translates_length_transactionally)
   or test(native_manual_annotation_frames)
   or test(open_polygon_enter_commits_physical_length_and_consumes_release)
   or test(closed_polygon_commits_area_perimeter_and_slice_location)
@@ -49,6 +51,10 @@ $env:RITK_MANUAL_CAPTURE_DIR = (New-Item -ItemType Directory -Force 'output/manu
 cargo nextest run --locked -p ritk-snap -E 'test(native_manual_annotation_frames)'
 Remove-Item Env:RITK_MANUAL_STUDY, Env:RITK_MANUAL_CAPTURE_DIR
 ```
+
+The [frame record](images/dicom-native-annotations.json) preserves each figure's
+source revision and lock digest. Per-frame fields identify newer captures;
+figures without overrides retain the record's original revision and lock.
 
 ## Actual application gallery
 
@@ -78,6 +84,14 @@ loader retain the validated bytes, enforce the parser, retained-study, and
 decoded-workspace budgets, and return the RITK `Image` plus
 `DicomReadMetadata`. No GUI framework type or parser object crosses this
 boundary; the host owns only input and presentation lifecycle.
+
+Scanned images retain original decoded PixelSpacing, ImagePositionPatient,
+and ImageOrientationPatient in each slice's preservation inventory alongside
+effective geometry. This survives release of encoded bytes after loading.
+The compatibility tag-table model retains these values beside effective slice
+fields; its aggregate Preserved group does not identify a source frame.
+Retention alone does not certify physical units or select enhanced-frame
+geometry; see [ADR 0055](../adr/0055-dicom-metadata-retention-inventory.md).
 
 The [workspace lockfile](../../Cargo.lock) records the Métis and Moirai
 revisions used for the current build. Historical captures retain the
@@ -386,7 +400,14 @@ replacement study can be opened, the prior catalog and every populated panel
 remain unchanged and the failure appears in the status bar. Selecting an
 unreadable series likewise preserves its assigned panel image.
 
-**Open DICOMDIR…** uses the index's referenced image set. Missing references or
+In the default standalone Métis viewer on Windows, use **File → Open Study…**
+and select the file-set root containing `DICOMDIR`, or select the study folder
+if it has no index. To pass an index file directly, supply its path when
+launching, for example `asterslice.exe "C:\studies\example\DICOMDIR"`.
+The separate **File → Open DICOMDIR…** command is available only in the
+optional eframe compatibility shell.
+
+An index limits discovery to its referenced image set. Missing references or
 an invalid index report an error; unreferenced subdirectories do not supply a
 replacement study. The reader follows the linked PATIENT/STUDY/SERIES/IMAGE
 record tree, excludes inactive or unreachable records, rejects cycles and

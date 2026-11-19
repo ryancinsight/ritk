@@ -99,7 +99,7 @@ impl SnapApp {
 
     pub(crate) fn on_drag_end(&mut self, pos: Option<ImagePoint>) {
         if pos.is_none() {
-            self.pointer.pending_polygon_move = None;
+            self.pointer.pending_annotation_move = None;
             if self.cobb_location().is_some() {
                 self.pointer.suspended_measurement = None;
                 self.pointer.pending_measurement_location = None;

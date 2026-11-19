@@ -37,24 +37,55 @@ fn usable_pixel_spacing(spacing: [f64; 2]) -> Option<[f64; 2]> {
     }
 }
 
-/// Parse a backslash-delimited DICOM string of floating-point values into a fixed-size array.
-/// Returns `Some([v0..vN])` if at least `N` values parsed successfully, else `None`.
-fn parse_ds_array<const N: usize>(s: &str) -> Option<[f64; N]> {
-    let mut out = [0.0_f64; N];
-    let mut count = 0usize;
-    for part in s.split('\\') {
-        if count >= N {
-            break;
-        }
-        if let Ok(v) = part.trim().parse::<f64>() {
-            out[count] = v;
-            count += 1;
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+enum GeometryDecimalError {
+    #[error("attribute cannot be represented as a decimal string")]
+    InvalidEncoding,
+    #[error("expected {expected} components, received {actual}")]
+    WrongMultiplicity { expected: usize, actual: usize },
+    #[error("component {index} is not a decimal number")]
+    InvalidComponent { index: usize },
+    #[error("component {index} is not finite")]
+    NonFiniteComponent { index: usize },
+}
+
+/// Preserve all components in the fixed geometry arrays defined by DICOM
+/// PS3.3 C.7.6.2, Table C.7-10. A missing or extra value cannot shift axes.
+fn parse_ds_array<const N: usize>(s: &str) -> Result<[f64; N], GeometryDecimalError> {
+    let actual = s.split('\\').count();
+    if actual != N {
+        return Err(GeometryDecimalError::WrongMultiplicity {
+            expected: N,
+            actual,
+        });
+    }
+    let mut out: [f64; N] = [0.0; N];
+    for ((index, value), part) in out.iter_mut().enumerate().zip(s.split('\\')) {
+        *value = part
+            .trim()
+            .parse()
+            .map_err(|_| GeometryDecimalError::InvalidComponent { index })?;
+        if !value.is_finite() {
+            return Err(GeometryDecimalError::NonFiniteComponent { index });
         }
     }
-    if count >= N {
-        Some(out)
-    } else {
-        None
+    Ok(out)
+}
+
+fn read_geometry_array<const N: usize>(obj: &DefaultDicomObject, tag: Tag) -> Option<[f64; N]> {
+    let Ok(element) = obj.element(tag) else {
+        return None;
+    };
+    match element
+        .to_str()
+        .map_err(|_| GeometryDecimalError::InvalidEncoding)
+        .and_then(|text| parse_ds_array(&text))
+    {
+        Ok(values) => Some(values),
+        Err(reason) => {
+            tracing::warn!(%tag, %reason, "DICOM geometry attribute is unusable; retaining readable image without this geometry");
+            None
+        }
     }
 }
 
@@ -109,21 +140,10 @@ pub(super) fn extract_dicom_metadata(
     if let Ok(elem) = obj.element(Tag(0x0020, 0x1041)) {
         slice_meta.slice_location = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
-    if let Ok(elem) = obj.element(Tag(0x0020, 0x0032))
-        && let Ok(s) = elem.to_str()
-    {
-        slice_meta.image_position_patient = parse_ds_array::<3>(&s);
-    }
-    if let Ok(elem) = obj.element(Tag(0x0020, 0x0037))
-        && let Ok(s) = elem.to_str()
-    {
-        slice_meta.image_orientation_patient = parse_ds_array::<6>(&s);
-    }
-    if let Ok(elem) = obj.element(Tag(0x0028, 0x0030))
-        && let Ok(s) = elem.to_str()
-    {
-        slice_meta.pixel_spacing = parse_ds_array::<2>(&s).and_then(usable_pixel_spacing);
-    }
+    slice_meta.image_position_patient = read_geometry_array(obj, Tag(0x0020, 0x0032));
+    slice_meta.image_orientation_patient = read_geometry_array(obj, Tag(0x0020, 0x0037));
+    slice_meta.pixel_spacing =
+        read_geometry_array(obj, Tag(0x0028, 0x0030)).and_then(usable_pixel_spacing);
     if let Ok(elem) = obj.element(Tag(0x0018, 0x0050)) {
         slice_meta.slice_thickness = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
@@ -216,14 +236,8 @@ pub(super) fn extract_dicom_metadata(
     if first.cols.is_none() {
         first.cols = this_cols;
     }
-    if first.pixel_spacing.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0028, 0x0030))
-        && let Ok(s) = elem.to_str()
-    {
-        let parts: Vec<f64> = s.split('\\').flat_map(|p| p.parse()).collect();
-        if parts.len() >= 2 {
-            first.pixel_spacing = usable_pixel_spacing([parts[0], parts[1]]);
-        }
+    if first.pixel_spacing.is_none() {
+        first.pixel_spacing = slice_meta.pixel_spacing;
     }
     if first.slice_thickness.is_none()
         && let Ok(elem) = obj.element(Tag(0x0018, 0x0050))
@@ -354,6 +368,10 @@ pub(super) fn extract_dicom_metadata(
     preserve_unhandled_elements(obj, &mut slice_meta.preservation);
     Ok((slice_meta, file_dim))
 }
+
+#[cfg(test)]
+#[path = "parse/geometry_tests.rs"]
+mod geometry_tests;
 
 #[cfg(test)]
 mod tests_pixel_spacing {

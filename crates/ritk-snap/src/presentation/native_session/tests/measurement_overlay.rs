@@ -15,7 +15,7 @@ use crate::tools::interaction::{
     Annotation, AnnotationLocation, ImagePoint, PatientLength, ToolState,
 };
 use crate::ui::{RotationSteps, ViewTransform};
-use metis_platform::Color;
+use metis_platform::{Color, Rect};
 use metis_ui_lang::DisplayCommand;
 
 const IDENTITY_DIRECTION: [f64; 9] = [
@@ -93,15 +93,30 @@ pub(super) fn composed(
 ) -> Vec<DisplayCommand> {
     let mut overlay = OverlayCommands::with_capacity(session.app.annotations.len() * 2 + 8)
         .expect("reserve the measurement overlay commands");
+    let app = &session.app;
+    let pointer = &app.pointer;
+    let pending = pointer
+        .pending_annotation_move
+        .as_ref()
+        .map(|pending| (pending.annotation_index, &pending.candidate));
+    let preview_location = app.cobb_location().or(pointer.drag_measurement_location);
     append_measurement_overlay(
         &mut overlay,
         &session.views,
         &session.viewports,
-        &session.app.annotations,
-        session.app.pointer.selected_polygon,
-        None,
+        &app.annotations,
+        pointer.selected_annotation,
+        pending,
         affine,
-        |location| session.app.length_scale(location),
+        |location| app.length_scale(location),
+        Some((&app.tool_state, preview_location)),
+        Rect::new(
+            0,
+            0,
+            i32::try_from(session.framebuffer.width()).expect("frame width fits"),
+            i32::try_from(session.framebuffer.height()).expect("frame height fits"),
+        ),
+        &[],
     )
     .expect("compose the measurement overlay");
     overlay.into_display_list().commands().to_vec()
@@ -162,10 +177,13 @@ fn measurement_length_skips_panes_beside_its_recorded_plane() {
         &views,
         &viewports,
         &session.app.annotations,
-        session.app.pointer.selected_polygon,
+        session.app.pointer.selected_annotation,
         None,
         None,
         |_| 1.0,
+        None,
+        Rect::new(0, 0, 800, 600),
+        &[],
     )
     .expect("compose the measurement overlay");
     let commands = overlay.into_display_list().commands().to_vec();
@@ -363,7 +381,7 @@ fn native_toolbar_length_then_drag_records_measurement() {
 }
 
 #[test]
-fn selected_polygon_draws_one_handle_at_each_projected_vertex() {
+fn selected_annotation_draws_one_handle_at_each_projected_vertex() {
     let (mut session, _root) = session();
     let (index, origin_x, origin_y, texel_x, texel_y) = axial_panel(&session);
     let view = &session.views[index];
@@ -377,7 +395,7 @@ fn selected_polygon_draws_one_handle_at_each_projected_vertex() {
     });
     let unselected = draw_lines(&composed(&session, None));
     assert_eq!(unselected.len(), 1);
-    session.app.pointer.selected_polygon = Some(0);
+    session.app.pointer.selected_annotation = Some(0);
     let selected = draw_lines(&composed(&session, None));
     let first = (origin_x.round(), origin_y.round());
     let second = (

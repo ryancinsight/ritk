@@ -2,6 +2,10 @@
 
 - Status: Accepted
 
+Revision 2026-11-19: retain original image-plane attributes beside effective
+geometry because gantry-tilt synthesis changes the named orientation field.
+Implementation and value tests: [PR #1053](https://github.com/ryancinsight/ritk/pull/1053).
+
 This decision records the source-owned DICOM metadata inventory implemented in
 `crates/ritk-io/src/format/dicom/`. It completes the accounting requirement of
 [architecture §24](../../docs/architecture.md) and supplies the source-owned
@@ -27,14 +31,24 @@ there is nothing to report.
 ## Decision
 
 `ritk-io::format::dicom` owns a source-owned retention inventory. Every parsed
-element has exactly one of three dispositions:
+element is accounted for by a named source field, retained content, or a loss:
 
 1. **Interpreted** into a named field.
 2. **Retained opaquely** as a `DicomObjectNode` or `DicomPreservedElement`.
 3. **Recorded** as a `DicomRetentionLoss { tag, reason }`.
 
-There is no fourth disposition. The retention loop and the recursive sequence
-walker never discard a parsed element without a record.
+The retention loop and recursive sequence walker never discard a parsed
+element without a record. PixelSpacing, ImagePositionPatient, and
+ImageOrientationPatient retain their original decoded nodes per image even
+when effective named fields also exist. Capture precedes sorting and gantry-tilt
+synthesis; normalized fields never reconstruct these originals. Encoded source
+bytes can then be released without losing their decoded geometry evidence.
+
+Existing preservation stores own text, opaque values, and retention losses;
+no additional snapshot field or free-text provenance marker is introduced.
+Missing nodes in old or caller-built mutable metadata mean absent or unrecorded,
+not authenticated source absence. Top-level retention does not select enhanced
+functional groups or certify a reconstructed plane's physical metric.
 
 `DicomRetentionReason` is `#[non_exhaustive]` and covers the three cases where
 retention is impossible:
@@ -110,12 +124,11 @@ and `ritk-io` already depends on `ritk-nifti` and `ritk-nrrd`, which depend on
 `FormatMetadataLoss` abstraction; `ritk-image-io` still depends on no format
 crate.
 
-The DICOM conversion call site that passes `dicom_metadata_losses` to
-`prepare_conversion` lands with the DICOM stored read
-([RITK-DICOM-STORED-IMPORT-001](../../backlog.md#RITK-DICOM-STORED-IMPORT-001)),
-which is the item that first produces a `StoredSeries` for a DICOM source.
-Until then the projection is the tested seam and the reader guarantees that no
-metadata is dropped without a record.
+The stored-series reader consumes `dicom_series_metadata_losses` when reporting
+source losses. Writer geometry exclusions prevent retained source nodes from
+replacing effective output metadata. The existing metadata writer takes spatial
+tags from its supplied metadata; callers changing image geometry supply matching
+effective metadata. Retention does not change that precedence.
 
 ## Evidence and revision criteria
 
@@ -127,6 +140,8 @@ reason text; that a sequence nested past `MAX_RETAINED_SEQUENCE_DEPTH` records
 `dicom_series_metadata_losses` scopes each slice's losses to that slice's
 frame. Round-trip preservation tests confirm that private creator scopes,
 private text, and private bytes still survive a write/read cycle.
+File-set tests check original geometry after sorting, gantry-tilt synthesis,
+decode, and path replacement, and check that rewritten geometry wins over it.
 
 Revise this decision if a DICOM element can be parsed but neither interpreted,
 retained, nor recorded, or if the shared conversion contract replaces

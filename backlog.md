@@ -97,7 +97,6 @@
 <a id="RITK-SNAP-EFRAME-PORT-002"></a>- [RITK-SNAP-EFRAME-PORT-002](backlog/RITK-SNAP-EFRAME-PORT-002.md) — Port morphology, geometry, CPR and pointwise filter ranges — todo
 <a id="RITK-SNAP-EFRAME-PORT-003"></a>- [RITK-SNAP-EFRAME-PORT-003](backlog/RITK-SNAP-EFRAME-PORT-003.md) — Port filter labels and starting parameters — todo
 <a id="RITK-SNAP-DICOM-GRAPHICS-001"></a>- [RITK-SNAP-DICOM-GRAPHICS-001](backlog/RITK-SNAP-DICOM-GRAPHICS-001.md) — Display DICOM graphic overlay planes — todo
-<a id="RITK-SNAP-LENGTH-EDIT-001"></a>- [RITK-SNAP-LENGTH-EDIT-001](backlog/RITK-SNAP-LENGTH-EDIT-001.md) — Move and resize completed lengths — todo
 <a id="RITK-SNAP-ROI-EDIT-001"></a>- [RITK-SNAP-ROI-EDIT-001](backlog/RITK-SNAP-ROI-EDIT-001.md) — Move and resize image regions — todo
 <a id="RITK-SNAP-MARK-EDIT-001"></a>- [RITK-SNAP-MARK-EDIT-001](backlog/RITK-SNAP-MARK-EDIT-001.md) — Edit completed angles and drawn marks — todo
 <a id="RITK-SNAP-ANNOTATION-TEXT-001"></a>- [RITK-SNAP-ANNOTATION-TEXT-001](backlog/RITK-SNAP-ANNOTATION-TEXT-001.md) — Position readable annotation labels — todo
@@ -113,3 +112,7 @@
 <a id="RITK-SNAP-ARROW-PROPERTIES-001"></a>- [RITK-SNAP-ARROW-PROPERTIES-001](backlog/RITK-SNAP-ARROW-PROPERTIES-001.md) — Edit arrow text and appearance — todo
 <a id="RITK-SNAP-CALIBRATION-INPUT-001"></a>- [RITK-SNAP-CALIBRATION-INPUT-001](backlog/RITK-SNAP-CALIBRATION-INPUT-001.md) — Complete calibration units and properties — todo
 <a id="RITK-SNAP-MEASUREMENT-UNITS-001"></a>- [RITK-SNAP-MEASUREMENT-UNITS-001](backlog/RITK-SNAP-MEASUREMENT-UNITS-001.md) — Retain missing-spacing measurement units — todo
+<a id="RITK-SNAP-ELLIPSE-CONSTRAINT-001"></a>- [RITK-SNAP-ELLIPSE-CONSTRAINT-001](backlog/RITK-SNAP-ELLIPSE-CONSTRAINT-001.md) — Constrain ellipse drawing to a circle — todo
+<a id="RITK-SNAP-ELLIPSE-PIXEL-MASK-001"></a>- [RITK-SNAP-ELLIPSE-PIXEL-MASK-001](backlog/RITK-SNAP-ELLIPSE-PIXEL-MASK-001.md) — Show ellipse contributing-pixel outlines — todo
+<a id="RITK-SNAP-ROI-NATIVE-001"></a>- [RITK-SNAP-ROI-NATIVE-001](backlog/RITK-SNAP-ROI-NATIVE-001.md) — Test native ROI creation and labels — todo
+<a id="RITK-SNAP-ROI-LABEL-STATISTICS-001"></a>- [RITK-SNAP-ROI-LABEL-STATISTICS-001](backlog/RITK-SNAP-ROI-LABEL-STATISTICS-001.md) — Show complete ROI label statistics — todo

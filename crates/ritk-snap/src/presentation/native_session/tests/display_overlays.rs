@@ -1,10 +1,10 @@
 //! Native histogram window panel and per-pane colorbar overlays.
 
-use super::super::layout::overlay_display::append_colorbar_overlay;
+use super::super::layout::overlay_display::{append_colorbar_overlay, histogram_bounds};
 use super::super::layout::{application_overlay, screen_coordinate, OverlayCommands};
 use super::support::session;
 use iris::color::{ColorMap, Normalized};
-use metis_ui_lang::DisplayCommand;
+use metis_ui_lang::{DisplayCommand, PlacementObstacle};
 
 #[test]
 fn cached_histogram_counts_every_finite_voxel() {
@@ -155,15 +155,19 @@ fn colorbar_labels_clear_orientation_and_scale_ruler_lanes() {
     let clinical = super::super::session::clinical_overlay(&session.app, false)
         .expect("study clinical overlays");
     let viewport = &session.viewports[0];
-    let clinical_commands = application_overlay(
+    let clinical_overlay = application_overlay(
         &session.views,
         std::slice::from_ref(viewport),
         false,
         30.0,
         Some(&clinical),
     )
-    .expect("compose the clinical overlays")
-    .into_display_list();
+    .expect("compose the clinical overlays");
+    let frame = viewport.panel_rect().expect("clinical panel bounds");
+    let obstacles = clinical_overlay
+        .placement_obstacles(frame, &[])
+        .expect("collect clinical obstacles");
+    let clinical_commands = clinical_overlay.into_display_list();
     let (center, width) = session.app.browser_window_level_values();
     let mut colorbar = OverlayCommands::with_capacity(70).expect("colorbar storage");
     append_colorbar_overlay(&mut colorbar, viewport, session.app.colormap, center, width)
@@ -176,6 +180,37 @@ fn colorbar_labels_clear_orientation_and_scale_ruler_lanes() {
     };
     let labels: Vec<_> = colorbar.commands().iter().filter_map(text).collect();
     assert_eq!(labels.len(), 3);
+    let style = colorbar
+        .commands()
+        .iter()
+        .find_map(|command| match command {
+            DisplayCommand::DrawText { style, .. } => Some(*style),
+            _ => None,
+        })
+        .expect("colorbar label style");
+    let histogram = histogram_bounds(
+        viewport,
+        session.app.cached_histogram.as_ref().expect("histogram"),
+    )
+    .expect("histogram geometry")
+    .expect("visible histogram");
+    let extent = style.extent(0, 0, "5.0 mm").expect("measurement extent");
+    let mut measurement = OverlayCommands::with_capacity(1).expect("measurement label");
+    measurement
+        .push_text_inside(
+            "5.0 mm".into(),
+            style,
+            (histogram.x - extent.x, histogram.y - extent.y),
+            frame,
+            frame,
+            &[PlacementObstacle::Rect(histogram)],
+        )
+        .expect("place label clear of histogram");
+    let measurement = measurement.into_display_list();
+    let [label] = measurement.commands() else {
+        panic!("one measurement label must be placed");
+    };
+    assert!(text(label).expect("placed label").y + extent.height <= histogram.y);
     let bars = clinical_commands
         .commands()
         .iter()
@@ -218,6 +253,7 @@ fn colorbar_labels_clear_orientation_and_scale_ruler_lanes() {
             .filter_map(text)
             .chain([*bar])
         {
+            assert!(obstacles.contains(&PlacementObstacle::Rect(occupied)));
             assert!(
                 label.x + label.width <= occupied.x
                     || occupied.x + occupied.width <= label.x

@@ -3,7 +3,7 @@ pub(super) use dicom::object::meta::FileMetaTableBuilder;
 pub(super) use dicom::object::InMemDicomObject;
 
 /// Write a minimal DICOM Part-10 file carrying only the mandatory UID tags.
-pub(super) fn write_stub_dicom(
+pub(in super::super) fn write_stub_dicom(
     path: &std::path::Path,
     sop_class_uid: &str,
     sop_instance_uid: &str,
