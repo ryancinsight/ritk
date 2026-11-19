@@ -32,7 +32,7 @@ impl SnapApp {
                 {
                     (AnnotationMoveKind::Length(mode), original.clone())
                 } else if tool == ToolKind::Pan {
-                    let candidate = if let Some(node_index) =
+                    if let Some(node_index) =
                         polygon::nearest_node(original, viewport, screen)
                     {
                         (
@@ -53,8 +53,7 @@ impl SnapApp {
                             },
                             candidate,
                         )
-                    };
-                    candidate
+                    }
                 } else {
                     return None;
                 };
