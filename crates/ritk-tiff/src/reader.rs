@@ -219,6 +219,11 @@ pub(crate) fn append_page_to_scalar(
         DecodingResult::F64(values) => {
             append_converted(target, values, expected, page_index, |value| value as f32)
         }
+        // Every binary16 value is exactly representable in binary32, so the
+        // widening conversion is lossless (unlike the narrowing casts above).
+        DecodingResult::F16(values) => {
+            append_converted(target, values, expected, page_index, f32::from)
+        }
     }
 }
 

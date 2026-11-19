@@ -126,8 +126,10 @@ coeus-tensor = { version = "0.12.0", git = "https://github.com/ryancinsight/Coeu
 coeus-ops = { version = "0.12.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-cpu = { version = "0.12.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-autograd = { version = "0.12.0", git = "https://github.com/ryancinsight/Coeus.git" }
-leto = { version = ">=0.47.1, <0.51.0", git = "https://github.com/ryancinsight/leto.git" }
-leto-ops = { version = ">=0.47.1, <0.51.0", git = "https://github.com/ryancinsight/leto.git" }
+# Keep Ritk aligned to the same local Leto source as the rest of the Atlas
+# stack; otherwise multiple `leto_ops` identities land in the same graph.
+leto = { version = "0.50.0", path = "../leto/crates/leto" }
+leto-ops = { version = "0.50.0", path = "../leto/crates/leto-ops" }
 apollo-fft = { version = "0.29.0", git = "https://github.com/ryancinsight/apollo.git" }
 apollo-sht = { version = "0.9.0", git = "https://github.com/ryancinsight/apollo.git" }
 aequitas = { version = "0.3.0", git = "https://github.com/ryancinsight/aequitas" }
@@ -166,10 +168,10 @@ wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 getrandom = "0.3"
 getrandom_02 = { package = "getrandom", version = "0.2" }
-image = "0.24"
-base64 = "0.22"
+image = "0.25"
+base64 = "0.23"
 quick-xml = "0.41"
-tiff = "0.9"
+tiff = "0.11"
 
 dicom-core = "0.10"
 dicom-ul = "0.10"
@@ -299,3 +301,14 @@ unwrap_used = "deny"
 print_stdout = "deny"
 print_stderr = "deny"
 dbg_macro = "deny"
+
+# Single Atlas Leto source identity: redirect every git-sourced
+# `leto`/`leto-ops` edge to the local checkout so the graph carries one
+# crate ID standalone, matching the in-tree overlay (cf. CFDrs).
+[patch."https://github.com/ryancinsight/leto"]
+leto = { path = "../leto/crates/leto" }
+leto-ops = { path = "../leto/crates/leto-ops" }
+
+[patch."https://github.com/ryancinsight/leto.git"]
+leto = { path = "../leto/crates/leto" }
+leto-ops = { path = "../leto/crates/leto-ops" }

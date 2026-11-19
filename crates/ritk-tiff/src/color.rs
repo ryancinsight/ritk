@@ -273,8 +273,13 @@ mod tests {
 
         let error = read_tiff_color_to_volume(&path, &SequentialBackend).unwrap_err();
         let message = format!("{error:#}");
+        // Tiff 0.11 lowercased `InconsistentSizesEncountered`'s display text;
+        // fold case so the assertion pins the rejection site, not upstream
+        // capitalization. Either accepted message fires before any sample
+        // allocation: both come from decoder creation, not the pixel buffer.
+        let folded = message.to_lowercase();
         assert!(
-            message.contains("Format error: Inconsistent sizes encountered")
+            folded.contains("inconsistent sizes encountered")
                 || message.contains("TIFF page sample count")
                     && message.contains("overflows usize"),
             "unexpected hostile-geometry error: {message}"

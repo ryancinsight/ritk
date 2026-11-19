@@ -20,6 +20,7 @@ coeus-core = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+half = "2"
 ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.5.0" }
 base64 = { workspace = true }
 image = { workspace = true }
