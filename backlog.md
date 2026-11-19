@@ -14,6 +14,8 @@
   The locked DICOM suite passes 524 selected tests including real independent
   loopback peers. The prior command codec failed those peers until the PS3.7
   command encoding and PS3.8 release frame were corrected.
+  On the merged main revision `73f66b716`, 561 selected tests pass,
+  including the independent loopback scenarios, with 31 outside the filter.
 - A 16,777,690-byte synthetic 32-frame file yields 16,790,724 allocated bytes
   per full-object parse and zero for the identical borrowed tag selection.
   The probe is scoped to selection with the encoded input already resident.
@@ -46,6 +48,7 @@
 - needs: M-viewer-access
 - non-goals: encrypted ZIP, optical disc burning, unlisted RadiAnt add-ons
 # Items
+
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — blocked
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
 <a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Write permuted images to VTK and Analyze — todo
@@ -104,12 +107,11 @@
 <a id="RITK-SNAP-NATIVE-OPEN-001"></a>- [RITK-SNAP-NATIVE-OPEN-001](backlog/RITK-SNAP-NATIVE-OPEN-001.md) — Open files, archives and drops natively — todo
 <a id="RITK-SNAP-NATIVE-OVERLAY-TEXT-001"></a>- [RITK-SNAP-NATIVE-OVERLAY-TEXT-001](backlog/RITK-SNAP-NATIVE-OVERLAY-TEXT-001.md) — Draw clinical image overlays natively — todo
 <a id="RITK-SNAP-NATIVE-PACS-001"></a>- [RITK-SNAP-NATIVE-PACS-001](backlog/RITK-SNAP-NATIVE-PACS-001.md) — Query and receive PACS studies natively — todo
-<a id="RITK-SNAP-NATIVE-POINTER-CAPTURE-001"></a>- [RITK-SNAP-NATIVE-POINTER-CAPTURE-001](backlog/RITK-SNAP-NATIVE-POINTER-CAPTURE-001.md) — End a drag released off the window — todo
 <a id="RITK-SNAP-NATIVE-PROJECTION-001"></a>- [RITK-SNAP-NATIVE-PROJECTION-001](backlog/RITK-SNAP-NATIVE-PROJECTION-001.md) — Select projections from the native menu — todo
 <a id="RITK-SNAP-NATIVE-RT-001"></a>- [RITK-SNAP-NATIVE-RT-001](backlog/RITK-SNAP-NATIVE-RT-001.md) — Show RT structures and dose natively — todo
 <a id="RITK-SNAP-NATIVE-SHELL-001"></a>- [RITK-SNAP-NATIVE-SHELL-001](backlog/RITK-SNAP-NATIVE-SHELL-001.md) — Finish native shell integration — todo
 <a id="RITK-SNAP-NATIVE-TAGS-001"></a>- [RITK-SNAP-NATIVE-TAGS-001](backlog/RITK-SNAP-NATIVE-TAGS-001.md) — Show searchable DICOM tags natively — todo
-<a id="RITK-SNAP-NATIVE-VR-001"></a>- [RITK-SNAP-NATIVE-VR-001](backlog/RITK-SNAP-NATIVE-VR-001.md) — Render volumes in the native shell — blocked
+<a id="RITK-SNAP-NATIVE-VR-001"></a>- [RITK-SNAP-NATIVE-VR-001](backlog/RITK-SNAP-NATIVE-VR-001.md) — Render volumes in the native shell — todo
 <a id="RITK-SNAP-NATIVE-SEGMENTATION-001"></a>- [RITK-SNAP-NATIVE-SEGMENTATION-001](backlog/RITK-SNAP-NATIVE-SEGMENTATION-001.md) — Draw and edit label maps natively — todo
 <a id="SEC-MIF-DETACHED-DEVICE-NAME-001"></a>- [SEC-MIF-DETACHED-DEVICE-NAME-001](backlog/SEC-MIF-DETACHED-DEVICE-NAME-001.md) — Refuse device names as .mif detached data and pin the check's order — todo
 <a id="RITK-MGH-ERROR-TEST-PINS-001"></a>- [RITK-MGH-ERROR-TEST-PINS-001](backlog/RITK-MGH-ERROR-TEST-PINS-001.md) — Pin the MGH error fields and limits that mutants survive — todo
@@ -118,7 +120,7 @@
 <a id="RITK-SNAP-EFRAME-PORT-002"></a>- [RITK-SNAP-EFRAME-PORT-002](backlog/RITK-SNAP-EFRAME-PORT-002.md) — Port morphology, geometry, CPR and pointwise filter ranges — todo
 <a id="RITK-SNAP-EFRAME-PORT-003"></a>- [RITK-SNAP-EFRAME-PORT-003](backlog/RITK-SNAP-EFRAME-PORT-003.md) — Port filter labels and starting parameters — todo
 <a id="RITK-SNAP-DICOM-GRAPHICS-001"></a>- [RITK-SNAP-DICOM-GRAPHICS-001](backlog/RITK-SNAP-DICOM-GRAPHICS-001.md) — Display DICOM graphic overlay planes — todo
-<a id="RITK-SNAP-LENGTH-EDIT-001"></a>- [RITK-SNAP-LENGTH-EDIT-001](backlog/RITK-SNAP-LENGTH-EDIT-001.md) — Move and resize completed lengths — todo
+<a id="RITK-SNAP-LENGTH-TRANSLATE-001"></a>- [RITK-SNAP-LENGTH-TRANSLATE-001](backlog/RITK-SNAP-LENGTH-TRANSLATE-001.md) — Translate completed lengths — todo
 <a id="RITK-SNAP-ROI-EDIT-001"></a>- [RITK-SNAP-ROI-EDIT-001](backlog/RITK-SNAP-ROI-EDIT-001.md) — Move and resize image regions — todo
 <a id="RITK-SNAP-MARK-EDIT-001"></a>- [RITK-SNAP-MARK-EDIT-001](backlog/RITK-SNAP-MARK-EDIT-001.md) — Edit completed angles and drawn marks — todo
 <a id="RITK-SNAP-ANNOTATION-TEXT-001"></a>- [RITK-SNAP-ANNOTATION-TEXT-001](backlog/RITK-SNAP-ANNOTATION-TEXT-001.md) — Position readable annotation labels — todo
@@ -127,9 +129,11 @@
 <a id="RITK-SNAP-FORMAT-VIEWER-001"></a>- [RITK-SNAP-FORMAT-VIEWER-001](backlog/RITK-SNAP-FORMAT-VIEWER-001.md) — Exercise encoded studies in the viewer — todo
 <a id="RITK-SNAP-CUSTOM-WINDOW-001"></a>- [RITK-SNAP-CUSTOM-WINDOW-001](backlog/RITK-SNAP-CUSTOM-WINDOW-001.md) — Retain precise custom window settings — todo
 <a id="RITK-SNAP-LARGE-STUDY-001"></a>- [RITK-SNAP-LARGE-STUDY-001](backlog/RITK-SNAP-LARGE-STUDY-001.md) — Measure native study resource bounds — todo
-<a id="RITK-SNAP-NATIVE-DISPLAY-001"></a>- [RITK-SNAP-NATIVE-DISPLAY-001](backlog/RITK-SNAP-NATIVE-DISPLAY-001.md) — Finish native display actions — todo
+<a id="RITK-SNAP-NATIVE-DISPLAY-001"></a>- [RITK-SNAP-NATIVE-DISPLAY-001](backlog/RITK-SNAP-NATIVE-DISPLAY-001.md) — Route display controls in the native shell — todo
 <a id="RITK-SNAP-NAVIGATION-UNITS-001"></a>- [RITK-SNAP-NAVIGATION-UNITS-001](backlog/RITK-SNAP-NAVIGATION-UNITS-001.md) — Keep navigation in display coordinates — todo
 <a id="RITK-SNAP-IMAGE-FIT-001"></a>- [RITK-SNAP-IMAGE-FIT-001](backlog/RITK-SNAP-IMAGE-FIT-001.md) — Share continuous sample-aspect fitting — todo
 <a id="RITK-SNAP-EFRAME-NAVIGATION-001"></a>- [RITK-SNAP-EFRAME-NAVIGATION-001](backlog/RITK-SNAP-EFRAME-NAVIGATION-001.md) — Paint pan and retain the press origin — todo
 <a id="RITK-SNAP-ARROW-PROPERTIES-001"></a>- [RITK-SNAP-ARROW-PROPERTIES-001](backlog/RITK-SNAP-ARROW-PROPERTIES-001.md) — Edit arrow text and appearance — todo
-<a id="RITK-SNAP-PRODUCT-BIN-001"></a>- [RITK-SNAP-PRODUCT-BIN-001](backlog/RITK-SNAP-PRODUCT-BIN-001.md) — Name the executable AsterSlice — todo
+<a id="RITK-SNAP-CALIBRATION-INPUT-001"></a>- [RITK-SNAP-CALIBRATION-INPUT-001](backlog/RITK-SNAP-CALIBRATION-INPUT-001.md) — Complete calibration units and properties — todo
+<a id="RITK-SNAP-CALIBRATION-MEASURES-001"></a>- [RITK-SNAP-CALIBRATION-MEASURES-001](backlog/RITK-SNAP-CALIBRATION-MEASURES-001.md) — Propagate image calibration to measurements — todo
+<a id="RITK-SNAP-MEASUREMENT-UNITS-001"></a>- [RITK-SNAP-MEASUREMENT-UNITS-001](backlog/RITK-SNAP-MEASUREMENT-UNITS-001.md) — Retain missing-spacing measurement units — todo

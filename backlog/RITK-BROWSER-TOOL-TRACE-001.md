@@ -6,5 +6,4 @@
 - next: Reproduce the ROI publication failure against the run's bundle artifact.
 - basis: 30b8ba098
 - needs: none
-- milestone: M-viewer-compare
-- priority: verification
+- priority: verification; milestone: M-viewer-compare

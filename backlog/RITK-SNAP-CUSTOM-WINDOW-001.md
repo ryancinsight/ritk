@@ -6,5 +6,4 @@
 - next: Reuse existing decimal input and in-memory preset operations in a persisted settings model. Reference: RadiAnt 2021.2; [feature comparison](../docs/manual/features.md#reading-and-annotations)
 - basis: eb9a81dabb62777be2103fa16b8a2dcbab50f1e3
 - needs: none
-- milestone: M-viewer-reading
-- priority: feature
+- priority: feature; milestone: M-viewer-reading

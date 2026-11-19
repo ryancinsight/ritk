@@ -1,7 +1,7 @@
 # AsterSlice user manual
 
 Use AsterSlice to browse a study and measure or mark an image on Windows.
-The executable and Cargo package are named `ritk-snap`. The
+The executable is `asterslice`; its Cargo package is `ritk-snap`. The
 [feature comparison](features.md) covers the supplied RadiAnt 2021.2 manual,
 the current Windows controls, the tests, and the work needed for parity.
 The [developer reference](development.md) contains reproduction procedures
@@ -27,7 +27,7 @@ cargo run --locked -p ritk-snap -- test_data/2_head_mri_t2/DICOM
 ```
 
 A startup path can also name a DICOM instance or DICOMDIR. To select a series
-explicitly, add `--series-instance-uid UID`. The [launch reference](../../crates/ritk-snap/README.md)
+explicitly from a study folder, add `--series-instance-uid UID`. The [launch reference](../../crates/ritk-snap/README.md)
 describes startup selection and capture options.
 
 - [Adjust the image display](#adjust-the-image-display)
@@ -42,10 +42,12 @@ describes startup selection and capture options.
 ## Adjust the image display
 
 Use **W/L**, **Pan**, or **Zoom** on the toolbar to choose the left-button
-gesture. Drag within the image to apply it. The **Display** menu offers the
-loaded modality's window presets, inversion, and color maps. Number keys
-apply available presets; **I** inverts and **Shift+C** cycles the color map.
-Custom presets currently last for the running application.
+gesture. Drag within the image to apply it. On Windows, the active drag stays
+captured until release, including when the pointer leaves the viewer. The
+**Display** menu offers the loaded modality's window presets, inversion, and
+color maps. Number keys apply available presets; **I** inverts and **Shift+C**
+cycles the color map. Custom presets currently last for the running
+application.
 
 Pan distance and zoom/window drag sensitivity currently depend on image fit
 and orientation. The [navigation correction](../../backlog/RITK-SNAP-NAVIGATION-UNITS-001.md)
@@ -138,7 +140,10 @@ have their own rows. Measurement labels move to stay visible inside the pane.
 ![AsterSlice Tools calibration dialog over the current DICOM slice with a 100 mm reference entered](images/dicom-native-calibration.webp)
 
 Calibration lasts for the loaded study. Reopen the study to restore its DICOM
-spacing.
+spacing. This control currently rescales ordinary Length labels only.
+Patient-space lengths, deviation, polygon values, and ROI areas retain their
+image-spacing values. Inch/French-size input and source-specific calibration
+colors remain [calibration work](features.md#reading-and-annotations).
 
 ### Measure an angle or a region of interest
 

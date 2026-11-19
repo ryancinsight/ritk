@@ -6,5 +6,4 @@
 - next: Confirm the Métis file-dialog and drop surface, then route it.
 - basis: 30b8ba098
 - needs: none
-- milestone: M-viewer-access
-- priority: feature
+- priority: feature; milestone: M-viewer-access

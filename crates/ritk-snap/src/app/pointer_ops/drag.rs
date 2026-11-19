@@ -22,8 +22,17 @@ impl SnapApp {
                 start,
                 viewport_origin,
             } => {
-                let offset = pan_from_drag_delta(viewport_origin, start, pos);
-                self.pan_offset = offset;
+                let displacement = crate::tools::interaction::ViewportOffset::new(
+                    pos.x() - start.x(),
+                    pos.y() - start.y(),
+                );
+                match pan_from_drag_delta(viewport_origin, displacement) {
+                    Ok(offset) => self.pan_offset = offset,
+                    Err(error) => {
+                        tracing::warn!(%error, "pan update rejected");
+                        self.status_message = format!("Navigation rejected: {error}");
+                    }
+                }
             }
             ToolState::Zooming {
                 start,

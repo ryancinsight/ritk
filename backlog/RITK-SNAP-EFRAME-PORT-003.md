@@ -6,5 +6,4 @@
 - next: Port `selector_values.rs` and its tests. Each PR stays within 400 changed lines; split by module.
 - basis: 6d0f66501
 - needs: none
-- milestone: M-viewer-reading
-- priority: architecture
+- priority: architecture; milestone: M-viewer-reading

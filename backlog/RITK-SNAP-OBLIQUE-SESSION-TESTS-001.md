@@ -1,10 +1,9 @@
 <a id="RITK-SNAP-OBLIQUE-SESSION-TESTS-001"></a>
 ## RITK-SNAP-OBLIQUE-SESSION-TESTS-001 — Verify oblique rendering and startup — blocked
-- milestone: M-viewer-compare
+- priority: verification; milestone: M-viewer-compare
 - outcome: cover real session initialization, frame changes, resize, and retained-frame failures.
 - acceptance: tests assert frame pixels and semantic state for valid and rejected transitions.
 - scope: `crates/ritk-snap/src/presentation/native_session/tests/oblique/`
 - next: add rendering and startup cases against manufactured volumes.
 - basis: 3fcdc3dd
 - needs: RITK-SNAP-OBLIQUE-SESSION-WIRING-001
-- priority: verification

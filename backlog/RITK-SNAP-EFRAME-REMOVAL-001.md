@@ -8,5 +8,4 @@
 - status: blocked
 - blocker: 19 slices of the plan in the PR that filed this block are unfiled and precede this item: annotation CSV, PET SUV readout, histogram geometry, RT-dose RGBA, overlay labels, MPR cursor, view transform, tool keys, session snapshot, dialog filters, preset references, render ungate, app ungate, and the deletions of app menus, app panels, viewports, the filter panel, side panels and image painters. The four `needs` are only the filed frontier. Re-open when the last of the 19 lands.
 - needs: RITK-SNAP-EFRAME-PORT-001, RITK-SNAP-EFRAME-PORT-002, RITK-SNAP-EFRAME-PORT-003, RITK-SNAP-EFRAME-DELETE-001
-- milestone: M-viewer-reading
-- priority: architecture
+- priority: architecture; milestone: M-viewer-reading

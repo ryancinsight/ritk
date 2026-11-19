@@ -1,6 +1,7 @@
 //! RITK-owned measurement and region overlays for native panes.
 
 mod cobb;
+mod handles;
 
 use super::super::frame::RenderedView;
 use super::crosshair::screen_coordinate;
@@ -26,8 +27,8 @@ pub(crate) fn append_measurement_overlay(
     views: &[RenderedView],
     viewports: &[NativeViewport],
     annotations: &[Annotation],
-    selected_polygon: Option<usize>,
-    pending_polygon: Option<&Annotation>,
+    selected_annotation: Option<usize>,
+    pending_annotation: Option<(usize, &Annotation)>,
     affine: Option<AffineTransform>,
     length_scale: impl Fn(Option<AnnotationLocation>) -> f64,
 ) -> Result<()> {
@@ -46,33 +47,18 @@ pub(crate) fn append_measurement_overlay(
             if !annotation_visible(annotation, view.axis, view.slice_index) {
                 continue;
             }
-            let annotation = pending_polygon
-                .filter(|_| selected_polygon == Some(index))
-                .unwrap_or(annotation);
+            let pending_index = pending_annotation.map(|(pending_index, _)| pending_index);
+            let annotation = pending_annotation
+                .filter(|(pending_index, _)| *pending_index == index)
+                .map_or(annotation, |(_, candidate)| candidate);
             pane.draw(
                 annotation,
                 overlay,
                 affine,
                 length_scale(annotation.location()),
             )?;
-            if selected_polygon == Some(index)
-                && let Annotation::OpenPolygon { points, .. }
-                | Annotation::ClosedPolygon { points, .. } = annotation
-            {
-                for point in points {
-                    let (x, y) = pane.point(image_point(*point))?;
-                    let left = x.saturating_sub(2);
-                    let right = x.saturating_add(2);
-                    let top = y.saturating_sub(2);
-                    let bottom = y.saturating_add(2);
-                    for (start, end) in [((left, y), (right, y)), ((x, top), (x, bottom))] {
-                        overlay.push(metis_ui_lang::DisplayCommand::DrawLine {
-                            start,
-                            end,
-                            color: POINT_COLOR,
-                        });
-                    }
-                }
+            if selected_annotation == Some(index) || pending_index == Some(index) {
+                handles::append(&pane, annotation, overlay)?;
             }
         }
     }

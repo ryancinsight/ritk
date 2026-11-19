@@ -34,6 +34,7 @@ parent directory. Invalid indices fail instead of enabling folder fallback.
 | `OverlayRenderer::draw_orientation_labels` | Remove the separate call; `draw` now lays out orientation and corner annotations together. |
 | `Annotation` | Keep a wildcard arm for the non-exhaustive enum; handle `PatientLength` in patient millimetres and retain its full `f64` distance. |
 | `AnnotationSummary::primary_value()` | Consume `f64` so patient-space distances are not narrowed to `f32`. |
+| `pan_from_drag_delta` | Pass captured and displacement `ViewportOffset` values instead of two `ImagePoint` positions, handle `PanError`, and consume the returned `Result`. |
 
 New sessions serialize format 3 and preserve selected DICOM UID and member
 paths. Unversioned and version-1 path sessions remain readable, and version-2
@@ -60,3 +61,20 @@ picker). Callers that use `Default` now select the Métis host on Windows and
 remain on eframe on other native targets. `load_volume_from_series_uid` is the
 RITK-owned path API for non-interactive selection and never chooses an
 arbitrary series.
+
+## AsterSlice executable
+
+[ADR 0061](adr/0061-asterslice-executable.md) names the desktop executable
+`asterslice` (`asterslice.exe` on Windows). Update launch scripts, shortcuts,
+capture commands, and explicit Cargo binary selection:
+
+```console
+cargo build --locked -p ritk-snap --bin asterslice
+asterslice path/to/study
+```
+
+The Cargo package remains `ritk-snap` and the Rust/WebAssembly library remains
+`ritk_snap`. Existing `cargo run -p ritk-snap -- ...` commands select its single
+binary. The installer keeps its application ID and upgrade code, and stored
+sessions and DICOM network identities retain their existing representation.
+There is no second executable under the former name.

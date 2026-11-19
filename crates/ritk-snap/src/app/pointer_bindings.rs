@@ -115,13 +115,24 @@ pub(crate) enum PolygonClick {
     Finish,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AnnotationMoveKind {
+    Polygon { node_index: usize, inserted: bool },
+    Length(LengthMove),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LengthMove {
+    FirstEndpoint,
+    SecondEndpoint,
+}
+
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct PendingPolygonMove {
+pub(crate) struct PendingAnnotationMove {
     pub(crate) annotation_index: usize,
     pub(crate) source_location: AnnotationLocation,
     pub(crate) original: Annotation,
-    pub(crate) node_index: usize,
-    pub(crate) inserted: bool,
+    pub(crate) kind: AnnotationMoveKind,
     pub(crate) candidate: Annotation,
     pub(crate) start: ImagePoint,
     pub(crate) current: ImagePoint,
@@ -140,9 +151,9 @@ pub(crate) struct PointerGestures {
     pub(crate) suspended_measurement: Option<ToolState>,
     pub(crate) pending_measurement_location: Option<AnnotationLocation>,
     pub(crate) drag_measurement_location: Option<AnnotationLocation>,
-    /// Index of the completed polygon selected in this panel.
-    pub(crate) selected_polygon: Option<usize>,
-    pub(crate) pending_polygon_move: Option<PendingPolygonMove>,
+    /// Index of the completed annotation selected in this panel.
+    pub(crate) selected_annotation: Option<usize>,
+    pub(crate) pending_annotation_move: Option<PendingAnnotationMove>,
 }
 
 impl PointerGestures {
@@ -188,7 +199,7 @@ impl PointerGestures {
         self.suspended_measurement = None;
         self.pending_measurement_location = None;
         self.drag_measurement_location = None;
-        self.selected_polygon = None;
-        self.pending_polygon_move = None;
+        self.selected_annotation = None;
+        self.pending_annotation_move = None;
     }
 }

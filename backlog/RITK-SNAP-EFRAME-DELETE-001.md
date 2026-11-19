@@ -6,5 +6,4 @@
 - next: Delete the CI step, the example with its `[[example]]` entry, and the `viewer.py` captures first; they change no library code. Size the next PR from the dead-code report CI gives on that one.
 - basis: 6d0f66501
 - needs: none
-- milestone: M-viewer-reading
-- priority: architecture
+- priority: architecture; milestone: M-viewer-reading

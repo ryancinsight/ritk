@@ -44,7 +44,7 @@ fn pan_click_selects_a_visible_closing_edge_and_delete_keeps_other_slices() {
     app.annotations.push(adjacent.clone());
 
     click(&mut app, &view, 29.0, 29.0);
-    assert_eq!(app.pointer.selected_polygon, None);
+    assert_eq!(app.pointer.selected_annotation, None);
     let view = view.with_polygon_handles();
     for modifiers in [
         PresentationModifiers::new(false, false, true, false),
@@ -69,11 +69,11 @@ fn pan_click_selects_a_visible_closing_edge_and_delete_keeps_other_slices() {
                 button: PointerButton::Left,
             },
         );
-        assert_eq!(app.pointer.selected_polygon, None);
+        assert_eq!(app.pointer.selected_annotation, None);
     }
 
     click(&mut app, &view, 29.0, 29.0);
-    assert_eq!(app.pointer.selected_polygon, Some(0));
+    assert_eq!(app.pointer.selected_annotation, Some(0));
 
     let delete = || PresentationEvent::KeyDown {
         virtual_key: 0x2e,
@@ -83,7 +83,7 @@ fn pan_click_selects_a_visible_closing_edge_and_delete_keeps_other_slices() {
     app.set_slice_for_axis(0, 1);
     apply_app_event(&mut app, &view, delete());
     assert_eq!(app.annotations.len(), 2);
-    assert_eq!(app.pointer.selected_polygon, None);
+    assert_eq!(app.pointer.selected_annotation, None);
 
     app.set_slice_for_axis(0, 0);
     click(&mut app, &view, 29.0, 29.0);
@@ -118,7 +118,7 @@ fn polygon_pick_radius_is_measured_in_projected_screen_pixels() {
     .with_polygon_handles();
     // The horizontal edge projects to y = 32 + 2 * (24 - 32) = 16.
     click(&mut app, &view, 48.0, 23.0);
-    assert_eq!(app.pointer.selected_polygon, None);
+    assert_eq!(app.pointer.selected_annotation, None);
     click(&mut app, &view, 48.0, 22.0);
-    assert_eq!(app.pointer.selected_polygon, Some(0));
+    assert_eq!(app.pointer.selected_annotation, Some(0));
 }

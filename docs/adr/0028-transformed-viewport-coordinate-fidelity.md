@@ -4,6 +4,9 @@ Status: Accepted
 
 Date: 2026-09-09
 
+Revision: 2026-11-18 — reject unrepresentable pan updates without changing
+source-space picking or display-fit units.
+
 Driver: [RITK-SNAP-COORDINATES-001](../../backlog.md#RITK-SNAP-COORDINATES-001).
 
 ## Context
@@ -45,6 +48,14 @@ do not append an invalid annotation. The older unchecked calculation methods
 remain the arithmetic primitives used by callers that already own a validated
 contract.
 
+Viewport pan remains in its existing `f32` display state. The public
+`pan_from_drag_delta` function now accepts captured and displacement
+`ViewportOffset` values and returns `Result<ViewportOffset, PanError>`. It
+rejects a non-finite origin, displacement, or sum before the application
+mutates either axis. The application keeps the last valid pan and gesture
+anchor, so a later valid update or release still completes normally.
+Display-fit and orientation unit corrections remain separate work.
+
 ## Alternatives
 
 Keeping separate transform formulas in each overlay is rejected because every
@@ -66,6 +77,11 @@ unrepresentable spacing and non-finite derived values. Existing physical-aspect
 and deterministic DICOM workflow captures remain the visual baseline; the
 manual documents the transform controls and the source/display coordinate
 contract.
+
+Pan tests cover every direction from negative origins, independent axes, both
+components of each non-finite argument, finite overflow in both directions,
+recovery after pointer subtraction overflow, and immediate release after a
+rejected update.
 
 ## Revision history
 

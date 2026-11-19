@@ -18,7 +18,7 @@ default = []
 eframe-shell = ["dep:eframe", "dep:egui", "dep:rfd"]
 
 [[bin]]
-name = "ritk-snap"
+name = "asterslice"
 path = "src/main.rs"
 
 [[example]]
@@ -75,6 +75,9 @@ ritk-core = { workspace = true, features = ["test-helpers"] }
 # The DICOMDIR reader validates the full record tree, so tests build indices
 # through the format crate rather than hand-rolling one.
 ritk-io = { workspace = true, features = ["test-util"] }
+
+[target.'cfg(windows)'.dev-dependencies]
+windows = { workspace = true }
 
 [lints]
 workspace = true

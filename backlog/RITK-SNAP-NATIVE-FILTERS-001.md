@@ -6,5 +6,4 @@
 - next: Add display-only convolution ahead of the window mapping. Edit ranges come from `filter::parameter_range` and starting parameters from `filter::catalog`.
 - basis: 6d0f66501
 - needs: RITK-SNAP-EFRAME-PORT-001, RITK-SNAP-EFRAME-PORT-002, RITK-SNAP-EFRAME-PORT-003
-- milestone: M-viewer-advanced
-- priority: feature
+- priority: feature; milestone: M-viewer-advanced

@@ -1,11 +1,12 @@
 # AsterSlice
 
-AsterSlice is the RITK medical-image viewer, distributed as the `ritk-snap`
-package. On Windows the Métis host is the default desktop shell. The default
-package has no eframe, egui, or rfd active dependency; the complete
-compatibility shell is the separately named `ritk-snap-eframe` package. The
-migration is described in
-[ADR 0026](../../docs/adr/0026-viewer-presentation-migration.md).
+AsterSlice is the RITK medical-image viewer. The `ritk-snap` package provides
+the `asterslice` executable. On Windows the Métis host is the default desktop shell. The default
+dependency graph has no eframe, egui, or rfd dependency. Enable the optional
+`eframe-shell` feature to build the compatibility shell from the same package.
+The shell migration is described in
+[ADR 0026](../../docs/adr/0026-viewer-presentation-migration.md);
+[ADR 0061](../../docs/adr/0061-asterslice-executable.md) records the executable name.
 
 RITK owns DICOM opening, decoding, geometry, and medical display semantics.
 The `presentation` module exposes a validated format-neutral RGBA frame for a
@@ -62,25 +63,17 @@ cargo run --locked -p ritk-snap -- path/to/study \
   --series-instance-uid 2.25.20260905001 --metis-native
 ```
 
-To capture the rendered eframe compatibility window and exit, use the
-dedicated compatibility package:
-
-```console
-cargo run --locked -p ritk-snap-eframe -- path/to/study --capture window.png
-```
-
-The compatibility binary accepts `--viewport-size WIDTHxHEIGHT` in logical
-points for controlled comparison captures. The physical PNG dimensions remain
-display-scale dependent and belong in the capture provenance; the default is
-`1280x800` logical points.
-
-The existing source-level capture harness can still select the complete shell
-with the feature explicitly enabled:
+To capture the rendered eframe compatibility window and exit, enable the
+optional shell and select it explicitly:
 
 ```console
 cargo run --locked -p ritk-snap --features eframe-shell -- \
   path/to/study --eframe --capture window.png
 ```
+
+The eframe shell uses a `1280x800` logical-point viewport. Physical PNG
+dimensions remain display-scale dependent and belong in the capture
+provenance.
 
 For a mixed folder, keep `--series-instance-uid` on the same command so the
 capture waits for that selected RITK acquisition to load. A supplied study must
@@ -137,9 +130,9 @@ The [Windows shortcuts](../../docs/manual/dicom-workflow.md#windows-tool-shortcu
 list the current measurement and drawing keys.
 
 On Windows the same command works without `--metis-native`; the flag remains an
-explicit spelling for scripts and existing workflows. The separately named
-`ritk-snap-eframe` executable selects the compatibility shell without activating
-the legacy graph in the default package.
+explicit spelling for scripts and existing workflows. The `asterslice` binary
+selects the compatibility shell with `--eframe` when built with the
+`eframe-shell` feature.
 
 The Métis session owns the HWND, bounded event wait, framebuffer presentation,
 resize/minimize and terminal cleanup. RITK owns DICOM opening, decoded volume
@@ -402,8 +395,8 @@ selection renders on the next animation frame; controls observe the canvas
 position with selection, wheel navigation and cine playback. The RITK consumer
 gallery provides one labeled range control per plane using this entrypoint.
 
-To produce the browser module, build the library target and run the pinned
-`wasm-bindgen 0.2.128` CLI over
+To produce the browser module, build the library target and run
+`wasm-bindgen` at the version resolved in the [workspace lockfile](../../Cargo.lock) over
 `target/wasm32-unknown-unknown/release/ritk_snap.wasm`:
 
 ```powershell
