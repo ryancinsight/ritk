@@ -7,7 +7,17 @@
   "cargo_lock_sha256": "f4beba06edbad2918accc9e936a2ff342a182078279768c5ab0f90ccc9a3e484",
   "capture": "Native Windows RITK client framebuffer",
   "command": "cargo nextest run --locked -p ritk-snap -E 'test(native_manual_annotation_frames)'",
-  "comparison": "All four fresh PNG frames decode to the exact RGBA pixels in the tracked lossless WebP files; no binary image changed.",
+  "comparison": {
+    "method": "Pillow Image.convert('RGBA').tobytes() byte equality",
+    "unchanged_frames": [
+      "dicom-native-slices.webp",
+      "dicom-native-calibration.webp",
+      "dicom-native-length-edit.webp"
+    ],
+    "reencoded_frames": [
+      "dicom-native-annotations.webp"
+    ]
+  },
   "frames": {
     "dicom-native-slices.webp": {
       "width_px": 1280,
@@ -28,10 +38,20 @@
     "dicom-native-annotations.webp": {
       "width_px": 1280,
       "height_px": 800,
-      "webp_bytes": 126622,
-      "webp_sha256": "5316883603f054c7c44e47c859762c665ba9c0ba05f95e5b91775f5eeaf3c4b7",
+      "webp_bytes": 126208,
+      "webp_sha256": "8d9998d423c9bce49b40af804139f86ffa5d089b7f636dcc7d6f369a4ac5db3f",
       "source_png_bytes": 429445,
-      "source_png_sha256": "697645af380f07e9caea967c59f2a31e85c5d45c20a8b937b3d2f28a05ebb6dd"
+      "source_png_sha256": "697645af380f07e9caea967c59f2a31e85c5d45c20a8b937b3d2f28a05ebb6dd",
+      "encoding": {
+        "tool": "Pillow",
+        "version": "12.1.1",
+        "format": "WEBP",
+        "lossless": true,
+        "quality": 100,
+        "method": 6,
+        "exact": true,
+        "decoded_rgba_equal": true
+      }
     },
     "dicom-native-length-edit.webp": {
       "width_px": 1280,

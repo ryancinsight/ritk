@@ -2,8 +2,11 @@
 
 import hashlib
 import json
+import tempfile
 import unittest
 from pathlib import Path
+
+from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -12,7 +15,30 @@ RESOURCE = ROOT / "docs/manual/images/dicom-metis-real-mri-resource.json"
 REPLAY = ROOT / "docs/manual/images/dicom-metis-real-mri.json"
 
 
+def decoded_rgba(path):
+    with Image.open(path) as image:
+        return image.size, image.convert("RGBA").tobytes()
+
+
+def decoded_images_equal(left, right):
+    return decoded_rgba(left) == decoded_rgba(right)
+
+
 class ManualImageProvenanceTests(unittest.TestCase):
+    def test_rgba_comparison_detects_rgb_change_with_equal_alpha(self):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            source = directory / "source.png"
+            equal = directory / "equal.webp"
+            changed = directory / "changed.webp"
+            Image.new("RGBA", (1, 1), (10, 20, 30, 255)).save(source)
+            Image.new("RGBA", (1, 1), (10, 20, 30, 255)).save(equal, lossless=True)
+            Image.new("RGBA", (1, 1), (11, 20, 30, 255)).save(changed, lossless=True)
+
+            self.assertTrue(decoded_images_equal(source, equal))
+            self.assertEqual(decoded_rgba(source)[1][3::4], decoded_rgba(changed)[1][3::4])
+            self.assertFalse(decoded_images_equal(source, changed))
+
     def test_output_digest_and_size_match_the_tracked_png(self):
         resource = json.loads(RESOURCE.read_text(encoding="utf-8"))
         replay = json.loads(REPLAY.read_text(encoding="utf-8"))
