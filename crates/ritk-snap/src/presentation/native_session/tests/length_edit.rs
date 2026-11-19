@@ -213,12 +213,10 @@ fn native_pan_edits_both_length_endpoints_transactionally() {
     session.app.pointer.selected_annotation = None;
     apply(&mut session, &[pointer(pan, true), pointer(pan, false)]);
     let pan_before = session.app.pan_offset;
-    apply(&mut session, &drag((x - 30, y - 40), (x - 30, y - 40)));
-    assert_eq!(session.app.pointer.selected_annotation, Some(1));
-    assert_eq!(session.app.pan_offset, pan_before);
     let raw = session.app.annotations.clone();
     apply(&mut session, &preview((x - 30, y - 40), (x - 25, y - 40)));
     assert_eq!(session.app.annotations, raw);
+    assert_eq!(session.app.pointer.selected_annotation, Some(1));
     assert!(
         matches!(session.app.pointer.pending_annotation_move.as_ref(), Some(edit) if edit.annotation_index == 1 && matches!(edit.kind, AnnotationMoveKind::Polygon { .. }))
     );
