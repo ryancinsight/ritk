@@ -13,6 +13,7 @@
 #[cfg(test)]
 use arrayvec::ArrayString;
 
+#[cfg(test)]
 use super::association::NetworkingError;
 
 // ── SOP Class UIDs ────────────────────────────────────────────────────────────
