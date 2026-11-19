@@ -1,11 +1,9 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::geometry::PatientPointMm;
-use crate::tools::interaction::{Annotation, PatientLength};
+use crate::tools::interaction::{Annotation, AnnotationLocation, PatientLength};
 use ritk_core::rejection::assert_rejects;
 use std::path::PathBuf;
-
-// ─── Helper: build a canonical snapshot with known values ─────────────────────
 
 fn canonical_snapshot_no_annotations() -> ViewerSessionSnapshot {
     ViewerSessionSnapshot {
@@ -39,11 +37,8 @@ fn canonical_snapshot_no_annotations() -> ViewerSessionSnapshot {
 
 /// Build all Annotation variants with analytically exact values.
 ///
-/// Values are chosen so that equality is exact under f32 bit representation:
-/// - Length: |p2 - p1| in each axis is 3.0 and 4.0 px → Pythagoras gives
-///   length_mm = √((3×1.0)² + (4×1.0)²) = 5.0 mm exactly.
-/// - Angle: 90° vertex — rays (0,1)→(0,0) and (0,0)→(1,0) are orthogonal.
-/// - HU point: exact integer-valued position and intensity.
+/// The stored length deliberately differs from the 3-4-5 endpoint geometry;
+/// persistence must retain historical results instead of recomputing them.
 fn all_annotation_variants() -> Vec<Annotation> {
     vec![
         Annotation::Length {
@@ -51,7 +46,7 @@ fn all_annotation_variants() -> Vec<Annotation> {
             location: None,
             p1: [0.0, 0.0],
             p2: [3.0, 4.0],
-            length_mm: 5.0,
+            length_mm: 123.25,
         },
         Annotation::PatientLength {
             plane: 2,
@@ -94,10 +89,44 @@ fn all_annotation_variants() -> Vec<Annotation> {
             pos: [5.0, 8.0],
             value: -150.0,
         },
+        Annotation::Deviation {
+            location: Some(AnnotationLocation { plane: 1, slice: 4 }),
+            start: [2.0, 3.0],
+            end: [5.0, 7.0],
+            reference: [5.0, 3.0],
+            distance_mm: 12.5,
+            angle_deg: 53.0,
+        },
+        Annotation::ClosedPolygon {
+            location: Some(AnnotationLocation { plane: 2, slice: 6 }),
+            points: vec![[1.0, 1.0], [1.0, 6.0], [4.0, 1.0]],
+            area_mm2: 77.25,
+            perimeter_mm: 44.5,
+        },
+        Annotation::OpenPolygon {
+            location: None,
+            points: vec![[2.0, 2.0], [4.0, 7.0], [9.0, 7.0]],
+            length_mm: 31.75,
+        },
+        Annotation::Arrow {
+            location: Some(AnnotationLocation { plane: 0, slice: 8 }),
+            tail: [3.0, 4.0],
+            head: [8.0, 12.0],
+        },
+        Annotation::Pencil {
+            location: None,
+            points: vec![[0.5, 1.5], [2.5, 3.5], [4.5, 5.5]],
+        },
+        Annotation::CobbAngle {
+            location: Some(AnnotationLocation {
+                plane: 1,
+                slice: 10,
+            }),
+            points: [[0.0, 0.0], [3.0, 1.0], [5.0, 8.0], [9.0, 9.0]],
+            angle_deg: 42.25,
+        },
     ]
 }
-
-// ─── Snapshot defaults ────────────────────────────────────────────────────────
 
 #[test]
 fn session_snapshot_default_matches_viewer_defaults() {
@@ -128,8 +157,6 @@ fn session_snapshot_default_matches_viewer_defaults() {
     );
 }
 
-// ─── JSON in-memory round-trips ───────────────────────────────────────────────
-
 #[test]
 fn session_snapshot_json_round_trip_preserves_values_no_annotations() {
     let snapshot = canonical_snapshot_no_annotations();
@@ -147,15 +174,15 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
     snapshot.annotations = all_annotation_variants();
     assert_eq!(
         snapshot.annotations.len(),
-        6,
-        "expected 6 annotation variants"
+        12,
+        "every annotation variant must be represented"
     );
 
     let json = serde_json::to_string_pretty(&snapshot).expect("serialize snapshot");
     let recovered: ViewerSessionSnapshot =
         serde_json::from_str(&json).expect("deserialize snapshot");
 
-    assert_eq!(recovered.annotations.len(), 6);
+    assert_eq!(recovered, snapshot);
 
     // Verify Length annotation values round-trip exactly.
     match &recovered.annotations[0] {
@@ -169,7 +196,10 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
             assert_eq!(*plane, 0);
             assert_eq!(*p1, [0.0f32, 0.0f32]);
             assert_eq!(*p2, [3.0f32, 4.0f32]);
-            assert_eq!(*length_mm, 5.0f32, "5-4-3 right triangle: length = 5 mm");
+            assert_eq!(
+                *length_mm, 123.25,
+                "stored historical result is authoritative"
+            );
         }
         other => panic!("expected Length, got {:?}", other),
     }
@@ -213,11 +243,9 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
 }
 
 #[test]
-fn session_snapshot_json_annotations_field_defaults_to_empty_when_absent() {
-    // Validate backward compatibility: a JSON object lacking the "annotations"
-    // field deserializes to an empty Vec (enforced by #[serde(default)]).
+fn session_snapshot_json_omitted_fields_retain_defaults() {
+    // Validate backward compatibility for omitted optional and defaulted fields.
     let json_without_annotations = r#"{
-        "source": null,
         "viewer_state": {"slice_index": 0, "window_center": null, "window_width": null},
         "colormap": "Grayscale",
         "axis": 0,
@@ -239,14 +267,16 @@ fn session_snapshot_json_annotations_field_defaults_to_empty_when_absent() {
     let recovered: ViewerSessionSnapshot = serde_json::from_str(json_without_annotations)
         .expect("must deserialize legacy JSON without annotations field");
 
+    assert_eq!(recovered.format, SessionFormat);
+    assert_eq!(recovered.source, None);
+    assert!(!recovered.show_rt_dose_overlay);
+    assert_eq!(recovered.rt_dose_opacity, 0.5);
     assert!(
         recovered.annotations.is_empty(),
         "annotations must default to empty for legacy JSON; got {:?}",
         recovered.annotations
     );
 }
-
-// ─── File I/O SSOT ────────────────────────────────────────────────────────────
 
 #[test]
 fn save_to_file_and_load_from_file_round_trip_with_annotations() {
@@ -342,10 +372,24 @@ fn unique_temp_path(stem: &str, extension: &str) -> std::path::PathBuf {
 #[test]
 fn session_formats_preserve_values_and_reject_unknown_versions() {
     let mut snapshot = canonical_snapshot_no_annotations();
-    snapshot.annotations = all_annotation_variants()
+    let mut legacy_annotations = all_annotation_variants()
         .into_iter()
-        .filter(|annotation| !matches!(annotation, Annotation::PatientLength { .. }))
-        .collect();
+        .filter(|annotation| {
+            matches!(
+                annotation,
+                Annotation::Length { .. }
+                    | Annotation::Angle { .. }
+                    | Annotation::RoiRect { .. }
+                    | Annotation::RoiEllipse { .. }
+                    | Annotation::HuPoint { .. }
+            )
+        })
+        .collect::<Vec<_>>();
+    let Annotation::Length { length_mm, .. } = &mut legacy_annotations[0] else {
+        panic!("first legacy annotation is the length fixture");
+    };
+    *length_mm = 5.0;
+    snapshot.annotations = legacy_annotations;
     let unversioned: serde_json::Value =
         serde_json::from_str(include_str!("../../tests/fixtures/session-v1.json"))
             .expect("parse format 1 fixture");
@@ -406,3 +450,6 @@ fn current_session_round_trips_pencil_samples_and_image() {
         serde_json::from_slice(&json).expect("restore Pencil mark");
     assert_eq!(restored, snapshot);
 }
+
+#[path = "tests/representation.rs"]
+mod representation;
