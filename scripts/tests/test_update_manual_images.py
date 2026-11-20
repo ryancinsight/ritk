@@ -30,6 +30,7 @@ class ImageFixture(CaptureFixture):
             Image.new("RGBA", capture_source.FRAME_SIZE, prior).save(
                 self.images / f"{stem}.webp", format="WEBP", lossless=True
             )
+        self.write_record()
 
     def arguments(self):
         return [
@@ -46,6 +47,20 @@ class ImageFixture(CaptureFixture):
 
 
 class UpdateManualImagesTests(unittest.TestCase):
+    def test_substituted_valid_frame_is_typed_error_and_never_writes(self):
+        fixture = ImageFixture()
+        self.addCleanup(fixture.close)
+        before = fixture.outputs()
+        Image.new("RGBA", capture_source.FRAME_SIZE, (200, 20, 30, 255)).save(
+            fixture.capture / "dicom-native-slices.png", format="PNG"
+        )
+        arguments = updater.parser().parse_args(fixture.arguments())
+        with self.assertRaisesRegex(
+            capture_source.CaptureSourceError, "frames differ from the capture record"
+        ):
+            updater.update(arguments)
+        self.assertEqual(fixture.outputs(), before)
+
     def test_update_preserves_equal_bytes_and_losslessly_encodes_changed_frame(self):
         fixture = ImageFixture()
         self.addCleanup(fixture.close)
@@ -89,6 +104,7 @@ class UpdateManualImagesTests(unittest.TestCase):
             image.save(frame(fixture), format="PNG")
             image.save(fixture.images / "dicom-native-length-edit.webp",
                        format="WEBP", lossless=True)
+            fixture.write_record()
 
         cases = {
             "corrupt": lambda fixture: frame(fixture).write_bytes(b"not an image"),

@@ -224,6 +224,13 @@ def load_stage(record_bytes: bytes, capture_root: Path) -> tuple[dict, dict[str,
     execution_before, execution_after = stage.get("execution_before"), stage.get("execution_after")
     if not execution_records_match(execution_before, execution_after):
         raise CaptureSourceError("capture execution inputs are missing or changed during capture")
+    recorded_frames = stage.get("capture_files")
+    expected_frames = {f"{stem}.png" for stem in CAPTURE_FRAME_STEMS}
+    if (type(recorded_frames) is not dict or set(recorded_frames) != expected_frames
+            or any(type(value) is not str for value in recorded_frames.values())):
+        raise CaptureSourceError("capture frame hashes are missing or malformed")
+    if capture_hashes(capture_root) != recorded_frames:
+        raise CaptureSourceError("capture frames differ from the capture record")
     return stage, before
 
 
