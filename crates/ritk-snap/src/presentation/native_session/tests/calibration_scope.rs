@@ -51,7 +51,7 @@ pub(super) fn calibration_clicks(session: &NativeViewerSession) -> [WindowEvent;
     ]
 }
 
-fn key(virtual_key: u32) -> WindowEvent {
+pub(super) fn key(virtual_key: u32) -> WindowEvent {
     WindowEvent::KeyDown {
         virtual_key,
         repeated: false,
