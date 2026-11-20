@@ -39,7 +39,7 @@ fn canonical_snapshot_no_annotations() -> ViewerSessionSnapshot {
 ///
 /// The stored length deliberately differs from the 3-4-5 endpoint geometry;
 /// persistence must retain historical results instead of recomputing them.
-fn all_annotation_variants() -> Vec<Annotation> {
+pub(super) fn all_annotation_variants() -> Vec<Annotation> {
     vec![
         Annotation::Length {
             plane: 0,
