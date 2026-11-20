@@ -1,4 +1,4 @@
-use super::state::SnapApp;
+use super::state::{MeasurementSpacingState, SnapApp};
 
 mod native;
 
@@ -24,11 +24,18 @@ impl SnapApp {
             .loaded
             .as_mut()
             .expect("invariant: a filter result exists only when a volume is loaded");
+        let preserves_measurement_grid = volume.shape == output.shape
+            && volume.origin == output.origin
+            && volume.spacing == output.spacing
+            && volume.direction == output.direction;
         volume.data = std::sync::Arc::new(output.data);
         volume.shape = output.shape;
         volume.origin = output.origin;
         volume.spacing = output.spacing;
         volume.direction = output.direction;
+        if !preserves_measurement_grid {
+            self.measurement_pixel_spacing = MeasurementSpacingState::Unavailable;
+        }
         self.mark_filter_applied();
     }
 
