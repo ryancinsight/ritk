@@ -91,6 +91,24 @@ def source_files(source_root: Path) -> dict[str, Path]:
     return files
 
 
+def identity_records_match(before: object, after: object) -> bool:
+    """Compare non-empty, string-valued identity trees without JSON coercion."""
+    if type(before) is not dict or type(after) is not dict or not before:
+        return False
+    if before.keys() != after.keys():
+        return False
+    for key, value in before.items():
+        if type(key) is not str or not key:
+            return False
+        other = after[key]
+        if type(value) is str:
+            if not value or type(other) is not str or value != other:
+                return False
+        elif not identity_records_match(value, other):
+            return False
+    return True
+
+
 def load_stage(record_bytes: bytes, capture_root: Path) -> tuple[dict, dict[str, str]]:
     try:
         records = json.loads(record_bytes)
@@ -125,7 +143,7 @@ def load_stage(record_bytes: bytes, capture_root: Path) -> tuple[dict, dict[str,
     if not isinstance(dataset_before, dict) or not dataset_before or dataset_before != dataset_after:
         raise CaptureSourceError("capture dataset hashes are missing or changed during capture")
     execution_before, execution_after = stage.get("execution_before"), stage.get("execution_after")
-    if not isinstance(execution_before, dict) or not execution_before or execution_before != execution_after:
+    if not identity_records_match(execution_before, execution_after):
         raise CaptureSourceError("capture execution inputs are missing or changed during capture")
     return stage, before
 

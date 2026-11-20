@@ -164,6 +164,14 @@ class CaptureSourceTests(unittest.TestCase):
             "empty_argv": {"argv": []}, "mutated": {"source_after": {}},
             "dataset_mutated": {"dataset_after": {}},
             "execution_mutated": {"execution_after": {}},
+            "execution_typed_equal": {
+                "execution_before": {"RUSTC": False},
+                "execution_after": {"RUSTC": 0},
+            },
+            "execution_bool": {
+                "execution_before": {"RUSTC": False},
+                "execution_after": {"RUSTC": False},
+            },
             "missing": {"source_before": missing, "source_after": missing},
             "typed": {"source_before": typed, "source_after": typed},
             "noncanonical": {"source_before": noncanonical, "source_after": noncanonical},
