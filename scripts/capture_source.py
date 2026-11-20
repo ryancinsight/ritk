@@ -4,15 +4,32 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import io
 import json
 import subprocess
 import sys
 from pathlib import Path, PurePosixPath
 
+from PIL import Image
+
 
 FIXTURE_PATH = PurePosixPath("test_data/2_head_mri_t2/DICOM")
 FIXTURE_IMAGES = 94
 GIT_TIMEOUT_SECONDS = 30
+FRAME_SIZE = (1280, 800)
+CAPTURE_RECORD_VERSION = 1
+EXECUTION_IDENTITY_KEYS = frozenset({
+    "toolchain", "cargo_config", "environment", "atlas_config", "atlas_runtime",
+})
+ATLAS_RUNTIME_FILES = (
+    "process_tree.py", "windows_process.py", "darwin_process.py", "atlas_build_source.py",
+)
+CAPTURE_FRAME_STEMS = (
+    "dicom-native-slices",
+    "dicom-native-calibration",
+    "dicom-native-annotations",
+    "dicom-native-length-edit",
+)
 
 
 class CaptureSourceError(RuntimeError):
@@ -21,6 +38,49 @@ class CaptureSourceError(RuntimeError):
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def decoded_rgba(data: bytes, name: str, expected_format: str) -> tuple[tuple[int, int], bytes]:
+    """Decode one manual frame after enforcing its format and dimensions."""
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            if image.format != expected_format:
+                raise CaptureSourceError(
+                    f"{name} is {image.format or 'untyped'}, not {expected_format}"
+                )
+            if image.size != FRAME_SIZE:
+                raise CaptureSourceError(f"image has wrong dimensions: {name}")
+            image.load()
+            return image.size, image.convert("RGBA").tobytes()
+    except (OSError, Image.DecompressionBombError) as error:
+        raise CaptureSourceError(f"cannot decode image: {name}") from error
+
+
+def file_hashes(root: Path) -> dict[str, str]:
+    return {
+        path.relative_to(root).as_posix(): sha256(path.read_bytes())
+        for path in sorted(root.rglob("*")) if path.is_file()
+    }
+
+
+def capture_hashes(capture_root: Path) -> dict[str, str]:
+    captures = file_hashes(capture_root)
+    expected = {f"{stem}.png" for stem in CAPTURE_FRAME_STEMS}
+    if set(captures) != expected:
+        raise CaptureSourceError("capture output set is incomplete")
+    for name in sorted(captures):
+        decoded_rgba((capture_root / name).read_bytes(), name, "PNG")
+    return captures
+
+
+def capture_admission(exit_code: int | None, errors: list[str]) -> dict:
+    observed = list(errors)
+    if exit_code is None:
+        observed.insert(0, "capture process did not report an exit status")
+    elif exit_code != 0:
+        observed.insert(0, f"capture process exited with status {exit_code}")
+    status = "accepted" if exit_code == 0 and not observed else "rejected"
+    return {"status": status, "errors": observed}
 
 
 def atlas_process_tree(atlas_root: Path):
@@ -70,6 +130,49 @@ def source_files(source_root: Path) -> dict[str, Path]:
     return files
 
 
+def execution_records_match(before: object, after: object) -> bool:
+    """Compare complete producer identity records without JSON coercion."""
+    if type(before) is not dict or type(after) is not dict:
+        return False
+    if set(before) != EXECUTION_IDENTITY_KEYS or set(after) != EXECUTION_IDENTITY_KEYS:
+        return False
+    scalar_keys = EXECUTION_IDENTITY_KEYS - {"atlas_runtime"}
+    if any(type(before[key]) is not str or not before[key] for key in scalar_keys):
+        return False
+    runtime_before, runtime_after = before["atlas_runtime"], after["atlas_runtime"]
+    if type(runtime_before) is not dict or type(runtime_after) is not dict:
+        return False
+    runtime_files = set(ATLAS_RUNTIME_FILES)
+    if set(runtime_before) != runtime_files or set(runtime_after) != runtime_files:
+        return False
+    if any(type(runtime_before[key]) is not str or not runtime_before[key]
+           for key in ATLAS_RUNTIME_FILES):
+        return False
+    return before == after
+
+
+def capture_execution_identity(builder, atlas_root: Path, neutral: Path, config: Path,
+                               environment: dict[str, str], command: list[str]) -> dict:
+    config_arguments = (str(config),)
+    identity = {
+        "toolchain": builder.toolchain_identity(
+            neutral, environment, config_arguments, command
+        ),
+        "cargo_config": builder.cargo_config_digest(
+            neutral, config_arguments, environment
+        ),
+        "environment": builder.environment_digest(environment),
+        "atlas_config": sha256((atlas_root / ".cargo/config.toml").read_bytes()),
+        "atlas_runtime": {
+            name: sha256((atlas_root / "scripts" / name).read_bytes())
+            for name in ATLAS_RUNTIME_FILES
+        },
+    }
+    if not execution_records_match(identity, identity):
+        raise CaptureSourceError("capture execution identity is incomplete")
+    return identity
+
+
 def load_stage(record_bytes: bytes, capture_root: Path) -> tuple[dict, dict[str, str]]:
     try:
         records = json.loads(record_bytes)
@@ -87,14 +190,25 @@ def load_stage(record_bytes: bytes, capture_root: Path) -> tuple[dict, dict[str,
     if not matching:
         raise CaptureSourceError("capture record has no stage for the capture root")
     stage = matching[-1]
+    if type(stage.get("version")) is not int or stage["version"] != CAPTURE_RECORD_VERSION:
+        raise CaptureSourceError("capture record version is unsupported")
     if type(stage.get("exit")) is not int or stage["exit"] != 0:
         raise CaptureSourceError("capture stage did not complete successfully")
+    admission = stage.get("admission")
+    if admission != {"status": "accepted", "errors": []}:
+        raise CaptureSourceError("capture stage was not admitted")
     command = stage.get("argv")
     if not isinstance(command, list) or not command or not all(isinstance(value, str) and value for value in command):
         raise CaptureSourceError("capture stage has no command argument record")
     before, after = stage.get("source_before"), stage.get("source_after")
     if not isinstance(before, dict) or not before or before != after:
         raise CaptureSourceError("capture source hashes are missing or changed during capture")
+    dataset_before, dataset_after = stage.get("dataset_before"), stage.get("dataset_after")
+    if not isinstance(dataset_before, dict) or not dataset_before or dataset_before != dataset_after:
+        raise CaptureSourceError("capture dataset hashes are missing or changed during capture")
+    execution_before, execution_after = stage.get("execution_before"), stage.get("execution_after")
+    if not execution_records_match(execution_before, execution_after):
+        raise CaptureSourceError("capture execution inputs are missing or changed during capture")
     return stage, before
 
 
@@ -170,6 +284,11 @@ def verify_fixture(repository: Path, fixture: object, study: object) -> None:
         raise CaptureSourceError("public MRI fixture does not contain 94 .dcm files")
 
 
+def fixture_hashes(repository: Path) -> dict[str, str]:
+    root = repository.joinpath(*FIXTURE_PATH.parts).resolve()
+    return file_hashes(root)
+
+
 def validate_capture_source(
     capture_root: Path,
     capture_record: Path,
@@ -184,6 +303,8 @@ def validate_capture_source(
     stage, captured = load_stage(record_bytes, capture_root)
     verify_source(source_root, captured)
     verify_fixture(repository, fixture, stage["environment"].get("RITK_MANUAL_STUDY"))
+    if fixture_hashes(repository) != stage["dataset_after"]:
+        raise CaptureSourceError("capture dataset differs from the public MRI fixture")
     runner = atlas_process_tree(atlas_root)
     base = resolve_base(runner, repository, base_rev)
     return {
