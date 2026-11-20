@@ -14,6 +14,7 @@
 //! | `true`         | 2×2 grid: Axial / Coronal / Sagittal / 3D-MIP, with Info below.|
 
 pub(crate) mod action_adapter;
+mod annotation_edit;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_cine;
 #[cfg(any(target_arch = "wasm32", test))]

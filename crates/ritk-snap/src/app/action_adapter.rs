@@ -179,6 +179,9 @@ impl SnapApp {
                 let Some(image) = viewport.map(*position) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
+                if *button == PointerButton::Left && !modifiers.ctrl() && !modifiers.shift() {
+                    self.select_annotation_at(image);
+                }
                 // A modified left press runs a display gesture without leaving
                 // the selected tool: Control adjusts window/level and Shift
                 // pans, matching the RadiAnt 2D modifier table. Control wins

@@ -73,6 +73,8 @@ pub(super) enum WindowAction {
     ToggleAnonymizedOverlay,
     ToggleCine,
     ResetView,
+    DeleteSelectedAnnotation,
+    DeleteCurrentImageAnnotations,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

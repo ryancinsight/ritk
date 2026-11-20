@@ -117,6 +117,8 @@ pub(crate) struct PointerGestures {
     pub(crate) suspended_measurement: Option<ToolState>,
     pub(crate) pending_measurement_location: Option<AnnotationLocation>,
     pub(crate) drag_measurement_location: Option<AnnotationLocation>,
+    /// Index of the completed annotation selected for native editing.
+    pub(crate) selected_annotation: Option<usize>,
 }
 
 impl PointerGestures {
@@ -129,5 +131,6 @@ impl PointerGestures {
         self.suspended_measurement = None;
         self.pending_measurement_location = None;
         self.drag_measurement_location = None;
+        self.selected_annotation = None;
     }
 }

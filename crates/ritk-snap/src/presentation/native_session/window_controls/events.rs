@@ -87,6 +87,8 @@ impl WindowChrome {
         } = event
         {
             let action = match (*virtual_key, modifiers.ctrl(), modifiers.shift()) {
+                (0x2e, true, false) => Some(WindowAction::DeleteCurrentImageAnnotations),
+                (0x2e, false, false) => Some(WindowAction::DeleteSelectedAnnotation),
                 (0x73, false, false) => Some(WindowAction::OpenSeriesPicker),
                 (0x73, true, false) => Some(WindowAction::CloseActivePanel),
                 (0x73, false, true) => Some(WindowAction::CloseAllPanels),
