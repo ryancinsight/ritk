@@ -18,8 +18,10 @@ use crate::ViewerState;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::path::Path;
+mod annotation_wire;
 mod representation;
 mod source;
+pub(crate) use annotation_wire::{deserialize_annotation, serialize_annotation};
 pub use source::{SessionFormat, StudySource};
 
 /// Serializable viewer state used for save/load session workflows.
