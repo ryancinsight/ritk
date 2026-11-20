@@ -1,4 +1,4 @@
-//! Completed measurement annotations with computed physical values.
+//! Completed measurement annotations and validated reference lengths.
 //!
 //! # Coordinate system
 //!
@@ -43,39 +43,17 @@
 #[cfg(any(target_arch = "wasm32", windows, test))]
 mod calibration;
 mod ellipse;
+mod error;
 mod image;
 mod paths;
 mod patient_length;
+mod pixel_length;
 
 #[cfg(any(target_arch = "wasm32", windows, test))]
 pub(crate) use calibration::ImageMeasurementScale;
+pub use error::MeasurementError;
 pub use patient_length::PatientLength;
-
-/// Failure raised when physical measurement inputs or results cannot be
-/// represented without changing their meaning.
-#[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
-#[non_exhaustive]
-pub enum MeasurementError {
-    /// One of the physical segments has no direction.
-    #[error("{kind} needs two nonzero segments")]
-    DegenerateSegment { kind: &'static str },
-    /// A spacing component is not finite and strictly positive.
-    #[error("voxel spacing component {index} is not finite and positive: {value}")]
-    InvalidSpacing { index: usize, value: f64 },
-    /// A valid physical spacing component cannot be represented by the
-    /// f32-backed annotation storage used by the viewer.
-    #[error("voxel spacing component {index} cannot be represented as f32: {value}")]
-    UnrepresentableSpacing { index: usize, value: f64 },
-    /// A computed physical value overflowed or became non-finite.
-    #[error("{kind} measurement result is not finite")]
-    NonFiniteResult { kind: &'static str },
-    /// A measurement was requested without a loaded volume.
-    #[error("measurement requires a loaded volume")]
-    MissingVolume,
-    /// The source did not provide a trustworthy in-plane physical spacing.
-    #[error("physical pixel spacing is unavailable for this image")]
-    MissingPhysicalSpacing,
-}
+pub use pixel_length::PixelLength;
 
 // ── Completed annotations ─────────────────────────────────────────────────────
 
