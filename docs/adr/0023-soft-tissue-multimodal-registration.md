@@ -4,10 +4,14 @@
 - **Board item:** `RITK-SOFT-TISSUE-REGISTRATION-2026-09-03`
 - **Class:** [major] [arch]
 - **Date:** 2026-09-03
+- **Revision 2026-11-20:** Replace a repository-relative Atlas backlog link
+  that cannot resolve from the published RITK repository with the immutable
+  owner link verified in [RITK PR #1087](https://github.com/ryancinsight/ritk/pull/1087),
+  without changing registration or runtime evidence.
 - **Revision 2026-09-22:** Make the comparison example accept explicit paths and
   describe the registration evaluation as a generic downstream RIRE oracle;
   see [RITK PR #610](https://github.com/ryancinsight/ritk/pull/610) and
-  [`ATLAS-PRIVACY-NAMING-1`](../../../backlog/atlas-privacy-naming-1.md).
+  [`ATLAS-PRIVACY-NAMING-1`](https://github.com/ryancinsight/atlas/blob/560447edcce3124b21fef4bffe6871ae9fc2bff2/backlog/atlas-privacy-naming-1.md).
 - **Revision 2026-09-03:** Add the fixed-region conditioned metric after the
   downstream global-histogram RIRE result remained anatomically offset.
 - **Revision 2026-09-04:** Make the structural-refinement half-range a bounded

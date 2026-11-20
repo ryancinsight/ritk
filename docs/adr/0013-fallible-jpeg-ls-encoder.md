@@ -2,7 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-07-30
-- Board item: [SAFE-681-01](../../backlog.md#safe-681-01-major---make-jpeg-ls-encoding-fallible-bound-header-parsing-reduce-scan-memory-and-document-the-native-codec)
+- Revision 2026-11-20: replace the expired board anchor with merged delivery
+  provenance and current source/reference evidence in
+  [RITK PR #1089](https://github.com/ryancinsight/ritk/pull/1089), without
+  adding codec or runtime certification.
+- Delivery: [RITK PR #75](https://github.com/ryancinsight/ritk/pull/75)
 
 ## Context
 
