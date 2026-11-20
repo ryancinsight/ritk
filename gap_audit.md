@@ -139,7 +139,12 @@ plane in the same branch that writes the output values. The viewer
 labels interpolation and copied edges on the depth view, using the
 currently selected gate. The decoded-byte budget includes provenance.
 The separate GPU rerun exercises the Metal projection paths on macOS.
-Windows-specific display-command coverage is separate from the macOS run.
+[Windows run 44641586577](https://github.com/ryancinsight/ritk/actions/runs/44641586577)
+builds the native viewer with SDK 10.0.26100.0 and passes the exact
+provenance display-command test, five reader cases, and two viewer cases.
+The Windows candidate uses published Aequitas 0.5.0 and two bundled provider
+revisions pending public lock alignment. The same candidate passes
+21 PET and projection tests on macOS with Metal selected.
 
 The worktree lock selects published Eunomia and Eunomia Derive 0.12.1.
 Leto and Gaia still exclude Aequitas 0.5.0 in public inputs. The isolated
