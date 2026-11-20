@@ -2,7 +2,7 @@
 name = "ritk-tck"
 version = "0.2.0"
 edition.workspace = true
-rust-version = "1.95"
+rust-version = "1.97"
 license.workspace = true
 description = "MRtrix3 .tck tractogram format reader and writer"
 repository.workspace = true
