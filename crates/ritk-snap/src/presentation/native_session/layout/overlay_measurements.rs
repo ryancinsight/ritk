@@ -13,9 +13,10 @@ use super::text::{text_style, PANEL_DETAIL_SIZE};
 use super::OverlayCommands;
 use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
-use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
+use crate::tools::interaction::{
+    Annotation, AnnotationLocation, ImageMeasurementScale, ImagePoint, ToolState,
+};
 use anyhow::{anyhow, Result};
-use calibration::ImageMeasurementScale;
 use metis_platform::{Color, Rect};
 use metis_ui_lang::PlacementObstacle;
 use visibility::annotation_visible;

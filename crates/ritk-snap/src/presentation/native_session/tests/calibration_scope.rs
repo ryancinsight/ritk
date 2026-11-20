@@ -4,6 +4,7 @@ use super::support::{control_center, session};
 use super::*;
 use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
+use crate::presentation::AnnotationKind;
 use crate::tools::interaction::{Annotation, AnnotationLocation, PatientLength};
 use metis_platform::native::MouseButton;
 use metis_ui_lang::DisplayCommand;
@@ -131,6 +132,37 @@ fn annotations(location: AnnotationLocation) -> Vec<Annotation> {
     ]
 }
 
+fn assert_snapshot_value(
+    session: &mut NativeViewerSession,
+    annotation: Annotation,
+    kind: AnnotationKind,
+    value: f64,
+) {
+    session.app.annotations.push(annotation);
+    let summary = session
+        .app
+        .presentation_snapshot()
+        .last_annotation()
+        .expect("invariant: measurement annotation has a semantic summary");
+    assert_eq!(summary.kind(), kind);
+    assert_eq!(summary.primary_value(), value);
+    session
+        .app
+        .annotations
+        .pop()
+        .expect("invariant: inserted annotation remains last");
+}
+
+fn assert_snapshot_absent(session: &mut NativeViewerSession, annotation: Annotation) {
+    session.app.annotations.push(annotation);
+    assert_eq!(session.app.presentation_snapshot().last_annotation(), None);
+    session
+        .app
+        .annotations
+        .pop()
+        .expect("invariant: inserted annotation remains last");
+}
+
 #[test]
 fn manual_calibration_scales_image_measurements_only() {
     let (mut session, _root) = session();
@@ -216,6 +248,55 @@ fn manual_calibration_scales_image_measurements_only() {
             "Mean 21.0 SD 3.0 28.0 mm2",
         ])
     );
+    let calibrated_values = [
+        (AnnotationKind::Length, 10.0),
+        (AnnotationKind::PatientLength, 5.0),
+        (AnnotationKind::Angle, 30.0),
+        (AnnotationKind::Deviation, 8.0),
+        (AnnotationKind::RoiRect, 24.0),
+        (AnnotationKind::RoiEllipse, 28.0),
+        (AnnotationKind::HuPoint, 42.0),
+        (AnnotationKind::ClosedPolygon, 32.0),
+        (AnnotationKind::OpenPolygon, 20.0),
+    ];
+    for (annotation, (kind, value)) in annotations(location).into_iter().zip(calibrated_values) {
+        assert_snapshot_value(&mut session, annotation, kind, value);
+    }
+    assert_snapshot_value(
+        &mut session,
+        Annotation::CobbAngle {
+            location: Some(location),
+            points: [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]],
+            angle_deg: 30.0,
+        },
+        AnnotationKind::Angle,
+        30.0,
+    );
+    assert_snapshot_absent(
+        &mut session,
+        Annotation::Arrow {
+            location: Some(location),
+            tail: [0.0, 0.0],
+            head: [1.0, 1.0],
+        },
+    );
+    assert_snapshot_absent(
+        &mut session,
+        Annotation::Pencil {
+            location: Some(location),
+            points: vec![[0.0, 0.0], [1.0, 1.0]],
+        },
+    );
+    assert_snapshot_value(
+        &mut session,
+        Annotation::OpenPolygon {
+            location: None,
+            points: vec![[0.0, 0.0], [1.0, 1.0]],
+            length_mm: 10.0,
+        },
+        AnnotationKind::OpenPolygon,
+        10.0,
+    );
     assert_eq!(session.app.annotations, raw);
 
     session.app.set_slice_for_axis(0, other_slice);
@@ -226,6 +307,18 @@ fn manual_calibration_scales_image_measurements_only() {
         sorted_texts(&session, affine),
         sorted_expected(&["7.0 mm", "Mean 31.0 SD 4.0 3.0 mm2"])
     );
+    assert_snapshot_value(
+        &mut session,
+        raw[raw.len() - 2].clone(),
+        AnnotationKind::Length,
+        7.0,
+    );
+    assert_snapshot_value(
+        &mut session,
+        raw[raw.len() - 1].clone(),
+        AnnotationKind::RoiRect,
+        3.0,
+    );
 
     session.app.set_slice_for_axis(0, slice);
     session
@@ -235,5 +328,18 @@ fn manual_calibration_scales_image_measurements_only() {
         .handle_events(&calibration_clicks(&session))
         .expect("reset image calibration through Tools");
     assert_eq!(sorted_texts(&session, affine), original);
+    for (annotation, (kind, value)) in annotations(location).into_iter().zip([
+        (AnnotationKind::Length, 5.0),
+        (AnnotationKind::PatientLength, 5.0),
+        (AnnotationKind::Angle, 30.0),
+        (AnnotationKind::Deviation, 4.0),
+        (AnnotationKind::RoiRect, 6.0),
+        (AnnotationKind::RoiEllipse, 7.0),
+        (AnnotationKind::HuPoint, 42.0),
+        (AnnotationKind::ClosedPolygon, 8.0),
+        (AnnotationKind::OpenPolygon, 10.0),
+    ]) {
+        assert_snapshot_value(&mut session, annotation, kind, value);
+    }
     assert_eq!(session.app.annotations, raw);
 }

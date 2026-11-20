@@ -1,6 +1,8 @@
 //! Completed measurements and slice geometry.
 
 use super::SnapApp;
+#[cfg(windows)]
+use crate::tools::interaction::ImageMeasurementScale;
 use crate::tools::interaction::{
     Annotation, AnnotationLocation, ImagePoint, MeasurementError, PolygonKind, ToolState,
 };
@@ -114,7 +116,8 @@ impl SnapApp {
                 });
                 #[cfg(windows)]
                 let length_mm =
-                    f64::from(length_mm) * self.length_scale(Some(self.annotation_location()));
+                    ImageMeasurementScale::new(self.length_scale(Some(self.annotation_location())))
+                        .length(length_mm);
                 self.status_message = format!("Length: {length_mm:.2} mm");
             }
             Err(error) => {
