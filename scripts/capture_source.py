@@ -21,9 +21,9 @@ CAPTURE_RECORD_VERSION = 1
 EXECUTION_IDENTITY_KEYS = frozenset({
     "toolchain", "cargo_config", "environment", "atlas_config", "atlas_runtime",
 })
-ATLAS_RUNTIME_FILES = frozenset({
+ATLAS_RUNTIME_FILES = (
     "process_tree.py", "windows_process.py", "darwin_process.py", "atlas_build_source.py",
-})
+)
 CAPTURE_FRAME_STEMS = (
     "dicom-native-slices",
     "dicom-native-calibration",
@@ -142,7 +142,8 @@ def execution_records_match(before: object, after: object) -> bool:
     runtime_before, runtime_after = before["atlas_runtime"], after["atlas_runtime"]
     if type(runtime_before) is not dict or type(runtime_after) is not dict:
         return False
-    if set(runtime_before) != ATLAS_RUNTIME_FILES or set(runtime_after) != ATLAS_RUNTIME_FILES:
+    runtime_files = set(ATLAS_RUNTIME_FILES)
+    if set(runtime_before) != runtime_files or set(runtime_after) != runtime_files:
         return False
     if any(type(runtime_before[key]) is not str or not runtime_before[key]
            for key in ATLAS_RUNTIME_FILES):
