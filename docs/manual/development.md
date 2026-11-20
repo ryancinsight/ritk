@@ -192,9 +192,10 @@ reducer state that produced it. `data-ritk-linked-cursor` uses volume order
 `z,y,x`; `data-ritk-view-flip-h`, `data-ritk-view-flip-v` and
 `data-ritk-view-rotation` describe the orientation already applied to the
 presented pixels. `data-ritk-annotation-count` is zero for an empty result;
-`data-ritk-last-annotation-kind` is one of `length`, `angle`, `roi-rect`,
-`roi-ellipse` or `hu-point`; and `data-ritk-last-annotation-value` carries the
-finite primary value in the kind's documented units.
+`data-ritk-last-annotation-kind` is one of `length`, `angle`, `deviation`,
+`roi-rect`, `roi-ellipse` or `hu-point`; and
+`data-ritk-last-annotation-value` carries the finite primary value in the
+kind's documented units.
 The native session records the snapshot whenever it records a frame or state
 transition. The focused snapshot and native-session tests assert identical
 slice, window/level, cine, zoom, pan, tool and revision semantics across the
@@ -1590,12 +1591,13 @@ artifact with that shared post-stop sample. This ordering prevents stale canvas
 attributes from being mistaken for a live study while retaining one lifecycle
 and one listener-release oracle for the full control workflow.
 
-The browser gallery also exposes the complete RITK diagnostic-tool palette:
-Pan, Zoom, W/L, Length, Angle, ROI Rect, ROI Ellipse, Crosshair, HU Point,
-Label Paint and Label Erase. RITK publishes the selected zero-based index and
-label as `data-ritk-active-tool-index` and `data-ritk-active-tool` on every
-canvas. Buttons remain disabled until all three planes present a study, and
-the selected state is mirrored across the three canvases. The typed
+The browser gallery exposes all 17 RITK diagnostic tools in typed index order:
+Pan, Zoom, W/L, Length, Angle, Deviation, ROI Rect, ROI Ellipse, Crosshair,
+HU Point, Label Paint, Label Erase, Closed Polygon, Open Polygon, Arrow,
+Pencil and Cobb Angle. RITK publishes the selected zero-based index and label
+as `data-ritk-active-tool-index` and `data-ritk-active-tool` on every canvas.
+Buttons remain disabled until all three planes present a study, and the
+selected state is mirrored across the three canvases. The typed
 `select_web_tool` API rejects non-finite, fractional, negative and out-of-range
 indexes before changing viewer state.
 
@@ -1611,21 +1613,24 @@ python scripts/browser_gallery.py --metis-root D:/atlas/repos/metis `
   --consumer-revision (git rev-parse HEAD) --output D:/atlas/repos/metis/output/browser/tools
 ```
 
-The bounded trace selects every palette button, focuses the axial canvas and
-uses the `P` shortcut, then sends trusted drags and clicks for each tool. The
-length and angle tools receive two and three points respectively; both ROI
-tools receive a drag; HU, crosshair and label tools receive a click. Every
-gesture must advance a fresh presented frame on all three canvases. The five
-measurement gestures must also increment the shared annotation count, publish
-the expected kind (`length`, `angle`, `roi-rect`, `roi-ellipse` or `hu-point`)
-and publish a finite input-sensitive primary value. Pan, zoom, window/level,
-crosshair and label gestures must preserve the completed result. This proves
-that the real decoded MRI study responds with a computed result rather than
-only changing a button label. Invalid API probes, trusted event metadata,
-the per-canvas result transitions, viewport capture and palette capture are
-written to `tools/gallery-tools.json`, `tools/gallery-tools.png` and
-`tools/gallery-tools-controls.png`. The post-stop sample must report zero
-RITK canvas listeners and all palette buttons disabled.
+The bounded trace checks the typed label and index for every palette button,
+focuses the axial canvas and uses the `P` shortcut, then sends settled trusted
+input for each tool. Length receives two clicks. Angle receives three
+separately traced in-image clicks whose anisotropic physical geometry must
+publish exactly 90 degrees; the driver rejects a collapsed leg before sending
+input. Deviation, ROI Rect and ROI Ellipse receive bounded drags, while HU
+Point receives one click. Each of these six completed annotations must advance
+a fresh presented frame, increment the shared annotation count, publish its
+expected kind, and publish a finite input-sensitive primary value. Fresh canvas
+bounds are read immediately before each gesture, so responsive layouts cannot
+reuse stale coordinates. The remaining 11 tools currently have input-only
+browser coverage: Pan, Zoom, W/L, Crosshair, Label Paint, Label Erase, Closed
+Polygon, Open Polygon, Arrow, Pencil and Cobb Angle. Their trusted input and
+frame transition do not establish completed-tool behavior. Invalid API probes,
+trusted event metadata, per-canvas result transitions, viewport capture and
+palette capture are written to `tools/gallery-tools.json`,
+`tools/gallery-tools.png` and `tools/gallery-tools-controls.png`. The post-stop
+sample must report zero RITK canvas listeners and all palette buttons disabled.
 
 To capture the linked crosshair over the same saved MRI study, add
 `--crosshair-controls` to the consumer replay:
