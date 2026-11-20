@@ -1,22 +1,76 @@
 {
-  "viewer_revision": "e89f3209e7c4064f92c46304a4f2e8d5d5e4df1c",
+  "viewer_base_revision": "ca4041fceaa4f67af28210e06654e9d635a25687",
+  "viewer_source_overrides": {
+    "Cargo.lock": {
+      "base_sha256": "ce6fbcae5c6d37b012e2d091dba1c374d280d5017c0ba7968e935e1bd2e838e5",
+      "capture_sha256": "11f7273975ee948280649ad3084b9c542019832ae041cd1dbf46480e3d8b1e22"
+    },
+    "crates/ritk-snap/src/presentation/native_session/tests.rs": {
+      "base_sha256": "61b49962957f97577694d86c7161da25c27f07543d46983005b468c44ac4248a",
+      "capture_sha256": "59517b898542f59668fd9f39b816ca434cdc47d59100a5216b00835c1c68fff9"
+    },
+    "crates/ritk-snap/src/presentation/native_session/tests/calibration_layout.rs": {
+      "base_sha256": null,
+      "capture_sha256": "975f451650170bba820f1c0a7bb00a2a21c64164238b8bec248c3e50ec2b37ca"
+    },
+    "crates/ritk-snap/src/presentation/native_session/tests/calibration_scope.rs": {
+      "base_sha256": "4d512033857ff93f642b2aefd8778adbe9ab13fbb58c32631b46cb40626bd627",
+      "capture_sha256": "71711c6ccfa2e511dc450fe0dac28c798f9eb9d0d4ddf427326289252db54a2e"
+    },
+    "crates/ritk-snap/src/presentation/native_session/window_controls/calibration.rs": {
+      "base_sha256": "0492e56187acb34a0e68f80f8c40872166f311d4effe985c2bbf7ca95f99372a",
+      "capture_sha256": "222ac1466d68a96e3b3e8ec889e9ecaa8e0627ce8bf1fd9cc2b904e494ef1175"
+    }
+  },
+  "capture_record_sha256": "109471680fdeac893999bffd169bcb6d386e5fec4b9e86813215a9c9a6e5500e",
+  "capture_input_coverage": {
+    "description": "All crates/**/*.rs, all Cargo.toml files, Cargo.lock, and rust-toolchain.toml used by the capture",
+    "file_count": 2433,
+    "source_map_sha256": "ac6bb9771d5aa835071396422dd719150001aa99fa7f621c8175d26aff44c526"
+  },
   "fixture": {
     "path": "test_data/2_head_mri_t2/DICOM",
     "dicom_images": 94
   },
-  "cargo_lock_sha256": "f4beba06edbad2918accc9e936a2ff342a182078279768c5ab0f90ccc9a3e484",
   "capture": "Native Windows RITK client framebuffer",
-  "command": "cargo nextest run --locked -p ritk-snap -E 'test(native_manual_annotation_frames)'",
-  "comparison_command": "Set RITK_MANUAL_CAPTURE_DIR to the fresh PNG directory, then run python -m unittest scripts.tests.test_manual_provenance",
+  "capture_command": [
+    "cargo",
+    "--config",
+    "C:\\Users\\RYANCL~1\\AppData\\Local\\Temp\\tmpo6bk5vd6\\config.toml",
+    "nextest",
+    "run",
+    "--manifest-path",
+    "C:\\Users\\RyanClanton\\AppData\\Local\\Temp\\codex-01a1e69e-3076-72e1-9852-7a0d3886d2f0\\calibration-text-provider\\Cargo.toml",
+    "--locked",
+    "-p",
+    "ritk-snap",
+    "--features",
+    "eframe-shell",
+    "-E",
+    "test(native_manual_annotation_frames)",
+    "--profile",
+    "default"
+  ],
+  "image_tools": {
+    "Pillow": {
+      "version": "13.0.0",
+      "applies_to": "comparison.reencoded_frames",
+      "format": "WEBP",
+      "lossless": true,
+      "quality": 100,
+      "method": 6,
+      "exact": true
+    }
+  },
   "comparison": {
     "method": "Pillow Image.convert('RGBA').tobytes() byte equality",
     "unchanged_frames": [
       "dicom-native-slices.webp",
-      "dicom-native-calibration.webp",
+      "dicom-native-annotations.webp",
       "dicom-native-length-edit.webp"
     ],
     "reencoded_frames": [
-      "dicom-native-annotations.webp"
+      "dicom-native-calibration.webp"
     ]
   },
   "frames": {
@@ -31,10 +85,10 @@
     "dicom-native-calibration.webp": {
       "width_px": 1280,
       "height_px": 800,
-      "webp_bytes": 116764,
-      "webp_sha256": "90fd95ffe8c249724a329b0c45ce5d6528499c136d9e3376b1ab7c46d7bbbe20",
-      "source_png_bytes": 399401,
-      "source_png_sha256": "768691d5e9fe320967ea14d85316a911bd38f474dbd4207287968edf514f684a"
+      "webp_bytes": 115472,
+      "webp_sha256": "0391249b4e4090eeac88e8f8f3f4de1ffe7635fbcbf775049036d600b1401df5",
+      "source_png_bytes": 399957,
+      "source_png_sha256": "5bcc624294302cf4235d1d01331b90ee43605489eb654f20c20ad8632ced72aa"
     },
     "dicom-native-annotations.webp": {
       "width_px": 1280,
@@ -42,17 +96,7 @@
       "webp_bytes": 126202,
       "webp_sha256": "0aaa9e0be5f6cc49d2786708a9bde84e70709ace138d362bdc16d43c2cf43723",
       "source_png_bytes": 429459,
-      "source_png_sha256": "9fda283bfe890883b661340c0b56bff6a3739bf08c3640e97e7484f48342a374",
-      "encoding": {
-        "tool": "Pillow",
-        "version": "12.1.1",
-        "format": "WEBP",
-        "lossless": true,
-        "quality": 100,
-        "method": 6,
-        "exact": true,
-        "decoded_rgba_equal": true
-      }
+      "source_png_sha256": "9fda283bfe890883b661340c0b56bff6a3739bf08c3640e97e7484f48342a374"
     },
     "dicom-native-length-edit.webp": {
       "width_px": 1280,
@@ -60,17 +104,7 @@
       "webp_bytes": 122688,
       "webp_sha256": "ac1622796ac84ce8896ef780ad093e54dc8108b81744095cf89a519cf4bdc596",
       "source_png_bytes": 425624,
-      "source_png_sha256": "766f9a08a30302cb560019f880f6b77ad1f064fa1a9f07e58406bdc31f404eb0",
-      "encoding": {
-        "tool": "Pillow",
-        "version": "12.1.1",
-        "format": "WEBP",
-        "lossless": true,
-        "quality": 100,
-        "method": 6,
-        "exact": true,
-        "decoded_rgba_equal": true
-      }
+      "source_png_sha256": "766f9a08a30302cb560019f880f6b77ad1f064fa1a9f07e58406bdc31f404eb0"
     }
   }
 }

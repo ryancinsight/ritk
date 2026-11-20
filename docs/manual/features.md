@@ -12,10 +12,13 @@ Use the [user guide](dicom-workflow.md) for instructions and the
 ## Reading and annotations
 
 The [source geometry tests](../../crates/ritk-io/src/format/dicom/reader/parse/geometry_tests.rs)
-check exact component counts, finite values, and unchanged anisotropic spacing
-through metadata extraction and Part-10 file scanning. These reader checks do
-not establish physical units for missing spacing or certify reconstructed planes;
-the [measurement-unit work](../../backlog/RITK-SNAP-MEASUREMENT-UNITS-001.md) remains open.
+check parsed spacing through metadata extraction and Part-10 scanning. The
+[measurement admission tests](../../crates/ritk-snap/src/app/tests/measurement.rs)
+require complete, consistent `PixelSpacing` and qualified reconstructed geometry;
+affected planes reject missing positions, inconsistent orientation, and lateral
+shear. For images without spacing, pixel-unit measurement and manual calibration
+remain unfinished.
+These tests do not certify clinical accuracy.
 
 | RadiAnt capability and PDF pages | Current Windows behavior | Test coverage and remaining work |
 | --- | --- | --- |
