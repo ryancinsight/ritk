@@ -18,6 +18,7 @@ impl Default for SnapApp {
     fn default() -> Self {
         Self {
             loaded: None,
+            measurement_pixel_spacing: None,
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             loaded_secondary: None,
             viewer_state: ViewerState::new(),

@@ -14,6 +14,7 @@ use super::*;
 use crate::tools::interaction::{Annotation, ImagePoint};
 use crate::tools::kind::ToolKind;
 use arrayvec::ArrayString;
+use ritk_io::{DicomReadMetadata, DicomSliceMetadata};
 
 /// Constructs an anisotropic volume with spacing [dz=2.0, dy=3.0, dx=5.0]
 /// (prime distances, each uniquely identifiable) for spacing-dispatch tests.
@@ -167,6 +168,215 @@ fn measurement_length_completion_records_active_axis_as_plane() {
         }
         other => panic!("expected a completed Length, got {other:?}"),
     }
+}
+
+#[test]
+fn dicom_missing_pixel_spacing_rejects_physical_measurement() {
+    let mut volume = make_anisotropic_volume();
+    volume.metadata = Some(Box::new(DicomReadMetadata {
+        spacing: volume.spacing,
+        slices: vec![DicomSliceMetadata::default()],
+        ..DicomReadMetadata::default()
+    }));
+    assert_eq!(volume.measurement_pixel_spacing(), None);
+
+    let mut app = SnapApp::default();
+    app.load_volume(volume, "missing-spacing".to_owned());
+    app.active_tool = ToolKind::MeasureLength;
+    app.on_click(Some(ImagePoint::new(0.0, 0.0)));
+    app.on_click(Some(ImagePoint::new(1.0, 0.0)));
+    assert!(
+        app.annotations.is_empty(),
+        "missing source spacing must not create a physical mark"
+    );
+    assert_eq!(
+        app.status_message,
+        "Measurement rejected: physical pixel spacing is unavailable for this image"
+    );
+}
+
+#[test]
+fn dicom_pixel_spacing_is_admitted_without_unit_fallback() {
+    let mut volume = make_anisotropic_volume();
+    volume.metadata = Some(Box::new(DicomReadMetadata {
+        spacing: [1.0, 1.0, 1.0],
+        slices: vec![DicomSliceMetadata {
+            pixel_spacing: Some([7.0, 11.0]),
+            ..DicomSliceMetadata::default()
+        }],
+        ..DicomReadMetadata::default()
+    }));
+    assert_eq!(volume.measurement_pixel_spacing(), Some([7.0, 11.0]));
+
+    let mut app = SnapApp::default();
+    app.load_volume(volume, "known-spacing".to_owned());
+    app.active_tool = ToolKind::MeasureLength;
+    app.on_click(Some(ImagePoint::new(0.0, 0.0)));
+    app.on_click(Some(ImagePoint::new(1.0, 0.0)));
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [Annotation::Length { length_mm, .. }] if *length_mm == 11.0
+    ));
+}
+
+#[test]
+fn dicom_measurement_admission_requires_consistent_source_slices() {
+    let mut volume = make_anisotropic_volume();
+    let mut metadata = DicomReadMetadata::default();
+    metadata.slices = vec![
+        DicomSliceMetadata {
+            pixel_spacing: Some([7.0, 11.0]),
+            ..DicomSliceMetadata::default()
+        },
+        DicomSliceMetadata::default(),
+    ];
+    volume.metadata = Some(Box::new(metadata));
+    assert_eq!(volume.measurement_pixel_spacing(), None);
+
+    let mut metadata = DicomReadMetadata::default();
+    metadata.slices = vec![
+        DicomSliceMetadata::default(),
+        DicomSliceMetadata {
+            pixel_spacing: Some([7.0, 11.0]),
+            ..DicomSliceMetadata::default()
+        },
+    ];
+    volume.metadata = Some(Box::new(metadata));
+    assert_eq!(volume.measurement_pixel_spacing(), None);
+
+    let mut metadata = DicomReadMetadata::default();
+    metadata.slices = vec![
+        DicomSliceMetadata {
+            pixel_spacing: Some([7.0, 11.0]),
+            ..DicomSliceMetadata::default()
+        },
+        DicomSliceMetadata {
+            pixel_spacing: Some([7.0, 12.0]),
+            ..DicomSliceMetadata::default()
+        },
+    ];
+    volume.metadata = Some(Box::new(metadata));
+    assert_eq!(volume.measurement_pixel_spacing(), None);
+}
+
+#[test]
+fn native_dicom_without_pixel_spacing_rejects_measurement() {
+    let root = tempfile::tempdir().unwrap();
+    crate::dicom::loader::tests::fixtures::write_study_without_pixel_spacing(
+        root.path(),
+        "CT",
+        crate::dicom::loader::tests::fixtures::SERIES_UID,
+        &crate::dicom::loader::tests::fixtures::SAMPLES,
+    )
+    .unwrap();
+    let volume = crate::dicom::loader::load_volume_from_path(root.path()).unwrap();
+    assert!(volume
+        .metadata
+        .as_ref()
+        .unwrap()
+        .slices
+        .iter()
+        .all(|slice| slice.pixel_spacing.is_none()));
+
+    let mut app = SnapApp::default();
+    app.load_volume(volume, "native-missing-spacing".to_owned());
+    app.active_tool = ToolKind::MeasureLength;
+    app.on_click(Some(ImagePoint::new(0.0, 0.0)));
+    app.on_click(Some(ImagePoint::new(1.0, 0.0)));
+    assert!(app.annotations.is_empty());
+    assert_eq!(
+        app.status_message,
+        "Measurement rejected: physical pixel spacing is unavailable for this image"
+    );
+}
+
+#[test]
+fn native_dicom_anisotropic_pixel_spacing_drives_measurement() {
+    let root = tempfile::tempdir().unwrap();
+    crate::dicom::loader::tests::fixtures::write_study(
+        root.path(),
+        "CT",
+        crate::dicom::loader::tests::fixtures::SERIES_UID,
+        &crate::dicom::loader::tests::fixtures::SAMPLES,
+    )
+    .unwrap();
+    let volume = crate::dicom::loader::load_volume_from_path(root.path()).unwrap();
+    assert_eq!(volume.measurement_pixel_spacing(), Some([1.5, 0.5]));
+
+    let mut app = SnapApp::default();
+    app.load_volume(volume, "native-known-spacing".to_owned());
+    app.active_tool = ToolKind::MeasureLength;
+    app.on_click(Some(ImagePoint::new(0.0, 0.0)));
+    app.on_click(Some(ImagePoint::new(1.0, 0.0)));
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [Annotation::Length { length_mm, .. }] if *length_mm == 0.5
+    ));
+}
+
+#[test]
+fn intensity_filter_preserves_source_metadata_and_measurement_admission() {
+    let mut volume = make_anisotropic_volume();
+    volume.metadata = Some(Box::new(DicomReadMetadata {
+        slices: vec![DicomSliceMetadata {
+            pixel_spacing: Some([7.0, 11.0]),
+            ..DicomSliceMetadata::default()
+        }],
+        ..DicomReadMetadata::default()
+    }));
+
+    let mut app = SnapApp::default();
+    app.load_volume(volume, "intensity-filter".to_owned());
+    app.active_filter = crate::FilterKind::Abs;
+    app.apply_filter_to_loaded_volume();
+
+    assert_eq!(
+        app.loaded
+            .as_ref()
+            .and_then(LoadedVolume::measurement_pixel_spacing),
+        Some([7.0, 11.0])
+    );
+    assert_eq!(app.measurement_pixel_spacing, Some([7.0, 11.0]));
+    app.active_tool = ToolKind::MeasureLength;
+    app.on_click(Some(ImagePoint::new(0.0, 0.0)));
+    app.on_click(Some(ImagePoint::new(1.0, 0.0)));
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [Annotation::Length { length_mm, .. }] if *length_mm == 11.0
+    ));
+}
+
+#[test]
+fn geometry_filter_clears_private_admission_without_erasing_source_metadata() {
+    let mut volume = make_anisotropic_volume();
+    volume.metadata = Some(Box::new(DicomReadMetadata {
+        slices: vec![DicomSliceMetadata {
+            pixel_spacing: Some([7.0, 11.0]),
+            ..DicomSliceMetadata::default()
+        }],
+        ..DicomReadMetadata::default()
+    }));
+
+    let mut app = SnapApp::default();
+    app.load_volume(volume, "geometry-filter".to_owned());
+    app.active_filter = crate::FilterKind::Shrink {
+        factor_z: 1,
+        factor_y: 1,
+        factor_x: 2,
+    };
+    app.apply_filter_to_loaded_volume();
+
+    assert_eq!(app.measurement_pixel_spacing, None);
+    assert_eq!(
+        app.loaded
+            .as_ref()
+            .and_then(LoadedVolume::measurement_pixel_spacing),
+        Some([7.0, 11.0])
+    );
+    app.active_tool = ToolKind::MeasureLength;
+    app.on_click(Some(ImagePoint::new(0.0, 0.0)));
+    app.on_click(Some(ImagePoint::new(1.0, 0.0)));
+    assert!(app.annotations.is_empty());
 }
 
 #[test]

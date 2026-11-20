@@ -56,6 +56,11 @@ pub(crate) struct SnapApp {
     // ── Volume ────────────────────────────────────────────────────────────────
     /// Currently loaded volume, if any.
     pub(crate) loaded: Option<LoadedVolume>,
+    /// Source-qualified in-plane spacing for the currently displayed grid.
+    ///
+    /// This app-owned value is cleared when a filter changes the voxel grid;
+    /// retained DICOM metadata remains the immutable source record.
+    pub(crate) measurement_pixel_spacing: Option<[f64; 2]>,
     #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     /// Secondary loaded volume for cross-study compare.
     pub(crate) loaded_secondary: Option<LoadedVolume>,

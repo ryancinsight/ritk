@@ -305,6 +305,27 @@ pub(crate) fn write_study(
     series_uid: &str,
     samples: &[u8],
 ) -> Result<Vec<(String, Vec<u8>)>> {
+    write_study_with_pixel_spacing(root, modality, series_uid, samples, Some([1.5, 0.5]))
+}
+
+/// Write the same deterministic study while omitting DICOM PixelSpacing.
+#[cfg(test)]
+pub(crate) fn write_study_without_pixel_spacing(
+    root: &Path,
+    modality: &str,
+    series_uid: &str,
+    samples: &[u8],
+) -> Result<Vec<(String, Vec<u8>)>> {
+    write_study_with_pixel_spacing(root, modality, series_uid, samples, None)
+}
+
+fn write_study_with_pixel_spacing(
+    root: &Path,
+    modality: &str,
+    series_uid: &str,
+    samples: &[u8],
+    pixel_spacing: Option<[f64; 2]>,
+) -> Result<Vec<(String, Vec<u8>)>> {
     std::fs::create_dir_all(root).context("create synthetic study directory")?;
     assert!(
         samples.len() >= SHAPE[0] * SAMPLES_PER_SLICE,
@@ -330,7 +351,6 @@ pub(crate) fn write_study(
             (0x0020, 0x0032, "DS", position.as_str()),
             (0x0020, 0x0037, "DS", "0\\1\\0\\0\\0\\1"),
             (0x0028, 0x0004, "CS", "MONOCHROME2"),
-            (0x0028, 0x0030, "DS", "1.5\\0.5"),
             (0x0018, 0x0050, "DS", "2"),
             (0x0028, 0x1052, "DS", intercept.as_str()),
             (0x0028, 0x1053, "DS", slope.as_str()),
@@ -339,6 +359,13 @@ pub(crate) fn write_study(
                 DicomTag::new(group, element),
                 vr,
                 value,
+            ));
+        }
+        if let Some([row, column]) = pixel_spacing {
+            model.insert(DicomObjectNode::text(
+                DicomTag::new(0x0028, 0x0030),
+                "DS",
+                format!("{row}\\{column}"),
             ));
         }
         model.insert(DicomObjectNode::text(

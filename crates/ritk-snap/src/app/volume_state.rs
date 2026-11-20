@@ -75,6 +75,7 @@ impl SnapApp {
         {
             self.selected_series = super::volume_input::VolumeInput::acquisition(&vol);
         }
+        self.measurement_pixel_spacing = vol.measurement_pixel_spacing();
         self.loaded = Some(vol);
         self.viewer_state = state;
         self.axis = protocol.preferred_axis.min(2);

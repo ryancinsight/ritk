@@ -159,10 +159,16 @@ Reopen the study or use **Reset length calibration** to restore image-spacing
 readings. Inch/French-size input and source-specific calibration colors remain
 [calibration work](features.md#reading-and-annotations).
 
-Measurements currently require reliable image spacing. Missing or unusable
-DICOM spacing does not yet switch the displayed units to pixels; a millimetre
-suffix alone does not establish physical scale. See the
-[measurement-unit limitation](../../backlog/RITK-SNAP-MEASUREMENT-UNITS-001.md).
+Measurements require reliable image spacing. When DICOM
+`(0028,0030) PixelSpacing` is absent, unusable, inconsistent across retained
+source slices, or invalidated by a filter that changes the voxel grid, the
+viewer keeps display geometry but rejects physical image-plane measurements
+with an explicit unavailable-spacing status for new measurements. A valid,
+consistent source spacing is admitted at measurement time and used for the
+reported millimetre value. Existing session records retain their stored
+values and are not silently recomputed or relabeled by this admission rule.
+Patient-space lengths remain governed by their validated patient-coordinate
+endpoints.
 
 ### Measure an angle or a region of interest
 

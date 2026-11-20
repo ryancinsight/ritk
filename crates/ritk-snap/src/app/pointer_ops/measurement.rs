@@ -246,7 +246,10 @@ impl SnapApp {
         let Some(vol) = &self.loaded else {
             return Err(MeasurementError::MissingVolume);
         };
-        let [dz, dy, dx] = vol.spacing;
+        let [dz, _dy, _dx] = vol.spacing;
+        let [dy, dx] = self
+            .measurement_pixel_spacing
+            .ok_or(MeasurementError::MissingPhysicalSpacing)?;
         let spacing = match self.axis {
             0 => [dy, dx],
             1 => [dz, dx],
