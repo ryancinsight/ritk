@@ -9,6 +9,8 @@ from pathlib import Path
 
 from PIL import Image
 
+from scripts import capture_source
+
 
 ROOT = Path(__file__).resolve().parents[2]
 IMAGE = ROOT / "docs/manual/images/dicom-metis-real-mri.png"
@@ -95,6 +97,18 @@ class ManualImageProvenanceTests(unittest.TestCase):
         directory = ROOT / "docs/manual/images"
         record = json.loads(
             (directory / "dicom-native-annotations.json").read_text(encoding="utf-8")
+        )
+        capture_record = os.environ.get("RITK_MANUAL_CAPTURE_RECORD")
+        if capture_record is None:
+            self.fail("source binding requires RITK_MANUAL_CAPTURE_RECORD")
+        atlas_root = os.environ.get("RITK_MANUAL_ATLAS_ROOT")
+        if atlas_root is None:
+            self.fail("source binding requires RITK_MANUAL_ATLAS_ROOT")
+        repository = Path(os.environ.get("RITK_MANUAL_REPOSITORY", ROOT))
+        base_rev = os.environ.get("RITK_MANUAL_BASE_REV", "origin/main")
+        capture_source.validate_capture_source(
+            capture_root, Path(capture_record), ROOT, repository,
+            Path(atlas_root), base_rev, record["fixture"]
         )
         for name, frame in record["frames"].items():
             with self.subTest(image=name):
