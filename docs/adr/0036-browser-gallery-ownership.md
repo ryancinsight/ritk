@@ -4,7 +4,12 @@ Status: Accepted
 
 Date: 2026-09-16
 
-Driver: [RITK-BROWSER-GALLERY-001](../backlog.md#RITK-BROWSER-GALLERY-001)
+Revision 2026-11-20: replace the expired driver reference and consolidate
+append-only delivery history into current source/link evidence in
+[PR #1086](https://github.com/ryancinsight/ritk/pull/1086), without adding
+runtime certification.
+
+Delivery: [RITK PR 414](https://github.com/ryancinsight/ritk/pull/414)
 
 Upstream contract: [Metis ADR 0035](../../../metis/docs/adr/0035-dicom-consumer-ownership.md)
 
@@ -31,6 +36,16 @@ package through Metis's explicit `--consumer-gallery` and
 it does not classify files or interpret viewer state. The workflow remains the
 single source for saved-study commands, real image captures and pixel oracles.
 
+The workflow invokes `wasm-bindgen` with `--target web --no-typescript`,
+producing the JavaScript and WebAssembly runtime pair that the Metis package
+boundary accepts. The gallery mounts the Metis host before it queries or
+customizes the format-neutral file controls, and reapplies its DICOM label and
+filter after every mount because lifecycle teardown replaces those controls.
+
+The consumer browser harness lives in `scripts/browser_gallery*.py`. It
+requires an explicit Metis checkout, imports the generic host runner from that
+checkout, and owns the RITK capture callbacks and evidence output.
+
 ## Alternatives rejected
 
 Keeping the page in Metis was rejected because a framework repository would
@@ -51,62 +66,27 @@ bounded host handoff; it does not turn browser names into filesystem paths.
 
 ## Verification
 
-RITK unit tests cover the DICOM loader, three-plane presentation and the page's
-slice and lifecycle contract. The locked browser workflow builds the RITK
-WASM package, passes the gallery to Metis, selects the saved 94-file MRI study
-and checks file hashes, three exact RGBA canvases, bounded rejections, trusted
-input and listener teardown on each configured engine. The committed manual
-images and provenance remain the visual evidence.
+The current ownership seams are executable and reviewable at these locations:
 
-Revision 2026-09-16 (runtime package boundary): the RITK workflow invokes
-`wasm-bindgen --target web --no-typescript`, so the explicit consumer package
-contains exactly one JavaScript module and one WebAssembly module. Metis can
-validate that runtime pair without copying declaration sidecars; the consumer
-page and DICOM behavior are unchanged.
+- [`gallery.js`](../../crates/ritk-snap/web/gallery/gallery.js) owns mount,
+  picker customization, slice controls and RITK presentation attributes.
+- [The browser workflow](../../.github/workflows/metis-browser-dicom.yml)
+  supplies the package and gallery inputs and defines the saved-study matrix.
+- [`browser_gallery.py`](../../scripts/browser_gallery.py) requires the Metis
+  root and composes the generic host runner with RITK capture behavior.
 
-Revision 2026-09-16 (consumer mount ordering): the gallery mounts the Metis host
-before querying its format-neutral file-picker controls. This keeps consumer
-customization deterministic when module initialization and host DOM insertion
-are scheduled differently across browser engines.
-
-Revision 2026-09-16 (remount picker policy): each gallery mount reapplies the
-consumer label and DICOM filter after the host inserts its controls. Lifecycle
-teardown replaces those controls, so a one-time customization would silently
-restore the generic picker on the next cycle.
-
-Revision 2026-09-16 (harness ownership): the slice-control browser harness now
-lives in `scripts/browser_gallery*.py` beside the RITK consumer tests. Its
-wrapper imports the generic Metis runner through an explicit `--metis-root`,
-passes RITK's post-transfer capture callback, and records consumer evidence
-under the RITK output contract. The Metis scripts no longer contain RITK canvas
-IDs, DICOM filters or slice-control behavior.
-The dependent RITK lock and browser/package workflow defaults pin Metis merge
-`88c60a0b6410c0e07700e965bcdbea43b7b20789`; hosted evidence has been regenerated
-from this wrapper.
-
-Revision 2026-09-16 (consumer evidence): hosted run
-`35133971196` rebuilt this wrapper at RITK merge
-`db390b8616e4cc58f2555f49a816e61eed1fadd1` against the pinned Metis revision.
-The Chromium and Firefox raster jobs exercise the saved 94-file MRI study;
-the WebKit job remains the selected-file authorization residual. The Chromium
-WebGPU job reaches the RITK page but reports no browser WebGPU adapter, so it
-does not claim a rendered GPU study. These outcomes preserve the ownership
-boundary: RITK owns DICOM behavior and Metis remains format-neutral.
-
-Revision 2026-09-20 (merged-main replay): hosted run
-[`35519330780`](https://github.com/ryancinsight/ritk/actions/runs/35519330780)
-rebuilt RITK `b220bf4ec2bf613fb23f2da20152881a1a3b4cf2` against Metis
-`b58d64b1bebe76bb32570339c4a349cc1b0d7086` and Moirai
-`2a54e010532f76c88027fec8a468620c92fe66b3`. Chromium and Firefox passed the
-94-file MRI chooser replay and exact raster oracles; Chromium also passed the
-application-window and scalar MIP projection captures. Safari 26.6.2 accepted
-the chooser but rejected the bounded whole-file read, and Chromium reported no
-WebGPU adapter. The machine-readable provenance records each artifact and
-failure at this revision; neither residual changes the DICOM ownership boundary.
+The [loader tests](../../crates/ritk-snap/src/dicom/loader/tests/mod.rs),
+[three-plane presentation tests](../../crates/ritk-snap/src/dicom/loader/tests/presentation.rs)
+and [gallery harness tests](../../scripts/tests/test_browser_gallery.py) cover
+their respective source contracts. A browser evidence run must bind its RITK
+and provider revisions, public study hashes, exact raster oracles, bounded
+rejections and teardown results. This ADR records ownership and required
+evidence; it does not claim that a historical browser run establishes current
+runtime support.
 
 ## Residuals
 
-Safari/WebKit selected-file authorization, physical file-manager drag input,
-provider-private browser resource measurements and WebGPU presentation remain
-separate items. They do not change ownership of the DICOM consumer page or
-permit a Metis fallback decoder.
+Browser-specific selected-file authorization, physical file-manager drag
+input, provider-private resource measurements and WebGPU adapter availability
+remain separate verification concerns. Their outcomes do not change ownership
+of the DICOM consumer page or permit a Metis fallback decoder.
