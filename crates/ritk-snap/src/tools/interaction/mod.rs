@@ -17,6 +17,8 @@ mod tool_state;
 #[cfg(test)]
 mod tests;
 
+#[cfg(any(target_arch = "wasm32", windows, test))]
+pub(crate) use annotation::ImageMeasurementScale;
 pub use annotation::{Annotation, AnnotationLocation, MeasurementError, PatientLength};
 pub use point::{ImagePoint, ViewportOffset};
 pub use tool_state::{PolygonKind, RoiKind, ToolState};

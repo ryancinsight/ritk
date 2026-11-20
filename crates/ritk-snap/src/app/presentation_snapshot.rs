@@ -3,7 +3,7 @@
 use super::SnapApp;
 use crate::presentation::{AnnotationKind, AnnotationSummary, PresentationSnapshot};
 use crate::render::WindowLevel;
-use crate::tools::interaction::Annotation;
+use crate::tools::interaction::{Annotation, ImageMeasurementScale};
 use crate::tools::kind::ToolKind;
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
@@ -30,15 +30,14 @@ impl SnapApp {
             .position(|tool| *tool == self.active_tool)
             .expect("invariant: active tool belongs to ToolKind::all");
         let summary = |kind, value| Some(AnnotationSummary::new(kind, value));
-        let last_annotation = self
-            .annotations
-            .last()
-            .and_then(|annotation| match annotation {
+        let last_annotation = self.annotations.last().and_then(|annotation| {
+            #[cfg(windows)]
+            let image_scale = ImageMeasurementScale::new(self.length_scale(annotation.location()));
+            #[cfg(not(windows))]
+            let image_scale = ImageMeasurementScale::new(1.0);
+            match annotation {
                 Annotation::Length { length_mm, .. } => {
-                    let length_mm = f64::from(*length_mm);
-                    #[cfg(windows)]
-                    let length_mm = length_mm * self.length_scale(annotation.location());
-                    summary(AnnotationKind::Length, length_mm)
+                    summary(AnnotationKind::Length, image_scale.length(*length_mm))
                 }
                 Annotation::PatientLength { length, .. } => {
                     summary(AnnotationKind::PatientLength, length.length_mm())
@@ -47,22 +46,22 @@ impl SnapApp {
                     summary(AnnotationKind::Angle, f64::from(*angle_deg))
                 }
                 Annotation::Deviation { distance_mm, .. } => {
-                    summary(AnnotationKind::Deviation, f64::from(*distance_mm))
+                    summary(AnnotationKind::Deviation, image_scale.length(*distance_mm))
                 }
                 Annotation::RoiRect { area_mm2, .. } => {
-                    summary(AnnotationKind::RoiRect, f64::from(*area_mm2))
+                    summary(AnnotationKind::RoiRect, image_scale.area(*area_mm2))
                 }
                 Annotation::RoiEllipse { area_mm2, .. } => {
-                    summary(AnnotationKind::RoiEllipse, f64::from(*area_mm2))
+                    summary(AnnotationKind::RoiEllipse, image_scale.area(*area_mm2))
                 }
                 Annotation::HuPoint { value, .. } => {
                     summary(AnnotationKind::HuPoint, f64::from(*value))
                 }
                 Annotation::ClosedPolygon { area_mm2, .. } => {
-                    summary(AnnotationKind::ClosedPolygon, f64::from(*area_mm2))
+                    summary(AnnotationKind::ClosedPolygon, image_scale.area(*area_mm2))
                 }
                 Annotation::OpenPolygon { length_mm, .. } => {
-                    summary(AnnotationKind::OpenPolygon, f64::from(*length_mm))
+                    summary(AnnotationKind::OpenPolygon, image_scale.length(*length_mm))
                 }
                 Annotation::Arrow { .. } => None,
                 Annotation::Pencil { .. } => None,
@@ -70,7 +69,8 @@ impl SnapApp {
                     AnnotationKind::Angle,
                     f64::from(*angle_deg),
                 )),
-            });
+            }
+        });
         PresentationSnapshot::from_parts(
             self.visual_revision,
             self.loaded.is_some(),
