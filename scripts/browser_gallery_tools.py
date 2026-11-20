@@ -262,32 +262,28 @@ def _gesture(
     canvas_id = "ritk-snap-axial"
     ensure_canvas_visible(client, canvas_id)
     canvas_state = client.execute(CANVAS_SNAPSHOT_SCRIPT, [canvas_id, []])
-    drag_start, drag_end = canvas_action_offsets(
-        canvas_state,
-        ((-128, -32), (0, 32)),
-    )
-    length_start, length_end = canvas_action_offsets(
+    segment_start, segment_end = canvas_action_offsets(
         canvas_state,
         ((-128, -32), (0, 32)),
     )
     center, = canvas_action_offsets(canvas_state, ((0, 0),))
     if index == 0:
-        if drag_start == drag_end:
+        if segment_start == segment_end:
             raise BrowserRuntimeError("pan gesture collapsed after canvas bounds were applied")
-        client.pointer_drag(canvas, drag_start, drag_end, source_id="ritk-tool-pan-0")
+        client.pointer_drag(canvas, segment_start, segment_end, source_id="ritk-tool-pan-0")
         settle_canvas_input(client)
         return "pointer-drag", [], canvas_state
     if index in (1, 2):
-        if drag_start == drag_end:
+        if segment_start == segment_end:
             raise BrowserRuntimeError("viewport gesture collapsed after canvas bounds were applied")
-        client.pointer_drag(canvas, drag_start, drag_end, source_id=f"ritk-tool-drag-{index}")
+        client.pointer_drag(canvas, segment_start, segment_end, source_id=f"ritk-tool-drag-{index}")
         settle_canvas_input(client)
         return "pointer-drag", [], canvas_state
     if index == 3:
-        if length_start == length_end:
+        if segment_start == segment_end:
             raise BrowserRuntimeError("length gesture collapsed after canvas bounds were applied")
-        _click_at(client, canvas, length_start, source_id="ritk-tool-length-0")
-        _click_at(client, canvas, length_end, source_id="ritk-tool-length-1")
+        _click_at(client, canvas, segment_start, source_id="ritk-tool-length-0")
+        _click_at(client, canvas, segment_end, source_id="ritk-tool-length-1")
         return "two-click-measurement", [], canvas_state
     if index == 4:
         positions = canvas_action_offsets(
