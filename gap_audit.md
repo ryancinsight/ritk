@@ -187,3 +187,18 @@ projection tests. [Windows run 44651506776](https://github.com/ryancinsight/ritk
 builds that source with Windows SDK 10.0.26100.0 and passes five reader tests,
 two viewer tests, and the exact native provenance overlay test. These runs
 use bundled compatibility revisions for Leto and Gaia.
+
+## Enhanced PET on native DICOM datasets [patch]
+
+The AsterSlice rollout preserves the upstream native dataset parser,
+source-qualified measurements, and frame codecs. PET dimension and
+concatenation validation now read the native dataset. Stored pixel
+calibration stays independent of display rescale. The decay path
+validates full civil timestamps and computes offsets before converting
+elapsed time into Aequitas time.
+
+The 0.5 lock uses public compatibility commits for Apollo, Coeus, and
+Hephaestus. Locked all-feature metadata resolves one registry Aequitas
+0.5.0. The 58 selected PET, geometry, measurement, and Metal projection
+tests pass. Registry package promotion requires the published provider
+archives, including a Gaia version that admits Aequitas 0.5.0.
