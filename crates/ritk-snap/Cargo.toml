@@ -55,6 +55,7 @@ eunomia = { workspace = true }
 moirai = { workspace = true }
 metis-platform = { workspace = true }
 metis-ui-lang = { workspace = true }
+metis-web = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 wgpu = { workspace = true }
@@ -66,7 +67,6 @@ wasm-bindgen-futures = { workspace = true }
 js-sys = { workspace = true }
 getrandom = { workspace = true, features = ["wasm_js"] }
 getrandom_02 = { workspace = true, features = ["js"] }
-metis-web = { workspace = true }
 moirai-pal = { workspace = true }
 
 [dev-dependencies]

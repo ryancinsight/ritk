@@ -748,7 +748,9 @@ while the visible axial, coronal and sagittal canvases retain the normal Métis
 event seam. Responsive canvases receive definite grid-cell width and height
 after physical aspect metadata is published; `object-fit: contain` preserves
 anisotropic voxel spacing without allowing a pane to expand outside the
-trusted container:
+trusted container. For browser canvases, RITK admits and orders the DICOM
+row/column spacing, while Métis computes the format-neutral aspect with one
+binary64 rounding, including representable subnormal results:
 
 ```javascript
 import init, { start_web_responsive_canvases, stop_web_canvas } from "./ritk_snap.js";
