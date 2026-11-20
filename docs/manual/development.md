@@ -52,6 +52,10 @@ cargo nextest run --locked -p ritk-snap -E 'test(native_manual_annotation_frames
 Remove-Item Env:RITK_MANUAL_STUDY, Env:RITK_MANUAL_CAPTURE_DIR
 ```
 
+Frame comparison also requires `RITK_MANUAL_CAPTURE_RECORD` to name the
+completed bounded capture JSON and `RITK_MANUAL_ATLAS_ROOT` to name the Atlas
+checkout that supplies `scripts/process_tree.py` and its OS runtime modules.
+
 The [frame record](images/dicom-native-annotations.json) preserves each figure's
 source revision and lock digest. Per-frame fields identify newer captures;
 figures without overrides retain the record's original revision and lock.
