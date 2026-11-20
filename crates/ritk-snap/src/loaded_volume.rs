@@ -48,6 +48,27 @@ pub struct LoadedVolume {
 }
 
 impl LoadedVolume {
+    /// Returns source-qualified DICOM in-plane spacing for measurement admission.
+    ///
+    /// Every retained DICOM slice must supply the same PixelSpacing; absence or
+    /// conflict returns `None` instead of using display fallback geometry.
+    /// Non-DICOM volumes use their format geometry.
+    pub(crate) fn measurement_pixel_spacing(&self) -> Option<[f64; 2]> {
+        let Some(metadata) = self.metadata.as_deref() else {
+            return Some([self.spacing[1], self.spacing[2]]);
+        };
+        let mut slices = metadata.slices.iter();
+        let spacing = slices.next()?.pixel_spacing?;
+        slices
+            .all(|slice| slice.pixel_spacing == Some(spacing))
+            .then_some(spacing)
+    }
+
+    pub(crate) fn measurement_spacing(&self) -> Option<([f64; 2], Option<f64>)> {
+        let slice = self.metadata.is_none().then_some(self.spacing[0]);
+        Some((self.measurement_pixel_spacing()?, slice))
+    }
+
     /// Get the first channel value at voxel position (d, r, c).
     ///
     /// For multi-channel volumes (e.g. RGB), returns the first channel.

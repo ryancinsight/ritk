@@ -1,6 +1,7 @@
 use super::measurement_overlay::{axial_panel, composed, draw_texts};
 use super::support::session;
 use super::*;
+use crate::app::state::MeasurementSpacingState;
 use crate::tools::interaction::ImagePoint;
 
 #[test]
@@ -15,7 +16,19 @@ fn native_length_calibration_scales_labels_and_resets() {
     let (pane, ..) = axial_panel(&session);
     let slice = session.views[pane].slice_index;
     let other_slice = (slice + 1) % slice_count;
-    session.app.loaded.as_mut().expect("fixture volume").spacing = [1.0, 4.0, 3.0];
+    let volume = session.app.loaded.as_mut().expect("fixture volume");
+    volume.spacing = [1.0, 4.0, 3.0];
+    volume
+        .metadata
+        .as_mut()
+        .expect("fixture DICOM metadata")
+        .slices
+        .iter_mut()
+        .for_each(|slice| slice.pixel_spacing = Some([4.0, 3.0]));
+    session.app.measurement_pixel_spacing = MeasurementSpacingState::Qualified {
+        in_plane: [4.0, 3.0],
+        slice: Some(1.0),
+    };
     let measure = |app: &mut SnapApp, end| {
         app.on_drag_start(
             crate::tools::kind::ToolKind::MeasureLength,
