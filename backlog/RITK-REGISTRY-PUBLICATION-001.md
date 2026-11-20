@@ -10,13 +10,6 @@
 - acceptance: obtain independent review and final-revision PR gates; adopt the reviewed provider graph without source overrides or weakened checks; verify the registry/package plan includes registration; complete required first publications using approved credentials; verify index versions and release tags. Publication is authorized, but new credentials or security settings need specific approval. No deployment, deferred Miri, gate override or limit increase is authorized.
 
 ## DICOM registry checkpoint
-
-- [major] Spatial 0.5.0 moves the Leto boundary to 0.51.0. Diffusion Scheme
-  0.4.0 uses the new spatial types and Aequitas 0.4.0 (ADR 0062).
-- Cargo verifies all three candidate packages in dependency order against the
-  registry. The DICOM archive resolves one Spatial 0.5.0, Diffusion Scheme
-  0.4.0, Aequitas 0.4.0, Eunomia 0.12.1, and Leto 0.51.0.
-- The locked Spatial, Diffusion Scheme and DICOM suites pass 185 tests,
-  including one doctest. Two opt-in cases remain ignored by default.
-- Keep subsequent approved packages gated on the Coeus registry closure
-  and each package's normalized build.
+- [major] Spatial 0.5.0 and Diffusion Scheme 0.4.0 move the public Leto and Aequitas boundaries. See [ADR 0062](../docs/adr/0062-spatial-provider-051.md).
+- Cargo verifies the Spatial, Diffusion Scheme, and DICOM archives in dependency order. The locked suites pass 185 tests with two opt-in cases ignored.
+- Advance other approved packages after Coeus and the relevant normalized registry builds pass.
