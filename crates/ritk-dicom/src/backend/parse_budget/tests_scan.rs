@@ -1,6 +1,6 @@
 use super::*;
 
-fn put_u16(bytes: &mut Vec<u8>, value: u16, little_endian: bool) {
+fn put_word(bytes: &mut Vec<u8>, value: u16, little_endian: bool) {
     let encoded = if little_endian {
         value.to_le_bytes()
     } else {
@@ -9,7 +9,7 @@ fn put_u16(bytes: &mut Vec<u8>, value: u16, little_endian: bool) {
     bytes.extend_from_slice(&encoded);
 }
 
-fn put_u32(bytes: &mut Vec<u8>, value: u32, little_endian: bool) {
+fn put_double_word(bytes: &mut Vec<u8>, value: u32, little_endian: bool) {
     let encoded = if little_endian {
         value.to_le_bytes()
     } else {
@@ -18,87 +18,87 @@ fn put_u32(bytes: &mut Vec<u8>, value: u32, little_endian: bool) {
     bytes.extend_from_slice(&encoded);
 }
 
-fn explicit_element(tag: Tag, vr: [u8; 2], value: &[u8], little_endian: bool) -> Vec<u8> {
+fn explicit_element(tag: DicomTag, vr: [u8; 2], value: &[u8], little_endian: bool) -> Vec<u8> {
     let parsed_vr = VR::from_binary(vr).unwrap_or(VR::UN);
     let value_length = u32::try_from(value.len()).expect("test value fits u32");
     let mut bytes = Vec::new();
-    put_u16(&mut bytes, tag.group(), little_endian);
-    put_u16(&mut bytes, tag.element(), little_endian);
+    put_word(&mut bytes, tag.group, little_endian);
+    put_word(&mut bytes, tag.element, little_endian);
     bytes.extend_from_slice(&vr);
-    if uses_short_length(parsed_vr) {
+    if !parsed_vr.long_length() {
         let short_length = u16::try_from(value_length).expect("test value fits u16");
-        put_u16(&mut bytes, short_length, little_endian);
+        put_word(&mut bytes, short_length, little_endian);
     } else {
         bytes.extend_from_slice(&[0, 0]);
-        put_u32(&mut bytes, value_length, little_endian);
+        put_double_word(&mut bytes, value_length, little_endian);
     }
     bytes.extend_from_slice(value);
     bytes
 }
 
-fn implicit_element(tag: Tag, value: &[u8], little_endian: bool) -> Vec<u8> {
+fn implicit_element(tag: DicomTag, value: &[u8], little_endian: bool) -> Vec<u8> {
     let value_length = u32::try_from(value.len()).expect("test value fits u32");
     let mut bytes = Vec::new();
-    put_u16(&mut bytes, tag.group(), little_endian);
-    put_u16(&mut bytes, tag.element(), little_endian);
-    put_u32(&mut bytes, value_length, little_endian);
+    put_word(&mut bytes, tag.group, little_endian);
+    put_word(&mut bytes, tag.element, little_endian);
+    put_double_word(&mut bytes, value_length, little_endian);
     bytes.extend_from_slice(value);
     bytes
 }
 
-fn explicit_sequence(tag: Tag, body: &[u8], length: u32, little_endian: bool) -> Vec<u8> {
+fn explicit_sequence(tag: DicomTag, body: &[u8], length: u32, little_endian: bool) -> Vec<u8> {
     let mut bytes = Vec::new();
-    put_u16(&mut bytes, tag.group(), little_endian);
-    put_u16(&mut bytes, tag.element(), little_endian);
+    put_word(&mut bytes, tag.group, little_endian);
+    put_word(&mut bytes, tag.element, little_endian);
     bytes.extend_from_slice(b"SQ");
     bytes.extend_from_slice(&[0, 0]);
-    put_u32(&mut bytes, length, little_endian);
+    put_double_word(&mut bytes, length, little_endian);
     bytes.extend_from_slice(body);
     bytes
 }
 
-fn explicit_undefined(tag: Tag, vr: [u8; 2], body: &[u8], little_endian: bool) -> Vec<u8> {
+fn explicit_undefined(tag: DicomTag, vr: [u8; 2], body: &[u8], little_endian: bool) -> Vec<u8> {
     let mut bytes = Vec::new();
-    put_u16(&mut bytes, tag.group(), little_endian);
-    put_u16(&mut bytes, tag.element(), little_endian);
+    put_word(&mut bytes, tag.group, little_endian);
+    put_word(&mut bytes, tag.element, little_endian);
     bytes.extend_from_slice(&vr);
     bytes.extend_from_slice(&[0, 0]);
-    put_u32(&mut bytes, UNDEFINED_LENGTH, little_endian);
+    put_double_word(&mut bytes, UNDEFINED_LENGTH, little_endian);
     bytes.extend_from_slice(body);
     bytes
 }
 
-fn implicit_sequence(tag: Tag, body: &[u8], length: u32, little_endian: bool) -> Vec<u8> {
+fn implicit_sequence(tag: DicomTag, body: &[u8], length: u32, little_endian: bool) -> Vec<u8> {
     let mut bytes = Vec::new();
-    put_u16(&mut bytes, tag.group(), little_endian);
-    put_u16(&mut bytes, tag.element(), little_endian);
-    put_u32(&mut bytes, length, little_endian);
+    put_word(&mut bytes, tag.group, little_endian);
+    put_word(&mut bytes, tag.element, little_endian);
+    put_double_word(&mut bytes, length, little_endian);
     bytes.extend_from_slice(body);
     bytes
 }
 
 fn item(body: &[u8], length: u32, little_endian: bool) -> Vec<u8> {
     let mut bytes = Vec::new();
-    put_u16(&mut bytes, ITEM_GROUP, little_endian);
-    put_u16(&mut bytes, ITEM_ELEMENT, little_endian);
-    put_u32(&mut bytes, length, little_endian);
+    put_word(&mut bytes, ITEM_GROUP, little_endian);
+    put_word(&mut bytes, ITEM_ELEMENT, little_endian);
+    put_double_word(&mut bytes, length, little_endian);
     bytes.extend_from_slice(body);
     bytes
 }
 
 fn item_delimiter(little_endian: bool) -> Vec<u8> {
     let mut bytes = Vec::new();
-    put_u16(&mut bytes, ITEM_GROUP, little_endian);
-    put_u16(&mut bytes, ITEM_DELIMITER_ELEMENT, little_endian);
-    put_u32(&mut bytes, 0, little_endian);
+    put_word(&mut bytes, ITEM_GROUP, little_endian);
+    put_word(&mut bytes, ITEM_DELIMITER_ELEMENT, little_endian);
+    put_double_word(&mut bytes, 0, little_endian);
     bytes
 }
 
 fn sequence_delimiter(little_endian: bool) -> Vec<u8> {
     let mut bytes = Vec::new();
-    put_u16(&mut bytes, ITEM_GROUP, little_endian);
-    put_u16(&mut bytes, SEQUENCE_DELIMITER_ELEMENT, little_endian);
-    put_u32(&mut bytes, 0, little_endian);
+    put_word(&mut bytes, ITEM_GROUP, little_endian);
+    put_word(&mut bytes, SEQUENCE_DELIMITER_ELEMENT, little_endian);
+    put_double_word(&mut bytes, 0, little_endian);
     bytes
 }
 
@@ -126,7 +126,7 @@ fn part10(dataset: &[u8], transfer_syntax: &str) -> Vec<u8> {
 
 #[test]
 fn validates_explicit_little_endian_dataset() {
-    let dataset = explicit_element(Tag(0x0010, 0x0010), *b"PN", b"DOE^JOHN", true);
+    let dataset = explicit_element(DicomTag::new(0x0010, 0x0010), *b"PN", b"DOE^JOHN", true);
     let data = part10(&dataset, "1.2.840.10008.1.2.1");
 
     let summary = validate_part10(&data, &ParseBudget::DEFAULT).expect("valid DICOM");
@@ -142,7 +142,7 @@ fn validates_explicit_little_endian_dataset() {
 
 #[test]
 fn rejects_declared_value_past_input() {
-    let mut dataset = explicit_element(Tag(0x0010, 0x0010), *b"PN", b"AB", true);
+    let mut dataset = explicit_element(DicomTag::new(0x0010, 0x0010), *b"PN", b"AB", true);
     dataset[6..8].copy_from_slice(&4_u16.to_le_bytes());
     let data = part10(&dataset, "1.2.840.10008.1.2.1");
 
@@ -153,7 +153,7 @@ fn rejects_declared_value_past_input() {
 
 #[test]
 fn rejects_input_over_byte_budget() {
-    let dataset = explicit_element(Tag(0x0010, 0x0010), *b"PN", b"DOE", true);
+    let dataset = explicit_element(DicomTag::new(0x0010, 0x0010), *b"PN", b"DOE ", true);
     let data = part10(&dataset, "1.2.840.10008.1.2.1");
     let budget = ParseBudget::new(data.len() - 1, 100, 8);
 
@@ -164,7 +164,7 @@ fn rejects_input_over_byte_budget() {
 
 #[test]
 fn rejects_element_count_over_budget() {
-    let dataset = explicit_element(Tag(0x0010, 0x0010), *b"PN", b"DOE^JOHN", true);
+    let dataset = explicit_element(DicomTag::new(0x0010, 0x0010), *b"PN", b"DOE^JOHN", true);
     let data = part10(&dataset, "1.2.840.10008.1.2.1");
     let budget = ParseBudget::new(data.len(), 2, 8);
 
@@ -175,14 +175,14 @@ fn rejects_element_count_over_budget() {
 
 #[test]
 fn rejects_sequence_depth_over_budget() {
-    let child = explicit_element(Tag(0x0010, 0x0010), *b"PN", b"DOE", true);
+    let child = explicit_element(DicomTag::new(0x0010, 0x0010), *b"PN", b"DOE ", true);
     let item_body = item(
         &child,
         u32::try_from(child.len()).expect("item fits u32"),
         true,
     );
     let sequence = explicit_sequence(
-        Tag(0x0008, 0x1110),
+        DicomTag::new(0x0008, 0x1110),
         &item_body,
         u32::try_from(item_body.len()).expect("sequence fits u32"),
         true,
@@ -197,11 +197,16 @@ fn rejects_sequence_depth_over_budget() {
 
 #[test]
 fn validates_undefined_sequence_and_item_delimiters() {
-    let child = explicit_element(Tag(0x0010, 0x0010), *b"PN", b"DOE", true);
+    let child = explicit_element(DicomTag::new(0x0010, 0x0010), *b"PN", b"DOE ", true);
     let mut sequence_body = item(&child, UNDEFINED_LENGTH, true);
     sequence_body.extend_from_slice(&item_delimiter(true));
     sequence_body.extend_from_slice(&sequence_delimiter(true));
-    let sequence = explicit_sequence(Tag(0x0008, 0x1110), &sequence_body, UNDEFINED_LENGTH, true);
+    let sequence = explicit_sequence(
+        DicomTag::new(0x0008, 0x1110),
+        &sequence_body,
+        UNDEFINED_LENGTH,
+        true,
+    );
     let data = part10(&sequence, "1.2.840.10008.1.2.1");
 
     let summary = validate_part10(&data, &ParseBudget::DEFAULT).expect("valid delimiters");
@@ -216,14 +221,14 @@ fn validates_undefined_sequence_and_item_delimiters() {
 
 #[test]
 fn validates_implicit_sequence_from_standard_dictionary() {
-    let child = implicit_element(Tag(0x0010, 0x0010), b"DOE", true);
+    let child = implicit_element(DicomTag::new(0x0010, 0x0010), b"DOE ", true);
     let item_body = item(
         &child,
         u32::try_from(child.len()).expect("item fits u32"),
         true,
     );
     let sequence = implicit_sequence(
-        Tag(0x0008, 0x1110),
+        DicomTag::new(0x0008, 0x1110),
         &item_body,
         u32::try_from(item_body.len()).expect("sequence fits u32"),
         true,
@@ -241,14 +246,14 @@ fn validates_implicit_sequence_from_standard_dictionary() {
 
 #[test]
 fn validates_big_endian_item_headers() {
-    let child = explicit_element(Tag(0x0010, 0x0010), *b"PN", b"DOE", false);
+    let child = explicit_element(DicomTag::new(0x0010, 0x0010), *b"PN", b"DOE ", false);
     let item_body = item(
         &child,
         u32::try_from(child.len()).expect("item fits u32"),
         false,
     );
     let sequence = explicit_sequence(
-        Tag(0x0008, 0x1110),
+        DicomTag::new(0x0008, 0x1110),
         &item_body,
         u32::try_from(item_body.len()).expect("sequence fits u32"),
         false,
@@ -280,7 +285,7 @@ fn validates_encapsulated_pixel_fragments() {
 
 #[test]
 fn rejects_sequence_with_nonzero_delimiter_length() {
-    let child = explicit_element(Tag(0x0010, 0x0010), *b"PN", b"DOE", true);
+    let child = explicit_element(DicomTag::new(0x0010, 0x0010), *b"PN", b"DOE ", true);
     let item_body = item(
         &child,
         u32::try_from(child.len()).expect("item fits u32"),
@@ -290,7 +295,12 @@ fn rejects_sequence_with_nonzero_delimiter_length() {
     let mut delimiter = sequence_delimiter(true);
     delimiter[4..8].copy_from_slice(&1_u32.to_le_bytes());
     sequence_body.extend_from_slice(&delimiter);
-    let sequence = explicit_sequence(Tag(0x0008, 0x1110), &sequence_body, UNDEFINED_LENGTH, true);
+    let sequence = explicit_sequence(
+        DicomTag::new(0x0008, 0x1110),
+        &sequence_body,
+        UNDEFINED_LENGTH,
+        true,
+    );
     let data = part10(&sequence, "1.2.840.10008.1.2.1");
 
     let error = validate_part10(&data, &ParseBudget::DEFAULT).expect_err("bad delimiter");
@@ -314,13 +324,10 @@ fn rejects_truncated_deflated_dataset() {
 
 #[test]
 fn selected_primitives_borrow_original_bytes_and_ignore_nested_tags() {
-    use crate::{scan_part10_attributes, DicomTag};
-    let scalar = Tag(0x0028, 0x0010);
-    let nested_only = Tag(0x0028, 0x0011);
-    let sequence = Tag(0x5200, 0x9229);
-    let scalar_key = DicomTag::new(scalar.group(), scalar.element());
-    let nested_key = DicomTag::new(nested_only.group(), nested_only.element());
-    let sequence_key = DicomTag::new(sequence.group(), sequence.element());
+    use crate::scan_part10_attributes;
+    let scalar = DicomTag::new(0x0028, 0x0010);
+    let nested_only = DicomTag::new(0x0028, 0x0011);
+    let sequence_tag = DicomTag::new(0x5200, 0x9229);
 
     for (syntax, little) in [
         ("1.2.840.10008.1.2.1", true),
@@ -348,26 +355,26 @@ fn selected_primitives_borrow_original_bytes_and_ignore_nested_tags() {
         );
         let length = u32::try_from(item.len()).expect("short sequence");
         let sequence = if implicit {
-            implicit_sequence(sequence, &item, length, little)
+            implicit_sequence(sequence_tag, &item, length, little)
         } else {
-            explicit_sequence(sequence, &item, length, little)
+            explicit_sequence(sequence_tag, &item, length, little)
         };
         let mut dataset = encode(scalar, &order);
         dataset.extend_from_slice(&sequence);
         let encoded = part10(&dataset, syntax);
-        let request = [scalar_key, nested_key, sequence_key];
+        let request = [scalar, nested_only, sequence_tag];
         let parsed = scan_part10_attributes(&encoded, &ParseBudget::DEFAULT, request)
             .expect("bounded part 10");
         let borrowed = parsed
-            .primitive(scalar_key)
+            .primitive(scalar)
             .expect("scalar")
             .expect("selected rows");
         let expected = &encoded[encoded.len() - dataset.len() + 8..][..2];
         assert_eq!(parsed.transfer_syntax().uid(), syntax);
         assert_eq!(borrowed, &order);
         assert!(core::ptr::eq(borrowed, expected));
-        assert_eq!(parsed.primitive(nested_key).expect("absent"), None);
-        assert!(parsed.primitive(sequence_key).is_err());
+        assert_eq!(parsed.primitive(nested_only).expect("absent"), None);
+        assert!(parsed.primitive(sequence_tag).is_err());
         assert!(scan_part10_attributes(
             &encoded[..encoded.len() - 1],
             &ParseBudget::DEFAULT,

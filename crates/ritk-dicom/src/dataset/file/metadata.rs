@@ -85,7 +85,7 @@ impl FileMeta {
     /// # Errors
     /// Returns an error for invalid metadata or an output failure.
     pub fn write_header(&self, writer: impl Write) -> Result<()> {
-        super::wire::write::file_header(self, Some(&[0; 128]), writer)
+        crate::dataset::wire::write::file_header(self, Some(&[0; 128]), writer)
     }
 
     pub(crate) fn validate(&self) -> Result<()> {

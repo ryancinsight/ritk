@@ -1,12 +1,11 @@
 use std::borrow::Cow;
 use std::fmt::Display;
-use std::str::FromStr;
 
 use anyhow::{anyhow, bail, Result};
-use num_traits::NumCast;
 use smallvec::SmallVec;
 
-use super::PrimitiveValue;
+use super::numeric::BinaryNumber;
+use super::{DicomNumber, PrimitiveValue};
 
 impl PrimitiveValue {
     pub fn to_str(&self) -> Cow<'_, str> {
@@ -45,8 +44,8 @@ impl PrimitiveValue {
         Cow::Owned(text)
     }
 
-    fn numbers<T: NumCast + FromStr>(&self, maximum: usize) -> Result<SmallVec<[T; 2]>> {
-        fn cast<T: NumCast, U: NumCast + Copy>(
+    fn numbers<T: DicomNumber>(&self, maximum: usize) -> Result<SmallVec<[T; 2]>> {
+        fn cast<T: DicomNumber, U: Into<BinaryNumber> + Copy>(
             values: &[U],
             maximum: usize,
         ) -> Result<SmallVec<[T; 2]>> {
@@ -55,7 +54,7 @@ impl PrimitiveValue {
                 .take(maximum)
                 .enumerate()
                 .map(|(index, &value)| {
-                    T::from(value)
+                    T::from_binary(value.into())
                         .ok_or_else(|| anyhow!("DICOM numeric value {index} is out of range"))
                 })
                 .collect()
@@ -91,7 +90,7 @@ impl PrimitiveValue {
 
     /// # Errors
     /// The first value must exist and fit the requested numeric type.
-    pub fn to_num<T: NumCast + FromStr>(&self) -> Result<T> {
+    pub fn to_num<T: DicomNumber>(&self) -> Result<T> {
         self.numbers(1)?
             .into_iter()
             .next()
@@ -100,7 +99,7 @@ impl PrimitiveValue {
 
     /// # Errors
     /// Each component must fit the requested numeric type.
-    pub fn to_numbers<T: NumCast + FromStr>(&self) -> Result<Vec<T>> {
+    pub fn to_numbers<T: DicomNumber>(&self) -> Result<Vec<T>> {
         Ok(self.numbers(usize::MAX)?.into_vec())
     }
 }

@@ -15,6 +15,6 @@ pub use crate::DicomTag;
 pub use data::Dataset;
 pub use element::{DataElement, VR};
 pub use file::{DicomFile, FileMeta, FileMetaBuilder, IMPLEMENTATION_CLASS_UID};
-pub use primitive::PrimitiveValue;
+pub use primitive::{DicomNumber, PrimitiveValue};
 pub use sequence::{Length, PixelFragments, Sequence, Value};
 pub use smallvec::{smallvec, SmallVec};

@@ -20,6 +20,8 @@
   Implementations of `EncapsulatedFrameSource` return `Cow<[u8]>`
   so contiguous frames can be borrowed. Use
   `TransferSyntaxKind::is_encapsulated` for codec classification.
+  Bounds on numeric attribute access use the sealed DICOM number trait.
+  Integer targets check representability after truncating binary floats.
 - [arch] `ritk-io` uses the provider's `DicomTag`, dataset, and file
   types throughout. `StoredInstance::make_part10_bytes` returns a
   fallible result for invalid DIMSE metadata. The implementation class

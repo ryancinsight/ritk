@@ -14,12 +14,11 @@ license.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-bytes = "1"
-encoding_rs = "0.8"
-jxl-oxide = { version = "0.12", default-features = false }
+bytes.workspace = true
+encoding_rs.workspace = true
+jxl-oxide.workspace = true
 flate2 = { workspace = true }
-num-traits = "0.2"
-smallvec = "1"
+smallvec.workspace = true
 arrayvec = { workspace = true }
 consus-core = { workspace = true }
 moirai-pal = { workspace = true }

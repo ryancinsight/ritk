@@ -13,11 +13,17 @@
 - Explicit big-endian Part 10 parsing, writing, and stored-sample decode
   are covered at the provider boundary. Higher-level RITK I/O series
   loaders retain their existing explicit big-endian policy.
+- Borrowed catalog selection records at most one span per requested tag.
+  With the encoded input resident, 32 frames (16,777,690 encoded bytes)
+  use zero heap bytes for this selection and 16,790,724 bytes for an owned
+  parse. The checks cover both explicit byte orders, implicit little
+  endian, nested attributes, and truncation.
 - The reconciled workspace resolves from an empty lockfile state with one
   registry Aequitas 0.4.0, Eunomia 0.12.1, Leto 0.51.0, and Coeus 0.13.0.
   Across all targets and features, Chrono appears only through the independent
-  DIMSE test peer. All 43 native DICOM tests and normalized DICOM package
-  verification pass against the published provider versions. Registry
+  DIMSE test peer. The 650 focused DICOM, I/O, and Diffusion Scheme
+  tests pass, including scanner bounds, numeric VR boundaries, and real
+  DIMSE peers. Two opt-in tests remain outside this run. Registry
   publication follows under
   [RITK-REGISTRY-PUBLICATION-001](backlog/RITK-REGISTRY-PUBLICATION-001.md).
 

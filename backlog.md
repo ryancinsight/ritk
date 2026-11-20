@@ -1,33 +1,5 @@
 # RITK execution backlog
 
-<a id="ritk-native-dicom"></a>
-## RITK-NATIVE-DICOM — Own the dataset and DIMSE backend [arch] — done
-
-- The catalog uses a fixed-size set of top-level attribute spans obtained
-  during the existing bounded traversal. N selections retain at most N
-  borrowed value spans, independent of pixel data size. RITK DA repair
-  shares Horae's Gregorian validation.
-- Local evidence: 31 focused RITK DICOM tests pass. The borrow-identity
-  regression checks both explicit byte orders and implicit little endian,
-  distinguishes nested and compound values, and rejects truncated input.
-- The native SCU supplies C-ECHO, C-FIND, C-MOVE, and C-STORE transport.
-  The locked DICOM suite passes 524 selected tests including real independent
-  loopback peers. The prior command codec failed those peers until the PS3.7
-  command encoding and PS3.8 release frame were corrected.
-  On the merged main revision `73f66b716`, 561 selected tests pass,
-  including the independent loopback scenarios, with 31 outside the filter.
-- A 16,777,690-byte synthetic 32-frame file yields 16,790,724 allocated bytes
-  per full-object parse and zero for the identical borrowed tag selection.
-  The probe is scoped to selection with the encoded input already resident.
-- Delivered in `ritk-dicom` 0.5.0 and `ritk-io` 0.6.0. The native
-  dataset writer handles nested lengths, all previously supported frame
-  codecs, file metadata, and DIMSE framing. The implicit dictionary is
-  generated from PS3.6. See [ADR 0063](docs/adr/0063-native-dicom-dataset.md).
-- Locked continuation gate: 635 tests pass for `ritk-dicom`, `ritk-io`,
-  and `ritk-diffusion-scheme` with all features. The independent DIMSE
-  peer remains a dev dependency and retains its separate graph.
-- Release evidence follows [RITK-REGISTRY-PUBLICATION-001](backlog.md#RITK-REGISTRY-PUBLICATION-001).
-
 # Milestones
 <a id="M-viewer-reading"></a>
 ## M-viewer-reading — 0.2.0 — read a single study on the native shell

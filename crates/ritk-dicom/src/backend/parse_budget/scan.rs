@@ -399,3 +399,7 @@ impl<'input, Visit: FnMut(Event) -> Result<()>> Scanner<'input, Visit> {
         Ok(nested)
     }
 }
+
+#[cfg(test)]
+#[path = "tests_scan.rs"]
+mod tests_scan;
