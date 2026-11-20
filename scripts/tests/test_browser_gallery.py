@@ -610,9 +610,11 @@ class WindowPresetHelperTests(unittest.TestCase):
             mock.patch.object(browser_gallery_tools, "settle_canvas_input"),
             mock.patch.object(browser_gallery_tools, "_consume_trace", side_effect=event_batches),
         ):
-            gesture, clicks = browser_gallery_tools._gesture(client, "canvas-id", 4)
+            gesture, clicks, bounds = browser_gallery_tools._gesture(client, "canvas-id", 4)
 
         self.assertEqual(gesture, "three-click-measurement")
+        self.assertEqual(bounds, {"css_width": 446.6640625, "css_height": 82.4})
+        self.assertEqual(client.assert_snapshot_arguments, ["ritk-snap-axial", []])
         self.assertEqual(
             client.pointer_drags,
             [

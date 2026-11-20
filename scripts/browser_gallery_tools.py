@@ -257,7 +257,7 @@ def _gesture(
     client: WebDriverClient,
     canvas: str,
     index: int,
-) -> tuple[str, list[dict[str, Any]]]:
+) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
     """Perform one input-sensitive gesture for each stable tool index."""
     canvas_id = "ritk-snap-axial"
     ensure_canvas_visible(client, canvas_id)
@@ -276,19 +276,19 @@ def _gesture(
             raise BrowserRuntimeError("pan gesture collapsed after canvas bounds were applied")
         client.pointer_drag(canvas, drag_start, drag_end, source_id="ritk-tool-pan-0")
         settle_canvas_input(client)
-        return "pointer-drag", []
+        return "pointer-drag", [], canvas_state
     if index in (1, 2):
         if drag_start == drag_end:
             raise BrowserRuntimeError("viewport gesture collapsed after canvas bounds were applied")
         client.pointer_drag(canvas, drag_start, drag_end, source_id=f"ritk-tool-drag-{index}")
         settle_canvas_input(client)
-        return "pointer-drag", []
+        return "pointer-drag", [], canvas_state
     if index == 3:
         if length_start == length_end:
             raise BrowserRuntimeError("length gesture collapsed after canvas bounds were applied")
         _click_at(client, canvas, length_start, source_id="ritk-tool-length-0")
         _click_at(client, canvas, length_end, source_id="ritk-tool-length-1")
-        return "two-click-measurement", []
+        return "two-click-measurement", [], canvas_state
     if index == 4:
         positions = canvas_action_offsets(
             canvas_state,
@@ -306,7 +306,7 @@ def _gesture(
             )
             evidence["offset"] = list(position)
             click_evidence.append(evidence)
-        return "three-click-measurement", click_evidence
+        return "three-click-measurement", click_evidence, canvas_state
     if index in (5, 6, 7):
         requested = {
             5: ((64, -32), (128, 32)),
@@ -323,9 +323,9 @@ def _gesture(
             source_id=f"ritk-tool-annotation-{index}",
         )
         settle_canvas_input(client)
-        return "annotation-drag", []
+        return "annotation-drag", [], canvas_state
     _click_at(client, canvas, center, source_id=f"ritk-tool-click-{index}")
-    return "trusted-click", []
+    return "trusted-click", [], canvas_state
 
 
 def _write_tool_screenshots(client: WebDriverClient, directory: pathlib.Path) -> dict[str, Any]:
@@ -367,7 +367,7 @@ def capture_tool_gallery(client: WebDriverClient, output_directory: pathlib.Path
             selection_events = _require_events(_consume_trace(client), target="toolbar", types={"click"}, tool_index=index)
             if selected["controls"]["buttons"][index]["pressed"] is not True:
                 raise BrowserRuntimeError(f"tool palette did not select {label!r}")
-            gesture, click_evidence = _gesture(client, canvas, index)
+            gesture, click_evidence, canvas_bounds = _gesture(client, canvas, index)
             _wait_for_frame(client, selected)
             after = _snapshot(client)
             if click_evidence:
@@ -423,6 +423,7 @@ def capture_tool_gallery(client: WebDriverClient, output_directory: pathlib.Path
                     )
             actions.append({"index": index, "label": label, "selection": selection_events,
                             "gesture": gesture, "pointer": pointer_events,
+                            "canvas_bounds": canvas_bounds,
                             "generations": [canvas_state["generation"] for canvas_state in after["canvases"]],
                             "annotation_before": before_annotation,
                             "annotation_after": after_annotation})
