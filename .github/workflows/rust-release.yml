@@ -73,4 +73,17 @@ jobs:
     with:
       rust-toolchain: "1.97.0"
       semver-baseline-source: locked-registry
-      cohort-json: '{"ritk-spatial":"0.5.0","ritk-diffusion-scheme":"0.4.0","ritk-dicom":"0.4.0"}'
+      cohort-json: >-
+        {
+          "ritk-image": "0.5.0",
+          "ritk-jpeg": "0.4.0",
+          "ritk-metaimage": "0.3.0",
+          "ritk-mgh": "0.5.0",
+          "ritk-mif": "0.3.0",
+          "ritk-model": "0.4.0",
+          "ritk-png": "0.3.0",
+          "ritk-statistics": "0.6.0",
+          "ritk-tensor-ops": "0.3.0",
+          "ritk-tiff": "0.3.0",
+          "ritk-vtk": "0.4.0"
+        }
