@@ -2,11 +2,11 @@ use super::*;
 use crate::format::dicom::writer::DicomWriteError;
 use ritk_dicom::{EncapsulatedFrameSource, TransferSyntaxKind};
 
-fn unsigned_attribute(object: &dicom::object::DefaultDicomObject, tag: Tag) -> u16 {
+fn unsigned_attribute(object: &ritk_dicom::dataset::DicomFile, tag: DicomTag) -> u16 {
     object
         .element(tag)
         .expect("attribute exists")
-        .to_int()
+        .to_num()
         .expect("US value")
 }
 
@@ -51,22 +51,34 @@ fn multiframe_pixel_tags_match_each_payload_representation() {
             ..MultiFrameWriterConfig::default()
         };
         write_dicom_multiframe_native_with_config(&path, &image, &config).expect("write");
-        let object = dicom::object::open_file(&path).expect("parse emitted tags");
-        let bits = unsigned_attribute(&object, Tag(0x0028, 0x0100));
+        let object = ritk_dicom::dataset::DicomFile::open(&path).expect("parse emitted tags");
+        let bits = unsigned_attribute(&object, DicomTag::new(0x0028, 0x0100));
         let expected_bits = if syntax == TransferSyntaxKind::JpegBaseline {
             8
         } else {
             16
         };
         assert_eq!(bits, expected_bits, "{syntax:?}");
-        assert_eq!(unsigned_attribute(&object, Tag(0x0028, 0x0101)), bits);
-        assert_eq!(unsigned_attribute(&object, Tag(0x0028, 0x0102)), bits - 1);
-        assert_eq!(unsigned_attribute(&object, Tag(0x0028, 0x0103)), 0);
-        assert_eq!(unsigned_attribute(&object, Tag(0x0028, 0x0002)), 1);
+        assert_eq!(
+            unsigned_attribute(&object, DicomTag::new(0x0028, 0x0101)),
+            bits
+        );
+        assert_eq!(
+            unsigned_attribute(&object, DicomTag::new(0x0028, 0x0102)),
+            bits - 1
+        );
+        assert_eq!(
+            unsigned_attribute(&object, DicomTag::new(0x0028, 0x0103)),
+            0
+        );
+        assert_eq!(
+            unsigned_attribute(&object, DicomTag::new(0x0028, 0x0002)),
+            1
+        );
 
         if syntax == TransferSyntaxKind::ExplicitVrLittleEndian {
             let bytes = object
-                .element(Tag(0x7fe0, 0x0010))
+                .element(DicomTag::new(0x7fe0, 0x0010))
                 .expect("PixelData")
                 .value()
                 .to_bytes()

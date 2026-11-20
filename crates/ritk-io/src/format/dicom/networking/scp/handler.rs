@@ -9,8 +9,7 @@ use super::super::pdu::{
     AbortPdu, AbortSource, AssociateAcPdu, CommandType, FragmentPosition,
     ImplementationClassUidSubItem, ImplementationVersionNameSubItem, MaximumLengthSubItem,
     MessageControlHeader, PDataTfPdu, Pdu, PresentationContextItemAc, PresentationDataValueItem,
-    ReleaseRpPdu, UserInformation, APPLICATION_CONTEXT_NAME, RITK_IMPLEMENTATION_CLASS_UID,
-    RITK_IMPLEMENTATION_VERSION,
+    ReleaseRpPdu, UserInformation, APPLICATION_CONTEXT_NAME, RITK_IMPLEMENTATION_VERSION,
 };
 use super::config::{ScpConfig, StoredInstance};
 use crate::format::dicom::reader::types::literal_arraystring;
@@ -81,7 +80,9 @@ pub(super) fn handle_connection(
                     maximum_length_received: config.max_pdu_length,
                 },
                 implementation_class_uid: ImplementationClassUidSubItem {
-                    implementation_class_uid: literal_arraystring(RITK_IMPLEMENTATION_CLASS_UID),
+                    implementation_class_uid: literal_arraystring(
+                        ritk_dicom::dataset::IMPLEMENTATION_CLASS_UID,
+                    ),
                 },
                 implementation_version_name: Some(ImplementationVersionNameSubItem {
                     implementation_version_name: literal_arraystring(RITK_IMPLEMENTATION_VERSION),

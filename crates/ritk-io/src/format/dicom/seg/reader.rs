@@ -1,8 +1,8 @@
 use anyhow::{bail, Context, Result};
-use dicom::core::value::Value;
-use dicom::core::Tag;
-use dicom::object::InMemDicomObject;
-use ritk_dicom::{parse_file_with, DicomRsBackend};
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::DicomTag;
+use ritk_dicom::dataset::Value;
+use ritk_dicom::{parse_file_with, NativeBackend};
 use std::path::Path;
 
 use super::types::{
@@ -20,7 +20,7 @@ use crate::format::dicom::tag_parse::read_nested_scalar;
 pub fn read_dicom_seg<P: AsRef<Path>>(path: P) -> Result<DicomSegmentation> {
     let path = path.as_ref();
 
-    let obj = parse_file_with::<DicomRsBackend, _>(path)
+    let obj = parse_file_with::<NativeBackend, _>(path)
         .with_context(|| format!("open DICOM file: {}", path.display()))?;
 
     let sop = obj.meta().media_storage_sop_class_uid();
@@ -30,32 +30,32 @@ pub fn read_dicom_seg<P: AsRef<Path>>(path: P) -> Result<DicomSegmentation> {
     }
 
     let rows: usize = obj
-        .element(Tag(0x0028, 0x0010))
+        .element(DicomTag::new(0x0028, 0x0010))
         .ok()
         .and_then(|e| e.to_str().ok().and_then(|s| s.trim().parse().ok()))
         .ok_or_else(|| anyhow::anyhow!("missing or unparseable Rows (0028,0010)"))?;
 
     let cols: usize = obj
-        .element(Tag(0x0028, 0x0011))
+        .element(DicomTag::new(0x0028, 0x0011))
         .ok()
         .and_then(|e| e.to_str().ok().and_then(|s| s.trim().parse().ok()))
         .ok_or_else(|| anyhow::anyhow!("missing or unparseable Columns (0028,0011)"))?;
 
     let n_frames: usize = obj
-        .element(Tag(0x0028, 0x0008))
+        .element(DicomTag::new(0x0028, 0x0008))
         .ok()
-        .and_then(|e| e.to_int::<i32>().ok())
+        .and_then(|e| e.to_num::<i32>().ok())
         .map(|v| v.max(1) as usize)
         .unwrap_or(1);
 
     let bits_allocated: u16 = obj
-        .element(Tag(0x0028, 0x0100))
+        .element(DicomTag::new(0x0028, 0x0100))
         .ok()
         .and_then(|e| e.to_str().ok().and_then(|s| s.trim().parse().ok()))
         .unwrap_or(1);
 
     let segmentation_type = obj
-        .element(Tag(0x0062, 0x0001))
+        .element(DicomTag::new(0x0062, 0x0001))
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
         .map(|s| SegmentationType::from_dicom_str(&s))
@@ -76,7 +76,7 @@ pub fn read_dicom_seg<P: AsRef<Path>>(path: P) -> Result<DicomSegmentation> {
     let (image_orientation, pixel_spacing, slice_thickness) = parse_shared_functional_groups(&obj);
 
     let px_bytes = obj
-        .element(Tag(0x7FE0, 0x0010))
+        .element(DicomTag::new(0x7FE0, 0x0010))
         .context("missing PixelData (7FE0,0010)")?
         .to_bytes()
         .context("PixelData to_bytes")?;
@@ -125,9 +125,9 @@ fn parse_ds_backslash<const N: usize>(s: &str) -> Option<[f64; N]> {
 
 /// Navigate `item → seq_tag → items[0] → inner_tag` and parse as DS array.
 fn read_nested_ds<const N: usize>(
-    item: &InMemDicomObject,
-    seq_tag: Tag,
-    inner_tag: Tag,
+    item: &Dataset,
+    seq_tag: DicomTag,
+    inner_tag: DicomTag,
 ) -> Option<[f64; N]> {
     let elem = item.element(seq_tag).ok()?;
     if let Value::Sequence(seq) = elem.value() {
@@ -144,8 +144,8 @@ fn read_nested_ds<const N: usize>(
 }
 
 /// Extract `Vec<DicomSegmentInfo>` from SegmentSequence (0062,0002).
-fn parse_segment_sequence(obj: &InMemDicomObject) -> Vec<DicomSegmentInfo> {
-    let elem = match obj.element(Tag(0x0062, 0x0002)) {
+fn parse_segment_sequence(obj: &Dataset) -> Vec<DicomSegmentInfo> {
+    let elem = match obj.element(DicomTag::new(0x0062, 0x0002)) {
         Ok(e) => e,
         Err(_) => return Vec::new(),
     };
@@ -155,14 +155,14 @@ fn parse_segment_sequence(obj: &InMemDicomObject) -> Vec<DicomSegmentInfo> {
     };
     seq.items()
         .iter()
-        .map(|item: &InMemDicomObject| {
+        .map(|item: &Dataset| {
             let segment_number = item
-                .element(Tag(0x0062, 0x0004))
+                .element(DicomTag::new(0x0062, 0x0004))
                 .ok()
-                .and_then(|e| e.to_int::<u16>().ok())
+                .and_then(|e| e.to_num::<u16>().ok())
                 .unwrap_or(0);
             let segment_label = item
-                .element(Tag(0x0062, 0x0005))
+                .element(DicomTag::new(0x0062, 0x0005))
                 .ok()
                 .and_then(|e| {
                     e.to_str()
@@ -171,7 +171,7 @@ fn parse_segment_sequence(obj: &InMemDicomObject) -> Vec<DicomSegmentInfo> {
                 })
                 .unwrap_or_default();
             let segment_description = item
-                .element(Tag(0x0062, 0x0006))
+                .element(DicomTag::new(0x0062, 0x0006))
                 .ok()
                 .and_then(|e| {
                     e.to_str()
@@ -180,7 +180,7 @@ fn parse_segment_sequence(obj: &InMemDicomObject) -> Vec<DicomSegmentInfo> {
                 })
                 .filter(|s: &String| !s.is_empty());
             let algorithm_type = item
-                .element(Tag(0x0062, 0x0008))
+                .element(DicomTag::new(0x0062, 0x0008))
                 .ok()
                 .and_then(|e| {
                     e.to_str()
@@ -201,11 +201,11 @@ fn parse_segment_sequence(obj: &InMemDicomObject) -> Vec<DicomSegmentInfo> {
 
 /// Extract per-frame segment numbers and image positions from (5200,9230).
 fn parse_per_frame_functional_groups(
-    obj: &InMemDicomObject,
+    obj: &Dataset,
     n_frames: usize,
 ) -> (Vec<u16>, Vec<Option<[f64; 3]>>) {
-    let pf_items: Vec<InMemDicomObject> = obj
-        .element(Tag(0x5200, 0x9230))
+    let pf_items: Vec<Dataset> = obj
+        .element(DicomTag::new(0x5200, 0x9230))
         .ok()
         .and_then(|e| {
             if let Value::Sequence(seq) = e.value() {
@@ -222,15 +222,15 @@ fn parse_per_frame_functional_groups(
     for k in 0..n_frames {
         if let Some(pf_item) = pf_items.get(k) {
             let seg_num = pf_item
-                .element(Tag(0x0062, 0x000A))
+                .element(DicomTag::new(0x0062, 0x000A))
                 .ok()
                 .and_then(|e| {
                     if let Value::Sequence(seq) = e.value() {
                         seq.items().first().and_then(|inner| {
                             inner
-                                .element(Tag(0x0062, 0x000B))
+                                .element(DicomTag::new(0x0062, 0x000B))
                                 .ok()
-                                .and_then(|ie| ie.to_int::<u16>().ok())
+                                .and_then(|ie| ie.to_num::<u16>().ok())
                         })
                     } else {
                         None
@@ -238,7 +238,11 @@ fn parse_per_frame_functional_groups(
                 })
                 .unwrap_or(0);
 
-            let pos = read_nested_ds::<3>(pf_item, Tag(0x0020, 0x9113), Tag(0x0020, 0x0032));
+            let pos = read_nested_ds::<3>(
+                pf_item,
+                DicomTag::new(0x0020, 0x9113),
+                DicomTag::new(0x0020, 0x0032),
+            );
 
             seg_numbers.push(seg_num);
             positions.push(pos);
@@ -253,26 +257,39 @@ fn parse_per_frame_functional_groups(
 
 /// Extract orientation, pixel spacing, and slice thickness from shared FG (5200,9229).
 fn parse_shared_functional_groups(
-    obj: &InMemDicomObject,
+    obj: &Dataset,
 ) -> (Option<[f64; 6]>, Option<[f64; 2]>, Option<f64>) {
-    let shared_item: Option<InMemDicomObject> =
-        obj.element(Tag(0x5200, 0x9229)).ok().and_then(|e| {
-            if let Value::Sequence(seq) = e.value() {
-                seq.items().first().cloned()
-            } else {
-                None
-            }
-        });
+    let shared_item: Option<Dataset> =
+        obj.element(DicomTag::new(0x5200, 0x9229))
+            .ok()
+            .and_then(|e| {
+                if let Value::Sequence(seq) = e.value() {
+                    seq.items().first().cloned()
+                } else {
+                    None
+                }
+            });
 
     let item = match shared_item {
         Some(i) => i,
         None => return (None, None, None),
     };
 
-    let orientation = read_nested_ds::<6>(&item, Tag(0x0020, 0x9116), Tag(0x0020, 0x0037));
-    let pixel_spacing = read_nested_ds::<2>(&item, Tag(0x0028, 0x9110), Tag(0x0028, 0x0030));
-    let slice_thickness =
-        read_nested_scalar::<f64>(&item, Tag(0x0028, 0x9110), Tag(0x0018, 0x0050));
+    let orientation = read_nested_ds::<6>(
+        &item,
+        DicomTag::new(0x0020, 0x9116),
+        DicomTag::new(0x0020, 0x0037),
+    );
+    let pixel_spacing = read_nested_ds::<2>(
+        &item,
+        DicomTag::new(0x0028, 0x9110),
+        DicomTag::new(0x0028, 0x0030),
+    );
+    let slice_thickness = read_nested_scalar::<f64>(
+        &item,
+        DicomTag::new(0x0028, 0x9110),
+        DicomTag::new(0x0018, 0x0050),
+    );
 
     (orientation, pixel_spacing, slice_thickness)
 }

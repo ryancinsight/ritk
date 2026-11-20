@@ -1,10 +1,10 @@
 //! Scan a parsed object for identifiers that must not survive export.
 
 use super::{FileVerifyReport, VerifyIssue};
-use dicom::core::value::Value;
-use dicom::core::VR;
-use dicom::object::mem::InMemElement;
-use dicom::object::{FileDicomObject, InMemDicomObject};
+use ritk_dicom::dataset::DataElement;
+use ritk_dicom::dataset::Value;
+use ritk_dicom::dataset::VR;
+use ritk_dicom::dataset::{Dataset, DicomFile};
 
 /// How an element's text is compared with a prohibited value.
 enum Scanned {
@@ -42,7 +42,7 @@ fn occurs_as_word(text: &str, needle: &str) -> bool {
 /// dates, date-times and URIs are compared value by value, because a short
 /// identifier is a component of almost every UID. Numeric and binary
 /// representations are not read: a patient ID of `7` equals many row counts.
-fn scanned_text(element: &InMemElement) -> Option<Scanned> {
+fn scanned_text(element: &DataElement) -> Option<Scanned> {
     match element.vr() {
         VR::AE | VR::CS | VR::LO | VR::LT | VR::PN | VR::SH | VR::ST | VR::UC | VR::UT => {
             let text = element.to_str().ok()?;
@@ -70,11 +70,11 @@ fn holds(scanned: &Scanned, prohibited: &str) -> bool {
 }
 
 pub(super) fn scan_prohibited_values(
-    obj: &FileDicomObject<InMemDicomObject>,
+    obj: &DicomFile,
     prohibited: &[String],
     report: &mut FileVerifyReport,
 ) {
-    let mut pending: Vec<&InMemDicomObject> = vec![obj];
+    let mut pending: Vec<&Dataset> = vec![obj];
     while let Some(dataset) = pending.pop() {
         for element in dataset {
             if let Value::Sequence(sequence) = element.value() {

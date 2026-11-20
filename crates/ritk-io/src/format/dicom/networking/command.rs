@@ -10,8 +10,10 @@
 //! The first element MUST be (0000,0000) UL = Command Group Length (byte count
 //! of all remaining elements in group 0000).
 
+#[cfg(test)]
 use arrayvec::ArrayString;
 
+#[cfg(test)]
 use super::association::NetworkingError;
 
 // ── SOP Class UIDs ────────────────────────────────────────────────────────────
@@ -32,47 +34,45 @@ pub const EXPLICIT_VR_LE_TS: &str = "1.2.840.10008.1.2.1";
 
 // ── Command Field values (PS3.7 Table E.1-1) ─────────────────────────────────
 
-/// C-STORE-RQ command field.
-pub const C_STORE_RQ: u16 = 0x0001;
-/// C-STORE-RSP command field.
-pub const C_STORE_RSP: u16 = 0x8001;
 /// C-FIND-RQ command field.
+#[cfg(test)]
 pub const C_FIND_RQ: u16 = 0x0020;
 /// C-FIND-RSP command field.
+#[cfg(test)]
 pub const C_FIND_RSP: u16 = 0x8020;
 /// C-MOVE-RQ command field.
+#[cfg(test)]
 pub const C_MOVE_RQ: u16 = 0x0021;
 /// C-MOVE-RSP command field.
+#[cfg(test)]
 pub const C_MOVE_RSP: u16 = 0x8021;
-/// C-ECHO-RQ command field.
-pub const C_ECHO_RQ: u16 = 0x0030;
 /// C-ECHO-RSP command field.
+#[cfg(test)]
 pub const C_ECHO_RSP: u16 = 0x8030;
 
 // ── Command Data Set Type values (PS3.7 §9.3.1) ──────────────────────────────
 
 /// No accompanying dataset.
+#[cfg(test)]
 pub const NO_DATASET: u16 = 0x0101;
 /// Accompanying dataset present.
+#[cfg(test)]
 pub const HAS_DATASET: u16 = 0xFEFF;
 
 // ── Priority (PS3.7 §9.3.1) ──────────────────────────────────────────────────
-
-/// MEDIUM priority (0x0002). Used for all commands in this implementation.
-pub const PRIORITY_MEDIUM: u16 = 0x0002;
 
 // ── DIMSE status codes ────────────────────────────────────────────────────────
 
 /// Success (0x0000).
 pub const STATUS_SUCCESS: u16 = 0x0000;
 /// Pending — matches may still be outstanding (C-FIND/C-MOVE).
+#[cfg(test)]
 pub const STATUS_PENDING: u16 = 0xFF00;
-/// Pending with warning (C-MOVE sub-operation warning).
-pub const STATUS_PENDING_WARN: u16 = 0xFF01;
 
 // ── Value encoding helpers ────────────────────────────────────────────────────
 
 /// Write a UID string as IVR-LE UI value into `buf`: null-padded to even length.
+#[cfg(test)]
 pub fn encode_ui_into(buf: &mut Vec<u8>, uid: &str) {
     buf.extend_from_slice(uid.as_bytes());
     if !uid.len().is_multiple_of(2) {
@@ -104,10 +104,10 @@ pub fn encode_str(s: &str) -> Vec<u8> {
 /// Typed DIMSE command-element value that `build_command_pdu` encodes directly
 /// into the body buffer, eliminating per-element intermediate `Vec` allocations.
 #[derive(Debug, Clone)]
+#[cfg(test)]
 pub enum CommandElementValue<'a> {
     Us(u16),
     Ui(&'a str),
-    Str(&'a str),
 }
 
 // ── Command PDU construction ──────────────────────────────────────────────────
@@ -125,6 +125,7 @@ pub enum CommandElementValue<'a> {
 ///     (0x0000_0800, CommandElementValue::Us(NO_DATASET)),
 /// ]);
 /// ```
+#[cfg(test)]
 pub fn build_command_pdu(elements: &[(u32, CommandElementValue)]) -> Vec<u8> {
     let mut buf = Vec::with_capacity(256);
     build_command_pdu_into(&mut buf, elements);
@@ -135,6 +136,7 @@ pub fn build_command_pdu(elements: &[(u32, CommandElementValue)]) -> Vec<u8> {
 ///
 /// The buffer is extended with the encoded command set:
 /// (0000,0000) UL CommandGroupLength followed by the remaining elements.
+#[cfg(test)]
 pub fn build_command_pdu_into(buf: &mut Vec<u8>, elements: &[(u32, CommandElementValue)]) {
     // First pass: compute total body size for a single allocation.
     let body_size: usize = elements
@@ -142,7 +144,6 @@ pub fn build_command_pdu_into(buf: &mut Vec<u8>, elements: &[(u32, CommandElemen
         .map(|(_, v)| match v {
             CommandElementValue::Us(_) => 8 + 2,
             CommandElementValue::Ui(s) => 8 + padded_len(s),
-            CommandElementValue::Str(s) => 8 + padded_len(s),
         })
         .sum();
     buf.reserve(12 + body_size);
@@ -166,10 +167,6 @@ pub fn build_command_pdu_into(buf: &mut Vec<u8>, elements: &[(u32, CommandElemen
             CommandElementValue::Ui(uid) => {
                 buf.extend_from_slice(&(padded_len(uid) as u32).to_le_bytes());
                 encode_ui_into(buf, uid);
-            }
-            CommandElementValue::Str(s) => {
-                buf.extend_from_slice(&(padded_len(s) as u32).to_le_bytes());
-                encode_str_into(buf, s);
             }
         }
     }
@@ -202,6 +199,7 @@ pub fn build_dataset_ivr_le(elements: &[(u32, &[u8])]) -> Vec<u8> {
 
 /// Parsed fields from a received DIMSE command response PDV.
 #[derive(Debug, Default)]
+#[cfg(test)]
 pub struct CommandResponse {
     /// (0000,0100) Command Field.
     pub command_field: u16,
@@ -226,6 +224,7 @@ pub struct CommandResponse {
 /// Parse an IVR-LE encoded DIMSE command PDV body into a `CommandResponse`.
 ///
 /// Returns `Err(NetworkingError::ParseError)` if (0000,0100) is absent.
+#[cfg(test)]
 pub fn parse_command_response(data: &[u8]) -> Result<CommandResponse, NetworkingError> {
     let mut resp = CommandResponse {
         data_set_type: NO_DATASET,
@@ -326,4 +325,24 @@ pub fn parse_dataset_ivr_le(data: &[u8]) -> Vec<((u16, u16), Vec<u8>)> {
         cursor += len;
     }
     result
+}
+
+/// Encode a query/retrieve identifier using implicit VR little endian.
+pub(super) fn encode_query_identifier<'a>(
+    level: &str,
+    keys: impl IntoIterator<Item = (u16, u16, &'a str)>,
+) -> Vec<u8> {
+    let mut values = vec![(0x0008_0052, encode_str(level))];
+    values.extend(keys.into_iter().map(|(group, element, value)| {
+        (
+            (u32::from(group) << 16) | u32::from(element),
+            encode_str(value),
+        )
+    }));
+    values.sort_by_key(|(tag, _)| *tag);
+    let borrowed = values
+        .iter()
+        .map(|(tag, bytes)| (*tag, bytes.as_slice()))
+        .collect::<Vec<_>>();
+    build_dataset_ivr_le(&borrowed)
 }

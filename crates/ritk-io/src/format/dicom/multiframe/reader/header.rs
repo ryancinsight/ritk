@@ -5,9 +5,9 @@
 //! the two entry points that open a file for it.
 
 use anyhow::{Context, Result};
-use dicom::core::Tag;
-use dicom::object::InMemDicomObject;
-use ritk_dicom::{parse_file_with_budget, DicomRsBackend, PixelSignedness};
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::DicomTag;
+use ritk_dicom::{parse_file_with_budget, NativeBackend, PixelSignedness};
 
 use std::path::Path;
 
@@ -47,11 +47,8 @@ pub(crate) fn parse_ds_backslash<const N: usize>(s: &str) -> Option<[f64; N]> {
 /// - BitsStored is required and must be an unsigned scalar.
 /// - rescale_slope defaults to 1.0, rescale_intercept to 0.0 when absent.
 /// - per_frame is always Vec::new(); call extract_functional_groups separately.
-pub(crate) fn extract_multiframe_header(
-    path: &Path,
-    obj: &InMemDicomObject,
-) -> Result<MultiFrameInfo> {
-    let n_frames: usize = match obj.element(Tag(0x0028, 0x0008)) {
+pub(crate) fn extract_multiframe_header(path: &Path, obj: &Dataset) -> Result<MultiFrameInfo> {
+    let n_frames: usize = match obj.element(DicomTag::new(0x0028, 0x0008)) {
         Ok(element) => element
             .to_str()
             .ok()
@@ -61,37 +58,37 @@ pub(crate) fn extract_multiframe_header(
     };
 
     let rows: usize = obj
-        .element(Tag(0x0028, 0x0010))
+        .element(DicomTag::new(0x0028, 0x0010))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(0);
 
     let cols: usize = obj
-        .element(Tag(0x0028, 0x0011))
+        .element(DicomTag::new(0x0028, 0x0011))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(0);
 
     let bits_allocated: u16 = obj
-        .element(Tag(0x0028, 0x0100))
+        .element(DicomTag::new(0x0028, 0x0100))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(16);
 
-    let bits_stored = read_required_unsigned(obj, Tag(0x0028, 0x0101), "BitsStored")?;
+    let bits_stored = read_required_unsigned(obj, DicomTag::new(0x0028, 0x0101), "BitsStored")?;
 
     let samples_per_pixel: usize = obj
-        .element(Tag(0x0028, 0x0002))
+        .element(DicomTag::new(0x0028, 0x0002))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(1);
 
     let pixel_representation: PixelSignedness = obj
-        .element(Tag(0x0028, 0x0103))
+        .element(DicomTag::new(0x0028, 0x0103))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse().ok()) // parse u16 first
@@ -99,47 +96,47 @@ pub(crate) fn extract_multiframe_header(
         .unwrap_or(PixelSignedness::Unsigned);
 
     let pixel_spacing = obj
-        .element(Tag(0x0028, 0x0030))
+        .element(DicomTag::new(0x0028, 0x0030))
         .ok()
         .and_then(|e| e.to_str().ok().and_then(|s| parse_ds_backslash::<2>(&s)));
 
     let frame_thickness = obj
-        .element(Tag(0x0018, 0x0050))
+        .element(DicomTag::new(0x0018, 0x0050))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse::<f64>().ok());
 
     let modality = obj
-        .element(Tag(0x0008, 0x0060))
+        .element(DicomTag::new(0x0008, 0x0060))
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| cs_to_arraystring(s.trim())))
         .filter(|s| !s.is_empty());
 
     let sop_class_uid = obj
-        .element(Tag(0x0008, 0x0016))
+        .element(DicomTag::new(0x0008, 0x0016))
         .ok()
         .and_then(|e| e.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s)))
         .filter(|s| !s.is_empty());
 
     let image_position = obj
-        .element(Tag(0x0020, 0x0032))
+        .element(DicomTag::new(0x0020, 0x0032))
         .ok()
         .and_then(|e| e.to_str().ok().and_then(|s| parse_ds_backslash::<3>(&s)));
 
     let image_orientation = obj
-        .element(Tag(0x0020, 0x0037))
+        .element(DicomTag::new(0x0020, 0x0037))
         .ok()
         .and_then(|e| e.to_str().ok().and_then(|s| parse_ds_backslash::<6>(&s)));
 
     let rescale_slope: f64 = obj
-        .element(Tag(0x0028, 0x1053))
+        .element(DicomTag::new(0x0028, 0x1053))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(1.0);
 
     let rescale_intercept: f64 = obj
-        .element(Tag(0x0028, 0x1052))
+        .element(DicomTag::new(0x0028, 0x1052))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse().ok())
@@ -168,7 +165,7 @@ pub(crate) fn extract_multiframe_header(
 
 pub(crate) fn read_multiframe_info_from_object(
     path: &Path,
-    obj: &InMemDicomObject,
+    obj: &Dataset,
 ) -> Result<MultiFrameInfo> {
     reject_temporal_organization(path, obj)?;
     let mut info = extract_multiframe_header(path, obj)?;
@@ -179,7 +176,7 @@ pub(crate) fn read_multiframe_info_from_object(
 /// Read summary information from a multi-frame DICOM file without pixel data.
 pub fn read_multiframe_info(path: impl AsRef<Path>) -> Result<MultiFrameInfo> {
     let path = path.as_ref();
-    let obj = parse_file_with_budget::<DicomRsBackend, _>(path, &DicomReadBudget::DEFAULT.parser())
+    let obj = parse_file_with_budget::<NativeBackend, _>(path, &DicomReadBudget::DEFAULT.parser())
         .with_context(|| format!("failed to open DICOM file {:?}", path))?;
     read_multiframe_info_from_object(path, &obj)
 }

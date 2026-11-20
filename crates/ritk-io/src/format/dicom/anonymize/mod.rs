@@ -10,7 +10,7 @@
 //!
 //! # Invariants
 //! - Non-DICOM files in directory mode are skipped silently.
-//! - Tag actions and private-tag removal are applied at every sequence nesting
+//! - DicomTag actions and private-tag removal are applied at every sequence nesting
 //!   level, not only to top-level elements.
 //! - The file meta group keeps its transfer syntax, SOP class and
 //!   implementation identifiers; its Media Storage SOP Instance UID is set to
@@ -68,12 +68,10 @@ pub enum CleaningPolicy {
     Clean,
 }
 
-use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{Context, Result};
-use dicom::core::header::Header;
-use dicom::core::value::{DataSetSequence, Value};
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::{open_file, FileDicomObject, InMemDicomObject};
+use ritk_dicom::dataset::Value;
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+use ritk_dicom::dataset::{Dataset, DicomFile};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -157,7 +155,7 @@ pub enum AnonymizeError {
     #[error("private element {tag} at sequence depth {depth} survived removal")]
     PrivateTagRetained {
         /// Address of the element that survived.
-        tag: Tag,
+        tag: DicomTag,
         /// Nesting level it was found at; `0` is the top-level data set.
         depth: u32,
     },
@@ -169,7 +167,7 @@ pub enum AnonymizeError {
     )]
     SequenceNotTraversed {
         /// Address of the sequence that could not be traversed.
-        tag: Tag,
+        tag: DicomTag,
         /// Nesting level it was found at; `0` is the top-level data set.
         depth: u32,
     },
@@ -282,8 +280,8 @@ pub(crate) fn generate_uid_from_hash(original: &str, salt: &str) -> String {
 /// For `ReplaceUid`: hashes the original UID string deterministically.
 /// For `Remove`: silently tolerates absent elements.
 fn apply_action(
-    obj: &mut InMemDicomObject,
-    tag: Tag,
+    obj: &mut Dataset,
+    tag: DicomTag,
     action: TagAction,
     opts: &AnonymizeOptions,
     result: &mut AnonymizeResult,
@@ -292,7 +290,7 @@ fn apply_action(
     match action {
         TagAction::Keep => {}
         TagAction::Remove => {
-            if obj.remove_element(tag) {
+            if obj.remove_element(tag).is_some() {
                 result.tags_deleted += 1;
             }
         }
@@ -300,9 +298,15 @@ fn apply_action(
             // Extract VR before the mutable put; VR is Copy so the borrow ends.
             let vr = obj.element(tag).map(|e| e.vr()).unwrap_or(VR::LO);
             let val: &str = match tag {
-                Tag(0x0010, 0x0010) => &opts.patient_name, // PatientName
-                Tag(0x0010, 0x0020) => &opts.patient_id,   // PatientID
-                _ => &opts.patient_name,                   // default dummy
+                DicomTag {
+                    group: 0x0010,
+                    element: 0x0010,
+                } => &opts.patient_name, // PatientName
+                DicomTag {
+                    group: 0x0010,
+                    element: 0x0020,
+                } => &opts.patient_id, // PatientID
+                _ => &opts.patient_name, // default dummy
             };
             // `put` yields the element it displaced, so a suppressed value is
             // counted from the replacement itself rather than from a presence
@@ -386,8 +390,8 @@ const MAX_SEQUENCE_DEPTH: u32 = 64;
 /// sequences still below it. `result` then describes a partial pass and the
 /// caller must discard the object.
 fn anonymize_dataset(
-    dataset: &mut InMemDicomObject,
-    tag_actions: &[(Tag, TagAction)],
+    dataset: &mut Dataset,
+    tag_actions: &[(DicomTag, TagAction)],
     options: &AnonymizeOptions,
     result: &mut AnonymizeResult,
     uid_map: &mut HashMap<String, String>,
@@ -404,17 +408,17 @@ fn anonymize_dataset(
         // Collect private tag addresses first to avoid borrow conflicts.
         // DICOM private elements have odd group numbers.
         // Group 0x0002 (file meta-header) is always excluded.
-        let private_tags: Vec<Tag> = dataset
+        let private_tags: Vec<DicomTag> = dataset
             .iter()
             .map(|e| e.tag())
-            .filter(|t| t.group() & 1 == 1 && t.group() != 0x0002)
+            .filter(|t| t.group & 1 == 1 && t.group != 0x0002)
             .collect();
         for tag in private_tags {
             // The address was just read from this data set, so a removal that
             // reports nothing removed means the element is still there. Counting
             // the survey instead would credit the report with a removal that did
             // not happen, which is the one direction this report must not err in.
-            if !dataset.remove_element(tag) {
+            if dataset.remove_element(tag).is_none() {
                 return Err(AnonymizeError::PrivateTagRetained { tag, depth });
             }
             result.private_tags_removed += 1;
@@ -423,7 +427,7 @@ fn anonymize_dataset(
 
     // Sequence addresses are collected before mutation so the data set is not
     // iterated while it is being modified.
-    let sequence_tags: Vec<Tag> = dataset
+    let sequence_tags: Vec<DicomTag> = dataset
         .iter()
         .filter(|e| matches!(e.value(), Value::Sequence(_)))
         .map(|e| e.tag())
@@ -446,24 +450,14 @@ fn anonymize_dataset(
         // failing either check means the element moved under the walk, leaving
         // the data sets it holds unvisited.
         let element = dataset
-            .element(tag)
-            .cloned()
-            .map_err(|_| AnonymizeError::SequenceNotTraversed { tag, depth })?;
-        let vr = element.vr();
-        let Value::Sequence(sequence) = element.into_value() else {
+            .get_mut(tag)
+            .ok_or(AnonymizeError::SequenceNotTraversed { tag, depth })?;
+        let Value::Sequence(sequence) = element.value_mut() else {
             return Err(AnonymizeError::SequenceNotTraversed { tag, depth });
         };
-
-        let mut items: Vec<InMemDicomObject> = sequence.into_items().into_iter().collect();
-        for item in &mut items {
+        for item in sequence.items_mut() {
             anonymize_dataset(item, tag_actions, options, result, uid_map, depth + 1)?;
         }
-
-        dataset.put(DataElement::new(
-            tag,
-            vr,
-            Value::Sequence(DataSetSequence::from(items)),
-        ));
     }
 
     Ok(())
@@ -498,14 +492,14 @@ fn anonymize_dataset(
 /// that case, so partially de-identified data cannot be mistaken for a clean
 /// result.
 pub fn anonymize_object(
-    mut obj: FileDicomObject<InMemDicomObject>,
+    mut obj: DicomFile,
     options: &AnonymizeOptions,
-) -> Result<(FileDicomObject<InMemDicomObject>, AnonymizeResult)> {
+) -> Result<(DicomFile, AnonymizeResult)> {
     let mut result = AnonymizeResult::default();
     let tag_actions = options.profile.tag_actions();
     let mut uid_map: HashMap<String, String> = HashMap::with_capacity(tag_actions.len());
 
-    // Tag actions and private-tag removal are applied to the top-level data set
+    // DicomTag actions and private-tag removal are applied to the top-level data set
     // and to every data set nested inside a sequence. Private tags are removed
     // before pixel data handling below, so a private pixel data block is not
     // removed after it has already been zeroed.
@@ -519,7 +513,7 @@ pub fn anonymize_object(
     )?;
 
     if options.clean_pixel_data == CleaningPolicy::Clean {
-        let pixel_tag = Tag(0x7FE0, 0x0010);
+        let pixel_tag = DicomTag::new(0x7FE0, 0x0010);
         // Extract VR before the second element() call; VR is Copy.
         let vr = obj.element(pixel_tag).map(|e| e.vr()).unwrap_or(VR::OW);
         // Obtain byte count without retaining a borrow of obj.
@@ -529,8 +523,7 @@ pub fn anonymize_object(
             .and_then(|e| e.to_bytes().ok().map(|b| b.len()))
             .unwrap_or(0);
         if len > 0 {
-            let zeros =
-                PrimitiveValue::U8(dicom::core::smallvec::SmallVec::from_vec(vec![0u8; len]));
+            let zeros = PrimitiveValue::from(vec![0u8; len]);
             obj.put(DataElement::new(pixel_tag, vr, zeros));
         }
     }
@@ -559,7 +552,7 @@ pub fn anonymize_dicom_file(
 ) -> Result<AnonymizeResult> {
     let input_path = input_path.as_ref();
     let output_path = output_path.as_ref();
-    let obj = open_file(input_path)
+    let obj = ritk_dicom::dataset::DicomFile::open(input_path)
         .with_context(|| format!("Failed to open DICOM file {input_path:?}"))?;
     let (anon, result) = anonymize_object(obj, options)?;
     anon.write_to_file(output_path)
@@ -609,7 +602,7 @@ pub fn anonymize_dicom_directory(
 
     for input_path in &entries {
         // Non-DICOM files are skipped silently without counting.
-        let obj = match open_file(input_path) {
+        let obj = match ritk_dicom::dataset::DicomFile::open(input_path) {
             Ok(o) => o,
             Err(_) => continue,
         };

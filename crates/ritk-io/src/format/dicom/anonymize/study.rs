@@ -19,13 +19,13 @@ use super::verify::{verify_dicom_instances, VerifyIssue, VerifyOptions};
 use super::{anonymize_object, AnonymizeOptions};
 use crate::format::dicom::export_source::{read_source, remove_written, Source};
 use crate::format::dicom::export_tree::{io_error, ExportTree, ExportTreeError};
-use dicom::core::Tag;
-use dicom::object::{FileDicomObject, InMemDicomObject};
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::dataset::DicomTag;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-const PATIENT_NAME: Tag = Tag(0x0010, 0x0010);
-const PATIENT_ID: Tag = Tag(0x0010, 0x0020);
+const PATIENT_NAME: DicomTag = DicomTag::new(0x0010, 0x0010);
+const PATIENT_ID: DicomTag = DicomTag::new(0x0010, 0x0020);
 
 /// What a completed study export wrote and left out.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -82,7 +82,7 @@ pub enum StudyAnonymizeError {
     },
 }
 
-fn identifier(object: &FileDicomObject<InMemDicomObject>, tag: Tag) -> Option<String> {
+fn identifier(object: &DicomFile, tag: DicomTag) -> Option<String> {
     let element = object.element(tag).ok()?;
     let text = element.to_str().ok()?;
     let value = text.trim_matches(|c: char| c.is_whitespace() || c == '\0');
@@ -103,7 +103,7 @@ fn failed(cause: StudyAnonymizeError, written: &[PathBuf]) -> StudyAnonymizeErro
 
 /// De-identify one parsed instance and write it to `target`.
 fn export_instance(
-    object: FileDicomObject<InMemDicomObject>,
+    object: DicomFile,
     source: &Path,
     target: &Path,
     options: &AnonymizeOptions,

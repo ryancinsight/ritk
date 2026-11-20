@@ -9,7 +9,7 @@ fn test_read_rt_struct_missing_file_returns_error() {
     let path = tmp.path().join("nonexistent.dcm");
     let result = read_rt_struct(&path);
     let msg = result
-        .expect_err("dicom-rs backend failed to parse")
+        .expect_err("the native dataset parser must reject malformed input")
         .to_string();
     assert!(
         msg.contains("nonexistent") || msg.contains("open") || msg.contains("No such"),
@@ -115,41 +115,41 @@ fn test_read_rt_struct_two_rois() {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("two_rois.dcm");
 
-    let mut roi_item2 = InMemDicomObject::new_empty();
+    let mut roi_item2 = Dataset::new();
     roi_item2.put(DataElement::new(
-        Tag(0x3006, 0x0022),
+        DicomTag::new(0x3006, 0x0022),
         VR::IS,
         PrimitiveValue::from("2"),
     ));
     roi_item2.put(DataElement::new(
-        Tag(0x3006, 0x0026),
+        DicomTag::new(0x3006, 0x0026),
         VR::LO,
         PrimitiveValue::from("PTV"),
     ));
 
-    let mut roi_item1 = InMemDicomObject::new_empty();
+    let mut roi_item1 = Dataset::new();
     roi_item1.put(DataElement::new(
-        Tag(0x3006, 0x0022),
+        DicomTag::new(0x3006, 0x0022),
         VR::IS,
         PrimitiveValue::from("1"),
     ));
     roi_item1.put(DataElement::new(
-        Tag(0x3006, 0x0026),
+        DicomTag::new(0x3006, 0x0026),
         VR::LO,
         PrimitiveValue::from("GTV"),
     ));
 
     // Insert ROI 2 first to exercise sort correctness.
-    let roi_seq = DataSetSequence::new(vec![roi_item2, roi_item1], Length::UNDEFINED);
+    let roi_seq = Sequence::new(vec![roi_item2, roi_item1], Length::Undefined);
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x3006, 0x0002),
+        DicomTag::new(0x3006, 0x0002),
         VR::LO,
         PrimitiveValue::from("TwoPlan"),
     ));
     obj.put(DataElement::new(
-        Tag(0x3006, 0x0020),
+        DicomTag::new(0x3006, 0x0020),
         VR::SQ,
         DicomValue::from(roi_seq),
     ));
@@ -171,45 +171,45 @@ fn test_read_rt_struct_roi_interpreted_type() {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("roi_type.dcm");
 
-    let mut roi_item = InMemDicomObject::new_empty();
+    let mut roi_item = Dataset::new();
     roi_item.put(DataElement::new(
-        Tag(0x3006, 0x0022),
+        DicomTag::new(0x3006, 0x0022),
         VR::IS,
         PrimitiveValue::from("1"),
     ));
     roi_item.put(DataElement::new(
-        Tag(0x3006, 0x0026),
+        DicomTag::new(0x3006, 0x0026),
         VR::LO,
         PrimitiveValue::from("GTV"),
     ));
-    let roi_seq = DataSetSequence::new(vec![roi_item], Length::UNDEFINED);
+    let roi_seq = Sequence::new(vec![roi_item], Length::Undefined);
 
-    let mut obs_item = InMemDicomObject::new_empty();
+    let mut obs_item = Dataset::new();
     obs_item.put(DataElement::new(
-        Tag(0x3006, 0x0084),
+        DicomTag::new(0x3006, 0x0084),
         VR::IS,
         PrimitiveValue::from("1"),
     ));
     obs_item.put(DataElement::new(
-        Tag(0x3006, 0x00A4),
+        DicomTag::new(0x3006, 0x00A4),
         VR::CS,
         PrimitiveValue::from("GTV"),
     ));
-    let obs_seq = DataSetSequence::new(vec![obs_item], Length::UNDEFINED);
+    let obs_seq = Sequence::new(vec![obs_item], Length::Undefined);
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x3006, 0x0002),
+        DicomTag::new(0x3006, 0x0002),
         VR::LO,
         PrimitiveValue::from("ObsPlan"),
     ));
     obj.put(DataElement::new(
-        Tag(0x3006, 0x0020),
+        DicomTag::new(0x3006, 0x0020),
         VR::SQ,
         DicomValue::from(roi_seq),
     ));
     obj.put(DataElement::new(
-        Tag(0x3006, 0x0080),
+        DicomTag::new(0x3006, 0x0080),
         VR::SQ,
         DicomValue::from(obs_seq),
     ));

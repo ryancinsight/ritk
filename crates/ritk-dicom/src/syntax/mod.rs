@@ -4,7 +4,6 @@
 //! - `from_uid(x.uid()) == x` for every non-unknown variant.
 //! - `is_native_uncompressed() -> !is_encapsulated()`.
 //! - `is_backend_codec_candidate() -> is_encapsulated()`.
-//! - `is_external_backend_codec_candidate() -> is_backend_codec_candidate()`.
 //! - `is_codec_supported() -> is_compressed()`.
 
 use arrayvec::ArrayString;
@@ -29,6 +28,15 @@ pub enum TransferSyntaxKind {
     JpegXlJpegRecompression,
     JpegXl,
     Unknown(ArrayString<64>),
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum Codec {
+    Jpeg,
+    JpegLs,
+    Jpeg2000,
+    Rle,
+    JpegXl,
 }
 
 impl TransferSyntaxKind {
@@ -77,21 +85,25 @@ impl TransferSyntaxKind {
     }
 
     pub fn is_encapsulated(&self) -> bool {
-        matches!(
-            self,
+        self.codec().is_some()
+    }
+
+    pub(crate) fn codec(&self) -> Option<Codec> {
+        Some(match self {
             Self::JpegBaseline
-                | Self::JpegExtended
-                | Self::JpegLosslessNonHierarchical
-                | Self::JpegLosslessFirstOrderPrediction
-                | Self::JpegLsLossless
-                | Self::JpegLsLossy
-                | Self::Jpeg2000Lossless
-                | Self::Jpeg2000Lossy
-                | Self::RleLossless
-                | Self::JpegXlLossless
-                | Self::JpegXlJpegRecompression
-                | Self::JpegXl
-        )
+            | Self::JpegExtended
+            | Self::JpegLosslessNonHierarchical
+            | Self::JpegLosslessFirstOrderPrediction => Codec::Jpeg,
+            Self::JpegLsLossless | Self::JpegLsLossy => Codec::JpegLs,
+            Self::Jpeg2000Lossless | Self::Jpeg2000Lossy => Codec::Jpeg2000,
+            Self::RleLossless => Codec::Rle,
+            Self::JpegXlLossless | Self::JpegXlJpegRecompression | Self::JpegXl => Codec::JpegXl,
+            Self::ImplicitVrLittleEndian
+            | Self::ExplicitVrLittleEndian
+            | Self::ExplicitVrBigEndian
+            | Self::DeflatedExplicitVrLittleEndian
+            | Self::Unknown(_) => return None,
+        })
     }
 
     pub fn is_compressed(&self) -> bool {
@@ -117,7 +129,9 @@ impl TransferSyntaxKind {
     pub fn is_native_uncompressed(&self) -> bool {
         matches!(
             self,
-            Self::ImplicitVrLittleEndian | Self::ExplicitVrLittleEndian
+            Self::ImplicitVrLittleEndian
+                | Self::ExplicitVrLittleEndian
+                | Self::DeflatedExplicitVrLittleEndian
         )
     }
 
@@ -133,39 +147,17 @@ impl TransferSyntaxKind {
         self.is_encapsulated()
     }
 
-    pub fn is_external_backend_codec_candidate(&self) -> bool {
-        self.is_backend_codec_candidate() && !self.is_native_ritk_codec()
-    }
-
     /// Returns true if the transfer syntax is a JPEG-LS variant (Lossless or Lossy).
     pub fn is_jpeg_ls(&self) -> bool {
-        matches!(self, Self::JpegLsLossless | Self::JpegLsLossy)
+        matches!(self.codec(), Some(Codec::JpegLs))
     }
 
     pub fn is_codec_supported(&self) -> bool {
         self.is_backend_codec_candidate()
     }
 
-    pub fn is_native_ritk_codec(&self) -> bool {
-        self.is_native_jpeg_codec()
-            || matches!(
-                self,
-                Self::RleLossless
-                    | Self::JpegLsLossless
-                    | Self::JpegLsLossy
-                    | Self::Jpeg2000Lossless
-                    | Self::Jpeg2000Lossy
-            )
-    }
-
     pub fn is_native_jpeg_codec(&self) -> bool {
-        matches!(
-            self,
-            Self::JpegBaseline
-                | Self::JpegExtended
-                | Self::JpegLosslessNonHierarchical
-                | Self::JpegLosslessFirstOrderPrediction
-        )
+        matches!(self.codec(), Some(Codec::Jpeg))
     }
 }
 
@@ -225,10 +217,6 @@ mod tests {
                 assert!(syntax.is_compressed());
                 assert!(syntax.is_codec_supported());
             }
-            if syntax.is_external_backend_codec_candidate() {
-                assert!(syntax.is_backend_codec_candidate());
-                assert!(!syntax.is_native_ritk_codec());
-            }
         }
     }
 
@@ -248,7 +236,7 @@ mod tests {
     }
 
     #[test]
-    fn native_ritk_codec_predicate_tracks_owned_codec_surface() {
+    fn jpeg_predicate_tracks_the_jpeg_family() {
         for syntax in variants() {
             match syntax {
                 TransferSyntaxKind::JpegBaseline
@@ -256,61 +244,9 @@ mod tests {
                 | TransferSyntaxKind::JpegLosslessNonHierarchical
                 | TransferSyntaxKind::JpegLosslessFirstOrderPrediction => {
                     assert!(syntax.is_native_jpeg_codec());
-                    assert!(syntax.is_native_ritk_codec());
-                }
-                TransferSyntaxKind::RleLossless => {
-                    assert!(!syntax.is_native_jpeg_codec());
-                    assert!(syntax.is_native_ritk_codec());
                 }
                 _ => {
                     assert!(!syntax.is_native_jpeg_codec());
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn external_backend_predicate_excludes_native_ritk_codecs() {
-        for syntax in variants() {
-            match syntax {
-                // JpegXl variants remain external-only (no RITK-native decoder).
-                TransferSyntaxKind::JpegXlLossless
-                | TransferSyntaxKind::JpegXlJpegRecompression
-                | TransferSyntaxKind::JpegXl => {
-                    assert!(
-                        syntax.is_external_backend_codec_candidate(),
-                        "{:?} must be external candidate",
-                        syntax
-                    );
-                    assert!(
-                        !syntax.is_native_ritk_codec(),
-                        "{:?} must not be native RITK codec",
-                        syntax
-                    );
-                }
-                // JPEG baseline/LS (lossless + near-lossless)/RLE/JPEG2000 are RITK-native.
-                TransferSyntaxKind::JpegBaseline
-                | TransferSyntaxKind::JpegExtended
-                | TransferSyntaxKind::JpegLosslessNonHierarchical
-                | TransferSyntaxKind::JpegLosslessFirstOrderPrediction
-                | TransferSyntaxKind::JpegLsLossless
-                | TransferSyntaxKind::JpegLsLossy
-                | TransferSyntaxKind::RleLossless
-                | TransferSyntaxKind::Jpeg2000Lossless
-                | TransferSyntaxKind::Jpeg2000Lossy => {
-                    assert!(
-                        syntax.is_native_ritk_codec(),
-                        "{:?} must be native RITK codec",
-                        syntax
-                    );
-                    assert!(
-                        !syntax.is_external_backend_codec_candidate(),
-                        "{:?} must not be external candidate when native",
-                        syntax
-                    );
-                }
-                _ => {
-                    assert!(!syntax.is_external_backend_codec_candidate());
                 }
             }
         }

@@ -1,20 +1,17 @@
 //! Geometry coherence of one parsed object: item 4 of the gate.
 
 use super::{FileVerifyReport, VerifyIssue};
-use dicom::core::Tag;
-use dicom::object::{FileDicomObject, InMemDicomObject};
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::dataset::DicomTag;
 
 /// Float Pixel Data, Double Float Pixel Data and Pixel Data.
-const PIXEL_DATA_ELEMENTS: [Tag; 3] = [
-    Tag(0x7FE0, 0x0008),
-    Tag(0x7FE0, 0x0009),
-    Tag(0x7FE0, 0x0010),
+const PIXEL_DATA_ELEMENTS: [DicomTag; 3] = [
+    DicomTag::new(0x7FE0, 0x0008),
+    DicomTag::new(0x7FE0, 0x0009),
+    DicomTag::new(0x7FE0, 0x0010),
 ];
 
-pub(super) fn check_geometry(
-    obj: &FileDicomObject<InMemDicomObject>,
-    report: &mut FileVerifyReport,
-) {
+pub(super) fn check_geometry(obj: &DicomFile, report: &mut FileVerifyReport) {
     if PIXEL_DATA_ELEMENTS
         .iter()
         .all(|tag| obj.element(*tag).is_err())
@@ -22,24 +19,24 @@ pub(super) fn check_geometry(
         return;
     }
     let rows = obj
-        .element(Tag(0x0028, 0x0010))
+        .element(DicomTag::new(0x0028, 0x0010))
         .ok()
-        .and_then(|e| e.to_int::<u32>().ok());
+        .and_then(|e| e.to_num::<u32>().ok());
     let cols = obj
-        .element(Tag(0x0028, 0x0011))
+        .element(DicomTag::new(0x0028, 0x0011))
         .ok()
-        .and_then(|e| e.to_int::<u32>().ok());
+        .and_then(|e| e.to_num::<u32>().ok());
     let bits = obj
-        .element(Tag(0x0028, 0x0100))
+        .element(DicomTag::new(0x0028, 0x0100))
         .ok()
-        .and_then(|e| e.to_int::<u32>().ok());
+        .and_then(|e| e.to_num::<u32>().ok());
     let samples = obj
-        .element(Tag(0x0028, 0x0002))
+        .element(DicomTag::new(0x0028, 0x0002))
         .ok()
-        .and_then(|e| e.to_int::<u32>().ok())
+        .and_then(|e| e.to_num::<u32>().ok())
         .unwrap_or(1);
     let pixel_bytes = obj
-        .element(Tag(0x7FE0, 0x0010))
+        .element(DicomTag::new(0x7FE0, 0x0010))
         .ok()
         .and_then(|e| e.to_bytes().ok())
         .map(|b| b.len());

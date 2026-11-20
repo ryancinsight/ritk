@@ -14,16 +14,16 @@
 
 use super::verify::VerifyIssue;
 use crate::format::dicom::identity::uid_is_valid;
-use dicom::core::Tag;
-use dicom::object::{FileDicomObject, InMemDicomObject};
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::dataset::DicomTag;
 
-const SOP_INSTANCE_UID: Tag = Tag(0x0008, 0x0018);
+const SOP_INSTANCE_UID: DicomTag = DicomTag::new(0x0008, 0x0018);
 
 fn unpadded(uid: &str) -> &str {
     uid.trim_end_matches(['\0', ' '])
 }
 
-fn data_set_uid(object: &FileDicomObject<InMemDicomObject>) -> Option<String> {
+fn data_set_uid(object: &DicomFile) -> Option<String> {
     let element = object.element(SOP_INSTANCE_UID).ok()?;
     let text = element.to_str().ok()?;
     let uid = unpadded(&text);
@@ -35,16 +35,13 @@ fn data_set_uid(object: &FileDicomObject<InMemDicomObject>) -> Option<String> {
 /// (0002,0000).
 ///
 /// Nothing changes when the data set's SOPInstanceUID is absent, empty or not
-/// a single UID (PS3.5 section 9.1), because the dicom-rs reader refuses a
-/// file whose (0002,0003) is not a UID. [`media_storage_uid_issue`] reports a
+/// a single UID (PS3.5 section 9.1), which file metadata requires. [`media_storage_uid_issue`] reports a
 /// non-empty value left differing this way, and nothing for an absent or
 /// empty one.
 ///
 /// Returns whether the file meta group named another UID before the call;
 /// a value differing only in trailing padding is rewritten but not counted.
-pub(in crate::format::dicom) fn align_media_storage_uid(
-    object: &mut FileDicomObject<InMemDicomObject>,
-) -> bool {
+pub(in crate::format::dicom) fn align_media_storage_uid(object: &mut DicomFile) -> bool {
     let Some(uid) = data_set_uid(object).filter(|uid| uid_is_valid(uid)) else {
         return false;
     };
@@ -57,11 +54,11 @@ pub(in crate::format::dicom) fn align_media_storage_uid(
 /// Information Creator UID and Private Information from the file meta group
 /// and recompute the group length (0002,0000). Every top-level data set
 /// element of group 0002 is removed as well, whatever its element number.
-pub(super) fn remove_origin(object: &mut FileDicomObject<InMemDicomObject>) {
-    let misplaced: Vec<Tag> = object
+pub(super) fn remove_origin(object: &mut DicomFile) {
+    let misplaced: Vec<DicomTag> = object
         .iter()
-        .map(|element| element.header().tag)
-        .filter(|tag| tag.group() == 0x0002)
+        .map(|element| element.tag())
+        .filter(|tag| tag.group == 0x0002)
         .collect();
     for tag in misplaced {
         object.remove_element(tag);
@@ -77,9 +74,7 @@ pub(super) fn remove_origin(object: &mut FileDicomObject<InMemDicomObject>) {
 
 /// The issue raised when the file meta group names another instance than the
 /// data set does.
-pub(super) fn media_storage_uid_issue(
-    object: &FileDicomObject<InMemDicomObject>,
-) -> Option<VerifyIssue> {
+pub(super) fn media_storage_uid_issue(object: &DicomFile) -> Option<VerifyIssue> {
     let expected = data_set_uid(object)?;
     let found = object.meta().media_storage_sop_instance_uid();
     (found != expected).then(|| VerifyIssue::UidMismatch {

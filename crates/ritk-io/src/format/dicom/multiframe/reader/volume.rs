@@ -6,10 +6,10 @@
 
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
-use dicom::object::DefaultDicomObject;
 use ritk_core::image::Image;
+use ritk_dicom::dataset::DicomFile;
 use ritk_dicom::{
-    decode_frame_with, parse_file_with_budget, DecodeFrameRequest, DicomRsBackend, PixelLayout,
+    decode_frame_with, parse_file_with_budget, DecodeFrameRequest, NativeBackend, PixelLayout,
     TransferSyntaxKind,
 };
 use ritk_image::tensor::Backend;
@@ -99,7 +99,7 @@ pub fn load_dicom_multiframe_native<P: AsRef<Path>>(
 /// [`load_dicom_multiframe`] for the full decode contract.
 pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameVolume> {
     let path = path.as_ref();
-    let obj = parse_file_with_budget::<DicomRsBackend, _>(path, &DicomReadBudget::DEFAULT.parser())
+    let obj = parse_file_with_budget::<NativeBackend, _>(path, &DicomReadBudget::DEFAULT.parser())
         .with_context(|| format!("failed to open DICOM file {:?}", path))?;
 
     load_multiframe_flat_from_object(path, &obj, &DicomReadBudget::DEFAULT)
@@ -107,7 +107,7 @@ pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameV
 
 pub(crate) fn load_multiframe_flat_from_object(
     path: &Path,
-    obj: &DefaultDicomObject,
+    obj: &DicomFile,
     budget: &DicomReadBudget,
 ) -> Result<MultiFrameVolume> {
     reject_temporal_organization(path, obj)?;
@@ -199,7 +199,7 @@ pub(crate) fn load_multiframe_flat_from_object(
             .and_then(|pfi| pfi.rescale_intercept)
             .unwrap_or(info.rescale_intercept) as f32;
 
-        let frame = decode_frame_with::<DicomRsBackend>(
+        let frame = decode_frame_with::<NativeBackend>(
             obj,
             DecodeFrameRequest {
                 frame_index: u32::try_from(frame_idx)

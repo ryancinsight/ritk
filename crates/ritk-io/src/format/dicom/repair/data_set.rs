@@ -4,14 +4,11 @@
 mod tests;
 
 use super::value;
-use dicom::core::ops::{AttributeSelector, AttributeSelectorStep};
-use dicom::core::value::Value;
-use dicom::core::{PrimitiveValue, VR};
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::Value;
+use ritk_dicom::dataset::{PrimitiveValue, VR};
 
-/// Steps a selector may hold: `AttributeSelector::new` in dicom-core 0.10
-/// asserts fewer than 256.
-const MAX_SELECTOR_STEPS: usize = 255;
+const MAX_NESTING: usize = 254;
 
 /// Values rewritten in one data set, nested items included.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -28,20 +25,12 @@ pub struct RepairSummary {
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum RepairError {
-    /// A sequence nests deeper than an element address can express.
+    /// A sequence nests beyond the supported repair depth.
     #[error("sequences nest deeper than {limit} levels")]
     NestedTooDeep {
         /// Deepest nesting an address reaches.
         limit: usize,
     },
-}
-
-/// The rewrite of one element's value and how many of its values changed.
-struct Rewrite {
-    selector: AttributeSelector,
-    value: PrimitiveValue,
-    values: usize,
-    count: Count,
 }
 
 /// The summary field a value representation's rewrites are counted in.
@@ -79,56 +68,45 @@ fn rewritten(
     (changed > 0).then_some((value, changed))
 }
 
-/// Walk `object` and every nested item and list the rewrites its DA, TM and
-/// UI elements need.
-fn planned(object: &InMemDicomObject) -> Result<Vec<Rewrite>, RepairError> {
-    let mut rewrites = Vec::new();
-    let mut pending: Vec<(Vec<AttributeSelectorStep>, &InMemDicomObject)> =
-        vec![(Vec::new(), object)];
-    while let Some((path, data_set)) = pending.pop() {
-        if path.len() >= MAX_SELECTOR_STEPS {
-            return Err(RepairError::NestedTooDeep {
-                limit: MAX_SELECTOR_STEPS - 1,
-            });
+// Check the whole tree before applying any changes. The existing limit
+// keeps repair's all-or-nothing behavior for an in-memory object.
+fn check_depth(root: &Dataset) -> Result<(), RepairError> {
+    let mut pending = vec![(0, root)];
+    while let Some((depth, dataset)) = pending.pop() {
+        if depth > MAX_NESTING {
+            return Err(RepairError::NestedTooDeep { limit: MAX_NESTING });
         }
-        for element in data_set {
-            let tag = element.header().tag;
+        for element in dataset {
             if let Value::Sequence(sequence) = element.value() {
-                pending.extend((0_u32..).zip(sequence.items()).map(|(item, nested)| {
-                    let mut below = path.clone();
-                    below.push(AttributeSelectorStep::Nested { tag, item });
-                    (below, nested)
-                }));
-                continue;
+                pending.extend(sequence.items().iter().map(|item| (depth + 1, item)));
             }
-            let (padding, repair, count): (char, Repair, Count) = match element.vr() {
-                VR::DA => (' ', value::date, |summary| &mut summary.dates),
-                VR::TM => (' ', value::time, |summary| &mut summary.times),
-                VR::UI => ('\0', value::uid, |summary| &mut summary.uids),
-                _ => continue,
-            };
-            let Some((value, values)) = element
-                .value()
-                .primitive()
-                .and_then(|stored| rewritten(stored, padding, repair))
-            else {
-                continue;
-            };
-            let steps = path
-                .iter()
-                .copied()
-                .chain([AttributeSelectorStep::Tag(tag)]);
-            let selector = AttributeSelector::new(steps)
-                .expect("invariant: the steps end in a tag step and are not empty");
-            rewrites.push(Rewrite {
-                selector,
-                value,
-                values,
-                count,
-            });
         }
     }
-    Ok(rewrites)
+    Ok(())
+}
+
+fn apply(dataset: &mut Dataset, summary: &mut RepairSummary) {
+    for element in dataset.iter_mut() {
+        let (padding, repair, count): (char, Repair, Count) = match element.vr() {
+            VR::DA => (' ', value::date, |summary| &mut summary.dates),
+            VR::TM => (' ', value::time, |summary| &mut summary.times),
+            VR::UI => ('\0', value::uid, |summary| &mut summary.uids),
+            _ => {
+                if let Value::Sequence(sequence) = element.value_mut() {
+                    for item in sequence.items_mut() {
+                        apply(item, summary);
+                    }
+                }
+                continue;
+            }
+        };
+        if let Value::Primitive(stored) = element.value_mut()
+            && let Some((value, values)) = rewritten(stored, padding, repair)
+        {
+            *stored = value;
+            *count(summary) += values;
+        }
+    }
 }
 
 /// Rewrite the nonconformant date, time and UID values of `object` and of
@@ -145,16 +123,16 @@ fn planned(object: &InMemDicomObject) -> Result<Vec<Rewrite>, RepairError> {
 ///
 /// # Errors
 /// Returns [`RepairError::NestedTooDeep`], with `object` unchanged, when a
-/// sequence nests deeper than an element address can express.
+/// sequence nests beyond the supported repair depth.
 ///
 /// # Examples
 /// ```
-/// use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-/// use dicom::object::InMemDicomObject;
+/// use ritk_dicom::dataset::{DataElement, PrimitiveValue, DicomTag, VR};
+/// use ritk_dicom::dataset::Dataset;
 /// use ritk_io::format::dicom::repair::repair_values;
 ///
-/// let study_date = Tag(0x0008, 0x0020);
-/// let mut object = InMemDicomObject::new_empty();
+/// let study_date = DicomTag::new(0x0008, 0x0020);
+/// let mut object = Dataset::new();
 /// object.put(DataElement::new(study_date, VR::DA, PrimitiveValue::from("1994.07.21")));
 ///
 /// let summary = repair_values(&mut object)?;
@@ -163,21 +141,9 @@ fn planned(object: &InMemDicomObject) -> Result<Vec<Rewrite>, RepairError> {
 /// assert_eq!(object.element(study_date)?.to_str()?, "19940721");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-pub fn repair_values(object: &mut InMemDicomObject) -> Result<RepairSummary, RepairError> {
+pub fn repair_values(object: &mut Dataset) -> Result<RepairSummary, RepairError> {
+    check_depth(object)?;
     let mut summary = RepairSummary::default();
-    for rewrite in planned(object)? {
-        let Rewrite {
-            selector,
-            value,
-            values,
-            count,
-        } = rewrite;
-        object
-            .update_value_at(selector, |stored| {
-                *stored = Value::Primitive(value.clone());
-            })
-            .expect("invariant: the selector was read from this object, unchanged since");
-        *count(&mut summary) += values;
-    }
+    apply(object, &mut summary);
     Ok(summary)
 }

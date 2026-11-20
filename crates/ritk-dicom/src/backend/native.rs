@@ -1,7 +1,6 @@
 //! RITK-native frame decode backend.
 //!
-//! This backend owns dispatch for transfer syntaxes implemented inside
-//! `ritk-dicom`. External DICOM object libraries stay outside this module.
+//! This backend selects a decoder for each supported encapsulated syntax.
 
 use anyhow::{bail, Result};
 use ritk_codecs::ImageReadBudget;
@@ -13,7 +12,7 @@ use crate::codec::{
     decode_jpeg2000_fragment, decode_jpeg_fragment, decode_jpeg_ls_fragment,
     decode_rle_lossless_fragment,
 };
-use crate::syntax::TransferSyntaxKind;
+use crate::syntax::Codec;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NativeCodecBackend;
@@ -23,27 +22,22 @@ where
     O: EncapsulatedFrameSource,
 {
     fn decode_frame(object: &O, request: DecodeFrameRequest) -> Result<DecodedFrame> {
-        let pixels = match &request.transfer_syntax {
-            syntax if syntax.is_native_jpeg_codec() => {
-                let fragment = object.encapsulated_frame(request.frame_index)?;
-                decode_jpeg_fragment(&fragment, request.layout)?
-            }
-            TransferSyntaxKind::JpegLsLossless | TransferSyntaxKind::JpegLsLossy => {
-                let fragment = object.encapsulated_frame(request.frame_index)?;
-                decode_jpeg_ls_fragment(&fragment, request.layout)?
-            }
-            TransferSyntaxKind::Jpeg2000Lossless | TransferSyntaxKind::Jpeg2000Lossy => {
-                let fragment = object.encapsulated_frame(request.frame_index)?;
-                decode_jpeg2000_fragment(&fragment, request.layout, ImageReadBudget::DEFAULT)?
-            }
-            TransferSyntaxKind::RleLossless => {
-                let fragment = object.encapsulated_frame(request.frame_index)?;
-                decode_rle_lossless_fragment(&fragment, request.layout)?
-            }
-            syntax => bail!(
+        let syntax = &request.transfer_syntax;
+        let Some(codec) = syntax.codec() else {
+            bail!(
                 "transfer syntax {} is not implemented by NativeCodecBackend",
                 syntax.uid()
-            ),
+            );
+        };
+        let fragment = object.encapsulated_frame(request.frame_index)?;
+        let pixels = match codec {
+            Codec::Jpeg => decode_jpeg_fragment(&fragment, request.layout)?,
+            Codec::JpegLs => decode_jpeg_ls_fragment(&fragment, request.layout)?,
+            Codec::Jpeg2000 => {
+                decode_jpeg2000_fragment(&fragment, request.layout, ImageReadBudget::DEFAULT)?
+            }
+            Codec::Rle => decode_rle_lossless_fragment(&fragment, request.layout)?,
+            Codec::JpegXl => crate::codec::jpeg_xl::decode(&fragment, request.layout)?,
         };
         Ok(DecodedFrame { pixels })
     }
@@ -56,14 +50,15 @@ mod tests {
 
     use super::*;
     use crate::pixel::PixelLayout;
+    use crate::TransferSyntaxKind;
 
     #[derive(Debug)]
     struct SingleFragment(Vec<u8>);
 
     impl EncapsulatedFrameSource for SingleFragment {
-        fn encapsulated_frame(&self, frame_index: u32) -> Result<Vec<u8>> {
+        fn encapsulated_frame(&self, frame_index: u32) -> Result<std::borrow::Cow<'_, [u8]>> {
             if frame_index == 0 {
-                Ok(self.0.clone())
+                Ok(std::borrow::Cow::Borrowed(&self.0))
             } else {
                 bail!("test frame index {frame_index} out of range")
             }
@@ -74,7 +69,7 @@ mod tests {
     struct NoFragmentRead;
 
     impl EncapsulatedFrameSource for NoFragmentRead {
-        fn encapsulated_frame(&self, _frame_index: u32) -> Result<Vec<u8>> {
+        fn encapsulated_frame(&self, _frame_index: u32) -> Result<std::borrow::Cow<'_, [u8]>> {
             bail!("encapsulated frame must not be read for unsupported native syntax")
         }
     }
@@ -132,7 +127,7 @@ mod tests {
     }
 
     #[test]
-    fn native_backend_decodes_rle_without_dicom_rs_object() {
+    fn native_backend_decodes_rle() {
         let source = SingleFragment(rle_fragment_8bit(&[1, 2, 3, 4]));
         let decoded = NativeCodecBackend::decode_frame(
             &source,
@@ -148,7 +143,7 @@ mod tests {
     }
 
     #[test]
-    fn native_backend_decodes_jpeg_baseline_without_dicom_rs_object() {
+    fn native_backend_decodes_jpeg_baseline() {
         let source = SingleFragment(encode_grayscale_jpeg(2, 2, &[32, 32, 32, 32]));
         let decoded = NativeCodecBackend::decode_frame(
             &source,
@@ -174,7 +169,7 @@ mod tests {
     }
 
     #[test]
-    fn native_backend_decodes_rgb_jpeg_baseline_without_dicom_rs_object() {
+    fn native_backend_decodes_rgb_jpeg_baseline() {
         let original = [120u8, 64, 32, 120, 64, 32];
         let source = SingleFragment(encode_rgb_jpeg(2, 1, &original));
         let decoded = NativeCodecBackend::decode_frame(
@@ -212,7 +207,7 @@ mod tests {
             &source,
             DecodeFrameRequest {
                 frame_index: 0,
-                transfer_syntax: TransferSyntaxKind::JpegXl,
+                transfer_syntax: TransferSyntaxKind::ExplicitVrLittleEndian,
                 layout: layout(2, 2),
             },
         )
@@ -222,29 +217,5 @@ mod tests {
             err.to_string().contains("NativeCodecBackend"),
             "expected NativeCodecBackend rejection, got {err:#}"
         );
-    }
-
-    #[test]
-    fn native_backend_accepts_jpeg_ls_lossless() {
-        // JPEG-LS Lossless (1.2.840.10008.1.2.4.80) should now be handled by NativeCodecBackend
-        let source = NoFragmentRead; // We don't have valid JPEG-LS data, but the syntax should be recognized
-        let result = NativeCodecBackend::decode_frame(
-            &source,
-            DecodeFrameRequest {
-                frame_index: 0,
-                transfer_syntax: TransferSyntaxKind::JpegLsLossless,
-                layout: layout(2, 2),
-            },
-        );
-
-        // Should NOT get "not implemented by NativeCodecBackend" error
-        // It will fail because NoFragmentRead doesn't provide data, but with a different error
-        if let Err(e) = &result {
-            let err_str = e.to_string();
-            assert!(
-                !err_str.contains("not implemented by NativeCodecBackend"),
-                "JPEG-LS Lossless should be handled by NativeCodecBackend, got: {err_str}"
-            );
-        }
     }
 }

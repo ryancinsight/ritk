@@ -2,7 +2,7 @@
 
 use super::*;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 
 impl Pdu {
     pub fn encode(&self) -> Vec<u8> {
@@ -11,8 +11,8 @@ impl Pdu {
             Pdu::AssociateAc(ac) => Self::enc_assoc_ac(ac),
             Pdu::AssociateRj(rj) => Self::enc_assoc_rj(rj),
             Pdu::PDataTf(pd) => Self::enc_pdata(pd),
-            Pdu::ReleaseRq(_) => Self::enc_simple(PDU_REL_RQ, &[]),
-            Pdu::ReleaseRp(_) => Self::enc_simple(PDU_REL_RP, &[]),
+            Pdu::ReleaseRq(_) => Self::enc_simple(PDU_REL_RQ, &[0; 4]),
+            Pdu::ReleaseRp(_) => Self::enc_simple(PDU_REL_RP, &[0; 4]),
             Pdu::Abort(ab) => Self::enc_abort(ab),
         }
     }
@@ -32,8 +32,18 @@ impl Pdu {
             PDU_ASSOC_AC => Ok(Self::dec_assoc_ac(p)?),
             PDU_ASSOC_RJ => Ok(Self::dec_assoc_rj(p)?),
             PDU_PDATA => Ok(Self::dec_pdata(p)?),
-            PDU_REL_RQ => Ok(Pdu::ReleaseRq(ReleaseRqPdu)),
-            PDU_REL_RP => Ok(Pdu::ReleaseRp(ReleaseRpPdu)),
+            PDU_REL_RQ => {
+                if p.len() != 4 {
+                    bail!("A-RELEASE body must contain four reserved bytes");
+                }
+                Ok(Pdu::ReleaseRq(ReleaseRqPdu))
+            }
+            PDU_REL_RP => {
+                if p.len() != 4 {
+                    bail!("A-RELEASE body must contain four reserved bytes");
+                }
+                Ok(Pdu::ReleaseRp(ReleaseRpPdu))
+            }
             PDU_ABORT => Ok(Self::dec_abort(p)?),
             _ => bail!("unknown PDU type: 0x{:02x}", pt),
         }
@@ -223,11 +233,12 @@ impl Pdu {
     fn dec_pdata(p: &[u8]) -> Result<Self> {
         let mut items = Vec::with_capacity(8);
         let mut off = 0usize;
-        while off + 4 <= p.len() {
-            let pl = u32::from_be_bytes([p[off], p[off + 1], p[off + 2], p[off + 3]]) as usize;
+        while off < p.len() {
+            let prefix = p.get(off..off + 4).context("truncated PDV length")?;
+            let pl = u32::from_be_bytes([prefix[0], prefix[1], prefix[2], prefix[3]]) as usize;
             off += 4;
-            if off + pl > p.len() {
-                bail!("PDV overflow");
+            if pl < 2 || pl > p.len() - off {
+                bail!("invalid PDV length {pl}");
             }
             let cid = p[off];
             let mch = p[off + 1];

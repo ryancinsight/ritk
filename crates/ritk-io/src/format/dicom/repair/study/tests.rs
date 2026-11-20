@@ -3,8 +3,8 @@
 use super::{repair_dicom_study, StudyRepairError, StudyRepairReport};
 use crate::format::dicom::export_tree::ExportTreeError;
 use crate::format::dicom::repair::RepairSummary;
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::{meta::FileMetaTableBuilder, open_file, InMemDicomObject};
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+use ritk_dicom::dataset::{Dataset, FileMetaBuilder};
 use std::path::Path;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -12,22 +12,22 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 const CT_IMAGE_STORAGE: &str = "1.2.840.10008.5.1.4.1.1.2";
 const MR_IMAGE_STORAGE: &str = "1.2.840.10008.5.1.4.1.1.4";
 const MEDIA_STORAGE_DIRECTORY: &str = "1.2.840.10008.1.3.10";
-const SOP_CLASS_UID: Tag = Tag(0x0008, 0x0016);
-const SOP_INSTANCE_UID: Tag = Tag(0x0008, 0x0018);
-const STUDY_DATE: Tag = Tag(0x0008, 0x0020);
-const SERIES_DATE: Tag = Tag(0x0008, 0x0021);
-const STUDY_TIME: Tag = Tag(0x0008, 0x0030);
-const STUDY_UID: Tag = Tag(0x0020, 0x000D);
-const SERIES_UID: Tag = Tag(0x0020, 0x000E);
+const SOP_CLASS_UID: DicomTag = DicomTag::new(0x0008, 0x0016);
+const SOP_INSTANCE_UID: DicomTag = DicomTag::new(0x0008, 0x0018);
+const STUDY_DATE: DicomTag = DicomTag::new(0x0008, 0x0020);
+const SERIES_DATE: DicomTag = DicomTag::new(0x0008, 0x0021);
+const STUDY_TIME: DicomTag = DicomTag::new(0x0008, 0x0030);
+const STUDY_UID: DicomTag = DicomTag::new(0x0020, 0x000D);
+const SERIES_UID: DicomTag = DicomTag::new(0x0020, 0x000E);
 
 /// Write an instance holding `elements`, with a file meta group naming
 /// `meta_class` and `meta_sop`.
 fn write(
     path: &Path,
     (meta_class, meta_sop): (&str, &str),
-    elements: &[(Tag, VR, &str)],
+    elements: &[(DicomTag, VR, &str)],
 ) -> TestResult {
-    let mut object = InMemDicomObject::new_empty();
+    let mut object = Dataset::new();
     for (tag, vr, value) in elements {
         object.put(DataElement::new(*tag, *vr, PrimitiveValue::from(*value)));
     }
@@ -35,7 +35,7 @@ fn write(
         std::fs::create_dir_all(parent)?;
     }
     let mut file = object.with_meta(
-        FileMetaTableBuilder::new()
+        FileMetaBuilder::new()
             .media_storage_sop_class_uid(meta_class)
             .transfer_syntax("1.2.840.10008.1.2.1"),
     )?;
@@ -49,8 +49,8 @@ fn write(
 }
 
 /// The file meta class and instance UIDs, then the stored text of `tags`.
-fn stored(path: &Path, tags: &[Tag]) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let object = open_file(path)?;
+fn stored(path: &Path, tags: &[DicomTag]) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let object = ritk_dicom::dataset::DicomFile::open(path)?;
     let mut values = vec![
         object.meta().media_storage_sop_class_uid().to_owned(),
         object.meta().media_storage_sop_instance_uid().to_owned(),

@@ -1,5 +1,32 @@
 # RITK Gap Audit
 
+<a id="ritk-native-dicom"></a>
+## RITK-NATIVE-DICOM — Application cutover verified
+
+- The RITK dataset, writer, frame dispatch, and DIMSE wrappers form one
+  production graph. The `dicom-ul` test peer retains `dicom-core` and
+  Chrono only in RITK’s development graph.
+- Frame assembly uses Basic or Extended Offset Tables when supplied.
+  An empty table supports one frame or one fragment per frame. Ambiguous
+  multi-fragment layouts and unclassified transfer syntaxes report an error.
+  The parity scope covers the former backend’s supported pixel layouts.
+- Explicit big-endian Part 10 parsing, writing, and stored-sample decode
+  are covered at the provider boundary. Higher-level RITK I/O series
+  loaders retain their existing explicit big-endian policy.
+- Borrowed catalog selection records at most one span per requested tag.
+  With the encoded input resident, 32 frames (16,777,690 encoded bytes)
+  use zero heap bytes for this selection and 16,790,724 bytes for an owned
+  parse. The checks cover both explicit byte orders, implicit little
+  endian, nested attributes, and truncation.
+- The reconciled workspace resolves from an empty lockfile state with one
+  registry Aequitas 0.4.0, Eunomia 0.12.1, Leto 0.51.0, and Coeus 0.13.0.
+  Across all targets and features, Chrono appears only through the independent
+  DIMSE test peer. The 650 focused DICOM, I/O, and Diffusion Scheme
+  tests pass, including scanner bounds, numeric VR boundaries, and real
+  DIMSE peers. Two opt-in tests remain outside this run. Registry
+  publication follows under
+  [RITK-REGISTRY-PUBLICATION-001](backlog/RITK-REGISTRY-PUBLICATION-001.md).
+
 <a id="RITK-REGISTRY-PUBLICATION-001"></a>
 ## RITK-REGISTRY-PUBLICATION-001: Git validation does not establish registry publication [patch]
 - risk: a corrected Git revision passes native checks while the registry resolves older incompatible dependencies or lacks required packages.
