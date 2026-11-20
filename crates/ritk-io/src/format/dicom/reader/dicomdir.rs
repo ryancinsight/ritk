@@ -1,8 +1,8 @@
 //! Authoritative DICOM file-set discovery shared by browsing and loading.
 
 use anyhow::{bail, Context, Result};
-use dicom::core::Tag;
-use ritk_dicom::{parse_bytes_with_budget, read_file_within_root_with_budget, DicomRsBackend};
+use ritk_dicom::dataset::{Dataset, DicomTag};
+use ritk_dicom::{parse_bytes_with_budget, read_file_within_root_with_budget, NativeBackend};
 use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 
@@ -76,13 +76,13 @@ fn read_dicomdir(index: &Path, budget: &ParseBudget) -> Result<Vec<PathBuf>> {
     let index_path = root.join(index_name);
     let bytes = read_file_within_root_with_budget(&index_path, &root, budget)
         .context("failed to open DICOMDIR")?;
-    let obj = parse_bytes_with_budget::<DicomRsBackend>(&bytes, budget)
+    let obj = parse_bytes_with_budget::<NativeBackend>(&bytes, budget)
         .context("failed to parse DICOMDIR")?;
     if obj.meta().transfer_syntax.trim_end_matches('\0').trim() != "1.2.840.10008.1.2.1" {
         bail!("DICOMDIR must use Explicit VR Little Endian transfer syntax");
     }
     let sequence = obj
-        .element(Tag(0x0004, 0x1220))
+        .element(DicomTag::new(0x0004, 0x1220))
         .context("DICOMDIR missing DirectoryRecordSequence (0004,1220)")?;
     let items = sequence
         .value()
@@ -102,8 +102,16 @@ fn read_dicomdir(index: &Path, budget: &ParseBudget) -> Result<Vec<PathBuf>> {
         .map(|(item, offset)| DirectoryRecord::from_item(item, offset))
         .collect::<Result<Vec<_>>>()?;
     let offset_to_index = validate_record_graph(&records)?;
-    let first_root = required_u32(&obj, Tag(0x0004, 0x1200), "FirstRootDirectoryRecord")?;
-    let last_root = required_u32(&obj, Tag(0x0004, 0x1202), "LastRootDirectoryRecord")?;
+    let first_root = required_u32(
+        &obj,
+        DicomTag::new(0x0004, 0x1200),
+        "FirstRootDirectoryRecord",
+    )?;
+    let last_root = required_u32(
+        &obj,
+        DicomTag::new(0x0004, 0x1202),
+        "LastRootDirectoryRecord",
+    )?;
     validate_root_chain(&records, &offset_to_index, first_root, last_root)?;
     let reachable = reachable_records(&records, &offset_to_index, first_root)?;
     let mut paths = Vec::with_capacity(items.len());
@@ -155,35 +163,43 @@ struct DirectoryRecord {
 }
 
 impl DirectoryRecord {
-    fn from_item(item: &dicom::object::InMemDicomObject, offset: u32) -> Result<Self> {
-        let in_use = required_u16(item, Tag(0x0004, 0x1410), "RecordInUseFlag")?;
+    fn from_item(item: &ritk_dicom::dataset::Dataset, offset: u32) -> Result<Self> {
+        let in_use = required_u16(item, DicomTag::new(0x0004, 0x1410), "RecordInUseFlag")?;
         if in_use != 0 && in_use != RECORD_IN_USE {
             bail!("DICOMDIR RecordInUseFlag has unsupported value {in_use:#06x}");
         }
         Ok(Self {
             offset,
-            next: required_u32(item, Tag(0x0004, 0x1400), "OffsetOfTheNextDirectoryRecord")?,
+            next: required_u32(
+                item,
+                DicomTag::new(0x0004, 0x1400),
+                "OffsetOfTheNextDirectoryRecord",
+            )?,
             lower: required_u32(
                 item,
-                Tag(0x0004, 0x1420),
+                DicomTag::new(0x0004, 0x1420),
                 "OffsetOfReferencedLowerLevelDirectoryEntity",
             )?,
             in_use,
-            record_type: required_text(item, Tag(0x0004, 0x1430), "DirectoryRecordType")?,
-            referenced_file_id: optional_text(item, Tag(0x0004, 0x1500), "ReferencedFileID")?,
+            record_type: required_text(item, DicomTag::new(0x0004, 0x1430), "DirectoryRecordType")?,
+            referenced_file_id: optional_text(
+                item,
+                DicomTag::new(0x0004, 0x1500),
+                "ReferencedFileID",
+            )?,
             referenced_sop_class_uid: optional_text(
                 item,
-                Tag(0x0004, 0x1510),
+                DicomTag::new(0x0004, 0x1510),
                 "ReferencedSOPClassUID",
             )?,
             referenced_sop_instance_uid: optional_text(
                 item,
-                Tag(0x0004, 0x1511),
+                DicomTag::new(0x0004, 0x1511),
                 "ReferencedSOPInstanceUID",
             )?,
             referenced_transfer_syntax_uid: optional_text(
                 item,
-                Tag(0x0004, 0x1512),
+                DicomTag::new(0x0004, 0x1512),
                 "ReferencedTransferSyntaxUID",
             )?,
         })
@@ -196,40 +212,25 @@ struct RecordReachability {
     active_lineage: bool,
 }
 
-fn required_u16<O>(object: &O, tag: Tag, name: &'static str) -> Result<u16>
-where
-    O: dicom::object::DicomObject,
-{
-    use dicom::object::DicomAttribute;
-
+fn required_u16(object: &Dataset, tag: DicomTag, name: &'static str) -> Result<u16> {
     object
-        .attr(tag)
+        .element(tag)
         .with_context(|| format!("DICOMDIR record missing {name}"))?
-        .to_u16()
+        .to_num::<u16>()
         .with_context(|| format!("invalid DICOMDIR {name}"))
 }
 
-fn required_u32<O>(object: &O, tag: Tag, name: &'static str) -> Result<u32>
-where
-    O: dicom::object::DicomObject,
-{
-    use dicom::object::DicomAttribute;
-
+fn required_u32(object: &Dataset, tag: DicomTag, name: &'static str) -> Result<u32> {
     object
-        .attr(tag)
+        .element(tag)
         .with_context(|| format!("DICOMDIR missing {name}"))?
-        .to_u32()
+        .to_num::<u32>()
         .with_context(|| format!("invalid DICOMDIR {name}"))
 }
 
-fn required_text<O>(object: &O, tag: Tag, name: &'static str) -> Result<String>
-where
-    O: dicom::object::DicomObject,
-{
-    use dicom::object::DicomAttribute;
-
+fn required_text(object: &Dataset, tag: DicomTag, name: &'static str) -> Result<String> {
     let attribute = object
-        .attr(tag)
+        .element(tag)
         .with_context(|| format!("DICOMDIR record missing {name}"))?;
     let value = attribute
         .to_str()
@@ -241,13 +242,8 @@ where
     Ok(value)
 }
 
-fn optional_text<O>(object: &O, tag: Tag, name: &'static str) -> Result<Option<String>>
-where
-    O: dicom::object::DicomObject,
-{
-    use dicom::object::DicomAttribute;
-
-    let Ok(attribute) = object.attr(tag) else {
+fn optional_text(object: &Dataset, tag: DicomTag, name: &'static str) -> Result<Option<String>> {
+    let Ok(attribute) = object.element(tag) else {
         return Ok(None);
     };
     let value = attribute
@@ -436,10 +432,10 @@ fn verify_record_identity(
         .context("DICOMDIR image record missing ReferencedTransferSyntaxUID")?;
     let bytes = read_file_within_root_with_budget(path, root, budget)
         .context("failed to read DICOMDIR referenced file")?;
-    let object = parse_bytes_with_budget::<DicomRsBackend>(&bytes, budget)
+    let object = parse_bytes_with_budget::<NativeBackend>(&bytes, budget)
         .context("failed to parse DICOMDIR referenced file")?;
-    let actual_class = required_text(&object, Tag(0x0008, 0x0016), "SOPClassUID")?;
-    let actual_instance = required_text(&object, Tag(0x0008, 0x0018), "SOPInstanceUID")?;
+    let actual_class = required_text(&object, DicomTag::new(0x0008, 0x0016), "SOPClassUID")?;
+    let actual_instance = required_text(&object, DicomTag::new(0x0008, 0x0018), "SOPInstanceUID")?;
     let meta_class = normalize_text(object.meta().media_storage_sop_class_uid());
     let meta_instance = normalize_text(object.meta().media_storage_sop_instance_uid());
     let actual_transfer = normalize_text(object.meta().transfer_syntax());

@@ -4,9 +4,10 @@
 //! frames, sends/receives DIMSE messages over negotiated presentation
 //! contexts, and releases or aborts the association.
 
-mod lifecycle;
 mod negotiation;
 mod scu;
+mod service;
+mod transport;
 
 pub use super::context::{transfer_syntax, AssociationConfig, NegotiatedContext};
 pub use super::dimse::*;
@@ -14,11 +15,11 @@ pub use super::pdu::*;
 pub use super::types::{
     AeTitle, DicomAddress, EchoResponse, MoveResponse, NetworkingError, StoreResponse,
 };
-pub(crate) use lifecycle::release_client_association;
+pub(super) use service::networking_error;
 
 use crate::format::dicom::reader::types::literal_arraystring;
 use anyhow::{bail, Context, Result};
-use std::io::{Read, Write};
+use std::collections::VecDeque;
 use std::net::TcpStream;
 
 // -- Result types ----------------------------------------------------------
@@ -76,14 +77,14 @@ pub struct Association {
     next_context_id: u8,
     pub remote_max_pdu_length: u32,
     state: DicomAssociationState,
+    local_max_pdu_length: u32,
+    pending: VecDeque<PresentationDataValueItem>,
 }
 
 impl Association {
     /// Establish a DICOM association: TCP connect -> A-ASSOCIATE-RQ -> AC/RJ.
     pub fn connect(config: AssociationConfig) -> Result<Self> {
-        let addr = format!("{}:{}", config.host, config.port);
-        let stream = TcpStream::connect_timeout(&addr.parse()?, config.timeout)
-            .with_context(|| format!("TCP connect to {}", addr))?;
+        let stream = transport::connect(&config.host, config.port, config.timeout)?;
         stream.set_read_timeout(Some(config.timeout))?;
         stream.set_write_timeout(Some(config.timeout))?;
 
@@ -106,7 +107,9 @@ impl Association {
                 maximum_length_received: config.max_pdu_length,
             },
             implementation_class_uid: ImplementationClassUidSubItem {
-                implementation_class_uid: literal_arraystring(RITK_IMPLEMENTATION_CLASS_UID),
+                implementation_class_uid: literal_arraystring(
+                    ritk_dicom::dataset::IMPLEMENTATION_CLASS_UID,
+                ),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
                 implementation_version_name: literal_arraystring(RITK_IMPLEMENTATION_VERSION),
@@ -131,24 +134,42 @@ impl Association {
             next_context_id: next_id,
             remote_max_pdu_length: DEFAULT_MAXIMUM_LENGTH,
             state: DicomAssociationState::Inactive,
+            local_max_pdu_length: config.max_pdu_length,
+            pending: VecDeque::new(),
         };
 
         assoc.send_pdu(&rq)?;
 
         match assoc.recv_pdu()? {
             Pdu::AssociateAc(ac) => {
-                let rq_map = negotiation::rq_iter_abstracts(&rq);
-                for pc in &ac.presentation_contexts {
-                    if pc.result_reason == 0 {
-                        assoc.negotiated_contexts.push(NegotiatedContext {
-                            presentation_context_id: pc.presentation_context_id,
-                            abstract_syntax_uid: rq_map
-                                .get(&pc.presentation_context_id)
-                                .cloned()
-                                .unwrap_or_default(),
-                            transfer_syntax_uid: pc.transfer_syntax_uid,
-                        });
+                let Pdu::AssociateRq(request) = &rq else {
+                    unreachable!("locally constructed request")
+                };
+                for pc in ac
+                    .presentation_contexts
+                    .iter()
+                    .filter(|pc| pc.result_reason == 0)
+                {
+                    let proposal = request
+                        .presentation_contexts
+                        .iter()
+                        .find(|rq| rq.presentation_context_id == pc.presentation_context_id)
+                        .context("remote accepted an unproposed presentation context")?;
+                    if !proposal
+                        .transfer_syntax_uids
+                        .contains(&pc.transfer_syntax_uid)
+                        || assoc
+                            .negotiated_contexts
+                            .iter()
+                            .any(|cx| cx.presentation_context_id == pc.presentation_context_id)
+                    {
+                        bail!("remote accepted an incompatible or duplicate presentation context");
                     }
+                    assoc.negotiated_contexts.push(NegotiatedContext {
+                        presentation_context_id: pc.presentation_context_id,
+                        abstract_syntax_uid: proposal.abstract_syntax_uid,
+                        transfer_syntax_uid: pc.transfer_syntax_uid,
+                    });
                 }
                 assoc.remote_max_pdu_length =
                     ac.user_information.maximum_length.maximum_length_received;
@@ -189,153 +210,15 @@ impl Association {
         Ok(())
     }
 
-    // -- Internal helpers ----------------------------------------------------
-
-    fn send_pdu(&mut self, pdu: &Pdu) -> Result<()> {
-        self.stream
-            .write_all(&pdu.encode())
-            .with_context(|| "PDU write")?;
-        self.stream.flush()?;
-        Ok(())
-    }
-
-    fn recv_pdu(&mut self) -> Result<Pdu> {
-        let mut hdr = [0u8; 6];
-        self.stream
-            .read_exact(&mut hdr)
-            .with_context(|| "PDU header read")?;
-        let len = u32::from_be_bytes([hdr[2], hdr[3], hdr[4], hdr[5]]) as usize;
-        let mut body = vec![0u8; len];
-        self.stream
-            .read_exact(&mut body)
-            .with_context(|| "PDU body read")?;
-        let mut full = Vec::with_capacity(6 + len);
-        full.extend_from_slice(&hdr);
-        full.extend_from_slice(&body);
-        Pdu::decode(&full).with_context(|| "PDU decode")
-    }
-
-    fn send_message(&mut self, ctx_id: u8, msg: &DimseMessage) -> Result<()> {
-        let max = (self.remote_max_pdu_length.saturating_sub(6) as usize)
-            .max(DEFAULT_MAXIMUM_LENGTH as usize - 6)
-            .max(1);
-        self.fragment_and_send(ctx_id, &msg.encode_command_set(), CommandType::Command, max)?;
-        if let Some(ref ds) = msg.data_set {
-            self.fragment_and_send(ctx_id, ds, CommandType::DataSet, max)?;
-        }
-        Ok(())
-    }
-
-    fn fragment_and_send(
-        &mut self,
-        cid: u8,
-        data: &[u8],
-        ct: CommandType,
-        max: usize,
-    ) -> Result<()> {
-        let mk_pdv = |is_last: bool, d: &[u8]| PresentationDataValueItem {
-            presentation_context_id: cid,
-            message_control_header: MessageControlHeader {
-                message_type: ct,
-                fragment_position: if is_last {
-                    FragmentPosition::Last
-                } else {
-                    FragmentPosition::More
-                },
-            },
-            data: d.to_vec(),
-        };
-        if data.is_empty() {
-            self.send_pdu(&Pdu::PDataTf(PDataTfPdu {
-                presentation_data_value_items: vec![mk_pdv(true, &[])],
-            }))?;
-            return Ok(());
-        }
-        let chunks: Vec<&[u8]> = data.chunks(max).collect();
-        for (i, c) in chunks.iter().enumerate() {
-            self.send_pdu(&Pdu::PDataTf(PDataTfPdu {
-                presentation_data_value_items: vec![mk_pdv(i == chunks.len() - 1, c)],
-            }))?;
-        }
-        Ok(())
-    }
-
-    fn recv_message(&mut self) -> Result<(u8, DimseMessage)> {
-        let (mut cmd, mut data) = (Vec::with_capacity(256), Vec::with_capacity(4096));
-        let mut cid: u8 = 0;
-        let mut cmd_last = false;
-        loop {
-            match self.recv_pdu()? {
-                Pdu::PDataTf(pd) => {
-                    let last_data = negotiation::pdv_last_data(&pd);
-                    for pdv in &pd.presentation_data_value_items {
-                        cid = pdv.presentation_context_id;
-                        match pdv.message_control_header.message_type {
-                            CommandType::Command => {
-                                cmd.extend_from_slice(&pdv.data);
-                                if pdv.message_control_header.fragment_position
-                                    == FragmentPosition::Last
-                                {
-                                    cmd_last = true;
-                                }
-                            }
-                            CommandType::DataSet => data.extend_from_slice(&pdv.data),
-                        }
-                    }
-                    if cmd_last {
-                        let mut msg = DimseMessage::decode_command_set(&cmd)?;
-                        let has_ds = msg.command_data_set_type().is_some_and(|v| v != 0x0101);
-                        if has_ds && !last_data {
-                            loop {
-                                match self.recv_pdu()? {
-                                    Pdu::PDataTf(pd2) => {
-                                        for p in pd2.presentation_data_value_items {
-                                            if p.message_control_header.message_type
-                                                == CommandType::DataSet
-                                            {
-                                                data.extend_from_slice(&p.data);
-                                                if p.message_control_header.fragment_position
-                                                    == FragmentPosition::Last
-                                                {
-                                                    msg.data_set = Some(data);
-                                                    return Ok((cid, msg));
-                                                }
-                                            }
-                                        }
-                                    }
-                                    Pdu::ReleaseRq(_) => {
-                                        let _ = self.send_pdu(&Pdu::ReleaseRp(ReleaseRpPdu));
-                                        bail!("remote released during data transfer");
-                                    }
-                                    Pdu::Abort(_) => bail!("remote aborted"),
-                                    o => bail!("unexpected PDU during data recv: {:?}", o),
-                                }
-                            }
-                        }
-                        msg.data_set = if data.is_empty() { None } else { Some(data) };
-                        return Ok((cid, msg));
-                    }
-                }
-                Pdu::ReleaseRq(_) => {
-                    let _ = self.send_pdu(&Pdu::ReleaseRp(ReleaseRpPdu));
-                    bail!("remote released association");
-                }
-                Pdu::Abort(_) => bail!("remote aborted"),
-                o => bail!("unexpected PDU: {:?}", o),
-            }
-        }
-    }
-
-    fn find_context(&self, uid: &str) -> Option<&NegotiatedContext> {
+    fn context_for_sop_class(&self, uid: &str, syntaxes: &[&str]) -> Result<u8> {
         self.negotiated_contexts
             .iter()
-            .find(|c| c.abstract_syntax_uid.as_str() == uid)
-    }
-
-    fn context_for_sop_class(&mut self, uid: &str, _ts: &[&str]) -> Result<u8> {
-        self.find_context(uid)
+            .find(|c| {
+                c.abstract_syntax_uid.as_str() == uid
+                    && syntaxes.contains(&c.transfer_syntax_uid.as_str())
+            })
             .map(|c| c.presentation_context_id)
-            .ok_or_else(|| anyhow::anyhow!("no negotiated context for {}", uid))
+            .ok_or_else(|| NetworkingError::NoPresentationContext(uid.to_owned()).into())
     }
 
     fn next_message_id(&mut self) -> u16 {

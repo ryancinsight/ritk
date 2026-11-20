@@ -1,6 +1,6 @@
 use super::super::{read_dicom_seg, write_dicom_seg, DicomSegmentation, SegmentationType};
 use crate::format::dicom::DicomWriteError;
-use dicom::core::Tag;
+use ritk_dicom::dataset::DicomTag;
 
 fn segmentation(kind: SegmentationType, bits: u16, frames: Vec<Vec<u8>>) -> DicomSegmentation {
     let count = frames.len();
@@ -42,7 +42,8 @@ fn tags_describe_packed_and_fractional_payloads() {
     ] {
         let seg = segmentation(kind, bits, frames);
         write_dicom_seg(&path, &seg).expect("invariant: prepared fixture is valid");
-        let object = dicom::object::open_file(&path).expect("invariant: prepared fixture is valid");
+        let object = ritk_dicom::dataset::DicomFile::open(&path)
+            .expect("invariant: prepared fixture is valid");
         for (tag, expected) in [
             (0x0100, bits),
             (0x0101, bits),
@@ -51,22 +52,22 @@ fn tags_describe_packed_and_fractional_payloads() {
         ] {
             assert_eq!(
                 object
-                    .element(Tag(0x0028, tag))
+                    .element(DicomTag::new(0x0028, tag))
                     .expect("invariant: prepared fixture is valid")
-                    .to_int::<u16>()
+                    .to_num::<u16>()
                     .expect("invariant: prepared fixture is valid"),
                 expected
             );
         }
         let payload = object
-            .element(Tag(0x7FE0, 0x0010))
+            .element(DicomTag::new(0x7FE0, 0x0010))
             .expect("invariant: prepared fixture is valid")
             .to_bytes()
             .expect("invariant: prepared fixture is valid");
         let width = object
-            .element(Tag(0x0028, 0x0100))
+            .element(DicomTag::new(0x0028, 0x0100))
             .expect("invariant: prepared fixture is valid")
-            .to_int::<usize>()
+            .to_num::<usize>()
             .expect("invariant: prepared fixture is valid");
         let bytes = (seg.n_frames * seg.rows * seg.cols * width).div_ceil(8);
         assert_eq!(payload.len(), bytes + bytes % 2);

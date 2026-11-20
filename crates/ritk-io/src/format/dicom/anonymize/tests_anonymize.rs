@@ -28,12 +28,12 @@
 //! 21. generate_uid_hash_uses_sha256_2_25_root
 
 use super::{generate_uid_from_hash, AnonymizationProfile, TagAction};
-use dicom::core::Tag;
+use ritk_dicom::dataset::DicomTag;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /// Return the action for `tag` within `actions`, or `None` if absent.
-fn find_action(actions: &[(Tag, TagAction)], tag: Tag) -> Option<TagAction> {
+fn find_action(actions: &[(DicomTag, TagAction)], tag: DicomTag) -> Option<TagAction> {
     actions
         .iter()
         .find(|(t, _)| *t == tag)
@@ -47,7 +47,7 @@ fn find_action(actions: &[(Tag, TagAction)], tag: Tag) -> Option<TagAction> {
 fn profile_basic_has_patient_name_dummy() {
     let actions = AnonymizationProfile::Basic.tag_actions();
     assert_eq!(
-        find_action(&actions, Tag(0x0010, 0x0010)),
+        find_action(&actions, DicomTag::new(0x0010, 0x0010)),
         Some(TagAction::Dummy),
         "PatientName (0010,0010) must map to Dummy in Basic profile"
     );
@@ -57,7 +57,7 @@ fn profile_basic_has_patient_name_dummy() {
 fn profile_basic_has_patient_id_dummy() {
     let actions = AnonymizationProfile::Basic.tag_actions();
     assert_eq!(
-        find_action(&actions, Tag(0x0010, 0x0020)),
+        find_action(&actions, DicomTag::new(0x0010, 0x0020)),
         Some(TagAction::Dummy),
         "PatientID (0010,0020) must map to Dummy in Basic profile"
     );
@@ -67,7 +67,7 @@ fn profile_basic_has_patient_id_dummy() {
 fn profile_basic_has_institution_name_remove() {
     let actions = AnonymizationProfile::Basic.tag_actions();
     assert_eq!(
-        find_action(&actions, Tag(0x0008, 0x0080)),
+        find_action(&actions, DicomTag::new(0x0008, 0x0080)),
         Some(TagAction::Remove),
         "InstitutionName (0008,0080) must map to Remove in Basic profile"
     );
@@ -77,7 +77,7 @@ fn profile_basic_has_institution_name_remove() {
 fn profile_basic_has_patient_birth_date_empty() {
     let actions = AnonymizationProfile::Basic.tag_actions();
     assert_eq!(
-        find_action(&actions, Tag(0x0010, 0x0030)),
+        find_action(&actions, DicomTag::new(0x0010, 0x0030)),
         Some(TagAction::Empty),
         "PatientBirthDate (0010,0030) must map to Empty in Basic profile"
     );
@@ -97,24 +97,27 @@ fn profile_basic_minimum_tag_count() {
 fn profile_basic_covers_all_required_demographic_removes() {
     let actions = AnonymizationProfile::Basic.tag_actions();
     let remove_tags = [
-        (Tag(0x0010, 0x1010), "PatientAge"),
-        (Tag(0x0010, 0x1030), "PatientWeight"),
-        (Tag(0x0010, 0x1000), "OtherPatientIDs"),
-        (Tag(0x0010, 0x1040), "PatientAddress"),
-        (Tag(0x0010, 0x2154), "PatientTelephoneNumbers"),
-        (Tag(0x0008, 0x0080), "InstitutionName"),
-        (Tag(0x0008, 0x0081), "InstitutionAddress"),
-        (Tag(0x0008, 0x1010), "StationName"),
-        (Tag(0x0008, 0x1070), "OperatorsName"),
-        (Tag(0x0008, 0x1050), "PerformingPhysicianName"),
-        (Tag(0x0008, 0x1060), "NameOfPhysiciansReadingStudy"),
-        (Tag(0x0018, 0x1000), "DeviceSerialNumber"),
-        (Tag(0x0018, 0x1002), "DeviceUID"),
-        (Tag(0x0028, 0x4000), "ImageComments"),
-        (Tag(0x0040, 0x0275), "RequestAttributeSequence"),
-        (Tag(0x0400, 0x0100), "DigitalSignatureUID"),
-        (Tag(0xFFFA, 0xFFFA), "DigitalSignaturesSequence"),
-        (Tag(0xFFFC, 0xFFFC), "EncryptedAttributesSequence"),
+        (DicomTag::new(0x0010, 0x1010), "PatientAge"),
+        (DicomTag::new(0x0010, 0x1030), "PatientWeight"),
+        (DicomTag::new(0x0010, 0x1000), "OtherPatientIDs"),
+        (DicomTag::new(0x0010, 0x1040), "PatientAddress"),
+        (DicomTag::new(0x0010, 0x2154), "PatientTelephoneNumbers"),
+        (DicomTag::new(0x0008, 0x0080), "InstitutionName"),
+        (DicomTag::new(0x0008, 0x0081), "InstitutionAddress"),
+        (DicomTag::new(0x0008, 0x1010), "StationName"),
+        (DicomTag::new(0x0008, 0x1070), "OperatorsName"),
+        (DicomTag::new(0x0008, 0x1050), "PerformingPhysicianName"),
+        (
+            DicomTag::new(0x0008, 0x1060),
+            "NameOfPhysiciansReadingStudy",
+        ),
+        (DicomTag::new(0x0018, 0x1000), "DeviceSerialNumber"),
+        (DicomTag::new(0x0018, 0x1002), "DeviceUID"),
+        (DicomTag::new(0x0028, 0x4000), "ImageComments"),
+        (DicomTag::new(0x0040, 0x0275), "RequestAttributeSequence"),
+        (DicomTag::new(0x0400, 0x0100), "DigitalSignatureUID"),
+        (DicomTag::new(0xFFFA, 0xFFFA), "DigitalSignaturesSequence"),
+        (DicomTag::new(0xFFFC, 0xFFFC), "EncryptedAttributesSequence"),
     ];
     for (tag, name) in remove_tags {
         let action = find_action(&actions, tag);
@@ -131,7 +134,7 @@ fn profile_basic_covers_all_required_demographic_removes() {
 fn profile_basic_replace_uids_includes_sop_instance_uid() {
     let actions = AnonymizationProfile::BasicReplaceUids.tag_actions();
     assert_eq!(
-        find_action(&actions, Tag(0x0008, 0x0018)),
+        find_action(&actions, DicomTag::new(0x0008, 0x0018)),
         Some(TagAction::ReplaceUid),
         "SOPInstanceUID (0008,0018) must map to ReplaceUid in BasicReplaceUids"
     );
@@ -141,12 +144,12 @@ fn profile_basic_replace_uids_includes_sop_instance_uid() {
 fn profile_basic_replace_uids_includes_all_uids() {
     let actions = AnonymizationProfile::BasicReplaceUids.tag_actions();
     let uid_tags = [
-        (Tag(0x0020, 0x000D), "StudyInstanceUID"),
-        (Tag(0x0020, 0x000E), "SeriesInstanceUID"),
-        (Tag(0x0008, 0x0018), "SOPInstanceUID"),
-        (Tag(0x0020, 0x0052), "FrameOfReferenceUID"),
-        (Tag(0x0008, 0x1155), "ReferencedSOPInstanceUID"),
-        (Tag(0x0008, 0x0019), "SourceImageSequence"),
+        (DicomTag::new(0x0020, 0x000D), "StudyInstanceUID"),
+        (DicomTag::new(0x0020, 0x000E), "SeriesInstanceUID"),
+        (DicomTag::new(0x0008, 0x0018), "SOPInstanceUID"),
+        (DicomTag::new(0x0020, 0x0052), "FrameOfReferenceUID"),
+        (DicomTag::new(0x0008, 0x1155), "ReferencedSOPInstanceUID"),
+        (DicomTag::new(0x0008, 0x0019), "SourceImageSequence"),
     ];
     for (tag, name) in uid_tags {
         assert_eq!(
@@ -177,7 +180,7 @@ fn profile_basic_replace_uids_retains_basic_actions() {
 fn profile_aggressive_includes_study_date_empty() {
     let actions = AnonymizationProfile::Aggressive.tag_actions();
     assert_eq!(
-        find_action(&actions, Tag(0x0008, 0x0020)),
+        find_action(&actions, DicomTag::new(0x0008, 0x0020)),
         Some(TagAction::Empty),
         "StudyDate (0008,0020) must map to Empty in Aggressive"
     );
@@ -187,13 +190,13 @@ fn profile_aggressive_includes_study_date_empty() {
 fn profile_aggressive_includes_all_date_fields() {
     let actions = AnonymizationProfile::Aggressive.tag_actions();
     let date_tags = [
-        (Tag(0x0008, 0x0020), "StudyDate"),
-        (Tag(0x0008, 0x0021), "SeriesDate"),
-        (Tag(0x0008, 0x0022), "AcquisitionDate"),
-        (Tag(0x0008, 0x0023), "ContentDate"),
-        (Tag(0x0008, 0x0024), "OverlayDate"),
-        (Tag(0x0008, 0x0025), "CurveDate"),
-        (Tag(0x0008, 0x002A), "AcquisitionDateTime"),
+        (DicomTag::new(0x0008, 0x0020), "StudyDate"),
+        (DicomTag::new(0x0008, 0x0021), "SeriesDate"),
+        (DicomTag::new(0x0008, 0x0022), "AcquisitionDate"),
+        (DicomTag::new(0x0008, 0x0023), "ContentDate"),
+        (DicomTag::new(0x0008, 0x0024), "OverlayDate"),
+        (DicomTag::new(0x0008, 0x0025), "CurveDate"),
+        (DicomTag::new(0x0008, 0x002A), "AcquisitionDateTime"),
     ];
     for (tag, name) in date_tags {
         assert_eq!(
@@ -208,13 +211,13 @@ fn profile_aggressive_includes_all_date_fields() {
 fn profile_aggressive_includes_all_time_fields() {
     let actions = AnonymizationProfile::Aggressive.tag_actions();
     let time_tags = [
-        (Tag(0x0008, 0x0030), "StudyTime"),
-        (Tag(0x0008, 0x0031), "SeriesTime"),
-        (Tag(0x0008, 0x0032), "AcquisitionTime"),
-        (Tag(0x0008, 0x0033), "ContentTime"),
-        (Tag(0x0008, 0x0034), "OverlayTime"),
-        (Tag(0x0008, 0x0035), "CurveTime"),
-        (Tag(0x0008, 0x0201), "TimezoneOffsetFromUTC"),
+        (DicomTag::new(0x0008, 0x0030), "StudyTime"),
+        (DicomTag::new(0x0008, 0x0031), "SeriesTime"),
+        (DicomTag::new(0x0008, 0x0032), "AcquisitionTime"),
+        (DicomTag::new(0x0008, 0x0033), "ContentTime"),
+        (DicomTag::new(0x0008, 0x0034), "OverlayTime"),
+        (DicomTag::new(0x0008, 0x0035), "CurveTime"),
+        (DicomTag::new(0x0008, 0x0201), "TimezoneOffsetFromUTC"),
     ];
     for (tag, name) in time_tags {
         assert_eq!(
@@ -229,7 +232,7 @@ fn profile_aggressive_includes_all_time_fields() {
 fn profile_aggressive_includes_protocol_name_remove() {
     let actions = AnonymizationProfile::Aggressive.tag_actions();
     assert_eq!(
-        find_action(&actions, Tag(0x0018, 0x1030)),
+        find_action(&actions, DicomTag::new(0x0018, 0x1030)),
         Some(TagAction::Remove),
         "ProtocolName (0018,1030) must map to Remove in Aggressive"
     );
@@ -254,7 +257,7 @@ fn profile_enhanced_includes_basic_actions() {
 fn profile_enhanced_has_derivation_description_remove() {
     let actions = AnonymizationProfile::Enhanced.tag_actions();
     assert_eq!(
-        find_action(&actions, Tag(0x0008, 0x2111)),
+        find_action(&actions, DicomTag::new(0x0008, 0x2111)),
         Some(TagAction::Remove),
         "DerivationDescription (0008,2111) must map to Remove in Enhanced"
     );

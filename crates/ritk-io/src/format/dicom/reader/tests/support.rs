@@ -1,6 +1,6 @@
-pub(super) use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-pub(super) use dicom::object::meta::FileMetaTableBuilder;
-pub(super) use dicom::object::InMemDicomObject;
+pub(super) use ritk_dicom::dataset::Dataset;
+pub(super) use ritk_dicom::dataset::FileMetaBuilder;
+pub(super) use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
 
 /// Write a minimal DICOM Part-10 file carrying only the mandatory UID tags.
 pub(in super::super) fn write_stub_dicom(
@@ -8,36 +8,36 @@ pub(in super::super) fn write_stub_dicom(
     sop_class_uid: &str,
     sop_instance_uid: &str,
 ) {
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     // Successful image-scan fixtures carry the required acquisition identity.
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
+        DicomTag::new(0x0020, 0x000E),
         VR::UI,
         PrimitiveValue::from("2.25.72001"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from(sop_class_uid),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from(sop_instance_uid),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid(sop_class_uid)
                 .media_storage_sop_instance_uid(sop_instance_uid)
                 .transfer_syntax("1.2.840.10008.1.2.1"),

@@ -126,15 +126,27 @@ fn test_find_context() {
         ],
         next_context_id: 7,
         remote_max_pdu_length: 16384,
+        local_max_pdu_length: 16384,
+        pending: std::collections::VecDeque::new(),
         state: crate::format::dicom::networking::association::DicomAssociationState::Active,
     };
     assert_eq!(
-        a.find_context(sop_class::VERIFICATION_SOP_CLASS)
-            .expect("infallible: validated precondition")
-            .presentation_context_id,
+        a.context_for_sop_class(
+            sop_class::VERIFICATION_SOP_CLASS,
+            &[transfer_syntax::IMPLICIT_VR_LE]
+        )
+        .expect("matching context and transfer syntax"),
         1
     );
-    assert!(a.find_context("1.2.3.4.5.6").is_none());
+    assert!(a
+        .context_for_sop_class(
+            sop_class::VERIFICATION_SOP_CLASS,
+            &[transfer_syntax::EXPLICIT_VR_LE],
+        )
+        .is_err());
+    assert!(a
+        .context_for_sop_class("1.2.3.4.5.6", &[transfer_syntax::IMPLICIT_VR_LE])
+        .is_err());
 }
 
 #[test]

@@ -1,10 +1,10 @@
 use super::*;
-use dicom::core::header::Length;
-use dicom::core::value::DataSetSequence;
-use dicom::core::value::Value as DicomValue;
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::FileMetaBuilder;
+use ritk_dicom::dataset::Length;
+use ritk_dicom::dataset::Sequence;
+use ritk_dicom::dataset::Value as DicomValue;
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
 
 mod fixtures;
 mod poly_tests;

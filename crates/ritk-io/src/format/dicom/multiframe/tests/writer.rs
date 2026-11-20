@@ -1,6 +1,6 @@
 use super::*;
 use crate::format::dicom::writer::DicomWriteError;
-use ritk_dicom::{parse_file_with, DicomRsBackend};
+use ritk_dicom::{parse_file_with, NativeBackend};
 
 #[test]
 fn test_write_multiframe_rejects_zero_dimension() {
@@ -58,15 +58,14 @@ fn test_multiframe_sop_class_is_mf_grayscale_word() {
 
 #[test]
 fn test_written_multiframe_has_samples_per_pixel_one() {
-    use dicom::object::open_file;
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("mf_spp.dcm");
     let image = native_image(vec![1.0_f32; 2 * 4 * 5], [2, 4, 5], [0.0; 3], [1.0; 3]);
     write_dicom_multiframe_native(&out_path, &image).expect("write");
 
-    let obj = open_file(&out_path).expect("open_file");
+    let obj = ritk_dicom::dataset::DicomFile::open(&out_path).expect("open_file");
     let spp: u16 = obj
-        .element(dicom::core::Tag(0x0028, 0x0002))
+        .element(ritk_dicom::dataset::DicomTag::new(0x0028, 0x0002))
         .expect("SamplesPerPixel (0028,0002) must be present")
         .to_str()
         .expect("SamplesPerPixel must be readable as string")
@@ -86,12 +85,12 @@ fn test_native_multiframe_pixel_attributes_match_word_payload() {
     let image = native_image(vec![0.0, 10.0, 20.0, 30.0], [1, 2, 2], [0.0; 3], [1.0; 3]);
     write_dicom_multiframe_native(&out_path, &image).expect("write");
 
-    let object = dicom::object::open_file(&out_path).expect("open written DICOM");
+    let object = ritk_dicom::dataset::DicomFile::open(&out_path).expect("open written DICOM");
     for (tag, expected) in [
-        (dicom::core::Tag(0x0028, 0x0100), 16),
-        (dicom::core::Tag(0x0028, 0x0101), 16),
-        (dicom::core::Tag(0x0028, 0x0102), 15),
-        (dicom::core::Tag(0x0028, 0x0103), 0),
+        (ritk_dicom::dataset::DicomTag::new(0x0028, 0x0100), 16),
+        (ritk_dicom::dataset::DicomTag::new(0x0028, 0x0101), 16),
+        (ritk_dicom::dataset::DicomTag::new(0x0028, 0x0102), 15),
+        (ritk_dicom::dataset::DicomTag::new(0x0028, 0x0103), 0),
     ] {
         let actual = object
             .element(tag)
@@ -104,7 +103,7 @@ fn test_native_multiframe_pixel_attributes_match_word_payload() {
         assert_eq!(actual, expected, "pixel attribute {tag}");
     }
     let pixel_bytes = object
-        .element(dicom::core::Tag(0x7FE0, 0x0010))
+        .element(ritk_dicom::dataset::DicomTag::new(0x7FE0, 0x0010))
         .expect("PixelData must exist")
         .value()
         .to_bytes()
@@ -114,7 +113,6 @@ fn test_native_multiframe_pixel_attributes_match_word_payload() {
 
 #[test]
 fn test_writer_config_instance_number_propagated() {
-    use dicom::object::open_file;
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("mf_inst.dcm");
     let image = native_image(vec![5.0_f32; 2 * 3], [1, 2, 3], [0.0; 3], [1.0; 3]);
@@ -124,9 +122,9 @@ fn test_writer_config_instance_number_propagated() {
     };
     write_dicom_multiframe_native_with_config(&out_path, &image, &config).expect("write");
 
-    let obj = open_file(&out_path).expect("open_file");
+    let obj = ritk_dicom::dataset::DicomFile::open(&out_path).expect("open_file");
     let inst_num: u32 = obj
-        .element(dicom::core::Tag(0x0020, 0x0013))
+        .element(ritk_dicom::dataset::DicomTag::new(0x0020, 0x0013))
         .expect("InstanceNumber (0020,0013) must be present")
         .to_str()
         .expect("InstanceNumber must be readable")
@@ -146,9 +144,9 @@ fn test_multiframe_has_conversion_type_wsd() {
     let image = native_image(vec![1.0_f32; 2 * 2], [1, 2, 2], [0.0; 3], [1.0; 3]);
     write_dicom_multiframe_native(&out_path, &image).expect("write");
 
-    let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("open");
+    let obj = parse_file_with::<NativeBackend, _>(&out_path).expect("open");
     let conv_type = obj
-        .element(Tag(0x0008, 0x0064))
+        .element(DicomTag::new(0x0008, 0x0064))
         .expect("ConversionType (0008,0064) must be present")
         .to_str()
         .expect("ConversionType must be a string")
@@ -166,16 +164,16 @@ fn test_multiframe_has_study_and_series_uids() {
     let out_path = tmp.path().join("uids.dcm");
     let image = native_image(vec![1.0_f32; 2 * 2], [1, 2, 2], [0.0; 3], [1.0; 3]);
     write_dicom_multiframe_native(&out_path, &image).expect("write");
-    let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("open");
+    let obj = parse_file_with::<NativeBackend, _>(&out_path).expect("open");
     let study_uid = obj
-        .element(Tag(0x0020, 0x000D))
+        .element(DicomTag::new(0x0020, 0x000D))
         .expect("StudyInstanceUID (0020,000D) must be present")
         .to_str()
         .expect("StudyInstanceUID must be a string")
         .trim()
         .to_string();
     let series_uid = obj
-        .element(Tag(0x0020, 0x000E))
+        .element(DicomTag::new(0x0020, 0x000E))
         .expect("SeriesInstanceUID (0020,000E) must be present")
         .to_str()
         .expect("SeriesInstanceUID must be a string")
@@ -198,18 +196,18 @@ fn test_multiframe_has_type2_patient_study_series_tags() {
     let out_path = tmp.path().join("type2.dcm");
     let image = native_image(vec![5.0_f32; 3 * 3], [1, 3, 3], [0.0; 3], [1.0; 3]);
     write_dicom_multiframe_native(&out_path, &image).expect("write");
-    let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("open");
+    let obj = parse_file_with::<NativeBackend, _>(&out_path).expect("open");
     // Assert presence (value may be empty per Type 2 semantics).
-    obj.element(Tag(0x0010, 0x0010))
+    obj.element(DicomTag::new(0x0010, 0x0010))
         .expect("PatientName (0010,0010) must be present");
-    obj.element(Tag(0x0010, 0x0020))
+    obj.element(DicomTag::new(0x0010, 0x0020))
         .expect("PatientID (0010,0020) must be present");
-    obj.element(Tag(0x0008, 0x0020))
+    obj.element(DicomTag::new(0x0008, 0x0020))
         .expect("StudyDate (0008,0020) must be present");
-    obj.element(Tag(0x0008, 0x0090))
+    obj.element(DicomTag::new(0x0008, 0x0090))
         .expect("ReferringPhysicianName (0008,0090) must be present");
-    obj.element(Tag(0x0020, 0x0010))
+    obj.element(DicomTag::new(0x0020, 0x0010))
         .expect("StudyID (0020,0010) must be present");
-    obj.element(Tag(0x0020, 0x0011))
+    obj.element(DicomTag::new(0x0020, 0x0011))
         .expect("SeriesNumber (0020,0011) must be present");
 }

@@ -3,11 +3,11 @@
 use std::fmt;
 
 use anyhow::{bail, Context, Result};
-use dicom::core::Tag;
-use dicom::object::DefaultDicomObject;
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::dataset::DicomTag;
 use ritk_dicom::{
     decode_frame_with, parse_bytes_with_budget, parse_file_with_budget, DecodeFrameRequest,
-    DicomRsBackend, ParseBudget, PixelLayout, TransferSyntaxKind,
+    NativeBackend, ParseBudget, PixelLayout, TransferSyntaxKind,
 };
 #[cfg(test)]
 use ritk_dicom::{decode_native_pixel_bytes_checked, PixelSignedness};
@@ -67,7 +67,7 @@ pub(super) fn read_slice_pixels(
     slice: &DicomSliceMetadata,
     budget: &ParseBudget,
 ) -> Result<Vec<f32>> {
-    let obj = parse_file_with_budget::<DicomRsBackend, _>(&slice.path, budget)
+    let obj = parse_file_with_budget::<NativeBackend, _>(&slice.path, budget)
         .with_context(|| format!("failed to open DICOM slice {:?}", slice.path))?;
     decode_pixels_from_object(&obj, slice)
 }
@@ -78,24 +78,21 @@ pub(super) fn read_slice_pixels_from_bytes(
     slice: &DicomSliceMetadata,
     budget: &ParseBudget,
 ) -> Result<Vec<f32>> {
-    let obj = parse_bytes_with_budget::<DicomRsBackend>(part10_bytes, budget)
+    let obj = parse_bytes_with_budget::<NativeBackend>(part10_bytes, budget)
         .with_context(|| format!("failed to parse DICOM bytes for {:?}", slice.path))?;
     decode_pixels_from_object(&obj, slice)
 }
 
 /// Shared pixel-decode logic operating on an already-parsed DICOM object.
-fn decode_pixels_from_object(
-    obj: &DefaultDicomObject,
-    slice: &DicomSliceMetadata,
-) -> Result<Vec<f32>> {
+fn decode_pixels_from_object(obj: &DicomFile, slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
     let ts = slice
         .transfer_syntax_uid
         .as_deref()
         .map(TransferSyntaxKind::from_uid)
-        .unwrap_or(TransferSyntaxKind::ImplicitVrLittleEndian);
+        .unwrap_or_else(|| TransferSyntaxKind::from_uid(obj.meta().transfer_syntax()));
 
     let rows = obj
-        .element(Tag(0x0028, 0x0010))
+        .element(DicomTag::new(0x0028, 0x0010))
         .with_context(|| format!("Rows (0028,0010) absent in {:?}", slice.path))?
         .to_str()
         .with_context(|| format!("Rows (0028,0010) unreadable in {:?}", slice.path))?
@@ -104,7 +101,7 @@ fn decode_pixels_from_object(
         .with_context(|| format!("Rows (0028,0010) invalid in {:?}", slice.path))?;
 
     let cols = obj
-        .element(Tag(0x0028, 0x0011))
+        .element(DicomTag::new(0x0028, 0x0011))
         .with_context(|| format!("Columns (0028,0011) absent in {:?}", slice.path))?
         .to_str()
         .with_context(|| format!("Columns (0028,0011) unreadable in {:?}", slice.path))?
@@ -113,7 +110,7 @@ fn decode_pixels_from_object(
         .with_context(|| format!("Columns (0028,0011) invalid in {:?}", slice.path))?;
 
     let samples_per_pixel = obj
-        .element(Tag(0x0028, 0x0002))
+        .element(DicomTag::new(0x0028, 0x0002))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse::<usize>().ok())
@@ -121,7 +118,7 @@ fn decode_pixels_from_object(
 
     ensure_scalar_samples_per_pixel(samples_per_pixel, slice.path.display())?;
 
-    let data = decode_frame_with::<DicomRsBackend>(
+    let data = decode_frame_with::<NativeBackend>(
         obj,
         DecodeFrameRequest {
             frame_index: 0,

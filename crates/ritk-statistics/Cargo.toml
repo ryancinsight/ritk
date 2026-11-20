@@ -15,7 +15,7 @@ readme.workspace = true
 [dependencies]
 ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.5.0" }
 ritk-tensor-ops = { path = "../ritk-tensor-ops", version = "0.3.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.5.0" }
+ritk-spatial = { workspace = true }
 moirai = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }

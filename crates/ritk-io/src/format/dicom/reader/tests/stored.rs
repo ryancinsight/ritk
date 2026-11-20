@@ -4,7 +4,6 @@
 use super::super::stored::{read_dicom_series_stored, DicomStoredImportError};
 use super::super::DicomReadBudget;
 use super::support::*;
-use dicom::core::smallvec::SmallVec;
 
 /// Writes one CT instance carrying explicit 16-bit pixel values.
 ///
@@ -23,117 +22,123 @@ fn write_ct_slice(
     values: &[u16],
 ) {
     let sop_instance_uid = format!("{}.{}", series_uid, instance);
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from(sop_instance_uid.as_str()),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0060),
+        DicomTag::new(0x0008, 0x0060),
         VR::CS,
         PrimitiveValue::from("CT"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
+        DicomTag::new(0x0020, 0x000E),
         VR::UI,
         PrimitiveValue::from(series_uid),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000D),
+        DicomTag::new(0x0020, 0x000D),
         VR::UI,
         PrimitiveValue::from("1.2.3.4.5"),
     ));
     let instance_text = instance.to_string();
     obj.put(DataElement::new(
-        Tag(0x0020, 0x0013),
+        DicomTag::new(0x0020, 0x0013),
         VR::IS,
         PrimitiveValue::from(instance_text.as_str()),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x0032),
+        DicomTag::new(0x0020, 0x0032),
         VR::DS,
         PrimitiveValue::from(format!("0.0\\0.0\\{z:.1}").as_str()),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x0037),
+        DicomTag::new(0x0020, 0x0037),
         VR::DS,
         PrimitiveValue::from("1.0\\0.0\\0.0\\0.0\\1.0\\0.0"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(2_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(2_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
+        DicomTag::new(0x0028, 0x0102),
         VR::US,
         PrimitiveValue::from(15_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
+        DicomTag::new(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
+        DicomTag::new(0x0028, 0x0002),
         VR::US,
         PrimitiveValue::from(1_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0004),
+        DicomTag::new(0x0028, 0x0004),
         VR::CS,
         PrimitiveValue::from(photometric),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0030),
+        DicomTag::new(0x0028, 0x0030),
         VR::DS,
         PrimitiveValue::from("1.0\\1.0"),
     ));
     let slope_text = slope.to_string();
     obj.put(DataElement::new(
-        Tag(0x0028, 0x1053),
+        DicomTag::new(0x0028, 0x1053),
         VR::DS,
         PrimitiveValue::from(slope_text.as_str()),
     ));
     let intercept_text = intercept.to_string();
     obj.put(DataElement::new(
-        Tag(0x0028, 0x1054),
+        DicomTag::new(0x0028, 0x1054),
         VR::DS,
         PrimitiveValue::from(intercept_text.as_str()),
     ));
-    let mut pixel_bytes = Vec::with_capacity(values.len() * 2);
-    for value in values {
-        pixel_bytes.extend_from_slice(&value.to_le_bytes());
+    let pixels = DicomTag::new(0x7fe0, 0x0010);
+    if transfer_syntax == ritk_dicom::TransferSyntaxKind::RleLossless.uid() {
+        let frame = ritk_codecs::encode_rle_lossless_fragment_u16_grayscale(values);
+        obj.put(DataElement::new(
+            pixels,
+            VR::OB,
+            ritk_dicom::dataset::PixelFragments::from_fragments([frame]),
+        ));
+    } else {
+        let pixel_bytes: Vec<_> = values
+            .iter()
+            .flat_map(|value| value.to_le_bytes())
+            .collect();
+        obj.put_value(pixels, VR::OW, pixel_bytes);
     }
-    obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
-        VR::OW,
-        PrimitiveValue::U8(SmallVec::from_vec(pixel_bytes)),
-    ));
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
                 .media_storage_sop_instance_uid(sop_instance_uid.as_str())
                 .transfer_syntax(transfer_syntax),
@@ -242,7 +247,7 @@ fn a_compressed_transfer_syntax_is_rejected() {
         "2.25.73004",
         1,
         0.0,
-        "1.2.840.10008.1.2.4.50",
+        "1.2.840.10008.1.2.5",
         "MONOCHROME2",
         1.0,
         0.0,

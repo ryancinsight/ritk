@@ -1,9 +1,9 @@
 //! RT Structure Set reader — parse a DICOM RT Structure Set file into [`RtStructureSet`].
 
 use anyhow::{bail, Context, Result};
-use dicom::core::value::Value;
-use dicom::core::Tag;
-use ritk_dicom::{parse_file_with, DicomRsBackend};
+use ritk_dicom::dataset::DicomTag;
+use ritk_dicom::dataset::Value;
+use ritk_dicom::{parse_file_with, NativeBackend};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -26,7 +26,7 @@ use super::types::{
 /// 3. `structure_set_name` is `None` when the tag is absent or empty.
 pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
     let path = path.as_ref();
-    let obj = parse_file_with::<DicomRsBackend, _>(path)
+    let obj = parse_file_with::<NativeBackend, _>(path)
         .with_context(|| format!("open DICOM file: {}", path.display()))?;
 
     let sop = obj.meta().media_storage_sop_class_uid();
@@ -40,14 +40,14 @@ pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
     }
 
     let structure_set_label = obj
-        .element(Tag(0x3006, 0x0002))
+        .element(DicomTag::new(0x3006, 0x0002))
         .ok()
         .and_then(|e| e.to_str().ok())
         .map(|s| s.trim().to_string())
         .unwrap_or_default();
 
     let structure_set_name = obj
-        .element(Tag(0x3006, 0x0004))
+        .element(DicomTag::new(0x3006, 0x0004))
         .ok()
         .and_then(|e| e.to_str().ok())
         .map(|s| s.trim().to_string())
@@ -55,26 +55,26 @@ pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
 
     // Step 1: build ROI map from StructureSetROISequence (3006,0020).
     let mut roi_map: HashMap<u32, RtRoiInfo> = HashMap::new();
-    if let Ok(seq_elem) = obj.element(Tag(0x3006, 0x0020))
+    if let Ok(seq_elem) = obj.element(DicomTag::new(0x3006, 0x0020))
         && let Value::Sequence(seq) = seq_elem.value()
     {
         for item in seq.items() {
             let roi_number: u32 = item
-                .element(Tag(0x3006, 0x0022))
+                .element(DicomTag::new(0x3006, 0x0022))
                 .ok()
                 .and_then(|e| e.to_str().ok())
                 .and_then(|s| s.trim().parse().ok())
                 .unwrap_or(0);
 
             let roi_name = item
-                .element(Tag(0x3006, 0x0026))
+                .element(DicomTag::new(0x3006, 0x0026))
                 .ok()
                 .and_then(|e| e.to_str().ok())
                 .map(|s| s.trim().to_string())
                 .unwrap_or_default();
 
             let roi_description = item
-                .element(Tag(0x3006, 0x0028))
+                .element(DicomTag::new(0x3006, 0x0028))
                 .ok()
                 .and_then(|e| e.to_str().ok())
                 .map(|s| s.trim().to_string())
@@ -95,19 +95,19 @@ pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
     }
 
     // Step 2: update roi_interpreted_type from RTROIObservationsSequence (3006,0080).
-    if let Ok(seq_elem) = obj.element(Tag(0x3006, 0x0080))
+    if let Ok(seq_elem) = obj.element(DicomTag::new(0x3006, 0x0080))
         && let Value::Sequence(seq) = seq_elem.value()
     {
         for item in seq.items() {
             let ref_roi: u32 = item
-                .element(Tag(0x3006, 0x0084))
+                .element(DicomTag::new(0x3006, 0x0084))
                 .ok()
                 .and_then(|e| e.to_str().ok())
                 .and_then(|s| s.trim().parse().ok())
                 .unwrap_or(0);
 
             let interpreted_type = item
-                .element(Tag(0x3006, 0x00A4))
+                .element(DicomTag::new(0x3006, 0x00A4))
                 .ok()
                 .and_then(|e| e.to_str().ok())
                 .filter(|s| !s.trim().is_empty())
@@ -120,36 +120,36 @@ pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
     }
 
     // Step 3: update display_color + contours from ROIContourSequence (3006,0039).
-    if let Ok(seq_elem) = obj.element(Tag(0x3006, 0x0039))
+    if let Ok(seq_elem) = obj.element(DicomTag::new(0x3006, 0x0039))
         && let Value::Sequence(seq) = seq_elem.value()
     {
         for item in seq.items() {
             let ref_roi: u32 = item
-                .element(Tag(0x3006, 0x0084))
+                .element(DicomTag::new(0x3006, 0x0084))
                 .ok()
                 .and_then(|e| e.to_str().ok())
                 .and_then(|s| s.trim().parse().ok())
                 .unwrap_or(0);
 
             let display_color = item
-                .element(Tag(0x3006, 0x002A))
+                .element(DicomTag::new(0x3006, 0x002A))
                 .ok()
                 .and_then(|e| e.to_str().ok())
                 .and_then(|s| parse_color(s.trim()));
 
             let mut contours: Vec<RtContour> = Vec::new();
-            if let Ok(cs_elem) = item.element(Tag(0x3006, 0x0040))
+            if let Ok(cs_elem) = item.element(DicomTag::new(0x3006, 0x0040))
                 && let Value::Sequence(cs) = cs_elem.value()
             {
                 for ci in cs.items() {
                     let geometric_type = ci
-                        .element(Tag(0x3006, 0x0042))
+                        .element(DicomTag::new(0x3006, 0x0042))
                         .ok()
                         .and_then(|e| e.to_str().ok())
                         .and_then(|s| ContourGeometricType::from_dicom_str(s.trim()))
                         .unwrap_or(ContourGeometricType::ClosedPlanar);
 
-                    let points = match ci.element(Tag(0x3006, 0x0050)) {
+                    let points = match ci.element(DicomTag::new(0x3006, 0x0050)) {
                         Ok(element) => {
                             let raw = element
                                 .to_str()

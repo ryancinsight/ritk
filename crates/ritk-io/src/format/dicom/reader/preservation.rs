@@ -1,4 +1,4 @@
-//! Tag preservation helpers for the DICOM series reader.
+//! DicomTag preservation helpers for the DICOM series reader.
 //!
 //! These utilities identify and preserve DICOM elements that are not
 //! explicitly extracted by the named parsing logic.
@@ -6,9 +6,8 @@
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
-use dicom::core::VR;
-use dicom::object::DefaultDicomObject;
-use dicom_core::header::Header;
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::dataset::VR;
 
 use crate::format::dicom::object_model::{
     is_private_tag, DicomElementClass, DicomObjectNode, DicomPreservationSet,
@@ -96,15 +95,15 @@ pub(super) const MAX_RETAINED_SEQUENCE_DEPTH: usize = 8;
 /// against malformed input. Every element that cannot be interpreted or
 /// retained is appended to `losses`; nothing is discarded without a record.
 pub(super) fn parse_sequence_item(
-    item: &dicom::object::InMemDicomObject,
+    item: &ritk_dicom::dataset::Dataset,
     depth: usize,
     losses: &mut Vec<DicomRetentionLoss>,
 ) -> DicomSequenceItem {
     let mut seq_item = DicomSequenceItem::new();
     for element in item.iter() {
         let tag = element.tag();
-        let dicom_tag = DicomTag::new(tag.group(), tag.element());
-        let vr_str = element.vr().to_string();
+        let dicom_tag = DicomTag::new(tag.group, tag.element);
+        let vr_str = element.vr().as_str();
         let element_class = if is_private_tag(dicom_tag) {
             DicomElementClass::Private
         } else {
@@ -205,19 +204,19 @@ pub(super) fn parse_sequence_item(
 /// sequence walker rather than in `parse` so the retention rules stay in one
 /// module.
 pub(super) fn preserve_unhandled_elements(
-    obj: &DefaultDicomObject,
+    obj: &DicomFile,
     preservation: &mut DicomPreservationSet,
 ) {
     let handled = known_handled_tags();
     let mut losses: Vec<DicomRetentionLoss> = Vec::new();
-    for element in obj {
+    for element in obj.iter() {
         let tag = element.tag();
-        let key = tag_key(tag.group(), tag.element());
+        let key = tag_key(tag.group, tag.element);
         if handled.contains(&key) {
             continue;
         }
-        let dicom_tag = DicomTag::new(tag.group(), tag.element());
-        let vr_str = element.vr().to_string();
+        let dicom_tag = DicomTag::new(tag.group, tag.element);
+        let vr_str = element.vr().as_str();
         let element_class = if is_private_tag(dicom_tag) {
             DicomElementClass::Private
         } else {
@@ -257,8 +256,7 @@ pub(super) fn preserve_unhandled_elements(
                 },
             }
         } else {
-            // Binary VRs bypass to_str(): dicom-rs 0.8 decimal-formats them
-            // silently instead of erroring, which corrupts raw payloads.
+            // Preserve the encoded payload for binary VRs.
             let is_binary_vr = matches!(
                 element.vr(),
                 VR::OB | VR::OW | VR::OD | VR::OF | VR::OL | VR::UN
@@ -311,32 +309,32 @@ pub(super) fn preserve_unhandled_elements(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dicom::core::value::{DataSetSequence, PrimitiveValue, Value};
-    use dicom::core::{DataElement, Tag, VR};
-    use dicom::object::InMemDicomObject;
+    use ritk_dicom::dataset::Dataset;
+    use ritk_dicom::dataset::{DataElement, DicomTag, VR};
+    use ritk_dicom::dataset::{PrimitiveValue, Sequence, Value};
 
-    const NESTED_SEQUENCE: Tag = Tag(0x0040, 0xA730);
-    const LEAF: Tag = Tag(0x0008, 0x0080);
+    const NESTED_SEQUENCE: DicomTag = DicomTag::new(0x0040, 0xA730);
+    const LEAF: DicomTag = DicomTag::new(0x0008, 0x0080);
 
     /// The retention-side tag for [`NESTED_SEQUENCE`].
     fn nested_tag() -> DicomTag {
-        DicomTag::new(NESTED_SEQUENCE.group(), NESTED_SEQUENCE.element())
+        DicomTag::new(NESTED_SEQUENCE.group, NESTED_SEQUENCE.element)
     }
 
     /// One sequence element holding exactly one item.
-    fn wrap(inner: InMemDicomObject) -> InMemDicomObject {
-        let mut parent = InMemDicomObject::new_empty();
+    fn wrap(inner: Dataset) -> Dataset {
+        let mut parent = Dataset::new();
         parent.put(DataElement::new(
             NESTED_SEQUENCE,
             VR::SQ,
-            Value::Sequence(DataSetSequence::from(vec![inner])),
+            Value::Sequence(Sequence::from(vec![inner])),
         ));
         parent
     }
 
     /// An object with `levels` nested sequence elements above a text leaf.
-    fn nested(levels: usize) -> InMemDicomObject {
-        let mut current = InMemDicomObject::new_empty();
+    fn nested(levels: usize) -> Dataset {
+        let mut current = Dataset::new();
         current.put(DataElement::new(LEAF, VR::LO, PrimitiveValue::from("leaf")));
         for _ in 0..levels {
             current = wrap(current);
@@ -384,9 +382,9 @@ mod tests {
     /// group is classified as private at depth.
     #[test]
     fn a_nested_binary_private_element_is_retained_opaquely() {
-        const PRIVATE_BINARY: Tag = Tag(0x0009, 0x1001);
-        let private_tag = DicomTag::new(PRIVATE_BINARY.group(), PRIVATE_BINARY.element());
-        let mut leaf = InMemDicomObject::new_empty();
+        const PRIVATE_BINARY: DicomTag = DicomTag::new(0x0009, 0x1001);
+        let private_tag = DicomTag::new(PRIVATE_BINARY.group, PRIVATE_BINARY.element);
+        let mut leaf = Dataset::new();
         leaf.put(DataElement::new(
             PRIVATE_BINARY,
             VR::OB,

@@ -21,8 +21,10 @@ fn sample_rq() -> AssociateRqPdu {
                 maximum_length_received: 16384,
             },
             implementation_class_uid: ImplementationClassUidSubItem {
-                implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID)
-                    .expect("infallible: validated precondition"),
+                implementation_class_uid: ArrayString::from(
+                    ritk_dicom::dataset::IMPLEMENTATION_CLASS_UID,
+                )
+                .expect("infallible: validated precondition"),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
                 implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION)
@@ -141,18 +143,13 @@ fn test_p_data_tf_round_trip() {
 
 #[test]
 fn test_release_round_trip() {
-    let rq = Pdu::ReleaseRq(ReleaseRqPdu);
-    let enc = rq.encode();
-    assert_eq!(enc.len(), 6);
-    assert_eq!(
-        Pdu::decode(&enc).expect("infallible: validated precondition"),
-        rq
-    );
-    let rp = Pdu::ReleaseRp(ReleaseRpPdu);
-    assert_eq!(
-        Pdu::decode(&rp.encode()).expect("infallible: validated precondition"),
-        rp
-    );
+    let request = Pdu::ReleaseRq(ReleaseRqPdu).encode();
+    let response = Pdu::ReleaseRp(ReleaseRpPdu).encode();
+    assert_eq!(request, [5, 0, 0, 0, 0, 4, 0, 0, 0, 0]);
+    assert_eq!(response, [6, 0, 0, 0, 0, 4, 0, 0, 0, 0]);
+    assert!(matches!(Pdu::decode(&request), Ok(Pdu::ReleaseRq(_))));
+    assert!(matches!(Pdu::decode(&response), Ok(Pdu::ReleaseRp(_))));
+    assert!(Pdu::decode(&[5, 0, 0, 0, 0, 0]).is_err());
 }
 
 #[test]
