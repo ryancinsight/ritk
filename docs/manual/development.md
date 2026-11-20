@@ -26,6 +26,8 @@ cargo nextest run --locked -p ritk-snap -E '
   or test(native_toolbar_length_then_drag_records_measurement)
   or test(native_length_preview_draws_only_on_its_owning_slice)
   or test(native_length_calibration_scales_labels_and_resets)
+  or test(calibration_dialog_line_boxes_stay_in_controls)
+  or test(calibration_dialog_input_end_scrolls_and_backspace_resets)
   or test(arrow_)
   or test(native_pencil_)
   or test(double_click_)

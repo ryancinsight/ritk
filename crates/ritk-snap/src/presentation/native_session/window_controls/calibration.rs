@@ -4,7 +4,7 @@ use crate::app::{LengthCalibrationReference, SnapApp};
 use crate::presentation::PresentationEvent;
 use anyhow::Result;
 use metis_platform::rasterizer::{fill_rect, CornerRadius};
-use metis_platform::{Color, Framebuffer, Rect};
+use metis_platform::{whole_pixels, Color, Framebuffer, Rect};
 use metis_ui_lang::{DecimalEdit, DecimalEntry};
 
 #[derive(Clone)]
@@ -114,7 +114,14 @@ impl CalibrationDialog {
         } else {
             "Known distance (mm) · Enter to apply · Esc"
         };
-        draw_text(framebuffer, x + 12, y + 24, caption, text);
+        let caption_bounds = Rect::new(x + 12, y + 8, 262, 26);
+        draw_text(
+            framebuffer,
+            caption_bounds.x,
+            text.centered_line_box_top(caption_bounds)?,
+            caption,
+            text,
+        );
         let field = Rect::new(x + 12, y + 38, 262, 32);
         fill_rect(
             framebuffer,
@@ -122,13 +129,15 @@ impl CalibrationDialog {
             CornerRadius::SQUARE,
             Color::rgb(56, 63, 72),
         );
-        draw_text(
-            framebuffer,
-            field.x + 8,
-            field.y + 22,
-            self.input.as_str(),
-            text,
-        );
+        let input_bounds = Rect::new(field.x + 8, field.y, field.width - 16, field.height);
+        let overflow = whole_pixels(
+            (text.advance(self.input.as_str()) - f64::from(input_bounds.width)).max(0.0),
+        )?;
+        let input_x = i32::try_from(i64::from(input_bounds.x) - i64::from(overflow))?;
+        let input_y = text.centered_line_box_top(input_bounds)?;
+        framebuffer.render_clipped(input_bounds, |surface| {
+            draw_text(surface, input_x, input_y, self.input.as_str(), text);
+        });
         Ok(())
     }
 }
