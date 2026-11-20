@@ -90,6 +90,13 @@ pub fn csv_for(annotations: &[Annotation]) -> String {
             Annotation::Angle { angle_deg, .. } => {
                 format!("{i},Angle,{angle_deg:.2},deg,\n")
             }
+            Annotation::Deviation {
+                distance_mm,
+                angle_deg,
+                ..
+            } => {
+                format!("{i},Deviation,{distance_mm:.2},mm,angle={angle_deg:.2} deg\n")
+            }
             Annotation::RoiRect {
                 mean,
                 std_dev,
@@ -129,6 +136,13 @@ fn annotation_label(i: usize, ann: &Annotation) -> String {
         }
         Annotation::Angle { angle_deg, .. } => {
             format!("#{i}  Angle: {angle_deg:.2}°")
+        }
+        Annotation::Deviation {
+            distance_mm,
+            angle_deg,
+            ..
+        } => {
+            format!("#{i}  Deviation: {distance_mm:.1} mm at {angle_deg:.1}°")
         }
         Annotation::RoiRect {
             mean,

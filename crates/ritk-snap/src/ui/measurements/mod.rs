@@ -80,6 +80,7 @@ impl MeasurementLayer {
                 // created them. Orthogonal views must not project them as if
                 // their endpoints were two-dimensional image coordinates.
                 Annotation::PatientLength { .. } => {}
+                Annotation::Deviation { .. } => {}
                 Annotation::Angle {
                     p1,
                     p2,
@@ -233,7 +234,8 @@ impl MeasurementLayer {
             // Panning and window-level drag produce no visual annotation.
             ToolState::Panning { .. }
             | ToolState::Zooming { .. }
-            | ToolState::WindowLevelDrag { .. } => {}
+            | ToolState::WindowLevelDrag { .. }
+            | ToolState::DeviationDrag { .. } => {}
         }
     }
 }

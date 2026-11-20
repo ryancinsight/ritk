@@ -12,6 +12,12 @@ fn a_key_selects_measure_angle() {
     assert_eq!(tool_kind_for_key(Key::A), Some(ToolKind::MeasureAngle));
 }
 
+/// D key maps to MeasureDeviation.
+#[test]
+fn d_key_selects_measure_deviation() {
+    assert_eq!(tool_kind_for_key(Key::D), Some(ToolKind::MeasureDeviation));
+}
+
 /// R key maps to RoiRect.
 #[test]
 fn r_key_selects_roi_rect() {
@@ -69,6 +75,7 @@ fn virtual_key_shortcuts_match_egui_shortcuts() {
     let pairs = [
         (VIRTUAL_KEY_MEASURE_LENGTH, Key::L),
         (VIRTUAL_KEY_MEASURE_ANGLE, Key::A),
+        (VIRTUAL_KEY_MEASURE_DEVIATION, Key::D),
         (VIRTUAL_KEY_ROI_RECT, Key::R),
         (VIRTUAL_KEY_ROI_ELLIPSE, Key::E),
         (VIRTUAL_KEY_HU_POINT, Key::H),
@@ -93,6 +100,7 @@ fn all_shortcuts_distinct() {
     let keys = [
         Key::L,
         Key::A,
+        Key::D,
         Key::R,
         Key::E,
         Key::H,
@@ -107,7 +115,6 @@ fn all_shortcuts_distinct() {
             mapped.push(tool);
         }
     }
-    // If there were duplicates, this would fail (we'd see fewer unique tools than keys)
-    // But since we defined 9 distinct keys → 9 distinct tools, this passes by construction.
-    assert_eq!(mapped.len(), 9);
+    // If there were duplicates, this would fail (we'd see fewer unique tools than keys).
+    assert_eq!(mapped.len(), 10);
 }

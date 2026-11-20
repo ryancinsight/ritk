@@ -41,6 +41,7 @@
 //! ```
 
 mod image;
+mod paths;
 mod patient_length;
 
 pub use patient_length::PatientLength;
@@ -188,6 +189,22 @@ pub enum Annotation {
         max: f32,
         /// Physical area of the ellipse in mm².
         area_mm2: f32,
+    },
+
+    /// Distance and acute angle of a segment from its nearer image axis.
+    Deviation {
+        /// Creation location on the orthogonal image.
+        #[serde(default)]
+        location: Option<AnnotationLocation>,
+        /// Segment start and end as `[row, col]` image pixels.
+        start: [f32; 2],
+        end: [f32; 2],
+        /// Endpoint of the axis-aligned baseline used for the offset.
+        reference: [f32; 2],
+        /// Derived distance from the nearer horizontal or vertical axis.
+        distance_mm: f32,
+        /// Acute angle from that axis in degrees.
+        angle_deg: f32,
     },
 
     /// Single-point HU measurement.
