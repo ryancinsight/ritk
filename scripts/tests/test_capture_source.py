@@ -224,6 +224,53 @@ class CaptureSourceTests(unittest.TestCase):
                 with self.assertRaises(capture_source.CaptureSourceError):
                     capture_source.decoded_rgba(data, "frame.png", "PNG")
 
+    def test_capture_frames_require_exact_decodable_png_set(self):
+        def pixels(size, format_name):
+            output = io.BytesIO()
+            mode = "RGB" if format_name == "JPEG" else "RGBA"
+            Image.new(mode, size).save(output, format=format_name)
+            return output.getvalue()
+
+        valid = pixels(capture_source.FRAME_SIZE, "PNG")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            names = [f"{stem}.png" for stem in capture_source.CAPTURE_FRAME_STEMS]
+            for name in names:
+                (root / name).write_bytes(valid)
+            self.assertEqual(
+                capture_source.capture_hashes(root),
+                {name: digest(valid) for name in names},
+            )
+            frame = root / names[0]
+            cases = {
+                "corrupt": (b"not an image", "cannot decode image"),
+                "format": (pixels(capture_source.FRAME_SIZE, "JPEG"), "not PNG"),
+                "dimensions": (pixels((1, 1), "PNG"), "wrong dimensions"),
+            }
+            for name, (data, message) in cases.items():
+                with self.subTest(case=name):
+                    frame.write_bytes(data)
+                    with self.assertRaisesRegex(capture_source.CaptureSourceError, message):
+                        capture_source.capture_hashes(root)
+                    frame.write_bytes(valid)
+            frame.unlink()
+            with self.assertRaisesRegex(capture_source.CaptureSourceError, "output set"):
+                capture_source.capture_hashes(root)
+
+    def test_capture_admission_preserves_process_result(self):
+        self.assertEqual(
+            capture_source.capture_admission(0, []),
+            {"status": "accepted", "errors": []},
+        )
+        self.assertEqual(
+            capture_source.capture_admission(0, ["dataset changed"]),
+            {"status": "rejected", "errors": ["dataset changed"]},
+        )
+        self.assertEqual(
+            capture_source.capture_admission(7, []),
+            {"status": "rejected", "errors": ["capture process exited with status 7"]},
+        )
+
     def test_fixture_identity_requires_regular_dicom_files(self):
         for case in ("metadata", "directory"):
             with self.subTest(case=case):

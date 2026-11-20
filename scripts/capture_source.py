@@ -24,6 +24,12 @@ EXECUTION_IDENTITY_KEYS = frozenset({
 ATLAS_RUNTIME_FILES = frozenset({
     "process_tree.py", "windows_process.py", "darwin_process.py", "atlas_build_source.py",
 })
+CAPTURE_FRAME_STEMS = (
+    "dicom-native-slices",
+    "dicom-native-calibration",
+    "dicom-native-annotations",
+    "dicom-native-length-edit",
+)
 
 
 class CaptureSourceError(RuntimeError):
@@ -48,6 +54,33 @@ def decoded_rgba(data: bytes, name: str, expected_format: str) -> tuple[tuple[in
             return image.size, image.convert("RGBA").tobytes()
     except (OSError, Image.DecompressionBombError) as error:
         raise CaptureSourceError(f"cannot decode image: {name}") from error
+
+
+def file_hashes(root: Path) -> dict[str, str]:
+    return {
+        path.relative_to(root).as_posix(): sha256(path.read_bytes())
+        for path in sorted(root.rglob("*")) if path.is_file()
+    }
+
+
+def capture_hashes(capture_root: Path) -> dict[str, str]:
+    captures = file_hashes(capture_root)
+    expected = {f"{stem}.png" for stem in CAPTURE_FRAME_STEMS}
+    if set(captures) != expected:
+        raise CaptureSourceError("capture output set is incomplete")
+    for name in sorted(captures):
+        decoded_rgba((capture_root / name).read_bytes(), name, "PNG")
+    return captures
+
+
+def capture_admission(exit_code: int | None, errors: list[str]) -> dict:
+    observed = list(errors)
+    if exit_code is None:
+        observed.insert(0, "capture process did not report an exit status")
+    elif exit_code != 0:
+        observed.insert(0, f"capture process exited with status {exit_code}")
+    status = "accepted" if exit_code == 0 and not observed else "rejected"
+    return {"status": status, "errors": observed}
 
 
 def atlas_process_tree(atlas_root: Path):
@@ -115,6 +148,28 @@ def execution_records_match(before: object, after: object) -> bool:
            for key in ATLAS_RUNTIME_FILES):
         return False
     return before == after
+
+
+def capture_execution_identity(builder, atlas_root: Path, neutral: Path, config: Path,
+                               environment: dict[str, str], command: list[str]) -> dict:
+    config_arguments = (str(config),)
+    identity = {
+        "toolchain": builder.toolchain_identity(
+            neutral, environment, config_arguments, command
+        ),
+        "cargo_config": builder.cargo_config_digest(
+            neutral, config_arguments, environment
+        ),
+        "environment": builder.environment_digest(environment),
+        "atlas_config": sha256((atlas_root / ".cargo/config.toml").read_bytes()),
+        "atlas_runtime": {
+            name: sha256((atlas_root / "scripts" / name).read_bytes())
+            for name in ATLAS_RUNTIME_FILES
+        },
+    }
+    if not execution_records_match(identity, identity):
+        raise CaptureSourceError("capture execution identity is incomplete")
+    return identity
 
 
 def load_stage(record_bytes: bytes, capture_root: Path) -> tuple[dict, dict[str, str]]:
@@ -230,10 +285,7 @@ def verify_fixture(repository: Path, fixture: object, study: object) -> None:
 
 def fixture_hashes(repository: Path) -> dict[str, str]:
     root = repository.joinpath(*FIXTURE_PATH.parts).resolve()
-    return {
-        path.relative_to(root).as_posix(): sha256(path.read_bytes())
-        for path in sorted(root.rglob("*")) if path.is_file()
-    }
+    return file_hashes(root)
 
 
 def validate_capture_source(
