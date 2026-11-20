@@ -7,8 +7,8 @@
 //! # SSOT file I/O
 //!
 //! [`save_to_file`] and [`load_from_file`] are the canonical implementations
-//! for session serialization.  `app.rs` delegates to these functions; no
-//! JSON serialization logic appears outside this module.
+//! for session serialization. The app delegates to these functions; no JSON
+//! serialization logic appears outside this module.
 
 use crate::render::NamedColorMap;
 use crate::tools::interaction::Annotation;
@@ -16,8 +16,9 @@ use crate::tools::kind::ToolKind;
 use crate::ui::sidebar::SidebarTab;
 use crate::ViewerState;
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::path::Path;
+mod representation;
 mod source;
 pub use source::{SessionFormat, StudySource};
 
@@ -31,10 +32,9 @@ pub use source::{SessionFormat, StudySource};
 ///   responsibility on restore.
 /// - `annotations` contains only complete (committed) annotations; in-progress
 ///   gesture state is never captured.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ViewerSessionSnapshot {
     /// Format version; legacy unversioned snapshots migrate on deserialization.
-    #[serde(default)]
     pub format: SessionFormat,
     /// Primary study reference, revalidated before session restoration.
     pub source: Option<StudySource>,
@@ -55,10 +55,8 @@ pub struct ViewerSessionSnapshot {
     /// RT-STRUCT overlay visibility.
     pub show_rt_struct_overlay: bool,
     /// RT-DOSE overlay visibility.
-    #[serde(default)]
     pub show_rt_dose_overlay: bool,
     /// RT-DOSE overlay opacity.
-    #[serde(default = "default_rt_dose_opacity")]
     pub rt_dose_opacity: f32,
     /// Series browser visibility.
     pub show_series_browser: bool,
@@ -82,8 +80,28 @@ pub struct ViewerSessionSnapshot {
     /// and stored physical results. Patient-space lengths retain validated
     /// millimetre endpoints and derive their three-dimensional distance, so
     /// that measurement remains meaningful without the volume loaded.
-    #[serde(default)]
     pub annotations: Vec<Annotation>,
+}
+
+impl Serialize for ViewerSessionSnapshot {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        representation::ViewerSessionRepresentation::from(self).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ViewerSessionSnapshot {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        representation::ViewerSessionRepresentation::<StudySource, Vec<Annotation>>::deserialize(
+            deserializer,
+        )
+        .map(Into::into)
+    }
 }
 
 impl ViewerSessionSnapshot {
@@ -120,12 +138,6 @@ impl Default for ViewerSessionSnapshot {
         Self::empty()
     }
 }
-
-fn default_rt_dose_opacity() -> f32 {
-    0.5
-}
-
-// ─── SSOT file I/O ────────────────────────────────────────────────────────────
 
 /// Serialize `snapshot` as pretty-printed JSON and write to `path`.
 ///

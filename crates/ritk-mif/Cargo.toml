@@ -13,8 +13,8 @@ homepage.workspace = true
 
 [dependencies]
 ritk-image = { path = "../ritk-image", version = "0.5.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.4.0" }
-ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.3.0" }
+ritk-spatial = { workspace = true }
+ritk-diffusion-scheme = { workspace = true }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }
 bytemuck = { workspace = true }

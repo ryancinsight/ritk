@@ -35,9 +35,10 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.release.tag_name, 'crate-')
-    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@50802ef4c975bdb1e668b94a700d8310f0348e9c
+    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@1bf5e7456114e89c4f53eee3d26bb11cb045e6df
     with:
       release-gate: true
+      baseline-source: locked-registry
       package: ritk-analyze,ritk-annotation,ritk-codecs,ritk-core,ritk-dicom,ritk-diffusion-scheme,ritk-filter,ritk-image,ritk-interpolation,ritk-io,ritk-jpeg,ritk-metaimage,ritk-mgh,ritk-mif,ritk-minc,ritk-model,ritk-morphology,ritk-nifti,ritk-nrrd,ritk-png,ritk-registration,ritk-segmentation,ritk-spatial,ritk-statistics,ritk-tensor-ops,ritk-tiff,ritk-transform,ritk-vtk,ritk-wgpu-compat
       rust-toolchain: 1.97.0
     permissions:
@@ -66,9 +67,11 @@ jobs:
   # skip on push and schedule events.
   publish-pending:
     if: github.event_name == 'push' || github.event_name == 'schedule'
-    uses: ryancinsight/atlas/.github/workflows/crates-publish-pending.yml@50802ef4c975bdb1e668b94a700d8310f0348e9c
+    uses: ryancinsight/atlas/.github/workflows/crates-publish-pending.yml@1bf5e7456114e89c4f53eee3d26bb11cb045e6df
     permissions:
       contents: write # Creates the release tags.
       id-token: write # OIDC trusted publishing; no stored registry token.
     with:
       rust-toolchain: "1.97.0"
+      semver-baseline-source: locked-registry
+      cohort-json: '{"ritk-analyze":"0.4.0","ritk-annotation":"0.4.0","ritk-block-matching":"0.1.0","ritk-codecs":"0.8.0","ritk-core":"0.11.0","ritk-dicom":"0.5.0","ritk-diffusion-scheme":"0.4.0","ritk-filter":"0.5.0","ritk-image":"0.5.0","ritk-image-io":"0.1.0","ritk-interpolation":"0.6.0","ritk-io":"0.6.0","ritk-jpeg":"0.4.0","ritk-metaimage":"0.3.0","ritk-mgh":"0.5.0","ritk-mif":"0.3.0","ritk-minc":"0.4.0","ritk-model":"0.4.0","ritk-morphology":"0.2.1","ritk-nifti":"0.4.0","ritk-nrrd":"0.3.0","ritk-parcellation":"0.2.0","ritk-png":"0.3.0","ritk-registration":"0.56.0","ritk-segmentation":"0.5.0","ritk-spatial":"0.5.0","ritk-statistics":"0.6.0","ritk-tensor-ops":"0.3.0","ritk-tiff":"0.3.0","ritk-transform":"0.3.0","ritk-vtk":"0.4.0","ritk-wgpu-compat":"0.2.1"}'

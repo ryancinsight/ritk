@@ -13,16 +13,20 @@
 - Explicit big-endian Part 10 parsing, writing, and stored-sample decode
   are covered at the provider boundary. Higher-level RITK I/O series
   loaders retain their existing explicit big-endian policy.
-- A standalone Git consumer resolves the tested graph with its lock and
-  no path overrides. Unlocked resolution selects Aequitas 0.4 on its default
-  branch while `ritk-diffusion-scheme` requires 0.3. That release gate follows
-  the separate Aequitas adoption and registry work.
+- The reconciled workspace resolves from an empty lockfile state with one
+  registry Aequitas 0.4.0, Eunomia 0.12.1, Leto 0.51.0, and Coeus 0.13.0.
+  Across all targets and features, Chrono appears only through the independent
+  DIMSE test peer. All 43 native DICOM tests and normalized DICOM package
+  verification pass against the published provider versions. Registry
+  publication follows under
+  [RITK-REGISTRY-PUBLICATION-001](backlog/RITK-REGISTRY-PUBLICATION-001.md).
 
 <a id="RITK-REGISTRY-PUBLICATION-001"></a>
 ## RITK-REGISTRY-PUBLICATION-001: Git validation does not establish registry publication [patch]
 - risk: a corrected Git revision passes native checks while the registry resolves older incompatible dependencies or lacks required packages.
 - evidence: main's release package verification fails in registry Leto 0.42.0; an isolated Coeus 0.11 probe compiles but its registry plan holds registration on unpublished Consus and missing Coeus component versions.
 - next: preserve active provider owners, validate the complete required registry graph, and complete approved first publications before claiming a released registration version.
+- current: Spatial 0.5.0, Diffusion Scheme 0.4.0 and DICOM 0.4.0 build together as normalized packages. The Diffusion Scheme update removes the remaining registry dependency on Leto 0.46.5 for this cohort. Coeus and separate first-publish requirements still gate the rest of the registry sequence.
 - review: [RITK-REGISTRY-PUBLICATION-001](backlog/RITK-REGISTRY-PUBLICATION-001.md) records exact failure, ownership and credential boundaries.
 
 <a id="PERF-432-01"></a>

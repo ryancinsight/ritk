@@ -39,6 +39,41 @@
 - [patch] Use File Meta Information when a cached slice has no transfer
   syntax. Reject incompatible pixel framing before opening a write target.
 
+## ritk-annotation 0.4.0
+
+### Breaking
+
+- [major] Resolve Spatial 0.5.0 alongside Annotation 0.4.0. Label
+  volume dimensions now share the public Spatial 0.5.0 type.
+
+## ritk-dicom 0.4.0
+
+### Breaking
+
+- [major] Import `DecodedFrame` from `ritk_dicom::backend`. The published
+  0.2.0 archive also exported it from the crate root.
+- [major] Resolve Spatial 0.5.0 and Diffusion Scheme 0.4.0 together so the
+  public geometry and diffusion types use the current providers.
+
+## ritk-diffusion-scheme 0.4.0
+
+### Breaking
+
+- [major] Use Spatial 0.5.0 for direction vectors and Aequitas 0.4.0 for
+  typed diffusion weighting. Update callers passing either type directly
+  across the package boundary. The existing diffusion weighting units and
+  DICOM encodings retain their defined values.
+
+## ritk-spatial 0.5.0
+
+### Breaking
+
+- [major] Use Leto 0.51.0 for the public fixed point, vector, and direction
+  conversions. Consumers that pass Leto values across this boundary should
+  move to the same provider version and source. The physical coordinate
+  conventions, DICOM geometry, and file encodings retain their current rules.
+  See [ADR 0062](docs/adr/0062-spatial-provider-051.md).
+
 ## ritk-registration 0.55.1
 
 ### Fixed
@@ -52,19 +87,6 @@
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
 ### Changed
-
-- [patch] Route C-ECHO, C-FIND, C-MOVE, and C-STORE through RITK's native
-  association. Encode PS3.7 command sets as implicit VR little endian and
-  send the reserved A-RELEASE body. Honor negotiated fragment limits and
-  assemble command/data fragments from the same presentation data PDU.
-
-- [patch] Select series catalog metadata directly from the bounded Part 10
-  traversal. The catalog reads the source bytes without creating a second
-  object or copying pixel values. The scanner retains structural, size,
-  and nesting validation for each file.
-
-- [patch] Share Gregorian date validation with Horae in DICOM DA repair.
-  RITK continues to own the spelling, validation, and repair of DICOM values.
 
 - [patch] Admit the Leto 0.50 line. The Leto and Leto-ops requirements widen
   from `>=0.47.1, <0.49.0` to `>=0.47.1, <0.51.0`. The lock moves Leto and

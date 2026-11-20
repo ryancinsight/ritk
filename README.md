@@ -249,7 +249,7 @@ deflated explicit little endian. The pixel codecs cover RLE, JPEG
 Baseline/Extended/Lossless, JPEG-LS, JPEG 2000, and JPEG XL. The scanner
 borrows catalog values and native little-endian pixel data from the input.
 DIMSE sends the native writer’s dataset bytes in the negotiated syntax.
-See [ADR 0062](docs/adr/0062-native-dicom-dataset.md).
+See [ADR 0063](docs/adr/0063-native-dicom-dataset.md).
 
 #### DICOM de-identification and export verification
 

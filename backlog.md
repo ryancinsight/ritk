@@ -22,7 +22,7 @@
 - Delivered in `ritk-dicom` 0.5.0 and `ritk-io` 0.6.0. The native
   dataset writer handles nested lengths, all previously supported frame
   codecs, file metadata, and DIMSE framing. The implicit dictionary is
-  generated from PS3.6. See [ADR 0062](docs/adr/0062-native-dicom-dataset.md).
+  generated from PS3.6. See [ADR 0063](docs/adr/0063-native-dicom-dataset.md).
 - Locked continuation gate: 635 tests pass for `ritk-dicom`, `ritk-io`,
   and `ritk-diffusion-scheme` with all features. The independent DIMSE
   peer remains a dev dependency and retains its separate graph.
