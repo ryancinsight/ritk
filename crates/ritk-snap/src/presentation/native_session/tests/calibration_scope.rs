@@ -36,7 +36,7 @@ fn sorted_expected(values: &[&str]) -> Vec<String> {
     values
 }
 
-fn calibration_clicks(session: &NativeViewerSession) -> [WindowEvent; 4] {
+pub(super) fn calibration_clicks(session: &NativeViewerSession) -> [WindowEvent; 4] {
     use super::super::window_controls::Menu;
 
     let (menu_x, menu_y) = control_center(session, None, WindowAction::OpenMenu(Menu::Tools));
