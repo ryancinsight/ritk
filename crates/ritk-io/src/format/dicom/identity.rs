@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use arrayvec::ArrayString;
 use ritk_dicom::dataset::DicomFile;
 use ritk_dicom::{tags, DicomTag};
@@ -50,3 +50,19 @@ pub(super) fn image_series_uid_from<'a>(
         "invariant: UID syntax validation enforces 64-byte capacity",
     )))
 }
+
+pub(super) fn optional_uid(obj: &DicomFile, tag: DicomTag) -> Result<Option<ArrayString<64>>> {
+    let Some(element) = obj.get(tag) else {
+        return Ok(None);
+    };
+    let value = element
+        .to_str()
+        .with_context(|| format!("invalid UID {tag:?}"))?;
+    let uid = value.trim_end_matches('\0');
+    ensure!(uid_is_valid(uid), "invalid UID syntax for {tag:?}");
+    Ok(Some(
+        ArrayString::from(uid).expect("validated UID fits in 64 bytes"),
+    ))
+}
+
+pub(super) const CONCATENATION_UID: DicomTag = DicomTag::new(0x0020, 0x9161);

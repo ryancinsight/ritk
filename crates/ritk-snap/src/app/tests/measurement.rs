@@ -14,6 +14,7 @@ use super::*;
 use crate::dicom::loader::tests::fixtures;
 use crate::tools::interaction::{Annotation, ImagePoint};
 use crate::tools::kind::ToolKind;
+use aequitas::systems::si::{quantities::Length, units::Millimeter};
 use arrayvec::ArrayString;
 use ritk_io::{DicomReadMetadata, DicomSliceMetadata};
 
@@ -51,7 +52,8 @@ fn dicom_volume(pixel_spacings: &[Option<[f64; 2]>]) -> LoadedVolume {
             .iter()
             .copied()
             .map(|pixel_spacing| DicomSliceMetadata {
-                pixel_spacing,
+                pixel_spacing: pixel_spacing
+                    .map(|spacing| spacing.map(Length::from_unit::<Millimeter>)),
                 ..DicomSliceMetadata::default()
             })
             .collect(),
@@ -116,10 +118,15 @@ fn native_dicom_volume(geometry: NativeGeometry) -> LoadedVolume {
     let mut volume = crate::dicom::loader::load_volume_from_path(root.path()).unwrap();
     let slices = &mut volume.metadata.as_mut().unwrap().slices;
     match geometry {
-        NativeGeometry::RoundedSourcePositions => slices
-            .iter_mut()
-            .zip([0.1, 0.2, 0.3])
-            .for_each(|(slice, x)| slice.image_position_patient = Some([x, 20.0, 30.0])),
+        NativeGeometry::RoundedSourcePositions => {
+            slices
+                .iter_mut()
+                .zip([0.1, 0.2, 0.3])
+                .for_each(|(slice, x)| {
+                    slice.image_position_patient =
+                        Some([x, 20.0, 30.0].map(Length::from_unit::<Millimeter>))
+                })
+        }
         NativeGeometry::InconsistentOrientation => {
             slices[1].image_orientation_patient = Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
         }
@@ -128,7 +135,7 @@ fn native_dicom_volume(geometry: NativeGeometry) -> LoadedVolume {
             .zip([[0.0, 0.0, 0.0], [3.0, 0.0, 4.0], [6.0, 0.0, 8.0]])
             .for_each(|(slice, position)| {
                 slice.image_orientation_patient = Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
-                slice.image_position_patient = Some(position);
+                slice.image_position_patient = Some(position.map(Length::from_unit::<Millimeter>));
             }),
         _ => {}
     }
@@ -266,7 +273,8 @@ fn measurement_length_completion_records_active_axis_as_plane() {
 fn dicom_missing_pixel_spacing_rejects_physical_measurement() {
     let mut volume = dicom_volume(&[None]);
     let display_spacing = volume.spacing;
-    volume.metadata.as_mut().unwrap().spacing = display_spacing;
+    volume.metadata.as_mut().unwrap().spacing =
+        display_spacing.map(Length::from_unit::<Millimeter>);
     assert_eq!(volume.measurement_pixel_spacing(), None);
 
     let app = complete_length(volume, 0, ImagePoint::new(0.0, 1.0));
@@ -276,7 +284,8 @@ fn dicom_missing_pixel_spacing_rejects_physical_measurement() {
 #[test]
 fn dicom_pixel_spacing_is_admitted_without_unit_fallback() {
     let mut volume = dicom_volume(&[Some([7.0, 11.0])]);
-    volume.metadata.as_mut().unwrap().spacing = [1.0, 1.0, 1.0];
+    volume.metadata.as_mut().unwrap().spacing =
+        [1.0, 1.0, 1.0].map(Length::from_unit::<Millimeter>);
     assert_eq!(volume.measurement_pixel_spacing(), Some([7.0, 11.0]));
 
     let app = complete_length(volume, 0, ImagePoint::new(1.0, 0.0));

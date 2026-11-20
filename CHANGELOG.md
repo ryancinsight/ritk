@@ -8,6 +8,19 @@
 
 # CHANGELOG
 
+## Aequitas 0.5 provider cohort
+
+### Breaking
+
+- [major] RITK IO 0.7 carries Aequitas 0.5 lengths and activity through
+  the native DICOM reader. Convert at millimetre, degree, and isotope-activity
+  boundaries. Use the Enhanced PET volume-set API for temporal, gated, or
+  concatenated inputs. The selected volume carries aligned body-weight SUV
+  values and spatial plane provenance.
+- [major] Update the spatial, transform, and tensor packages together
+  with Leto 0.52, Apollo FFT 0.31, and Coeus 0.14. Crate versions advance
+  where the published package interface or its local provider types change.
+
 ## ritk-dicom 0.5.0 and ritk-io 0.6.0
 
 ### Breaking
@@ -87,6 +100,47 @@
   dyadic image fixture cover the regression.
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
+
+- Label interpolated Enhanced PET slices and planes copied to a different
+  position in the viewer. Each temporal and gated reconstruction carries
+  its own plane provenance.
+- Adopt Aequitas 0.5.0, Eunomia 0.12.1, and Eunomia Derive 0.12.1
+  from crates.io.
+
+### Fixed
+
+- Verify linear geometry-based resampling of an Enhanced PET slice gap
+  between complete concatenation members.
+
+### Added
+
+- Reconstruct Enhanced PET time points and gates across DICOM concatenation
+  members. The volume-set reader accepts scanned members and uses each
+  plane's original pixel encoding and quantitative mapping.
+
+### Breaking
+
+- Enhanced PET volume sets reconstruct each temporal position and gate
+  separately. Use the volume-set reader for dynamic or gated Part 10
+  objects. Viewers can select a reconstruction and its corresponding
+  geometry and SUV.
+
+
+- Enhanced PET multi-frame decode can return a typed SUVbw volume. The native
+  viewer uses calibrated voxels for the pointer, linked cursor, and fusion.
+  Diagnostic rescale and quantitative mapping use independent pixel paths.
+
+- [major] In ritk-io 0.6.0, DICOM series and slice geometry carry Aequitas
+  quantities. Use millimetre and degree accessors at DICOM and image boundaries.
+  PET metadata carries mass, radionuclide activity and half-life.
+- [major] In ritk-snap 0.2.0, loaded PET metadata and acquisition parameters
+  carry typed mass, activity, and time. Classic PET SUV conversion requires
+  a DICOM Bq/mL pixel declaration.
+
+### Dependencies
+
+- [minor] Require the Aequitas 0.4 radiation quantity surface.
+
 
 ### Changed
 

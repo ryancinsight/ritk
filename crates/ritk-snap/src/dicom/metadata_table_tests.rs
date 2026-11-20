@@ -1,4 +1,8 @@
 use super::*;
+use aequitas::systems::si::{
+    quantities::{Angle, Length},
+    units::{Degree, Millimeter},
+};
 use arrayvec::ArrayString;
 use ritk_io::PixelSignedness;
 use ritk_io::{
@@ -52,8 +56,16 @@ fn metadata_fixture() -> DicomReadMetadata {
         ),
         series_time: Some(ArrayString::from("120000").expect("infallible: validated precondition")),
         dimensions: [3, 4, 5],
-        spacing: [0.7, 0.8, 1.5],
-        origin: [10.0, 20.0, -30.0],
+        spacing: [0.7, 0.8, 1.5].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
+        origin: [10.0, 20.0, -30.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
         direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
         bits_allocated: Some(16),
         bits_stored: Some(12),
@@ -69,12 +81,12 @@ fn metadata_fixture() -> DicomReadMetadata {
                     .expect("infallible: validated precondition"),
             ),
             instance_number: Some(7),
-            slice_location: Some(42.25),
-            image_position_patient: Some([1.0, 2.0, 3.0]),
+            slice_location: Some(Length::from_unit::<Millimeter>(42.25)),
+            image_position_patient: Some([1.0, 2.0, 3.0].map(Length::from_unit::<Millimeter>)),
             image_orientation_patient: Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
             patient_position: Some(PatientPosition::HeadFirstSupine),
-            pixel_spacing: Some([0.7, 0.8]),
-            slice_thickness: Some(1.5),
+            pixel_spacing: Some([0.7, 0.8].map(Length::from_unit::<Millimeter>)),
+            slice_thickness: Some(Length::from_unit::<Millimeter>(1.5)),
             rescale_slope: 2.0,
             rescale_intercept: -1024.0,
             sop_class_uid: Some(
@@ -92,12 +104,15 @@ fn metadata_fixture() -> DicomReadMetadata {
             bits_stored: 12,
             window_center: Some(40.0),
             window_width: Some(400.0),
-            gantry_tilt: Some(0.5),
+            gantry_tilt: Some(Angle::from_unit::<Degree>(0.5)),
             ..Default::default()
         }],
         private_tags,
         preservation,
         patient_weight_kg: None,
+        enhanced_pet_suv: None,
+        enhanced_pet_selection: None,
+        pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,
         radiopharmaceutical_start_time: None,

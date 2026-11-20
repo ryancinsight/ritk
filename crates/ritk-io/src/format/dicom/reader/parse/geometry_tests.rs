@@ -1,5 +1,6 @@
 use super::super::types::SeriesFirstSeen;
 use super::{extract_dicom_metadata, parse_ds_array, GeometryDecimalError};
+use aequitas::systems::si::{quantities::Length, units::Millimeter};
 use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
 use ritk_dicom::dataset::{Dataset, DicomFile};
 
@@ -67,9 +68,18 @@ fn exact_finite_geometry_preserves_values_and_later_spacing() {
     assert_eq!(first.pixel_spacing, None);
     let (accepted, _) = extract_dicom_metadata(&valid, "second.dcm".into(), &mut first)
         .expect("invariant: finite exact geometry is readable");
-    assert_eq!(accepted.pixel_spacing, Some([3.0, 5.0]));
-    assert_eq!(first.pixel_spacing, Some([3.0, 5.0]));
-    assert_eq!(accepted.image_position_patient, Some([10.0, -20.0, 30.0]));
+    assert_eq!(
+        accepted.pixel_spacing,
+        Some([3.0, 5.0].map(Length::from_unit::<Millimeter>))
+    );
+    assert_eq!(
+        first.pixel_spacing,
+        Some([3.0, 5.0].map(Length::from_unit::<Millimeter>))
+    );
+    assert_eq!(
+        accepted.image_position_patient,
+        Some([10.0, -20.0, 30.0].map(Length::from_unit::<Millimeter>))
+    );
     assert_eq!(
         accepted.image_orientation_patient,
         Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0])
@@ -101,8 +111,14 @@ fn string_and_sequence_representations_do_not_hide_bad_geometry() {
     let mut first = SeriesFirstSeen::default();
     let (slice, _) = extract_dicom_metadata(&input, "slice.dcm".into(), &mut first)
         .expect("invariant: delimited string geometry is readable");
-    assert_eq!(slice.pixel_spacing, Some([3.0, 5.0]));
-    assert_eq!(first.pixel_spacing, Some([3.0, 5.0]));
+    assert_eq!(
+        slice.pixel_spacing,
+        Some([3.0, 5.0].map(Length::from_unit::<Millimeter>))
+    );
+    assert_eq!(
+        first.pixel_spacing,
+        Some([3.0, 5.0].map(Length::from_unit::<Millimeter>))
+    );
 
     input.put(DataElement::new(
         spacing,
@@ -186,7 +202,10 @@ fn part10_scan_uses_the_first_valid_spacing_without_repairing_bad_values() {
         };
         assert_eq!(first.sop_instance_uid.as_deref(), Some("2.25.1"));
         assert_eq!(first.pixel_spacing, None, "{malformed}");
-        assert_eq!(second.pixel_spacing, Some([3.0, 5.0]));
-        assert_eq!(scanned.metadata.spacing, [1.0, 3.0, 5.0]);
+        assert_eq!(
+            second.pixel_spacing,
+            Some([3.0, 5.0].map(Length::from_unit::<Millimeter>))
+        );
+        assert_eq!(scanned.metadata.spacing_mm(), [1.0, 3.0, 5.0]);
     }
 }

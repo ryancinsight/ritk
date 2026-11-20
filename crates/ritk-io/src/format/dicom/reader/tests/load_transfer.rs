@@ -122,7 +122,11 @@ fn overflow_test_series(dimensions: [usize; 3]) -> DicomSeriesInfo {
         num_slices: 1,
         metadata: DicomReadMetadata {
             dimensions,
-            spacing: [1.0, 1.0, 1.0],
+            spacing: [1.0, 1.0, 1.0].map(
+                aequitas::systems::si::quantities::Length::from_unit::<
+                    aequitas::systems::si::units::Millimeter,
+                >,
+            ),
             direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
             slices: vec![DicomSliceMetadata::default()],
             preservation: DicomPreservationSet::new(),

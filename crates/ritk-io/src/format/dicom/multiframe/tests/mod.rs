@@ -37,3 +37,5 @@ pub(super) fn native_image(
     )
     .expect("native multiframe image construction")
 }
+
+mod enhanced_pet;

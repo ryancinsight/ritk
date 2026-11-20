@@ -120,7 +120,10 @@ pub(crate) fn application_overlay(
             radius: CornerRadius::SQUARE,
             color: OVERLAY_BACKGROUND,
         });
-        let title = format!("{PRODUCT_NAME}  {}", view.plane_name);
+        let title = match view.slice_label {
+            Some(label) => format!("{}  {label}", view.plane_name),
+            None => format!("{PRODUCT_NAME}  {}", view.plane_name),
+        };
         let title_style = text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?;
         let detail_style = text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE)?;
         let text_width =

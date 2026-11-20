@@ -187,7 +187,8 @@ fn dicom_series_loaders_preserve_canonical_axis_order() {
         assert_voxels_within_tolerance(&data, voxels, name);
     }
     assert_eq!(
-        legacy_meta.spacing, SPACING,
+        legacy_meta.spacing_mm(),
+        SPACING,
         "reader metadata must return [Δdepth, Δrow, Δcol]"
     );
 }
@@ -217,7 +218,8 @@ fn coeus_series_writer_preserves_canonical_axis_order() {
         .expect("legacy read");
 
     assert_eq!(
-        meta.spacing, SPACING,
+        meta.spacing_mm(),
+        SPACING,
         "metadata must keep [Δdepth, Δrow, Δcol]"
     );
     assert_eq!(

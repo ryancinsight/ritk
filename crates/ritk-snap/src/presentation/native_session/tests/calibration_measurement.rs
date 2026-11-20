@@ -3,6 +3,7 @@ use super::support::session;
 use super::*;
 use crate::app::state::MeasurementSpacingState;
 use crate::tools::interaction::ImagePoint;
+use aequitas::systems::si::{quantities::Length, units::Millimeter};
 
 #[test]
 fn native_length_calibration_scales_labels_and_resets() {
@@ -24,7 +25,9 @@ fn native_length_calibration_scales_labels_and_resets() {
         .expect("fixture DICOM metadata")
         .slices
         .iter_mut()
-        .for_each(|slice| slice.pixel_spacing = Some([4.0, 3.0]));
+        .for_each(|slice| {
+            slice.pixel_spacing = Some([4.0, 3.0].map(Length::from_unit::<Millimeter>))
+        });
     session.app.measurement_pixel_spacing = MeasurementSpacingState::Qualified {
         in_plane: [4.0, 3.0],
         slice: Some(1.0),

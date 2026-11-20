@@ -97,8 +97,16 @@ fn test_scan_metadata_round_trip_spatial_fields() {
         series_date: None,
         series_time: None,
         dimensions: [rows, cols, depth],
-        spacing: [2.5, 0.8, 0.8],
-        origin: [10.0, 20.0, -50.0],
+        spacing: [2.5, 0.8, 0.8].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
+        origin: [10.0, 20.0, -50.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
         direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
         bits_allocated: Some(16),
         bits_stored: Some(12),
@@ -108,6 +116,9 @@ fn test_scan_metadata_round_trip_spatial_fields() {
         private_tags: HashMap::new(),
         preservation: crate::format::dicom::DicomPreservationSet::new(),
         patient_weight_kg: None,
+        enhanced_pet_suv: None,
+        enhanced_pet_selection: None,
+        pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,
         radiopharmaceutical_start_time: None,
@@ -180,36 +191,36 @@ fn test_scan_metadata_round_trip_spatial_fields() {
     // Spacing: RITK convention [Δz, ΔRow, ΔCol] = [2.5, 0.8, 0.8].
     let tol = 1e-4_f64;
     assert!(
-        (m.spacing[0] - 2.5).abs() < tol,
+        (m.spacing_mm()[0] - 2.5).abs() < tol,
         "spacing[0] (Δz) must be 2.5 ± 1e-4; got {}",
-        m.spacing[0]
+        m.spacing_mm()[0]
     );
     assert!(
-        (m.spacing[1] - 0.8).abs() < tol,
+        (m.spacing_mm()[1] - 0.8).abs() < tol,
         "spacing[1] (ΔRow) must be 0.8 ± 1e-4; got {}",
-        m.spacing[1]
+        m.spacing_mm()[1]
     );
     assert!(
-        (m.spacing[2] - 0.8).abs() < tol,
+        (m.spacing_mm()[2] - 0.8).abs() < tol,
         "spacing[2] (ΔCol) must be 0.8 ± 1e-4; got {}",
-        m.spacing[2]
+        m.spacing_mm()[2]
     );
 
     // Origin: within 1e-4 of [10.0, 20.0, -50.0] (first-slice IPP).
     assert!(
-        (m.origin[0] - 10.0).abs() < tol,
+        (m.origin_mm()[0] - 10.0).abs() < tol,
         "origin[0] must be 10.0 ± 1e-4; got {}",
-        m.origin[0]
+        m.origin_mm()[0]
     );
     assert!(
-        (m.origin[1] - 20.0).abs() < tol,
+        (m.origin_mm()[1] - 20.0).abs() < tol,
         "origin[1] must be 20.0 ± 1e-4; got {}",
-        m.origin[1]
+        m.origin_mm()[1]
     );
     assert!(
-        (m.origin[2] - (-50.0_f64)).abs() < tol,
+        (m.origin_mm()[2] - (-50.0_f64)).abs() < tol,
         "origin[2] must be -50.0 ± 1e-4; got {}",
-        m.origin[2]
+        m.origin_mm()[2]
     );
 
     // Direction: RITK axial convention — NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0].
@@ -246,7 +257,7 @@ fn test_scan_metadata_round_trip_spatial_fields() {
 
         // Pixel spacing: [0.8, 0.8].
         let ps = slice
-            .pixel_spacing
+            .pixel_spacing_mm()
             .unwrap_or_else(|| panic!("slice {i} must have pixel_spacing"));
         assert!(
             (ps[0] - 0.8).abs() < tol,
@@ -265,7 +276,7 @@ fn test_scan_metadata_round_trip_spatial_fields() {
     let expected_z = [-50.0f64, -47.5, -45.0];
     for (i, (slice, &ez)) in m.slices.iter().zip(expected_z.iter()).enumerate() {
         let ipp = slice
-            .image_position_patient
+            .image_position_mm()
             .unwrap_or_else(|| panic!("slice {i} must have IPP"));
         assert!(
             (ipp[0] - 10.0).abs() < tol,
@@ -328,8 +339,16 @@ fn test_scan_metadata_round_trip_rescale_params() {
         series_date: None,
         series_time: None,
         dimensions: [rows, cols, depth],
-        spacing: [1.0, 1.0, 1.0],
-        origin: [0.0, 0.0, 0.0],
+        spacing: [1.0, 1.0, 1.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
+        origin: [0.0, 0.0, 0.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
         // RITK axial: NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
         direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
         bits_allocated: Some(16),
@@ -340,6 +359,9 @@ fn test_scan_metadata_round_trip_rescale_params() {
         private_tags: HashMap::new(),
         preservation: crate::format::dicom::DicomPreservationSet::new(),
         patient_weight_kg: None,
+        enhanced_pet_suv: None,
+        enhanced_pet_selection: None,
+        pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,
         radiopharmaceutical_start_time: None,
@@ -420,8 +442,16 @@ fn test_scan_metadata_round_trip_transfer_syntax() {
         series_date: None,
         series_time: None,
         dimensions: [rows, cols, depth],
-        spacing: [1.0, 1.0, 1.0],
-        origin: [0.0, 0.0, 0.0],
+        spacing: [1.0, 1.0, 1.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
+        origin: [0.0, 0.0, 0.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
         direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
         bits_allocated: Some(16),
         bits_stored: Some(16),
@@ -431,6 +461,9 @@ fn test_scan_metadata_round_trip_transfer_syntax() {
         private_tags: HashMap::new(),
         preservation: crate::format::dicom::DicomPreservationSet::new(),
         patient_weight_kg: None,
+        enhanced_pet_suv: None,
+        enhanced_pet_selection: None,
+        pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,
         radiopharmaceutical_start_time: None,
@@ -462,30 +495,4 @@ fn test_scan_metadata_round_trip_transfer_syntax() {
     }
 }
 
-#[test]
-fn bounded_metadata_text_preserves_utf8_prefix_without_panicking() {
-    use super::super::types::{
-        cs_to_arraystring, da_to_arraystring, tm_to_arraystring, truncate_arraystring,
-        uid_to_arraystring,
-    };
-    // Byte limits deliberately bisect the two- and three-byte code points.
-    let text = "123456789012345éXYZ";
-    assert_eq!(truncate_arraystring::<16>(text).as_str(), "123456789012345");
-    assert_eq!(cs_to_arraystring(text).as_str(), "123456789012345");
-    assert_eq!(tm_to_arraystring(text).as_str(), "123456789012345");
-    assert_eq!(da_to_arraystring("1234567é").as_str(), "1234567");
-    assert_eq!(
-        truncate_arraystring::<16>("界界界界界界").as_str(),
-        "界界界界界"
-    );
-    assert_eq!(truncate_arraystring::<0>("界").as_str(), "");
-    assert_eq!(truncate_arraystring::<2>("界").as_str(), "");
-    assert_eq!(truncate_arraystring::<3>("界").as_str(), "界");
-    let prefix = "1".repeat(63);
-    assert_eq!(
-        uid_to_arraystring(&format!("{prefix}é"))
-            .expect("bounded UID representation")
-            .as_str(),
-        prefix
-    );
-}
+mod text;

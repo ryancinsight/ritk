@@ -23,6 +23,8 @@ mod display_controls;
 mod display_custom_presets;
 mod display_overlays;
 #[cfg(windows)]
+mod enhanced_pet;
+#[cfg(windows)]
 mod host_capture;
 mod interaction;
 mod length_edit;

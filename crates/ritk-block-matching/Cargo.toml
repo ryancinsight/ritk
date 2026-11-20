@@ -1,6 +1,6 @@
 [package]
 name = "ritk-block-matching"
-version = "0.1.0"
+version = "0.2.0"
 description = "Block-matching displacement estimation for speckle tracking"
 keywords.workspace = true
 categories.workspace = true

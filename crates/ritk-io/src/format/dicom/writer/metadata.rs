@@ -66,8 +66,8 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
 
     let sop_class = DICOM_SOP_CLASS_SECONDARY_CAPTURE;
 
-    let spacing = metadata.map(|m| m.spacing).unwrap_or([1.0, 1.0, 1.0]);
-    let origin = metadata.map(|m| m.origin).unwrap_or([0.0, 0.0, 0.0]);
+    let spacing = metadata.map(|m| m.spacing_mm()).unwrap_or([1.0, 1.0, 1.0]);
+    let origin = metadata.map(|m| m.origin_mm()).unwrap_or([0.0, 0.0, 0.0]);
     let direction = metadata
         .map(|m| m.direction)
         .unwrap_or([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);

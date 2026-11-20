@@ -1,6 +1,6 @@
 [package]
 name = "ritk-snap"
-version = "0.1.0"
+version = "0.2.0"
 authors.workspace = true
 repository.workspace = true
 publish = false
@@ -26,6 +26,7 @@ name = "dicom_workflow"
 required-features = ["eframe-shell"]
 
 [dependencies]
+aequitas.workspace = true
 iris = { workspace = true, features = ["serde"] }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }
@@ -33,7 +34,7 @@ arrayvec = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 ritk-core = { workspace = true }
 ritk-annotation = { workspace = true }
-ritk-image = { path = "../ritk-image", version = "0.5.0" }
+ritk-image = { path = "../ritk-image", version = "0.6.0" }
 ritk-spatial = { workspace = true }
 ritk-filter = { workspace = true }
 ritk-segmentation = { workspace = true }
@@ -60,6 +61,10 @@ metis-web = { workspace = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 wgpu = { workspace = true }
 pollster = { workspace = true }
+
+# Select the native Metal backend for Apple viewer builds.
+[target.'cfg(target_vendor = "apple")'.dependencies]
+wgpu = { workspace = true, features = ["metal"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { workspace = true }

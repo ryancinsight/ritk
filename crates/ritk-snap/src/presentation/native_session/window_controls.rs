@@ -84,6 +84,7 @@ pub(super) enum WindowAction {
     ToggleOverlay,
     ToggleAnonymizedOverlay,
     ToggleCine,
+    StepEnhancedPetVolume(isize),
     ResetView,
     ApplyWindowPreset {
         index: usize,

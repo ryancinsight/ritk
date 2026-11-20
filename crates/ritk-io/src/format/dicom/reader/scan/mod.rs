@@ -1,5 +1,6 @@
 //! Single-series scanning with explicit input identity.
 
+use aequitas::systems::si::units::Millimeter;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
@@ -15,7 +16,7 @@ use super::dicomdir::{discover_files_with_budget, is_dicomdir};
 use super::parse::extract_dicom_metadata;
 use super::types::{DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen};
 use super::DicomReadBudget;
-use crate::format::dicom::identity::image_series_uid;
+use crate::format::dicom::identity::{image_series_uid, optional_uid, CONCATENATION_UID};
 use crate::format::dicom::networking::scp::StoredInstance;
 use crate::format::dicom::object_model::{DicomObjectModel, DicomObjectNode};
 
@@ -172,6 +173,18 @@ fn scan_files(
     let mut accumulator = SeriesScan::default();
     let mut seen = std::collections::HashSet::with_capacity(paths.len());
     let selected_uid = selected.as_ref().map(|instance| instance.uid);
+    let selected_pet = selected
+        .as_ref()
+        .filter(|instance| {
+            instance
+                .object
+                .meta()
+                .media_storage_sop_class_uid
+                .trim_end_matches([' ', '\0'])
+                == "1.2.840.10008.5.1.4.1.1.130"
+        })
+        .map(|instance| optional_uid(&instance.object, CONCATENATION_UID))
+        .transpose()?;
     let parser_budget = budget.parser();
     let mut ordered: Vec<_> = paths.iter().collect();
     ordered.sort();
@@ -200,6 +213,17 @@ fn scan_files(
                 .context("failed to parse DICOM member")?;
             (object, bytes)
         };
+        if !is_selected {
+            match &selected_pet {
+                Some(None) => continue,
+                Some(Some(uid))
+                    if optional_uid(&object, CONCATENATION_UID)?.as_ref() != Some(uid) =>
+                {
+                    continue
+                }
+                _ => {}
+            }
+        }
         accumulator.push(
             &object,
             path.clone(),
@@ -383,10 +407,10 @@ fn build_series_object(path: &Path, slices: &[DicomSliceMetadata]) -> DicomObjec
             series_object.insert(DicomObjectNode::with_value(
                 DicomTag::new(0x0020, 0x1041),
                 "DS",
-                slice_location,
+                slice_location.in_unit::<Millimeter>(),
             ));
         }
-        if let Some(position) = slice.image_position_patient {
+        if let Some(position) = slice.image_position_mm() {
             series_object.insert(DicomObjectNode::text(
                 DicomTag::new(0x0020, 0x0032),
                 "DS",
@@ -408,7 +432,7 @@ fn build_series_object(path: &Path, slices: &[DicomSliceMetadata]) -> DicomObjec
                 ),
             ));
         }
-        if let Some(pixel_spacing) = slice.pixel_spacing {
+        if let Some(pixel_spacing) = slice.pixel_spacing_mm() {
             series_object.insert(DicomObjectNode::text(
                 DicomTag::new(0x0028, 0x0030),
                 "DS",
@@ -419,7 +443,7 @@ fn build_series_object(path: &Path, slices: &[DicomSliceMetadata]) -> DicomObjec
             series_object.insert(DicomObjectNode::with_value(
                 DicomTag::new(0x0018, 0x0050),
                 "DS",
-                slice_thickness,
+                slice_thickness.in_unit::<Millimeter>(),
             ));
         }
         if let Some(sop_class_uid) = slice.sop_class_uid.as_ref() {

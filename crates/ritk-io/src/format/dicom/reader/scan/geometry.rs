@@ -26,12 +26,12 @@ pub(super) fn sort_slices_spatially(
     tiebreaker: fn(&DicomSliceMetadata, &DicomSliceMetadata) -> std::cmp::Ordering,
 ) {
     slices.sort_by(|a, b| {
-        let pos_a = match (a.image_position_patient, maybe_normal) {
+        let pos_a = match (a.image_position_mm(), maybe_normal) {
             (Some(ipp), Some(n)) => dot(ipp, n),
             (Some(ipp), None) => ipp[2],
             (None, _) => f64::MAX,
         };
-        let pos_b = match (b.image_position_patient, maybe_normal) {
+        let pos_b = match (b.image_position_mm(), maybe_normal) {
             (Some(ipp), Some(n)) => dot(ipp, n),
             (Some(ipp), None) => ipp[2],
             (None, _) => f64::MAX,
@@ -61,7 +61,7 @@ pub(super) fn synthesize_gantry_tilt(slices: &mut [DicomSliceMetadata]) {
             .all(|(a, e)| (a - e).abs() < AXIAL_IOP_THRESHOLD)
     });
     if is_effectively_axial
-        && let Some(tilt_deg) = slices.first().and_then(|s| s.gantry_tilt)
+        && let Some(tilt_deg) = slices.first().and_then(|s| s.gantry_tilt_degrees())
         && tilt_deg.abs() > GANTRY_TILT_MIN_DEGREES
     {
         let theta = tilt_deg.to_radians();
@@ -120,9 +120,9 @@ pub(super) fn check_iop_consistency(slices: &[DicomSliceMetadata]) {
 /// Emits a warning when any slice's pixel spacing deviates from the first
 /// slice's spacing by more than [`PIXEL_SPACING_CONSISTENCY_THRESHOLD`].
 pub(super) fn check_pixel_spacing_consistency(slices: &[DicomSliceMetadata]) {
-    if let Some(ref_ps) = slices.first().and_then(|s| s.pixel_spacing) {
+    if let Some(ref_ps) = slices.first().and_then(|s| s.pixel_spacing_mm()) {
         for (i, s) in slices.iter().enumerate().skip(1) {
-            if let Some(ps) = s.pixel_spacing {
+            if let Some(ps) = s.pixel_spacing_mm() {
                 let max_dev = [(ps[0] - ref_ps[0]).abs(), (ps[1] - ref_ps[1]).abs()]
                     .into_iter()
                     .fold(0.0_f64, f64::max);
@@ -148,12 +148,12 @@ pub(super) fn compute_spacing_z(
     let positions: Vec<f64> = if let Some(n) = maybe_normal {
         slices
             .iter()
-            .filter_map(|s| s.image_position_patient.map(|ipp| dot(ipp, n)))
+            .filter_map(|s| s.image_position_mm().map(|ipp| dot(ipp, n)))
             .collect()
     } else {
         slices
             .iter()
-            .filter_map(|s| s.image_position_patient.map(|p| p[2]))
+            .filter_map(|s| s.image_position_mm().map(|p| p[2]))
             .collect()
     };
     if positions.len() >= 2 {
@@ -186,6 +186,6 @@ pub(super) fn assemble_direction(slices: &[DicomSliceMetadata]) -> [f64; 9] {
 pub(super) fn assemble_origin(slices: &[DicomSliceMetadata]) -> [f64; 3] {
     slices
         .first()
-        .and_then(|s| s.image_position_patient)
+        .and_then(|s| s.image_position_mm())
         .unwrap_or([0.0, 0.0, 0.0])
 }
