@@ -184,7 +184,7 @@ fn dicom_missing_pixel_spacing_rejects_physical_measurement() {
     app.load_volume(volume, "missing-spacing".to_owned());
     app.active_tool = ToolKind::MeasureLength;
     app.on_click(Some(ImagePoint::new(0.0, 0.0)));
-    app.on_click(Some(ImagePoint::new(0.0, 1.0)));
+    app.on_click(Some(ImagePoint::new(1.0, 0.0)));
     assert!(
         app.annotations.is_empty(),
         "missing source spacing must not create a physical mark"
@@ -212,7 +212,7 @@ fn dicom_pixel_spacing_is_admitted_without_unit_fallback() {
     app.load_volume(volume, "known-spacing".to_owned());
     app.active_tool = ToolKind::MeasureLength;
     app.on_click(Some(ImagePoint::new(0.0, 0.0)));
-    app.on_click(Some(ImagePoint::new(0.0, 1.0)));
+    app.on_click(Some(ImagePoint::new(1.0, 0.0)));
     assert!(matches!(
         app.annotations.as_slice(),
         [Annotation::Length { length_mm, .. }] if *length_mm == 11.0

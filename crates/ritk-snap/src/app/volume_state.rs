@@ -79,7 +79,11 @@ impl SnapApp {
             MeasurementSpacingState::Unavailable,
             |in_plane| MeasurementSpacingState::Qualified {
                 in_plane,
-                slice: vol.measurement_slice_spacing(),
+                slice: vol
+                    .metadata
+                    .is_none()
+                    .then_some(vol.spacing[0])
+                    .or_else(|| vol.measurement_slice_spacing()),
             },
         );
         self.loaded = Some(vol);
