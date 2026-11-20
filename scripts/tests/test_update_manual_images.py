@@ -7,6 +7,7 @@ from pathlib import Path
 
 from PIL import Image
 
+from scripts import capture_source
 from scripts import update_manual_images as updater
 from scripts.tests.test_capture_source import CaptureFixture
 
@@ -20,11 +21,13 @@ class ImageFixture(CaptureFixture):
         (self.images / "dicom-native-annotations.json").write_text(
             json.dumps(metadata), encoding="utf-8"
         )
-        for index, stem in enumerate(updater.FRAME_STEMS):
+        for index, stem in enumerate(capture_source.CAPTURE_FRAME_STEMS):
             color = (10 + index, 20, 30, 255)
-            Image.new("RGBA", updater.FRAME_SIZE, color).save(self.capture / f"{stem}.png")
+            Image.new("RGBA", capture_source.FRAME_SIZE, color).save(
+                self.capture / f"{stem}.png"
+            )
             prior = color if stem != "dicom-native-annotations" else (99, 20, 30, 255)
-            Image.new("RGBA", updater.FRAME_SIZE, prior).save(
+            Image.new("RGBA", capture_source.FRAME_SIZE, prior).save(
                 self.images / f"{stem}.webp", format="WEBP", lossless=True
             )
 
@@ -49,13 +52,15 @@ class UpdateManualImagesTests(unittest.TestCase):
         before = fixture.outputs()
         self.assertEqual(updater.main(fixture.arguments()), 0)
         after = fixture.outputs()
-        for stem in updater.FRAME_STEMS:
+        for stem in capture_source.CAPTURE_FRAME_STEMS:
             name = f"{stem}.webp"
             if stem == "dicom-native-annotations":
                 self.assertNotEqual(after[name], before[name])
                 self.assertEqual(
-                    updater.rgba(after[name], name, "WEBP"),
-                    updater.rgba((fixture.capture / f"{stem}.png").read_bytes(), name, "PNG"),
+                    capture_source.decoded_rgba(after[name], name, "WEBP"),
+                    capture_source.decoded_rgba(
+                        (fixture.capture / f"{stem}.png").read_bytes(), name, "PNG"
+                    ),
                 )
             else:
                 self.assertEqual(after[name], before[name])
@@ -77,8 +82,10 @@ class UpdateManualImagesTests(unittest.TestCase):
             return fixture.capture / "dicom-native-length-edit.png"
 
         def oversized(fixture):
-            pixels = random.Random(7).randbytes(4 * updater.FRAME_SIZE[0] * updater.FRAME_SIZE[1])
-            image = Image.frombytes("RGBA", updater.FRAME_SIZE, pixels)
+            pixels = random.Random(7).randbytes(
+                4 * capture_source.FRAME_SIZE[0] * capture_source.FRAME_SIZE[1]
+            )
+            image = Image.frombytes("RGBA", capture_source.FRAME_SIZE, pixels)
             image.save(frame(fixture), format="PNG")
             image.save(fixture.images / "dicom-native-length-edit.webp",
                        format="WEBP", lossless=True)
@@ -88,9 +95,9 @@ class UpdateManualImagesTests(unittest.TestCase):
             "missing": lambda fixture: frame(fixture).unlink(),
             "wrong_size": lambda fixture: Image.new("RGBA", (1, 1)).save(
                 frame(fixture), format="PNG"),
-            "jpeg_png": lambda fixture: Image.new("RGB", updater.FRAME_SIZE).save(
+            "jpeg_png": lambda fixture: Image.new("RGB", capture_source.FRAME_SIZE).save(
                 frame(fixture), format="JPEG"),
-            "png_webp": lambda fixture: Image.new("RGBA", updater.FRAME_SIZE).save(
+            "png_webp": lambda fixture: Image.new("RGBA", capture_source.FRAME_SIZE).save(
                 fixture.images / "dicom-native-length-edit.webp", format="PNG"),
             "oversized": oversized,
         }

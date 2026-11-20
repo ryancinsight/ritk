@@ -16,33 +16,11 @@ sys.path.insert(0, str(ROOT))
 from scripts import capture_source  # noqa: E402
 
 
-FRAME_STEMS = (
-    "dicom-native-slices",
-    "dicom-native-calibration",
-    "dicom-native-annotations",
-    "dicom-native-length-edit",
-)
-FRAME_SIZE = (1280, 800)
 FRAME_BYTE_LIMIT = 200_000
 
 
 class ImageUpdateError(RuntimeError):
     """Report invalid manual image input before any output write."""
-
-
-def rgba(data: bytes, name: str, expected_format: str) -> tuple[tuple[int, int], bytes]:
-    try:
-        with Image.open(io.BytesIO(data)) as image:
-            if image.format != expected_format:
-                raise ImageUpdateError(
-                    f"{name} is {image.format or 'untyped'}, not {expected_format}"
-                )
-            if image.size != FRAME_SIZE:
-                raise ImageUpdateError(f"image has wrong dimensions: {name}")
-            image.load()
-            return image.size, image.convert("RGBA").tobytes()
-    except (OSError, Image.DecompressionBombError) as error:
-        raise ImageUpdateError(f"cannot decode image: {name}") from error
 
 
 def encode_webp(size: tuple[int, int], pixels: bytes) -> bytes:
@@ -54,20 +32,22 @@ def encode_webp(size: tuple[int, int], pixels: bytes) -> bytes:
 
 def prepare_frames(capture_root: Path, image_root: Path) -> tuple[dict, dict[str, bytes]]:
     records, writes, unchanged, reencoded = {}, {}, [], []
-    for stem in FRAME_STEMS:
+    for stem in capture_source.CAPTURE_FRAME_STEMS:
         png_path = capture_root / f"{stem}.png"
         webp_path = image_root / f"{stem}.webp"
         if not png_path.is_file() or not webp_path.is_file():
             raise ImageUpdateError(f"required frame is missing: {stem}")
         png, webp = png_path.read_bytes(), webp_path.read_bytes()
-        png_size, png_pixels = rgba(png, png_path.name, "PNG")
-        webp_size, webp_pixels = rgba(webp, webp_path.name, "WEBP")
+        png_size, png_pixels = capture_source.decoded_rgba(png, png_path.name, "PNG")
+        webp_size, webp_pixels = capture_source.decoded_rgba(webp, webp_path.name, "WEBP")
         if webp_size == png_size and webp_pixels == png_pixels:
             encoded = webp
             unchanged.append(webp_path.name)
         else:
             encoded = encode_webp(png_size, png_pixels)
-            if rgba(encoded, webp_path.name, "WEBP") != (png_size, png_pixels):
+            if capture_source.decoded_rgba(
+                encoded, webp_path.name, "WEBP"
+            ) != (png_size, png_pixels):
                 raise ImageUpdateError(
                     f"encoded frame does not preserve RGBA pixels: {webp_path.name}"
                 )
