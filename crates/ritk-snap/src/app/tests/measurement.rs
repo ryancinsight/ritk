@@ -89,23 +89,50 @@ fn assert_physical_measurement_rejected(app: &SnapApp) {
 enum NativeGeometry {
     Complete,
     MissingPixelSpacing,
+    MissingSlicePositions,
+    RoundedSourcePositions,
+    InconsistentOrientation,
+    ShearedSourcePositions,
 }
 
 fn native_dicom_volume(geometry: NativeGeometry) -> LoadedVolume {
     let root = tempfile::tempdir().unwrap();
-    let pixel_spacing = match geometry {
-        NativeGeometry::Complete => Some([1.5, 0.5]),
-        NativeGeometry::MissingPixelSpacing => None,
+    let source_geometry = match geometry {
+        NativeGeometry::Complete
+        | NativeGeometry::RoundedSourcePositions
+        | NativeGeometry::InconsistentOrientation
+        | NativeGeometry::ShearedSourcePositions => (Some([1.5, 0.5]), true),
+        NativeGeometry::MissingPixelSpacing => (None, true),
+        NativeGeometry::MissingSlicePositions => (Some([1.5, 0.5]), false),
     };
-    fixtures::write_study_with_pixel_spacing(
+    fixtures::write_study_with_geometry(
         root.path(),
         "CT",
         fixtures::SERIES_UID,
         &fixtures::SAMPLES,
-        pixel_spacing,
+        source_geometry,
     )
     .unwrap();
-    crate::dicom::loader::load_volume_from_path(root.path()).unwrap()
+    let mut volume = crate::dicom::loader::load_volume_from_path(root.path()).unwrap();
+    let slices = &mut volume.metadata.as_mut().unwrap().slices;
+    match geometry {
+        NativeGeometry::RoundedSourcePositions => slices
+            .iter_mut()
+            .zip([0.1, 0.2, 0.3])
+            .for_each(|(slice, x)| slice.image_position_patient = Some([x, 20.0, 30.0])),
+        NativeGeometry::InconsistentOrientation => {
+            slices[1].image_orientation_patient = Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
+        }
+        NativeGeometry::ShearedSourcePositions => slices
+            .iter_mut()
+            .zip([[0.0, 0.0, 0.0], [3.0, 0.0, 4.0], [6.0, 0.0, 8.0]])
+            .for_each(|(slice, position)| {
+                slice.image_orientation_patient = Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
+                slice.image_position_patient = Some(position);
+            }),
+        _ => {}
+    }
+    volume
 }
 
 /// Axial (axis 0): row_spacing = dy = 3.0, col_spacing = dx = 5.0
@@ -282,16 +309,23 @@ fn native_dicom_geometry_controls_measurement_admission() {
     for (geometry, axis, length) in [
         (NativeGeometry::MissingPixelSpacing, 0, None),
         (NativeGeometry::Complete, 0, Some(0.5)),
-        (NativeGeometry::Complete, 1, None),
+        (NativeGeometry::Complete, 1, Some(2.0)),
+        (NativeGeometry::MissingSlicePositions, 1, None),
+        (NativeGeometry::RoundedSourcePositions, 1, Some(0.1)),
+        (NativeGeometry::InconsistentOrientation, 1, None),
+        (NativeGeometry::ShearedSourcePositions, 0, Some(0.5)),
+        (NativeGeometry::ShearedSourcePositions, 1, None),
     ] {
         let volume = native_dicom_volume(geometry);
         let in_plane =
             (!matches!(geometry, NativeGeometry::MissingPixelSpacing)).then_some([1.5, 0.5]);
         assert_eq!(volume.measurement_pixel_spacing(), in_plane, "{geometry:?}");
-        assert_eq!(
-            volume.measurement_spacing(),
-            in_plane.map(|spacing| (spacing, None))
-        );
+        let slice = match geometry {
+            NativeGeometry::Complete | NativeGeometry::MissingPixelSpacing => Some(2.0),
+            NativeGeometry::RoundedSourcePositions => Some((0.2_f64 - 0.1).midpoint(0.3 - 0.2)),
+            _ => None,
+        };
+        assert_eq!(volume.measurement_slice_spacing(), slice, "{geometry:?}");
         if in_plane.is_none() {
             let sources = &volume.metadata.as_ref().unwrap().slices;
             assert!(sources.iter().all(|source| source.pixel_spacing.is_none()));
@@ -312,7 +346,7 @@ fn native_dicom_geometry_controls_measurement_admission() {
     }
 
     let mut app = SnapApp::default();
-    app.loaded = Some(native_dicom_volume(NativeGeometry::Complete));
+    app.loaded = Some(native_dicom_volume(NativeGeometry::MissingSlicePositions));
     app.axis = 1;
     complete_length_on(&mut app, ImagePoint::new(0.0, 1.0));
     assert_physical_measurement_rejected(&app);

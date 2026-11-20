@@ -305,17 +305,24 @@ pub(crate) fn write_study(
     series_uid: &str,
     samples: &[u8],
 ) -> Result<Vec<(String, Vec<u8>)>> {
-    write_study_with_pixel_spacing(root, modality, series_uid, samples, Some([1.5, 0.5]))
+    write_study_with_geometry(
+        root,
+        modality,
+        series_uid,
+        samples,
+        (Some([1.5, 0.5]), true),
+    )
 }
 
-/// Write the deterministic study with selected source pixel spacing.
-pub(crate) fn write_study_with_pixel_spacing(
+/// Write the deterministic study with selected source-geometry fields.
+pub(crate) fn write_study_with_geometry(
     root: &Path,
     modality: &str,
     series_uid: &str,
     samples: &[u8],
-    pixel_spacing: Option<[f64; 2]>,
+    geometry: (Option<[f64; 2]>, bool),
 ) -> Result<Vec<(String, Vec<u8>)>> {
+    let (pixel_spacing, include_positions) = geometry;
     std::fs::create_dir_all(root).context("create synthetic study directory")?;
     assert!(
         samples.len() >= SHAPE[0] * SAMPLES_PER_SLICE,
@@ -350,11 +357,13 @@ pub(crate) fn write_study_with_pixel_spacing(
                 value,
             ));
         }
-        model.insert(DicomObjectNode::text(
-            DicomTag::new(0x0020, 0x0032),
-            "DS",
-            position,
-        ));
+        if include_positions {
+            model.insert(DicomObjectNode::text(
+                DicomTag::new(0x0020, 0x0032),
+                "DS",
+                position,
+            ));
+        }
         if let Some([row, column]) = pixel_spacing {
             model.insert(DicomObjectNode::text(
                 DicomTag::new(0x0028, 0x0030),

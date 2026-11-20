@@ -1,4 +1,8 @@
 use arrayvec::ArrayString;
+use ritk_spatial::Vector;
+
+const READER_ORIENTATION_DIRECTION_TOLERANCE: f64 = 1e-3;
+const READER_NONUNIFORM_SPACING_THRESHOLD: f64 = 0.01;
 
 /// Type-erased loaded volume for viewer use (avoids propagating `<B: Backend>` through UI).
 ///
@@ -65,8 +69,68 @@ impl LoadedVolume {
     }
 
     pub(crate) fn measurement_spacing(&self) -> Option<([f64; 2], Option<f64>)> {
-        let slice = self.metadata.is_none().then_some(self.spacing[0]);
+        let slice = self
+            .metadata
+            .is_none()
+            .then_some(self.spacing[0])
+            .or_else(|| self.measurement_slice_spacing());
         Some((self.measurement_pixel_spacing()?, slice))
+    }
+
+    /// Returns the source-qualified distance between adjacent slice centres.
+    ///
+    /// Slice bases and step directions follow the reader's 1e-3 Euclidean
+    /// direction-admission policy. This inherited approximation limit is not a
+    /// floating-point error bound. Projected gaps use the reader's median and 1%
+    /// maximum-relative-deviation policy; display spacing is never a fallback.
+    pub(crate) fn measurement_slice_spacing(&self) -> Option<f64> {
+        let metadata = self.metadata.as_deref()?;
+        let basis = |orientation: [f64; 6]| {
+            let column =
+                Vector::new([orientation[0], orientation[1], orientation[2]]).normalized()?;
+            let row = Vector::new([orientation[3], orientation[4], orientation[5]]).normalized()?;
+            Some((column, row, column.cross(&row).normalized()?))
+        };
+        let (column, row, normal) = basis(metadata.slices.first()?.image_orientation_patient?)?;
+        let positions = metadata
+            .slices
+            .iter()
+            .map(|slice| {
+                let (candidate_column, candidate_row, _) = basis(slice.image_orientation_patient?)?;
+                let position = Vector::new(slice.image_position_patient?);
+                ((candidate_column - column).norm() <= READER_ORIENTATION_DIRECTION_TOLERANCE
+                    && (candidate_row - row).norm() <= READER_ORIENTATION_DIRECTION_TOLERANCE)
+                    .then_some(position)
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let mut distances = positions
+            .windows(2)
+            .map(|pair| {
+                let step = pair[1] - pair[0];
+                let projection = normal.dot(&step);
+                let expected = if projection.is_sign_negative() {
+                    -normal
+                } else {
+                    normal
+                };
+                ((step.normalized()? - expected).norm() <= READER_ORIENTATION_DIRECTION_TOLERANCE)
+                    .then_some(projection.abs())
+            })
+            .collect::<Option<Vec<_>>>()?;
+        distances.sort_by(f64::total_cmp);
+        let middle = distances.len() / 2;
+        let (lower, upper) = distances.split_at(middle);
+        let spacing = if distances.len().is_multiple_of(2) {
+            lower.last()?.midpoint(*upper.first()?)
+        } else {
+            *upper.first()?
+        };
+        (spacing.is_finite()
+            && spacing > 0.0
+            && distances.iter().all(|distance| {
+                ((distance - spacing) / spacing).abs() <= READER_NONUNIFORM_SPACING_THRESHOLD
+            }))
+        .then_some(spacing)
     }
 
     /// Get the first channel value at voxel position (d, r, c).
