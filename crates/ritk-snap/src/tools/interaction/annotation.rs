@@ -72,6 +72,9 @@ pub enum MeasurementError {
     /// A measurement was requested without a loaded volume.
     #[error("measurement requires a loaded volume")]
     MissingVolume,
+    /// The source did not provide a trustworthy in-plane physical spacing.
+    #[error("physical pixel spacing is unavailable for this image")]
+    MissingPhysicalSpacing,
 }
 
 // ── Completed annotations ─────────────────────────────────────────────────────
