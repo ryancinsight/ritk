@@ -58,7 +58,10 @@ python scripts/capture_manual_images.py `
 The command refuses an existing capture directory or record. It runs the exact
 native capture through Atlas's 600-second process-tree bound, writes raw output
 beside `output/manual-capture.json`, and records source, dataset, compiler,
-configuration, runtime, and PNG hashes for the comparison command.
+configuration, runtime, and PNG hashes for the comparison command. Record
+format version 1 preserves the native process exit separately from admission:
+only an exit of zero with unchanged inputs and four decoded 1280 × 800 PNG
+frames receives `accepted` status.
 
 The [frame record](images/dicom-native-annotations.json) preserves each figure's
 source revision and lock digest. Per-frame fields identify newer captures;

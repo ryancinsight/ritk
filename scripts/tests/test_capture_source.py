@@ -1,11 +1,14 @@
 """Exercise manual-capture source binding with real Git and files."""
 
 import hashlib
+import io
 import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
+
+from PIL import Image
 
 from scripts import capture_source
 
@@ -82,11 +85,36 @@ class CaptureFixture:
         return {name: digest(path.read_bytes())
                 for name, path in capture_source.source_files(self.source).items()}
 
+    def dataset_hashes(self):
+        return {path.relative_to(self.study).as_posix(): digest(path.read_bytes())
+                for path in self.study.rglob("*") if path.is_file()}
+
+    def execution_inputs(self):
+        scripts = self.atlas_root / "scripts"
+        runtime = {
+            name: digest((scripts / name).read_bytes())
+            for name in capture_source.ATLAS_RUNTIME_FILES
+        }
+        atlas_config = self.atlas_root / ".cargo/config.toml"
+        return {
+            "toolchain": runtime["process_tree.py"],
+            "cargo_config": digest(atlas_config.read_bytes()),
+            "environment": runtime["windows_process.py"],
+            "atlas_config": digest(atlas_config.read_bytes()),
+            "atlas_runtime": runtime,
+        }
+
     def write_record(self, **changes):
         sources = self.source_hashes()
-        stage = {"argv": ["cargo", "nextest", "run"], "exit": 0,
+        dataset = self.dataset_hashes()
+        execution = self.execution_inputs()
+        stage = {"version": capture_source.CAPTURE_RECORD_VERSION,
+                 "argv": ["cargo", "nextest", "run"], "exit": 0,
+                 "admission": {"status": "accepted", "errors": []},
                  "environment": self.environment(),
-                 "source_before": sources, "source_after": dict(sources)}
+                 "source_before": sources, "source_after": dict(sources),
+                 "dataset_before": dataset, "dataset_after": dict(dataset),
+                 "execution_before": execution, "execution_after": dict(execution)}
         stage.update(changes)
         self.record.write_text(json.dumps([stage]), encoding="utf-8")
 
@@ -140,7 +168,23 @@ class CaptureSourceTests(unittest.TestCase):
         noncanonical["Cargo.lock"] = "A" * 64
         cases = {
             "failed": {"exit": 1}, "false_exit": {"exit": False},
+            "version": {"version": 2},
+            "rejected": {"admission": {"status": "rejected", "errors": ["frame"]}},
             "empty_argv": {"argv": []}, "mutated": {"source_after": {}},
+            "dataset_mutated": {"dataset_after": {}},
+            "execution_mutated": {"execution_after": {}},
+            "execution_typed_equal": {
+                "execution_before": {"RUSTC": False},
+                "execution_after": {"RUSTC": 0},
+            },
+            "execution_bool": {
+                "execution_before": {"RUSTC": False},
+                "execution_after": {"RUSTC": False},
+            },
+            "execution_incomplete": {
+                "execution_before": {"toolchain": "rustc"},
+                "execution_after": {"toolchain": "rustc"},
+            },
             "missing": {"source_before": missing, "source_after": missing},
             "typed": {"source_before": typed, "source_after": typed},
             "noncanonical": {"source_before": noncanonical, "source_after": noncanonical},
@@ -158,6 +202,74 @@ class CaptureSourceTests(unittest.TestCase):
                      for key, path in capture_source.source_files(fixture.source).items()},
                     before,
                 )
+
+    def test_frame_decoder_rejects_corrupt_format_and_dimensions(self):
+        def image_bytes(size, format_name):
+            output = io.BytesIO()
+            mode = "RGB" if format_name == "JPEG" else "RGBA"
+            Image.new(mode, size).save(output, format=format_name)
+            return output.getvalue()
+
+        valid = image_bytes(capture_source.FRAME_SIZE, "PNG")
+        size, pixels = capture_source.decoded_rgba(valid, "frame.png", "PNG")
+        self.assertEqual(size, capture_source.FRAME_SIZE)
+        self.assertEqual(len(pixels), size[0] * size[1] * 4)
+        cases = {
+            "corrupt": b"not an image",
+            "format": image_bytes(capture_source.FRAME_SIZE, "JPEG"),
+            "dimensions": image_bytes((1, 1), "PNG"),
+        }
+        for name, data in cases.items():
+            with self.subTest(case=name):
+                with self.assertRaises(capture_source.CaptureSourceError):
+                    capture_source.decoded_rgba(data, "frame.png", "PNG")
+
+    def test_capture_frames_require_exact_decodable_png_set(self):
+        def pixels(size, format_name):
+            output = io.BytesIO()
+            mode = "RGB" if format_name == "JPEG" else "RGBA"
+            Image.new(mode, size).save(output, format=format_name)
+            return output.getvalue()
+
+        valid = pixels(capture_source.FRAME_SIZE, "PNG")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            names = [f"{stem}.png" for stem in capture_source.CAPTURE_FRAME_STEMS]
+            for name in names:
+                (root / name).write_bytes(valid)
+            self.assertEqual(
+                capture_source.capture_hashes(root),
+                {name: digest(valid) for name in names},
+            )
+            frame = root / names[0]
+            cases = {
+                "corrupt": (b"not an image", "cannot decode image"),
+                "format": (pixels(capture_source.FRAME_SIZE, "JPEG"), "not PNG"),
+                "dimensions": (pixels((1, 1), "PNG"), "wrong dimensions"),
+            }
+            for name, (data, message) in cases.items():
+                with self.subTest(case=name):
+                    frame.write_bytes(data)
+                    with self.assertRaisesRegex(capture_source.CaptureSourceError, message):
+                        capture_source.capture_hashes(root)
+                    frame.write_bytes(valid)
+            frame.unlink()
+            with self.assertRaisesRegex(capture_source.CaptureSourceError, "output set"):
+                capture_source.capture_hashes(root)
+
+    def test_capture_admission_preserves_process_result(self):
+        self.assertEqual(
+            capture_source.capture_admission(0, []),
+            {"status": "accepted", "errors": []},
+        )
+        self.assertEqual(
+            capture_source.capture_admission(0, ["dataset changed"]),
+            {"status": "rejected", "errors": ["dataset changed"]},
+        )
+        self.assertEqual(
+            capture_source.capture_admission(7, []),
+            {"status": "rejected", "errors": ["capture process exited with status 7"]},
+        )
 
     def test_fixture_identity_requires_regular_dicom_files(self):
         for case in ("metadata", "directory"):

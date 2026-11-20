@@ -19,24 +19,10 @@ from scripts import capture_source  # noqa: E402
 
 CAPTURE_TIMEOUT_SECONDS = 600
 OUTPUT_BYTE_LIMIT = 16 * 1024 * 1024
-FRAME_STEMS = (
-    "dicom-native-slices",
-    "dicom-native-calibration",
-    "dicom-native-annotations",
-    "dicom-native-length-edit",
-)
 
 
 class CaptureCommandError(RuntimeError):
     """Report a capture that cannot produce trustworthy evidence."""
-
-
-def file_hashes(root: Path) -> dict[str, str]:
-    return {
-        path.relative_to(root).as_posix(): capture_source.sha256(path.read_bytes())
-        for path in sorted(root.rglob("*"))
-        if path.is_file()
-    }
 
 
 def source_hashes(source_root: Path) -> dict[str, str]:
@@ -44,6 +30,16 @@ def source_hashes(source_root: Path) -> dict[str, str]:
         name: capture_source.sha256(path.read_bytes())
         for name, path in capture_source.source_files(source_root).items()
     }
+
+
+def observed_execution_identity(builder, atlas_root: Path, neutral: Path, config: Path,
+                                environment: dict[str, str], command: list[str]) -> dict:
+    try:
+        return capture_source.capture_execution_identity(
+            builder, atlas_root, neutral, config, environment, command
+        )
+    except builder.BuildIdentityError as error:
+        raise CaptureCommandError(f"cannot identify capture execution: {error}") from error
 
 
 def capture_command(config: Path, source_root: Path) -> list[str]:
@@ -66,7 +62,7 @@ def checked_version(runner, command: list[str], cwd: Path, environment: dict[str
     return (result.stdout or b"").decode("utf-8", errors="strict").strip()
 
 
-def validate_paths(args) -> tuple[Path, Path, Path, Path, Path]:
+def resolved_paths(args) -> tuple[Path, Path, Path, Path, Path]:
     atlas_root = args.atlas_root.resolve()
     source_root = args.source_root.resolve()
     repository = args.repository.resolve()
@@ -92,7 +88,7 @@ def validate_paths(args) -> tuple[Path, Path, Path, Path, Path]:
 
 
 def run_capture(args) -> None:
-    atlas_root, source_root, repository, capture_root, record = validate_paths(args)
+    atlas_root, source_root, repository, capture_root, record = resolved_paths(args)
     study = repository.joinpath(*capture_source.FIXTURE_PATH.parts).resolve()
     fixture = {"path": capture_source.FIXTURE_PATH.as_posix(),
                "dicom_images": capture_source.FIXTURE_IMAGES}
@@ -100,7 +96,7 @@ def run_capture(args) -> None:
     before = source_hashes(source_root)
     if not before:
         raise CaptureCommandError("capture source input set is empty")
-    dataset_before = file_hashes(study)
+    dataset_before = capture_source.fixture_hashes(repository)
     toolchain_path = source_root / "rust-toolchain.toml"
     with toolchain_path.open("rb") as stream:
         toolchain = tomllib.load(stream).get("toolchain", {}).get("channel")
@@ -126,13 +122,15 @@ def run_capture(args) -> None:
         config.write_text(config_text, encoding="utf-8", newline="\n")
         compiler = {
             "cargo": checked_version(runner, ["cargo", "--version", "--verbose"], neutral, environment),
-            "rustc": checked_version(runner, ["rustc", "--version", "--verbose"], neutral, environment),
             "toolchain": toolchain,
             "toolchain_sha256": capture_source.sha256(toolchain_path.read_bytes()),
         }
         capture_root.mkdir(parents=True)
         record.parent.mkdir(parents=True, exist_ok=True)
         command = capture_command(config, source_root)
+        identity_before = observed_execution_identity(
+            builder, atlas_root, neutral, config, environment, command
+        )
         started = datetime.now(timezone.utc).isoformat()
         clock = time.monotonic()
         failure = None
@@ -153,14 +151,27 @@ def run_capture(args) -> None:
         stdout_path.write_bytes(stdout)
         stderr_path.write_bytes(stderr)
         after = source_hashes(source_root)
-        dataset_after = file_hashes(study)
-        captures = file_hashes(capture_root)
-        runtime = {
-            name: capture_source.sha256((atlas_root / "scripts" / name).read_bytes())
-            for name in ("process_tree.py", "windows_process.py", "darwin_process.py",
-                         "atlas_build_source.py")
-        }
+        dataset_after = capture_source.fixture_hashes(repository)
+        identity_after = observed_execution_identity(
+            builder, atlas_root, neutral, config, environment, command
+        )
+        issues = []
+        if failure is not None:
+            issues.append(failure)
+        if before != after:
+            issues.append("capture source inputs changed")
+        if dataset_before != dataset_after:
+            issues.append("capture dataset inputs changed")
+        if identity_before != identity_after:
+            issues.append("capture execution inputs changed")
+        try:
+            captures = capture_source.capture_hashes(capture_root)
+        except capture_source.CaptureSourceError as error:
+            captures = capture_source.file_hashes(capture_root)
+            issues.append(str(error))
+        admission = capture_source.capture_admission(exit_code, issues)
         stage = {
+            "version": capture_source.CAPTURE_RECORD_VERSION,
             "argv": command,
             "cwd": str(neutral),
             "environment": {name: environment[name] for name in (
@@ -169,29 +180,22 @@ def run_capture(args) -> None:
             )},
             "started_utc": started, "finished_utc": finished,
             "seconds": seconds, "exit": exit_code,
+            "admission": admission,
             "source_before": before, "source_after": after,
             "dataset_before": dataset_before, "dataset_after": dataset_after,
             "capture_files": captures, "compiler": compiler,
-            "config_sha256": capture_source.sha256(config.read_bytes()),
-            "atlas_config_sha256": capture_source.sha256(
-                (atlas_root / ".cargo/config.toml").read_bytes()
-            ),
-            "atlas_runtime": runtime,
+            "execution_before": identity_before,
+            "execution_after": identity_after,
             "stdout": {"path": str(stdout_path), "bytes": len(stdout),
                        "sha256": capture_source.sha256(stdout)},
             "stderr": {"path": str(stderr_path), "bytes": len(stderr),
                        "sha256": capture_source.sha256(stderr)},
         }
-        if failure is not None:
-            stage["failure"] = failure
+        if issues:
+            stage["failure"] = "; ".join(issues)
         record.write_text(json.dumps([stage], indent=2) + "\n", encoding="utf-8", newline="\n")
-    expected = {f"{stem}.png" for stem in FRAME_STEMS}
-    if exit_code != 0:
+    if admission["status"] != "accepted":
         raise CaptureCommandError(f"capture command failed; inspect {record}")
-    if before != after or dataset_before != dataset_after:
-        raise CaptureCommandError(f"capture inputs changed; inspect {record}")
-    if set(captures) != expected:
-        raise CaptureCommandError(f"capture output set is incomplete; inspect {record}")
 
 
 def parser() -> argparse.ArgumentParser:

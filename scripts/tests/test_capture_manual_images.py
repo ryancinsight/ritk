@@ -41,6 +41,29 @@ class CaptureManualImagesTests(unittest.TestCase):
         self.assertEqual(parsed["build"]["target-dir"], "target")
         self.assertEqual(parsed["profile"]["dev"]["debug"], "line-tables-only")
 
+    def test_build_environment_changes_execution_digest(self) -> None:
+        builder = capture_source.atlas_build_source(atlas_root())
+        before = builder.environment_digest({})
+        after = builder.environment_digest({"RUSTFLAGS": "--cfg=capture_identity_test"})
+        self.assertEqual(len(before), 64)
+        self.assertEqual(len(after), 64)
+        self.assertNotEqual(before, after)
+
+    def test_missing_selected_compiler_is_a_typed_error(self) -> None:
+        root = atlas_root()
+        builder = capture_source.atlas_build_source(root)
+        with tempfile.TemporaryDirectory() as temporary:
+            neutral = Path(temporary)
+            missing = neutral / "missing-rustc"
+            with self.assertRaisesRegex(
+                capture_manual_images.CaptureCommandError,
+                "cannot identify capture execution",
+            ):
+                capture_manual_images.observed_execution_identity(
+                    builder, root, neutral, neutral / "config.toml",
+                    {"RUSTC": str(missing)}, ["cargo"],
+                )
+
     def test_existing_capture_root_is_rejected_without_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
