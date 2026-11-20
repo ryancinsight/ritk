@@ -72,6 +72,10 @@ class CaptureFixture:
         self.git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
         self.fixture = {"path": capture_source.FIXTURE_PATH.as_posix(),
                         "dicom_images": capture_source.FIXTURE_IMAGES}
+        for index, stem in enumerate(capture_source.CAPTURE_FRAME_STEMS):
+            Image.new("RGBA", capture_source.FRAME_SIZE, (index, 20, 30, 255)).save(
+                self.capture / f"{stem}.png"
+            )
         self.write_record()
 
     def git(self, *arguments):
@@ -114,7 +118,8 @@ class CaptureFixture:
                  "environment": self.environment(),
                  "source_before": sources, "source_after": dict(sources),
                  "dataset_before": dataset, "dataset_after": dict(dataset),
-                 "execution_before": execution, "execution_after": dict(execution)}
+                 "execution_before": execution, "execution_after": dict(execution),
+                 "capture_files": capture_source.capture_hashes(self.capture)}
         stage.update(changes)
         self.record.write_text(json.dumps([stage]), encoding="utf-8")
 
@@ -166,6 +171,10 @@ class CaptureSourceTests(unittest.TestCase):
         missing.pop("Cargo.lock")
         typed["Cargo.lock"] = 7
         noncanonical["Cargo.lock"] = "A" * 64
+        captures = capture_source.capture_hashes(fixture.capture)
+        incomplete_captures, typed_captures = dict(captures), dict(captures)
+        incomplete_captures.pop(next(iter(incomplete_captures)))
+        typed_captures[next(iter(typed_captures))] = 7
         cases = {
             "failed": {"exit": 1}, "false_exit": {"exit": False},
             "version": {"version": 2},
@@ -188,6 +197,9 @@ class CaptureSourceTests(unittest.TestCase):
             "missing": {"source_before": missing, "source_after": missing},
             "typed": {"source_before": typed, "source_after": typed},
             "noncanonical": {"source_before": noncanonical, "source_after": noncanonical},
+            "capture_absent": {"capture_files": None},
+            "capture_incomplete": {"capture_files": incomplete_captures},
+            "capture_typed": {"capture_files": typed_captures},
             "root_type": {"environment": root_type}, "study_type": {"environment": study_type},
         }
         before = {name: path.read_bytes()
@@ -202,6 +214,17 @@ class CaptureSourceTests(unittest.TestCase):
                      for key, path in capture_source.source_files(fixture.source).items()},
                     before,
                 )
+        fixture.write_record()
+        records = json.loads(fixture.record.read_text(encoding="utf-8"))
+        del records[0]["capture_files"]
+        fixture.record.write_text(json.dumps(records), encoding="utf-8")
+        with self.assertRaises(capture_source.CaptureSourceError):
+            fixture.validate()
+        self.assertEqual(
+            {key: path.read_bytes()
+             for key, path in capture_source.source_files(fixture.source).items()},
+            before,
+        )
 
     def test_frame_decoder_rejects_corrupt_format_and_dimensions(self):
         def image_bytes(size, format_name):
