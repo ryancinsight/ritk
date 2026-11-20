@@ -155,7 +155,9 @@ pub fn save_to_file(snapshot: &ViewerSessionSnapshot, path: &Path) -> Result<()>
 ///
 /// # Errors
 /// Returns an error when `path` cannot be read or its content is not valid
-/// JSON matching the `ViewerSessionSnapshot` schema.
+/// JSON matching the `ViewerSessionSnapshot` schema. Image-annotation coordinates
+/// and cached results must remain finite in their stored representation;
+/// deserialization rejects numbers that overflow that representation.
 pub fn load_from_file(path: &Path) -> Result<ViewerSessionSnapshot> {
     let json = std::fs::read_to_string(path)
         .with_context(|| format!("reading session file {}", path.display()))?;
