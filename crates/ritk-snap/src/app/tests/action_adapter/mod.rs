@@ -11,6 +11,7 @@ mod keyboard;
 #[cfg(feature = "eframe-shell")]
 mod lifecycle;
 mod modifier_gesture;
+mod pan_coordinate_oracles;
 mod paths;
 mod pointer_bindings;
 mod polygon_edit;
