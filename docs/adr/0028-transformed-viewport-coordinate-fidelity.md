@@ -7,7 +7,10 @@ Date: 2026-09-09
 Revision: 2026-11-18 — reject unrepresentable pan updates without changing
 source-space picking or display-fit units.
 
-Driver: [RITK-SNAP-COORDINATES-001](../../backlog.md#RITK-SNAP-COORDINATES-001).
+Revision: 2026-11-20 — replace the retired backlog driver with its merged
+delivery; the accepted decision and evidence contract remain unchanged.
+
+Driver: [RITK-SNAP-COORDINATES-001](https://github.com/ryancinsight/ritk/pull/255).
 
 ## Context
 
