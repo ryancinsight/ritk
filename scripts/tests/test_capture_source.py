@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,6 +21,13 @@ def write_files(root, files):
         path.write_bytes(data)
 
 
+def atlas_root():
+    value = os.environ.get("RITK_MANUAL_ATLAS_ROOT")
+    if value is None:
+        raise RuntimeError("RITK_MANUAL_ATLAS_ROOT must name the Atlas checkout")
+    return Path(value)
+
+
 class CaptureFixture:
     def __init__(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -28,7 +36,7 @@ class CaptureFixture:
         self.source = self.root / "source"
         self.capture = self.root / "capture"
         self.record = self.root / "capture.json"
-        self.atlas_root = Path("D:/atlas")
+        self.atlas_root = atlas_root()
         self.runner = capture_source.atlas_process_tree(self.atlas_root)
         for path in (self.repository, self.source, self.capture):
             path.mkdir(parents=True)
