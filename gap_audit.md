@@ -23,17 +23,19 @@
   Across all targets and features, Chrono appears only through the independent
   DIMSE test peer. The 650 focused DICOM, I/O, and Diffusion Scheme
   tests pass, including scanner bounds, numeric VR boundaries, and real
-  DIMSE peers. Two opt-in tests remain outside this run. Registry
-  publication follows under
-  [RITK-REGISTRY-PUBLICATION-001](backlog/RITK-REGISTRY-PUBLICATION-001.md).
+  DIMSE peers. Two opt-in tests remain outside this run.
+- A fresh crates.io consumer writes a Part 10 CT slice and recovers all
+  four calibrated voxel values exactly through the published I/O crate.
+  Its dependency graph contains no Chrono.
 
 <a id="RITK-REGISTRY-PUBLICATION-001"></a>
-## RITK-REGISTRY-PUBLICATION-001: Git validation does not establish registry publication [patch]
-- risk: a corrected Git revision passes native checks while the registry resolves older incompatible dependencies or lacks required packages.
-- evidence: main's release package verification fails in registry Leto 0.42.0; an isolated Coeus 0.11 probe compiles but its registry plan holds registration on unpublished Consus and missing Coeus component versions.
-- next: preserve active provider owners, validate the complete required registry graph, and complete approved first publications before claiming a released registration version.
-- current: Spatial 0.5.0, Diffusion Scheme 0.4.0 and DICOM 0.4.0 build together as normalized packages. The Diffusion Scheme update removes the remaining registry dependency on Leto 0.46.5 for this cohort. Coeus and separate first-publish requirements still gate the rest of the registry sequence.
-- review: [RITK-REGISTRY-PUBLICATION-001](backlog/RITK-REGISTRY-PUBLICATION-001.md) records exact failure, ownership and credential boundaries.
+## RITK-REGISTRY-PUBLICATION-001 — Registry graph published
+
+- All sixteen cutover versions are indexed with matching archive checksums
+  and release tags. DICOM 0.5.0 and I/O 0.6.0 use the native writer released
+  from merge 49dc944ed862. [Trusted publishing](https://github.com/ryancinsight/ritk/actions/runs/44667442964)
+- Registration 0.56.0 publishes after Parcellation 0.2.0 and the other
+  registry providers. [Registration release](https://github.com/ryancinsight/ritk/releases/tag/ritk-registration-v0.56.0)
 
 <a id="PERF-432-01"></a>
 ## PERF-432-01: Revalidate the legacy MSE performance claim
