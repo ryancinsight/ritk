@@ -49,6 +49,7 @@ pub use format::dicom::{
     SegmentAlgorithmType, SegmentationType, StoreResponse, StoreScp, StoreScpHandle,
     StoredInstance, TagAction, TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
 };
+pub use format::dicom::{DicomPixelAspect, DicomPixelAspectError, DicomPixelAspectSource};
 #[cfg(not(target_arch = "wasm32"))]
 pub use format::dicomweb::{DicomWebClient, QidoSearchParams, StowFailure, StowResponse};
 pub use format::jpeg::{read_jpeg_color_to_volume, JpegColorReader};

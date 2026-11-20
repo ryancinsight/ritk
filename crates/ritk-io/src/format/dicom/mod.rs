@@ -76,6 +76,7 @@ pub use reader::{
     DicomReadBudget, DicomReadMetadata, DicomSliceMetadata, DicomStoredImportError,
     DicomStoredSeries, PatientPosition, ScannedDicomSeries, DICOM_STORED_SOURCE,
 };
+pub use reader::{DicomPixelAspect, DicomPixelAspectError, DicomPixelAspectSource};
 pub use rt_dose::{
     read_rt_dose, write_rt_dose, RtDoseGrid, RtDoseSummationType, RtDoseType, RT_DOSE_SOP_CLASS_UID,
 };
