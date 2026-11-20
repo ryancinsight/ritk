@@ -1,6 +1,6 @@
 [package]
 name = "ritk-tiff"
-version = "0.3.0"
+version = "0.4.0"
 authors.workspace = true
 repository.workspace = true
 publish = true
@@ -12,7 +12,7 @@ categories.workspace = true
 homepage.workspace = true
 
 [dependencies]
-ritk-image = { path = "../ritk-image", version = "0.5.0" }
+ritk-image = { path = "../ritk-image", version = "0.6.0" }
 ritk-spatial = { workspace = true }
 anyhow = { workspace = true }
 tiff = { workspace = true }
@@ -20,7 +20,7 @@ coeus-core = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.5.0" }
+ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.6.0" }
 base64 = { workspace = true }
 image = { workspace = true }
 

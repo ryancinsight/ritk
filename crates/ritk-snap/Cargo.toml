@@ -34,7 +34,7 @@ arrayvec = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 ritk-core = { workspace = true }
 ritk-annotation = { workspace = true }
-ritk-image = { path = "../ritk-image", version = "0.5.0" }
+ritk-image = { path = "../ritk-image", version = "0.6.0" }
 ritk-spatial = { workspace = true }
 ritk-filter = { workspace = true }
 ritk-segmentation = { workspace = true }

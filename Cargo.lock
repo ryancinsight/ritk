@@ -6359,7 +6359,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-analyze"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6378,7 +6378,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-annotation"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "ritk-spatial",
  "serde",
@@ -6388,7 +6388,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-block-matching"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "apollo-fft",
@@ -6462,7 +6462,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-core"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "coeus-core",
  "coeus-tensor",
@@ -6478,7 +6478,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-dicom"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6523,7 +6523,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-diffusion-scheme"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "aequitas",
  "anyhow",
@@ -6536,7 +6536,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-filter"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "apollo-fft",
@@ -6580,7 +6580,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-image"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "coeus-autograd",
@@ -6597,7 +6597,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-image-io"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ritk-codecs",
  "ritk-diffusion-scheme",
@@ -6608,7 +6608,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-interpolation"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "coeus-core",
@@ -6627,7 +6627,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-io"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "aequitas",
  "anyhow",
@@ -6679,7 +6679,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-jpeg"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "coeus-core",
@@ -6694,7 +6694,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-metaimage"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -6710,7 +6710,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-mgh"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6730,7 +6730,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-mif"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -6745,7 +6745,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-minc"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6762,7 +6762,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-model"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -6789,7 +6789,7 @@ version = "0.2.1"
 
 [[package]]
 name = "ritk-nifti"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "coeus-core",
@@ -6806,7 +6806,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-nrrd"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -6825,7 +6825,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-parcellation"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "consus-core 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "proptest",
@@ -6838,7 +6838,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-png"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "coeus-core",
@@ -6877,7 +6877,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-registration"
-version = "0.56.0"
+version = "0.57.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6916,7 +6916,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-segmentation"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6985,7 +6985,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-spatial"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "leto",
  "serde",
@@ -6996,7 +6996,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-statistics"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "coeus-core",
@@ -7020,7 +7020,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-tensor-ops"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "coeus-core",
@@ -7034,7 +7034,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-tiff"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -7064,7 +7064,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-transform"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -7107,7 +7107,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-vtk"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "coeus-core",

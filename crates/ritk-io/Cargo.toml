@@ -1,6 +1,6 @@
 [package]
 name = "ritk-io"
-version = "0.6.0"
+version = "0.7.0"
 description = "Unified medical image I/O for RITK"
 keywords.workspace = true
 categories.workspace = true
@@ -22,11 +22,11 @@ aequitas.workspace = true
 horae-civil-time.workspace = true
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
-ritk-core = { path = "../ritk-core", version = "0.11.0" }
-ritk-image = { path = "../ritk-image", version = "0.5.0" }
+ritk-core = { path = "../ritk-core", version = "0.12.0" }
+ritk-image = { path = "../ritk-image", version = "0.6.0" }
 ritk-spatial = { workspace = true }
 ritk-annotation = { workspace = true }
-ritk-filter = { path = "../ritk-filter", version = "0.5.0" }
+ritk-filter = { path = "../ritk-filter", version = "0.6.0" }
 ritk-dicom = { workspace = true }
 ritk-codecs = { workspace = true }
 ritk-image-io = { workspace = true }

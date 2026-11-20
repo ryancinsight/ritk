@@ -8,6 +8,19 @@
 
 # CHANGELOG
 
+## Aequitas 0.5 provider cohort
+
+### Breaking
+
+- [major] RITK IO 0.7 carries Aequitas 0.5 lengths and activity through
+  the native DICOM reader. Convert at millimetre, degree, and isotope-activity
+  boundaries. Use the Enhanced PET volume-set API for temporal, gated, or
+  concatenated inputs. The selected volume carries aligned body-weight SUV
+  values and spatial plane provenance.
+- [major] Update the spatial, transform, and tensor packages together
+  with Leto 0.52, Apollo FFT 0.31, and Coeus 0.14. Crate versions advance
+  where the published package interface or its local provider types change.
+
 ## ritk-dicom 0.5.0 and ritk-io 0.6.0
 
 ### Breaking
