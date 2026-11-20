@@ -562,10 +562,120 @@ class WindowPresetHelperTests(unittest.TestCase):
             )
 
     def test_tool_replay_orders_measurements_before_viewport_changes(self):
-        buttons = [{"label": str(index)} for index in range(11)]
+        buttons = [{"label": label} for label in browser_gallery_tools.TOOL_LABELS]
         self.assertEqual(
             browser_gallery_tools._tool_replay_order(buttons),
-            (3, 4, 5, 6, 8, 0, 1, 2, 7, 9, 10),
+            (3, 4, 5, 6, 7, 9, 0, 1, 2, 8, 10, 11, 12, 13, 14, 15, 16),
+        )
+
+    def test_tool_catalog_matches_typed_snapshot_order(self):
+        self.assertEqual(
+            browser_gallery_tools.TOOL_LABELS,
+            (
+                "Pan", "Zoom", "W/L", "Length", "Angle", "Deviation",
+                "ROI Rect", "ROI Ellipse", "Crosshair", "HU Point",
+                "Label Paint", "Label Erase", "Closed Polygon",
+                "Open Polygon", "Arrow", "Pencil", "Cobb Angle",
+            ),
+        )
+        self.assertEqual(
+            browser_gallery_tools.ANNOTATION_TOOL_KINDS,
+            {3: "length", 4: "angle", 5: "deviation", 6: "roi-rect",
+             7: "roi-ellipse", 9: "hu-point"},
+        )
+
+    def test_angle_gesture_bounds_and_verifies_each_click(self):
+        class Client:
+            def __init__(self):
+                self.pointer_drags = []
+
+            def execute(self, script, arguments=None):
+                self.assert_snapshot_script = script
+                self.assert_snapshot_arguments = arguments
+                return {"css_width": 446.6640625, "css_height": 82.4}
+
+            def pointer_drag(self, canvas, start, end, *, source_id):
+                self.pointer_drags.append((canvas, start, end, source_id))
+
+        client = Client()
+        event_batches = [
+            [
+                {"type": "pointerdown", "target": "canvas", "trusted": True},
+                {"type": "pointerup", "target": "canvas", "trusted": True},
+            ]
+            for _ in range(3)
+        ]
+        with (
+            mock.patch.object(browser_gallery_tools, "ensure_canvas_visible"),
+            mock.patch.object(browser_gallery_tools, "settle_canvas_input"),
+            mock.patch.object(browser_gallery_tools, "_consume_trace", side_effect=event_batches),
+        ):
+            gesture, clicks = browser_gallery_tools._gesture(client, "canvas-id", 4)
+
+        self.assertEqual(gesture, "three-click-measurement")
+        self.assertEqual(
+            client.pointer_drags,
+            [
+                ("canvas-id", (-128, -40), (-128, -40), "ritk-tool-angle-0"),
+                ("canvas-id", (-128, 0), (-128, 0), "ritk-tool-angle-1"),
+                ("canvas-id", (0, 0), (0, 0), "ritk-tool-angle-2"),
+            ],
+        )
+        self.assertEqual([click["offset"] for click in clicks], [[-128, -40], [-128, 0], [0, 0]])
+        for click in clicks:
+            self.assertEqual(click["event_count"], 2)
+            self.assertEqual(click["event_types"], {"pointerdown": 1, "pointerup": 1})
+            self.assertTrue(click["all_trusted"])
+
+    def test_angle_gesture_rejects_collapsed_leg_before_dispatch(self):
+        class Client:
+            def __init__(self):
+                self.pointer_drags = []
+
+            def execute(self, _script, _arguments=None):
+                return {"css_width": 1.0, "css_height": 82.4}
+
+            def pointer_drag(self, canvas, start, end, *, source_id):
+                self.pointer_drags.append((canvas, start, end, source_id))
+
+        client = Client()
+        with (
+            mock.patch.object(browser_gallery_tools, "ensure_canvas_visible"),
+            self.assertRaisesRegex(browser_gallery_tools.BrowserRuntimeError, "collapsed"),
+        ):
+            browser_gallery_tools._gesture(client, "canvas-id", 4)
+        self.assertEqual(client.pointer_drags, [])
+
+    def test_drag_annotations_start_away_from_prior_measurements(self):
+        class Client:
+            def __init__(self):
+                self.pointer_drags = []
+
+            def execute(self, _script, _arguments=None):
+                return {"css_width": 446.6640625, "css_height": 82.4}
+
+            def pointer_drag(self, canvas, start, end, *, source_id):
+                self.pointer_drags.append((canvas, start, end, source_id))
+
+        client = Client()
+        with (
+            mock.patch.object(browser_gallery_tools, "ensure_canvas_visible"),
+            mock.patch.object(browser_gallery_tools, "settle_canvas_input") as settle,
+        ):
+            gestures = [
+                browser_gallery_tools._gesture(client, "canvas-id", index)[0]
+                for index in (5, 6, 7)
+            ]
+
+        self.assertEqual(gestures, ["annotation-drag"] * 3)
+        self.assertEqual(settle.call_count, 3)
+        self.assertEqual(
+            client.pointer_drags,
+            [
+                ("canvas-id", (64, -32), (128, 32), "ritk-tool-annotation-5"),
+                ("canvas-id", (-40, -24), (-8, 24), "ritk-tool-annotation-6"),
+                ("canvas-id", (8, -24), (40, 24), "ritk-tool-annotation-7"),
+            ],
         )
 
     def test_tool_probe_contract_rejects_invalid_indices(self):
