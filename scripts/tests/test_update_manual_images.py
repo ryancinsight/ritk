@@ -2,6 +2,7 @@
 
 import json
 import random
+import sys
 import unittest
 from pathlib import Path
 
@@ -47,6 +48,36 @@ class ImageFixture(CaptureFixture):
 
 
 class UpdateManualImagesTests(unittest.TestCase):
+    def test_substitution_after_admission_uses_admitted_bytes(self):
+        fixture = ImageFixture()
+        self.addCleanup(fixture.close)
+        name = "dicom-native-slices"
+        path = fixture.capture / f"{name}.png"
+        admitted = path.read_bytes()
+
+        def substitute(frame, event, argument):
+            if event == "call" and frame.f_code is updater.prepare_frames.__code__:
+                Image.new("RGBA", capture_source.FRAME_SIZE, (200, 20, 30, 255)).save(
+                    path, format="PNG"
+                )
+            return substitute
+
+        sys.settrace(substitute)
+        try:
+            self.assertEqual(updater.main(fixture.arguments()), 0)
+        finally:
+            sys.settrace(None)
+        self.assertNotEqual(path.read_bytes(), admitted)
+        metadata = json.loads((fixture.images / "dicom-native-annotations.json").read_text())
+        self.assertEqual(metadata["frames"][f"{name}.webp"]["source_png_sha256"],
+                         capture_source.sha256(admitted))
+        self.assertEqual(
+            capture_source.decoded_rgba(
+                (fixture.images / f"{name}.webp").read_bytes(), name, "WEBP"
+            )[1],
+            capture_source.decoded_rgba(admitted, name, "PNG")[1],
+        )
+
     def test_substituted_valid_frame_is_typed_error_and_never_writes(self):
         fixture = ImageFixture()
         self.addCleanup(fixture.close)

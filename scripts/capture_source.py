@@ -63,14 +63,26 @@ def file_hashes(root: Path) -> dict[str, str]:
     }
 
 
-def capture_hashes(capture_root: Path) -> dict[str, str]:
-    captures = file_hashes(capture_root)
-    expected = {f"{stem}.png" for stem in CAPTURE_FRAME_STEMS}
-    if set(captures) != expected:
+def capture_frames(
+    capture_root: Path,
+) -> tuple[tuple[str, bytes, tuple[int, int], bytes], ...]:
+    paths = {
+        path.relative_to(capture_root).as_posix(): path
+        for path in sorted(capture_root.rglob("*")) if path.is_file()
+    }
+    names = tuple(f"{stem}.png" for stem in CAPTURE_FRAME_STEMS)
+    if set(paths) != set(names):
         raise CaptureSourceError("capture output set is incomplete")
-    for name in sorted(captures):
-        decoded_rgba((capture_root / name).read_bytes(), name, "PNG")
-    return captures
+    frames = []
+    for name in names:
+        data = paths[name].read_bytes()
+        size, pixels = decoded_rgba(data, name, "PNG")
+        frames.append((name, data, size, pixels))
+    return tuple(frames)
+
+
+def capture_hashes(capture_root: Path) -> dict[str, str]:
+    return {name: sha256(data) for name, data, _, _ in capture_frames(capture_root)}
 
 
 def capture_admission(exit_code: int | None, errors: list[str]) -> dict:
@@ -188,7 +200,9 @@ def capture_execution_identity(builder, atlas_root: Path, neutral: Path, config:
     return identity
 
 
-def load_stage(record_bytes: bytes, capture_root: Path) -> tuple[dict, dict[str, str]]:
+def load_stage(record_bytes: bytes, capture_root: Path) -> tuple[
+    dict, dict[str, str], tuple[tuple[str, bytes, tuple[int, int], bytes], ...]
+]:
     try:
         records = json.loads(record_bytes)
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -229,9 +243,11 @@ def load_stage(record_bytes: bytes, capture_root: Path) -> tuple[dict, dict[str,
     if (type(recorded_frames) is not dict or set(recorded_frames) != expected_frames
             or any(type(value) is not str for value in recorded_frames.values())):
         raise CaptureSourceError("capture frame hashes are missing or malformed")
-    if capture_hashes(capture_root) != recorded_frames:
+    frames = capture_frames(capture_root)
+    actual_frames = {name: sha256(data) for name, data, _, _ in frames}
+    if actual_frames != recorded_frames:
         raise CaptureSourceError("capture frames differ from the capture record")
-    return stage, before
+    return stage, before, frames
 
 
 def verify_source(source_root: Path, expected: dict[str, str]) -> None:
@@ -322,7 +338,7 @@ def validate_capture_source(
 ) -> dict:
     """Validate capture source, fixture, and Git baseline before image comparison."""
     record_bytes = capture_record.read_bytes()
-    stage, captured = load_stage(record_bytes, capture_root)
+    stage, captured, frames = load_stage(record_bytes, capture_root)
     verify_source(source_root, captured)
     verify_fixture(repository, fixture, stage["environment"].get("RITK_MANUAL_STUDY"))
     if fixture_hashes(repository) != stage["dataset_after"]:
@@ -338,4 +354,5 @@ def validate_capture_source(
             json.dumps(captured, sort_keys=True, separators=(",", ":")).encode()
         ),
         "source_file_count": len(captured),
+        "capture_frames": frames,
     }

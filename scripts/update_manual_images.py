@@ -30,15 +30,17 @@ def encode_webp(size: tuple[int, int], pixels: bytes) -> bytes:
     return output.getvalue()
 
 
-def prepare_frames(capture_root: Path, image_root: Path) -> tuple[dict, dict[str, bytes]]:
+def prepare_frames(
+    frames: tuple[tuple[str, bytes, tuple[int, int], bytes], ...],
+    image_root: Path,
+) -> tuple[dict, dict[str, bytes]]:
     records, writes, unchanged, reencoded = {}, {}, [], []
-    for stem in capture_source.CAPTURE_FRAME_STEMS:
-        png_path = capture_root / f"{stem}.png"
+    for png_name, png, png_size, png_pixels in frames:
+        stem = Path(png_name).stem
         webp_path = image_root / f"{stem}.webp"
-        if not png_path.is_file() or not webp_path.is_file():
+        if not webp_path.is_file():
             raise ImageUpdateError(f"required frame is missing: {stem}")
-        png, webp = png_path.read_bytes(), webp_path.read_bytes()
-        png_size, png_pixels = capture_source.decoded_rgba(png, png_path.name, "PNG")
+        webp = webp_path.read_bytes()
         webp_size, webp_pixels = capture_source.decoded_rgba(webp, webp_path.name, "WEBP")
         if webp_size == png_size and webp_pixels == png_pixels:
             encoded = webp
@@ -89,7 +91,7 @@ def update(args) -> None:
         args.base_rev,
         existing.get("fixture"),
     )
-    prepared, writes = prepare_frames(capture_root, image_root)
+    prepared, writes = prepare_frames(binding["capture_frames"], image_root)
     metadata = {
         "viewer_base_revision": binding["base_revision"],
         "viewer_source_overrides": binding["source_overrides"],
