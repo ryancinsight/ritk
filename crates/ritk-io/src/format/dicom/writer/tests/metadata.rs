@@ -8,7 +8,7 @@ use dicom::object::open_file;
 #[test]
 fn test_metadata_writer_spatial_tags_first_slice() {
     let meta = make_test_metadata();
-    let image = make_image_with_spatial(3, 4, 4, 50.0, meta.origin, meta.spacing);
+    let image = make_image_with_spatial(3, 4, 4, 50.0, meta.origin_mm(), meta.spacing_mm());
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("meta_series");
     write_dicom_series_with_metadata(&path, &image, Some(&meta))
@@ -94,7 +94,7 @@ fn test_metadata_writer_spatial_tags_first_slice() {
 #[test]
 fn test_metadata_writer_multislice_ipp_increment() {
     let meta = make_test_metadata();
-    let image = make_image_with_spatial(3, 4, 4, 75.0, meta.origin, meta.spacing);
+    let image = make_image_with_spatial(3, 4, 4, 75.0, meta.origin_mm(), meta.spacing_mm());
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("multi_series");
     write_dicom_series_with_metadata(&path, &image, Some(&meta))
@@ -174,7 +174,7 @@ fn test_metadata_writer_rejects_zero_dimension() {
 fn test_metadata_writer_rejects_incomplete_pixel_description_before_output_change() {
     let mut meta = make_test_metadata();
     meta.bits_stored = None;
-    let image = make_image_with_spatial(1, 4, 4, 3.0, meta.origin, meta.spacing);
+    let image = make_image_with_spatial(1, 4, 4, 3.0, meta.origin_mm(), meta.spacing_mm());
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("existing_series");
     std::fs::create_dir(&path).unwrap();
@@ -198,7 +198,7 @@ fn test_metadata_writer_pixel_tags_precede_pixel_data_and_are_unique() {
     meta.bits_allocated = Some(8);
     meta.bits_stored = Some(8);
     meta.high_bit = Some(7);
-    let image = make_image_with_spatial(1, 4, 4, 42.0, meta.origin, meta.spacing);
+    let image = make_image_with_spatial(1, 4, 4, 42.0, meta.origin_mm(), meta.spacing_mm());
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("pixel_tag_order_series");
     write_dicom_series_with_metadata(&path, &image, Some(&meta))

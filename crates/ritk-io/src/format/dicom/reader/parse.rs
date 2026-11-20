@@ -1,10 +1,16 @@
 //! Metadata extraction after image SOP and series identity selection.
 
+use super::types::Radioactivity;
+use aequitas::systems::si::{
+    quantities::{Activity, Angle, Length, Mass, Time},
+    units::{Becquerel, Degree, Megabecquerel, Millimeter},
+};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 use anyhow::Result;
 use dicom::core::Tag;
+use dicom::dictionary_std::uids;
 use dicom::object::DefaultDicomObject;
 use ritk_dicom::PixelSignedness;
 
@@ -25,13 +31,13 @@ use crate::format::dicom::object_model::DicomPreservationSet;
 /// of which parse as `f64` and reach the constructor. Treating them as absent
 /// keeps the documented fallback path and leaves the series readable.
 fn usable_pixel_spacing(spacing: [f64; 2]) -> Option<[f64; 2]> {
-    if spacing.iter().all(|v| v.is_finite() && *v > 0.0) {
+    if spacing.iter().all(|&v| positive_length_mm(v).is_some()) {
         Some(spacing)
     } else {
         tracing::warn!(
             row_spacing = spacing[0],
             column_spacing = spacing[1],
-            "DICOM PixelSpacing (0028,0030) is not positive and finite; treating it as absent"
+            "DICOM PixelSpacing (0028,0030) has no finite positive SI representation"
         );
         None
     }
@@ -138,14 +144,24 @@ pub(super) fn extract_dicom_metadata(
         slice_meta.instance_number = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
     if let Ok(elem) = obj.element(Tag(0x0020, 0x1041)) {
-        slice_meta.slice_location = elem.to_str().ok().and_then(|s| s.parse().ok());
+        slice_meta.slice_location = elem
+            .to_str()
+            .ok()
+            .and_then(|s| finite_decimal(&s))
+            .map(Length::from_unit::<Millimeter>);
     }
-    slice_meta.image_position_patient = read_geometry_array(obj, Tag(0x0020, 0x0032));
+    slice_meta.image_position_patient = read_geometry_array::<3>(obj, Tag(0x0020, 0x0032))
+        .map(|position| position.map(Length::from_unit::<Millimeter>));
     slice_meta.image_orientation_patient = read_geometry_array(obj, Tag(0x0020, 0x0037));
-    slice_meta.pixel_spacing =
-        read_geometry_array(obj, Tag(0x0028, 0x0030)).and_then(usable_pixel_spacing);
+    slice_meta.pixel_spacing = read_geometry_array(obj, Tag(0x0028, 0x0030))
+        .and_then(usable_pixel_spacing)
+        .map(|spacing| spacing.map(Length::from_unit::<Millimeter>));
     if let Ok(elem) = obj.element(Tag(0x0018, 0x0050)) {
-        slice_meta.slice_thickness = elem.to_str().ok().and_then(|s| s.parse().ok());
+        slice_meta.slice_thickness = elem
+            .to_str()
+            .ok()
+            .and_then(|s| finite_decimal(&s))
+            .and_then(positive_length_mm);
     }
     if let Ok(elem) = obj.element(Tag(0x0028, 0x1053)) {
         slice_meta.rescale_slope = elem
@@ -206,7 +222,11 @@ pub(super) fn extract_dicom_metadata(
         });
     }
     if let Ok(elem) = obj.element(Tag(0x0018, 0x1120)) {
-        slice_meta.gantry_tilt = elem.to_str().ok().and_then(|s| s.trim().parse().ok());
+        slice_meta.gantry_tilt = elem
+            .to_str()
+            .ok()
+            .and_then(|s| finite_decimal(&s))
+            .map(Angle::from_unit::<Degree>);
     }
     if let Ok(elem) = obj.element(Tag(0x0018, 0x5100)) {
         slice_meta.patient_position = elem
@@ -236,14 +256,8 @@ pub(super) fn extract_dicom_metadata(
     if first.cols.is_none() {
         first.cols = this_cols;
     }
-    if first.pixel_spacing.is_none() {
-        first.pixel_spacing = slice_meta.pixel_spacing;
-    }
-    if first.slice_thickness.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0018, 0x0050))
-    {
-        first.slice_thickness = elem.to_str().ok().and_then(|s| s.parse().ok());
-    }
+    first.pixel_spacing = first.pixel_spacing.or(slice_meta.pixel_spacing);
+    first.slice_thickness = first.slice_thickness.or(slice_meta.slice_thickness);
     if first.series_instance_uid.is_none()
         && let Ok(elem) = obj.element(Tag(0x0020, 0x000E))
     {
@@ -332,30 +346,49 @@ pub(super) fn extract_dicom_metadata(
     if first.patient_weight_kg.is_none()
         && let Ok(elem) = obj.element(Tag(0x0010, 0x1030))
     {
-        first.patient_weight_kg = elem.to_str().ok().and_then(|s| s.trim().parse().ok());
+        first.patient_weight_kg = elem
+            .to_str()
+            .ok()
+            .and_then(|s| positive_decimal(&s))
+            .map(Mass::from_base);
     }
     if first.decay_correction.is_none()
         && let Ok(elem) = obj.element(Tag(0x0054, 0x1102))
     {
         first.decay_correction = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
     }
-    // RadiopharmaceuticalInformationSequence (0054,0016) → first item sub-fields.
+    let has_pet_concentration = slice_meta.sop_class_uid.as_deref()
+        == Some(uids::POSITRON_EMISSION_TOMOGRAPHY_IMAGE_STORAGE)
+        && obj
+            .element(Tag(0x0054, 0x1001))
+            .is_ok_and(|units| units.to_str().is_ok_and(|value| value.trim() == "BQML"));
+    first.pet_pixels_in_bq_per_ml =
+        Some(first.pet_pixels_in_bq_per_ml.unwrap_or(true) && has_pet_concentration);
+    // A series-level activity is unambiguous only for a single isotope item.
     if (first.radionuclide_total_dose_bq.is_none()
         || first.radionuclide_half_life_s.is_none()
         || first.radiopharmaceutical_start_time.is_none())
         && let Ok(seq_elem) = obj.element(Tag(0x0054, 0x0016))
         && let Some(items) = seq_elem.value().items()
-        && let Some(first_item) = items.first()
+        && let [first_item] = items
     {
         if first.radionuclide_total_dose_bq.is_none()
             && let Ok(e) = first_item.element(Tag(0x0018, 0x1074))
         {
-            first.radionuclide_total_dose_bq = e.to_str().ok().and_then(|s| s.trim().parse().ok());
+            first.radionuclide_total_dose_bq = slice_meta
+                .sop_class_uid
+                .as_deref()
+                .zip(e.to_str().ok())
+                .and_then(|(sop_class, dose)| radionuclide_activity(sop_class, &dose));
         }
         if first.radionuclide_half_life_s.is_none()
             && let Ok(e) = first_item.element(Tag(0x0018, 0x1075))
         {
-            first.radionuclide_half_life_s = e.to_str().ok().and_then(|s| s.trim().parse().ok());
+            first.radionuclide_half_life_s = e
+                .to_str()
+                .ok()
+                .and_then(|s| positive_decimal(&s))
+                .map(Time::from_base);
         }
         if first.radiopharmaceutical_start_time.is_none()
             && let Ok(e) = first_item.element(Tag(0x0018, 0x1072))
@@ -369,6 +402,32 @@ pub(super) fn extract_dicom_metadata(
     Ok((slice_meta, file_dim))
 }
 
+fn positive_length_mm(value: f64) -> Option<Length> {
+    let length = Length::from_unit::<Millimeter>(value);
+    (length.as_base().is_finite() && *length.as_base() > 0.0).then_some(length)
+}
+
+fn finite_decimal(value: &str) -> Option<f64> {
+    value.trim().parse::<f64>().ok().filter(|v| v.is_finite())
+}
+
+fn positive_decimal(value: &str) -> Option<f64> {
+    finite_decimal(value).filter(|v| *v > 0.0)
+}
+
+fn radionuclide_activity(sop_class: &str, value: &str) -> Option<Radioactivity> {
+    // PS3.3 C.8.9.2 uses Bq, and C.8.4.10 and C.8.22.4 use MBq.
+    let value = positive_decimal(value)?;
+    let activity = match sop_class {
+        uids::POSITRON_EMISSION_TOMOGRAPHY_IMAGE_STORAGE => Activity::from_unit::<Becquerel>(value),
+        uids::ENHANCED_PET_IMAGE_STORAGE | uids::NUCLEAR_MEDICINE_IMAGE_STORAGE => {
+            Activity::from_unit::<Megabecquerel>(value)
+        }
+        _ => return None,
+    };
+    Radioactivity::from_activity(activity)
+}
+
 #[cfg(test)]
 #[path = "parse/geometry_tests.rs"]
 mod geometry_tests;
@@ -376,6 +435,13 @@ mod geometry_tests;
 #[cfg(test)]
 mod tests_pixel_spacing {
     use super::usable_pixel_spacing;
+
+    #[test]
+    fn spacing_rejects_values_that_round_to_zero_in_metres() {
+        let least_positive_millimetre = f64::from_bits(1);
+        assert_eq!(usable_pixel_spacing([least_positive_millimetre, 1.0]), None);
+        assert_eq!(usable_pixel_spacing([1.0, least_positive_millimetre]), None);
+    }
 
     /// A conformant pair passes through byte-for-byte; the guard must not
     /// perturb legitimate geometry.

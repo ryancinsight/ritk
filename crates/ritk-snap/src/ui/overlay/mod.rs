@@ -167,10 +167,14 @@ impl OverlayRenderer {
             dim_w,
             dim_h
         );
-        let bl_text = format!(
+        let mut bl_text = format!(
             "{}\nSpacing: {}\nDims: {}",
             slice_str, spacing_str, dims_str
         );
+        if let Some(label) = volume.enhanced_pet_slice_label(axis, slice_index) {
+            bl_text.push('\n');
+            bl_text.push_str(label);
+        }
         // ── Bottom-right: W/L, zoom, cursor, pointer ──────────────────────
         let wl_str = format!("W:{:.0} C:{:.0}", wl.width, wl.center);
         let zoom_str = format!("Zoom: {:.0}%", zoom * 100.0);

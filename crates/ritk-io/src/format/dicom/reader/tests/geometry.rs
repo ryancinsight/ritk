@@ -274,8 +274,16 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
         series_date: None,
         series_time: None,
         dimensions: [rows, cols, depth],
-        spacing: [1.5, 1.0, 1.0],
-        origin: [0.0, 0.0, 0.0],
+        spacing: [1.5, 1.0, 1.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
+        origin: [0.0, 0.0, 0.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
         direction: [0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 1.0, 0.0, 0.0],
         bits_allocated: Some(16),
         bits_stored: Some(16),
@@ -285,6 +293,9 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
         private_tags: HashMap::new(),
         preservation: crate::format::dicom::DicomPreservationSet::new(),
         patient_weight_kg: None,
+        enhanced_pet_suv: None,
+        enhanced_pet_selection: None,
+        pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,
         radiopharmaceutical_start_time: None,
@@ -361,4 +372,27 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
         "dir[(2,2)] must be 0.0; got {}",
         dir[(2, 2)]
     );
+}
+
+#[test]
+fn resampling_distinguishes_interpolated_planes_from_copied_edges() {
+    use super::super::geometry::resample_frames_with_provenance;
+    use crate::SliceProvenance::{Acquired, Copied, Interpolated};
+
+    let _trace = tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+            .with_test_writer()
+            .finish(),
+    );
+    let (frames, positions, mut provenance) = tracing::info_span!("arrange")
+        .in_scope(|| ([2.0, 5.0, 9.0], [0.0, 0.75, 1.75], Vec::new()));
+    let data = tracing::info_span!("act").in_scope(|| {
+        resample_frames_with_provenance(&frames, 1, &positions, 1.0, |source| {
+            provenance.push(source);
+        })
+    });
+    let _assert = tracing::info_span!("assert").entered();
+    assert_eq!(data, [2.0, 6.0, 9.0]);
+    assert_eq!(provenance, [Acquired, Interpolated, Copied]);
 }

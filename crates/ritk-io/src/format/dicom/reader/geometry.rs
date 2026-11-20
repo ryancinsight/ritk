@@ -176,26 +176,51 @@ pub(in crate::format::dicom) fn resampled_frame_count(
     ((span / target_spacing).round() as usize).saturating_add(1)
 }
 
+/// Origin of one output plane in a spatial reconstruction.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SliceProvenance {
+    /// Samples come from an acquired frame at this position.
+    Acquired,
+    /// Samples are linearly interpolated between two acquired frames.
+    Interpolated,
+    /// Samples are copied from a nearby frame at a different position.
+    Copied,
+}
+
 pub(in crate::format::dicom) fn resample_frames_linear(
     decoded_frames: &[f32],
     frame_len: usize,
     src_positions: &[f64],
     target_spacing: f64,
 ) -> Vec<f32> {
+    resample_frames_with_provenance(
+        decoded_frames,
+        frame_len,
+        src_positions,
+        target_spacing,
+        |_| {},
+    )
+}
+
+pub(in crate::format::dicom) fn resample_frames_with_provenance(
+    decoded_frames: &[f32],
+    frame_len: usize,
+    src_positions: &[f64],
+    target_spacing: f64,
+    mut record: impl FnMut(SliceProvenance),
+) -> Vec<f32> {
     debug_assert_eq!(
         decoded_frames.len(),
         frame_len.saturating_mul(src_positions.len())
     );
-    if src_positions.is_empty() || target_spacing <= 0.0 || !target_spacing.is_finite() {
-        return decoded_frames.to_vec();
-    }
-    let Some(&first) = src_positions.first() else {
+    let Some((&first, &last)) = src_positions.first().zip(src_positions.last()) else {
         return decoded_frames.to_vec();
     };
-    let Some(&last) = src_positions.last() else {
-        return decoded_frames.to_vec();
-    };
-    if last - first <= 0.0 || !(last - first).is_finite() {
+    let span = last - first;
+    if target_spacing <= 0.0 || !target_spacing.is_finite() || span <= 0.0 || !span.is_finite() {
+        for _ in src_positions {
+            record(SliceProvenance::Acquired);
+        }
         return decoded_frames.to_vec();
     }
     let n_target = resampled_frame_count(src_positions, target_spacing);
@@ -211,15 +236,26 @@ pub(in crate::format::dicom) fn resample_frames_linear(
         let idx = src_positions.partition_point(|&p| p <= target_pos);
         if idx == 0 {
             dest.copy_from_slice(frame_at(0));
-        } else if idx >= src_positions.len() {
-            dest.copy_from_slice(frame_at(src_positions.len() - 1));
+            record(SliceProvenance::Copied);
+        } else if idx == src_positions.len() {
+            dest.copy_from_slice(frame_at(idx - 1));
+            record(if target_pos == last {
+                SliceProvenance::Acquired
+            } else {
+                SliceProvenance::Copied
+            });
         } else {
             let lo = idx - 1;
             let hi = idx;
             let gap = src_positions[hi] - src_positions[lo];
-            if gap < 1e-10 {
+            if target_pos == src_positions[lo] {
                 dest.copy_from_slice(frame_at(lo));
+                record(SliceProvenance::Acquired);
+            } else if gap < 1e-10 {
+                dest.copy_from_slice(frame_at(lo));
+                record(SliceProvenance::Copied);
             } else {
+                record(SliceProvenance::Interpolated);
                 let t = ((target_pos - src_positions[lo]) / gap) as f32;
                 let one_minus_t = 1.0_f32 - t;
                 for ((d, &a), &b) in dest.iter_mut().zip(frame_at(lo)).zip(frame_at(hi)) {

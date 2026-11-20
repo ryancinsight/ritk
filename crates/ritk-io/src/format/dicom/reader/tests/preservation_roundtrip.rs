@@ -68,8 +68,16 @@ fn test_scan_preserves_private_text_and_bytes_through_write_read_cycle() {
         series_date: Some(ArrayString::from("20240101").unwrap()),
         series_time: Some(ArrayString::from("120000").unwrap()),
         dimensions: [4, 4, 1],
-        spacing: [1.0, 1.0, 1.0],
-        origin: [0.0, 0.0, 0.0],
+        spacing: [1.0, 1.0, 1.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
+        origin: [0.0, 0.0, 0.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
         direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
         bits_allocated: Some(16),
         bits_stored: Some(16),
@@ -79,6 +87,9 @@ fn test_scan_preserves_private_text_and_bytes_through_write_read_cycle() {
         private_tags: HashMap::new(),
         preservation,
         patient_weight_kg: None,
+        enhanced_pet_suv: None,
+        enhanced_pet_selection: None,
+        pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,
         radiopharmaceutical_start_time: None,

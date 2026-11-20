@@ -334,6 +334,13 @@ impl NativeViewerSession {
                     }
                 }
             }
+            WindowAction::StepEnhancedPetVolume(delta) => {
+                let app = self.active_app_mut();
+                let next = app
+                    .enhanced_pet_selection()
+                    .and_then(|selection| selection.selected_index().checked_add_signed(delta));
+                Ok(next.is_some_and(|index| app.select_enhanced_pet_phase(index)))
+            }
             WindowAction::ResetView => {
                 let app = self.active_app_mut();
                 app.zoom = 1.0;

@@ -52,8 +52,16 @@ fn make_test_metadata() -> ritk_io::DicomReadMetadata {
         series_date: Some(ArrayString::from("20240102").unwrap()),
         series_time: Some(ArrayString::from("123456").unwrap()),
         dimensions: [4, 4, 3],
-        spacing: [2.5, 0.5, 0.5],
-        origin: [10.0, 20.0, 30.0],
+        spacing: [2.5, 0.5, 0.5].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
+        origin: [10.0, 20.0, 30.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
         // RITK axial convention: NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
         // from_column_slice([0,0,1, 0,1,0, 1,0,0])
         direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
@@ -65,6 +73,9 @@ fn make_test_metadata() -> ritk_io::DicomReadMetadata {
         private_tags,
         preservation: ritk_io::DicomPreservationSet::new(),
         patient_weight_kg: None,
+        enhanced_pet_suv: None,
+        enhanced_pet_selection: None,
+        pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,
         radiopharmaceutical_start_time: None,

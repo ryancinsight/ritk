@@ -5,6 +5,7 @@ use super::super::super::scan::{scan_dicom_files, scan_dicom_part10_bytes, scan_
 use super::fixtures::{instance, OTHER, SERIES};
 use crate::DicomStudyCatalog;
 use crate::{DicomSliceMetadata, DicomTag};
+use aequitas::systems::si::{quantities::Length, units::Millimeter};
 use dicom_core::header::Header;
 
 fn retained_geometry(slice: &DicomSliceMetadata, tag: DicomTag) -> Option<&str> {
@@ -36,8 +37,8 @@ fn decoded_pixels_are_the_validated_bytes_after_file_replacement() {
         let (image, metadata) =
             load_dicom_from_series(snapshot, &backend).expect("snapshot decode");
         assert_eq!(metadata.series_instance_uid.as_deref(), Some(SERIES));
-        assert_eq!(metadata.origin, [10.0, 20.0, 2.0]);
-        assert_eq!(metadata.spacing, [2.0, 0.5, 0.5]);
+        assert_eq!(metadata.origin_mm(), [10.0, 20.0, 2.0]);
+        assert_eq!(metadata.spacing_mm(), [2.0, 0.5, 0.5]);
         let [slice] = metadata.slices.as_slice() else {
             panic!("invariant: the snapshot contains one image");
         };
@@ -97,8 +98,8 @@ fn selected_file_and_exact_members_preserve_minority_pixels_and_metadata() {
             scanned.metadata.series_description.as_deref(),
             Some("Acquisition 31")
         );
-        assert_eq!(scanned.metadata.origin, [10.0, 20.0, 2.0]);
-        assert_eq!(scanned.metadata.spacing, [2.0, 0.5, 0.5]);
+        assert_eq!(scanned.metadata.origin_mm(), [10.0, 20.0, 2.0]);
+        assert_eq!(scanned.metadata.spacing_mm(), [2.0, 0.5, 0.5]);
         let (image, metadata) =
             load_dicom_from_series(scanned, &backend).expect("decode selected series");
         let retained_positions: Vec<_> = metadata
@@ -366,8 +367,14 @@ fn regenerated_geometry_wins_over_preserved_source_values() {
     .and_then(|image| image.with_coordinate_map(map))
     .expect("invariant: rewritten image retains its coordinate map");
     // This writer takes effective output geometry from the supplied metadata.
-    metadata.origin = rewritten.origin().to_array();
-    metadata.spacing = rewritten.spacing().to_array();
+    metadata.origin = rewritten
+        .origin()
+        .to_array()
+        .map(Length::from_unit::<Millimeter>);
+    metadata.spacing = rewritten
+        .spacing()
+        .to_array()
+        .map(Length::from_unit::<Millimeter>);
     metadata.direction = rewritten.direction().to_column_major();
     for tag in [
         DicomTag::new(0x0020, 0x0032),

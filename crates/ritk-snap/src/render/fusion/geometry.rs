@@ -19,12 +19,12 @@ pub(super) fn voxel_for_slice(axis: usize, slice: usize, row: usize, col: usize)
     }
 }
 
-pub(super) fn nearest_secondary_pixel(
+pub(super) fn nearest_secondary_voxel(
     volume: &LoadedVolume,
     continuous_voxel: [f64; 3],
     axis: usize,
     slice: usize,
-) -> Option<f32> {
+) -> Option<[usize; 3]> {
     let mut indices = [0_usize; 3];
     indices[axis] = slice;
     for (index, extent) in volume.shape.into_iter().enumerate() {
@@ -44,5 +44,5 @@ pub(super) fn nearest_secondary_pixel(
         }
         indices[index] = nearest as usize;
     }
-    Some(volume.pixel_at(indices[0], indices[1], indices[2]))
+    Some(indices)
 }

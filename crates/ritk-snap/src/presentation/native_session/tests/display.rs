@@ -97,3 +97,29 @@ fn orthogonal_overlay_uses_embedded_typeface_and_composites_exact_rgba() {
         Color::rgb(4, 6, 9)
     );
 }
+
+#[test]
+fn native_overlay_displays_the_pet_slice_provenance() {
+    let _trace = tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+            .with_test_writer()
+            .finish(),
+    );
+    let (mut session, _root) = tracing::info_span!("arrange").in_scope(session);
+    session.views[0].slice_label = Some("Interpolated PET slice");
+    let overlay = tracing::info_span!("act").in_scope(|| {
+        application_overlay(&session.views, &session.viewports, false, 30.0, None)
+            .expect("compose native viewer labels")
+            .into_display_list()
+    });
+    let _assert = tracing::info_span!("assert").entered();
+    assert!(matches!(
+        &overlay.commands()[2],
+        DisplayCommand::DrawText { text, .. } if text.ends_with("Interpolated PET slice")
+    ));
+    assert!(matches!(
+        &overlay.commands()[6],
+        DisplayCommand::DrawText { text, .. } if text.ends_with(session.views[1].plane_name)
+    ));
+}
