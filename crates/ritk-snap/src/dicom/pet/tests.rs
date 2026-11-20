@@ -169,7 +169,8 @@ fn decay_correction_kind_trims_whitespace() {
 fn to_suv_params_start_gives_unit_decay_factor() {
     let pet = PetAcquisitionParams {
         patient_weight_kg: Mass::from_base(70.0),
-        injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0).unwrap(),
+        injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0)
+            .expect("the fixture dose is finite and positive"),
         radionuclide_half_life_s: Time::from_base(F18_HALF_LIFE_S),
         decay_correction: DecayCorrectionKind::Start,
     };
@@ -186,7 +187,8 @@ fn to_suv_params_start_gives_unit_decay_factor() {
 fn to_suv_params_admin_gives_unit_decay_factor() {
     let pet = PetAcquisitionParams {
         patient_weight_kg: Mass::from_base(70.0),
-        injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0).unwrap(),
+        injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0)
+            .expect("the fixture dose is finite and positive"),
         radionuclide_half_life_s: Time::from_base(F18_HALF_LIFE_S),
         decay_correction: DecayCorrectionKind::Admin,
     };
@@ -205,7 +207,8 @@ fn to_suv_params_admin_gives_unit_decay_factor() {
 fn to_suv_params_none_at_half_life_gives_half_decay_factor() {
     let pet = PetAcquisitionParams {
         patient_weight_kg: Mass::from_base(70.0),
-        injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0).unwrap(),
+        injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0)
+            .expect("the fixture dose is finite and positive"),
         radionuclide_half_life_s: Time::from_base(F18_HALF_LIFE_S),
         decay_correction: DecayCorrectionKind::None,
     };
@@ -224,7 +227,8 @@ fn to_suv_params_none_at_half_life_gives_half_decay_factor() {
 fn to_suv_params_converts_kg_to_g() {
     let pet = PetAcquisitionParams {
         patient_weight_kg: Mass::from_base(70.0),
-        injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0).unwrap(),
+        injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0)
+            .expect("the fixture dose is finite and positive"),
         radionuclide_half_life_s: Time::from_base(F18_HALF_LIFE_S),
         decay_correction: DecayCorrectionKind::Start,
     };
@@ -246,7 +250,8 @@ fn to_suv_params_converts_kg_to_g() {
 fn pixel_to_suvbw_start_corrected_realistic_fdg() {
     let pet = PetAcquisitionParams {
         patient_weight_kg: Mass::from_base(70.0),
-        injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0).unwrap(),
+        injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0)
+            .expect("the fixture dose is finite and positive"),
         radionuclide_half_life_s: Time::from_base(F18_HALF_LIFE_S),
         decay_correction: DecayCorrectionKind::Start,
     };
@@ -271,7 +276,8 @@ fn pixel_to_suvbw_none_correction_exceeds_start_correction() {
 
     let start = PetAcquisitionParams {
         patient_weight_kg: Mass::from_base(70.0),
-        injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0).unwrap(),
+        injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0)
+            .expect("the fixture dose is finite and positive"),
         radionuclide_half_life_s: Time::from_base(F18_HALF_LIFE_S),
         decay_correction: DecayCorrectionKind::Start,
     };
@@ -412,9 +418,12 @@ fn dicom_pet_suv_requires_activity_concentration_and_uses_typed_metadata() {
     });
     let (wrong_units, correct_units) = tracing::info_span!("act").in_scope(|| {
         let wrong_units = PetAcquisitionParams::from_loaded_volume(&vol);
-        vol.metadata.as_mut().unwrap().pet_pixels_in_bq_per_ml = true;
+        vol.metadata
+            .as_mut()
+            .expect("the study has PET metadata")
+            .pet_pixels_in_bq_per_ml = true;
         let correct_units = PetAcquisitionParams::from_loaded_volume(&vol)
-            .unwrap()
+            .expect("activity concentration admits SUV calibration")
             .pixel_to_suvbw(8_000.0, 0.0);
         (wrong_units, correct_units)
     });

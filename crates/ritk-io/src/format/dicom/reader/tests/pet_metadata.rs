@@ -27,10 +27,10 @@ fn dicom_isotope_activity_uses_the_sop_class_unit() {
             Some(370_125_000.0),
         ),
     ] {
-        let directory = tempfile::tempdir().unwrap();
+        let directory = tempfile::tempdir().expect("create the PET study directory");
         let path = directory.path().join("isotope.dcm");
         write_stub_dicom(&path, sop_class, "2.25.72001.405");
-        let mut dataset = DicomFile::open(&path).unwrap();
+        let mut dataset = DicomFile::open(&path).expect("open the native DICOM fixture");
         tracing::info_span!("arrange").in_scope(|| {
             dataset.put(DataElement::new(
                 Tag::new(0x0008, 0x0060),
@@ -83,11 +83,16 @@ fn dicom_isotope_activity_uses_the_sop_class_unit() {
                 VR::SQ,
                 Value::from(Sequence::from(vec![isotope])),
             ));
-            dataset.write_to_file(&path).unwrap();
+            dataset
+                .write_to_file(&path)
+                .expect("write the isotope metadata fixture");
         });
 
-        let metadata = tracing::info_span!("act")
-            .in_scope(|| scan_dicom_directory(directory.path()).unwrap().metadata);
+        let metadata = tracing::info_span!("act").in_scope(|| {
+            scan_dicom_directory(directory.path())
+                .expect("scan the PET series metadata")
+                .metadata
+        });
         tracing::info_span!("assert").in_scope(|| {
             assert_eq!(
                 metadata.spacing.map(aequitas::Quantity::into_base)[1..],
@@ -97,9 +102,18 @@ fn dicom_isotope_activity_uses_the_sop_class_unit() {
                 metadata.pet_pixels_in_bq_per_ml,
                 sop_class == "1.2.840.10008.5.1.4.1.1.128"
             );
-            assert_eq!(metadata.patient_weight_kg.unwrap().into_base(), 71.25);
             assert_eq!(
-                metadata.radionuclide_half_life_s.unwrap().into_base(),
+                metadata
+                    .patient_weight_kg
+                    .expect("retain the fixture patient mass")
+                    .into_base(),
+                71.25
+            );
+            assert_eq!(
+                metadata
+                    .radionuclide_half_life_s
+                    .expect("retain the fixture isotope half-life")
+                    .into_base(),
                 6586.2
             );
             assert_eq!(

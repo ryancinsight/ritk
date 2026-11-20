@@ -164,7 +164,8 @@ pub(super) fn dynamic_gated(
     for z in [2, 1] {
         for time in [2, 1] {
             for gate in [2, 1] {
-                let stored = u16::try_from(time + z - 1).unwrap();
+                let stored =
+                    u16::try_from(time + z - 1).expect("the stored test sample fits in u16");
                 pixels.push(stored);
                 let mut frame = Dataset::new();
                 let mut content = Dataset::new();
@@ -202,7 +203,10 @@ pub(super) fn dynamic_gated(
                 cycle.put(DataElement::new(
                     gate_attribute,
                     VR::FD,
-                    PrimitiveValue::from(gate_values[usize::try_from(gate - 1).unwrap()]),
+                    PrimitiveValue::from(
+                        gate_values
+                            [usize::try_from(gate - 1).expect("the test gate index fits in usize")],
+                    ),
                 ));
                 item_with_items(&mut frame, gate_group, vec![cycle]);
                 let mut plane = Dataset::new();
@@ -235,7 +239,11 @@ pub(super) fn dynamic_gated(
 }
 
 pub(super) fn write_pet_instance(obj: &Dataset, path: &std::path::Path) {
-    let uid = obj.element(Tag::new(8, 0x0018)).unwrap().to_str().unwrap();
+    let uid = obj
+        .element(Tag::new(8, 0x0018))
+        .expect("find the fixture SOP instance UID")
+        .to_str()
+        .expect("read the fixture SOP instance UID as text");
     obj.clone()
         .with_meta(
             FileMetaBuilder::new()
@@ -243,9 +251,9 @@ pub(super) fn write_pet_instance(obj: &Dataset, path: &std::path::Path) {
                 .media_storage_sop_instance_uid(uid.as_ref())
                 .transfer_syntax("1.2.840.10008.1.2.1"),
         )
-        .unwrap()
+        .expect("attach native Part 10 metadata")
         .write_to_file(path)
-        .unwrap();
+        .expect("write the native Enhanced PET fixture");
 }
 
 /// Write a two-member Enhanced PET concatenation with two times, two gates,
@@ -278,7 +286,13 @@ pub fn write_dynamic_gated_pet_concatenation(directory: &Path) -> [PathBuf; 2] {
                 PrimitiveValue::from(value),
             ));
         }
-        for (tag, value) in [(0x9162, u16::try_from(i + 1).unwrap()), (0x9163, 2)] {
+        for (tag, value) in [
+            (
+                0x9162,
+                u16::try_from(i + 1).expect("the instance ordinal fits in u16"),
+            ),
+            (0x9163, 2),
+        ] {
             part.put(DataElement::new(
                 Tag::new(0x20, tag),
                 VR::US,
@@ -288,14 +302,16 @@ pub fn write_dynamic_gated_pet_concatenation(directory: &Path) -> [PathBuf; 2] {
         part.put(DataElement::new(
             Tag::new(0x20, 0x9228),
             VR::UL,
-            PrimitiveValue::from(u32::try_from(4 * i).unwrap()),
+            PrimitiveValue::from(
+                u32::try_from(4 * i).expect("the instance frame offset fits in u32"),
+            ),
         ));
         item_with_items(&mut part, Tag::new(0x5200, 0x9229), vec![Dataset::new()]);
         let frames = obj
             .element(Tag::new(0x5200, 0x9230))
-            .unwrap()
+            .expect("find the fixture functional group sequence")
             .items()
-            .unwrap();
+            .expect("read the fixture functional group items");
         item_with_items(
             &mut part,
             Tag::new(0x5200, 0x9230),

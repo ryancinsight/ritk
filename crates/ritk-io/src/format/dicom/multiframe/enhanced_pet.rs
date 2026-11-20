@@ -121,11 +121,11 @@ impl FrameMapping {
             let Some(units) = single_item(item, Tag::new(0x0040, 0x08ea)) else {
                 continue;
             };
-            if !units
+            if units
                 .element(Tag::new(0x0008, 0x0102))
                 .ok()
                 .and_then(|code| code.to_str().ok())
-                .is_some_and(|code| code.trim() == "UCUM")
+                .is_none_or(|code| code.trim() != "UCUM")
             {
                 continue;
             }

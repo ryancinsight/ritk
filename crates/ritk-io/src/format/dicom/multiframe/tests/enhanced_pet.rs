@@ -134,7 +134,7 @@ fn enhanced_pet_time_and_cardiac_gates_keep_spatial_geometry_and_suv() {
             .with_test_writer()
             .finish(),
     );
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir().expect("create the PET study directory");
     let path = directory.path().join("dynamic-gated.dcm");
     tracing::info_span!("arrange").in_scope(|| {
         write_dynamic_gated(
@@ -145,11 +145,11 @@ fn enhanced_pet_time_and_cardiac_gates_keep_spatial_geometry_and_suv() {
         )
     });
     let (from_file, from_bytes) = tracing::info_span!("act").in_scope(|| {
-        let bytes = std::fs::read(&path).unwrap();
+        let bytes = std::fs::read(&path).expect("read the Part 10 fixture");
         (
-            crate::load_enhanced_pet_volumes(&path).unwrap(),
+            crate::load_enhanced_pet_volumes(&path).expect("load the concatenated volume set"),
             crate::load_enhanced_pet_volumes_from_bytes(&path, &bytes, &DicomReadBudget::DEFAULT)
-                .unwrap(),
+                .expect("load the same volume set from bytes"),
         )
     });
     let _assert = tracing::info_span!("assert").entered();
@@ -171,9 +171,12 @@ fn enhanced_pet_time_and_cardiac_gates_keep_spatial_geometry_and_suv() {
             panic!("expected a typed cardiac trigger delay");
         };
         assert_eq!(delay.in_unit::<Millisecond>(), [100.0, 350.0][gate]);
-        let suv = volume.suv_bw.as_ref().unwrap();
-        let measured =
-            [0, 1].map(|voxel| suv.at(voxel).unwrap().in_unit::<GramPerCubicCentimeter>());
+        let suv = volume.suv_bw.as_ref().expect("retain body-weight SUV");
+        let measured = [0, 1].map(|voxel| {
+            suv.at(voxel)
+                .expect("read the calibrated SUV voxel")
+                .in_unit::<GramPerCubicCentimeter>()
+        });
         assert_eq!(
             measured,
             match (time, gate) {
@@ -184,9 +187,9 @@ fn enhanced_pet_time_and_cardiac_gates_keep_spatial_geometry_and_suv() {
             }
         );
     }
-    let bytes = std::fs::read(&path).unwrap();
-    let limit =
-        DicomReadBudget::try_new(DicomReadBudget::DEFAULT.parser(), bytes.len(), 63).unwrap();
+    let bytes = std::fs::read(&path).expect("read the budget-test fixture");
+    let limit = DicomReadBudget::try_new(DicomReadBudget::DEFAULT.parser(), bytes.len(), 63)
+        .expect("build the decoded-byte budget");
     assert!(crate::load_enhanced_pet_volumes_from_bytes(&path, &bytes, &limit).is_err());
     assert!(super::super::load_dicom_multiframe_flat(&path).is_err());
 }
@@ -200,7 +203,7 @@ fn enhanced_pet_respiratory_phase_uses_ratio_and_an_independent_volume() {
             .with_test_writer()
             .finish(),
     );
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir().expect("create the gated study directory");
     let path = directory.path().join("respiratory.dcm");
     tracing::info_span!("arrange").in_scope(|| {
         write_dynamic_gated(
@@ -210,8 +213,8 @@ fn enhanced_pet_respiratory_phase_uses_ratio_and_an_independent_volume() {
             [20.0, 70.0],
         );
     });
-    let volumes =
-        tracing::info_span!("act").in_scope(|| crate::load_enhanced_pet_volumes(&path).unwrap());
+    let volumes = tracing::info_span!("act")
+        .in_scope(|| crate::load_enhanced_pet_volumes(&path).expect("load the gated PET volumes"));
     let _assert = tracing::info_span!("assert").entered();
     assert_eq!(volumes.len(), 4);
     for (volume, expected) in volumes.iter().zip([0.2, 0.7, 0.2, 0.7]) {
@@ -231,7 +234,7 @@ fn enhanced_pet_concatenation_resolves_shuffled_members_and_rejects_missing_fram
             .with_test_writer()
             .finish(),
     );
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir().expect("create the concatenation directory");
     let standalone = directory.path().join("s-standalone.dcm");
     let [first, second] = tracing::info_span!("arrange").in_scope(|| {
         let obj = dynamic_gated(
@@ -244,39 +247,53 @@ fn enhanced_pet_concatenation_resolves_shuffled_members_and_rejects_missing_fram
     });
     let (expected, reconstructed) = tracing::info_span!("act").in_scope(|| {
         (
-            crate::load_enhanced_pet_volumes(&standalone).unwrap(),
-            crate::load_enhanced_pet_volumes(&second).unwrap(),
+            crate::load_enhanced_pet_volumes(&standalone)
+                .expect("load the standalone reference volume"),
+            crate::load_enhanced_pet_volumes(&second)
+                .expect("load the volume set from the second member"),
         )
     });
     let _assert = tracing::info_span!("assert").entered();
     assert_eq!(reconstructed, expected);
     let budget = crate::DicomReadBudget::DEFAULT;
-    let members = crate::scan_dicom_path(&first).unwrap().metadata.slices;
+    let members = crate::scan_dicom_path(&first)
+        .expect("scan members of the concatenation")
+        .metadata
+        .slices;
     assert_eq!(members.len(), 2);
     let original = members
         .iter()
-        .map(|member| member.part10_bytes.as_ref().unwrap().len())
+        .map(|member| {
+            member
+                .part10_bytes
+                .as_ref()
+                .expect("retain the scanned native Part 10 bytes")
+                .len()
+        })
         .sum();
-    let insufficient_decode =
-        crate::DicomReadBudget::try_new(budget.parser(), original, 63).unwrap();
-    let insufficient_input =
-        crate::DicomReadBudget::try_new(budget.parser(), original - 1, 64).unwrap();
+    let insufficient_decode = crate::DicomReadBudget::try_new(budget.parser(), original, 63)
+        .expect("construct the decoded output budget");
+    let insufficient_input = crate::DicomReadBudget::try_new(budget.parser(), original - 1, 64)
+        .expect("construct the cumulative input budget");
     for (budget, message) in [
         (insufficient_decode, "decoded"),
         (insufficient_input, "retained-byte"),
     ] {
-        let error = crate::load_enhanced_pet_volumes_from_instances(&members, &budget).unwrap_err();
+        let error = crate::load_enhanced_pet_volumes_from_instances(&members, &budget)
+            .expect_err("reject the over-budget concatenation");
         assert!(format!("{error:#}").contains(message));
     }
 
-    let mut part = (*DicomFile::open(&second).unwrap()).clone();
+    let mut part =
+        (*DicomFile::open(&second).expect("open the second native DICOM member")).clone();
     part.put(DataElement::new(
         Tag::new(0x20, 0x9228),
         VR::UL,
         PrimitiveValue::from(3_u32),
     ));
     write_pet_instance(&part, &second);
-    let error = crate::load_enhanced_pet_volumes(&first).unwrap_err();
+    let error =
+        crate::load_enhanced_pet_volumes(&first).expect_err("reject the mixed concatenation");
     assert!(format!("{error:#}").contains("overlap"));
     part.put(DataElement::new(
         Tag::new(0x20, 0x9228),
@@ -284,13 +301,15 @@ fn enhanced_pet_concatenation_resolves_shuffled_members_and_rejects_missing_fram
         PrimitiveValue::from(4_u32),
     ));
     write_pet_instance(&part, &second);
-    std::fs::remove_file(&first).unwrap();
+    std::fs::remove_file(&first).expect("remove the member after scanning");
     // The retained scanner snapshot remains decodable after source deletion.
     assert_eq!(
-        crate::load_enhanced_pet_volumes_from_instances(&members, &budget).unwrap(),
+        crate::load_enhanced_pet_volumes_from_instances(&members, &budget)
+            .expect("decode the retained input bytes"),
         expected
     );
-    let error = crate::load_enhanced_pet_volumes(&second).unwrap_err();
+    let error = crate::load_enhanced_pet_volumes(&second)
+        .expect_err("reject a concatenation with a missing member");
     assert!(format!("{error:#}").contains("offset"));
 }
 
@@ -302,19 +321,21 @@ fn enhanced_pet_interpolates_a_spatial_gap_between_complete_members() {
             .with_test_writer()
             .finish(),
     );
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::tempdir().expect("create the spatial-gap study directory");
     let selected = tracing::info_span!("arrange").in_scope(|| {
         let [first, second] = write_dynamic_gated_pet_concatenation(directory.path());
-        let template = (*DicomFile::open(&second).unwrap()).clone();
+        let template =
+            (*DicomFile::open(&second).expect("open the second native DICOM member")).clone();
         let frame = template
             .element(Tag::new(0x5200, 0x9230))
-            .unwrap()
+            .expect("find the original frame sequence")
             .items()
-            .unwrap()
+            .expect("read the frame sequence items")
             .last()
-            .unwrap();
+            .expect("inspect the original final frame");
         for (index, path) in [&first, &second].into_iter().enumerate() {
-            let mut member = (*DicomFile::open(path).unwrap()).clone();
+            let mut member =
+                (*DicomFile::open(path).expect("open the native DICOM member")).clone();
             member.put(DataElement::new(
                 Tag::new(0x28, 8),
                 VR::IS,
@@ -323,7 +344,9 @@ fn enhanced_pet_interpolates_a_spatial_gap_between_complete_members() {
             member.put(DataElement::new(
                 Tag::new(0x20, 0x9228),
                 VR::UL,
-                PrimitiveValue::from(u32::try_from(2 * index).unwrap()),
+                PrimitiveValue::from(
+                    u32::try_from(2 * index).expect("the frame offset fits in u32"),
+                ),
             ));
             let positions = if index == 0 { [4, 7] } else { [13, 16] };
             let frames = positions
@@ -333,11 +356,12 @@ fn enhanced_pet_interpolates_a_spatial_gap_between_complete_members() {
                     let mut frame = frame.clone();
                     let mut content = frame
                         .element(Tag::new(0x20, 0x9111))
-                        .unwrap()
+                        .expect("find the frame content sequence")
                         .items()
-                        .unwrap()[0]
+                        .expect("read the frame content items")[0]
                         .clone();
-                    let ordinal = u32::try_from(index * 2 + local + 1).unwrap();
+                    let ordinal = u32::try_from(index * 2 + local + 1)
+                        .expect("the spatial ordinal fits in u32");
                     content.put(DataElement::new(
                         Tag::new(0x20, 0x9157),
                         VR::UL,
@@ -359,7 +383,8 @@ fn enhanced_pet_interpolates_a_spatial_gap_between_complete_members() {
                 })
                 .collect();
             item_with_items(&mut member, Tag::new(0x5200, 0x9230), frames);
-            let start = u16::try_from(2 * index + 1).unwrap();
+            let start =
+                u16::try_from(2 * index + 1).expect("the synthetic input sample fits in u16");
             member.put(DataElement::new(
                 Tag::new(0x7fe0, 0x0010),
                 VR::OW,
@@ -369,8 +394,9 @@ fn enhanced_pet_interpolates_a_spatial_gap_between_complete_members() {
         }
         second
     });
-    let reconstructions =
-        tracing::info_span!("act").in_scope(|| crate::load_enhanced_pet_volumes(selected).unwrap());
+    let reconstructions = tracing::info_span!("act").in_scope(|| {
+        crate::load_enhanced_pet_volumes(selected).expect("load the reconstructed spatial volume")
+    });
     let _assert = tracing::info_span!("assert").entered();
     let [volume] = reconstructions.as_slice() else {
         panic!("expected a single temporal gate");
@@ -384,9 +410,15 @@ fn enhanced_pet_interpolates_a_spatial_gap_between_complete_members() {
         volume.slice_provenance.as_deref(),
         Some([Acquired, Acquired, Interpolated, Acquired, Acquired].as_slice())
     );
-    let suv = volume.suv_bw.as_ref().unwrap();
+    let suv = volume
+        .suv_bw
+        .as_ref()
+        .expect("retain SUV after spatial reconstruction");
     assert_eq!(
-        [0, 1, 2, 3, 4].map(|index| suv.at(index).unwrap().in_unit::<GramPerCubicCentimeter>()),
+        [0, 1, 2, 3, 4].map(|index| suv
+            .at(index)
+            .expect("read the reconstructed SUV voxel")
+            .in_unit::<GramPerCubicCentimeter>()),
         [0.5, 1.0, 1.25, 1.5, 2.0]
     );
 }

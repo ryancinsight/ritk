@@ -97,14 +97,33 @@ mod tests {
 
     #[test]
     fn pet_decay_clock_retains_microseconds_and_offset() {
-        let start = Timestamp::parse("20241103013000.125000-0400").unwrap();
-        let end = Timestamp::parse("20241103013000.625000-0500").unwrap();
-        assert_eq!(end.seconds_since(start), Some(3600.5));
-        assert!(Timestamp::parse("20241103013000-1260").is_none());
-        assert!(Timestamp::parse("20240230013000").is_none());
-        assert!(Timestamp::parse("202411030130").is_none());
-        let local = Timestamp::parse("20241103013000").unwrap();
-        let zoned = Timestamp::parse("20241103013000+0000").unwrap();
-        assert_eq!(local.seconds_since(zoned), None);
+        use tracing_subscriber::fmt::format::FmtSpan;
+
+        let _trace = tracing::subscriber::set_default(
+            tracing_subscriber::fmt()
+                .with_span_events(FmtSpan::FULL)
+                .with_test_writer()
+                .finish(),
+        );
+        let (start, end, local, zoned) = tracing::info_span!("arrange").in_scope(|| {
+            (
+                Timestamp::parse("20241103013000.125000-0400").expect("parse injection time"),
+                Timestamp::parse("20241103013000.625000-0500").expect("parse reference time"),
+                Timestamp::parse("20241103013000").expect("parse local time"),
+                Timestamp::parse("20241103013000+0000").expect("parse explicit UTC time"),
+            )
+        });
+        let (valid, mixed, malformed) = tracing::info_span!("act").in_scope(|| {
+            (
+                end.seconds_since(start),
+                local.seconds_since(zoned),
+                ["20241103013000-1260", "20240230013000", "202411030130"].map(Timestamp::parse),
+            )
+        });
+        tracing::info_span!("assert").in_scope(|| {
+            assert_eq!(valid, Some(3600.5));
+            assert_eq!(mixed, None);
+            assert!(malformed.iter().all(Option::is_none));
+        });
     }
 }

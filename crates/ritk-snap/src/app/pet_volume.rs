@@ -76,7 +76,9 @@ impl SnapApp {
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 fn pet_volume_label(index: usize, dimensions: &[ritk_io::EnhancedPetDimension]) -> String {
-    use ritk_io::EnhancedPetCoordinate::*;
+    use ritk_io::EnhancedPetCoordinate::{
+        CyclePhase, Label, RespiratoryAmplitude, TemporalPosition, TriggerDelay,
+    };
     let coordinates: Vec<_> = dimensions
         .iter()
         .filter_map(|dimension| match dimension.coordinate.as_ref()? {
@@ -146,7 +148,10 @@ mod tests {
             (app, phase_data)
         });
         assert_eq!(
-            app.loaded.as_ref().unwrap().enhanced_pet_slice_label(0, 1),
+            app.loaded
+                .as_ref()
+                .expect("the study remains loaded")
+                .enhanced_pet_slice_label(0, 1),
             None
         );
         let original_revision = app.visual_revision;
@@ -154,7 +159,7 @@ mod tests {
         let selected = tracing::info_span!("act").in_scope(|| app.select_enhanced_pet_phase(1));
         let _assert = tracing::info_span!("assert").entered();
         assert!(selected);
-        let volume = app.loaded.as_ref().unwrap();
+        let volume = app.loaded.as_ref().expect("the study remains loaded");
         assert!(Arc::ptr_eq(&volume.data, &phase_data));
         assert_eq!(volume.pixel_at(1, 0, 0), 7.5);
         assert_eq!(
@@ -163,10 +168,20 @@ mod tests {
         );
         assert_eq!(volume.enhanced_pet_slice_label(0, 0), None);
         assert_eq!(volume.enhanced_pet_slice_label(1, 1), None);
-        assert_eq!(app.enhanced_pet_selection().unwrap().selected_index(), 1);
+        assert_eq!(
+            app.enhanced_pet_selection()
+                .expect("retain the PET phase selection")
+                .selected_index(),
+            1
+        );
         assert_eq!(app.viewer_state.slice_index, cursor);
         assert!(app.visual_revision > original_revision);
         assert!(!app.select_enhanced_pet_phase(2));
-        assert_eq!(app.enhanced_pet_selection().unwrap().selected_index(), 1);
+        assert_eq!(
+            app.enhanced_pet_selection()
+                .expect("retain the PET phase selection")
+                .selected_index(),
+            1
+        );
     }
 }
