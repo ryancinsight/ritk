@@ -70,3 +70,4 @@
 | [0059](0059-release-scope-1-0.md) | Release scope for 1.0 | Accepted |
 | [0060](0060-slice-measurement-location.md) | Locate measurements on the image where they were drawn | Proposed |
 | [0061](0061-asterslice-executable.md) | AsterSlice executable identity | Accepted |
+| [0062](0062-spatial-provider-051.md) | RITK spatial provider 0.51 | Accepted |

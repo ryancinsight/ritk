@@ -8,3 +8,15 @@
 - ownership: [Coeus #528](https://github.com/ryancinsight/Coeus/pull/528) targets the 0.13 numerical and release corrections; [#532](https://github.com/ryancinsight/Coeus/pull/532) remains its provider migration. [Consus #172](https://github.com/ryancinsight/consus/pull/172) owns its current provider update. [RITK #827](https://github.com/ryancinsight/ritk/pull/827) preserves the broader dependency graph work. These branches are not overwritten, and the 0.11 experiment is not adopted or published as an intermediate release.
 - release side effects: a merge to main invokes the existing crates pending-publication workflow. It verifies packages and release compatibility before OIDC authentication and tags indexed versions. Neither repair touches `docs/book/**` or the book deployment workflow, so these merges do not request a Pages deployment. Python publishing requires a separate `ritk-python-v` release event.
 - acceptance: obtain independent review and final-revision PR gates; adopt the reviewed provider graph without source overrides or weakened checks; verify the registry/package plan includes registration; complete required first publications using approved credentials; verify index versions and release tags. Publication is authorized, but new credentials or security settings need specific approval. No deployment, deferred Miri, gate override or limit increase is authorized.
+
+## Spatial 0.5.0 registry checkpoint
+
+- [major] Spatial moves the public Leto boundary to 0.51.0 (ADR 0062).
+- The locked Spatial and DICOM suites pass 156 tests including one doctest.
+  Registry packaging verifies Spatial 0.5.0 against the current index.
+- DICOM's fresh package resolution also selects Diffusion Scheme 0.3.0
+  with Spatial 0.4.0 and Leto 0.46.5. That Leto still fails its unit-scalar
+  bounds. Advance the published Diffusion Scheme provider before enabling
+  DICOM 0.4.0 in the release job.
+- Keep subsequent approved packages gated on the Coeus registry closure
+  and each package's normalized build.

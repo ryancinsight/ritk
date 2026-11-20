@@ -8,6 +8,16 @@
 
 # CHANGELOG
 
+## ritk-spatial 0.5.0
+
+### Breaking
+
+- [major] Use Leto 0.51.0 for the public fixed point, vector, and direction
+  conversions. Consumers that pass Leto values across this boundary should
+  move to the same provider version and source. The physical coordinate
+  conventions, DICOM geometry, and file encodings retain their current rules.
+  See [ADR 0062](docs/adr/0062-spatial-provider-051.md).
+
 ## ritk-registration 0.55.1
 
 ### Fixed
