@@ -91,9 +91,18 @@ class CaptureFixture:
 
     def execution_inputs(self):
         scripts = self.atlas_root / "scripts"
-        return {name: digest((scripts / name).read_bytes()) for name in (
-            "process_tree.py", "windows_process.py", "darwin_process.py",
-        )}
+        runtime = {
+            name: digest((scripts / name).read_bytes())
+            for name in capture_source.ATLAS_RUNTIME_FILES
+        }
+        atlas_config = self.atlas_root / ".cargo/config.toml"
+        return {
+            "toolchain": runtime["process_tree.py"],
+            "cargo_config": digest(atlas_config.read_bytes()),
+            "environment": runtime["windows_process.py"],
+            "atlas_config": digest(atlas_config.read_bytes()),
+            "atlas_runtime": runtime,
+        }
 
     def write_record(self, **changes):
         sources = self.source_hashes()
@@ -171,6 +180,10 @@ class CaptureSourceTests(unittest.TestCase):
             "execution_bool": {
                 "execution_before": {"RUSTC": False},
                 "execution_after": {"RUSTC": False},
+            },
+            "execution_incomplete": {
+                "execution_before": {"toolchain": "rustc"},
+                "execution_after": {"toolchain": "rustc"},
             },
             "missing": {"source_before": missing, "source_after": missing},
             "typed": {"source_before": typed, "source_after": typed},

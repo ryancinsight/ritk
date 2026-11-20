@@ -18,6 +18,12 @@ FIXTURE_IMAGES = 94
 GIT_TIMEOUT_SECONDS = 30
 FRAME_SIZE = (1280, 800)
 CAPTURE_RECORD_VERSION = 1
+EXECUTION_IDENTITY_KEYS = frozenset({
+    "toolchain", "cargo_config", "environment", "atlas_config", "atlas_runtime",
+})
+ATLAS_RUNTIME_FILES = frozenset({
+    "process_tree.py", "windows_process.py", "darwin_process.py", "atlas_build_source.py",
+})
 
 
 class CaptureSourceError(RuntimeError):
@@ -91,22 +97,24 @@ def source_files(source_root: Path) -> dict[str, Path]:
     return files
 
 
-def identity_records_match(before: object, after: object) -> bool:
-    """Compare non-empty, string-valued identity trees without JSON coercion."""
-    if type(before) is not dict or type(after) is not dict or not before:
+def execution_records_match(before: object, after: object) -> bool:
+    """Compare complete producer identity records without JSON coercion."""
+    if type(before) is not dict or type(after) is not dict:
         return False
-    if before.keys() != after.keys():
+    if set(before) != EXECUTION_IDENTITY_KEYS or set(after) != EXECUTION_IDENTITY_KEYS:
         return False
-    for key, value in before.items():
-        if type(key) is not str or not key:
-            return False
-        other = after[key]
-        if type(value) is str:
-            if not value or type(other) is not str or value != other:
-                return False
-        elif not identity_records_match(value, other):
-            return False
-    return True
+    scalar_keys = EXECUTION_IDENTITY_KEYS - {"atlas_runtime"}
+    if any(type(before[key]) is not str or not before[key] for key in scalar_keys):
+        return False
+    runtime_before, runtime_after = before["atlas_runtime"], after["atlas_runtime"]
+    if type(runtime_before) is not dict or type(runtime_after) is not dict:
+        return False
+    if set(runtime_before) != ATLAS_RUNTIME_FILES or set(runtime_after) != ATLAS_RUNTIME_FILES:
+        return False
+    if any(type(runtime_before[key]) is not str or not runtime_before[key]
+           for key in ATLAS_RUNTIME_FILES):
+        return False
+    return before == after
 
 
 def load_stage(record_bytes: bytes, capture_root: Path) -> tuple[dict, dict[str, str]]:
@@ -143,7 +151,7 @@ def load_stage(record_bytes: bytes, capture_root: Path) -> tuple[dict, dict[str,
     if not isinstance(dataset_before, dict) or not dataset_before or dataset_before != dataset_after:
         raise CaptureSourceError("capture dataset hashes are missing or changed during capture")
     execution_before, execution_after = stage.get("execution_before"), stage.get("execution_after")
-    if not identity_records_match(execution_before, execution_after):
+    if not execution_records_match(execution_before, execution_after):
         raise CaptureSourceError("capture execution inputs are missing or changed during capture")
     return stage, before
 
