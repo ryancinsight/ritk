@@ -2,8 +2,8 @@
 
 use crate::format::dicom::writer::error::DicomWriteError;
 use anyhow::{bail, Context, Result};
-use dicom::core::value::Value;
-use dicom::core::{Tag, VR};
+use ritk_dicom::dataset::Value;
+use ritk_dicom::dataset::{DicomTag, VR};
 use std::path::Path;
 
 fn value_debug<T: std::fmt::Debug>(value: &T) -> String {
@@ -11,14 +11,14 @@ fn value_debug<T: std::fmt::Debug>(value: &T) -> String {
 }
 
 fn unsigned_scalar(
-    object: &dicom::object::DefaultDicomObject,
-    tag: Tag,
+    object: &ritk_dicom::dataset::DicomFile,
+    tag: DicomTag,
     name: &'static str,
 ) -> Result<u16> {
     let element = object
         .element(tag)
         .map_err(|_| DicomWriteError::MissingPixelAttribute { attribute: name })?;
-    element.to_int::<u16>().map_err(|_| {
+    element.to_num::<u16>().map_err(|_| {
         DicomWriteError::MalformedPixelAttribute {
             attribute: name,
             value: value_debug(element.value()),
@@ -27,11 +27,11 @@ fn unsigned_scalar(
     })
 }
 
-fn optional_frame_count(object: &dicom::object::DefaultDicomObject) -> Result<usize> {
-    let Some(element) = object.get(Tag(0x0028, 0x0008)) else {
+fn optional_frame_count(object: &ritk_dicom::dataset::DicomFile) -> Result<usize> {
+    let Some(element) = object.get(DicomTag::new(0x0028, 0x0008)) else {
         return Ok(1);
     };
-    element.to_int::<usize>().map_err(|_| {
+    element.to_num::<usize>().map_err(|_| {
         DicomWriteError::MalformedPixelAttribute {
             attribute: "NumberOfFrames",
             value: value_debug(element.value()),
@@ -40,8 +40,8 @@ fn optional_frame_count(object: &dicom::object::DefaultDicomObject) -> Result<us
     })
 }
 
-fn photometric(object: &dicom::object::DefaultDicomObject) -> Result<String> {
-    let element = object.element(Tag(0x0028, 0x0004)).map_err(|_| {
+fn photometric(object: &ritk_dicom::dataset::DicomFile) -> Result<String> {
+    let element = object.element(DicomTag::new(0x0028, 0x0004)).map_err(|_| {
         DicomWriteError::MissingPixelAttribute {
             attribute: "PhotometricInterpretation",
         }
@@ -58,14 +58,15 @@ fn photometric(object: &dicom::object::DefaultDicomObject) -> Result<String> {
         })
 }
 
-fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<()> {
-    let Ok(pixel_data) = object.element(Tag(0x7FE0, 0x0010)) else {
+fn validate_pixel_module(object: &ritk_dicom::dataset::DicomFile) -> Result<()> {
+    let Ok(pixel_data) = object.element(DicomTag::new(0x7FE0, 0x0010)) else {
         return Ok(());
     };
-    let bits_allocated = unsigned_scalar(object, Tag(0x0028, 0x0100), "BitsAllocated")?;
-    let bits_stored = unsigned_scalar(object, Tag(0x0028, 0x0101), "BitsStored")?;
-    let high_bit = unsigned_scalar(object, Tag(0x0028, 0x0102), "HighBit")?;
-    let pixel_representation = unsigned_scalar(object, Tag(0x0028, 0x0103), "PixelRepresentation")?;
+    let bits_allocated = unsigned_scalar(object, DicomTag::new(0x0028, 0x0100), "BitsAllocated")?;
+    let bits_stored = unsigned_scalar(object, DicomTag::new(0x0028, 0x0101), "BitsStored")?;
+    let high_bit = unsigned_scalar(object, DicomTag::new(0x0028, 0x0102), "HighBit")?;
+    let pixel_representation =
+        unsigned_scalar(object, DicomTag::new(0x0028, 0x0103), "PixelRepresentation")?;
     if !(bits_allocated == 1 || bits_allocated.is_multiple_of(8))
         || bits_stored == 0
         || bits_stored > bits_allocated
@@ -85,11 +86,19 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
         }
         .into());
     }
-    let rows = usize::from(unsigned_scalar(object, Tag(0x0028, 0x0010), "Rows")?);
-    let columns = usize::from(unsigned_scalar(object, Tag(0x0028, 0x0011), "Columns")?);
+    let rows = usize::from(unsigned_scalar(
+        object,
+        DicomTag::new(0x0028, 0x0010),
+        "Rows",
+    )?);
+    let columns = usize::from(unsigned_scalar(
+        object,
+        DicomTag::new(0x0028, 0x0011),
+        "Columns",
+    )?);
     let samples_per_pixel = usize::from(unsigned_scalar(
         object,
-        Tag(0x0028, 0x0002),
+        DicomTag::new(0x0028, 0x0002),
         "SamplesPerPixel",
     )?);
     for (attribute, value) in [
@@ -126,7 +135,7 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
             }
             .into());
         }
-        if object.get(Tag(0x0028, 0x0006)).is_some() {
+        if object.get(DicomTag::new(0x0028, 0x0006)).is_some() {
             return Err(DicomWriteError::InvalidPlanarConfiguration {
                 value: "present for YBR_FULL_422".to_owned(),
             }
@@ -139,14 +148,14 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
             }
             .into());
         }
-        let planar = object.element(Tag(0x0028, 0x0006)).map_err(|_| {
+        let planar = object.element(DicomTag::new(0x0028, 0x0006)).map_err(|_| {
             DicomWriteError::MissingPixelAttribute {
                 attribute: "PlanarConfiguration",
             }
         })?;
         let planar_value =
             planar
-                .to_int::<u16>()
+                .to_num::<u16>()
                 .map_err(|_| DicomWriteError::InvalidPlanarConfiguration {
                     value: value_debug(planar.value()),
                 })?;
@@ -226,7 +235,7 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
     Ok(())
 }
 
-pub(crate) fn serialize_file(object: &dicom::object::DefaultDicomObject) -> Result<Vec<u8>> {
+pub(crate) fn serialize_file(object: &ritk_dicom::dataset::DicomFile) -> Result<Vec<u8>> {
     validate_pixel_module(object)?;
     let mut bytes = Vec::new();
     object
@@ -235,7 +244,7 @@ pub(crate) fn serialize_file(object: &dicom::object::DefaultDicomObject) -> Resu
     Ok(bytes)
 }
 
-pub(crate) fn write_file(path: &Path, object: &dicom::object::DefaultDicomObject) -> Result<()> {
+pub(crate) fn write_file(path: &Path, object: &ritk_dicom::dataset::DicomFile) -> Result<()> {
     let bytes = serialize_file(object)?;
     std::fs::write(path, bytes).context("DICOM output write failed")
 }

@@ -3,19 +3,19 @@
 
 use super::tests_verify::{build_object, write_to_temp};
 use super::verify::{verify_dicom_file, VerifyIssue, VerifyOptions};
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
 
 #[test]
 fn geometry_pixel_mismatch_reported() {
     let mut obj = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
     // Declare 4x4 but keep 2x2 pixel data → length mismatch.
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(4_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(4_u16),
     ));
@@ -35,24 +35,26 @@ fn geometry_pixel_mismatch_reported() {
 #[test]
 fn geometry_is_required_of_pixel_data_and_of_nothing_else() {
     let geometry = [
-        Tag(0x0028, 0x0010),
-        Tag(0x0028, 0x0011),
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0100),
     ];
     let mut report_like = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
     let mut image = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.9");
     for tag in geometry {
-        assert!(report_like.remove_element(tag));
-        assert!(image.remove_element(tag));
+        assert!(report_like.remove_element(tag).is_some());
+        assert!(image.remove_element(tag).is_some());
     }
-    assert!(report_like.remove_element(Tag(0x7FE0, 0x0010)));
+    assert!(report_like
+        .remove_element(DicomTag::new(0x7FE0, 0x0010))
+        .is_some());
     let missing = [VerifyIssue::GeometryMismatch {
         detail: "Rows/Columns/BitsAllocated must all be present".to_owned(),
     }];
     let pixel_elements = [
-        (Tag(0x7FE0, 0x0008), VR::OF, vec![0_u8; 4]),
-        (Tag(0x7FE0, 0x0009), VR::OD, vec![0_u8; 8]),
-        (Tag(0x7FE0, 0x0010), VR::OB, Vec::new()),
+        (DicomTag::new(0x7FE0, 0x0008), VR::OF, vec![0_u8; 4]),
+        (DicomTag::new(0x7FE0, 0x0009), VR::OD, vec![0_u8; 8]),
+        (DicomTag::new(0x7FE0, 0x0010), VR::OB, Vec::new()),
     ];
     for (tag, vr, bytes) in pixel_elements {
         let mut object = report_like.clone();

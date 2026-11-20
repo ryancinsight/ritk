@@ -113,77 +113,77 @@ fn test_read_slice_pixels_signed_short_roundtrip() {
     // Build a DICOM file with PixelRepresentation=1 and three known i16 values.
     // Stored pixel values: -1000, 0, 1000. RescaleSlope=1, RescaleIntercept=0.
     // Expected decoded values: [-1000.0, 0.0, 1000.0].
-    use dicom::core::smallvec::SmallVec;
-    use dicom::object::meta::FileMetaTableBuilder;
-    use dicom::object::InMemDicomObject;
+    use ritk_dicom::dataset::Dataset;
+    use ritk_dicom::dataset::FileMetaBuilder;
+    use ritk_dicom::dataset::SmallVec;
 
     let pixels_i16: [i16; 3] = [-1000, 0, 1000];
     let pixel_bytes: Vec<u8> = pixels_i16.iter().flat_map(|&v| v.to_le_bytes()).collect();
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.99999"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0060),
+        DicomTag::new(0x0008, 0x0060),
         VR::CS,
         PrimitiveValue::from("OT"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
+        DicomTag::new(0x0028, 0x0002),
         VR::US,
         PrimitiveValue::from(1_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(1_u16),
     )); // rows=1
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(3_u16),
     )); // cols=3
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
+        DicomTag::new(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(1_u16),
     )); // PixelRepresentation=1 (signed)
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0004),
+        DicomTag::new(0x0028, 0x0004),
         VR::CS,
         PrimitiveValue::from("MONOCHROME2"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x1053),
+        DicomTag::new(0x0028, 0x1053),
         VR::DS,
         PrimitiveValue::from("1"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x1052),
+        DicomTag::new(0x0028, 0x1052),
         VR::DS,
         PrimitiveValue::from("0"),
     ));
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OW,
-        PrimitiveValue::U8(SmallVec::from_vec(pixel_bytes)),
+        PrimitiveValue::from(pixel_bytes),
     ));
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7")
                 .media_storage_sop_instance_uid("2.25.99999")
                 .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -214,65 +214,65 @@ fn test_read_slice_pixels_signed_short_roundtrip() {
 
 #[test]
 fn test_read_slice_pixels_rejects_rgb_scalar_volume() {
-    use dicom::core::smallvec::SmallVec;
-    use dicom::object::meta::FileMetaTableBuilder;
-    use dicom::object::InMemDicomObject;
+    use ritk_dicom::dataset::Dataset;
+    use ritk_dicom::dataset::FileMetaBuilder;
+    use ritk_dicom::dataset::SmallVec;
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.999991"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0060),
+        DicomTag::new(0x0008, 0x0060),
         VR::CS,
         PrimitiveValue::from("OT"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
+        DicomTag::new(0x0028, 0x0002),
         VR::US,
         PrimitiveValue::from(3_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(1_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(1_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(8_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
+        DicomTag::new(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0_u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0004),
+        DicomTag::new(0x0028, 0x0004),
         VR::CS,
         PrimitiveValue::from("RGB"),
     ));
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OB,
-        PrimitiveValue::U8(SmallVec::from_vec(vec![120, 64, 32])),
+        PrimitiveValue::from(vec![120, 64, 32]),
     ));
 
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7")
                 .media_storage_sop_instance_uid("2.25.999991")
                 .transfer_syntax("1.2.840.10008.1.2.1"),

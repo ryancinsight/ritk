@@ -24,10 +24,10 @@ use ritk_spatial::{Direction, Point, Spacing};
 fn test_gantry_tilt_synthesizes_oblique_orientation() {
     // Invariant: axial IOP [1,0,0,0,1,0] + GantryDetectorTilt=15° must produce
     // synthesized F_c=[0,cos(15°),-sin(15°)] and NÌ‚=[0,sin(15°),cos(15°)].
-    use dicom::core::{Tag, VR};
-    use dicom::object::{FileMetaTableBuilder, InMemDicomObject};
-    use dicom_core::smallvec::SmallVec;
-    use dicom_core::PrimitiveValue;
+    use ritk_dicom::dataset::PrimitiveValue;
+    use ritk_dicom::dataset::SmallVec;
+    use ritk_dicom::dataset::{Dataset, FileMetaBuilder};
+    use ritk_dicom::dataset::{DicomTag, VR};
     use std::f64::consts::PI;
 
     let temp = tempfile::tempdir().unwrap();
@@ -41,109 +41,109 @@ fn test_gantry_tilt_synthesizes_oblique_orientation() {
 
     let slice_path = dir.join("slice_0000.dcm");
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     // Successful image-scan fixtures carry the required acquisition identity.
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
+        DicomTag::new(0x0020, 0x000E),
         VR::UI,
         PrimitiveValue::from("2.25.72001"),
     ));
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0008, 0x0016),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
     ));
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0008, 0x0018),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.999001"),
     ));
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0008, 0x0060),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0008, 0x0060),
         VR::CS,
         PrimitiveValue::from("CT"),
     ));
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0028, 0x0010),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::U16(SmallVec::from_slice(&[2u16])),
     ));
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0028, 0x0011),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::U16(SmallVec::from_slice(&[2u16])),
     ));
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0028, 0x0100),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::U16(SmallVec::from_slice(&[16u16])),
     ));
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0028, 0x0101),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::U16(SmallVec::from_slice(&[16u16])),
     ));
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0028, 0x0102),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0028, 0x0102),
         VR::US,
         PrimitiveValue::U16(SmallVec::from_slice(&[15u16])),
     ));
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0028, 0x0103),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::U16(SmallVec::from_slice(&[0u16])),
     ));
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0028, 0x0002),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0028, 0x0002),
         VR::US,
         PrimitiveValue::U16(SmallVec::from_slice(&[1u16])),
     ));
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0028, 0x0004),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0028, 0x0004),
         VR::CS,
         PrimitiveValue::from("MONOCHROME2"),
     ));
     // Axial IOP [1,0,0,0,1,0]
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0020, 0x0037),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0020, 0x0037),
         VR::DS,
         PrimitiveValue::from("1.000000\\0.000000\\0.000000\\0.000000\\1.000000\\0.000000"),
     ));
     // IPP at origin
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0020, 0x0032),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0020, 0x0032),
         VR::DS,
         PrimitiveValue::from("0.000000\\0.000000\\0.000000"),
     ));
     // PixelSpacing
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0028, 0x0030),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0028, 0x0030),
         VR::DS,
         PrimitiveValue::from("1.000000\\1.000000"),
     ));
     // SliceThickness
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0018, 0x0050),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0018, 0x0050),
         VR::DS,
         PrimitiveValue::from("1.000000"),
     ));
     // GantryDetectorTilt = 15°
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x0018, 0x1120),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x0018, 0x1120),
         VR::DS,
         PrimitiveValue::from(format!("{:.6}", tilt_deg).as_str()),
     ));
     // Pixel data: 2×2 u16 = 8 bytes
     let pixel_u16: Vec<u16> = vec![100, 200, 300, 400];
-    obj.put(dicom::core::DataElement::new(
-        Tag(0x7FE0, 0x0010),
+    obj.put(ritk_dicom::dataset::DataElement::new(
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OW,
         PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
     ));
 
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
                 .media_storage_sop_instance_uid("2.25.999001")
                 .transfer_syntax("1.2.840.10008.1.2.1"),

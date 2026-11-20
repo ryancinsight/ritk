@@ -1,8 +1,8 @@
 //! Shared utility helpers for DICOM module parsing.
 
-use dicom::core::value::Value;
-use dicom::core::Tag;
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::DicomTag;
+use ritk_dicom::dataset::Value;
 
 /// Navigate `item → seq_tag → items[0] → inner_tag` and parse the first
 /// item's value as a single scalar `T` via DS string representation.
@@ -10,9 +10,9 @@ use dicom::object::InMemDicomObject;
 /// Returns `None` if the sequence is absent, has no items, or the value
 /// fails to parse.
 pub(in crate::format::dicom) fn read_nested_scalar<T: std::str::FromStr>(
-    item: &InMemDicomObject,
-    seq_tag: Tag,
-    inner_tag: Tag,
+    item: &Dataset,
+    seq_tag: DicomTag,
+    inner_tag: DicomTag,
 ) -> Option<T> {
     let elem = item.element(seq_tag).ok()?;
     if let Value::Sequence(seq) = elem.value() {

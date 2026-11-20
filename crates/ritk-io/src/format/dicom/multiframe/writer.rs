@@ -3,14 +3,14 @@
 use crate::format::dicom::writer::decimal_string::{
     format_dicom_decimal, format_pair, format_six, format_triplet,
 };
-use crate::format::dicom::writer::elements::PutValue;
+
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
-use dicom::core::smallvec::SmallVec;
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::InMemDicomObject;
 use ritk_core::image::Image;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::FileMetaBuilder;
+use ritk_dicom::dataset::SmallVec;
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
 use ritk_dicom::TransferSyntaxKind;
 use ritk_image::tensor::Backend;
 use ritk_image::Image as NativeImage;
@@ -217,47 +217,75 @@ fn write_multiframe_flat(
         .map(|s| s.modality.as_str())
         .unwrap_or("OT");
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
 
-    obj.put_value(Tag(0x0008, 0x0016), VR::UI, config.sop_class_uid.as_str());
-    obj.put_value(Tag(0x0008, 0x0018), VR::UI, sop_instance_uid.as_str());
+    obj.put_value(
+        DicomTag::new(0x0008, 0x0016),
+        VR::UI,
+        config.sop_class_uid.as_str(),
+    );
+    obj.put_value(
+        DicomTag::new(0x0008, 0x0018),
+        VR::UI,
+        sop_instance_uid.as_str(),
+    );
 
     // Patient Module — Type 2 mandatory (PS3.3 C.7.1.1)
-    obj.put_value(Tag(0x0010, 0x0010), VR::PN, "");
-    obj.put_value(Tag(0x0010, 0x0020), VR::LO, "");
+    obj.put_value(DicomTag::new(0x0010, 0x0010), VR::PN, "");
+    obj.put_value(DicomTag::new(0x0010, 0x0020), VR::LO, "");
 
     // General Study Module — Type 1/2 mandatory (PS3.3 C.7.2.1)
-    obj.put_value(Tag(0x0020, 0x000D), VR::UI, study_instance_uid.as_str());
-    obj.put_value(Tag(0x0008, 0x0020), VR::DA, "");
-    obj.put_value(Tag(0x0008, 0x0090), VR::PN, "");
-    obj.put_value(Tag(0x0020, 0x0010), VR::SH, "");
+    obj.put_value(
+        DicomTag::new(0x0020, 0x000D),
+        VR::UI,
+        study_instance_uid.as_str(),
+    );
+    obj.put_value(DicomTag::new(0x0008, 0x0020), VR::DA, "");
+    obj.put_value(DicomTag::new(0x0008, 0x0090), VR::PN, "");
+    obj.put_value(DicomTag::new(0x0020, 0x0010), VR::SH, "");
 
     // General Series Module — Type 1/2 mandatory (PS3.3 C.7.3.1)
-    obj.put_value(Tag(0x0020, 0x000E), VR::UI, series_instance_uid.as_str());
-    obj.put_value(Tag(0x0020, 0x0011), VR::IS, "");
-    obj.put_value(Tag(0x0008, 0x0060), VR::CS, modality_str);
-    obj.put_value(Tag(0x0008, 0x0064), VR::CS, "WSD");
     obj.put_value(
-        Tag(0x0020, 0x0013),
+        DicomTag::new(0x0020, 0x000E),
+        VR::UI,
+        series_instance_uid.as_str(),
+    );
+    obj.put_value(DicomTag::new(0x0020, 0x0011), VR::IS, "");
+    obj.put_value(DicomTag::new(0x0008, 0x0060), VR::CS, modality_str);
+    obj.put_value(DicomTag::new(0x0008, 0x0064), VR::CS, "WSD");
+    obj.put_value(
+        DicomTag::new(0x0020, 0x0013),
         VR::IS,
         format!("{}", config.instance_number),
     );
 
-    obj.put_value(Tag(0x0028, 0x0008), VR::IS, format!("{}", n_frames));
-    obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
-    obj.put_value(Tag(0x0028, 0x0010), VR::US, dimensions.rows_attribute);
-    obj.put_value(Tag(0x0028, 0x0011), VR::US, dimensions.columns_attribute);
+    obj.put_value(
+        DicomTag::new(0x0028, 0x0008),
+        VR::IS,
+        format!("{}", n_frames),
+    );
+    obj.put_value(DicomTag::new(0x0028, 0x0002), VR::US, 1_u16);
+    obj.put_value(
+        DicomTag::new(0x0028, 0x0010),
+        VR::US,
+        dimensions.rows_attribute,
+    );
+    obj.put_value(
+        DicomTag::new(0x0028, 0x0011),
+        VR::US,
+        dimensions.columns_attribute,
+    );
     match &encoded_pixels {
         EncodedPixelSamples::NativeWord(_, plan)
         | EncodedPixelSamples::EncapsulatedWord(_, plan) => {
             emit_pixel_format_tags::<u16>(&mut obj);
             obj.put_value(
-                Tag(0x0028, 0x1053),
+                DicomTag::new(0x0028, 0x1053),
                 VR::DS,
                 format_dicom_decimal(f64::from(plan.rescale_slope()))?,
             );
             obj.put_value(
-                Tag(0x0028, 0x1052),
+                DicomTag::new(0x0028, 0x1052),
                 VR::DS,
                 format_dicom_decimal(f64::from(plan.rescale_intercept()))?,
             );
@@ -265,24 +293,24 @@ fn write_multiframe_flat(
         EncodedPixelSamples::BaselineByte(_, plan) => {
             emit_pixel_format_tags::<u8>(&mut obj);
             obj.put_value(
-                Tag(0x0028, 0x1053),
+                DicomTag::new(0x0028, 0x1053),
                 VR::DS,
                 format_dicom_decimal(f64::from(plan.rescale_slope()))?,
             );
             obj.put_value(
-                Tag(0x0028, 0x1052),
+                DicomTag::new(0x0028, 0x1052),
                 VR::DS,
                 format_dicom_decimal(f64::from(plan.rescale_intercept()))?,
             );
         }
     }
-    obj.put_value(Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
+    obj.put_value(DicomTag::new(0x0028, 0x0004), VR::CS, MONOCHROME2);
 
     if let Some((origin, orientation, pixel_spacing, slice_thickness)) = spatial_tags {
-        obj.put_value(Tag(0x0020, 0x0032), VR::DS, origin);
-        obj.put_value(Tag(0x0020, 0x0037), VR::DS, orientation);
-        obj.put_value(Tag(0x0028, 0x0030), VR::DS, pixel_spacing);
-        obj.put_value(Tag(0x0018, 0x0050), VR::DS, slice_thickness);
+        obj.put_value(DicomTag::new(0x0020, 0x0032), VR::DS, origin);
+        obj.put_value(DicomTag::new(0x0020, 0x0037), VR::DS, orientation);
+        obj.put_value(DicomTag::new(0x0028, 0x0030), VR::DS, pixel_spacing);
+        obj.put_value(DicomTag::new(0x0018, 0x0050), VR::DS, slice_thickness);
     }
 
     match (&config.transfer_syntax, encoded_pixels) {
@@ -291,7 +319,7 @@ fn write_multiframe_flat(
             EncodedPixelSamples::NativeWord(pixel_u16, _),
         ) => {
             obj.put_value(
-                Tag(0x7FE0, 0x0010),
+                DicomTag::new(0x7FE0, 0x0010),
                 VR::OW,
                 PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
             );
@@ -309,21 +337,25 @@ fn write_multiframe_flat(
             let encoded_fragments =
                 encode_compressed_frames(&pixel_u16, dimensions, &config.transfer_syntax)?;
             obj.put(DataElement::new(
-                Tag(0x7FE0, 0x0010),
+                DicomTag::new(0x7FE0, 0x0010),
                 VR::OB,
                 encoded_fragments,
             ));
         }
         (TransferSyntaxKind::JpegBaseline, EncodedPixelSamples::BaselineByte(pixel_u8, _)) => {
             let fragments = encode_baseline_jpeg_frames(&pixel_u8, dimensions)?;
-            obj.put(DataElement::new(Tag(0x7FE0, 0x0010), VR::OB, fragments));
+            obj.put(DataElement::new(
+                DicomTag::new(0x7FE0, 0x0010),
+                VR::OB,
+                fragments,
+            ));
         }
         _ => bail!("DICOM transfer syntax and prepared pixel sample type disagree"),
     }
 
     let file_obj = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid(config.sop_class_uid.as_str())
                 .media_storage_sop_instance_uid(sop_instance_uid.as_str())
                 .transfer_syntax(config.transfer_syntax.uid()),

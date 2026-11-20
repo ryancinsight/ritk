@@ -5,7 +5,6 @@ use super::super::super::scan::{scan_dicom_files, scan_dicom_part10_bytes, scan_
 use super::fixtures::{instance, OTHER, SERIES};
 use crate::DicomStudyCatalog;
 use crate::{DicomSliceMetadata, DicomTag};
-use dicom_core::header::Header;
 
 fn retained_geometry(slice: &DicomSliceMetadata, tag: DicomTag) -> Option<&str> {
     let node = slice.preservation.object.get(tag)?;
@@ -262,14 +261,17 @@ fn named_bytes_and_disk_preserve_identical_values_and_geometry() {
 
 #[test]
 fn source_orientation_survives_effective_gantry_tilt_synthesis() {
-    use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-    let tag = Tag(0x0020, 0x0037);
+    use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+    let tag = DicomTag::new(0x0020, 0x0037);
     for original in [Some("1\\0\\0\\0\\1\\0"), None] {
         let bytes = instance(Some(SERIES), 1, 43);
-        let mut input = dicom::object::from_reader(bytes.as_slice())
-            .expect("invariant: generated image is readable");
+        let mut input = ritk_dicom::dataset::DicomFile::parse(
+            bytes.clone().into(),
+            &ritk_dicom::ParseBudget::DEFAULT,
+        )
+        .expect("invariant: generated image is readable");
         assert!(
-            input.remove_element(tag),
+            input.remove_element(tag).is_some(),
             "fixture contains source orientation"
         );
         if let Some(original) = original {
@@ -280,7 +282,7 @@ fn source_orientation_survives_effective_gantry_tilt_synthesis() {
             ));
         }
         input.put(DataElement::new(
-            Tag(0x0018, 0x1120),
+            DicomTag::new(0x0018, 0x1120),
             VR::DS,
             PrimitiveValue::from("15"),
         ));
@@ -311,12 +313,15 @@ fn source_orientation_survives_effective_gantry_tilt_synthesis() {
 
 #[test]
 fn malformed_source_geometry_is_retained_as_source_text() {
-    use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
+    use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
     let bytes = instance(Some(SERIES), 1, 43);
-    let mut input = dicom::object::from_reader(bytes.as_slice())
-        .expect("invariant: generated image is readable");
+    let mut input = ritk_dicom::dataset::DicomFile::parse(
+        bytes.clone().into(),
+        &ritk_dicom::ParseBudget::DEFAULT,
+    )
+    .expect("invariant: generated image is readable");
     input.put(DataElement::new(
-        Tag(0x0028, 0x0030),
+        DicomTag::new(0x0028, 0x0030),
         VR::DS,
         PrimitiveValue::from("3\\bad\\5"),
     ));
@@ -337,7 +342,7 @@ fn malformed_source_geometry_is_retained_as_source_text() {
 
 #[test]
 fn regenerated_geometry_wins_over_preserved_source_values() {
-    use dicom::core::Tag;
+    use ritk_dicom::dataset::DicomTag;
     use ritk_spatial::{Direction, Point, Spacing};
     let bytes = instance(Some(SERIES), 1, 43);
     let series = scan_dicom_part10_bytes(&[("source", bytes.as_slice())])
@@ -389,18 +394,21 @@ fn regenerated_geometry_wins_over_preserved_source_values() {
         Some(&metadata),
     )
     .expect("invariant: output image satisfies DICOM writer input requirements");
-    let output = dicom::object::open_file(directory.path().join("slice_0000.dcm"))
+    let output = ritk_dicom::dataset::DicomFile::open(directory.path().join("slice_0000.dcm"))
         .expect("invariant: rewritten image is readable");
     for (tag, expected) in [
-        (Tag(0x0028, 0x0030), vec![7.0, 11.0]),
-        (Tag(0x0020, 0x0032), vec![100.0, 200.0, 300.0]),
-        (Tag(0x0020, 0x0037), vec![0.0, 1.0, 0.0, -1.0, 0.0, 0.0]),
+        (DicomTag::new(0x0028, 0x0030), vec![7.0, 11.0]),
+        (DicomTag::new(0x0020, 0x0032), vec![100.0, 200.0, 300.0]),
+        (
+            DicomTag::new(0x0020, 0x0037),
+            vec![0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+        ),
     ] {
         assert_eq!(
             output
                 .element(tag)
                 .expect("invariant: geometry tag is emitted")
-                .to_multi_float64()
+                .to_numbers::<f64>()
                 .expect("invariant: emitted geometry is numeric"),
             expected
         );

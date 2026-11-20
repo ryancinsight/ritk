@@ -1,39 +1,36 @@
 use anyhow::{Context, Result};
-use dicom::core::value::DicomValueType;
-use dicom::core::Tag;
-use dicom::object::{DicomAttribute, DicomObject};
+
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::DicomTag;
 
 pub(super) const RGB_CHANNELS: usize = 3;
 
-pub(super) fn read_required_unsigned<O>(obj: &O, tag: Tag, name: &str) -> Result<u16>
-where
-    O: DicomObject,
-{
-    let attribute = obj.attr(tag).with_context(|| {
+pub(super) fn read_required_unsigned(obj: &Dataset, tag: DicomTag, name: &str) -> Result<u16> {
+    let attribute = obj.element(tag).with_context(|| {
         format!(
             "DICOM missing required {name} ({:04X},{:04X})",
-            tag.0, tag.1
+            tag.group, tag.element
         )
     })?;
-    let cardinality = attribute.cardinality();
+    let cardinality = attribute.value().cardinality();
     if cardinality != 1 {
         anyhow::bail!(
             "DICOM required {name} ({:04X},{:04X}) has cardinality={cardinality}; expected exactly 1",
-            tag.0,
-            tag.1
+            tag.group,
+            tag.element
         );
     }
-    attribute.to_u16().with_context(|| {
+    attribute.to_num::<u16>().with_context(|| {
         format!(
             "DICOM required {name} ({:04X},{:04X}) is not an unsigned scalar",
-            tag.0, tag.1
+            tag.group, tag.element
         )
     })
 }
 
 pub(super) fn read_required<T>(
-    obj: &dicom::object::DefaultDicomObject,
-    tag: Tag,
+    obj: &ritk_dicom::dataset::DicomFile,
+    tag: DicomTag,
     name: &str,
 ) -> Result<T>
 where
@@ -50,8 +47,8 @@ where
 }
 
 pub(super) fn read_optional<T: std::str::FromStr>(
-    obj: &dicom::object::DefaultDicomObject,
-    tag: Tag,
+    obj: &ritk_dicom::dataset::DicomFile,
+    tag: DicomTag,
 ) -> Option<T> {
     obj.element(tag)
         .ok()
@@ -60,8 +57,8 @@ pub(super) fn read_optional<T: std::str::FromStr>(
 }
 
 pub(super) fn required_string(
-    obj: &dicom::object::DefaultDicomObject,
-    tag: Tag,
+    obj: &ritk_dicom::dataset::DicomFile,
+    tag: DicomTag,
     name: &str,
 ) -> Result<String> {
     Ok(obj
@@ -75,14 +72,14 @@ pub(super) fn required_string(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dicom::core::{DataElement, PrimitiveValue, VR};
-    use dicom::object::InMemDicomObject;
+    use ritk_dicom::dataset::Dataset;
+    use ritk_dicom::dataset::{DataElement, PrimitiveValue, VR};
 
-    const BITS_STORED: Tag = Tag(0x0028, 0x0101);
+    const BITS_STORED: DicomTag = DicomTag::new(0x0028, 0x0101);
 
     #[test]
     fn required_unsigned_rejects_missing_and_malformed_values() {
-        let mut object = InMemDicomObject::new_empty();
+        let mut object = Dataset::new();
         let missing = read_required_unsigned(&object, BITS_STORED, "BitsStored")
             .expect_err("missing BitsStored must be rejected");
         assert!(

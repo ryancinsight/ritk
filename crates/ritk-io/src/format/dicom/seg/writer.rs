@@ -1,11 +1,9 @@
-use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{Context, Result};
-use dicom::core::header::Length;
-use dicom::core::smallvec::SmallVec;
-use dicom::core::value::{DataSetSequence, Value};
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::FileMetaBuilder;
+use ritk_dicom::dataset::Length;
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+use ritk_dicom::dataset::{Sequence, Value};
 use std::path::Path;
 
 use super::types::{DicomSegmentation, SegmentationType, SEG_SOP_CLASS_UID};
@@ -115,20 +113,24 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
         }
     }
 
-    let seg_items: Vec<InMemDicomObject> = seg
+    let seg_items: Vec<Dataset> = seg
         .segments
         .iter()
         .map(|info| {
-            let mut item = InMemDicomObject::new_empty();
-            item.put_value(Tag(0x0062, 0x0004), VR::US, info.segment_number);
-            item.put_value(Tag(0x0062, 0x0005), VR::LO, info.segment_label.as_str());
+            let mut item = Dataset::new();
+            item.put_value(DicomTag::new(0x0062, 0x0004), VR::US, info.segment_number);
             item.put_value(
-                Tag(0x0062, 0x0006),
+                DicomTag::new(0x0062, 0x0005),
+                VR::LO,
+                info.segment_label.as_str(),
+            );
+            item.put_value(
+                DicomTag::new(0x0062, 0x0006),
                 VR::ST,
                 info.segment_description.as_deref().unwrap_or(""),
             );
             item.put_value(
-                Tag(0x0062, 0x0008),
+                DicomTag::new(0x0062, 0x0008),
                 VR::CS,
                 info.algorithm_type
                     .as_ref()
@@ -139,52 +141,72 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
         })
         .collect();
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
 
-    obj.put_value(Tag(0x0008, 0x0016), VR::UI, SEG_SOP_CLASS_UID);
-    obj.put_value(Tag(0x0008, 0x0018), VR::UI, sop_instance_uid.as_str());
-    obj.put_value(Tag(0x0008, 0x0060), VR::CS, "SEG");
-    obj.put_value(Tag(0x0020, 0x000D), VR::UI, study_instance_uid.as_str());
-    obj.put_value(Tag(0x0020, 0x000E), VR::UI, series_instance_uid.as_str());
-    obj.put_value(Tag(0x0020, 0x0013), VR::IS, "1");
+    obj.put_value(DicomTag::new(0x0008, 0x0016), VR::UI, SEG_SOP_CLASS_UID);
     obj.put_value(
-        Tag(0x0028, 0x0008),
+        DicomTag::new(0x0008, 0x0018),
+        VR::UI,
+        sop_instance_uid.as_str(),
+    );
+    obj.put_value(DicomTag::new(0x0008, 0x0060), VR::CS, "SEG");
+    obj.put_value(
+        DicomTag::new(0x0020, 0x000D),
+        VR::UI,
+        study_instance_uid.as_str(),
+    );
+    obj.put_value(
+        DicomTag::new(0x0020, 0x000E),
+        VR::UI,
+        series_instance_uid.as_str(),
+    );
+    obj.put_value(DicomTag::new(0x0020, 0x0013), VR::IS, "1");
+    obj.put_value(
+        DicomTag::new(0x0028, 0x0008),
         VR::IS,
         seg.n_frames.to_string().as_str(),
     );
-    obj.put_value(Tag(0x0028, 0x0010), VR::US, dimensions.rows_attribute);
-    obj.put_value(Tag(0x0028, 0x0011), VR::US, dimensions.columns_attribute);
-    obj.put_value(Tag(0x0028, 0x0100), VR::US, bits);
-    obj.put_value(Tag(0x0028, 0x0101), VR::US, bits);
-    obj.put_value(Tag(0x0028, 0x0102), VR::US, bits - 1);
-    obj.put_value(Tag(0x0028, 0x0103), VR::US, 0u16);
-    obj.put_value(Tag(0x0028, 0x0002), VR::US, 1u16);
-    obj.put_value(Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
     obj.put_value(
-        Tag(0x0062, 0x0001),
+        DicomTag::new(0x0028, 0x0010),
+        VR::US,
+        dimensions.rows_attribute,
+    );
+    obj.put_value(
+        DicomTag::new(0x0028, 0x0011),
+        VR::US,
+        dimensions.columns_attribute,
+    );
+    obj.put_value(DicomTag::new(0x0028, 0x0100), VR::US, bits);
+    obj.put_value(DicomTag::new(0x0028, 0x0101), VR::US, bits);
+    obj.put_value(DicomTag::new(0x0028, 0x0102), VR::US, bits - 1);
+    obj.put_value(DicomTag::new(0x0028, 0x0103), VR::US, 0u16);
+    obj.put_value(DicomTag::new(0x0028, 0x0002), VR::US, 1u16);
+    obj.put_value(DicomTag::new(0x0028, 0x0004), VR::CS, MONOCHROME2);
+    obj.put_value(
+        DicomTag::new(0x0062, 0x0001),
         VR::CS,
         seg.segmentation_type.as_dicom_str(),
     );
 
     if !seg_items.is_empty() {
-        let seq = DataSetSequence::new(seg_items, Length::UNDEFINED);
+        let seq = Sequence::new(seg_items, Length::Undefined);
         obj.put(DataElement::new(
-            Tag(0x0062, 0x0002),
+            DicomTag::new(0x0062, 0x0002),
             VR::SQ,
             Value::from(seq),
         ));
     }
 
-    let mut shared_item = InMemDicomObject::new_empty();
+    let mut shared_item = Dataset::new();
     let mut has_shared_fg = false;
 
     if let Some(iop) = seg.image_orientation {
-        let mut ori_item = InMemDicomObject::new_empty();
+        let mut ori_item = Dataset::new();
         let iop_ds = format_six(iop)?;
-        ori_item.put_value(Tag(0x0020, 0x0037), VR::DS, iop_ds.as_str());
-        let ori_seq = DataSetSequence::new(vec![ori_item], Length::UNDEFINED);
+        ori_item.put_value(DicomTag::new(0x0020, 0x0037), VR::DS, iop_ds.as_str());
+        let ori_seq = Sequence::new(vec![ori_item], Length::Undefined);
         shared_item.put(DataElement::new(
-            Tag(0x0020, 0x9116),
+            DicomTag::new(0x0020, 0x9116),
             VR::SQ,
             Value::from(ori_seq),
         ));
@@ -192,18 +214,18 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
     }
 
     if seg.pixel_spacing.is_some() || seg.slice_thickness.is_some() {
-        let mut px_item = InMemDicomObject::new_empty();
+        let mut px_item = Dataset::new();
         if let Some(ps) = seg.pixel_spacing {
             let ps_ds = format_pair(ps)?;
-            px_item.put_value(Tag(0x0028, 0x0030), VR::DS, ps_ds.as_str());
+            px_item.put_value(DicomTag::new(0x0028, 0x0030), VR::DS, ps_ds.as_str());
         }
         if let Some(st) = seg.slice_thickness {
             let st_ds = format_dicom_decimal(st)?;
-            px_item.put_value(Tag(0x0018, 0x0050), VR::DS, st_ds.as_str());
+            px_item.put_value(DicomTag::new(0x0018, 0x0050), VR::DS, st_ds.as_str());
         }
-        let px_seq = DataSetSequence::new(vec![px_item], Length::UNDEFINED);
+        let px_seq = Sequence::new(vec![px_item], Length::Undefined);
         shared_item.put(DataElement::new(
-            Tag(0x0028, 0x9110),
+            DicomTag::new(0x0028, 0x9110),
             VR::SQ,
             Value::from(px_seq),
         ));
@@ -211,35 +233,39 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
     }
 
     if has_shared_fg {
-        let shared_seq = DataSetSequence::new(vec![shared_item], Length::UNDEFINED);
+        let shared_seq = Sequence::new(vec![shared_item], Length::Undefined);
         obj.put(DataElement::new(
-            Tag(0x5200, 0x9229),
+            DicomTag::new(0x5200, 0x9229),
             VR::SQ,
             Value::from(shared_seq),
         ));
     }
 
-    let mut per_frame_items: Vec<InMemDicomObject> = Vec::with_capacity(seg.n_frames);
+    let mut per_frame_items: Vec<Dataset> = Vec::with_capacity(seg.n_frames);
     for frame_idx in 0..seg.n_frames {
-        let mut frame_item = InMemDicomObject::new_empty();
+        let mut frame_item = Dataset::new();
 
         let referenced_segment_number = seg.frame_segment_numbers[frame_idx];
-        let mut seg_id_item = InMemDicomObject::new_empty();
-        seg_id_item.put_value(Tag(0x0062, 0x000B), VR::US, referenced_segment_number);
-        let seg_id_seq = DataSetSequence::new(vec![seg_id_item], Length::UNDEFINED);
+        let mut seg_id_item = Dataset::new();
+        seg_id_item.put_value(
+            DicomTag::new(0x0062, 0x000B),
+            VR::US,
+            referenced_segment_number,
+        );
+        let seg_id_seq = Sequence::new(vec![seg_id_item], Length::Undefined);
         frame_item.put(DataElement::new(
-            Tag(0x0062, 0x000A),
+            DicomTag::new(0x0062, 0x000A),
             VR::SQ,
             Value::from(seg_id_seq),
         ));
 
         if let Some(Some(pos)) = seg.image_position_per_frame.get(frame_idx) {
-            let mut pos_item = InMemDicomObject::new_empty();
+            let mut pos_item = Dataset::new();
             let pos_ds = format_triplet(*pos)?;
-            pos_item.put_value(Tag(0x0020, 0x0032), VR::DS, pos_ds.as_str());
-            let pos_seq = DataSetSequence::new(vec![pos_item], Length::UNDEFINED);
+            pos_item.put_value(DicomTag::new(0x0020, 0x0032), VR::DS, pos_ds.as_str());
+            let pos_seq = Sequence::new(vec![pos_item], Length::Undefined);
             frame_item.put(DataElement::new(
-                Tag(0x0020, 0x9113),
+                DicomTag::new(0x0020, 0x9113),
                 VR::SQ,
                 Value::from(pos_seq),
             ));
@@ -248,24 +274,24 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
         per_frame_items.push(frame_item);
     }
     if !per_frame_items.is_empty() {
-        let seq = DataSetSequence::new(per_frame_items, Length::UNDEFINED);
+        let seq = Sequence::new(per_frame_items, Length::Undefined);
         obj.put(DataElement::new(
-            Tag(0x5200, 0x9230),
+            DicomTag::new(0x5200, 0x9230),
             VR::SQ,
             Value::from(seq),
         ));
     }
 
     obj.put_value(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OW,
-        PrimitiveValue::U8(SmallVec::from_vec(pixel_bytes)),
+        PrimitiveValue::from(pixel_bytes),
     );
 
     let path = path.as_ref();
     let file = obj
         .with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid(SEG_SOP_CLASS_UID)
                 .media_storage_sop_instance_uid(sop_instance_uid.as_str())
                 .transfer_syntax(EXPLICIT_VR_LE),

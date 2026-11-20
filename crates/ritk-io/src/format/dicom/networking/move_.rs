@@ -20,16 +20,9 @@
 //! assert_eq!(resp.final_status, 0x0000);
 //! ```
 
-use super::association::{release_client_association, AeTitle, MoveResponse, NetworkingError};
-use super::command::{
-    build_command_pdu, build_dataset_ivr_le, encode_str, parse_command_response,
-    CommandElementValue, C_MOVE_RQ, C_MOVE_RSP, HAS_DATASET, IMPLICIT_VR_LE_TS, PRIORITY_MEDIUM,
-    STATUS_PENDING, STATUS_PENDING_WARN, STUDY_ROOT_MOVE_SOP_CLASS,
-};
+use super::association::{networking_error, AeTitle, Association, MoveResponse, NetworkingError};
+use super::command::{encode_query_identifier, IMPLICIT_VR_LE_TS, STUDY_ROOT_MOVE_SOP_CLASS};
 use super::context::AssociationConfig;
-use super::echo::{find_ctx_id, receive_command_pdv};
-use dicom_ul::association::client::ClientAssociationOptions;
-use dicom_ul::pdu::{PDataValue, PDataValueType, Pdu};
 
 // ── MoveDestination ───────────────────────────────────────────────────────────
 
@@ -73,100 +66,18 @@ fn retrieve_impl(
     level_cs: &str,
     query_keys: &[(u16, u16, &str)],
 ) -> Result<MoveResponse, NetworkingError> {
-    let mut assoc = ClientAssociationOptions::new()
-        .calling_ae_title(config.calling_ae_title.as_str())
-        .called_ae_title(config.called_ae_title.as_str())
-        .with_presentation_context(STUDY_ROOT_MOVE_SOP_CLASS, vec![IMPLICIT_VR_LE_TS])
-        .establish(format!("{}:{}", config.host, config.port))
-        .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
-
-    let ctx_id = find_ctx_id(&assoc)?;
-
-    let cmd_bytes = build_command_pdu(&[
-        (
-            0x0000_0002,
-            CommandElementValue::Ui(STUDY_ROOT_MOVE_SOP_CLASS),
-        ),
-        (0x0000_0100, CommandElementValue::Us(C_MOVE_RQ)),
-        (0x0000_0110, CommandElementValue::Us(1u16)),
-        (0x0000_0600, CommandElementValue::Str(destination.as_str())),
-        (0x0000_0700, CommandElementValue::Us(PRIORITY_MEDIUM)),
-        (0x0000_0800, CommandElementValue::Us(HAS_DATASET)),
-    ]);
-
-    let level_bytes = encode_str(level_cs);
-    let mut dataset_entries: Vec<(u32, Vec<u8>)> = vec![(0x0008_0052, level_bytes)];
-    for &(group, element, value) in query_keys {
-        let tag = ((group as u32) << 16) | (element as u32);
-        dataset_entries.push((tag, encode_str(value)));
-    }
-    dataset_entries.sort_by_key(|(tag, _)| *tag);
-    let dataset_refs: Vec<(u32, &[u8])> = dataset_entries
-        .iter()
-        .map(|(tag, v)| (*tag, v.as_slice()))
-        .collect();
-    let dataset_bytes = build_dataset_ivr_le(&dataset_refs);
-
-    assoc
-        .send(&Pdu::PData {
-            data: vec![PDataValue {
-                presentation_context_id: ctx_id,
-                value_type: PDataValueType::Command,
-                is_last: true,
-                data: cmd_bytes,
-            }],
-        })
-        .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
-
-    assoc
-        .send(&Pdu::PData {
-            data: vec![PDataValue {
-                presentation_context_id: ctx_id,
-                value_type: PDataValueType::Data,
-                is_last: true,
-                data: dataset_bytes,
-            }],
-        })
-        .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
-
-    let mut completed: u16 = 0;
-    let mut failed: u16 = 0;
-    let mut warning: u16 = 0;
-
-    let final_status = loop {
-        let rsp_cmd_bytes = receive_command_pdv(&mut assoc, ctx_id)?;
-        let rsp = parse_command_response(&rsp_cmd_bytes)?;
-
-        if rsp.command_field != C_MOVE_RSP {
-            return Err(NetworkingError::Protocol(format!(
-                "expected C-MOVE-RSP (0x{:04X}), got 0x{:04X}",
-                C_MOVE_RSP, rsp.command_field
-            )));
-        }
-
-        if let Some(c) = rsp.number_completed {
-            completed = c;
-        }
-        if let Some(f) = rsp.number_failed {
-            failed = f;
-        }
-        if let Some(w) = rsp.number_warning {
-            warning = w;
-        }
-
-        match rsp.status {
-            STATUS_PENDING | STATUS_PENDING_WARN => continue,
-            s => break s,
-        }
-    };
-
-    release_client_association(assoc)?;
-
+    let dataset = encode_query_identifier(level_cs, query_keys.iter().copied());
+    let mut association =
+        Association::for_service(config, STUDY_ROOT_MOVE_SOP_CLASS, IMPLICIT_VR_LE_TS)?;
+    let result = association
+        .c_move(STUDY_ROOT_MOVE_SOP_CLASS, destination.as_str(), dataset)
+        .map_err(networking_error)?;
+    association.release().map_err(networking_error)?;
     Ok(MoveResponse {
-        completed,
-        failed,
-        warning,
-        final_status,
+        completed: result.completed,
+        failed: result.failed,
+        warning: result.warning,
+        final_status: result.status,
     })
 }
 

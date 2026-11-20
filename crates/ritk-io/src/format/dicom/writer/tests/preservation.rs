@@ -6,8 +6,6 @@ use crate::format::dicom::object_model::{
     DicomSequenceItem, DicomTag, DicomValue,
 };
 use arrayvec::ArrayString;
-use dicom::core::Tag;
-use dicom::object::open_file;
 
 #[test]
 fn test_preservation_writes_empty_values_as_zero_length_elements() {
@@ -45,21 +43,28 @@ fn test_preservation_writes_empty_values_as_zero_length_elements() {
     let path = temp.path().join("empty_rt_series");
     write_dicom_series_with_metadata(&path, &image, Some(&meta)).expect("write must succeed");
 
-    let obj = open_file(path.join("slice_0000.dcm")).expect("must open written DICOM");
+    let obj = ritk_dicom::dataset::DicomFile::open(path.join("slice_0000.dcm"))
+        .expect("must open written DICOM");
     let ethnic_group = obj
-        .element(Tag(0x0010, 0x2160))
+        .element(DicomTag::new(0x0010, 0x2160))
         .expect("an empty preserved value must still be written");
-    assert_eq!(ethnic_group.header().len.0, 0);
+    assert!(ethnic_group
+        .to_bytes()
+        .expect("preserved text can be encoded")
+        .is_empty());
     let items = obj
-        .element(Tag(0x0040, 0x0275))
+        .element(DicomTag::new(0x0040, 0x0275))
         .expect("the preserved sequence must be written")
         .items()
         .expect("the element must be a sequence");
     assert_eq!(items.len(), 1);
     let nested = items[0]
-        .element(Tag(0x0040, 0x0007))
+        .element(DicomTag::new(0x0040, 0x0007))
         .expect("an empty value inside a sequence item must still be written");
-    assert_eq!(nested.header().len.0, 0);
+    assert!(nested
+        .to_bytes()
+        .expect("preserved nested text can be encoded")
+        .is_empty());
 }
 
 #[test]
@@ -79,9 +84,9 @@ fn test_preservation_private_text_round_trip() {
     write_dicom_series_with_metadata(&path, &image, Some(&meta)).expect("write must succeed");
 
     let dcm_path = path.join("slice_0000.dcm");
-    let obj = open_file(&dcm_path).expect("must open written DICOM");
+    let obj = ritk_dicom::dataset::DicomFile::open(&dcm_path).expect("must open written DICOM");
     let elem = obj
-        .element(Tag(0x0009, 0x0010))
+        .element(DicomTag::new(0x0009, 0x0010))
         .expect("private tag (0009,0010) must exist in written DICOM");
     assert_eq!(
         elem.to_str().unwrap().trim(),
@@ -116,19 +121,19 @@ fn test_preservation_sequence_round_trip() {
     write_dicom_series_with_metadata(&path, &image, Some(&meta)).expect("write must succeed");
 
     let dcm_path = path.join("slice_0000.dcm");
-    let obj = open_file(&dcm_path).expect("must open written DICOM");
+    let obj = ritk_dicom::dataset::DicomFile::open(&dcm_path).expect("must open written DICOM");
     let seq_elem = obj
-        .element(Tag(0x0008, 0x0096))
+        .element(DicomTag::new(0x0008, 0x0096))
         .expect("sequence tag (0008,0096) must exist in written DICOM");
     assert_eq!(
         seq_elem.vr(),
-        dicom::core::VR::SQ,
+        ritk_dicom::dataset::VR::SQ,
         "sequence element must have VR=SQ"
     );
     let items = seq_elem.value().items().expect("sequence must have items");
     assert_eq!(items.len(), 1, "sequence must have exactly one item");
     let code_meaning = items[0]
-        .element(Tag(0x0008, 0x0104))
+        .element(DicomTag::new(0x0008, 0x0104))
         .expect("(0008,0104) must exist inside sequence item");
     assert_eq!(
         code_meaning.to_str().unwrap().trim(),
@@ -155,9 +160,9 @@ fn test_preservation_raw_bytes_round_trip() {
     write_dicom_series_with_metadata(&path, &image, Some(&meta)).expect("write must succeed");
 
     let dcm_path = path.join("slice_0000.dcm");
-    let obj = open_file(&dcm_path).expect("must open written DICOM");
+    let obj = ritk_dicom::dataset::DicomFile::open(&dcm_path).expect("must open written DICOM");
     let raw_elem = obj
-        .element(Tag(0x0019, 0x1001))
+        .element(DicomTag::new(0x0019, 0x1001))
         .expect("raw bytes tag (0019,1001) must exist in written DICOM");
     let bytes = raw_elem.to_bytes().expect("must get raw bytes");
     assert_eq!(

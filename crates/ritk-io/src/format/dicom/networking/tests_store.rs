@@ -13,7 +13,7 @@ use crate::format::dicom::networking::pdu::{
     AssociateAcPdu, CommandType, FragmentPosition, ImplementationClassUidSubItem,
     ImplementationVersionNameSubItem, MaximumLengthSubItem, MessageControlHeader, Pdu,
     PresentationContextItemAc, PresentationDataValueItem, UserInformation,
-    APPLICATION_CONTEXT_NAME, RITK_IMPLEMENTATION_CLASS_UID, RITK_IMPLEMENTATION_VERSION,
+    APPLICATION_CONTEXT_NAME, RITK_IMPLEMENTATION_VERSION,
 };
 use arrayvec::ArrayString;
 use std::io::{Read, Write};
@@ -103,8 +103,10 @@ fn scp_thread(listener: TcpListener) {
                 maximum_length_received: 16384,
             },
             implementation_class_uid: ImplementationClassUidSubItem {
-                implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID)
-                    .expect("infallible: validated precondition"),
+                implementation_class_uid: ArrayString::from(
+                    ritk_dicom::dataset::IMPLEMENTATION_CLASS_UID,
+                )
+                .expect("infallible: validated precondition"),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
                 implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION)

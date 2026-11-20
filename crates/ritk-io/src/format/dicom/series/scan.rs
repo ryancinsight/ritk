@@ -3,17 +3,18 @@
 use crate::format::dicom::reader::dicomdir::discover_files_with_budget;
 use anyhow::{Context, Result};
 use arrayvec::ArrayString;
-use dicom::dictionary_std::tags;
-use dicom::object::{FileDicomObject, InMemDicomObject};
-use ritk_dicom::{parse_bytes_with_budget, read_file_with_budget, DicomRsBackend};
+use ritk_dicom::{read_file_with_budget, scan_part10_attributes, tags};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use crate::format::dicom::identity::image_series_uid;
+use crate::format::dicom::identity::image_series_uid_from;
 use crate::format::dicom::reader::types::{literal_arraystring, truncate_arraystring};
 use crate::format::dicom::reader::DicomReadBudget;
 
 use super::types::DicomSeriesInfo;
+use text::AttributeText;
+
+mod text;
 
 /// Raw per-file data extracted during the parallel scan phase.
 type ScannedEntry = (ArrayString<64>, String, ArrayString<16>, String, PathBuf);
@@ -87,17 +88,34 @@ pub(super) fn scan_dicom_directory_with_budget<P: AsRef<Path>>(
         encoded.len(),
         |i| -> anyhow::Result<Option<ScannedEntry>> {
             let (file_path, bytes) = &encoded[i];
-            let obj = parse_bytes_with_budget::<DicomRsBackend>(bytes, &parser_budget)
-                .context("failed to parse discovered DICOM member")?;
-            let Some(uid) = image_series_uid(&obj)? else {
+            let attributes = scan_part10_attributes(
+                bytes,
+                &parser_budget,
+                [
+                    tags::SPECIFIC_CHARACTER_SET,
+                    tags::SOP_CLASS_UID,
+                    tags::SERIES_INSTANCE_UID,
+                    tags::SERIES_DESCRIPTION,
+                    tags::MODALITY,
+                    tags::PATIENT_ID,
+                ],
+            )
+            .context("failed to parse discovered DICOM member")?;
+            let text = AttributeText::new(&attributes)?;
+            let Some(uid) = image_series_uid_from(|tag| text.default_text(tag))? else {
                 return Ok(None);
             };
 
-            let description = get_string(&obj, tags::SERIES_DESCRIPTION).unwrap_or_default();
-            let modality = get_string(&obj, tags::MODALITY)
+            let description = text
+                .local_text(tags::SERIES_DESCRIPTION)?
+                .map_or_else(String::new, std::borrow::Cow::into_owned);
+            let modality = text
+                .default_text(tags::MODALITY)?
                 .map(|s| truncate_arraystring::<16>(s.trim()))
                 .unwrap_or_else(|| literal_arraystring("OT"));
-            let patient_id = get_string(&obj, tags::PATIENT_ID).unwrap_or_default();
+            let patient_id = text
+                .local_text(tags::PATIENT_ID)?
+                .map_or_else(String::new, std::borrow::Cow::into_owned);
 
             Ok(Some((
                 uid,
@@ -138,10 +156,6 @@ pub(super) fn scan_dicom_directory_with_budget<P: AsRef<Path>>(
     sort_discovered_series(&mut series_list);
 
     Ok(series_list)
-}
-
-fn get_string(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<String> {
-    obj.element(tag).ok()?.to_str().ok().map(|s| s.to_string())
 }
 
 #[cfg(test)]

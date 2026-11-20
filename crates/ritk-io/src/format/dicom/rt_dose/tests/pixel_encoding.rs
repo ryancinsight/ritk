@@ -1,6 +1,6 @@
 use super::super::{write_rt_dose, RtDoseGrid, RtDoseSummationType, RtDoseType};
 use crate::format::dicom::DicomWriteError;
-use dicom::core::Tag;
+use ritk_dicom::dataset::DicomTag;
 
 fn grid() -> RtDoseGrid {
     RtDoseGrid {
@@ -24,26 +24,27 @@ fn tags_describe_dose_payload() {
     let directory = tempfile::tempdir().expect("invariant: prepared fixture is valid");
     let path = directory.path().join("dose.dcm");
     write_rt_dose(&path, &grid()).expect("invariant: prepared fixture is valid");
-    let object = dicom::object::open_file(&path).expect("invariant: prepared fixture is valid");
+    let object =
+        ritk_dicom::dataset::DicomFile::open(&path).expect("invariant: prepared fixture is valid");
     for (tag, expected) in [(0x0100, 32), (0x0101, 32), (0x0102, 31), (0x0103, 0)] {
         assert_eq!(
             object
-                .element(Tag(0x0028, tag))
+                .element(DicomTag::new(0x0028, tag))
                 .expect("invariant: prepared fixture is valid")
-                .to_int::<u16>()
+                .to_num::<u16>()
                 .expect("invariant: prepared fixture is valid"),
             expected
         );
     }
     let payload = object
-        .element(Tag(0x7FE0, 0x0010))
+        .element(DicomTag::new(0x7FE0, 0x0010))
         .expect("invariant: prepared fixture is valid")
         .to_bytes()
         .expect("invariant: prepared fixture is valid");
     let width = object
-        .element(Tag(0x0028, 0x0100))
+        .element(DicomTag::new(0x0028, 0x0100))
         .expect("invariant: prepared fixture is valid")
-        .to_int::<usize>()
+        .to_num::<usize>()
         .expect("invariant: prepared fixture is valid");
     assert_eq!(payload.len() * 8, 3 * width);
     assert_eq!(payload.as_ref(), &[0, 0, 0, 0, 2, 0, 0, 0, 4, 0, 0, 0]);

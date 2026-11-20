@@ -1,9 +1,8 @@
-use crate::format::dicom::writer::elements::PutValue;
 use anyhow::Result;
-use dicom::core::{Tag, VR};
-use dicom::object::InMemDicomObject;
 use eunomia::convert::IntegerTarget;
 use ritk_codecs::jpeg_2000::encoder::QuantizationStep;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::{DicomTag, VR};
 use std::collections::HashSet;
 use std::marker::PhantomData;
 
@@ -315,11 +314,11 @@ fn orthonormal_axes(direction: &[f64]) -> bool {
 ///
 /// The serialized sample type determines all four tags, so metadata from a
 /// differently encoded source cannot contradict the output pixel payload.
-pub(crate) fn emit_pixel_format_tags<T: UnsignedPixelSample>(obj: &mut InMemDicomObject) {
-    obj.put_value(Tag(0x0028, 0x0100), VR::US, T::BITS);
-    obj.put_value(Tag(0x0028, 0x0101), VR::US, T::BITS);
-    obj.put_value(Tag(0x0028, 0x0102), VR::US, T::BITS - 1);
-    obj.put_value(Tag(0x0028, 0x0103), VR::US, 0u16);
+pub(crate) fn emit_pixel_format_tags<T: UnsignedPixelSample>(obj: &mut Dataset) {
+    obj.put_value(DicomTag::new(0x0028, 0x0100), VR::US, T::BITS);
+    obj.put_value(DicomTag::new(0x0028, 0x0101), VR::US, T::BITS);
+    obj.put_value(DicomTag::new(0x0028, 0x0102), VR::US, T::BITS - 1);
+    obj.put_value(DicomTag::new(0x0028, 0x0103), VR::US, 0u16);
 }
 
 pub(crate) fn generate_series_uid() -> String {

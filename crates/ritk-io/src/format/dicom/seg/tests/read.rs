@@ -1,17 +1,17 @@
 use super::super::read_dicom_seg;
 use super::fixtures::{build_seg_obj, make_per_frame_item, make_segment_item, write_seg_file};
-use dicom::core::header::Length;
-use dicom::core::value::{DataSetSequence, Value};
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::FileMetaBuilder;
+use ritk_dicom::dataset::Length;
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+use ritk_dicom::dataset::{Sequence, Value};
 
 #[test]
 fn test_read_seg_missing_file_returns_error() {
     let result = read_dicom_seg("/nonexistent/path/seg.dcm");
     let msg = format!(
         "{:#}",
-        result.expect_err("dicom-rs backend failed to parse")
+        result.expect_err("the native dataset parser must reject malformed input")
     );
     assert!(
         msg.contains("nonexistent") || msg.contains("open DICOM"),
@@ -24,24 +24,24 @@ fn test_read_seg_wrong_sop_class_returns_error() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let path = tmp.path().join("ct.dcm");
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.99"),
     ));
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OW,
-        PrimitiveValue::U8(dicom::core::smallvec::SmallVec::new()),
+        PrimitiveValue::Empty,
     ));
     obj.with_meta(
-        FileMetaTableBuilder::new()
+        FileMetaBuilder::new()
             .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
             .media_storage_sop_instance_uid("2.25.99")
             .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -143,30 +143,30 @@ fn test_read_seg_preserves_pixel_spacing() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let path = tmp.path().join("seg_spacing.dcm");
 
-    let mut px_meas_item = InMemDicomObject::new_empty();
+    let mut px_meas_item = Dataset::new();
     px_meas_item.put(DataElement::new(
-        Tag(0x0028, 0x0030),
+        DicomTag::new(0x0028, 0x0030),
         VR::DS,
         PrimitiveValue::from("0.5\\0.5"),
     ));
     px_meas_item.put(DataElement::new(
-        Tag(0x0018, 0x0050),
+        DicomTag::new(0x0018, 0x0050),
         VR::DS,
         PrimitiveValue::from("2.5"),
     ));
-    let px_meas_seq = DataSetSequence::new(vec![px_meas_item], Length::UNDEFINED);
+    let px_meas_seq = Sequence::new(vec![px_meas_item], Length::Undefined);
 
-    let mut shared_item = InMemDicomObject::new_empty();
+    let mut shared_item = Dataset::new();
     shared_item.put(DataElement::new(
-        Tag(0x0028, 0x9110),
+        DicomTag::new(0x0028, 0x9110),
         VR::SQ,
         Value::from(px_meas_seq),
     ));
-    let shared_seq = DataSetSequence::new(vec![shared_item], Length::UNDEFINED);
+    let shared_seq = Sequence::new(vec![shared_item], Length::Undefined);
 
     let mut obj = build_seg_obj(4, 4, 1, 1, "BINARY", seg_items, pf_items, pixel_bytes);
     obj.put(DataElement::new(
-        Tag(0x5200, 0x9229),
+        DicomTag::new(0x5200, 0x9229),
         VR::SQ,
         Value::from(shared_seq),
     ));

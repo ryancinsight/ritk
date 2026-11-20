@@ -76,18 +76,10 @@ fn test_command_group_length() {
         gl_elem.value.as_bytes()[3],
     ]);
 
-    let mut body_len = 0usize;
-    for elem in &decoded.command_set {
-        if elem.tag != TAG_CMD_GROUP_LENGTH {
-            let overhead: usize = if elem.vr.is_short() { 8 } else { 12 };
-            body_len += overhead + elem.value.len();
-        }
-    }
-
-    assert_eq!(
-        group_length as usize, body_len,
-        "CommandGroupLength must equal remaining command set bytes"
-    );
+    assert_eq!(&encoded[..8], &[0, 0, 0, 0, 4, 0, 0, 0]);
+    assert_eq!(group_length as usize, encoded.len() - 12);
+    assert_eq!(&encoded[12..16], &[0, 0, 2, 0]);
+    assert!(DimseMessage::decode_command_set(&encoded[..encoded.len() - 1]).is_err());
 }
 
 #[test]

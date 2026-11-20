@@ -1,8 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use arrayvec::ArrayString;
-use dicom::core::Tag;
-use dicom::object::open_file;
 use ritk_core::image::Image;
+use ritk_dicom::dataset::DicomTag;
 use ritk_image::tensor::Tensor;
 use ritk_io::{
     read_analyze, read_dicom_series_with_metadata, write_analyze, write_dicom_series_with_metadata,
@@ -104,10 +103,10 @@ fn test_dicom_write_preserves_private_tags_and_metadata() {
         .expect("metadata write must succeed");
 
     let dcm_path = path.join("slice_0000.dcm");
-    let obj = open_file(&dcm_path).expect("must open written DICOM");
+    let obj = ritk_dicom::dataset::DicomFile::open(&dcm_path).expect("must open written DICOM");
 
     let ipp = obj
-        .element(Tag(0x0020, 0x0032))
+        .element(DicomTag::new(0x0020, 0x0032))
         .expect("IPP tag must exist");
     let ipp_vals: Vec<f64> = ipp
         .to_str()
@@ -118,7 +117,7 @@ fn test_dicom_write_preserves_private_tags_and_metadata() {
     assert_eq!(ipp_vals, vec![10.0, 20.0, 30.0]);
 
     let iop = obj
-        .element(Tag(0x0020, 0x0037))
+        .element(DicomTag::new(0x0020, 0x0037))
         .expect("IOP tag must exist");
     let iop_vals: Vec<f64> = iop
         .to_str()
@@ -129,7 +128,7 @@ fn test_dicom_write_preserves_private_tags_and_metadata() {
     assert_eq!(iop_vals, vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
 
     let ps = obj
-        .element(Tag(0x0028, 0x0030))
+        .element(DicomTag::new(0x0028, 0x0030))
         .expect("PixelSpacing must exist");
     let ps_vals: Vec<f64> = ps
         .to_str()
@@ -140,16 +139,16 @@ fn test_dicom_write_preserves_private_tags_and_metadata() {
     assert_eq!(ps_vals, vec![0.5, 0.5]);
 
     let st = obj
-        .element(Tag(0x0018, 0x0050))
+        .element(DicomTag::new(0x0018, 0x0050))
         .expect("SliceThickness must exist");
     // DS permits multiple decimal spellings; 2.5 is exact in binary too.
-    assert_eq!(st.to_float64().expect("SliceThickness is numeric"), 2.5);
+    assert_eq!(st.to_num::<f64>().expect("SliceThickness is numeric"), 2.5);
 
     let tag_a = obj
-        .element(Tag(0x0019, 0x10AA))
+        .element(DicomTag::new(0x0019, 0x10AA))
         .expect("private tag A must exist");
     let tag_b = obj
-        .element(Tag(0x0029, 0x10BB))
+        .element(DicomTag::new(0x0029, 0x10BB))
         .expect("private tag B must exist");
     assert_eq!(tag_a.to_str().unwrap().trim(), "PRIVATE_SERIES_VALUE");
     assert_eq!(tag_b.to_str().unwrap().trim(), "PRIVATE_SERIES_VALUE_2");

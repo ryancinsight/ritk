@@ -1,7 +1,4 @@
-//! Legacy compatibility types for DICOM networking (GAP-262-IO-01).
-//!
-//! These types are retained for sibling module (`echo`, `find`, `store`, `move_`)
-//! compatibility with the `dicom-ul`-based implementation.
+//! Result and address types for DICOM networking.
 
 use arrayvec::ArrayString;
 use thiserror::Error;
