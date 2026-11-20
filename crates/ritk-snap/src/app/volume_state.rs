@@ -77,7 +77,10 @@ impl SnapApp {
         }
         self.measurement_pixel_spacing = vol.measurement_pixel_spacing().map_or(
             MeasurementSpacingState::Unavailable,
-            MeasurementSpacingState::Qualified,
+            |in_plane| MeasurementSpacingState::Qualified {
+                in_plane,
+                slice: vol.measurement_slice_spacing(),
+            },
         );
         self.loaded = Some(vol);
         self.viewer_state = state;

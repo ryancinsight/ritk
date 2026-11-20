@@ -68,6 +68,51 @@ impl LoadedVolume {
             .then_some(spacing)
     }
 
+    /// Returns the source-qualified distance between adjacent slice centres.
+    ///
+    /// DICOM PixelSpacing covers only the row and column directions. The
+    /// orthogonal pitch is admitted here only when every retained slice has a
+    /// patient position and orientation that produce one consistent centre
+    /// distance; `LoadedVolume::spacing[0]` is not used as a DICOM fallback.
+    pub(crate) fn measurement_slice_spacing(&self) -> Option<f64> {
+        let metadata = self.metadata.as_deref()?;
+        let first = metadata.slices.first()?;
+        let orientation = first.image_orientation_patient?;
+        let normal = [
+            orientation[1] * orientation[5] - orientation[2] * orientation[4],
+            orientation[2] * orientation[3] - orientation[0] * orientation[5],
+            orientation[0] * orientation[4] - orientation[1] * orientation[3],
+        ];
+        let normal_length =
+            (normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]).sqrt();
+        if !normal_length.is_finite() || normal_length <= 0.0 {
+            return None;
+        }
+        let normal = [
+            normal[0] / normal_length,
+            normal[1] / normal_length,
+            normal[2] / normal_length,
+        ];
+        let positions = metadata
+            .slices
+            .iter()
+            .map(|slice| slice.image_position_patient)
+            .collect::<Option<Vec<_>>>()?;
+        let mut distances = positions.windows(2).map(|pair| {
+            let delta = [
+                pair[1][0] - pair[0][0],
+                pair[1][1] - pair[0][1],
+                pair[1][2] - pair[0][2],
+            ];
+            (delta[0] * normal[0] + delta[1] * normal[1] + delta[2] * normal[2]).abs()
+        });
+        let spacing = distances.next()?;
+        (spacing.is_finite()
+            && spacing > 0.0
+            && distances.all(|distance| distance.total_cmp(&spacing).is_eq()))
+        .then_some(spacing)
+    }
+
     /// Get the first channel value at voxel position (d, r, c).
     ///
     /// For multi-channel volumes (e.g. RGB), returns the first channel.

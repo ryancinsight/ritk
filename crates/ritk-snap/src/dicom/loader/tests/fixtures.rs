@@ -305,7 +305,7 @@ pub(crate) fn write_study(
     series_uid: &str,
     samples: &[u8],
 ) -> Result<Vec<(String, Vec<u8>)>> {
-    write_study_with_pixel_spacing(root, modality, series_uid, samples, Some([1.5, 0.5]))
+    write_study_with_pixel_spacing(root, modality, series_uid, samples, Some([1.5, 0.5]), true)
 }
 
 /// Write the same deterministic study while omitting DICOM PixelSpacing.
@@ -316,7 +316,18 @@ pub(crate) fn write_study_without_pixel_spacing(
     series_uid: &str,
     samples: &[u8],
 ) -> Result<Vec<(String, Vec<u8>)>> {
-    write_study_with_pixel_spacing(root, modality, series_uid, samples, None)
+    write_study_with_pixel_spacing(root, modality, series_uid, samples, None, true)
+}
+
+/// Write source-qualified in-plane spacing without slice-center positions.
+#[cfg(all(test, feature = "eframe-shell"))]
+pub(crate) fn write_study_without_slice_positions(
+    root: &Path,
+    modality: &str,
+    series_uid: &str,
+    samples: &[u8],
+) -> Result<Vec<(String, Vec<u8>)>> {
+    write_study_with_pixel_spacing(root, modality, series_uid, samples, Some([1.5, 0.5]), false)
 }
 
 fn write_study_with_pixel_spacing(
@@ -325,6 +336,7 @@ fn write_study_with_pixel_spacing(
     series_uid: &str,
     samples: &[u8],
     pixel_spacing: Option<[f64; 2]>,
+    include_positions: bool,
 ) -> Result<Vec<(String, Vec<u8>)>> {
     std::fs::create_dir_all(root).context("create synthetic study directory")?;
     assert!(
@@ -348,7 +360,6 @@ fn write_study_with_pixel_spacing(
             (0x0020, 0x000E, "UI", series_uid),
             (0x0010, 0x0020, "LO", "RITK-TEST-001"),
             (0x0010, 0x0010, "PN", "FIXTURE^PATIENT"),
-            (0x0020, 0x0032, "DS", position.as_str()),
             (0x0020, 0x0037, "DS", "0\\1\\0\\0\\0\\1"),
             (0x0028, 0x0004, "CS", "MONOCHROME2"),
             (0x0018, 0x0050, "DS", "2"),
@@ -359,6 +370,13 @@ fn write_study_with_pixel_spacing(
                 DicomTag::new(group, element),
                 vr,
                 value,
+            ));
+        }
+        if include_positions {
+            model.insert(DicomObjectNode::text(
+                DicomTag::new(0x0020, 0x0032),
+                "DS",
+                position,
             ));
         }
         if let Some([row, column]) = pixel_spacing {

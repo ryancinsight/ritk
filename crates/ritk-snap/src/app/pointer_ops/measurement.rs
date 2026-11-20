@@ -247,18 +247,24 @@ impl SnapApp {
         let Some(vol) = &self.loaded else {
             return Err(MeasurementError::MissingVolume);
         };
-        let [dz, _dy, _dx] = vol.spacing;
-        let in_plane_spacing = match self.measurement_pixel_spacing {
-            MeasurementSpacingState::Qualified(spacing) => Some(spacing),
-            MeasurementSpacingState::Unavailable => None,
-            MeasurementSpacingState::Uninitialized => vol.measurement_pixel_spacing(),
+        let (in_plane_spacing, slice_spacing) = match self.measurement_pixel_spacing {
+            MeasurementSpacingState::Qualified { in_plane, slice } => (Some(in_plane), slice),
+            MeasurementSpacingState::Unavailable => (None, None),
+            MeasurementSpacingState::Uninitialized => {
+                (vol.measurement_pixel_spacing(), Some(vol.spacing[0]))
+            }
         };
         let [dy, dx] = in_plane_spacing.ok_or(MeasurementError::MissingPhysicalSpacing)?;
-        let spacing = match self.axis {
-            0 => [dy, dx],
-            1 => [dz, dx],
-            _ => [dz, dy],
-        };
+        let spacing = [
+            match self.axis {
+                0 => dy,
+                _ => slice_spacing.ok_or(MeasurementError::MissingPhysicalSpacing)?,
+            },
+            match self.axis {
+                0 | 1 => dx,
+                _ => dy,
+            },
+        ];
         Annotation::validate_spacing(spacing)?;
         Ok(spacing)
     }

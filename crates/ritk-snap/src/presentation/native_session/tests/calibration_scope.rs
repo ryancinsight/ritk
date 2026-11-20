@@ -5,7 +5,7 @@ use super::*;
 use crate::geometry::affine::AffineTransform;
 use crate::geometry::PatientPointMm;
 use crate::presentation::AnnotationKind;
-use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, PatientLength};
+use crate::tools::interaction::{Annotation, AnnotationLocation, PatientLength};
 use metis_platform::native::MouseButton;
 use metis_ui_lang::DisplayCommand;
 

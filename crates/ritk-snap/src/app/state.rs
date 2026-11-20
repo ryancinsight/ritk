@@ -55,7 +55,10 @@ pub(crate) enum ProjectionBackend {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum MeasurementSpacingState {
     Uninitialized,
-    Qualified([f64; 2]),
+    Qualified {
+        in_plane: [f64; 2],
+        slice: Option<f64>,
+    },
     Unavailable,
 }
 

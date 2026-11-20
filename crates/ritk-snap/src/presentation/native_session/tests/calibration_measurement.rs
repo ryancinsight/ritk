@@ -23,7 +23,10 @@ fn native_length_calibration_scales_labels_and_resets() {
         .slices
         .iter_mut()
         .for_each(|slice| slice.pixel_spacing = Some([4.0, 3.0]));
-    session.app.measurement_pixel_spacing = MeasurementSpacingState::Qualified([4.0, 3.0]);
+    session.app.measurement_pixel_spacing = MeasurementSpacingState::Qualified {
+        in_plane: [4.0, 3.0],
+        slice: Some(1.0),
+    };
     let measure = |app: &mut SnapApp, end| {
         app.on_drag_start(
             crate::tools::kind::ToolKind::MeasureLength,
@@ -47,8 +50,16 @@ fn native_length_calibration_scales_labels_and_resets() {
         [
             WindowEvent::PointerDown { x, y, button },
             WindowEvent::PointerUp { x, y, button },
-            WindowEvent::PointerDown { x: rx, y: ry, button },
-            WindowEvent::PointerUp { x: rx, y: ry, button },
+            WindowEvent::PointerDown {
+                x: rx,
+                y: ry,
+                button,
+            },
+            WindowEvent::PointerUp {
+                x: rx,
+                y: ry,
+                button,
+            },
         ]
     };
     let key = |virtual_key| WindowEvent::KeyDown {

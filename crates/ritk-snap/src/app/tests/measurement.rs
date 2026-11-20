@@ -184,7 +184,7 @@ fn dicom_missing_pixel_spacing_rejects_physical_measurement() {
     app.load_volume(volume, "missing-spacing".to_owned());
     app.active_tool = ToolKind::MeasureLength;
     app.on_click(Some(ImagePoint::new(0.0, 0.0)));
-    app.on_click(Some(ImagePoint::new(1.0, 0.0)));
+    app.on_click(Some(ImagePoint::new(0.0, 1.0)));
     assert!(
         app.annotations.is_empty(),
         "missing source spacing must not create a physical mark"
@@ -212,7 +212,7 @@ fn dicom_pixel_spacing_is_admitted_without_unit_fallback() {
     app.load_volume(volume, "known-spacing".to_owned());
     app.active_tool = ToolKind::MeasureLength;
     app.on_click(Some(ImagePoint::new(0.0, 0.0)));
-    app.on_click(Some(ImagePoint::new(1.0, 0.0)));
+    app.on_click(Some(ImagePoint::new(0.0, 1.0)));
     assert!(matches!(
         app.annotations.as_slice(),
         [Annotation::Length { length_mm, .. }] if *length_mm == 11.0
@@ -315,6 +315,55 @@ fn native_dicom_anisotropic_pixel_spacing_drives_measurement() {
 }
 
 #[test]
+fn native_dicom_source_positions_qualify_non_axial_pitch() {
+    let root = tempfile::tempdir().unwrap();
+    crate::dicom::loader::tests::fixtures::write_study(
+        root.path(),
+        "CT",
+        crate::dicom::loader::tests::fixtures::SERIES_UID,
+        &crate::dicom::loader::tests::fixtures::SAMPLES,
+    )
+    .unwrap();
+    let volume = crate::dicom::loader::load_volume_from_path(root.path()).unwrap();
+    let mut app = SnapApp::default();
+    app.load_volume(volume, "native-known-slice-pitch".to_owned());
+    app.axis = 1;
+    app.active_tool = ToolKind::MeasureLength;
+    app.on_click(Some(ImagePoint::new(0.0, 0.0)));
+    app.on_click(Some(ImagePoint::new(0.0, 1.0)));
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [Annotation::Length { length_mm, .. }] if *length_mm == 2.0
+    ));
+}
+
+#[test]
+fn native_dicom_missing_source_positions_rejects_non_axial_pitch() {
+    let root = tempfile::tempdir().unwrap();
+    crate::dicom::loader::tests::fixtures::write_study_without_slice_positions(
+        root.path(),
+        "CT",
+        crate::dicom::loader::tests::fixtures::SERIES_UID,
+        &crate::dicom::loader::tests::fixtures::SAMPLES,
+    )
+    .unwrap();
+    let volume = crate::dicom::loader::load_volume_from_path(root.path()).unwrap();
+    assert_eq!(volume.measurement_pixel_spacing(), Some([1.5, 0.5]));
+    assert_eq!(volume.measurement_slice_spacing(), None);
+    let mut app = SnapApp::default();
+    app.load_volume(volume, "native-missing-slice-pitch".to_owned());
+    app.axis = 1;
+    app.active_tool = ToolKind::MeasureLength;
+    app.on_click(Some(ImagePoint::new(0.0, 0.0)));
+    app.on_click(Some(ImagePoint::new(1.0, 0.0)));
+    assert!(app.annotations.is_empty());
+    assert_eq!(
+        app.status_message,
+        "Measurement rejected: physical pixel spacing is unavailable for this image"
+    );
+}
+
+#[test]
 fn intensity_filter_preserves_source_metadata_and_measurement_admission() {
     let mut volume = make_anisotropic_volume();
     volume.metadata = Some(Box::new(DicomReadMetadata {
@@ -338,7 +387,10 @@ fn intensity_filter_preserves_source_metadata_and_measurement_admission() {
     );
     assert_eq!(
         app.measurement_pixel_spacing,
-        super::super::state::MeasurementSpacingState::Qualified([7.0, 11.0])
+        super::super::state::MeasurementSpacingState::Qualified {
+            in_plane: [7.0, 11.0],
+            slice: None,
+        }
     );
     app.active_tool = ToolKind::MeasureLength;
     app.on_click(Some(ImagePoint::new(0.0, 0.0)));
