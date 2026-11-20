@@ -5,11 +5,11 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use arrayvec::ArrayString;
-use dicom::core::Tag;
-use dicom::object::DefaultDicomObject;
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::dataset::DicomTag;
 use ritk_dicom::{
     parse_bytes_with_budget, read_file_with_budget, read_file_within_root_with_budget,
-    DicomRsBackend,
+    NativeBackend,
 };
 
 use super::dicomdir::{discover_files_with_budget, is_dicomdir};
@@ -18,7 +18,7 @@ use super::types::{DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen};
 use super::DicomReadBudget;
 use crate::format::dicom::identity::{image_series_uid, optional_uid, CONCATENATION_UID};
 use crate::format::dicom::networking::scp::StoredInstance;
-use crate::format::dicom::object_model::{DicomObjectModel, DicomObjectNode, DicomTag};
+use crate::format::dicom::object_model::{DicomObjectModel, DicomObjectNode};
 
 mod finalize;
 mod geometry;
@@ -121,7 +121,7 @@ pub fn scan_dicom_path_with_budget(
     let selected_path = root.join(name);
     let bytes = read_file_within_root_with_budget(&selected_path, &root, &parser_budget)
         .context("failed to read selected DICOM instance")?;
-    let object = parse_bytes_with_budget::<DicomRsBackend>(&bytes, &parser_budget)
+    let object = parse_bytes_with_budget::<NativeBackend>(&bytes, &parser_budget)
         .context("failed to parse selected DICOM instance")?;
     let uid = image_series_uid(&object)?.context("selected DICOM instance is not image-bearing")?;
     let paths = discover_files_with_budget(&root, &parser_budget)?;
@@ -157,7 +157,7 @@ fn file_set_root(path: &Path) -> Result<PathBuf> {
 struct SelectedInstance {
     resolved: PathBuf,
     uid: ArrayString<64>,
-    object: DefaultDicomObject,
+    object: DicomFile,
     bytes: Vec<u8>,
 }
 
@@ -181,7 +181,7 @@ fn scan_files(
                 .meta()
                 .media_storage_sop_class_uid
                 .trim_end_matches([' ', '\0'])
-                == dicom::dictionary_std::uids::ENHANCED_PET_IMAGE_STORAGE
+                == "1.2.840.10008.5.1.4.1.1.130"
         })
         .map(|instance| optional_uid(&instance.object, CONCATENATION_UID))
         .transpose()?;
@@ -209,7 +209,7 @@ fn scan_files(
                 None => read_file_with_budget(path, &parser_budget),
             }
             .context("failed to read DICOM member")?;
-            let object = parse_bytes_with_budget::<DicomRsBackend>(&bytes, &parser_budget)
+            let object = parse_bytes_with_budget::<NativeBackend>(&bytes, &parser_budget)
                 .context("failed to parse DICOM member")?;
             (object, bytes)
         };
@@ -259,8 +259,10 @@ pub fn scan_dicom_instances_with_budget(
     let mut accumulator = SeriesScan::default();
     let parser_budget = budget.parser();
     for instance in instances {
-        let bytes = instance.make_part10_bytes();
-        let object = parse_bytes_with_budget::<DicomRsBackend>(&bytes, &parser_budget)
+        let bytes = instance
+            .make_part10_bytes()
+            .context("failed to wrap SCP DICOM instance")?;
+        let object = parse_bytes_with_budget::<NativeBackend>(&bytes, &parser_budget)
             .context("failed to parse SCP DICOM instance")?;
         accumulator.push(
             &object,
@@ -295,7 +297,7 @@ pub fn scan_dicom_part10_bytes_with_budget(
         if is_dicomdir(Path::new(name)) {
             bail!("pathless DICOMDIR references cannot be resolved");
         }
-        let object = parse_bytes_with_budget::<DicomRsBackend>(bytes, &parser_budget)
+        let object = parse_bytes_with_budget::<NativeBackend>(bytes, &parser_budget)
             .context("failed to parse DICOM byte payload")?;
         accumulator.push(
             &object,
@@ -321,14 +323,17 @@ struct SeriesScan {
 impl SeriesScan {
     fn push(
         &mut self,
-        object: &DefaultDicomObject,
+        object: &DicomFile,
         path: PathBuf,
         bytes: Vec<u8>,
         selected_uid: Option<&str>,
         budget: &DicomReadBudget,
     ) -> Result<()> {
         let Some(uid) = image_series_uid(object)? else {
-            let sop = object.element(Tag(0x0008, 0x0016))?.to_str()?.into_owned();
+            let sop = object
+                .element(DicomTag::new(0x0008, 0x0016))?
+                .to_str()?
+                .into_owned();
             self.rejected_sop_classes.push(sop);
             return Ok(());
         };

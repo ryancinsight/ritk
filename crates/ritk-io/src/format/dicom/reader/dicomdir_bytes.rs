@@ -2,17 +2,17 @@
 
 use anyhow::{bail, Context, Result};
 use consus_core::{read_integer, ByteOrder, EndianScalar};
-use dicom::core::{Tag, VR};
+use ritk_dicom::dataset::{DicomTag, VR};
 
-const RECORD_SEQUENCE: Tag = Tag(0x0004, 0x1220);
-const ITEM_TAG: Tag = Tag(0xFFFE, 0xE000);
-const ITEM_DELIMITER: Tag = Tag(0xFFFE, 0xE00D);
-const SEQUENCE_DELIMITER: Tag = Tag(0xFFFE, 0xE0DD);
+const RECORD_SEQUENCE: DicomTag = DicomTag::new(0x0004, 0x1220);
+const ITEM_TAG: DicomTag = DicomTag::new(0xFFFE, 0xE000);
+const ITEM_DELIMITER: DicomTag = DicomTag::new(0xFFFE, 0xE00D);
+const SEQUENCE_DELIMITER: DicomTag = DicomTag::new(0xFFFE, 0xE0DD);
 const UNDEFINED_LENGTH: u32 = u32::MAX;
 
 #[derive(Debug, Clone, Copy)]
 struct RawHeader {
-    tag: Tag,
+    tag: DicomTag,
     vr: VR,
     length: u32,
     bytes: usize,
@@ -25,7 +25,7 @@ pub(super) fn directory_record_offsets(data: &[u8]) -> Result<Vec<u32>> {
         bail!("DICOMDIR preamble and DICM marker are missing")
     };
     let group_length = read_header(data, dataset_start)?;
-    if group_length.tag != Tag(0x0002, 0x0000)
+    if group_length.tag != DicomTag::new(0x0002, 0x0000)
         || group_length.vr != VR::UL
         || group_length.length != 4
     {
@@ -237,10 +237,10 @@ fn uses_short_length(vr: VR) -> bool {
     )
 }
 
-fn read_tag(data: &[u8], cursor: usize) -> Result<Tag> {
+fn read_tag(data: &[u8], cursor: usize) -> Result<DicomTag> {
     let group = read_field::<u16>(data, cursor)?;
     let element = read_field::<u16>(data, checked_end(cursor, 2, data.len())?)?;
-    Ok(Tag(group, element))
+    Ok(DicomTag::new(group, element))
 }
 
 fn read_field<T: EndianScalar>(data: &[u8], cursor: usize) -> Result<T> {

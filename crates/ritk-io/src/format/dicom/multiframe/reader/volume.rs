@@ -6,9 +6,9 @@
 
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
-use dicom::object::DefaultDicomObject;
 use ritk_core::image::Image;
-use ritk_dicom::{parse_file_with_budget, DicomRsBackend};
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::{parse_file_with_budget, NativeBackend};
 use ritk_image::tensor::Backend;
 use ritk_image::Image as NativeImage;
 
@@ -104,7 +104,7 @@ pub fn load_dicom_multiframe_native<P: AsRef<Path>>(
 /// [`load_dicom_multiframe`] for the full decode contract.
 pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameVolume> {
     let path = path.as_ref();
-    let obj = parse_file_with_budget::<DicomRsBackend, _>(path, &DicomReadBudget::DEFAULT.parser())
+    let obj = parse_file_with_budget::<NativeBackend, _>(path, &DicomReadBudget::DEFAULT.parser())
         .with_context(|| format!("failed to open DICOM file {:?}", path))?;
 
     load_multiframe_flat_from_object(path, &obj, &DicomReadBudget::DEFAULT)
@@ -112,7 +112,7 @@ pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameV
 
 pub(crate) fn load_multiframe_flat_from_object(
     path: &Path,
-    obj: &DefaultDicomObject,
+    obj: &DicomFile,
     budget: &DicomReadBudget,
 ) -> Result<MultiFrameVolume> {
     if super::super::pet_dimensions::is_enhanced_pet(&obj.meta().media_storage_sop_class_uid) {
@@ -175,12 +175,9 @@ pub(super) fn decode_spatial_frames(
     ));
 
     let quantitative = info.bits_allocated == 16
-        && first_source
-            .obj
-            .meta()
-            .media_storage_sop_class_uid
-            .trim_end_matches([' ', '\0'])
-            == dicom::dictionary_std::uids::ENHANCED_PET_IMAGE_STORAGE;
+        && super::super::pet_dimensions::is_enhanced_pet(
+            &first_source.obj.meta().media_storage_sop_class_uid,
+        );
     if quantitative {
         budget
             .checked_decoded_bytes(

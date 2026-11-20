@@ -2,8 +2,7 @@
 use super::super::write_dicom_series_with_metadata;
 use super::super::DicomWriteError;
 use super::fixtures::{make_image_with_spatial, make_test_metadata};
-use dicom::core::Tag;
-use dicom::object::open_file;
+use ritk_dicom::dataset::DicomTag;
 
 #[test]
 fn test_metadata_writer_spatial_tags_first_slice() {
@@ -15,10 +14,10 @@ fn test_metadata_writer_spatial_tags_first_slice() {
         .expect("metadata write must succeed");
 
     let dcm_path = path.join("slice_0000.dcm");
-    let obj = open_file(&dcm_path).expect("must open written DICOM");
+    let obj = ritk_dicom::dataset::DicomFile::open(&dcm_path).expect("must open written DICOM");
 
     let ipp = obj
-        .element(Tag(0x0020, 0x0032))
+        .element(DicomTag::new(0x0020, 0x0032))
         .expect("IPP tag must exist");
     let ipp_str = ipp.to_str().unwrap();
     let ipp_vals: Vec<f64> = ipp_str
@@ -31,7 +30,7 @@ fn test_metadata_writer_spatial_tags_first_slice() {
     assert!((ipp_vals[2] - 30.0).abs() < 1e-3, "IPP z={}", ipp_vals[2]);
 
     let iop = obj
-        .element(Tag(0x0020, 0x0037))
+        .element(DicomTag::new(0x0020, 0x0037))
         .expect("IOP tag must exist");
     let iop_str = iop.to_str().unwrap();
     let iop_vals: Vec<f64> = iop_str
@@ -43,7 +42,7 @@ fn test_metadata_writer_spatial_tags_first_slice() {
     assert!((iop_vals[4] - 1.0).abs() < 1e-6, "IOP[4]");
 
     let ps = obj
-        .element(Tag(0x0028, 0x0030))
+        .element(DicomTag::new(0x0028, 0x0030))
         .expect("PixelSpacing must exist");
     let ps_str = ps.to_str().unwrap();
     let ps_vals: Vec<f64> = ps_str
@@ -55,38 +54,38 @@ fn test_metadata_writer_spatial_tags_first_slice() {
     assert!((ps_vals[1] - 0.5).abs() < 1e-6, "PS col={}", ps_vals[1]);
 
     let st = obj
-        .element(Tag(0x0018, 0x0050))
+        .element(DicomTag::new(0x0018, 0x0050))
         .expect("SliceThickness must exist");
     let st_val: f64 = st.to_str().unwrap().trim().parse().unwrap();
     assert!((st_val - 2.5).abs() < 1e-6, "SliceThickness={}", st_val);
 
     let mod_elem = obj
-        .element(Tag(0x0008, 0x0060))
+        .element(DicomTag::new(0x0008, 0x0060))
         .expect("Modality must exist");
     assert_eq!(mod_elem.to_str().unwrap().trim(), "CT");
 
     let pid = obj
-        .element(Tag(0x0010, 0x0020))
+        .element(DicomTag::new(0x0010, 0x0020))
         .expect("PatientID must exist");
     assert_eq!(pid.to_str().unwrap().trim(), "PAT001");
 
     let sd = obj
-        .element(Tag(0x0008, 0x0021))
+        .element(DicomTag::new(0x0008, 0x0021))
         .expect("SeriesDate must exist");
     assert_eq!(sd.to_str().unwrap().trim(), "20240102");
 
     let st = obj
-        .element(Tag(0x0008, 0x0031))
+        .element(DicomTag::new(0x0008, 0x0031))
         .expect("SeriesTime must exist");
     assert_eq!(st.to_str().unwrap().trim(), "123456");
 
     let for_uid = obj
-        .element(Tag(0x0020, 0x0052))
+        .element(DicomTag::new(0x0020, 0x0052))
         .expect("FrameOfReferenceUID must exist");
     assert_eq!(for_uid.to_str().unwrap().trim(), "1.2.3.4.5.6.200");
 
     let private = obj
-        .element(Tag(0x0019, 0x10AA))
+        .element(DicomTag::new(0x0019, 0x10AA))
         .expect("private tag must exist");
     assert_eq!(private.to_str().unwrap().trim(), "PRIVATE_SERIES_VALUE");
 }
@@ -103,8 +102,11 @@ fn test_metadata_writer_multislice_ipp_increment() {
     let expected_z = [30.0, 32.5, 35.0];
     for (z_idx, &ez) in expected_z.iter().enumerate() {
         let dcm_path = path.join(format!("slice_{z_idx:04}.dcm"));
-        let obj = open_file(&dcm_path).unwrap_or_else(|_| panic!("must open slice {z_idx}"));
-        let ipp = obj.element(Tag(0x0020, 0x0032)).expect("IPP must exist");
+        let obj = ritk_dicom::dataset::DicomFile::open(&dcm_path)
+            .unwrap_or_else(|_| panic!("must open slice {z_idx}"));
+        let ipp = obj
+            .element(DicomTag::new(0x0020, 0x0032))
+            .expect("IPP must exist");
         let ipp_str = ipp.to_str().unwrap();
         let ipp_vals: Vec<f64> = ipp_str
             .split('\\')
@@ -128,24 +130,24 @@ fn test_metadata_writer_none_metadata_fallback() {
         .expect("write with None metadata must succeed");
 
     let dcm_path = path.join("slice_0000.dcm");
-    let obj = open_file(&dcm_path).expect("must open written DICOM");
+    let obj = ritk_dicom::dataset::DicomFile::open(&dcm_path).expect("must open written DICOM");
 
     assert!(
-        obj.element(Tag(0x0020, 0x0032)).is_err(),
+        obj.element(DicomTag::new(0x0020, 0x0032)).is_err(),
         "IPP should not exist when metadata is None"
     );
     assert!(
-        obj.element(Tag(0x0020, 0x0037)).is_err(),
+        obj.element(DicomTag::new(0x0020, 0x0037)).is_err(),
         "IOP should not exist when metadata is None"
     );
 
     let mod_elem = obj
-        .element(Tag(0x0008, 0x0060))
+        .element(DicomTag::new(0x0008, 0x0060))
         .expect("Modality must exist");
     assert_eq!(mod_elem.to_str().unwrap().trim(), "OT");
 
     assert!(
-        obj.element(Tag(0x0019, 0x10AA)).is_err(),
+        obj.element(DicomTag::new(0x0019, 0x10AA)).is_err(),
         "private tag should not exist when metadata is None"
     );
 }
@@ -206,7 +208,7 @@ fn test_metadata_writer_pixel_tags_precede_pixel_data_and_are_unique() {
 
     let dcm_path = path.join("slice_0000.dcm");
     let bytes = std::fs::read(&dcm_path).expect("slice file must exist");
-    let obj = open_file(&dcm_path).expect("written DICOM must parse");
+    let obj = ritk_dicom::dataset::DicomFile::open(&dcm_path).expect("written DICOM must parse");
     let read_unsigned_pixel_tag = |tag| {
         obj.element(tag)
             .expect("pixel module attribute must exist")
@@ -216,12 +218,12 @@ fn test_metadata_writer_pixel_tags_precede_pixel_data_and_are_unique() {
             .parse::<u16>()
             .expect("US attribute must parse")
     };
-    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0100)), 16);
-    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0101)), 16);
-    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0102)), 15);
-    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0103)), 0);
+    assert_eq!(read_unsigned_pixel_tag(DicomTag::new(0x0028, 0x0100)), 16);
+    assert_eq!(read_unsigned_pixel_tag(DicomTag::new(0x0028, 0x0101)), 16);
+    assert_eq!(read_unsigned_pixel_tag(DicomTag::new(0x0028, 0x0102)), 15);
+    assert_eq!(read_unsigned_pixel_tag(DicomTag::new(0x0028, 0x0103)), 0);
     let pixel_bytes = obj
-        .element(Tag(0x7FE0, 0x0010))
+        .element(DicomTag::new(0x7FE0, 0x0010))
         .expect("PixelData must exist")
         .value()
         .to_bytes()
@@ -308,26 +310,26 @@ fn test_metadata_writer_none_metadata_type2_tags() {
         .expect("write_dicom_series_with_metadata(None)");
 
     let first_slice = out_path.join("slice_0000.dcm");
-    let obj = open_file(&first_slice).expect("open_file");
+    let obj = ritk_dicom::dataset::DicomFile::open(&first_slice).expect("open_file");
 
     assert!(
-        obj.element(Tag(0x0010, 0x0010)).is_ok(),
+        obj.element(DicomTag::new(0x0010, 0x0010)).is_ok(),
         "PatientName (0010,0010) must be present for None metadata"
     );
     assert!(
-        obj.element(Tag(0x0010, 0x0020)).is_ok(),
+        obj.element(DicomTag::new(0x0010, 0x0020)).is_ok(),
         "PatientID (0010,0020) must be present for None metadata"
     );
     assert!(
-        obj.element(Tag(0x0008, 0x0090)).is_ok(),
+        obj.element(DicomTag::new(0x0008, 0x0090)).is_ok(),
         "ReferringPhysicianName (0008,0090) must be present for None metadata"
     );
     assert!(
-        obj.element(Tag(0x0008, 0x0020)).is_ok(),
+        obj.element(DicomTag::new(0x0008, 0x0020)).is_ok(),
         "StudyDate (0008,0020) must be present for None metadata"
     );
     assert!(
-        obj.element(Tag(0x0020, 0x0011)).is_ok(),
+        obj.element(DicomTag::new(0x0020, 0x0011)).is_ok(),
         "SeriesNumber (0020,0011) must be present for None metadata"
     );
 }

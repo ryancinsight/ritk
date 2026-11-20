@@ -1,11 +1,11 @@
 [package]
 name = "ritk-dicom"
-version = "0.4.0"
+version = "0.5.0"
 description = "DICOM image I/O and DIMSE networking for RITK"
 keywords.workspace = true
 categories.workspace = true
 homepage.workspace = true
-readme.workspace = true
+readme = "README.md"
 authors.workspace = true
 repository.workspace = true
 publish = true
@@ -14,24 +14,26 @@ license.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+bytes.workspace = true
+encoding_rs.workspace = true
+jxl-oxide.workspace = true
+flate2 = { workspace = true }
+smallvec.workspace = true
 arrayvec = { workspace = true }
 consus-core = { workspace = true }
-dicom = { workspace = true }
 moirai-pal = { workspace = true }
 ritk-codecs = { workspace = true }
-ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.3.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.4.0" }
+ritk-diffusion-scheme = { workspace = true }
+ritk-spatial = { workspace = true }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-dicom-pixeldata = { workspace = true, features = ["native"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-dicom-pixeldata = { workspace = true }
 
 [dev-dependencies]
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 image = { workspace = true }
 proptest = { workspace = true }
 tempfile = { workspace = true }

@@ -1,4 +1,4 @@
-# ADR 0063: Quantify Enhanced PET stored voxels
+# ADR 0065: Quantify Enhanced PET stored voxels
 
 - Status: Proposed
 - Class: [major]

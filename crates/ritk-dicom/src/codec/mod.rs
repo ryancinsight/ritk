@@ -1,5 +1,6 @@
 //! DICOM codec primitives owned by RITK.
 
+pub(crate) mod jpeg_xl;
 pub mod native;
 
 pub use native::{

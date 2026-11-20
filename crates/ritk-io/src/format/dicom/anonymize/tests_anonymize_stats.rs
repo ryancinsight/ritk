@@ -16,13 +16,12 @@
 //! 9. private_tags_removed_credits_nothing_when_the_output_keeps_them
 
 use super::{generate_uid_from_hash, AnonymizationProfile, AnonymizeOptions, CleaningPolicy};
-use dicom::core::header::Header;
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::{meta::FileMetaTableBuilder, FileDicomObject, InMemDicomObject};
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+use ritk_dicom::dataset::{Dataset, DicomFile, FileMetaBuilder};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/// Build a minimal, self-consistent `FileDicomObject` with:
+/// Build a minimal, self-consistent `DicomFile` with:
 /// - PatientName (0010,0010) PN "Doe^John"
 /// - PatientID (0010,0020) LO "PAT001"
 /// - PatientBirthDate (0010,0030) DA "19900101"
@@ -39,116 +38,113 @@ use dicom::object::{meta::FileMetaTableBuilder, FileDicomObject, InMemDicomObjec
 /// - ImagePositionPatient (0020,0032) DS "0\\0\\0"
 /// - ImageOrientationPatient (0020,0037) DS "1\\0\\0\\0\\1\\0"
 /// - SliceThickness (0018,0050) DS "1.0"
-fn make_test_object() -> FileDicomObject<InMemDicomObject> {
-    let mut obj = InMemDicomObject::new_empty();
+fn make_test_object() -> DicomFile {
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0010, 0x0010),
+        DicomTag::new(0x0010, 0x0010),
         VR::PN,
         PrimitiveValue::from("Doe^John"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0010, 0x0020),
+        DicomTag::new(0x0010, 0x0020),
         VR::LO,
         PrimitiveValue::from("PAT001"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0010, 0x0030),
+        DicomTag::new(0x0010, 0x0030),
         VR::DA,
         PrimitiveValue::from("19900101"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0080),
+        DicomTag::new(0x0008, 0x0080),
         VR::LO,
         PrimitiveValue::from("General Hospital"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0050),
+        DicomTag::new(0x0008, 0x0050),
         VR::SH,
         PrimitiveValue::from("ACC123"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("1.2.3.4.5"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000D),
+        DicomTag::new(0x0020, 0x000D),
         VR::UI,
         PrimitiveValue::from("1.2.3.4.6"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
+        DicomTag::new(0x0020, 0x000E),
         VR::UI,
         PrimitiveValue::from("1.2.3.4.7"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0060),
+        DicomTag::new(0x0008, 0x0060),
         VR::CS,
         PrimitiveValue::from("CT"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(512u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(512u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0030),
+        DicomTag::new(0x0028, 0x0030),
         VR::DS,
         PrimitiveValue::from("0.5\\0.5"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x0032),
+        DicomTag::new(0x0020, 0x0032),
         VR::DS,
         PrimitiveValue::from("0\\0\\0"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0020, 0x0037),
+        DicomTag::new(0x0020, 0x0037),
         VR::DS,
         PrimitiveValue::from("1\\0\\0\\0\\1\\0"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0018, 0x0050),
+        DicomTag::new(0x0018, 0x0050),
         VR::DS,
         PrimitiveValue::from("1.0"),
     ));
     obj.with_meta(
-        FileMetaTableBuilder::new()
+        FileMetaBuilder::new()
             .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
             .media_storage_sop_instance_uid("1.2.3.4.5")
             .transfer_syntax("1.2.840.10008.1.2.1"),
     )
-    .expect("FileMetaTableBuilder must succeed for test fixture")
+    .expect("FileMetaBuilder must succeed for test fixture")
 }
 
 /// Count private elements (odd group, excluding the file meta group) in `object`.
 ///
 /// Measuring the data set is what makes the reported count checkable against
 /// what the object holds rather than against a second counter.
-fn private_element_count(object: &FileDicomObject<InMemDicomObject>) -> usize {
+fn private_element_count(object: &DicomFile) -> usize {
     object
         .iter()
         .filter(|element| {
-            let group = element.tag().group();
+            let group = element.tag().group;
             group & 1 == 1 && group != 0x0002
         })
         .count()
 }
 
 /// Insert a synthetic private element at each of `tags`.
-fn with_private_elements(
-    object: &mut FileDicomObject<InMemDicomObject>,
-    tags: impl IntoIterator<Item = Tag>,
-) {
+fn with_private_elements(object: &mut DicomFile, tags: impl IntoIterator<Item = DicomTag>) {
     for tag in tags {
         object.put(DataElement::new(
             tag,
@@ -170,9 +166,10 @@ fn anonymize_dicom_file_roundtrip_strips_patient_identifying_data() {
         .expect("test fixture must write to disk");
     super::anonymize_dicom_file(&input_path, &output_path, &AnonymizeOptions::default())
         .expect("anonymize_dicom_file must succeed");
-    let result = dicom::object::open_file(&output_path).expect("anonymized file must be readable");
+    let result = ritk_dicom::dataset::DicomFile::open(&output_path)
+        .expect("anonymized file must be readable");
     let name = result
-        .element(Tag(0x0010, 0x0010))
+        .element(DicomTag::new(0x0010, 0x0010))
         .expect("PatientName must exist in output")
         .to_str()
         .expect("must be string")
@@ -181,12 +178,12 @@ fn anonymize_dicom_file_roundtrip_strips_patient_identifying_data() {
     assert_eq!(name, "ANONYMOUS", "PatientName roundtrip value mismatch");
     // InstitutionName must be absent.
     assert!(
-        result.element(Tag(0x0008, 0x0080)).is_err(),
+        result.element(DicomTag::new(0x0008, 0x0080)).is_err(),
         "InstitutionName must be absent in anonymized output"
     );
     // Modality must be preserved.
     let modality = result
-        .element(Tag(0x0008, 0x0060))
+        .element(DicomTag::new(0x0008, 0x0060))
         .expect("Modality must exist in output")
         .to_str()
         .expect("must be string")
@@ -291,7 +288,7 @@ fn clean_private_tags_false_preserves_private_elements() {
     let mut obj = make_test_object();
     // Insert a synthetic private element: group 0x0009 (odd) is private.
     obj.put(DataElement::new(
-        Tag(0x0009, 0x0010),
+        DicomTag::new(0x0009, 0x0010),
         VR::UT,
         PrimitiveValue::from("vendor_specific_data"),
     ));
@@ -303,7 +300,7 @@ fn clean_private_tags_false_preserves_private_elements() {
     let (anon, _result) =
         super::anonymize_object(obj, &opts).expect("anonymize_object must succeed");
     assert!(
-        anon.element(Tag(0x0009, 0x0010)).is_ok(),
+        anon.element(DicomTag::new(0x0009, 0x0010)).is_ok(),
         "private tag (0009,0010) must be preserved when clean_private_tags=false"
     );
 }
@@ -313,12 +310,12 @@ fn clean_private_tags_false_preserves_private_elements() {
 fn clean_private_tags_true_removes_private_elements() {
     let mut obj = make_test_object();
     obj.put(DataElement::new(
-        Tag(0x0009, 0x0010),
+        DicomTag::new(0x0009, 0x0010),
         VR::UT,
         PrimitiveValue::from("vendor_data"),
     ));
     obj.put(DataElement::new(
-        Tag(0x0019, 0x0010),
+        DicomTag::new(0x0019, 0x0010),
         VR::LO,
         PrimitiveValue::from("another_private"),
     ));
@@ -330,11 +327,11 @@ fn clean_private_tags_true_removes_private_elements() {
     let (anon, result) = super::anonymize_object(obj, &opts).expect("anonymize_object");
 
     assert!(
-        anon.element(Tag(0x0009, 0x0010)).is_err(),
+        anon.element(DicomTag::new(0x0009, 0x0010)).is_err(),
         "private tag (0009,0010) must be removed when clean_private_tags=Clean"
     );
     assert!(
-        anon.element(Tag(0x0019, 0x0010)).is_err(),
+        anon.element(DicomTag::new(0x0019, 0x0010)).is_err(),
         "private tag (0019,0010) must be removed when clean_private_tags=Clean"
     );
     assert_eq!(
@@ -356,10 +353,10 @@ fn private_tags_removed_equals_the_private_elements_the_output_lost() {
     with_private_elements(
         &mut obj,
         [
-            Tag(0x0009, 0x0010),
-            Tag(0x0009, 0x1001),
-            Tag(0x0019, 0x0010),
-            Tag(0x0029, 0x1010),
+            DicomTag::new(0x0009, 0x0010),
+            DicomTag::new(0x0009, 0x1001),
+            DicomTag::new(0x0019, 0x0010),
+            DicomTag::new(0x0029, 0x1010),
         ],
     );
     let before = private_element_count(&obj);
@@ -390,7 +387,10 @@ fn private_tags_removed_equals_the_private_elements_the_output_lost() {
 #[test]
 fn private_tags_removed_credits_nothing_when_the_output_keeps_them() {
     let mut obj = make_test_object();
-    with_private_elements(&mut obj, [Tag(0x0009, 0x0010), Tag(0x0019, 0x0010)]);
+    with_private_elements(
+        &mut obj,
+        [DicomTag::new(0x0009, 0x0010), DicomTag::new(0x0019, 0x0010)],
+    );
     let before = private_element_count(&obj);
     assert_eq!(before, 2, "the fixture must carry two private elements");
 
@@ -423,7 +423,7 @@ fn clean_private_tags_true_preserves_standard_elements() {
         super::anonymize_object(obj, &opts).expect("anonymize_object must succeed");
     // PatientName (0010,0010) is an even-group tag, anonymized to ANONYMOUS
     let name = anon
-        .element(Tag(0x0010, 0x0010))
+        .element(DicomTag::new(0x0010, 0x0010))
         .expect("PatientName must exist in output after clean_private_tags")
         .to_str()
         .expect("must be string")

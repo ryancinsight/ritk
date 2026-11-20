@@ -3,9 +3,9 @@
 //! Parses Shared Functional Groups (5200,9229) and Per-Frame Functional Groups
 //! (5200,9230) per DICOM PS3.3 C.7.6.16 into a `Vec<PerFrameInfo>`.
 
-use dicom::core::value::Value;
-use dicom::core::Tag;
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::DicomTag;
+use ritk_dicom::dataset::Value;
 
 use super::reader::parse_ds_backslash;
 use super::types::PerFrameInfo;
@@ -16,9 +16,9 @@ use crate::format::dicom::tag_parse::read_nested_scalar;
 /// Returns None if either sequence is absent, has no items, or the DS value fails to
 /// parse with at least N components.
 fn read_nested_ds<const N: usize>(
-    item: &InMemDicomObject,
-    seq_tag: Tag,
-    inner_tag: Tag,
+    item: &Dataset,
+    seq_tag: DicomTag,
+    inner_tag: DicomTag,
 ) -> Option<[f64; N]> {
     let elem = item.element(seq_tag).ok()?;
     if let Value::Sequence(seq) = elem.value() {
@@ -51,12 +51,9 @@ fn read_nested_ds<const N: usize>(
 /// per_frame\[k\].A = per_frame_groups\[k\].A // if Some(...)
 ///               ?? shared_groups.A          // if Some(...)
 ///               ?? None
-pub(crate) fn extract_functional_groups(
-    obj: &InMemDicomObject,
-    n_frames: usize,
-) -> Vec<PerFrameInfo> {
-    let has_shared = obj.element(Tag(0x5200, 0x9229)).is_ok();
-    let has_per_frame = obj.element(Tag(0x5200, 0x9230)).is_ok();
+pub(crate) fn extract_functional_groups(obj: &Dataset, n_frames: usize) -> Vec<PerFrameInfo> {
+    let has_shared = obj.element(DicomTag::new(0x5200, 0x9229)).is_ok();
+    let has_per_frame = obj.element(DicomTag::new(0x5200, 0x9230)).is_ok();
 
     if !has_shared && !has_per_frame {
         tracing::debug!(
@@ -66,40 +63,40 @@ pub(crate) fn extract_functional_groups(
     }
 
     // Parse shared functional groups template.
-    let shared_template = match obj.element(Tag(0x5200, 0x9229)) {
+    let shared_template = match obj.element(DicomTag::new(0x5200, 0x9229)) {
         Ok(sg_elem) => {
             if let Value::Sequence(seq) = sg_elem.value() {
                 if let Some(item) = seq.items().first() {
                     let tpl = PerFrameInfo {
                         image_position: read_nested_ds::<3>(
                             item,
-                            Tag(0x0020, 0x9113),
-                            Tag(0x0020, 0x0032),
+                            DicomTag::new(0x0020, 0x9113),
+                            DicomTag::new(0x0020, 0x0032),
                         ),
                         image_orientation: read_nested_ds::<6>(
                             item,
-                            Tag(0x0020, 0x9116),
-                            Tag(0x0020, 0x0037),
+                            DicomTag::new(0x0020, 0x9116),
+                            DicomTag::new(0x0020, 0x0037),
                         ),
                         pixel_spacing: read_nested_ds::<2>(
                             item,
-                            Tag(0x0028, 0x9110),
-                            Tag(0x0028, 0x0030),
+                            DicomTag::new(0x0028, 0x9110),
+                            DicomTag::new(0x0028, 0x0030),
                         ),
                         slice_thickness: read_nested_scalar::<f64>(
                             item,
-                            Tag(0x0028, 0x9110),
-                            Tag(0x0018, 0x0050),
+                            DicomTag::new(0x0028, 0x9110),
+                            DicomTag::new(0x0018, 0x0050),
                         ),
                         rescale_slope: read_nested_scalar::<f64>(
                             item,
-                            Tag(0x0028, 0x9145),
-                            Tag(0x0028, 0x1053),
+                            DicomTag::new(0x0028, 0x9145),
+                            DicomTag::new(0x0028, 0x1053),
                         ),
                         rescale_intercept: read_nested_scalar::<f64>(
                             item,
-                            Tag(0x0028, 0x9145),
-                            Tag(0x0028, 0x1052),
+                            DicomTag::new(0x0028, 0x9145),
+                            DicomTag::new(0x0028, 0x1052),
                         ),
                     };
                     tracing::debug!(
@@ -120,7 +117,7 @@ pub(crate) fn extract_functional_groups(
     };
 
     // Collect per-frame items.
-    let pf_items: Vec<InMemDicomObject> = match obj.element(Tag(0x5200, 0x9230)) {
+    let pf_items: Vec<Dataset> = match obj.element(DicomTag::new(0x5200, 0x9230)) {
         Ok(pf_elem) => {
             if let Value::Sequence(seq) = pf_elem.value() {
                 seq.items().to_vec()
@@ -152,27 +149,51 @@ pub(crate) fn extract_functional_groups(
                 }
                 override_if_some!(
                     image_position,
-                    read_nested_ds::<3>(item, Tag(0x0020, 0x9113), Tag(0x0020, 0x0032))
+                    read_nested_ds::<3>(
+                        item,
+                        DicomTag::new(0x0020, 0x9113),
+                        DicomTag::new(0x0020, 0x0032)
+                    )
                 );
                 override_if_some!(
                     image_orientation,
-                    read_nested_ds::<6>(item, Tag(0x0020, 0x9116), Tag(0x0020, 0x0037))
+                    read_nested_ds::<6>(
+                        item,
+                        DicomTag::new(0x0020, 0x9116),
+                        DicomTag::new(0x0020, 0x0037)
+                    )
                 );
                 override_if_some!(
                     pixel_spacing,
-                    read_nested_ds::<2>(item, Tag(0x0028, 0x9110), Tag(0x0028, 0x0030))
+                    read_nested_ds::<2>(
+                        item,
+                        DicomTag::new(0x0028, 0x9110),
+                        DicomTag::new(0x0028, 0x0030)
+                    )
                 );
                 override_if_some!(
                     slice_thickness,
-                    read_nested_scalar::<f64>(item, Tag(0x0028, 0x9110), Tag(0x0018, 0x0050))
+                    read_nested_scalar::<f64>(
+                        item,
+                        DicomTag::new(0x0028, 0x9110),
+                        DicomTag::new(0x0018, 0x0050)
+                    )
                 );
                 override_if_some!(
                     rescale_slope,
-                    read_nested_scalar::<f64>(item, Tag(0x0028, 0x9145), Tag(0x0028, 0x1053))
+                    read_nested_scalar::<f64>(
+                        item,
+                        DicomTag::new(0x0028, 0x9145),
+                        DicomTag::new(0x0028, 0x1053)
+                    )
                 );
                 override_if_some!(
                     rescale_intercept,
-                    read_nested_scalar::<f64>(item, Tag(0x0028, 0x9145), Tag(0x0028, 0x1052))
+                    read_nested_scalar::<f64>(
+                        item,
+                        DicomTag::new(0x0028, 0x9145),
+                        DicomTag::new(0x0028, 0x1052)
+                    )
                 );
             }
             info

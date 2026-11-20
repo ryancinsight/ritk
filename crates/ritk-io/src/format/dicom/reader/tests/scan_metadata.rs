@@ -29,9 +29,11 @@ fn scan_rejects_missing_and_malformed_bits_stored() {
     let path = directory.path().join("slice.dcm");
     write_stub_dicom(&path, "1.2.840.10008.5.1.4.1.1.2", "2.25.72001.200");
 
-    let mut object = dicom::object::open_file(&path).expect("fixture must parse");
+    let mut object = ritk_dicom::dataset::DicomFile::open(&path).expect("fixture must parse");
     assert!(
-        object.remove_element(Tag(0x0028, 0x0101)),
+        object
+            .remove_element(DicomTag::new(0x0028, 0x0101))
+            .is_some(),
         "fixture must contain BitsStored"
     );
     object.write_to_file(&path).expect("fixture must rewrite");
@@ -43,7 +45,7 @@ fn scan_rejects_missing_and_malformed_bits_stored() {
     );
 
     object.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::LO,
         PrimitiveValue::from("twelve"),
     ));
@@ -158,14 +160,14 @@ fn test_scan_metadata_round_trip_spatial_fields() {
         m.slices.iter().all(|slice| slice.bits_stored == 16),
         "each slice describes the encoded width"
     );
-    let object = dicom::object::open_file(series_path.join("slice_0000.dcm")).unwrap();
+    let object = ritk_dicom::dataset::DicomFile::open(series_path.join("slice_0000.dcm")).unwrap();
     let width = object
-        .element(Tag(0x0028, 0x0100))
+        .element(DicomTag::new(0x0028, 0x0100))
         .unwrap()
-        .to_int::<usize>()
+        .to_num::<usize>()
         .unwrap();
     let payload = object
-        .element(Tag(0x7FE0, 0x0010))
+        .element(DicomTag::new(0x7FE0, 0x0010))
         .unwrap()
         .to_bytes()
         .unwrap();
@@ -478,7 +480,7 @@ fn test_scan_metadata_round_trip_transfer_syntax() {
     let info = scan_dicom_directory(&series_path).expect("scan must not fail");
 
     // The writer emits transfer_syntax EXPLICIT_VR_LE = Explicit VR Little Endian.
-    // The reader must extract this from the file meta, not from Tag(0x0008,0x0070).
+    // The reader must extract this from the file meta, not from DicomTag::new(0x0008,0x0070).
     assert!(
         !info.metadata.slices.is_empty(),
         "at least one slice must be returned"

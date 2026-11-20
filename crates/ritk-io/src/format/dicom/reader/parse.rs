@@ -8,10 +8,10 @@ use aequitas::systems::si::{
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use super::super::sop_class::{classify_sop_class, SopClassKind};
 use anyhow::Result;
-use dicom::core::Tag;
-use dicom::dictionary_std::uids;
-use dicom::object::DefaultDicomObject;
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::dataset::DicomTag;
 use ritk_dicom::PixelSignedness;
 
 use super::preservation::preserve_unhandled_elements;
@@ -78,7 +78,7 @@ fn parse_ds_array<const N: usize>(s: &str) -> Result<[f64; N], GeometryDecimalEr
     Ok(out)
 }
 
-fn read_geometry_array<const N: usize>(obj: &DefaultDicomObject, tag: Tag) -> Option<[f64; N]> {
+fn read_geometry_array<const N: usize>(obj: &DicomFile, tag: DicomTag) -> Option<[f64; N]> {
     let Ok(element) = obj.element(tag) else {
         return None;
     };
@@ -101,7 +101,7 @@ fn read_geometry_array<const N: usize>(obj: &DefaultDicomObject, tag: Tag) -> Op
 /// per-slice metadata and per-file
 /// image dimensions.
 pub(super) fn extract_dicom_metadata(
-    obj: &DefaultDicomObject,
+    obj: &DicomFile,
     path_for_meta: PathBuf,
     first: &mut SeriesFirstSeen,
 ) -> Result<(DicomSliceMetadata, (u32, u32))> {
@@ -132,7 +132,7 @@ pub(super) fn extract_dicom_metadata(
 
     // --- Per-slice fields ---
     if slice_meta.sop_instance_uid.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0008, 0x0018))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0008, 0x0018))
     {
         slice_meta.sop_instance_uid = elem
             .to_str()
@@ -140,44 +140,45 @@ pub(super) fn extract_dicom_metadata(
             .as_ref()
             .and_then(|s| uid_to_arraystring(s));
     }
-    if let Ok(elem) = obj.element(Tag(0x0020, 0x0013)) {
+    if let Ok(elem) = obj.element(DicomTag::new(0x0020, 0x0013)) {
         slice_meta.instance_number = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
-    if let Ok(elem) = obj.element(Tag(0x0020, 0x1041)) {
+    if let Ok(elem) = obj.element(DicomTag::new(0x0020, 0x1041)) {
         slice_meta.slice_location = elem
             .to_str()
             .ok()
             .and_then(|s| finite_decimal(&s))
             .map(Length::from_unit::<Millimeter>);
     }
-    slice_meta.image_position_patient = read_geometry_array::<3>(obj, Tag(0x0020, 0x0032))
-        .map(|position| position.map(Length::from_unit::<Millimeter>));
-    slice_meta.image_orientation_patient = read_geometry_array(obj, Tag(0x0020, 0x0037));
-    slice_meta.pixel_spacing = read_geometry_array(obj, Tag(0x0028, 0x0030))
+    slice_meta.image_position_patient =
+        read_geometry_array::<3>(obj, DicomTag::new(0x0020, 0x0032))
+            .map(|position| position.map(Length::from_unit::<Millimeter>));
+    slice_meta.image_orientation_patient = read_geometry_array(obj, DicomTag::new(0x0020, 0x0037));
+    slice_meta.pixel_spacing = read_geometry_array(obj, DicomTag::new(0x0028, 0x0030))
         .and_then(usable_pixel_spacing)
         .map(|spacing| spacing.map(Length::from_unit::<Millimeter>));
-    if let Ok(elem) = obj.element(Tag(0x0018, 0x0050)) {
+    if let Ok(elem) = obj.element(DicomTag::new(0x0018, 0x0050)) {
         slice_meta.slice_thickness = elem
             .to_str()
             .ok()
             .and_then(|s| finite_decimal(&s))
             .and_then(positive_length_mm);
     }
-    if let Ok(elem) = obj.element(Tag(0x0028, 0x1053)) {
+    if let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x1053)) {
         slice_meta.rescale_slope = elem
             .to_str()
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(1.0);
     }
-    if let Ok(elem) = obj.element(Tag(0x0028, 0x1052)) {
+    if let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x1052)) {
         slice_meta.rescale_intercept = elem
             .to_str()
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0);
     }
-    if let Ok(elem) = obj.element(Tag(0x0008, 0x0016)) {
+    if let Ok(elem) = obj.element(DicomTag::new(0x0008, 0x0016)) {
         slice_meta.sop_class_uid = elem
             .to_str()
             .ok()
@@ -187,7 +188,7 @@ pub(super) fn extract_dicom_metadata(
     // Transfer syntax from file meta (0002,0010), not main dataset.
     slice_meta.transfer_syntax_uid = uid_to_arraystring(obj.meta().transfer_syntax());
 
-    if let Ok(elem) = obj.element(Tag(0x0028, 0x0103)) {
+    if let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x0103)) {
         slice_meta.pixel_representation = elem
             .to_str()
             .ok()
@@ -195,16 +196,17 @@ pub(super) fn extract_dicom_metadata(
             .and_then(|v: u16| PixelSignedness::try_from(v).ok())
             .unwrap_or(PixelSignedness::Unsigned);
     }
-    if let Ok(elem) = obj.element(Tag(0x0028, 0x0100)) {
+    if let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x0100)) {
         slice_meta.bits_allocated = elem
             .to_str()
             .ok()
             .and_then(|s| s.trim().parse().ok())
             .unwrap_or(slice_meta.bits_allocated);
     }
-    slice_meta.bits_stored = read_required_unsigned(obj, Tag(0x0028, 0x0101), "BitsStored")?;
+    slice_meta.bits_stored =
+        read_required_unsigned(obj, DicomTag::new(0x0028, 0x0101), "BitsStored")?;
     // WindowCenter (0028,1050) — first value of potentially multi-valued DS.
-    if let Ok(elem) = obj.element(Tag(0x0028, 0x1050)) {
+    if let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x1050)) {
         slice_meta.window_center = elem.to_str().ok().and_then(|s| {
             s.trim()
                 .split('\\')
@@ -213,7 +215,7 @@ pub(super) fn extract_dicom_metadata(
         });
     }
     // WindowWidth (0028,1051) — first value of potentially multi-valued DS.
-    if let Ok(elem) = obj.element(Tag(0x0028, 0x1051)) {
+    if let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x1051)) {
         slice_meta.window_width = elem.to_str().ok().and_then(|s| {
             s.trim()
                 .split('\\')
@@ -221,14 +223,14 @@ pub(super) fn extract_dicom_metadata(
                 .and_then(|v| v.trim().parse().ok())
         });
     }
-    if let Ok(elem) = obj.element(Tag(0x0018, 0x1120)) {
+    if let Ok(elem) = obj.element(DicomTag::new(0x0018, 0x1120)) {
         slice_meta.gantry_tilt = elem
             .to_str()
             .ok()
             .and_then(|s| finite_decimal(&s))
             .map(Angle::from_unit::<Degree>);
     }
-    if let Ok(elem) = obj.element(Tag(0x0018, 0x5100)) {
+    if let Ok(elem) = obj.element(DicomTag::new(0x0018, 0x5100)) {
         slice_meta.patient_position = elem
             .to_str()
             .ok()
@@ -238,12 +240,12 @@ pub(super) fn extract_dicom_metadata(
 
     // Per-file dimension tracking (for canonical-dimension plurality selection).
     let this_rows: Option<u32> = obj
-        .element(Tag(0x0028, 0x0010))
+        .element(DicomTag::new(0x0028, 0x0010))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.parse().ok());
     let this_cols: Option<u32> = obj
-        .element(Tag(0x0028, 0x0011))
+        .element(DicomTag::new(0x0028, 0x0011))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.parse().ok());
@@ -259,7 +261,7 @@ pub(super) fn extract_dicom_metadata(
     first.pixel_spacing = first.pixel_spacing.or(slice_meta.pixel_spacing);
     first.slice_thickness = first.slice_thickness.or(slice_meta.slice_thickness);
     if first.series_instance_uid.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0020, 0x000E))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0020, 0x000E))
     {
         first.series_instance_uid = elem
             .to_str()
@@ -268,7 +270,7 @@ pub(super) fn extract_dicom_metadata(
             .and_then(|s| uid_to_arraystring(s));
     }
     if first.study_instance_uid.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0020, 0x000D))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0020, 0x000D))
     {
         first.study_instance_uid = elem
             .to_str()
@@ -277,42 +279,42 @@ pub(super) fn extract_dicom_metadata(
             .and_then(|s| uid_to_arraystring(s));
     }
     if first.series_description.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0008, 0x103E))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0008, 0x103E))
     {
         first.series_description = elem.to_str().ok().map(String::from);
     }
     if first.modality.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0008, 0x0060))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0008, 0x0060))
     {
         first.modality = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
     }
     if first.patient_id.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0010, 0x0020))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0010, 0x0020))
     {
         first.patient_id = elem.to_str().ok().map(String::from);
     }
     if first.patient_name.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0010, 0x0010))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0010, 0x0010))
     {
         first.patient_name = elem.to_str().ok().map(String::from);
     }
     if first.study_date.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0008, 0x0020))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0008, 0x0020))
     {
         first.study_date = elem.to_str().ok().map(|s| da_to_arraystring(s.trim()));
     }
     if first.series_date.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0008, 0x0021))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0008, 0x0021))
     {
         first.series_date = elem.to_str().ok().map(|s| da_to_arraystring(s.trim()));
     }
     if first.series_time.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0008, 0x0031))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0008, 0x0031))
     {
         first.series_time = elem.to_str().ok().map(|s| tm_to_arraystring(s.trim()));
     }
     if first.frame_of_reference_uid.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0020, 0x0052))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0020, 0x0052))
     {
         first.frame_of_reference_uid = elem
             .to_str()
@@ -321,22 +323,22 @@ pub(super) fn extract_dicom_metadata(
             .and_then(|s| uid_to_arraystring(s));
     }
     if first.bits_allocated.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0028, 0x0100))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x0100))
     {
         first.bits_allocated = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
     if first.bits_stored.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0028, 0x0101))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x0101))
     {
         first.bits_stored = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
     if first.high_bit.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0028, 0x0102))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x0102))
     {
         first.high_bit = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
     if first.photometric_interpretation.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0028, 0x0004))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x0004))
     {
         first.photometric_interpretation = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
     }
@@ -344,7 +346,7 @@ pub(super) fn extract_dicom_metadata(
         first.transfer_syntax_uid = uid_to_arraystring(obj.meta().transfer_syntax());
     }
     if first.patient_weight_kg.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0010, 0x1030))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0010, 0x1030))
     {
         first.patient_weight_kg = elem
             .to_str()
@@ -353,14 +355,16 @@ pub(super) fn extract_dicom_metadata(
             .map(Mass::from_base);
     }
     if first.decay_correction.is_none()
-        && let Ok(elem) = obj.element(Tag(0x0054, 0x1102))
+        && let Ok(elem) = obj.element(DicomTag::new(0x0054, 0x1102))
     {
         first.decay_correction = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
     }
-    let has_pet_concentration = slice_meta.sop_class_uid.as_deref()
-        == Some(uids::POSITRON_EMISSION_TOMOGRAPHY_IMAGE_STORAGE)
+    let has_pet_concentration = slice_meta
+        .sop_class_uid
+        .as_deref()
+        .is_some_and(|uid| classify_sop_class(uid) == SopClassKind::PetImageStorage)
         && obj
-            .element(Tag(0x0054, 0x1001))
+            .element(DicomTag::new(0x0054, 0x1001))
             .is_ok_and(|units| units.to_str().is_ok_and(|value| value.trim() == "BQML"));
     first.pet_pixels_in_bq_per_ml =
         Some(first.pet_pixels_in_bq_per_ml.unwrap_or(true) && has_pet_concentration);
@@ -368,12 +372,12 @@ pub(super) fn extract_dicom_metadata(
     if (first.radionuclide_total_dose_bq.is_none()
         || first.radionuclide_half_life_s.is_none()
         || first.radiopharmaceutical_start_time.is_none())
-        && let Ok(seq_elem) = obj.element(Tag(0x0054, 0x0016))
+        && let Ok(seq_elem) = obj.element(DicomTag::new(0x0054, 0x0016))
         && let Some(items) = seq_elem.value().items()
         && let [first_item] = items
     {
         if first.radionuclide_total_dose_bq.is_none()
-            && let Ok(e) = first_item.element(Tag(0x0018, 0x1074))
+            && let Ok(e) = first_item.element(DicomTag::new(0x0018, 0x1074))
         {
             first.radionuclide_total_dose_bq = slice_meta
                 .sop_class_uid
@@ -382,7 +386,7 @@ pub(super) fn extract_dicom_metadata(
                 .and_then(|(sop_class, dose)| radionuclide_activity(sop_class, &dose));
         }
         if first.radionuclide_half_life_s.is_none()
-            && let Ok(e) = first_item.element(Tag(0x0018, 0x1075))
+            && let Ok(e) = first_item.element(DicomTag::new(0x0018, 0x1075))
         {
             first.radionuclide_half_life_s = e
                 .to_str()
@@ -391,7 +395,7 @@ pub(super) fn extract_dicom_metadata(
                 .map(Time::from_base);
         }
         if first.radiopharmaceutical_start_time.is_none()
-            && let Ok(e) = first_item.element(Tag(0x0018, 0x1072))
+            && let Ok(e) = first_item.element(DicomTag::new(0x0018, 0x1072))
         {
             first.radiopharmaceutical_start_time =
                 e.to_str().ok().map(|s| tm_to_arraystring(s.trim()));
@@ -418,9 +422,9 @@ fn positive_decimal(value: &str) -> Option<f64> {
 fn radionuclide_activity(sop_class: &str, value: &str) -> Option<Radioactivity> {
     // PS3.3 C.8.9.2 uses Bq, and C.8.4.10 and C.8.22.4 use MBq.
     let value = positive_decimal(value)?;
-    let activity = match sop_class {
-        uids::POSITRON_EMISSION_TOMOGRAPHY_IMAGE_STORAGE => Activity::from_unit::<Becquerel>(value),
-        uids::ENHANCED_PET_IMAGE_STORAGE | uids::NUCLEAR_MEDICINE_IMAGE_STORAGE => {
+    let activity = match classify_sop_class(sop_class) {
+        SopClassKind::PetImageStorage => Activity::from_unit::<Becquerel>(value),
+        SopClassKind::EnhancedPetImageStorage | SopClassKind::NuclearMedicineImageStorage => {
             Activity::from_unit::<Megabecquerel>(value)
         }
         _ => return None,

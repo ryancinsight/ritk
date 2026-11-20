@@ -1,5 +1,5 @@
 use super::*;
-use dicom::core::DataElement;
+use ritk_dicom::dataset::DataElement;
 
 fn pixel_object(
     rows: u16,
@@ -10,8 +10,8 @@ fn pixel_object(
     planar_configuration: Option<u16>,
     frames: Option<&str>,
     pixel_data: Vec<u8>,
-) -> InMemDicomObject {
-    let mut object = InMemDicomObject::new_empty();
+) -> Dataset {
+    let mut object = Dataset::new();
     for (tag, value) in [
         (ROWS, rows),
         (COLUMNS, columns),
@@ -45,12 +45,12 @@ fn pixel_object(
     object.put(DataElement::new(
         PIXEL_DATA,
         if bits_allocated > 8 { VR::OW } else { VR::OB },
-        PrimitiveValue::U8(pixel_data.into()),
+        PrimitiveValue::Bytes(pixel_data.into()),
     ));
     object
 }
 
-fn error(object: &InMemDicomObject) -> DicomWriteError {
+fn error(object: &Dataset) -> DicomWriteError {
     preflight_native_pixel_data(object)
         .expect_err("invalid pixel object must be rejected")
         .downcast::<DicomWriteError>()
@@ -71,11 +71,11 @@ fn palette_color_uses_one_sample_per_pixel() {
 
 #[test]
 fn rejects_missing_rows_attribute() {
-    let mut object = InMemDicomObject::new_empty();
+    let mut object = Dataset::new();
     object.put(DataElement::new(
         PIXEL_DATA,
         VR::OB,
-        PrimitiveValue::U8(vec![1].into()),
+        PrimitiveValue::Bytes(vec![1].into()),
     ));
 
     assert!(matches!(

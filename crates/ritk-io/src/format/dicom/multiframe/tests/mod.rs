@@ -14,10 +14,9 @@ pub(super) use super::per_frame::extract_functional_groups;
 pub(super) use super::types::{PerFrameInfo, MF_GRAYSCALE_WORD_SC_UID};
 pub(super) use super::*;
 pub(super) use coeus_core::MoiraiBackend;
-pub(super) use dicom::core::smallvec::SmallVec;
-pub(super) use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-pub(super) use dicom::object::meta::FileMetaTableBuilder;
-pub(super) use dicom::object::InMemDicomObject;
+pub(super) use ritk_dicom::dataset::Dataset;
+pub(super) use ritk_dicom::dataset::FileMetaBuilder;
+pub(super) use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
 pub(super) use ritk_image::Image as NativeImage;
 pub(super) use ritk_spatial::{Direction, Point, Spacing};
 

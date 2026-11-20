@@ -40,11 +40,15 @@
 //! area = (max_r − min_r + 1) · s_r × (max_c − min_c + 1) · s_c [mm²]
 //! ```
 
+#[cfg(any(target_arch = "wasm32", windows, test))]
+mod calibration;
 mod ellipse;
 mod image;
 mod paths;
 mod patient_length;
 
+#[cfg(any(target_arch = "wasm32", windows, test))]
+pub(crate) use calibration::ImageMeasurementScale;
 pub use patient_length::PatientLength;
 
 /// Failure raised when physical measurement inputs or results cannot be
@@ -68,6 +72,9 @@ pub enum MeasurementError {
     /// A measurement was requested without a loaded volume.
     #[error("measurement requires a loaded volume")]
     MissingVolume,
+    /// The source did not provide a trustworthy in-plane physical spacing.
+    #[error("physical pixel spacing is unavailable for this image")]
+    MissingPhysicalSpacing,
 }
 
 // ── Completed annotations ─────────────────────────────────────────────────────
@@ -84,20 +91,18 @@ pub struct AnnotationLocation {
 /// A completed measurement annotation stored on a viewport.
 ///
 /// Orthogonal positions are stored as `[row, col]` in image pixel coordinates.
-/// Patient-space lengths retain `[x, y, z]` millimetre endpoints. Computed
-/// values use physical units (mm, degrees, HU) and remain derivable from the
-/// stored coordinates and applicable geometry.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+/// Patient-space lengths retain `[x, y, z]` millimetre endpoints. The wire
+/// contract retains coordinates and stored computed values in physical units
+/// (mm, degrees, HU) verbatim; deserialization does not recompute them.
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Annotation {
     /// Straight-line distance between two image points.
     Length {
         /// Orthogonal pane axis (`0` axial, `1` coronal, `2` sagittal) the
         /// gesture was placed on; the overlay draws the length on that pane.
-        #[serde(default)]
         plane: usize,
         /// Creation location; absent on records written before slice anchoring.
-        #[serde(default)]
         location: Option<AnnotationLocation>,
         /// Start point as `[row, col]` in image pixels.
         p1: [f32; 2],
@@ -111,10 +116,8 @@ pub enum Annotation {
     PatientLength {
         /// Orthogonal pane axis the measurement belongs to; the overlay
         /// projects the patient endpoints onto that pane.
-        #[serde(default)]
         plane: usize,
         /// Creation location; absent on records written before slice anchoring.
-        #[serde(default)]
         location: Option<AnnotationLocation>,
         /// Validated patient-space endpoints and distance.
         length: PatientLength,
@@ -123,7 +126,6 @@ pub enum Annotation {
     /// Angle at vertex `p2` between the rays `p2→p1` and `p2→p3`.
     Angle {
         /// Creation location; absent on legacy records.
-        #[serde(default)]
         location: Option<AnnotationLocation>,
         /// First ray endpoint as `[row, col]` in image pixels.
         p1: [f32; 2],
@@ -138,7 +140,6 @@ pub enum Annotation {
     /// Axis-aligned rectangle ROI with intensity statistics.
     RoiRect {
         /// Creation location; absent on legacy records.
-        #[serde(default)]
         location: Option<AnnotationLocation>,
         /// Top-left corner as `[row, col]` in image pixels.
         top_left: [f32; 2],
@@ -177,7 +178,6 @@ pub enum Annotation {
     /// ```
     RoiEllipse {
         /// Creation location; absent on legacy records.
-        #[serde(default)]
         location: Option<AnnotationLocation>,
         /// Centre of the ellipse as `[row, col]` in image pixels.
         center: [f32; 2],
@@ -198,7 +198,6 @@ pub enum Annotation {
     /// Distance and acute angle of a segment from its nearer image axis.
     Deviation {
         /// Creation location on the orthogonal image.
-        #[serde(default)]
         location: Option<AnnotationLocation>,
         /// Segment start and end as `[row, col]` image pixels.
         start: [f32; 2],
@@ -214,7 +213,6 @@ pub enum Annotation {
     /// Single-point HU measurement.
     HuPoint {
         /// Creation location; absent on legacy records.
-        #[serde(default)]
         location: Option<AnnotationLocation>,
         /// Point location as `[row, col]` in image pixels.
         pos: [f32; 2],
@@ -225,7 +223,6 @@ pub enum Annotation {
     /// Closed polygon ROI with physical area and perimeter.
     ClosedPolygon {
         /// Creation location on the source image plane.
-        #[serde(default)]
         location: Option<AnnotationLocation>,
         /// Polygon vertices as `[row, col]` image pixels.
         points: Vec<[f32; 2]>,
@@ -238,7 +235,6 @@ pub enum Annotation {
     /// Open polygon polyline with physical length.
     OpenPolygon {
         /// Creation location on the source image plane.
-        #[serde(default)]
         location: Option<AnnotationLocation>,
         /// Polyline vertices as `[row, col]` image pixels.
         points: Vec<[f32; 2]>,
@@ -247,24 +243,39 @@ pub enum Annotation {
     },
     /// Directional arrow with image-space tail and head points.
     Arrow {
-        #[serde(default)]
         location: Option<AnnotationLocation>,
         tail: [f32; 2],
         head: [f32; 2],
     },
     /// Freehand image-space pencil mark with no physical measurement.
     Pencil {
-        #[serde(default)]
         location: Option<AnnotationLocation>,
         points: Vec<[f32; 2]>,
     },
     /// Two directed image segments and their acute physical Cobb angle.
     CobbAngle {
-        #[serde(default)]
         location: Option<AnnotationLocation>,
         points: [[f32; 2]; 4],
         angle_deg: f32,
     },
+}
+
+impl serde::Serialize for Annotation {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        crate::session::serialize_annotation(self, serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Annotation {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        crate::session::deserialize_annotation(deserializer)
+    }
 }
 
 impl Annotation {

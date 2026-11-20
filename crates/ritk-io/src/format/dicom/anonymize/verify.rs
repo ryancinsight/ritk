@@ -61,8 +61,8 @@
 //! ```
 
 use anyhow::{bail, Context, Result};
-use dicom::core::Tag;
-use dicom::object::{open_file, FileDicomObject, InMemDicomObject};
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::dataset::DicomTag;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -210,7 +210,7 @@ impl DirectoryVerifyReport {
 
 // ─── UID helpers ───────────────────────────────────────────────────────────────
 
-fn tag_uid(obj: &FileDicomObject<InMemDicomObject>, tag: Tag) -> Option<String> {
+fn tag_uid(obj: &DicomFile, tag: DicomTag) -> Option<String> {
     obj.element(tag)
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| s.into_owned()))
@@ -239,7 +239,7 @@ pub fn verify_dicom_file(
         ..Default::default()
     };
 
-    let obj: FileDicomObject<InMemDicomObject> = match open_file(path) {
+    let obj: DicomFile = match ritk_dicom::dataset::DicomFile::open(path) {
         Ok(o) => o,
         Err(e) => {
             report.issues.push(VerifyIssue::ParseFailure(e.to_string()));
@@ -249,9 +249,9 @@ pub fn verify_dicom_file(
 
     // ── 1. UID presence + format ──────────────────────────────────────────
     for (name, tag) in [
-        ("StudyInstanceUID", Tag(0x0020, 0x000D)),
-        ("SeriesInstanceUID", Tag(0x0020, 0x000E)),
-        ("SOPInstanceUID", Tag(0x0008, 0x0018)),
+        ("StudyInstanceUID", DicomTag::new(0x0020, 0x000D)),
+        ("SeriesInstanceUID", DicomTag::new(0x0020, 0x000E)),
+        ("SOPInstanceUID", DicomTag::new(0x0008, 0x0018)),
     ] {
         let value = tag_uid(&obj, tag);
         if options.require_uids {
@@ -275,7 +275,7 @@ pub fn verify_dicom_file(
     }
     // Never required: the verifier does not resolve the IOD, and an object
     // without a spatial frame carries no Frame of Reference UID.
-    if let Some(v) = tag_uid(&obj, Tag(0x0020, 0x0052)) {
+    if let Some(v) = tag_uid(&obj, DicomTag::new(0x0020, 0x0052)) {
         if options.validate_uid_format && !uid_is_valid(&v) {
             report.issues.push(VerifyIssue::InvalidUid {
                 tag: "FrameOfReferenceUID".to_owned(),

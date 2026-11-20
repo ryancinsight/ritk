@@ -1,10 +1,13 @@
 //! Structural Part 10 scanner used by the budget-aware backend.
 
-use std::str;
+use std::{ops::Range, str};
 
+use crate::dataset::wire::{dictionary, syntax::Encoding};
+use crate::dataset::{Length, VR};
+use crate::DicomTag;
 use anyhow::{bail, Context, Result};
+use bytes::Bytes;
 use consus_core::{read_integer, ByteOrder, EndianScalar, ParseBudget};
-use dicom::core::{Tag, VR};
 
 use crate::syntax::TransferSyntaxKind;
 
@@ -15,65 +18,18 @@ const ITEM_GROUP: u16 = 0xFFFE;
 const ITEM_ELEMENT: u16 = 0xE000;
 const ITEM_DELIMITER_ELEMENT: u16 = 0xE00D;
 const SEQUENCE_DELIMITER_ELEMENT: u16 = 0xE0DD;
-const PIXEL_DATA: Tag = Tag(0x7FE0, 0x0010);
-const FILE_META_GROUP_LENGTH: Tag = Tag(FILE_META_GROUP, 0x0000);
-const TRANSFER_SYNTAX_UID: Tag = Tag(FILE_META_GROUP, 0x0010);
+const PIXEL_DATA: DicomTag = DicomTag::new(0x7FE0, 0x0010);
+const FILE_META_GROUP_LENGTH: DicomTag = DicomTag::new(FILE_META_GROUP, 0x0000);
+const TRANSFER_SYNTAX_UID: DicomTag = DicomTag::new(FILE_META_GROUP, 0x0010);
 
+pub(super) mod attributes;
+mod inflate;
+pub(super) mod object;
 mod sequence;
 
 #[derive(Debug, Clone, Copy)]
-struct SyntaxEncoding {
-    implicit_vr: bool,
-    byte_order: ByteOrder,
-}
-
-impl SyntaxEncoding {
-    fn from_transfer_syntax(syntax: &TransferSyntaxKind) -> Result<Self> {
-        match syntax {
-            TransferSyntaxKind::ImplicitVrLittleEndian => Ok(Self {
-                implicit_vr: true,
-                byte_order: ByteOrder::LittleEndian,
-            }),
-            TransferSyntaxKind::ExplicitVrLittleEndian => Ok(Self {
-                implicit_vr: false,
-                byte_order: ByteOrder::LittleEndian,
-            }),
-            TransferSyntaxKind::ExplicitVrBigEndian => Ok(Self {
-                implicit_vr: false,
-                byte_order: ByteOrder::BigEndian,
-            }),
-            TransferSyntaxKind::JpegBaseline
-            | TransferSyntaxKind::JpegExtended
-            | TransferSyntaxKind::JpegLosslessNonHierarchical
-            | TransferSyntaxKind::JpegLosslessFirstOrderPrediction
-            | TransferSyntaxKind::JpegLsLossless
-            | TransferSyntaxKind::JpegLsLossy
-            | TransferSyntaxKind::Jpeg2000Lossless
-            | TransferSyntaxKind::Jpeg2000Lossy
-            | TransferSyntaxKind::RleLossless
-            | TransferSyntaxKind::JpegXlLossless
-            | TransferSyntaxKind::JpegXlJpegRecompression
-            | TransferSyntaxKind::JpegXl => Ok(Self {
-                implicit_vr: false,
-                byte_order: ByteOrder::LittleEndian,
-            }),
-            TransferSyntaxKind::DeflatedExplicitVrLittleEndian => {
-                bail!(
-                    "DICOM transfer syntax {} requires a bounded deflate adapter",
-                    syntax.uid()
-                )
-            }
-            TransferSyntaxKind::Unknown(_) => bail!(
-                "DICOM transfer syntax {} is not a dataset syntax supported by the bounded scanner",
-                syntax.uid()
-            ),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
 struct ElementHeader {
-    tag: Tag,
+    tag: DicomTag,
     vr: VR,
     length: u32,
     bytes: usize,
@@ -92,9 +48,37 @@ pub struct DicomParseSummary {
     pub encoded_bytes: usize,
 }
 
-struct Scanner<'input> {
+#[derive(Debug)]
+enum Event {
+    Meta {
+        header: ElementHeader,
+        range: Range<usize>,
+    },
+    Inflated(Bytes),
+    Primitive {
+        header: ElementHeader,
+        range: Range<usize>,
+        encoding: Encoding,
+        depth: u16,
+    },
+    SequenceStart {
+        header: ElementHeader,
+        pixel: bool,
+    },
+    SequenceEnd {
+        tag: DicomTag,
+        range: Range<usize>,
+        depth: u16,
+    },
+    ItemStart(Length),
+    ItemEnd,
+    Fragment(Range<usize>),
+}
+
+struct Scanner<'input, Visit> {
     data: &'input [u8],
     budget: &'input ParseBudget,
+    visit: Visit,
     accounted_bytes: usize,
     elements: usize,
     max_depth: u16,
@@ -113,26 +97,23 @@ struct Scanner<'input> {
 /// syntax, malformed headers or delimiters, truncated values, and exceeded
 /// byte, element, or depth ceilings.
 pub fn validate_part10(data: &[u8], budget: &ParseBudget) -> Result<DicomParseSummary> {
-    let mut scanner = Scanner::new(data, budget)?;
-    scanner.scan()
+    Scanner::new(data, budget, |_| Ok(()))?.scan()
 }
 
-impl<'input> Scanner<'input> {
-    fn new(data: &'input [u8], budget: &'input ParseBudget) -> Result<Self> {
-        let length = u64::try_from(data.len()).context("DICOM input length does not fit u64")?;
-        budget
-            .checked_bytes(length, "DICOM encoded input")
-            .map_err(|error| anyhow::anyhow!("DICOM input exceeds parse budget: {error}"))?;
+impl<'input, Visit: FnMut(Event) -> Result<()>> Scanner<'input, Visit> {
+    fn new(data: &'input [u8], budget: &'input ParseBudget, visit: Visit) -> Result<Self> {
+        super::check_input_bytes(data, budget)?;
         Ok(Self {
             data,
             budget,
+            visit,
             accounted_bytes: 0,
             elements: 0,
             max_depth: 0,
         })
     }
 
-    fn scan(&mut self) -> Result<DicomParseSummary> {
+    fn scan(mut self) -> Result<DicomParseSummary> {
         let dataset_start = if self.data.get(128..132) == Some(DICM_MAGIC.as_slice()) {
             132
         } else if self.data.get(..4) == Some(DICM_MAGIC.as_slice()) {
@@ -142,7 +123,29 @@ impl<'input> Scanner<'input> {
         };
 
         let (dataset_start, transfer_syntax) = self.scan_file_meta(dataset_start)?;
-        let encoding = SyntaxEncoding::from_transfer_syntax(&transfer_syntax)?;
+        if transfer_syntax == TransferSyntaxKind::DeflatedExplicitVrLittleEndian {
+            let available = self.budget.max_alloc_bytes - self.accounted_bytes;
+            let plain = inflate::dataset(&self.data[dataset_start..], available)?;
+            (self.visit)(Event::Inflated(plain.clone()))?;
+            let mut scanner = Scanner {
+                data: &plain,
+                budget: self.budget,
+                visit: self.visit,
+                accounted_bytes: self.accounted_bytes,
+                elements: self.elements,
+                max_depth: self.max_depth,
+            };
+            return scanner.finish(0, transfer_syntax);
+        }
+        self.finish(dataset_start, transfer_syntax)
+    }
+
+    fn finish(
+        &mut self,
+        dataset_start: usize,
+        transfer_syntax: TransferSyntaxKind,
+    ) -> Result<DicomParseSummary> {
+        let encoding = Encoding::for_syntax(&transfer_syntax)?;
         let end = self.scan_dataset(dataset_start, self.data.len(), encoding, 0)?;
         if end != self.data.len() {
             bail!(
@@ -159,10 +162,7 @@ impl<'input> Scanner<'input> {
     }
 
     fn scan_file_meta(&mut self, start: usize) -> Result<(usize, TransferSyntaxKind)> {
-        let encoding = SyntaxEncoding {
-            implicit_vr: false,
-            byte_order: ByteOrder::LittleEndian,
-        };
+        let encoding = Encoding::EXPLICIT_LE;
         let group_length_header = self.read_element_header(start, encoding)?;
         if group_length_header.tag != FILE_META_GROUP_LENGTH
             || group_length_header.vr != VR::UL
@@ -190,7 +190,7 @@ impl<'input> Scanner<'input> {
         let mut transfer_syntax = None;
         while cursor < group_end {
             let header = self.read_element_header(cursor, encoding)?;
-            if header.tag.group() != FILE_META_GROUP || header.length == UNDEFINED_LENGTH {
+            if header.tag.group != FILE_META_GROUP || header.length == UNDEFINED_LENGTH {
                 bail!("invalid DICOM file meta element at byte {cursor}")
             }
             self.account_element(header)?;
@@ -212,6 +212,10 @@ impl<'input> Scanner<'input> {
                     .context("DICOM meta value length does not fit usize")?,
                 "DICOM file meta value",
             )?;
+            (self.visit)(Event::Meta {
+                header,
+                range: value_start..value_end,
+            })?;
             cursor = value_end;
         }
         if cursor != group_end {
@@ -226,13 +230,13 @@ impl<'input> Scanner<'input> {
         &mut self,
         start: usize,
         end: usize,
-        encoding: SyntaxEncoding,
+        encoding: Encoding,
         depth: u16,
     ) -> Result<usize> {
         let mut cursor = start;
         while cursor < end {
             let header = self.read_element_header(cursor, encoding)?;
-            if header.tag.group() == ITEM_GROUP {
+            if header.tag.group == ITEM_GROUP {
                 bail!("unexpected sequence item marker at byte {cursor}")
             }
             cursor = self.scan_element(cursor, end, encoding, depth, header)?;
@@ -243,13 +247,9 @@ impl<'input> Scanner<'input> {
         Ok(cursor)
     }
 
-    fn read_element_header(
-        &self,
-        cursor: usize,
-        encoding: SyntaxEncoding,
-    ) -> Result<ElementHeader> {
+    fn read_element_header(&self, cursor: usize, encoding: Encoding) -> Result<ElementHeader> {
         let tag = self.read_tag(cursor, encoding.byte_order)?;
-        if tag.group() == ITEM_GROUP {
+        if tag.group == ITEM_GROUP {
             bail!("sequence item marker cannot be read as a data element")
         }
         if encoding.implicit_vr {
@@ -259,7 +259,7 @@ impl<'input> Scanner<'input> {
             let length = self.read_field::<u32>(length_start, encoding.byte_order)?;
             return Ok(ElementHeader {
                 tag,
-                vr: VR::UN,
+                vr: dictionary::vr(tag, false),
                 length,
                 bytes: 8,
             });
@@ -268,8 +268,11 @@ impl<'input> Scanner<'input> {
             .checked_add(4)
             .context("DICOM value representation offset overflow")?;
         let vr_bytes = self.read_array::<2>(vr_start)?;
-        let vr = VR::from_binary(vr_bytes).unwrap_or(VR::UN);
-        let bytes = if uses_short_length(vr) { 8 } else { 12 };
+        if !vr_bytes.iter().all(u8::is_ascii_uppercase) {
+            bail!("invalid DICOM VR at byte {vr_start}");
+        }
+        let vr = std::str::from_utf8(&vr_bytes)?.parse().unwrap_or(VR::UN);
+        let bytes = if vr.long_length() { 12 } else { 8 };
         let length = if bytes == 8 {
             let length_start = cursor
                 .checked_add(6)
@@ -291,10 +294,10 @@ impl<'input> Scanner<'input> {
 
     fn next_tag_is_item(&self, cursor: usize) -> bool {
         self.read_tag(cursor, ByteOrder::LittleEndian)
-            .is_ok_and(|tag| tag == Tag(ITEM_GROUP, ITEM_ELEMENT))
+            .is_ok_and(|tag| tag == DicomTag::new(ITEM_GROUP, ITEM_ELEMENT))
     }
 
-    fn read_tag(&self, cursor: usize, order: ByteOrder) -> Result<Tag> {
+    fn read_tag(&self, cursor: usize, order: ByteOrder) -> Result<DicomTag> {
         let group = self.read_field::<u16>(cursor, order)?;
         let element = self.read_field::<u16>(
             cursor
@@ -302,7 +305,7 @@ impl<'input> Scanner<'input> {
                 .context("DICOM tag element offset overflow")?,
             order,
         )?;
-        Ok(Tag(group, element))
+        Ok(DicomTag::new(group, element))
     }
 
     fn read_field<T: EndianScalar>(&self, cursor: usize, order: ByteOrder) -> Result<T> {
@@ -397,33 +400,6 @@ impl<'input> Scanner<'input> {
     }
 }
 
-fn uses_short_length(vr: VR) -> bool {
-    matches!(
-        vr,
-        VR::AE
-            | VR::AS
-            | VR::AT
-            | VR::CS
-            | VR::DA
-            | VR::DS
-            | VR::DT
-            | VR::FL
-            | VR::FD
-            | VR::IS
-            | VR::LO
-            | VR::LT
-            | VR::PN
-            | VR::SH
-            | VR::SL
-            | VR::SS
-            | VR::ST
-            | VR::TM
-            | VR::UI
-            | VR::UL
-            | VR::US
-    )
-}
-
 #[cfg(test)]
 #[path = "tests_scan.rs"]
-mod tests;
+mod tests_scan;

@@ -1,13 +1,13 @@
 use super::super::types::SeriesFirstSeen;
 use super::{extract_dicom_metadata, parse_ds_array, GeometryDecimalError};
 use aequitas::systems::si::{quantities::Length, units::Millimeter};
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::{DefaultDicomObject, InMemDicomObject};
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
+use ritk_dicom::dataset::{Dataset, DicomFile};
 
-fn object(attributes: &[(Tag, &str)]) -> DefaultDicomObject {
-    let mut object = InMemDicomObject::new_empty();
+fn object(attributes: &[(DicomTag, &str)]) -> DicomFile {
+    let mut object = Dataset::new();
     object.put(DataElement::new(
-        Tag(0x0028, 0x0101),
+        DicomTag::new(0x0028, 0x0101),
         VR::US,
         PrimitiveValue::from(16_u16),
     ));
@@ -20,7 +20,7 @@ fn object(attributes: &[(Tag, &str)]) -> DefaultDicomObject {
     }
     object
         .with_meta(
-            dicom::object::meta::FileMetaTableBuilder::new()
+            ritk_dicom::dataset::FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
                 .media_storage_sop_instance_uid("2.25.1")
                 .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -39,9 +39,9 @@ fn malformed_components_never_shift_into_geometry() {
         ["3\\inf", "-inf\\20\\30", "1\\0\\0\\0\\1\\inf"],
     ] {
         let input = object(&[
-            (Tag(0x0028, 0x0030), values[0]),
-            (Tag(0x0020, 0x0032), values[1]),
-            (Tag(0x0020, 0x0037), values[2]),
+            (DicomTag::new(0x0028, 0x0030), values[0]),
+            (DicomTag::new(0x0020, 0x0032), values[1]),
+            (DicomTag::new(0x0020, 0x0037), values[2]),
         ]);
         let mut first = SeriesFirstSeen::default();
         let (slice, _) = extract_dicom_metadata(&input, "slice.dcm".into(), &mut first)
@@ -55,11 +55,11 @@ fn malformed_components_never_shift_into_geometry() {
 
 #[test]
 fn exact_finite_geometry_preserves_values_and_later_spacing() {
-    let malformed = object(&[(Tag(0x0028, 0x0030), "3\\bad\\5")]);
+    let malformed = object(&[(DicomTag::new(0x0028, 0x0030), "3\\bad\\5")]);
     let valid = object(&[
-        (Tag(0x0028, 0x0030), " 3 \\ +5e0 "),
-        (Tag(0x0020, 0x0032), "10\\-20\\30"),
-        (Tag(0x0020, 0x0037), "1\\0\\0\\0\\1\\0"),
+        (DicomTag::new(0x0028, 0x0030), " 3 \\ +5e0 "),
+        (DicomTag::new(0x0020, 0x0032), "10\\-20\\30"),
+        (DicomTag::new(0x0020, 0x0037), "1\\0\\0\\0\\1\\0"),
     ]);
     let mut first = SeriesFirstSeen::default();
     let (rejected, _) = extract_dicom_metadata(&malformed, "first.dcm".into(), &mut first)
@@ -99,9 +99,9 @@ fn missing_geometry_stays_absent() {
 
 #[test]
 fn string_and_sequence_representations_do_not_hide_bad_geometry() {
-    use dicom::core::value::{DataSetSequence, Value};
+    use ritk_dicom::dataset::{Sequence, Value};
 
-    let spacing = Tag(0x0028, 0x0030);
+    let spacing = DicomTag::new(0x0028, 0x0030);
     let mut input = object(&[]);
     input.put(DataElement::new(
         spacing,
@@ -123,7 +123,7 @@ fn string_and_sequence_representations_do_not_hide_bad_geometry() {
     input.put(DataElement::new(
         spacing,
         VR::SQ,
-        Value::Sequence(DataSetSequence::from(vec![InMemDicomObject::new_empty()])),
+        Value::Sequence(Sequence::from(vec![Dataset::new()])),
     ));
     let mut first = SeriesFirstSeen::default();
     let (slice, _) = extract_dicom_metadata(&input, "slice.dcm".into(), &mut first)
@@ -178,13 +178,16 @@ fn part10_scan_uses_the_first_valid_spacing_without_repairing_bad_values() {
         ] {
             let path = directory.path().join(filename);
             write_stub_dicom(&path, "1.2.840.10008.5.1.4.1.1.2", uid);
-            let mut input = dicom::object::open_file(&path)
+            let mut input = ritk_dicom::dataset::DicomFile::open(&path)
                 .expect("invariant: generated Part-10 fixture is readable");
-            for (tag, size) in [(Tag(0x0028, 0x0010), 2_u16), (Tag(0x0028, 0x0011), 3)] {
+            for (tag, size) in [
+                (DicomTag::new(0x0028, 0x0010), 2_u16),
+                (DicomTag::new(0x0028, 0x0011), 3),
+            ] {
                 input.put(DataElement::new(tag, VR::US, PrimitiveValue::from(size)));
             }
             input.put(DataElement::new(
-                Tag(0x0028, 0x0030),
+                DicomTag::new(0x0028, 0x0030),
                 VR::DS,
                 PrimitiveValue::from(spacing),
             ));

@@ -1,12 +1,10 @@
 //! Typed DICOM attribute access owned by RITK.
 //!
-//! This module keeps backend-specific object access behind the `ritk-dicom`
-//! boundary so consumers do not depend on dicom-rs tags or object APIs.
+//! This module keeps dataset access behind the `ritk-dicom`
+//! boundary so consumers use one tag and value representation.
 
+use crate::dataset::{DicomFile, Value};
 use anyhow::{Context, Result};
-use dicom::core::value::DicomValueType;
-use dicom::core::Tag;
-use dicom::object::DefaultDicomObject;
 
 /// DICOM tag in `(group, element)` form.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -24,13 +22,23 @@ impl DicomTag {
     pub const fn new(group: u16, element: u16) -> Self {
         Self { group, element }
     }
+
+    /// The hexadecimal group and element without display punctuation.
+    pub fn canonical(self) -> String {
+        format!("{:04X},{:04X}", self.group, self.element)
+    }
 }
 
-impl From<DicomTag> for Tag {
-    #[inline]
-    fn from(value: DicomTag) -> Self {
-        Self(value.group, value.element)
+impl std::fmt::Display for DicomTag {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "({:04X},{:04X})", self.group, self.element)
     }
+}
+
+/// Private DICOM groups have odd group numbers.
+#[inline]
+pub const fn is_private_tag(tag: DicomTag) -> bool {
+    tag.group % 2 == 1
 }
 
 /// Common DICOM image tags used by imaging consumers.
@@ -79,8 +87,29 @@ pub mod tags {
 
     // ── Identification ────────────────────────────────────────────────
 
+    /// Specific Character Set (0008,0005).
+    pub const SPECIFIC_CHARACTER_SET: DicomTag = DicomTag::new(0x0008, 0x0005);
+    /// SOP Class UID (0008,0016).
+    pub const SOP_CLASS_UID: DicomTag = DicomTag::new(0x0008, 0x0016);
+    /// Modality (0008,0060).
+    pub const MODALITY: DicomTag = DicomTag::new(0x0008, 0x0060);
+    /// Series Description (0008,103E).
+    pub const SERIES_DESCRIPTION: DicomTag = DicomTag::new(0x0008, 0x103E);
+    /// Patient ID (0010,0020).
+    pub const PATIENT_ID: DicomTag = DicomTag::new(0x0010, 0x0020);
+    /// Series Instance UID (0020,000E).
+    pub const SERIES_INSTANCE_UID: DicomTag = DicomTag::new(0x0020, 0x000E);
+
     /// Instance Number (0020,0013).
     pub const INSTANCE_NUMBER: DicomTag = DicomTag::new(0x0020, 0x0013);
+    /// SOP Instance UID (0008,0018).
+    pub const SOP_INSTANCE_UID: DicomTag = DicomTag::new(0x0008, 0x0018);
+    /// Study Instance UID (0020,000D).
+    pub const STUDY_INSTANCE_UID: DicomTag = DicomTag::new(0x0020, 0x000D);
+    /// Slice Location (0020,1041).
+    pub const SLICE_LOCATION: DicomTag = DicomTag::new(0x0020, 0x1041);
+    /// Photometric Interpretation (0028,0004).
+    pub const PHOTOMETRIC_INTERPRETATION: DicomTag = DicomTag::new(0x0028, 0x0004);
 }
 
 /// Typed attribute reads over a parsed DICOM object.
@@ -127,7 +156,7 @@ pub trait DicomAttributeRead {
     fn transfer_syntax_uid(&self) -> &str;
 }
 
-fn require_scalar(value: &impl DicomValueType, tag: DicomTag, name: &str) -> Result<()> {
+fn require_scalar(value: &Value, tag: DicomTag, name: &str) -> Result<()> {
     let cardinality = value.cardinality();
     if cardinality != 1 {
         anyhow::bail!(
@@ -139,54 +168,54 @@ fn require_scalar(value: &impl DicomValueType, tag: DicomTag, name: &str) -> Res
     Ok(())
 }
 
-impl DicomAttributeRead for DefaultDicomObject {
+impl DicomAttributeRead for DicomFile {
     fn required_unsigned(&self, tag: DicomTag, name: &'static str) -> Result<u16> {
         let element = self
-            .element(Tag::from(tag))
+            .element(tag)
             .with_context(|| format!("missing {name}"))?;
         require_scalar(element.value(), tag, name)?;
         element
             .value()
-            .to_int::<u16>()
+            .to_num::<u16>()
             .with_context(|| format!("decode {name} as unsigned scalar"))
     }
 
     fn optional_unsigned(&self, tag: DicomTag, name: &'static str) -> Result<Option<u16>> {
-        let Ok(element) = self.element(Tag::from(tag)) else {
+        let Ok(element) = self.element(tag) else {
             return Ok(None);
         };
         require_scalar(element.value(), tag, name)?;
         element
             .value()
-            .to_int::<u16>()
+            .to_num::<u16>()
             .map(Some)
             .with_context(|| format!("decode {name} as unsigned scalar"))
     }
 
     fn optional_decimal(&self, tag: DicomTag, name: &'static str) -> Result<Option<f64>> {
-        let Ok(element) = self.element(Tag::from(tag)) else {
+        let Ok(element) = self.element(tag) else {
             return Ok(None);
         };
         element
             .value()
-            .to_float64()
+            .to_num::<f64>()
             .map(Some)
             .with_context(|| format!("decode {name} as decimal scalar"))
     }
 
     fn optional_decimal_vec(&self, tag: DicomTag, name: &'static str) -> Result<Option<Vec<f64>>> {
-        let Ok(element) = self.element(Tag::from(tag)) else {
+        let Ok(element) = self.element(tag) else {
             return Ok(None);
         };
         element
             .value()
-            .to_multi_float64()
+            .to_numbers::<f64>()
             .map(Some)
             .with_context(|| format!("decode {name} as decimal vector"))
     }
 
     fn optional_bytes(&self, tag: DicomTag, _name: &'static str) -> Result<Option<Vec<u8>>> {
-        let Ok(element) = self.element(Tag::from(tag)) else {
+        let Ok(element) = self.element(tag) else {
             return Ok(None);
         };
         let bytes = element
@@ -207,19 +236,17 @@ impl DicomAttributeRead for DefaultDicomObject {
 mod tests {
     #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
-    use dicom::core::smallvec::SmallVec;
-    use dicom::core::{DataElement, PrimitiveValue, VR};
-    use dicom::object::InMemDicomObject;
+    use crate::dataset::Dataset;
+    use crate::dataset::SmallVec;
+    use crate::dataset::{DataElement, PrimitiveValue, VR};
 
-    fn object_with(
-        elements: impl IntoIterator<Item = DataElement<InMemDicomObject>>,
-    ) -> DefaultDicomObject {
-        let mut obj = InMemDicomObject::new_empty();
+    fn object_with(elements: impl IntoIterator<Item = DataElement>) -> DicomFile {
+        let mut obj = Dataset::new();
         for element in elements {
             obj.put(element);
         }
         obj.with_meta(
-            dicom::object::meta::FileMetaTableBuilder::new()
+            crate::dataset::FileMetaBuilder::new()
                 .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
                 .media_storage_sop_instance_uid("2.25.1")
                 .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -230,9 +257,9 @@ mod tests {
     #[test]
     fn reads_unsigned_decimal_and_transfer_syntax_values() {
         let obj = object_with([
-            DataElement::new(Tag::from(tags::ROWS), VR::US, PrimitiveValue::from(7_u16)),
+            DataElement::new(tags::ROWS, VR::US, PrimitiveValue::from(7_u16)),
             DataElement::new(
-                Tag::from(tags::PIXEL_SPACING),
+                tags::PIXEL_SPACING,
                 VR::DS,
                 PrimitiveValue::Strs(SmallVec::from_vec(vec![
                     "0.8".to_owned(),
@@ -240,7 +267,7 @@ mod tests {
                 ])),
             ),
             DataElement::new(
-                Tag::from(tags::IMAGE_ORIENTATION_PATIENT),
+                tags::IMAGE_ORIENTATION_PATIENT,
                 VR::DS,
                 PrimitiveValue::Strs(SmallVec::from_vec(vec![
                     "1".to_owned(),
@@ -278,7 +305,7 @@ mod tests {
         );
 
         let malformed = object_with([DataElement::new(
-            Tag::from(tags::SAMPLES_PER_PIXEL),
+            tags::SAMPLES_PER_PIXEL,
             VR::US,
             PrimitiveValue::from("not-an-integer"),
         )]);
@@ -294,7 +321,7 @@ mod tests {
     #[test]
     fn required_unsigned_rejects_multiple_values() {
         let object = object_with([DataElement::new(
-            Tag::from(tags::BITS_STORED),
+            tags::BITS_STORED,
             VR::US,
             PrimitiveValue::U16([12_u16, 16][..].into()),
         )]);

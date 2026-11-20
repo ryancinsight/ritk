@@ -7,15 +7,15 @@ use super::pixel_encoding::{
     MONOCHROME2,
 };
 use super::pixel_preflight::preflight_native_pixel_data;
-use crate::format::dicom::writer::elements::PutValue;
+
 use anyhow::{Context, Result};
 use coeus_core::MoiraiBackend;
-use dicom::core::smallvec::SmallVec;
-use dicom::core::{PrimitiveValue, Tag, VR};
-use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::InMemDicomObject;
 use eunomia::FloatElement;
 use ritk_core::image::Image;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::FileMetaBuilder;
+use ritk_dicom::dataset::SmallVec;
+use ritk_dicom::dataset::{DicomTag, PrimitiveValue, VR};
 use ritk_image::tensor::Backend;
 use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -197,60 +197,88 @@ fn write_series_flat(
             geom.origin[1] + zf * slice_spacing * dir_depth[1],
             geom.origin[2] + zf * slice_spacing * dir_depth[2],
         ];
-        let mut obj = InMemDicomObject::new_empty();
+        let mut obj = Dataset::new();
         obj.put_value(
-            Tag(0x0008, 0x0016),
+            DicomTag::new(0x0008, 0x0016),
             VR::UI,
             DICOM_SOP_CLASS_SECONDARY_CAPTURE,
         );
-        obj.put_value(Tag(0x0008, 0x0018), VR::UI, sop_instance_uid.as_str());
-        obj.put_value(Tag(0x0008, 0x0060), VR::CS, "OT");
-        obj.put_value(Tag(0x0008, 0x0064), VR::CS, "WSD");
-        obj.put_value(Tag(0x0020, 0x000D), VR::UI, study_uid.as_str());
-        obj.put_value(Tag(0x0020, 0x000E), VR::UI, series_instance_uid.as_str());
-        obj.put_value(Tag(0x0020, 0x0013), VR::IS, format!("{}", z + 1));
+        obj.put_value(
+            DicomTag::new(0x0008, 0x0018),
+            VR::UI,
+            sop_instance_uid.as_str(),
+        );
+        obj.put_value(DicomTag::new(0x0008, 0x0060), VR::CS, "OT");
+        obj.put_value(DicomTag::new(0x0008, 0x0064), VR::CS, "WSD");
+        obj.put_value(DicomTag::new(0x0020, 0x000D), VR::UI, study_uid.as_str());
+        obj.put_value(
+            DicomTag::new(0x0020, 0x000E),
+            VR::UI,
+            series_instance_uid.as_str(),
+        );
+        obj.put_value(DicomTag::new(0x0020, 0x0013), VR::IS, format!("{}", z + 1));
         // PS3.3 C.7.1.1 Patient Module (Type 2 => present with empty value when unknown).
-        obj.put_value(Tag(0x0008, 0x0090), VR::PN, "");
-        obj.put_value(Tag(0x0010, 0x0010), VR::PN, "");
-        obj.put_value(Tag(0x0010, 0x0020), VR::LO, "");
+        obj.put_value(DicomTag::new(0x0008, 0x0090), VR::PN, "");
+        obj.put_value(DicomTag::new(0x0010, 0x0010), VR::PN, "");
+        obj.put_value(DicomTag::new(0x0010, 0x0020), VR::LO, "");
         // PS3.3 C.7.2.1 General Study Module (Type 2).
-        obj.put_value(Tag(0x0008, 0x0020), VR::DA, "");
+        obj.put_value(DicomTag::new(0x0008, 0x0020), VR::DA, "");
         // PS3.3 C.7.3.1 General Series Module: SeriesNumber (Type 2).
-        obj.put_value(Tag(0x0020, 0x0011), VR::IS, "0");
+        obj.put_value(DicomTag::new(0x0020, 0x0011), VR::IS, "0");
         // PS3.3 C.7.6.2 Image Plane Module: spatial geometry (round-trips
         // through the series reader; see `write_dicom_series_native` docs).
         obj.put_value(
-            Tag(0x0018, 0x0050),
+            DicomTag::new(0x0018, 0x0050),
             VR::DS,
             format_dicom_decimal(slice_spacing)?,
         );
-        obj.put_value(Tag(0x0020, 0x0032), VR::DS, format_triplet(image_position)?);
-        obj.put_value(Tag(0x0020, 0x0037), VR::DS, format_six(orientation)?);
-        obj.put_value(Tag(0x0028, 0x0030), VR::DS, format_pair(pixel_spacing)?);
-        obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
-        obj.put_value(Tag(0x0028, 0x0010), VR::US, dimensions.rows_attribute);
-        obj.put_value(Tag(0x0028, 0x0011), VR::US, dimensions.columns_attribute);
+        obj.put_value(
+            DicomTag::new(0x0020, 0x0032),
+            VR::DS,
+            format_triplet(image_position)?,
+        );
+        obj.put_value(
+            DicomTag::new(0x0020, 0x0037),
+            VR::DS,
+            format_six(orientation)?,
+        );
+        obj.put_value(
+            DicomTag::new(0x0028, 0x0030),
+            VR::DS,
+            format_pair(pixel_spacing)?,
+        );
+        obj.put_value(DicomTag::new(0x0028, 0x0002), VR::US, 1_u16);
+        obj.put_value(
+            DicomTag::new(0x0028, 0x0010),
+            VR::US,
+            dimensions.rows_attribute,
+        );
+        obj.put_value(
+            DicomTag::new(0x0028, 0x0011),
+            VR::US,
+            dimensions.columns_attribute,
+        );
         emit_pixel_format_tags::<u16>(&mut obj);
         obj.put_value(
-            Tag(0x0028, 0x1053),
+            DicomTag::new(0x0028, 0x1053),
             VR::DS,
             format_dicom_decimal(f64::from(rescale_slope))?,
         );
         obj.put_value(
-            Tag(0x0028, 0x1052),
+            DicomTag::new(0x0028, 0x1052),
             VR::DS,
             format_dicom_decimal(f64::from(rescale_intercept))?,
         );
-        obj.put_value(Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
+        obj.put_value(DicomTag::new(0x0028, 0x0004), VR::CS, MONOCHROME2);
         obj.put_value(
-            Tag(0x7FE0, 0x0010),
+            DicomTag::new(0x7FE0, 0x0010),
             VR::OW,
             PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
         );
         preflight_native_pixel_data(&obj)?;
         let file_obj = obj
             .with_meta(
-                FileMetaTableBuilder::new()
+                FileMetaBuilder::new()
                     .media_storage_sop_class_uid(DICOM_SOP_CLASS_SECONDARY_CAPTURE)
                     .media_storage_sop_instance_uid(sop_instance_uid.as_str())
                     .transfer_syntax(EXPLICIT_VR_LE),

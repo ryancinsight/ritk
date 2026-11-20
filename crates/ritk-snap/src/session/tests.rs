@@ -39,7 +39,7 @@ fn canonical_snapshot_no_annotations() -> ViewerSessionSnapshot {
 ///
 /// The stored length deliberately differs from the 3-4-5 endpoint geometry;
 /// persistence must retain historical results instead of recomputing them.
-fn all_annotation_variants() -> Vec<Annotation> {
+pub(super) fn all_annotation_variants() -> Vec<Annotation> {
     vec![
         Annotation::Length {
             plane: 0,
@@ -52,8 +52,8 @@ fn all_annotation_variants() -> Vec<Annotation> {
             plane: 2,
             location: None,
             length: PatientLength::try_new(
-                PatientPointMm::try_new([1.0, 2.0, 3.0]).expect("finite patient point"),
-                PatientPointMm::try_new([4.0, 6.0, 3.0]).expect("finite patient point"),
+                PatientPointMm::try_new([0.0, 0.0, 0.0]).expect("finite patient point"),
+                PatientPointMm::try_new([3.0, 4.0, 0.0]).expect("finite patient point"),
             )
             .expect("3-4-5 segment is representable"),
         },
@@ -179,6 +179,8 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
     );
 
     let json = serde_json::to_string_pretty(&snapshot).expect("serialize snapshot");
+    let serialized: serde_json::Value = serde_json::from_str(&json).expect("parse session JSON");
+    assert_eq!(serialized["format"], 3);
     let recovered: ViewerSessionSnapshot =
         serde_json::from_str(&json).expect("deserialize snapshot");
 
@@ -208,8 +210,8 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
     match &recovered.annotations[1] {
         Annotation::PatientLength { plane, length, .. } => {
             assert_eq!(*plane, 2, "non-default plane round-trips");
-            assert_eq!(length.start_mm().coordinates(), [1.0, 2.0, 3.0]);
-            assert_eq!(length.end_mm().coordinates(), [4.0, 6.0, 3.0]);
+            assert_eq!(length.start_mm().coordinates(), [0.0, 0.0, 0.0]);
+            assert_eq!(length.end_mm().coordinates(), [3.0, 4.0, 0.0]);
             assert_eq!(length.length_mm(), 5.0);
         }
         other => panic!("expected PatientLength, got {:?}", other),
@@ -372,7 +374,7 @@ fn unique_temp_path(stem: &str, extension: &str) -> std::path::PathBuf {
 #[test]
 fn session_formats_preserve_values_and_reject_unknown_versions() {
     let mut snapshot = canonical_snapshot_no_annotations();
-    let mut legacy_annotations = all_annotation_variants()
+    let legacy_annotations = all_annotation_variants()
         .into_iter()
         .filter(|annotation| {
             matches!(
@@ -385,10 +387,6 @@ fn session_formats_preserve_values_and_reject_unknown_versions() {
             )
         })
         .collect::<Vec<_>>();
-    let Annotation::Length { length_mm, .. } = &mut legacy_annotations[0] else {
-        panic!("first legacy annotation is the length fixture");
-    };
-    *length_mm = 5.0;
     snapshot.annotations = legacy_annotations;
     let unversioned: serde_json::Value =
         serde_json::from_str(include_str!("../../tests/fixtures/session-v1.json"))
@@ -398,6 +396,10 @@ fn session_formats_preserve_values_and_reject_unknown_versions() {
         serde_json::from_value::<ViewerSessionSnapshot>(unversioned.clone())
             .expect("unversioned format 1 session loads");
     assert_eq!(recovered_unversioned, expected_one);
+    assert_eq!(
+        serde_json::to_value(&recovered_unversioned).expect("serialize migrated session")["format"],
+        3
+    );
 
     let mut version_one = unversioned;
     version_one["format"] = serde_json::json!(1);
@@ -453,3 +455,6 @@ fn current_session_round_trips_pencil_samples_and_image() {
 
 #[path = "tests/representation.rs"]
 mod representation;
+
+#[path = "tests/annotation_wire.rs"]
+mod annotation_wire;

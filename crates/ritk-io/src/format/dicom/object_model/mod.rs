@@ -16,7 +16,6 @@
 //!
 //! ```text
 //! object_model/
-//! ├── tag.rs          — DicomTag, is_private_tag
 //! ├── types.rs        — DicomValue, DicomSequenceItem, DicomObjectNode (co-located: mutual recursion)
 //! ├── model.rs        — DicomObjectModel
 //! └── preservation.rs — DicomPreservedElement, DicomRetentionLoss, DicomPreservationSet
@@ -24,14 +23,13 @@
 
 mod model;
 mod preservation;
-mod tag;
 mod types;
 
 pub use model::DicomObjectModel;
 pub use preservation::{
     DicomPreservationSet, DicomPreservedElement, DicomRetentionLoss, DicomRetentionReason,
 };
-pub use tag::{is_private_tag, DicomTag};
+pub use ritk_dicom::{is_private_tag, DicomTag};
 pub use types::{DicomElementClass, DicomObjectNode, DicomSequenceItem, DicomValue};
 
 #[cfg(test)]

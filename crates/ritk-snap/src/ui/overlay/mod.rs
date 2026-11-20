@@ -14,8 +14,9 @@
 //! └─────────────────────────────────────────┘
 //! ```
 //!
-//! Orientation letters follow the convention documented on
-//! [`crate::ui::coordinate_system::orientation_labels`].
+//! Orientation letters use the LPS patient-coordinate convention: the
+//! dominant direction-cosine component selects L/R, A/P, or S/I, and its sign
+//! selects the facing edge.
 
 use egui::{Align2, Color32, FontId, Painter, Pos2, Rect};
 

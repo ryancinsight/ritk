@@ -7,16 +7,16 @@
 //! size the scanner measures.
 
 use super::*;
-use dicom::core::Tag;
-use dicom::object::DefaultDicomObject;
-use ritk_dicom::{parse_file_with, DicomRsBackend, TransferSyntaxKind};
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::dataset::DicomTag;
+use ritk_dicom::{parse_file_with, NativeBackend, TransferSyntaxKind};
 
-fn assert_pixel_format(object: &DefaultDicomObject, bits_allocated: u16) {
+fn assert_pixel_format(object: &DicomFile, bits_allocated: u16) {
     for (tag, expected) in [
-        (Tag(0x0028, 0x0100), bits_allocated),
-        (Tag(0x0028, 0x0101), bits_allocated),
-        (Tag(0x0028, 0x0102), bits_allocated - 1),
-        (Tag(0x0028, 0x0103), 0),
+        (DicomTag::new(0x0028, 0x0100), bits_allocated),
+        (DicomTag::new(0x0028, 0x0101), bits_allocated),
+        (DicomTag::new(0x0028, 0x0102), bits_allocated - 1),
+        (DicomTag::new(0x0028, 0x0103), 0),
     ] {
         let actual = object
             .element(tag)
@@ -44,7 +44,7 @@ fn test_write_multiframe_jpegls_lossless_round_trip() {
     write_dicom_multiframe_native_with_config(&out_path, &image, &config)
         .expect("JPEG-LS multiframe write");
 
-    let object = parse_file_with::<DicomRsBackend, _>(&out_path).expect("parse file");
+    let object = parse_file_with::<NativeBackend, _>(&out_path).expect("parse file");
     assert_pixel_format(&object, 16);
     let ts_uid = object.meta().transfer_syntax().to_owned();
     assert_eq!(ts_uid, TransferSyntaxKind::JpegLsLossless.uid());
@@ -73,7 +73,7 @@ fn test_write_multiframe_jpeg2000_lossless_round_trip() {
     write_dicom_multiframe_native_with_config(&out_path, &image, &config)
         .expect("JPEG 2000 multiframe write");
 
-    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+    let ts_uid = parse_file_with::<NativeBackend, _>(&out_path)
         .expect("parse file")
         .meta()
         .transfer_syntax()
@@ -104,7 +104,7 @@ fn test_write_multiframe_rle_lossless_round_trip() {
     write_dicom_multiframe_native_with_config(&out_path, &image, &config)
         .expect("RLE multiframe write");
 
-    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+    let ts_uid = parse_file_with::<NativeBackend, _>(&out_path)
         .expect("parse file")
         .meta()
         .transfer_syntax()
@@ -137,7 +137,7 @@ fn test_write_multiframe_jpeg_baseline_round_trip() {
     write_dicom_multiframe_native_with_config(&out_path, &image, &config)
         .expect("JPEG baseline multiframe write");
 
-    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+    let ts_uid = parse_file_with::<NativeBackend, _>(&out_path)
         .expect("parse file")
         .meta()
         .transfer_syntax()
@@ -171,12 +171,12 @@ fn test_write_multiframe_jpeg_baseline_declares_eight_bit_pixel_format() {
     write_dicom_multiframe_native_with_config(&out_path, &image, &config)
         .expect("JPEG baseline multiframe write");
 
-    let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("parse file");
+    let obj = parse_file_with::<NativeBackend, _>(&out_path).expect("parse file");
     assert_pixel_format(&obj, 8);
     // Baseline JPEG carries eight-bit samples; the 16-bit tags would describe a
     // pixel format the fragments do not contain.
     assert_eq!(
-        obj.element(Tag(0x0028, 0x0100))
+        obj.element(DicomTag::new(0x0028, 0x0100))
             .expect("BitsAllocated")
             .to_str()
             .expect("US renders as text")
@@ -186,7 +186,7 @@ fn test_write_multiframe_jpeg_baseline_declares_eight_bit_pixel_format() {
         8
     );
     assert_eq!(
-        obj.element(Tag(0x0028, 0x0101))
+        obj.element(DicomTag::new(0x0028, 0x0101))
             .expect("BitsStored")
             .to_str()
             .expect("US renders as text")
@@ -196,7 +196,7 @@ fn test_write_multiframe_jpeg_baseline_declares_eight_bit_pixel_format() {
         8
     );
     assert_eq!(
-        obj.element(Tag(0x0028, 0x0102))
+        obj.element(DicomTag::new(0x0028, 0x0102))
             .expect("HighBit")
             .to_str()
             .expect("US renders as text")
@@ -206,7 +206,7 @@ fn test_write_multiframe_jpeg_baseline_declares_eight_bit_pixel_format() {
         7
     );
     assert_eq!(
-        obj.element(Tag(0x0028, 0x0103))
+        obj.element(DicomTag::new(0x0028, 0x0103))
             .expect("PixelRepresentation")
             .to_str()
             .expect("US renders as text")
@@ -231,7 +231,7 @@ fn test_write_multiframe_jpeg_ls_lossy_round_trip() {
     write_dicom_multiframe_native_with_config(&out_path, &image, &config)
         .expect("JPEG-LS lossy multiframe write");
 
-    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+    let ts_uid = parse_file_with::<NativeBackend, _>(&out_path)
         .expect("parse file")
         .meta()
         .transfer_syntax()
@@ -265,7 +265,7 @@ fn test_write_multiframe_jpeg2000_lossy_round_trip() {
     write_dicom_multiframe_native_with_config(&out_path, &image, &config)
         .expect("JPEG 2000 lossy multiframe write");
 
-    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+    let ts_uid = parse_file_with::<NativeBackend, _>(&out_path)
         .expect("parse file")
         .meta()
         .transfer_syntax()
@@ -298,7 +298,7 @@ fn test_write_multiframe_jpeg_lossless_round_trip_is_bit_exact() {
     write_dicom_multiframe_native_with_config(&out_path, &image, &config)
         .expect("JPEG lossless multiframe write");
 
-    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+    let ts_uid = parse_file_with::<NativeBackend, _>(&out_path)
         .expect("parse file")
         .meta()
         .transfer_syntax()
@@ -366,7 +366,7 @@ fn test_write_multiframe_jpeg_lossless_non_hierarchical_round_trip() {
     write_dicom_multiframe_native_with_config(&out_path, &image, &config)
         .expect("JPEG lossless non-hierarchical multiframe write");
 
-    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+    let ts_uid = parse_file_with::<NativeBackend, _>(&out_path)
         .expect("parse file")
         .meta()
         .transfer_syntax()

@@ -4,120 +4,118 @@ use super::super::scan::scan_dicom_directory;
 use super::support::*;
 #[test]
 fn test_scan_directory_rejects_ambiguous_series_regardless_of_population() {
-    use dicom::core::smallvec::SmallVec;
-
     let dir = tempfile::tempdir().unwrap();
 
     // Write a minimal CT DICOM file with the given SeriesInstanceUID, instance
     // number, and z-position (used for IPP and sort ordering).
     let write_ct_slice = |path: &std::path::Path, series_uid: &str, instance: u32, z: f64| {
         let sop_instance_uid = format!("{}.{}", series_uid, instance);
-        let mut obj = InMemDicomObject::new_empty();
+        let mut obj = Dataset::new();
         // SOP class: CT Image Storage
         obj.put(DataElement::new(
-            Tag(0x0008, 0x0016),
+            DicomTag::new(0x0008, 0x0016),
             VR::UI,
             PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
         ));
         obj.put(DataElement::new(
-            Tag(0x0008, 0x0018),
+            DicomTag::new(0x0008, 0x0018),
             VR::UI,
             PrimitiveValue::from(sop_instance_uid.as_str()),
         ));
         obj.put(DataElement::new(
-            Tag(0x0008, 0x0060),
+            DicomTag::new(0x0008, 0x0060),
             VR::CS,
             PrimitiveValue::from("CT"),
         ));
         // SeriesInstanceUID (0020,000E) — the tag under test.
         obj.put(DataElement::new(
-            Tag(0x0020, 0x000E),
+            DicomTag::new(0x0020, 0x000E),
             VR::UI,
             PrimitiveValue::from(series_uid),
         ));
         // StudyInstanceUID
         obj.put(DataElement::new(
-            Tag(0x0020, 0x000D),
+            DicomTag::new(0x0020, 0x000D),
             VR::UI,
             PrimitiveValue::from("1.2.3.4.5"),
         ));
         // InstanceNumber
         obj.put(DataElement::new(
-            Tag(0x0020, 0x0013),
+            DicomTag::new(0x0020, 0x0013),
             VR::IS,
             PrimitiveValue::from(format!("{}", instance).as_str()),
         ));
         // ImagePositionPatient (0020,0032): 0.0\0.0\z
         obj.put(DataElement::new(
-            Tag(0x0020, 0x0032),
+            DicomTag::new(0x0020, 0x0032),
             VR::DS,
             PrimitiveValue::from(format!("0.0\\0.0\\{:.1}", z).as_str()),
         ));
         // ImageOrientationPatient (0020,0037): axial [1,0,0,0,1,0]
         obj.put(DataElement::new(
-            Tag(0x0020, 0x0037),
+            DicomTag::new(0x0020, 0x0037),
             VR::DS,
             PrimitiveValue::from("1.0\\0.0\\0.0\\0.0\\1.0\\0.0"),
         ));
         // Rows / Cols: 8×8
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0010),
+            DicomTag::new(0x0028, 0x0010),
             VR::US,
             PrimitiveValue::from(8_u16),
         ));
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0011),
+            DicomTag::new(0x0028, 0x0011),
             VR::US,
             PrimitiveValue::from(8_u16),
         ));
         // BitsAllocated / BitsStored / HighBit / PixelRepresentation
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0100),
+            DicomTag::new(0x0028, 0x0100),
             VR::US,
             PrimitiveValue::from(16_u16),
         ));
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0101),
+            DicomTag::new(0x0028, 0x0101),
             VR::US,
             PrimitiveValue::from(16_u16),
         ));
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0102),
+            DicomTag::new(0x0028, 0x0102),
             VR::US,
             PrimitiveValue::from(15_u16),
         ));
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0103),
+            DicomTag::new(0x0028, 0x0103),
             VR::US,
             PrimitiveValue::from(0_u16),
         ));
         // SamplesPerPixel / PhotometricInterpretation
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0002),
+            DicomTag::new(0x0028, 0x0002),
             VR::US,
             PrimitiveValue::from(1_u16),
         ));
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0004),
+            DicomTag::new(0x0028, 0x0004),
             VR::CS,
             PrimitiveValue::from("MONOCHROME2"),
         ));
         // PixelSpacing: 1.0\1.0
         obj.put(DataElement::new(
-            Tag(0x0028, 0x0030),
+            DicomTag::new(0x0028, 0x0030),
             VR::DS,
             PrimitiveValue::from("1.0\\1.0"),
         ));
         // PixelData: 8×8 × 2 bytes = 128 bytes of zeroes
         let pixel_bytes: Vec<u8> = vec![0u8; 8 * 8 * 2];
         obj.put(DataElement::new(
-            Tag(0x7FE0, 0x0010),
+            DicomTag::new(0x7FE0, 0x0010),
             VR::OW,
-            PrimitiveValue::U8(SmallVec::from_vec(pixel_bytes)),
+            PrimitiveValue::from(pixel_bytes),
         ));
         let file_obj = obj
             .with_meta(
-                FileMetaTableBuilder::new()
+                FileMetaBuilder::new()
                     .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
                     .media_storage_sop_instance_uid(sop_instance_uid.as_str())
                     .transfer_syntax("1.2.840.10008.1.2.1"),

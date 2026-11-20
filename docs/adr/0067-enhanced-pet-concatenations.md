@@ -1,4 +1,4 @@
-# ADR 0065: Reconstruct Enhanced PET concatenations
+# ADR 0067: Reconstruct Enhanced PET concatenations
 
 - Status: Proposed
 - Class: [minor]

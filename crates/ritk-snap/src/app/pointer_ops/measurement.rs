@@ -1,6 +1,9 @@
 //! Completed measurements and slice geometry.
 
+use super::super::state::MeasurementSpacingState;
 use super::SnapApp;
+#[cfg(windows)]
+use crate::tools::interaction::ImageMeasurementScale;
 use crate::tools::interaction::{
     Annotation, AnnotationLocation, ImagePoint, MeasurementError, PolygonKind, ToolState,
 };
@@ -114,7 +117,8 @@ impl SnapApp {
                 });
                 #[cfg(windows)]
                 let length_mm =
-                    f64::from(length_mm) * self.length_scale(Some(self.annotation_location()));
+                    ImageMeasurementScale::new(self.length_scale(Some(self.annotation_location())))
+                        .length(length_mm);
                 self.status_message = format!("Length: {length_mm:.2} mm");
             }
             Err(error) => {
@@ -243,12 +247,24 @@ impl SnapApp {
         let Some(vol) = &self.loaded else {
             return Err(MeasurementError::MissingVolume);
         };
-        let [dz, dy, dx] = vol.spacing;
-        let spacing = match self.axis {
-            0 => [dy, dx],
-            1 => [dz, dx],
-            _ => [dz, dy],
+        let (in_plane_spacing, slice_spacing) = match self.measurement_pixel_spacing {
+            MeasurementSpacingState::Qualified { in_plane, slice } => (Some(in_plane), slice),
+            MeasurementSpacingState::Unavailable => (None, None),
+            MeasurementSpacingState::Uninitialized => vol
+                .measurement_spacing()
+                .map_or((None, None), |(in_plane, slice)| (Some(in_plane), slice)),
         };
+        let [dy, dx] = in_plane_spacing.ok_or(MeasurementError::MissingPhysicalSpacing)?;
+        let spacing = [
+            match self.axis {
+                0 => dy,
+                _ => slice_spacing.ok_or(MeasurementError::MissingPhysicalSpacing)?,
+            },
+            match self.axis {
+                0 | 1 => dx,
+                _ => dy,
+            },
+        ];
         Annotation::validate_spacing(spacing)?;
         Ok(spacing)
     }

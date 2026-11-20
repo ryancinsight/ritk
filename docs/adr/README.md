@@ -70,7 +70,9 @@
 | [0059](0059-release-scope-1-0.md) | Release scope for 1.0 | Accepted |
 | [0060](0060-slice-measurement-location.md) | Locate measurements on the image where they were drawn | Proposed |
 | [0061](0061-asterslice-executable.md) | AsterSlice executable identity | Accepted |
-| [0062](0062-type-dicom-geometry-and-pet-activity.md) | Type DICOM geometry and PET activity | Proposed |
-| [0063](0063-enhanced-pet-quantitative-voxels.md) | Quantify Enhanced PET stored voxels | Proposed |
-| [0064](0064-enhanced-pet-temporal-and-gated-volumes.md) | Reconstruct temporal and gated Enhanced PET volumes | Proposed |
-| [0065](0065-enhanced-pet-concatenations.md) | Reconstruct Enhanced PET concatenations | Proposed |
+| [0062](0062-spatial-provider-051.md) | RITK spatial provider 0.51 | Accepted |
+| [0063](0063-native-dicom-dataset.md) | RITK owns the DICOM dataset and Part 10 writer | Accepted |
+| [0064](0064-type-dicom-geometry-and-pet-activity.md) | Type DICOM geometry and PET activity | Proposed |
+| [0065](0065-enhanced-pet-quantitative-voxels.md) | Quantify Enhanced PET stored voxels | Proposed |
+| [0066](0066-enhanced-pet-temporal-and-gated-volumes.md) | Reconstruct temporal and gated Enhanced PET volumes | Proposed |
+| [0067](0067-enhanced-pet-concatenations.md) | Reconstruct Enhanced PET concatenations | Proposed |

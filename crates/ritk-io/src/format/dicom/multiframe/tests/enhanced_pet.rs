@@ -5,11 +5,12 @@ use super::super::test_fixture::{
     write_dynamic_gated_pet_concatenation, write_pet_instance,
 };
 use aequitas::systems::si::units::GramPerCubicCentimeter;
-use dicom::{
-    core::{DataElement, PrimitiveValue, Tag, VR},
-    dictionary_std::uids::ENHANCED_PET_IMAGE_STORAGE,
-    object::{meta::FileMetaTableBuilder, InMemDicomObject},
+use ritk_dicom::{
+    dataset::{DataElement, Dataset, DicomFile, FileMetaBuilder, PrimitiveValue, VR},
+    DicomTag as Tag,
 };
+
+const ENHANCED_PET_IMAGE_STORAGE: &str = "1.2.840.10008.5.1.4.1.1.130";
 use tracing_subscriber::fmt::format::FmtSpan;
 
 #[test]
@@ -23,21 +24,21 @@ fn enhanced_pet_quantifies_lut_and_activity_while_preserving_display_transform()
     let directory = tempfile::tempdir().expect("create fixture directory");
     let path = directory.path().join("enhanced-pet.dcm");
     tracing::info_span!("arrange").in_scope(|| {
-        let mut obj = InMemDicomObject::new_empty();
+        let mut obj = Dataset::new();
         for (tag, vr, value) in [
-            (Tag(8, 0x0016), VR::UI, ENHANCED_PET_IMAGE_STORAGE),
-            (Tag(8, 0x0018), VR::UI, "2.25.324.1"),
-            (Tag(8, 0x0060), VR::CS, "PT"),
-            (Tag(0x20, 0x000e), VR::UI, "2.25.324"),
-            (Tag(0x28, 0x0004), VR::CS, "MONOCHROME2"),
-            (Tag(0x28, 8), VR::IS, "2"),
-            (Tag(0x28, 0x1052), VR::DS, "11"),
-            (Tag(0x28, 0x1053), VR::DS, "7"),
-            (Tag(0x10, 0x1030), VR::DS, "74"),
-            (Tag(0x18, 0x9758), VR::CS, "YES"),
-            (Tag(0x18, 0x9701), VR::DT, "20261119000000.0+0100"),
+            (Tag::new(8, 0x0016), VR::UI, ENHANCED_PET_IMAGE_STORAGE),
+            (Tag::new(8, 0x0018), VR::UI, "2.25.324.1"),
+            (Tag::new(8, 0x0060), VR::CS, "PT"),
+            (Tag::new(0x20, 0x000e), VR::UI, "2.25.324"),
+            (Tag::new(0x28, 0x0004), VR::CS, "MONOCHROME2"),
+            (Tag::new(0x28, 8), VR::IS, "2"),
+            (Tag::new(0x28, 0x1052), VR::DS, "11"),
+            (Tag::new(0x28, 0x1053), VR::DS, "7"),
+            (Tag::new(0x10, 0x1030), VR::DS, "74"),
+            (Tag::new(0x18, 0x9758), VR::CS, "YES"),
+            (Tag::new(0x18, 0x9701), VR::DT, "20261119000000.0+0100"),
         ] {
-            obj.put(DataElement::new(tag, vr, value));
+            obj.put(DataElement::new(tag, vr, PrimitiveValue::from(value)));
         }
         for (tag, value) in [
             (2, 1_u16),
@@ -50,37 +51,49 @@ fn enhanced_pet_quantifies_lut_and_activity_while_preserving_display_transform()
             (0x0120, 4),
         ] {
             obj.put(DataElement::new(
-                Tag(0x28, tag),
+                Tag::new(0x28, tag),
                 VR::US,
                 PrimitiveValue::from(value),
             ));
         }
         obj.put(DataElement::new(
-            Tag(0x7fe0, 0x0010),
+            Tag::new(0x7fe0, 0x0010),
             VR::OW,
             PrimitiveValue::U16(vec![0, 2, 3, 4, 0, 2, 3, 4].into()),
         ));
-        let mut isotope = InMemDicomObject::new_empty();
-        isotope.put(DataElement::new(Tag(0x18, 0x1074), VR::DS, "370"));
-        isotope.put(DataElement::new(Tag(0x18, 0x1075), VR::DS, "60"));
+        let mut isotope = Dataset::new();
         isotope.put(DataElement::new(
-            Tag(0x18, 0x1078),
-            VR::DT,
-            "20261118235900.0+0100",
+            Tag::new(0x18, 0x1074),
+            VR::DS,
+            PrimitiveValue::from("370"),
         ));
-        item_with_items(&mut obj, Tag(0x54, 0x0016), vec![isotope]);
+        isotope.put(DataElement::new(
+            Tag::new(0x18, 0x1075),
+            VR::DS,
+            PrimitiveValue::from("60"),
+        ));
+        isotope.put(DataElement::new(
+            Tag::new(0x18, 0x1078),
+            VR::DT,
+            PrimitiveValue::from("20261118235900.0+0100"),
+        ));
+        item_with_items(&mut obj, Tag::new(0x54, 0x0016), vec![isotope]);
 
-        let mut first = InMemDicomObject::new_empty();
+        let mut first = Dataset::new();
         item_with_items(
             &mut first,
-            Tag(0x40, 0x9096),
+            Tag::new(0x40, 0x9096),
             vec![mapping("{SUVbw}g/ml", Some(vec![0.5, 1.5, 2.5, 3.5]))],
         );
-        let mut next = InMemDicomObject::new_empty();
-        item_with_items(&mut next, Tag(0x40, 0x9096), vec![mapping("Bq/ml", None)]);
-        item_with_items(&mut obj, Tag(0x5200, 0x9230), vec![first, next]);
+        let mut next = Dataset::new();
+        item_with_items(
+            &mut next,
+            Tag::new(0x40, 0x9096),
+            vec![mapping("Bq/ml", None)],
+        );
+        item_with_items(&mut obj, Tag::new(0x5200, 0x9230), vec![first, next]);
         obj.with_meta(
-            FileMetaTableBuilder::new()
+            FileMetaBuilder::new()
                 .media_storage_sop_class_uid(ENHANCED_PET_IMAGE_STORAGE)
                 .media_storage_sop_instance_uid("2.25.324.1")
                 .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -124,7 +137,12 @@ fn enhanced_pet_time_and_cardiac_gates_keep_spatial_geometry_and_suv() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("dynamic-gated.dcm");
     tracing::info_span!("arrange").in_scope(|| {
-        write_dynamic_gated(&path, Tag(0x18, 0x9118), Tag(0x20, 0x9153), [100.0, 350.0])
+        write_dynamic_gated(
+            &path,
+            Tag::new(0x18, 0x9118),
+            Tag::new(0x20, 0x9153),
+            [100.0, 350.0],
+        )
     });
     let (from_file, from_bytes) = tracing::info_span!("act").in_scope(|| {
         let bytes = std::fs::read(&path).unwrap();
@@ -185,7 +203,12 @@ fn enhanced_pet_respiratory_phase_uses_ratio_and_an_independent_volume() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("respiratory.dcm");
     tracing::info_span!("arrange").in_scope(|| {
-        write_dynamic_gated(&path, Tag(0x20, 0x9253), Tag(0x20, 0x9245), [20.0, 70.0]);
+        write_dynamic_gated(
+            &path,
+            Tag::new(0x20, 0x9253),
+            Tag::new(0x20, 0x9245),
+            [20.0, 70.0],
+        );
     });
     let volumes =
         tracing::info_span!("act").in_scope(|| crate::load_enhanced_pet_volumes(&path).unwrap());
@@ -211,7 +234,11 @@ fn enhanced_pet_concatenation_resolves_shuffled_members_and_rejects_missing_fram
     let directory = tempfile::tempdir().unwrap();
     let standalone = directory.path().join("s-standalone.dcm");
     let [first, second] = tracing::info_span!("arrange").in_scope(|| {
-        let obj = dynamic_gated(Tag(0x18, 0x9118), Tag(0x20, 0x9153), [100.0, 350.0]);
+        let obj = dynamic_gated(
+            Tag::new(0x18, 0x9118),
+            Tag::new(0x20, 0x9153),
+            [100.0, 350.0],
+        );
         write_pet_instance(&obj, &standalone);
         write_dynamic_gated_pet_concatenation(directory.path())
     });
@@ -242,9 +269,9 @@ fn enhanced_pet_concatenation_resolves_shuffled_members_and_rejects_missing_fram
         assert!(format!("{error:#}").contains(message));
     }
 
-    let mut part = dicom::object::open_file(&second).unwrap().into_inner();
+    let mut part = (*DicomFile::open(&second).unwrap()).clone();
     part.put(DataElement::new(
-        Tag(0x20, 0x9228),
+        Tag::new(0x20, 0x9228),
         VR::UL,
         PrimitiveValue::from(3_u32),
     ));
@@ -252,7 +279,7 @@ fn enhanced_pet_concatenation_resolves_shuffled_members_and_rejects_missing_fram
     let error = crate::load_enhanced_pet_volumes(&first).unwrap_err();
     assert!(format!("{error:#}").contains("overlap"));
     part.put(DataElement::new(
-        Tag(0x20, 0x9228),
+        Tag::new(0x20, 0x9228),
         VR::UL,
         PrimitiveValue::from(4_u32),
     ));
@@ -278,19 +305,23 @@ fn enhanced_pet_interpolates_a_spatial_gap_between_complete_members() {
     let directory = tempfile::tempdir().unwrap();
     let selected = tracing::info_span!("arrange").in_scope(|| {
         let [first, second] = write_dynamic_gated_pet_concatenation(directory.path());
-        let template = dicom::object::open_file(&second).unwrap().into_inner();
+        let template = (*DicomFile::open(&second).unwrap()).clone();
         let frame = template
-            .element(Tag(0x5200, 0x9230))
+            .element(Tag::new(0x5200, 0x9230))
             .unwrap()
             .items()
             .unwrap()
             .last()
             .unwrap();
         for (index, path) in [&first, &second].into_iter().enumerate() {
-            let mut member = dicom::object::open_file(path).unwrap().into_inner();
-            member.put(DataElement::new(Tag(0x28, 8), VR::IS, "2"));
+            let mut member = (*DicomFile::open(path).unwrap()).clone();
             member.put(DataElement::new(
-                Tag(0x20, 0x9228),
+                Tag::new(0x28, 8),
+                VR::IS,
+                PrimitiveValue::from("2"),
+            ));
+            member.put(DataElement::new(
+                Tag::new(0x20, 0x9228),
                 VR::UL,
                 PrimitiveValue::from(u32::try_from(2 * index).unwrap()),
             ));
@@ -300,33 +331,37 @@ fn enhanced_pet_interpolates_a_spatial_gap_between_complete_members() {
                 .enumerate()
                 .map(|(local, position)| {
                     let mut frame = frame.clone();
-                    let mut content =
-                        frame.element(Tag(0x20, 0x9111)).unwrap().items().unwrap()[0].clone();
+                    let mut content = frame
+                        .element(Tag::new(0x20, 0x9111))
+                        .unwrap()
+                        .items()
+                        .unwrap()[0]
+                        .clone();
                     let ordinal = u32::try_from(index * 2 + local + 1).unwrap();
                     content.put(DataElement::new(
-                        Tag(0x20, 0x9157),
+                        Tag::new(0x20, 0x9157),
                         VR::UL,
                         PrimitiveValue::U32(vec![1, 1, 1, ordinal].into()),
                     ));
                     content.put(DataElement::new(
-                        Tag(0x20, 0x9057),
+                        Tag::new(0x20, 0x9057),
                         VR::UL,
                         PrimitiveValue::from(ordinal),
                     ));
-                    item_with_items(&mut frame, Tag(0x20, 0x9111), vec![content]);
-                    let plane = InMemDicomObject::from_element_iter([DataElement::new(
-                        Tag(0x20, 0x0032),
+                    item_with_items(&mut frame, Tag::new(0x20, 0x9111), vec![content]);
+                    let plane = Dataset::from_elements([DataElement::new(
+                        Tag::new(0x20, 0x0032),
                         VR::DS,
-                        format!("0\\0\\{position}"),
+                        PrimitiveValue::from(format!("0\\0\\{position}")),
                     )]);
-                    item_with_items(&mut frame, Tag(0x20, 0x9113), vec![plane]);
+                    item_with_items(&mut frame, Tag::new(0x20, 0x9113), vec![plane]);
                     frame
                 })
                 .collect();
-            item_with_items(&mut member, Tag(0x5200, 0x9230), frames);
+            item_with_items(&mut member, Tag::new(0x5200, 0x9230), frames);
             let start = u16::try_from(2 * index + 1).unwrap();
             member.put(DataElement::new(
-                Tag(0x7fe0, 0x0010),
+                Tag::new(0x7fe0, 0x0010),
                 VR::OW,
                 PrimitiveValue::U16(vec![start, start + 1].into()),
             ));

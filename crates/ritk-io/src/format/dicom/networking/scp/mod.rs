@@ -33,8 +33,3 @@ pub use config::{ScpConfig, StoreScpHandle, StoredInstance};
 #[cfg(test)]
 #[path = "../tests_scp.rs"]
 mod tests_scp;
-
-// Re-export `pad_uid` so the integration tests in `tests_scp` can access it
-// via `super::pad_uid` (their `super` is the `scp` module).
-#[cfg(test)]
-pub(crate) use config::pad_uid;

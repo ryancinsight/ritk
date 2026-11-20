@@ -1,14 +1,13 @@
 //! Encapsulated pixel encoders for multi-frame DICOM output.
 
 use anyhow::{bail, Context, Result};
-use dicom::core::smallvec::SmallVec;
-use dicom::core::value::PixelFragmentSequence;
 use ritk_codecs::encode_jpeg_fragment;
 use ritk_codecs::encode_rle_lossless_fragment_u16_grayscale;
 use ritk_codecs::jpeg::lossless::{encode_grayscale_jpeg_lossless, JpegLosslessPrediction};
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
 use ritk_codecs::jpeg_ls::encoder::encode_grayscale_jpeg_ls;
 use ritk_codecs::{PixelLayout, PixelSignedness};
+use ritk_dicom::dataset::PixelFragments;
 
 use crate::format::dicom::writer::pixel_encoding::{
     DicomImageShape, JPEG_2000_QUANTIZATION_STEP, JPEG_BASELINE_QUALITY, JPEG_LS_NEAR,
@@ -20,7 +19,7 @@ use crate::format::dicom::TransferSyntaxKind;
 pub(super) fn encode_baseline_jpeg_frames(
     pixels: &[u8],
     dimensions: DicomImageShape,
-) -> Result<PixelFragmentSequence<Vec<u8>>> {
+) -> Result<PixelFragments> {
     validate_pixel_count(pixels.len(), dimensions)?;
     let layout = PixelLayout {
         rows: dimensions.rows,
@@ -48,9 +47,7 @@ pub(super) fn encode_baseline_jpeg_frames(
                 .with_context(|| format!("JPEG baseline encode failed for frame {frame_index}"))?,
         );
     }
-    Ok(PixelFragmentSequence::new_fragments(SmallVec::from_vec(
-        fragments,
-    )))
+    Ok(PixelFragments::from_fragments(fragments))
 }
 
 /// Encode unsigned sixteen-bit samples using the selected compressed syntax.
@@ -58,7 +55,7 @@ pub(super) fn encode_compressed_frames(
     pixels: &[u16],
     dimensions: DicomImageShape,
     syntax: &TransferSyntaxKind,
-) -> Result<PixelFragmentSequence<Vec<u8>>> {
+) -> Result<PixelFragments> {
     validate_pixel_count(pixels.len(), dimensions)?;
     let rows = u32::from(dimensions.rows_attribute);
     let columns = u32::from(dimensions.columns_attribute);
@@ -131,9 +128,7 @@ pub(super) fn encode_compressed_frames(
         };
         fragments.push(encoded);
     }
-    Ok(PixelFragmentSequence::new_fragments(SmallVec::from_vec(
-        fragments,
-    )))
+    Ok(PixelFragments::from_fragments(fragments))
 }
 
 fn validate_pixel_count(actual: usize, dimensions: DicomImageShape) -> Result<()> {

@@ -13,6 +13,8 @@
 //! - UI: PS3.5 section 9.1 forbids leading zeros in a component and states
 //!   that they carry no meaning, so `1.02.3` and `1.2.3` name one object.
 
+use horae_civil_time::CivilDate;
+
 use crate::format::dicom::identity::uid_is_valid;
 
 fn digits(text: &str) -> bool {
@@ -22,19 +24,6 @@ fn digits(text: &str) -> bool {
 fn in_range(text: &str, low: u8, high: u8) -> bool {
     text.parse::<u8>()
         .is_ok_and(|number| (low..=high).contains(&number))
-}
-
-/// Days in `month` of `year` in the Gregorian calendar, the calendar PS3.5
-/// Table 6.2-1 fixes for DA; zero for a month outside 1 to 12.
-fn days_in_month(year: u16, month: u8) -> u8 {
-    let leap = year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400));
-    match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 if leap => 29,
-        2 => 28,
-        _ => 0,
-    }
 }
 
 /// `YYYYMMDD` naming a day of the Gregorian calendar.
@@ -49,7 +38,7 @@ pub(super) fn date_is_valid(value: &str) -> bool {
     ) else {
         return false;
     };
-    (1..=days_in_month(year, month)).contains(&day)
+    CivilDate::new(year, month, day).is_ok()
 }
 
 /// `HH`, `HHMM`, `HHMMSS` or `HHMMSS.F` with one to six fraction digits;

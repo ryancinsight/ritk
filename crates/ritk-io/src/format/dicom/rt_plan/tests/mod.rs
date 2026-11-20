@@ -1,18 +1,18 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use arrayvec::ArrayString;
-use dicom::core::header::Length;
-use dicom::core::value::DataSetSequence;
-use dicom::core::value::Value;
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::FileMetaBuilder;
+use ritk_dicom::dataset::Length;
+use ritk_dicom::dataset::Sequence;
+use ritk_dicom::dataset::Value;
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 
-fn write_rt_plan_file(obj: InMemDicomObject, path: &std::path::Path) {
+fn write_rt_plan_file(obj: Dataset, path: &std::path::Path) {
     obj.with_meta(
-        FileMetaTableBuilder::new()
+        FileMetaBuilder::new()
             .media_storage_sop_class_uid(RT_PLAN_SOP_CLASS_UID)
             .media_storage_sop_instance_uid("2.25.1")
             .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -23,19 +23,19 @@ fn write_rt_plan_file(obj: InMemDicomObject, path: &std::path::Path) {
 }
 
 fn write_wrong_sop_file(sop: &str, path: &std::path::Path) {
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from(sop),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.99"),
     ));
     obj.with_meta(
-        FileMetaTableBuilder::new()
+        FileMetaBuilder::new()
             .media_storage_sop_class_uid(sop)
             .media_storage_sop_instance_uid("2.25.99")
             .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -50,73 +50,69 @@ fn make_beam_item(
     beam_name: &str,
     radiation_type: &str,
     n_control_points: u32,
-) -> InMemDicomObject {
-    let mut item = InMemDicomObject::new_empty();
+) -> Dataset {
+    let mut item = Dataset::new();
     item.put(DataElement::new(
-        Tag(0x300A, 0x00C0),
+        DicomTag::new(0x300A, 0x00C0),
         VR::IS,
         PrimitiveValue::from(beam_number.to_string().as_str()),
     ));
     item.put(DataElement::new(
-        Tag(0x300A, 0x00C2),
+        DicomTag::new(0x300A, 0x00C2),
         VR::LO,
         PrimitiveValue::from(beam_name),
     ));
     item.put(DataElement::new(
-        Tag(0x300A, 0x00C3),
+        DicomTag::new(0x300A, 0x00C3),
         VR::ST,
         PrimitiveValue::from(""),
     ));
     item.put(DataElement::new(
-        Tag(0x300A, 0x00C6),
+        DicomTag::new(0x300A, 0x00C6),
         VR::CS,
         PrimitiveValue::from(radiation_type),
     ));
     item.put(DataElement::new(
-        Tag(0x300A, 0x00CE),
+        DicomTag::new(0x300A, 0x00CE),
         VR::CS,
         PrimitiveValue::from("TREATMENT"),
     ));
     item.put(DataElement::new(
-        Tag(0x300A, 0x0110),
+        DicomTag::new(0x300A, 0x0110),
         VR::IS,
         PrimitiveValue::from(n_control_points.to_string().as_str()),
     ));
     item
 }
 
-fn make_fraction_group_item(
-    fg_number: u32,
-    n_fractions: u32,
-    ref_beam_numbers: &[u32],
-) -> InMemDicomObject {
-    let ref_beam_items: Vec<InMemDicomObject> = ref_beam_numbers
+fn make_fraction_group_item(fg_number: u32, n_fractions: u32, ref_beam_numbers: &[u32]) -> Dataset {
+    let ref_beam_items: Vec<Dataset> = ref_beam_numbers
         .iter()
         .map(|&bn| {
-            let mut ref_item = InMemDicomObject::new_empty();
+            let mut ref_item = Dataset::new();
             ref_item.put(DataElement::new(
-                Tag(0x300A, 0x00C0),
+                DicomTag::new(0x300A, 0x00C0),
                 VR::IS,
                 PrimitiveValue::from(bn.to_string().as_str()),
             ));
             ref_item
         })
         .collect();
-    let ref_beam_seq = DataSetSequence::new(ref_beam_items, Length::UNDEFINED);
+    let ref_beam_seq = Sequence::new(ref_beam_items, Length::Undefined);
 
-    let mut item = InMemDicomObject::new_empty();
+    let mut item = Dataset::new();
     item.put(DataElement::new(
-        Tag(0x300A, 0x0071),
+        DicomTag::new(0x300A, 0x0071),
         VR::IS,
         PrimitiveValue::from(fg_number.to_string().as_str()),
     ));
     item.put(DataElement::new(
-        Tag(0x300A, 0x0078),
+        DicomTag::new(0x300A, 0x0078),
         VR::IS,
         PrimitiveValue::from(n_fractions.to_string().as_str()),
     ));
     item.put(DataElement::new(
-        Tag(0x300A, 0x00B6),
+        DicomTag::new(0x300A, 0x00B6),
         VR::SQ,
         Value::from(ref_beam_seq),
     ));
@@ -130,7 +126,7 @@ fn make_fraction_group_item(
 fn test_read_rt_plan_missing_file_returns_error() {
     let result = read_rt_plan("/nonexistent/plan.dcm");
     let msg = result
-        .expect_err("dicom-rs backend failed to parse")
+        .expect_err("the native dataset parser must reject malformed input")
         .to_string();
     assert!(
         msg.contains("nonexistent") || msg.contains("open"),
@@ -167,39 +163,39 @@ fn test_read_rt_plan_synthetic_plan() {
 
     let beam1 = make_beam_item(1, "FIELD_1", "PHOTON", 2);
     let beam2 = make_beam_item(2, "FIELD_2", "PHOTON", 2);
-    let beam_seq = DataSetSequence::new(vec![beam1, beam2], Length::UNDEFINED);
+    let beam_seq = Sequence::new(vec![beam1, beam2], Length::Undefined);
 
     let fg = make_fraction_group_item(1, 30, &[1, 2]);
-    let fg_seq = DataSetSequence::new(vec![fg], Length::UNDEFINED);
+    let fg_seq = Sequence::new(vec![fg], Length::Undefined);
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x300A, 0x0002),
+        DicomTag::new(0x300A, 0x0002),
         VR::LO,
         PrimitiveValue::from("PLAN_A"),
     ));
     obj.put(DataElement::new(
-        Tag(0x300A, 0x0003),
+        DicomTag::new(0x300A, 0x0003),
         VR::LO,
         PrimitiveValue::from(""),
     ));
     obj.put(DataElement::new(
-        Tag(0x300A, 0x0004),
+        DicomTag::new(0x300A, 0x0004),
         VR::ST,
         PrimitiveValue::from(""),
     ));
     obj.put(DataElement::new(
-        Tag(0x300A, 0x000A),
+        DicomTag::new(0x300A, 0x000A),
         VR::CS,
         PrimitiveValue::from("CURATIVE"),
     ));
     obj.put(DataElement::new(
-        Tag(0x300A, 0x00B0),
+        DicomTag::new(0x300A, 0x00B0),
         VR::SQ,
         Value::from(beam_seq),
     ));
     obj.put(DataElement::new(
-        Tag(0x300A, 0x0070),
+        DicomTag::new(0x300A, 0x0070),
         VR::SQ,
         Value::from(fg_seq),
     ));
@@ -258,20 +254,20 @@ fn test_read_rt_plan_rejects_invalid_beam_number() {
 
     let mut beam = make_beam_item(1, "FIELD_1", "PHOTON", 2);
     beam.put(DataElement::new(
-        Tag(0x300A, 0x00C0),
+        DicomTag::new(0x300A, 0x00C0),
         VR::IS,
         PrimitiveValue::from("not-a-number"),
     ));
-    let beam_seq = DataSetSequence::new(vec![beam], Length::UNDEFINED);
+    let beam_seq = Sequence::new(vec![beam], Length::Undefined);
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x300A, 0x0002),
+        DicomTag::new(0x300A, 0x0002),
         VR::LO,
         PrimitiveValue::from("PLAN_BAD_BEAM"),
     ));
     obj.put(DataElement::new(
-        Tag(0x300A, 0x00B0),
+        DicomTag::new(0x300A, 0x00B0),
         VR::SQ,
         Value::from(beam_seq),
     ));
@@ -292,14 +288,14 @@ fn test_read_rt_plan_rejects_non_sequence_beam_sequence() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let path = tmp.path().join("rt_plan_non_sequence_beams.dcm");
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x300A, 0x0002),
+        DicomTag::new(0x300A, 0x0002),
         VR::LO,
         PrimitiveValue::from("PLAN_BAD_SEQUENCE"),
     ));
     obj.put(DataElement::new(
-        Tag(0x300A, 0x00B0),
+        DicomTag::new(0x300A, 0x00B0),
         VR::LO,
         PrimitiveValue::from("not-a-sequence"),
     ));
@@ -325,47 +321,47 @@ fn test_read_rt_plan_rejects_invalid_referenced_beam_number() {
         .join("rt_plan_invalid_referenced_beam_number.dcm");
 
     let beam = make_beam_item(1, "FIELD_1", "PHOTON", 2);
-    let beam_seq = DataSetSequence::new(vec![beam], Length::UNDEFINED);
+    let beam_seq = Sequence::new(vec![beam], Length::Undefined);
 
-    let mut ref_item = InMemDicomObject::new_empty();
+    let mut ref_item = Dataset::new();
     ref_item.put(DataElement::new(
-        Tag(0x300A, 0x00C0),
+        DicomTag::new(0x300A, 0x00C0),
         VR::IS,
         PrimitiveValue::from("bad-ref"),
     ));
-    let ref_beam_seq = DataSetSequence::new(vec![ref_item], Length::UNDEFINED);
+    let ref_beam_seq = Sequence::new(vec![ref_item], Length::Undefined);
 
-    let mut fg = InMemDicomObject::new_empty();
+    let mut fg = Dataset::new();
     fg.put(DataElement::new(
-        Tag(0x300A, 0x0071),
+        DicomTag::new(0x300A, 0x0071),
         VR::IS,
         PrimitiveValue::from("1"),
     ));
     fg.put(DataElement::new(
-        Tag(0x300A, 0x0078),
+        DicomTag::new(0x300A, 0x0078),
         VR::IS,
         PrimitiveValue::from("30"),
     ));
     fg.put(DataElement::new(
-        Tag(0x300A, 0x00B6),
+        DicomTag::new(0x300A, 0x00B6),
         VR::SQ,
         Value::from(ref_beam_seq),
     ));
-    let fg_seq = DataSetSequence::new(vec![fg], Length::UNDEFINED);
+    let fg_seq = Sequence::new(vec![fg], Length::Undefined);
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x300A, 0x0002),
+        DicomTag::new(0x300A, 0x0002),
         VR::LO,
         PrimitiveValue::from("PLAN_BAD_REF"),
     ));
     obj.put(DataElement::new(
-        Tag(0x300A, 0x00B0),
+        DicomTag::new(0x300A, 0x00B0),
         VR::SQ,
         Value::from(beam_seq),
     ));
     obj.put(DataElement::new(
-        Tag(0x300A, 0x0070),
+        DicomTag::new(0x300A, 0x0070),
         VR::SQ,
         Value::from(fg_seq),
     ));
@@ -390,39 +386,39 @@ fn test_read_rt_plan_rejects_non_sequence_referenced_beam_sequence() {
     let path = tmp.path().join("rt_plan_non_sequence_referenced_beams.dcm");
 
     let beam = make_beam_item(1, "FIELD_1", "PHOTON", 2);
-    let beam_seq = DataSetSequence::new(vec![beam], Length::UNDEFINED);
+    let beam_seq = Sequence::new(vec![beam], Length::Undefined);
 
-    let mut fg = InMemDicomObject::new_empty();
+    let mut fg = Dataset::new();
     fg.put(DataElement::new(
-        Tag(0x300A, 0x0071),
+        DicomTag::new(0x300A, 0x0071),
         VR::IS,
         PrimitiveValue::from("1"),
     ));
     fg.put(DataElement::new(
-        Tag(0x300A, 0x0078),
+        DicomTag::new(0x300A, 0x0078),
         VR::IS,
         PrimitiveValue::from("30"),
     ));
     fg.put(DataElement::new(
-        Tag(0x300A, 0x00B6),
+        DicomTag::new(0x300A, 0x00B6),
         VR::LO,
         PrimitiveValue::from("not-a-sequence"),
     ));
-    let fg_seq = DataSetSequence::new(vec![fg], Length::UNDEFINED);
+    let fg_seq = Sequence::new(vec![fg], Length::Undefined);
 
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x300A, 0x0002),
+        DicomTag::new(0x300A, 0x0002),
         VR::LO,
         PrimitiveValue::from("PLAN_BAD_REF_SEQUENCE"),
     ));
     obj.put(DataElement::new(
-        Tag(0x300A, 0x00B0),
+        DicomTag::new(0x300A, 0x00B0),
         VR::SQ,
         Value::from(beam_seq),
     ));
     obj.put(DataElement::new(
-        Tag(0x300A, 0x0070),
+        DicomTag::new(0x300A, 0x0070),
         VR::SQ,
         Value::from(fg_seq),
     ));

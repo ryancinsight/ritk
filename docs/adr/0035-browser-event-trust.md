@@ -4,7 +4,12 @@ Status: Accepted
 
 Date: 2026-09-15
 
-Driver: [RITK-SNAP-BROWSER-TRUST-2026-09-15](../backlog.md#RITK-SNAP-BROWSER-TRUST-2026-09-15)
+Revision 2026-11-20: replace the expired driver reference and historical
+verification claims with durable delivery provenance and current source/link
+evidence in [PR #1086](https://github.com/ryancinsight/ritk/pull/1086), without
+adding runtime certification.
+
+Delivery: [RITK PR 407](https://github.com/ryancinsight/ritk/pull/407)
 
 Provider contract: [Metis ADR 0034](../../../metis/docs/adr/0034-browser-event-trust.md)
 
@@ -46,17 +51,19 @@ The policy addresses script-dispatched DOM events marked untrusted. A true
 browser value is not proof of a physical human, secure browser session,
 operating-system permission or automation authenticity. The existing browser
 trace validator remains an independent evidence path and still distinguishes
-protocol trust from physical input. WebKit's selected-file authorization
-residual is unrelated to this event policy and remains tracked separately.
+protocol trust from physical input. Browser-specific selected-file
+authorization is unrelated to this event policy.
 
 DICOM scanning, decoding, geometry, pixel presentation and clinical semantics
 remain RITK-owned; Metis and Moirai carry only bounded host values.
 
 ## Verification
 
-The RITK translation policy has value-semantic trusted/false tests, and the
-Metis event tests prove the provider preserves both values. Locked native and
-WASM checks, strict Clippy and Rustdoc run against the merged provider pins.
-Existing Chromium/Firefox real-study galleries remain the visual oracle; any
-new hosted run records the exact Metis, Moirai and RITK revisions and retains
-the Safari residual without fallback behavior.
+The current policy lives in
+[`browser_policy.rs`](../../crates/ritk-snap/src/presentation/browser_policy.rs),
+whose value-semantic test admits `Trusted` and drops `Untrusted`.
+[`WebCanvasPresenter`](../../crates/ritk-snap/src/presentation/web.rs) applies
+that policy before translating a canvas event. Native and WebAssembly checks
+must cover the consumer against the selected Metis and Moirai revisions.
+Real-study browser galleries test integration behavior; they do not strengthen
+the browser trust snapshot into evidence of physical input.

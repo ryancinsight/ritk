@@ -3,20 +3,20 @@
 use std::collections::HashSet;
 
 use anyhow::{ensure, Context, Result};
-use dicom::core::Tag;
+use ritk_dicom::DicomTag as Tag;
 
 use super::frame_source::FrameSource;
 use crate::format::dicom::identity::{optional_uid, CONCATENATION_UID};
 
-const CONCATENATION_SOURCE: Tag = Tag(0x0020, 0x0242);
-const MEMBER_NUMBER: Tag = Tag(0x0020, 0x9162);
-const MEMBER_TOTAL: Tag = Tag(0x0020, 0x9163);
-const FRAME_OFFSET: Tag = Tag(0x0020, 0x9228);
-const PER_FRAME: Tag = Tag(0x5200, 0x9230);
-const SHARED: Tag = Tag(0x5200, 0x9229);
-const ORGANIZATIONS: Tag = Tag(0x0020, 0x9221);
-const DIMENSIONS: Tag = Tag(0x0020, 0x9222);
-const SOP_INSTANCE: Tag = Tag(0x0008, 0x0018);
+const CONCATENATION_SOURCE: Tag = Tag::new(0x0020, 0x0242);
+const MEMBER_NUMBER: Tag = Tag::new(0x0020, 0x9162);
+const MEMBER_TOTAL: Tag = Tag::new(0x0020, 0x9163);
+const FRAME_OFFSET: Tag = Tag::new(0x0020, 0x9228);
+const PER_FRAME: Tag = Tag::new(0x5200, 0x9230);
+const SHARED: Tag = Tag::new(0x5200, 0x9229);
+const ORGANIZATIONS: Tag = Tag::new(0x0020, 0x9221);
+const DIMENSIONS: Tag = Tag::new(0x0020, 0x9222);
+const SOP_INSTANCE: Tag = Tag::new(0x0008, 0x0018);
 
 /// DICOM PS3.3 C.7.6.16.2.2 defines member offsets as the sum of frame counts
 /// of preceding instances. This validates the complete known interval before
@@ -47,9 +47,9 @@ pub(super) fn order_members(sources: &[FrameSource<'_>]) -> Result<Vec<usize>> {
 
     let source_uid = optional_uid(first.obj, CONCATENATION_SOURCE)?
         .context("Enhanced PET concatenation is missing the source SOP Instance UID")?;
-    let series_uid = optional_uid(first.obj, Tag(0x0020, 0x000e))?
+    let series_uid = optional_uid(first.obj, Tag::new(0x0020, 0x000e))?
         .context("Enhanced PET concatenation is missing Series Instance UID")?;
-    let identity_tags = [Tag(0x0020, 0x000d), Tag(0x0020, 0x0052)];
+    let identity_tags = [Tag::new(0x0020, 0x000d), Tag::new(0x0020, 0x0052)];
     let [study_uid, frame_of_reference] = identity_tags.map(|tag| optional_uid(first.obj, tag));
     let expected_identity = [study_uid?, frame_of_reference?];
     let reference = first.obj;
@@ -64,7 +64,7 @@ pub(super) fn order_members(sources: &[FrameSource<'_>]) -> Result<Vec<usize>> {
         ensure!(
             optional_uid(obj, CONCATENATION_UID)? == Some(concatenation_uid)
                 && optional_uid(obj, CONCATENATION_SOURCE)? == Some(source_uid)
-                && optional_uid(obj, Tag(0x0020, 0x000e))? == Some(series_uid)
+                && optional_uid(obj, Tag::new(0x0020, 0x000e))? == Some(series_uid)
                 && [study_uid?, frame_of_reference?] == expected_identity,
             "Enhanced PET concatenation identity differs in {path:?}"
         );
@@ -85,8 +85,8 @@ pub(super) fn order_members(sources: &[FrameSource<'_>]) -> Result<Vec<usize>> {
             "Enhanced PET concatenation pixel layout differs in {path:?}"
         );
         for tag in [SHARED, ORGANIZATIONS, DIMENSIONS] {
-            let actual = obj.element_opt(tag)?;
-            let expected = reference.element_opt(tag)?;
+            let actual = obj.get(tag);
+            let expected = reference.get(tag);
             ensure!(
                 actual.map(|e| e.items().context("Enhanced PET concatenation attribute must be a sequence"))
                     .transpose()?
@@ -108,8 +108,8 @@ pub(super) fn order_members(sources: &[FrameSource<'_>]) -> Result<Vec<usize>> {
         .iter()
         .enumerate()
         .map(|(index, member)| {
-            let offset = member.obj.element(FRAME_OFFSET)?.to_int::<u32>()?;
-            let number = member.obj.element(MEMBER_NUMBER)?.to_int::<u16>()?;
+            let offset = member.obj.element(FRAME_OFFSET)?.to_num::<u32>()?;
+            let number = member.obj.element(MEMBER_NUMBER)?.to_num::<u16>()?;
             Ok((offset, number, index))
         })
         .collect::<Result<Vec<_>>>()?;
@@ -123,9 +123,9 @@ pub(super) fn order_members(sources: &[FrameSource<'_>]) -> Result<Vec<usize>> {
             "Enhanced PET concatenation has a gap, overlap, or incorrect member number at frame offset {offset} in {:?}",
             member.path
         );
-        if let Some(total) = member.obj.element_opt(MEMBER_TOTAL)? {
+        if let Some(total) = member.obj.get(MEMBER_TOTAL) {
             ensure!(
-                instance_count > 1 && usize::from(total.to_int::<u16>()?) == instance_count,
+                instance_count > 1 && usize::from(total.to_num::<u16>()?) == instance_count,
                 "Enhanced PET concatenation member count differs from In-concatenation Total Number"
             );
         }

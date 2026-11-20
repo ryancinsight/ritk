@@ -1,4 +1,4 @@
-# ADR 0064: Reconstruct temporal and gated Enhanced PET volumes
+# ADR 0066: Reconstruct temporal and gated Enhanced PET volumes
 
 - Status: Proposed
 - Class: [major]

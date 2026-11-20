@@ -242,12 +242,14 @@ physical-to-index transforms.
 
 *JPEG write support is limited to 2-D grayscale images represented in RITK as shape `[1, height, width]`.
 
-`ritk-dicom` owns DICOM transfer-syntax classification and native pixel-codec
-primitives. Native Rust decode covers uncompressed little-endian pixels, RLE
-Lossless, grayscale JPEG Baseline/Extended/Lossless, grayscale JPEG-LS, and
-JPEG 2000 fragments. Pure-Rust pixel decode additionally covers JPEG XL through
-`jxl-oxide`. `dicom-rs` remains the dataset, metadata, and external-codec
-adapter; no supported DICOM pixel path requires a C or C++ codec library.
+`ritk-dicom` owns DICOM datasets, File Meta Information, the Part 10
+reader and writer, and transfer-syntax dispatch. Its bounded parser
+supports implicit and explicit little endian, explicit big endian, and
+deflated explicit little endian. The pixel codecs cover RLE, JPEG
+Baseline/Extended/Lossless, JPEG-LS, JPEG 2000, and JPEG XL. The scanner
+borrows catalog values and native little-endian pixel data from the input.
+DIMSE sends the native writer’s dataset bytes in the negotiated syntax.
+See [ADR 0063](docs/adr/0063-native-dicom-dataset.md).
 
 #### DICOM de-identification and export verification
 
@@ -464,9 +466,8 @@ Third-party:
 
 | Crate | Role |
 |---|---|
-| `dicom` (`dicom-rs`) | DICOM dataset, metadata, and external-codec adapter |
 | `tiff` / `image` | Pixel codecs behind `ritk-tiff` and `ritk-png` |
-| `consus-raster` / `zune-jpegxl` | Shared JPEG raster provider and JPEG XL pixel decode; JPEG migration follows [ADR 0048](docs/adr/0048-jpeg-provider.md) |
+| `consus-raster` / `jxl-oxide` | Shared JPEG raster provider and JPEG XL pixel decode; JPEG migration follows [ADR 0048](docs/adr/0048-jpeg-provider.md) |
 | `wgpu` / `eframe` / `egui` | Viewer rendering and graphics interop |
 | `onnx-ir` | ONNX graph import for DL registration |
 | `pyo3` / `numpy` | Python bindings |

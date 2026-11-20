@@ -15,10 +15,10 @@
 use std::path::Path;
 
 use anyhow::Context;
-use dicom::core::Tag;
 use ritk_codecs::{decode_stored_pixel_frame, ByteOrder, Sample, SampleBuffer, SampleType};
+use ritk_dicom::dataset::DicomTag;
 use ritk_dicom::{
-    parse_bytes_with_budget, parse_file_with_budget, DicomRsBackend, ParseBudget, PixelLayout,
+    parse_bytes_with_budget, parse_file_with_budget, NativeBackend, ParseBudget, PixelLayout,
     PixelSignedness, TransferSyntaxKind,
 };
 use ritk_image::ImageMetadata;
@@ -316,14 +316,14 @@ fn decode_slice_stored(
     }
 
     let object = match &slice.part10_bytes {
-        Some(bytes) => parse_bytes_with_budget::<DicomRsBackend>(bytes, parser_budget),
-        None => parse_file_with_budget::<DicomRsBackend, _>(&slice.path, parser_budget),
+        Some(bytes) => parse_bytes_with_budget::<NativeBackend>(bytes, parser_budget),
+        None => parse_file_with_budget::<NativeBackend, _>(&slice.path, parser_budget),
     }
     .with_context(|| format!("failed to open DICOM slice {:?}", slice.path))
     .map_err(DicomStoredImportError::Reader)?;
 
     let samples_per_pixel = object
-        .element(Tag(0x0028, 0x0002))
+        .element(DicomTag::new(0x0028, 0x0002))
         .ok()
         .and_then(|element| element.to_str().ok())
         .and_then(|value| value.trim().parse::<usize>().ok())
@@ -349,7 +349,7 @@ fn decode_slice_stored(
                 representation: slice.pixel_representation,
             })?;
     let payload = object
-        .element(Tag(0x7FE0, 0x0010))
+        .element(DicomTag::new(0x7FE0, 0x0010))
         .with_context(|| format!("missing Pixel Data (7FE0,0010) in {:?}", slice.path))
         .and_then(|element| {
             element

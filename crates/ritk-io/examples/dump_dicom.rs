@@ -1,8 +1,10 @@
 #![expect(clippy::print_stderr, reason = "ratchet RITK-LINT-1")]
 #![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
-use dicom::dictionary_std::tags;
-use dicom::object::open_file;
-use dicom_pixeldata::PixelDecoder;
+use ritk_dicom::tags;
+use ritk_dicom::{
+    decode_frame_with, DecodeFrameRequest, DicomAttributeRead, DicomTag, NativeBackend,
+    PixelLayout, PixelSignedness, TransferSyntaxKind,
+};
 use ritk_io::read_dicom_seg;
 use std::env;
 
@@ -13,7 +15,7 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(1);
     }
 
-    let obj = open_file(&args[1])?;
+    let obj = ritk_dicom::dataset::DicomFile::open(&args[1])?;
 
     let tags_to_check = [
         (tags::SERIES_INSTANCE_UID, "SeriesInstanceUID"),
@@ -90,22 +92,48 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    // Pixel data info
-    match obj.decode_pixel_data() {
-        Ok(pd) => {
-            println!(
-                "PixelData: {} samples, {} bits, {} frames",
-                pd.samples_per_pixel(),
-                pd.bits_allocated(),
-                pd.number_of_frames()
-            );
-            let vec_f32 = pd.to_vec::<f32>()?;
-            println!("Decoded f32 length: {}", vec_f32.len());
-        }
-        _ => {
-            println!("PixelData: <failed to decode>");
-        }
+    let layout = PixelLayout {
+        rows: usize::from(obj.required_unsigned(tags::ROWS, "Rows")?),
+        cols: usize::from(obj.required_unsigned(tags::COLUMNS, "Columns")?),
+        samples_per_pixel: usize::from(
+            obj.required_unsigned(tags::SAMPLES_PER_PIXEL, "SamplesPerPixel")?,
+        ),
+        bits_allocated: obj.required_unsigned(tags::BITS_ALLOCATED, "BitsAllocated")?,
+        bits_stored: obj.required_unsigned(tags::BITS_STORED, "BitsStored")?,
+        pixel_representation: match obj
+            .optional_unsigned(tags::PIXEL_REPRESENTATION, "PixelRepresentation")?
+        {
+            Some(1) => PixelSignedness::Signed,
+            _ => PixelSignedness::Unsigned,
+        },
+        rescale_slope: obj
+            .optional_decimal(tags::RESCALE_SLOPE, "RescaleSlope")?
+            .unwrap_or(1.0) as f32,
+        rescale_intercept: obj
+            .optional_decimal(tags::RESCALE_INTERCEPT, "RescaleIntercept")?
+            .unwrap_or(0.0) as f32,
+    };
+    let frames = obj
+        .get(DicomTag::new(0x0028, 0x0008))
+        .map_or(Ok(1), |element| element.to_num::<u32>())?;
+    let transfer_syntax = TransferSyntaxKind::from_uid(obj.transfer_syntax_uid());
+    let mut count = 0usize;
+    for frame_index in 0..frames {
+        let frame = decode_frame_with::<NativeBackend>(
+            &obj,
+            DecodeFrameRequest {
+                frame_index,
+                transfer_syntax: transfer_syntax.clone(),
+                layout,
+            },
+        )?;
+        count = count
+            .checked_add(frame.pixels.len())
+            .ok_or_else(|| anyhow::anyhow!("sample count overflows"))?;
     }
-
+    println!(
+        "PixelData: {count} decoded samples, {} bits, {frames} frames",
+        layout.bits_allocated
+    );
     Ok(())
 }

@@ -3,8 +3,8 @@
 use std::{path::Path, sync::Arc};
 
 use anyhow::{ensure, Context, Result};
-use dicom::object::DefaultDicomObject;
-use ritk_dicom::{parse_bytes_with_budget, read_file_with_budget, DicomRsBackend};
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::{parse_bytes_with_budget, read_file_with_budget, NativeBackend};
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::{
@@ -92,7 +92,7 @@ pub fn load_enhanced_pet_volumes(path: impl AsRef<Path>) -> Result<Vec<EnhancedP
     let bytes = read_file_with_budget(path, &budget.parser())?;
     let mut retained = 0;
     charge_retained_bytes(&mut retained, bytes.len(), &budget)?;
-    let obj = parse_bytes_with_budget::<DicomRsBackend>(&bytes, &budget.parser())?;
+    let obj = parse_bytes_with_budget::<NativeBackend>(&bytes, &budget.parser())?;
     drop(bytes);
     if optional_uid(&obj, CONCATENATION_UID)?.is_some() {
         drop(obj);
@@ -118,7 +118,7 @@ pub fn load_enhanced_pet_volumes_from_bytes(
 ) -> Result<Vec<EnhancedPetVolume>> {
     let mut retained = 0;
     charge_retained_bytes(&mut retained, bytes.len(), budget)?;
-    let obj = parse_bytes_with_budget::<DicomRsBackend>(bytes, &budget.parser())?;
+    let obj = parse_bytes_with_budget::<NativeBackend>(bytes, &budget.parser())?;
     decode_pet(&[(name.as_ref(), obj)], budget)
 }
 
@@ -148,7 +148,7 @@ pub fn load_enhanced_pet_volumes_from_instances(
             &owned
         };
         charge_retained_bytes(&mut retained, bytes.len(), budget)?;
-        let object = parse_bytes_with_budget::<DicomRsBackend>(bytes, &budget.parser())
+        let object = parse_bytes_with_budget::<NativeBackend>(bytes, &budget.parser())
             .with_context(|| format!("Failed to parse Enhanced PET member {:?}", instance.path))?;
         objects.push((instance.path.as_path(), object));
     }
@@ -168,7 +168,7 @@ fn charge_retained_bytes(total: &mut usize, bytes: usize, budget: &DicomReadBudg
 
 fn pet_source<'a>(
     path: &'a Path,
-    obj: &'a DefaultDicomObject,
+    obj: &'a DicomFile,
     budget: &DicomReadBudget,
 ) -> Result<FrameSource<'a>> {
     ensure!(
@@ -180,7 +180,7 @@ fn pet_source<'a>(
 
 pub(super) fn decode_single_spatial_pet(
     path: &Path,
-    obj: &DefaultDicomObject,
+    obj: &DicomFile,
     budget: &DicomReadBudget,
 ) -> Result<MultiFrameVolume> {
     let sources = [pet_source(path, obj, budget)?];
@@ -195,7 +195,7 @@ pub(super) fn decode_single_spatial_pet(
 }
 
 fn decode_pet(
-    objects: &[(&Path, DefaultDicomObject)],
+    objects: &[(&Path, DicomFile)],
     budget: &DicomReadBudget,
 ) -> Result<Vec<EnhancedPetVolume>> {
     let mut original_bytes = 0usize;

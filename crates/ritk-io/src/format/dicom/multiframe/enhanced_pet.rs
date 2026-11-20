@@ -4,12 +4,15 @@ use aequitas::systems::si::{
     quantities::{Activity, ActivityConcentration, Mass, MassDensity, Time},
     units::{BecquerelPerMilliliter, GramPerCubicCentimeter, Megabecquerel, Second},
 };
-use dicom::core::{
-    value::{AsRange, PreciseDateTime},
-    Tag,
+use ritk_dicom::{
+    dataset::{Dataset, DicomFile},
+    DicomTag as Tag,
 };
-use dicom::dictionary_std::uids::ENHANCED_PET_IMAGE_STORAGE;
-use dicom::object::{DefaultDicomObject, InMemDicomObject};
+
+use super::pet_dimensions::is_enhanced_pet;
+
+mod datetime;
+use datetime::Timestamp;
 use std::sync::Arc;
 
 /// Quantitative body-weight-normalized uptake aligned with the decoded volume.
@@ -33,10 +36,10 @@ impl BodyWeightSuvVolume {
     }
 }
 
-const SHARED: Tag = Tag(0x5200, 0x9229);
-const PER_FRAME: Tag = Tag(0x5200, 0x9230);
-const REAL_WORLD: Tag = Tag(0x0040, 0x9096);
-const AGENT: Tag = Tag(0x0018, 0x9729);
+const SHARED: Tag = Tag::new(0x5200, 0x9229);
+const PER_FRAME: Tag = Tag::new(0x5200, 0x9230);
+const REAL_WORLD: Tag = Tag::new(0x0040, 0x9096);
+const AGENT: Tag = Tag::new(0x0018, 0x9729);
 
 struct Mapping {
     lower: f64,
@@ -50,16 +53,16 @@ enum Function {
 }
 
 impl Mapping {
-    fn parse(item: &InMemDicomObject) -> Option<Self> {
-        let lower =
-            number(item, Tag(0x0040, 0x9214)).or_else(|| number(item, Tag(0x0040, 0x9216)))?;
-        let upper =
-            number(item, Tag(0x0040, 0x9213)).or_else(|| number(item, Tag(0x0040, 0x9211)))?;
+    fn parse(item: &Dataset) -> Option<Self> {
+        let lower = number(item, Tag::new(0x0040, 0x9214))
+            .or_else(|| number(item, Tag::new(0x0040, 0x9216)))?;
+        let upper = number(item, Tag::new(0x0040, 0x9213))
+            .or_else(|| number(item, Tag::new(0x0040, 0x9211)))?;
         if lower > upper {
             return None;
         }
-        let function = if let Ok(table) = item.element(Tag(0x0040, 0x9212)) {
-            let values = table.to_multi_float64().ok()?;
+        let function = if let Ok(table) = item.element(Tag::new(0x0040, 0x9212)) {
+            let values = table.to_numbers::<f64>().ok()?;
             // Integer Pixel Data in Enhanced PET addresses the table by an exact index.
             if lower.fract() != 0.0
                 || upper.fract() != 0.0
@@ -71,8 +74,8 @@ impl Mapping {
             Function::Table(values)
         } else {
             Function::Linear {
-                slope: number(item, Tag(0x0040, 0x9225))?,
-                intercept: number(item, Tag(0x0040, 0x9224))?,
+                slope: number(item, Tag::new(0x0040, 0x9225))?,
+                intercept: number(item, Tag::new(0x0040, 0x9224))?,
             }
         };
         Some(Self {
@@ -105,13 +108,8 @@ struct Normalization {
 }
 
 impl FrameMapping {
-    pub(super) fn read(obj: &DefaultDicomObject, index: usize) -> Option<Self> {
-        if obj
-            .meta()
-            .media_storage_sop_class_uid
-            .trim_end_matches([' ', '\0'])
-            != ENHANCED_PET_IMAGE_STORAGE
-        {
+    pub(super) fn read(obj: &DicomFile, index: usize) -> Option<Self> {
+        if !is_enhanced_pet(&obj.meta().media_storage_sop_class_uid) {
             return None;
         }
         let shared = single_item(obj, SHARED);
@@ -120,18 +118,18 @@ impl FrameMapping {
         let mut suv = Vec::new();
         let mut concentration = Vec::new();
         for item in items {
-            let Some(units) = single_item(item, Tag(0x0040, 0x08ea)) else {
+            let Some(units) = single_item(item, Tag::new(0x0040, 0x08ea)) else {
                 continue;
             };
             if !units
-                .element(Tag(0x0008, 0x0102))
+                .element(Tag::new(0x0008, 0x0102))
                 .ok()
                 .and_then(|code| code.to_str().ok())
                 .is_some_and(|code| code.trim() == "UCUM")
             {
                 continue;
             }
-            let Ok(code) = units.element(Tag(0x0008, 0x0100)) else {
+            let Ok(code) = units.element(Tag::new(0x0008, 0x0100)) else {
                 continue;
             };
             let Ok(code) = code.to_str() else { continue };
@@ -178,20 +176,20 @@ fn unique_value(mappings: &[Mapping], stored: f64) -> Option<f64> {
 }
 
 fn normalization(
-    obj: &InMemDicomObject,
-    frame: Option<&InMemDicomObject>,
-    shared: Option<&InMemDicomObject>,
+    obj: &Dataset,
+    frame: Option<&Dataset>,
+    shared: Option<&Dataset>,
 ) -> Option<Normalization> {
-    let mass = Mass::from_base(positive(obj, Tag(0x0010, 0x1030))?);
-    let isotopes = sequence(obj, Tag(0x0054, 0x0016))?;
-    let usage = group_items(frame, shared, Tag(0x0018, 0x9737));
+    let mass = Mass::from_base(positive(obj, Tag::new(0x0010, 0x1030))?);
+    let isotopes = sequence(obj, Tag::new(0x0054, 0x0016))?;
+    let usage = group_items(frame, shared, Tag::new(0x0018, 0x9737));
     let isotope = match usage {
         Some([item]) => {
-            let agent = item.element(AGENT).ok()?.to_int::<u32>().ok()?;
+            let agent = item.element(AGENT).ok()?.to_num::<u32>().ok()?;
             let mut matching = isotopes.iter().filter(|item| {
                 item.element(AGENT)
                     .ok()
-                    .and_then(|e| e.to_int::<u32>().ok())
+                    .and_then(|e| e.to_num::<u32>().ok())
                     == Some(agent)
             });
             let result = matching.next()?;
@@ -207,26 +205,21 @@ fn normalization(
         _ => return None,
     };
     let administered =
-        Activity::from_unit::<Megabecquerel>(positive(isotope, Tag(0x0018, 0x1074))?);
-    let half_life = Time::from_unit::<Second>(positive(isotope, Tag(0x0018, 0x1075))?);
-    let injection = datetime(isotope, Tag(0x0018, 0x1078))?;
-    let corrected = obj.element(Tag(0x0018, 0x9758)).ok()?.to_str().ok()?;
+        Activity::from_unit::<Megabecquerel>(positive(isotope, Tag::new(0x0018, 0x1074))?);
+    let half_life = Time::from_unit::<Second>(positive(isotope, Tag::new(0x0018, 0x1075))?);
+    let injection = datetime(isotope, Tag::new(0x0018, 0x1078))?;
+    let corrected = obj.element(Tag::new(0x0018, 0x9758)).ok()?.to_str().ok()?;
     let reference = match corrected.trim() {
-        "YES" => datetime(obj, Tag(0x0018, 0x9701))?,
+        "YES" => datetime(obj, Tag::new(0x0018, 0x9701))?,
         "NO" => {
-            let [content] = group_items(frame, shared, Tag(0x0020, 0x9111))? else {
+            let [content] = group_items(frame, shared, Tag::new(0x0020, 0x9111))? else {
                 return None;
             };
-            datetime(content, Tag(0x0018, 0x9151))?
+            datetime(content, Tag::new(0x0018, 0x9151))?
         }
         _ => return None,
     };
-    let elapsed = match (reference, injection) {
-        (PreciseDateTime::Naive(end), PreciseDateTime::Naive(start)) => end - start,
-        (PreciseDateTime::TimeZone(end), PreciseDateTime::TimeZone(start)) => end - start,
-        _ => return None,
-    };
-    let elapsed = Time::from_unit::<Second>(elapsed.to_std().ok()?.as_secs_f64());
+    let elapsed = Time::from_unit::<Second>(reference.seconds_since(injection)?);
     let half_lives = (elapsed / half_life).into_base();
     let activity_at_reference = administered * (-half_lives).exp2();
     let activity = *activity_at_reference.as_base();
@@ -237,10 +230,10 @@ fn normalization(
 }
 
 fn group_items<'a>(
-    frame: Option<&'a InMemDicomObject>,
-    shared: Option<&'a InMemDicomObject>,
+    frame: Option<&'a Dataset>,
+    shared: Option<&'a Dataset>,
     tag: Tag,
-) -> Option<&'a [InMemDicomObject]> {
+) -> Option<&'a [Dataset]> {
     if let Some(frame) = frame
         && let Ok(element) = frame.element(tag)
     {
@@ -249,30 +242,26 @@ fn group_items<'a>(
     sequence(shared?, tag)
 }
 
-fn single_item(obj: &InMemDicomObject, tag: Tag) -> Option<&InMemDicomObject> {
+fn single_item(obj: &Dataset, tag: Tag) -> Option<&Dataset> {
     let [item] = sequence(obj, tag)? else {
         return None;
     };
     Some(item)
 }
 
-fn sequence(obj: &InMemDicomObject, tag: Tag) -> Option<&[InMemDicomObject]> {
+fn sequence(obj: &Dataset, tag: Tag) -> Option<&[Dataset]> {
     obj.element(tag).ok()?.value().items()
 }
 
-fn datetime(obj: &InMemDicomObject, tag: Tag) -> Option<PreciseDateTime> {
-    let value = obj.element(tag).ok()?.value().to_datetime().ok()?;
-    value.time()?.second()?;
-    // DICOM permits precision to seconds or a decimal fraction of a second.
-    // Use the indicated timestamp without manufacturing absent clock fields.
-    value.earliest().ok()
+fn datetime(obj: &Dataset, tag: Tag) -> Option<Timestamp> {
+    Timestamp::parse(obj.element(tag).ok()?.to_str().ok()?.trim())
 }
 
-fn number(obj: &InMemDicomObject, tag: Tag) -> Option<f64> {
-    let value = obj.element(tag).ok()?.to_float64().ok()?;
+fn number(obj: &Dataset, tag: Tag) -> Option<f64> {
+    let value = obj.element(tag).ok()?.to_num::<f64>().ok()?;
     value.is_finite().then_some(value)
 }
 
-fn positive(obj: &InMemDicomObject, tag: Tag) -> Option<f64> {
+fn positive(obj: &Dataset, tag: Tag) -> Option<f64> {
     number(obj, tag).filter(|value| *value > 0.0)
 }

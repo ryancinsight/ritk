@@ -1,4 +1,4 @@
-# ADR 0062: Type DICOM geometry and PET activity
+# ADR 0064: Type DICOM geometry and PET activity
 
 - Status: Proposed
 - Class: [major]

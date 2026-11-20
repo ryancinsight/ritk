@@ -105,7 +105,7 @@ where
     let mut pairs = Vec::new();
     for (index, path) in paths.into_iter().enumerate() {
         let path = path.as_ref();
-        let object = dicom::object::open_file(path)
+        let object = crate::dataset::DicomFile::open(path)
             .with_context(|| format!("cannot open diffusion DICOM instance {path:?}"))?;
         let pair = extract_diffusion_pair(&object)?.ok_or_else(|| {
             anyhow::anyhow!(

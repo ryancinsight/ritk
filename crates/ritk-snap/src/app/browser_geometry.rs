@@ -4,6 +4,7 @@ use super::viewer_viewport::ViewerViewport;
 use crate::presentation::PresentationSpacing;
 use crate::tools::interaction::ViewportOffset;
 use crate::ui::ViewTransform;
+use metis_web::DisplaySpacing;
 use std::io;
 
 /// A positive finite CSS width-to-height ratio for one rendered slice.
@@ -13,40 +14,15 @@ pub(super) struct PhysicalCanvasAspect(f64);
 impl PhysicalCanvasAspect {
     /// Computes the aspect from frame-ordered row and column distances.
     ///
-    /// Pixel and spacing factors are normalized independently before they are
-    /// multiplied. This preserves common-unit scale invariance and prevents
-    /// otherwise-valid large sample distances from overflowing intermediate
-    /// physical extents.
+    /// RITK supplies frame-ordered spacing after admitting the DICOM geometry;
+    /// Metis computes the format-neutral physical ratio.
     pub(super) fn from_display_spacing(
         display_spacing: PresentationSpacing,
         width: u32,
         height: u32,
     ) -> io::Result<Self> {
-        if width == 0 || height == 0 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "browser slice dimensions must be positive",
-            ));
-        }
         let [row_spacing, column_spacing] = display_spacing.values();
-        let spacing_scale = row_spacing.max(column_spacing);
-        let dimension_scale = f64::from(width.max(height));
-        let physical_width =
-            (f64::from(width) / dimension_scale) * (column_spacing / spacing_scale);
-        let physical_height = (f64::from(height) / dimension_scale) * (row_spacing / spacing_scale);
-        let ratio = physical_width / physical_height;
-        if !physical_width.is_finite()
-            || physical_width <= 0.0
-            || !physical_height.is_finite()
-            || physical_height <= 0.0
-            || !ratio.is_finite()
-            || ratio <= 0.0
-        {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "browser slice physical aspect is not representable",
-            ));
-        }
+        let ratio = DisplaySpacing::try_new(row_spacing, column_spacing)?.aspect(width, height)?;
         Ok(Self(ratio))
     }
 
@@ -123,13 +99,8 @@ mod tests {
             .0
     }
 
-    fn assert_close(actual: f64, expected: f64) {
-        // Construction performs at most eight rounded f64 arithmetic steps.
-        let bound = 8.0 * f64::EPSILON * expected.abs().max(1.0);
-        assert!(
-            (actual - expected).abs() <= bound,
-            "actual {actual}, expected {expected}, bound {bound}"
-        );
+    fn assert_same_value(actual: f64, expected: f64) {
+        assert_eq!(actual.to_bits(), expected.to_bits());
     }
 
     fn assert_invalid(result: io::Result<PhysicalCanvasAspect>) {
@@ -141,13 +112,13 @@ mod tests {
 
     #[test]
     fn frame_spacing_preserves_physical_extents() {
-        assert_close(ratio([0.5, 0.5], [512, 512]), 1.0);
-        assert_close(ratio([2.5, 0.5], [512, 94]), 256.0 / 235.0);
+        assert_same_value(ratio([0.5, 0.5], [512, 512]), 1.0);
+        assert_same_value(ratio([2.5, 0.5], [512, 94]), 256.0 / 235.0);
     }
 
     #[test]
     fn isotropic_spacing_preserves_pixel_aspect() {
-        assert_close(ratio([1.0; 2], [512, 94]), 512.0 / 94.0);
+        assert_same_value(ratio([1.0; 2], [512, 94]), 512.0 / 94.0);
         let square = PhysicalCanvasAspect::from_display_spacing(
             PresentationSpacing::try_new(1.0, 1.0).expect("unit spacing"),
             2,
@@ -159,9 +130,9 @@ mod tests {
 
     #[test]
     fn each_axis_selects_its_row_and_column_spacing() {
-        assert_close(ratio([3.0, 5.0], [10, 4]), 50.0 / 12.0);
-        assert_close(ratio([2.0, 5.0], [10, 4]), 50.0 / 8.0);
-        assert_close(ratio([2.0, 3.0], [10, 4]), 30.0 / 8.0);
+        assert_same_value(ratio([3.0, 5.0], [10, 4]), 50.0 / 12.0);
+        assert_same_value(ratio([2.0, 5.0], [10, 4]), 50.0 / 8.0);
+        assert_same_value(ratio([2.0, 3.0], [10, 4]), 30.0 / 8.0);
     }
 
     #[test]
@@ -170,8 +141,16 @@ mod tests {
         let expected = ratio(base, [512, 94]);
         for exponent in [-1000, -30, 0, 1000] {
             let scale = 2.0_f64.powi(exponent);
-            assert_close(ratio(base.map(|value| value * scale), [512, 94]), expected);
+            assert_same_value(ratio(base.map(|value| value * scale), [512, 94]), expected);
         }
+    }
+
+    #[test]
+    fn extreme_spacing_preserves_minimum_subnormal_aspect() {
+        let row = f64::from_bits(0x7fe0_0000_0000_0000);
+        let column = f64::from_bits(0x3cb0_0000_0000_0000);
+        // (2 * 2^-52) / (1 * 2^1023) = 2^-1074 exactly.
+        assert_eq!(ratio([row, column], [2, 1]).to_bits(), 1);
     }
 
     #[test]
@@ -179,6 +158,18 @@ mod tests {
         let spacing = PresentationSpacing::try_new(1.0, 1.0).expect("unit spacing");
         assert_invalid(PhysicalCanvasAspect::from_display_spacing(spacing, 0, 2));
         assert_invalid(PhysicalCanvasAspect::from_display_spacing(spacing, 2, 0));
+    }
+
+    #[test]
+    fn unrepresentable_physical_aspects_are_invalid_input() {
+        for spacing in [
+            PresentationSpacing::try_new(f64::from_bits(1), f64::MAX)
+                .expect("valid overflow-boundary spacing"),
+            PresentationSpacing::try_new(f64::MAX, f64::from_bits(1))
+                .expect("valid underflow-boundary spacing"),
+        ] {
+            assert_invalid(PhysicalCanvasAspect::from_display_spacing(spacing, 1, 1));
+        }
     }
 
     #[test]

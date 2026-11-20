@@ -12,6 +12,7 @@ use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::time::{Duration, Instant};
 mod anonymize;
 mod arrow_overlay;
+mod calibration_measurement;
 mod calibration_scope;
 mod cobb_overlay;
 mod crosshair_tool;
@@ -41,8 +42,8 @@ mod slice_scrollbar;
 mod support;
 mod window_controls;
 #[cfg(feature = "eframe-shell")]
-use support::{expected_native_frame, session_with_volume};
-use support::{session, session_with_mode, session_with_responsive_mode};
+use support::expected_native_frame;
+use support::{session, session_with_mode, session_with_responsive_mode, session_with_volume};
 
 #[test]
 fn native_session_renders_and_steps_the_loaded_slice() {

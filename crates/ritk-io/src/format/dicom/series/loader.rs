@@ -2,11 +2,11 @@
 
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
-use dicom::dictionary_std::tags;
-use dicom::object::{FileDicomObject, InMemDicomObject};
 use ritk_core::image::Image;
+use ritk_dicom::dataset::DicomFile;
+use ritk_dicom::tags;
 use ritk_dicom::{
-    decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
+    decode_frame_with, parse_file_with, DecodeFrameRequest, NativeBackend, PixelLayout,
     PixelSignedness,
 };
 use ritk_image::tensor::Backend;
@@ -68,11 +68,11 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
     }
 
     // 1. Read all headers to sort spatially
-    let mut slices: Vec<(PathBuf, FileDicomObject<InMemDicomObject>)> =
+    let mut slices: Vec<(PathBuf, DicomFile)> =
         moirai::map_collect_index_with::<moirai::Adaptive, _, _>(series.file_paths.len(), |i| {
             let p = &series.file_paths[i];
             let obj =
-                parse_file_with::<DicomRsBackend, _>(p).context("Failed to open DICOM file")?;
+                parse_file_with::<NativeBackend, _>(p).context("Failed to open DICOM file")?;
             Ok((p.clone(), obj))
         })
         .into_iter()
@@ -221,7 +221,7 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
             .unwrap_or(PixelSignedness::Unsigned);
             let transfer_syntax = TransferSyntaxKind::from_uid(obj.meta().transfer_syntax());
 
-            let rescaled = decode_frame_with::<DicomRsBackend>(
+            let rescaled = decode_frame_with::<NativeBackend>(
                 obj,
                 DecodeFrameRequest {
                     frame_index: 0,
@@ -346,22 +346,19 @@ pub fn read_native_dicom_series_with_uid<B: ComputeBackend, P: AsRef<Path>>(
 
 // --- Helpers ---
 
-fn element_as_u32(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<u32> {
-    obj.element(tag).ok()?.to_int::<u32>().ok()
+fn element_as_u32(obj: &DicomFile, tag: ritk_dicom::dataset::DicomTag) -> Option<u32> {
+    obj.element(tag).ok()?.to_num::<u32>().ok()
 }
 
-fn get_scalar(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<f64> {
-    obj.element(tag).ok()?.to_float64().ok()
+fn get_scalar(obj: &DicomFile, tag: ritk_dicom::dataset::DicomTag) -> Option<f64> {
+    obj.element(tag).ok()?.to_num::<f64>().ok()
 }
 
-fn get_scalar_vec(
-    obj: &FileDicomObject<InMemDicomObject>,
-    tag: dicom::core::Tag,
-) -> Option<Vec<f64>> {
-    obj.element(tag).ok()?.to_multi_float64().ok()
+fn get_scalar_vec(obj: &DicomFile, tag: ritk_dicom::dataset::DicomTag) -> Option<Vec<f64>> {
+    obj.element(tag).ok()?.to_numbers::<f64>().ok()
 }
 
-fn get_position(obj: &FileDicomObject<InMemDicomObject>) -> Option<Point<3>> {
+fn get_position(obj: &DicomFile) -> Option<Point<3>> {
     let v = get_scalar_vec(obj, tags::IMAGE_POSITION_PATIENT)?;
     if v.len() == 3 {
         Some(Point::new([v[0], v[1], v[2]]))

@@ -1,11 +1,41 @@
 # RITK Gap Audit
 
+<a id="ritk-native-dicom"></a>
+## RITK-NATIVE-DICOM — Application cutover verified
+
+- The RITK dataset, writer, frame dispatch, and DIMSE wrappers form one
+  production graph. The `dicom-ul` test peer retains `dicom-core` and
+  Chrono only in RITK’s development graph.
+- Frame assembly uses Basic or Extended Offset Tables when supplied.
+  An empty table supports one frame or one fragment per frame. Ambiguous
+  multi-fragment layouts and unclassified transfer syntaxes report an error.
+  The parity scope covers the former backend’s supported pixel layouts.
+- Explicit big-endian Part 10 parsing, writing, and stored-sample decode
+  are covered at the provider boundary. Higher-level RITK I/O series
+  loaders retain their existing explicit big-endian policy.
+- Borrowed catalog selection records at most one span per requested tag.
+  With the encoded input resident, 32 frames (16,777,690 encoded bytes)
+  use zero heap bytes for this selection and 16,790,724 bytes for an owned
+  parse. The checks cover both explicit byte orders, implicit little
+  endian, nested attributes, and truncation.
+- The reconciled workspace resolves from an empty lockfile state with one
+  registry Aequitas 0.4.0, Eunomia 0.12.1, Leto 0.51.0, and Coeus 0.13.0.
+  Across all targets and features, Chrono appears only through the independent
+  DIMSE test peer. The 650 focused DICOM, I/O, and Diffusion Scheme
+  tests pass, including scanner bounds, numeric VR boundaries, and real
+  DIMSE peers. Two opt-in tests remain outside this run.
+- A fresh crates.io consumer writes a Part 10 CT slice and recovers all
+  four calibrated voxel values exactly through the published I/O crate.
+  Its dependency graph contains no Chrono.
+
 <a id="RITK-REGISTRY-PUBLICATION-001"></a>
-## RITK-REGISTRY-PUBLICATION-001: Git validation does not establish registry publication [patch]
-- risk: a corrected Git revision passes native checks while the registry resolves older incompatible dependencies or lacks required packages.
-- evidence: main's release package verification fails in registry Leto 0.42.0; an isolated Coeus 0.11 probe compiles but its registry plan holds registration on unpublished Consus and missing Coeus component versions.
-- next: preserve active provider owners, validate the complete required registry graph, and complete approved first publications before claiming a released registration version.
-- review: [RITK-REGISTRY-PUBLICATION-001](backlog/RITK-REGISTRY-PUBLICATION-001.md) records exact failure, ownership and credential boundaries.
+## RITK-REGISTRY-PUBLICATION-001 — Registry graph published
+
+- All sixteen cutover versions are indexed with matching archive checksums
+  and release tags. DICOM 0.5.0 and I/O 0.6.0 use the native writer released
+  from merge 49dc944ed862. [Trusted publishing](https://github.com/ryancinsight/ritk/actions/runs/44667442964)
+- Registration 0.56.0 publishes after Parcellation 0.2.0 and the other
+  registry providers. [Registration release](https://github.com/ryancinsight/ritk/releases/tag/ritk-registration-v0.56.0)
 
 <a id="PERF-432-01"></a>
 ## PERF-432-01: Revalidate the legacy MSE performance claim

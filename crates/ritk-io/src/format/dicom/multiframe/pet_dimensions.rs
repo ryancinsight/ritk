@@ -7,27 +7,27 @@ use aequitas::systems::si::{
     units::{Millimeter, Millisecond},
 };
 use anyhow::{bail, ensure, Context, Result};
-use dicom::core::{
-    value::{PrimitiveValue, Value},
-    Tag,
+use ritk_dicom::{
+    dataset::{Dataset, PrimitiveValue, Value},
+    DicomTag as Tag,
 };
-use dicom::dictionary_std::uids::ENHANCED_PET_IMAGE_STORAGE;
-use dicom::object::InMemDicomObject;
+
+use crate::format::dicom::sop_class::{classify_sop_class, SopClassKind};
 
 use super::reader::frame_source::{FrameAddress, FrameSource};
 use super::temporal::reject_temporal_organization;
 use crate::format::dicom::reader::{dot, slice_normal_from_iop};
 
-const DIMENSIONS: Tag = Tag(0x0020, 0x9222);
-const POINTER: Tag = Tag(0x0020, 0x9165);
-const GROUP: Tag = Tag(0x0020, 0x9167);
-const PER_FRAME: Tag = Tag(0x5200, 0x9230);
-const SHARED: Tag = Tag(0x5200, 0x9229);
-const CONTENT: Tag = Tag(0x0020, 0x9111);
-const INDICES: Tag = Tag(0x0020, 0x9157);
-const IN_STACK: Tag = Tag(0x0020, 0x9057);
-const POSITION: Tag = Tag(0x0020, 0x0032);
-const TEMPORAL: Tag = Tag(0x0020, 0x9128);
+const DIMENSIONS: Tag = Tag::new(0x0020, 0x9222);
+const POINTER: Tag = Tag::new(0x0020, 0x9165);
+const GROUP: Tag = Tag::new(0x0020, 0x9167);
+const PER_FRAME: Tag = Tag::new(0x5200, 0x9230);
+const SHARED: Tag = Tag::new(0x5200, 0x9229);
+const CONTENT: Tag = Tag::new(0x0020, 0x9111);
+const INDICES: Tag = Tag::new(0x0020, 0x9157);
+const IN_STACK: Tag = Tag::new(0x0020, 0x9057);
+const POSITION: Tag = Tag::new(0x0020, 0x0032);
+const TEMPORAL: Tag = Tag::new(0x0020, 0x9128);
 
 /// A nominal coordinate for a DICOM dimension, when the input supplies it.
 #[derive(Debug, Clone, PartialEq)]
@@ -61,21 +61,21 @@ pub(super) struct PetFrameGroup {
 }
 
 pub(super) fn is_enhanced_pet(uid: &str) -> bool {
-    uid.trim_end_matches([' ', '\0']) == ENHANCED_PET_IMAGE_STORAGE
+    classify_sop_class(uid.trim_end_matches([' ', '\0'])) == SopClassKind::EnhancedPetImageStorage
 }
 
-fn items(obj: &InMemDicomObject, tag: Tag) -> Option<&[InMemDicomObject]> {
+fn items(obj: &Dataset, tag: Tag) -> Option<&[Dataset]> {
     obj.element(tag).ok()?.items()
 }
 
-fn one_item(obj: &InMemDicomObject, tag: Tag) -> Option<&InMemDicomObject> {
+fn one_item(obj: &Dataset, tag: Tag) -> Option<&Dataset> {
     let [item] = items(obj, tag)? else {
         return None;
     };
     Some(item)
 }
 
-fn single_tag(obj: &InMemDicomObject, key: Tag) -> Result<Tag> {
+fn single_tag(obj: &Dataset, key: Tag) -> Result<Tag> {
     let Value::Primitive(PrimitiveValue::Tags(tags)) = obj.element(key)?.value() else {
         bail!("Enhanced PET dimension pointer {key:?} must contain an attribute tag");
     };
@@ -94,8 +94,8 @@ struct Axis {
 impl Axis {
     fn coordinate(
         self,
-        frame: &InMemDicomObject,
-        shared: Option<&InMemDicomObject>,
+        frame: &Dataset,
+        shared: Option<&Dataset>,
     ) -> Option<EnhancedPetCoordinate> {
         let attr = match self.group {
             Some(group) => one_item(frame, group)
@@ -106,26 +106,35 @@ impl Axis {
         };
         match self.attribute {
             TEMPORAL => attr
-                .to_int::<u32>()
+                .to_num::<u32>()
                 .ok()
                 .filter(|v| *v > 0)
                 .map(EnhancedPetCoordinate::TemporalPosition),
-            Tag(0x0020, 0x9241 | 0x9245) => {
-                let percent = attr.to_float64().ok()?;
+            Tag {
+                group: 0x0020,
+                element: 0x9241 | 0x9245,
+            } => {
+                let percent = attr.to_num::<f64>().ok()?;
                 (0.0..=100.0).contains(&percent).then(|| {
                     EnhancedPetCoordinate::CyclePhase(Dimensionless::from_base(percent / 100.0))
                 })
             }
-            Tag(0x0020, 0x9246 | 0x9248) => {
-                let percent = attr.to_float64().ok()?;
+            Tag {
+                group: 0x0020,
+                element: 0x9246 | 0x9248,
+            } => {
+                let percent = attr.to_num::<f64>().ok()?;
                 percent.is_finite().then(|| {
                     EnhancedPetCoordinate::RespiratoryAmplitude(Dimensionless::from_base(
                         percent / 100.0,
                     ))
                 })
             }
-            Tag(0x0020, 0x9153 | 0x9154 | 0x9155 | 0x9252 | 0x9255 | 0x9257) => {
-                let delay = attr.to_float64().ok()?;
+            Tag {
+                group: 0x0020,
+                element: 0x9153 | 0x9154 | 0x9155 | 0x9252 | 0x9255 | 0x9257,
+            } => {
+                let delay = attr.to_num::<f64>().ok()?;
                 delay.is_finite().then(|| {
                     EnhancedPetCoordinate::TriggerDelay(Time::from_unit::<Millisecond>(delay))
                 })
@@ -183,7 +192,7 @@ fn partition_instance(
         obj, path, info, ..
     } = instance;
     let dynamic = obj
-        .element(Tag(0x0008, 0x0008))
+        .element(Tag::new(0x0008, 0x0008))
         .ok()
         .and_then(|element| element.to_str().ok())
         .is_some_and(|value| {
@@ -197,7 +206,8 @@ fn partition_instance(
         .flatten()
         .chain(items(obj, SHARED).into_iter().flatten())
         .any(|group| {
-            group.element(Tag(0x0018, 0x9118)).is_ok() || group.element(Tag(0x0020, 0x9253)).is_ok()
+            group.element(Tag::new(0x0018, 0x9118)).is_ok()
+                || group.element(Tag::new(0x0020, 0x9253)).is_ok()
         });
     if obj.element(DIMENSIONS).is_err() {
         reject_temporal_organization(path, obj)?;
@@ -233,7 +243,13 @@ fn partition_instance(
         !gated
             || axes.iter().any(|axis| !matches!(
                 axis.attribute,
-                IN_STACK | POSITION | TEMPORAL | Tag(0x0020, 0x9056)
+                IN_STACK
+                    | POSITION
+                    | TEMPORAL
+                    | Tag {
+                        group: 0x0020,
+                        element: 0x9056
+                    }
             )),
         "Gated Enhanced PET has no timing or gate dimension"
     );
@@ -256,7 +272,7 @@ fn partition_instance(
     for (index, frame) in groups.iter().enumerate() {
         let content =
             one_item(frame, CONTENT).context("Enhanced PET frame is missing Frame Content")?;
-        let ordinals = content.element(INDICES)?.to_multi_int::<u32>()?;
+        let ordinals = content.element(INDICES)?.to_numbers::<u32>()?;
         ensure!(
             ordinals.len() == axes.len() && !ordinals.contains(&0),
             "Enhanced PET frame {index} has invalid Dimension Index Values"

@@ -3,9 +3,9 @@
 use std::{ops::RangeInclusive, path::Path};
 
 use anyhow::{bail, Context, Result};
-use dicom::{core::Tag, object::DefaultDicomObject};
+use ritk_dicom::{dataset::DicomFile, DicomTag as Tag};
 use ritk_dicom::{
-    decode_frame_with, DecodeFrameRequest, DicomRsBackend, PixelLayout, TransferSyntaxKind,
+    decode_frame_with, DecodeFrameRequest, NativeBackend, PixelLayout, TransferSyntaxKind,
 };
 
 use super::super::{
@@ -23,7 +23,7 @@ pub(in super::super) struct FrameAddress {
 }
 
 pub(in super::super) struct FrameSource<'a> {
-    pub obj: &'a DefaultDicomObject,
+    pub obj: &'a DicomFile,
     pub path: &'a Path,
     pub info: MultiFrameInfo,
     pub geometry: Vec<PerFrameInfo>,
@@ -34,7 +34,7 @@ pub(in super::super) struct FrameSource<'a> {
 impl<'a> FrameSource<'a> {
     pub(super) fn read(
         path: &'a Path,
-        obj: &'a DefaultDicomObject,
+        obj: &'a DicomFile,
         budget: &DicomReadBudget,
     ) -> Result<Self> {
         // Guard: compressed transfer syntaxes are not natively decodable by ritk-io.
@@ -94,14 +94,14 @@ impl<'a> FrameSource<'a> {
         budget.checked_decoded_bytes(source_bytes)?;
         let geometry = extract_functional_groups(obj, info.n_frames);
         let padding = obj
-            .element(Tag(0x0028, 0x0120))
+            .element(Tag::new(0x0028, 0x0120))
             .ok()
-            .and_then(|element| element.to_int::<i32>().ok())
+            .and_then(|element| element.to_num::<i32>().ok())
             .map(|first| {
                 let last = obj
-                    .element(Tag(0x0028, 0x0121))
+                    .element(Tag::new(0x0028, 0x0121))
                     .ok()
-                    .and_then(|element| element.to_int::<i32>().ok())
+                    .and_then(|element| element.to_num::<i32>().ok())
                     .unwrap_or(first);
                 first.min(last)..=first.max(last)
             });
@@ -140,7 +140,7 @@ impl<'a> FrameSource<'a> {
             .and_then(|pfi| pfi.rescale_intercept)
             .unwrap_or(info.rescale_intercept) as f32;
 
-        let frame = decode_frame_with::<DicomRsBackend>(
+        let frame = decode_frame_with::<NativeBackend>(
             obj,
             DecodeFrameRequest {
                 frame_index: u32::try_from(frame_idx)

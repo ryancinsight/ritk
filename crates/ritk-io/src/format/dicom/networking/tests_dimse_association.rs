@@ -126,6 +126,15 @@ fn c_echo_loopback_returns_success_status() {
 
 #[test]
 fn c_find_loopback_returns_synthetic_study_result() {
+    find_study_round_trip(false);
+}
+
+#[test]
+fn c_find_loopback_accepts_command_and_dataset_in_one_pdu() {
+    find_study_round_trip(true);
+}
+
+fn find_study_round_trip(combine_fragments: bool) {
     const EXPECTED_UID: &str = "1.2.826.0.1.3680043.10.999.1";
 
     let listener = TcpListener::bind("127.0.0.1:0").expect("infallible: validated precondition");
@@ -191,16 +200,12 @@ fn c_find_loopback_returns_synthetic_study_result() {
                         ),
                     ]);
 
-                    assoc
-                        .send(&Pdu::PData {
-                            data: vec![PDataValue {
-                                presentation_context_id: ctx_id,
-                                value_type: PDataValueType::Command,
-                                is_last: true,
-                                data: pending_rsp,
-                            }],
-                        })
-                        .expect("infallible: validated precondition");
+                    let command = PDataValue {
+                        presentation_context_id: ctx_id,
+                        value_type: PDataValueType::Command,
+                        is_last: true,
+                        data: pending_rsp,
+                    };
 
                     // Send result dataset with StudyInstanceUID.
                     let mut uid_bytes = Vec::new();
@@ -211,16 +216,25 @@ fn c_find_loopback_returns_synthetic_study_result() {
                         (0x0020_000D, uid_bytes.as_slice()),
                     ]);
 
-                    assoc
-                        .send(&Pdu::PData {
-                            data: vec![PDataValue {
-                                presentation_context_id: ctx_id,
-                                value_type: PDataValueType::Data,
-                                is_last: true,
-                                data: dataset,
-                            }],
-                        })
-                        .expect("infallible: validated precondition");
+                    let dataset = PDataValue {
+                        presentation_context_id: ctx_id,
+                        value_type: PDataValueType::Data,
+                        is_last: true,
+                        data: dataset,
+                    };
+                    if combine_fragments {
+                        assoc
+                            .send(&Pdu::PData {
+                                data: vec![command, dataset],
+                            })
+                            .expect("write combined DIMSE response");
+                    } else {
+                        for item in [command, dataset] {
+                            assoc
+                                .send(&Pdu::PData { data: vec![item] })
+                                .expect("write DIMSE response fragment");
+                        }
+                    }
 
                     // Send final SUCCESS C-FIND-RSP (no dataset).
                     let final_rsp = build_command_pdu(&[

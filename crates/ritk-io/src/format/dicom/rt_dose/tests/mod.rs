@@ -3,15 +3,15 @@
 use super::*;
 mod pixel_encoding;
 use arrayvec::ArrayString;
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::InMemDicomObject;
+use ritk_dicom::dataset::Dataset;
+use ritk_dicom::dataset::FileMetaBuilder;
+use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 
-fn write_rt_dose_file(obj: InMemDicomObject, path: &std::path::Path) {
+fn write_rt_dose_file(obj: Dataset, path: &std::path::Path) {
     obj.with_meta(
-        FileMetaTableBuilder::new()
+        FileMetaBuilder::new()
             .media_storage_sop_class_uid(RT_DOSE_SOP_CLASS_UID)
             .media_storage_sop_instance_uid("2.25.1")
             .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -22,24 +22,24 @@ fn write_rt_dose_file(obj: InMemDicomObject, path: &std::path::Path) {
 }
 
 fn write_wrong_sop_file(sop: &str, path: &std::path::Path) {
-    let mut obj = InMemDicomObject::new_empty();
+    let mut obj = Dataset::new();
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
+        DicomTag::new(0x0008, 0x0016),
         VR::UI,
         PrimitiveValue::from(sop),
     ));
     obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
+        DicomTag::new(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from("2.25.99"),
     ));
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OW,
-        PrimitiveValue::U8(dicom::core::smallvec::SmallVec::new()),
+        PrimitiveValue::Empty,
     ));
     obj.with_meta(
-        FileMetaTableBuilder::new()
+        FileMetaBuilder::new()
             .media_storage_sop_class_uid(sop)
             .media_storage_sop_instance_uid("2.25.99")
             .transfer_syntax("1.2.840.10008.1.2.1"),
@@ -55,41 +55,41 @@ fn build_rt_dose_obj(
     n_frames: u32,
     dose_grid_scaling: f64,
     pixel_val: u32,
-) -> InMemDicomObject {
-    let mut obj = InMemDicomObject::new_empty();
+) -> Dataset {
+    let mut obj = Dataset::new();
 
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
+        DicomTag::new(0x0028, 0x0010),
         VR::US,
         PrimitiveValue::from(rows),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
+        DicomTag::new(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(cols),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0008),
+        DicomTag::new(0x0028, 0x0008),
         VR::IS,
         PrimitiveValue::from(n_frames.to_string().as_str()),
     ));
     obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
+        DicomTag::new(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(32u16),
     ));
     obj.put(DataElement::new(
-        Tag(0x3004, 0x000E),
+        DicomTag::new(0x3004, 0x000E),
         VR::DS,
         PrimitiveValue::from(format!("{}", dose_grid_scaling).as_str()),
     ));
     obj.put(DataElement::new(
-        Tag(0x3004, 0x0002),
+        DicomTag::new(0x3004, 0x0002),
         VR::CS,
         PrimitiveValue::from("PLAN"),
     ));
     obj.put(DataElement::new(
-        Tag(0x3004, 0x0004),
+        DicomTag::new(0x3004, 0x0004),
         VR::CS,
         PrimitiveValue::from("PHYSICAL"),
     ));
@@ -99,7 +99,7 @@ fn build_rt_dose_obj(
         .collect::<Vec<_>>()
         .join("\\");
     obj.put(DataElement::new(
-        Tag(0x3004, 0x000C),
+        DicomTag::new(0x3004, 0x000C),
         VR::DS,
         PrimitiveValue::from(offset_str.as_str()),
     ));
@@ -110,9 +110,9 @@ fn build_rt_dose_obj(
         pixel_bytes.extend_from_slice(&pixel_val.to_le_bytes());
     }
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OW,
-        PrimitiveValue::U8(dicom::core::smallvec::SmallVec::from_vec(pixel_bytes)),
+        PrimitiveValue::from(pixel_bytes),
     ));
 
     obj
@@ -202,7 +202,7 @@ fn test_read_rt_dose_rejects_invalid_frame_offset() {
 
     let mut obj = build_rt_dose_obj(2, 2, 2, 0.001, 1000);
     obj.put(DataElement::new(
-        Tag(0x3004, 0x000C),
+        DicomTag::new(0x3004, 0x000C),
         VR::DS,
         PrimitiveValue::from("0\\not-a-number"),
     ));
@@ -224,7 +224,7 @@ fn test_read_rt_dose_rejects_frame_offset_count_mismatch() {
 
     let mut obj = build_rt_dose_obj(2, 2, 2, 0.001, 1000);
     obj.put(DataElement::new(
-        Tag(0x3004, 0x000C),
+        DicomTag::new(0x3004, 0x000C),
         VR::DS,
         PrimitiveValue::from("0\\1\\2"),
     ));
@@ -252,9 +252,9 @@ fn test_read_rt_dose_rejects_extra_pixel_bytes() {
     }
     pixel_bytes.extend_from_slice(&9999u32.to_le_bytes());
     obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
+        DicomTag::new(0x7FE0, 0x0010),
         VR::OW,
-        PrimitiveValue::U8(dicom::core::smallvec::SmallVec::from_vec(pixel_bytes)),
+        PrimitiveValue::from(pixel_bytes),
     ));
     write_rt_dose_file(obj, &path);
 
