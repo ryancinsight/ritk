@@ -15,6 +15,7 @@ mod arrow_overlay;
 mod calibration_layout;
 mod calibration_measurement;
 mod calibration_scope;
+mod calibration_units;
 mod cobb_overlay;
 mod crosshair_tool;
 mod display;

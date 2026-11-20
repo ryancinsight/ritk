@@ -21,7 +21,7 @@ mod annotation_edit;
 #[cfg(windows)]
 mod calibration;
 #[cfg(windows)]
-pub(crate) use calibration::LengthCalibrationReference;
+pub(crate) use calibration::{CalibrationInputError, CalibrationUnit, LengthCalibrationReference};
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_cine;
 #[cfg(any(target_arch = "wasm32", test))]

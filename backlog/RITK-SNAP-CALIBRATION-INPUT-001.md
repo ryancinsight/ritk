@@ -1,10 +1,10 @@
 <a id="RITK-SNAP-CALIBRATION-INPUT-001"></a>
-## RITK-SNAP-CALIBRATION-INPUT-001 — Complete calibration units and properties — todo
-- outcome: The calibration dialog accepts the reference manual's documented units and exposes calibration provenance.
-- acceptance: Native dialog fixtures assert equivalent mm/inch/French-size inputs, invalid input rejection, reset, source-specific label properties, and per-image ownership.
-- evidence: RadiAnt PDF 76–79 distinguishes calibration sources and accepts millimetres, inches and French sizes; the current dialog accepts known_mm only.
+## RITK-SNAP-CALIBRATION-INPUT-001 — Expose calibration sources and properties — todo
+- outcome: The calibration controls expose the reference manual's calibration provenance and source-specific appearance.
+- acceptance: Native fixtures assert segment/label context calibration, mouse apply/cancel, source-specific label properties, provenance, reset, and per-image ownership.
+- evidence: RadiAnt PDF 76–79 distinguishes calibration sources; source-specific colors and properties remain absent.
 - scope: crates/ritk-snap/src/app/calibration.rs, presentation/native_session calibration controls, reusable Metis controls only where absent, and docs/manual/
-- next: Verify authoritative unit definitions; reuse existing GUI controls and keep conversion/provenance in RITK.
+- next: Add segment/label context calibration actions; verify source tags and expose provenance and label properties through existing GUI controls.
 - needs: RITK-SNAP-MEASUREMENT-UNITS-001
 - priority: feature; milestone: M-viewer-reading
-- basis: eee4ce8c2f62f4a6a141301ae7253816b544a331
+- basis: 3e48c8663fbacdf048918f541ff885aaa903dc9b
