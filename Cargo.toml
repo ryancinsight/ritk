@@ -99,7 +99,7 @@ ritk-annotation = { path = "crates/ritk-annotation", version = "0.3.0" }
 ritk-tensor-ops = { path = "crates/ritk-tensor-ops", version = "0.3.0" }
 ritk-statistics = { path = "crates/ritk-statistics", version = "0.6.0" }
 ritk-diffusion = { path = "crates/ritk-diffusion", version = "0.1.0" }
-ritk-diffusion-scheme = { path = "crates/ritk-diffusion-scheme", version = "0.3.0" }
+ritk-diffusion-scheme = { path = "crates/ritk-diffusion-scheme", version = "0.4.0" }
 ritk-tractography = { path = "crates/ritk-tractography", version = "0.2.0" }
 ritk-parcellation = { path = "crates/ritk-parcellation", version = "0.2.0" }
 ritk-connectome = { path = "crates/ritk-connectome", version = "0.2.0" }

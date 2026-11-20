@@ -66,10 +66,11 @@ jobs:
   # skip on push and schedule events.
   publish-pending:
     if: github.event_name == 'push' || github.event_name == 'schedule'
-    uses: ryancinsight/atlas/.github/workflows/crates-publish-pending.yml@0227830912a12dbae0ff62b3f16575899fc9087e
+    uses: ryancinsight/atlas/.github/workflows/crates-publish-pending.yml@f90b48f6785c3235b805977da878eba5f9140c92
     permissions:
       contents: write # Creates the release tags.
       id-token: write # OIDC trusted publishing; no stored registry token.
     with:
       rust-toolchain: "1.97.0"
-      cohort-json: '{"ritk-spatial":"0.5.0"}'
+      semver-baseline-source: locked-registry
+      cohort-json: '{"ritk-spatial":"0.5.0","ritk-diffusion-scheme":"0.4.0","ritk-dicom":"0.4.0"}'

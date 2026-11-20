@@ -6287,7 +6287,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-diffusion-scheme"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "aequitas",
  "anyhow",

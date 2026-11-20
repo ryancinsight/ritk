@@ -9,14 +9,14 @@
 - release side effects: a merge to main invokes the existing crates pending-publication workflow. It verifies packages and release compatibility before OIDC authentication and tags indexed versions. Neither repair touches `docs/book/**` or the book deployment workflow, so these merges do not request a Pages deployment. Python publishing requires a separate `ritk-python-v` release event.
 - acceptance: obtain independent review and final-revision PR gates; adopt the reviewed provider graph without source overrides or weakened checks; verify the registry/package plan includes registration; complete required first publications using approved credentials; verify index versions and release tags. Publication is authorized, but new credentials or security settings need specific approval. No deployment, deferred Miri, gate override or limit increase is authorized.
 
-## Spatial 0.5.0 registry checkpoint
+## DICOM registry checkpoint
 
-- [major] Spatial moves the public Leto boundary to 0.51.0 (ADR 0062).
-- The locked Spatial and DICOM suites pass 156 tests including one doctest.
-  Registry packaging verifies Spatial 0.5.0 against the current index.
-- DICOM's fresh package resolution also selects Diffusion Scheme 0.3.0
-  with Spatial 0.4.0 and Leto 0.46.5. That Leto still fails its unit-scalar
-  bounds. Advance the published Diffusion Scheme provider before enabling
-  DICOM 0.4.0 in the release job.
+- [major] Spatial 0.5.0 moves the Leto boundary to 0.51.0. Diffusion Scheme
+  0.4.0 uses the new spatial types and Aequitas 0.4.0 (ADR 0062).
+- Cargo verifies all three candidate packages in dependency order against the
+  registry. The DICOM archive resolves one Spatial 0.5.0, Diffusion Scheme
+  0.4.0, Aequitas 0.4.0, Eunomia 0.12.1, and Leto 0.51.0.
+- The locked Spatial, Diffusion Scheme and DICOM suites pass 185 tests,
+  including one doctest. Two opt-in cases remain ignored by default.
 - Keep subsequent approved packages gated on the Coeus registry closure
   and each package's normalized build.

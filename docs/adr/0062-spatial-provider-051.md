@@ -21,6 +21,11 @@ The geometry and format contracts remain in force. Consumers use the
 same physical coordinates and on-disk DICOM conventions through the
 new Leto provider version.
 
+Diffusion Scheme's public direction and weighting APIs name Spatial and
+Aequitas types. Version it at 0.4.0 with Spatial 0.5.0 and Aequitas 0.4.0.
+DICOM must resolve the new Diffusion Scheme release so both paths share
+the same Spatial identity.
+
 ## Verification
 
 Run the Spatial geometry and DICOM parsing suites. Build and compare the

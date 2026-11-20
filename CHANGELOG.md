@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## ritk-diffusion-scheme 0.4.0
+
+### Breaking
+
+- [major] Use Spatial 0.5.0 for direction vectors and Aequitas 0.4.0 for
+  typed diffusion weighting. Update callers passing either type directly
+  across the package boundary. The existing diffusion weighting units and
+  DICOM encodings retain their defined values.
+
 ## ritk-spatial 0.5.0
 
 ### Breaking

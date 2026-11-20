@@ -5,7 +5,7 @@
 - risk: a corrected Git revision passes native checks while the registry resolves older incompatible dependencies or lacks required packages.
 - evidence: main's release package verification fails in registry Leto 0.42.0; an isolated Coeus 0.11 probe compiles but its registry plan holds registration on unpublished Consus and missing Coeus component versions.
 - next: preserve active provider owners, validate the complete required registry graph, and complete approved first publications before claiming a released registration version.
-- current: Spatial 0.5.0 packages successfully. Diffusion Scheme 0.3.0 still brings Leto 0.46.5 into the DICOM 0.4.0 package; Coeus and separate first-publish requirements still gate the rest of the registry sequence.
+- current: Spatial 0.5.0, Diffusion Scheme 0.4.0 and DICOM 0.4.0 build together as normalized packages. The Diffusion Scheme update removes the remaining registry dependency on Leto 0.46.5 for this cohort. Coeus and separate first-publish requirements still gate the rest of the registry sequence.
 - review: [RITK-REGISTRY-PUBLICATION-001](backlog/RITK-REGISTRY-PUBLICATION-001.md) records exact failure, ownership and credential boundaries.
 
 <a id="PERF-432-01"></a>
