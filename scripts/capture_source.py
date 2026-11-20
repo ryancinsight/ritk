@@ -23,21 +23,36 @@ def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _atlas_module(scripts: Path, name: str):
+    path = scripts / f"{name}.py"
+    if not path.is_file():
+        raise CaptureSourceError(f"Atlas runtime is missing: {path}")
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise CaptureSourceError(f"cannot load Atlas runtime: {path}")
+    loaded = importlib.util.module_from_spec(spec)
+    sys.modules[name] = loaded
+    spec.loader.exec_module(loaded)
+    return loaded
+
+
 def atlas_process_tree(atlas_root: Path):
     """Load the exact bounded runner from an explicit Atlas checkout."""
     scripts = atlas_root.resolve() / "scripts"
     loaded = None
     for name in ("darwin_process", "windows_process", "process_tree"):
-        path = scripts / f"{name}.py"
-        if not path.is_file():
-            raise CaptureSourceError(f"Atlas runtime is missing: {path}")
-        spec = importlib.util.spec_from_file_location(name, path)
-        if spec is None or spec.loader is None:
-            raise CaptureSourceError(f"cannot load Atlas runtime: {path}")
-        loaded = importlib.util.module_from_spec(spec)
-        sys.modules[name] = loaded
-        spec.loader.exec_module(loaded)
+        loaded = _atlas_module(scripts, name)
     return loaded
+
+
+def atlas_build_source(atlas_root: Path):
+    """Load Atlas build-source helpers from the explicit checkout."""
+    scripts = atlas_root.resolve() / "scripts"
+    sys.path.insert(0, str(scripts))
+    try:
+        return _atlas_module(scripts, "atlas_build_source")
+    finally:
+        sys.path.pop(0)
 
 
 def git(runner, repository: Path, *arguments: str):
