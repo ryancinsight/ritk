@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import io
 import json
 import subprocess
 import sys
 from pathlib import Path, PurePosixPath
 
+from PIL import Image
+
 
 FIXTURE_PATH = PurePosixPath("test_data/2_head_mri_t2/DICOM")
 FIXTURE_IMAGES = 94
 GIT_TIMEOUT_SECONDS = 30
+FRAME_SIZE = (1280, 800)
+CAPTURE_RECORD_VERSION = 1
 
 
 class CaptureSourceError(RuntimeError):
@@ -21,6 +26,22 @@ class CaptureSourceError(RuntimeError):
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def decoded_rgba(data: bytes, name: str, expected_format: str) -> tuple[tuple[int, int], bytes]:
+    """Decode one manual frame after enforcing its format and dimensions."""
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            if image.format != expected_format:
+                raise CaptureSourceError(
+                    f"{name} is {image.format or 'untyped'}, not {expected_format}"
+                )
+            if image.size != FRAME_SIZE:
+                raise CaptureSourceError(f"image has wrong dimensions: {name}")
+            image.load()
+            return image.size, image.convert("RGBA").tobytes()
+    except (OSError, Image.DecompressionBombError) as error:
+        raise CaptureSourceError(f"cannot decode image: {name}") from error
 
 
 def atlas_process_tree(atlas_root: Path):
@@ -87,14 +108,25 @@ def load_stage(record_bytes: bytes, capture_root: Path) -> tuple[dict, dict[str,
     if not matching:
         raise CaptureSourceError("capture record has no stage for the capture root")
     stage = matching[-1]
+    if type(stage.get("version")) is not int or stage["version"] != CAPTURE_RECORD_VERSION:
+        raise CaptureSourceError("capture record version is unsupported")
     if type(stage.get("exit")) is not int or stage["exit"] != 0:
         raise CaptureSourceError("capture stage did not complete successfully")
+    admission = stage.get("admission")
+    if admission != {"status": "accepted", "errors": []}:
+        raise CaptureSourceError("capture stage was not admitted")
     command = stage.get("argv")
     if not isinstance(command, list) or not command or not all(isinstance(value, str) and value for value in command):
         raise CaptureSourceError("capture stage has no command argument record")
     before, after = stage.get("source_before"), stage.get("source_after")
     if not isinstance(before, dict) or not before or before != after:
         raise CaptureSourceError("capture source hashes are missing or changed during capture")
+    dataset_before, dataset_after = stage.get("dataset_before"), stage.get("dataset_after")
+    if not isinstance(dataset_before, dict) or not dataset_before or dataset_before != dataset_after:
+        raise CaptureSourceError("capture dataset hashes are missing or changed during capture")
+    execution_before, execution_after = stage.get("execution_before"), stage.get("execution_after")
+    if not isinstance(execution_before, dict) or not execution_before or execution_before != execution_after:
+        raise CaptureSourceError("capture execution inputs are missing or changed during capture")
     return stage, before
 
 
@@ -170,6 +202,14 @@ def verify_fixture(repository: Path, fixture: object, study: object) -> None:
         raise CaptureSourceError("public MRI fixture does not contain 94 .dcm files")
 
 
+def fixture_hashes(repository: Path) -> dict[str, str]:
+    root = repository.joinpath(*FIXTURE_PATH.parts).resolve()
+    return {
+        path.relative_to(root).as_posix(): sha256(path.read_bytes())
+        for path in sorted(root.rglob("*")) if path.is_file()
+    }
+
+
 def validate_capture_source(
     capture_root: Path,
     capture_record: Path,
@@ -184,6 +224,8 @@ def validate_capture_source(
     stage, captured = load_stage(record_bytes, capture_root)
     verify_source(source_root, captured)
     verify_fixture(repository, fixture, stage["environment"].get("RITK_MANUAL_STUDY"))
+    if fixture_hashes(repository) != stage["dataset_after"]:
+        raise CaptureSourceError("capture dataset differs from the public MRI fixture")
     runner = atlas_process_tree(atlas_root)
     base = resolve_base(runner, repository, base_rev)
     return {
