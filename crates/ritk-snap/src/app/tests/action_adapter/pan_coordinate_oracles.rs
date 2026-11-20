@@ -31,14 +31,16 @@ fn pointer_up(x: f64, y: f64) -> PresentationEvent {
 
 #[test]
 fn browser_identity_pan_matches_backing_raster_displacement() {
+    const BACKING_SIZE: [u32; 2] = [100, 100];
     let viewport = viewport_for_display_with_zoom_pan(
         0,
         [1.0; 2],
-        [100, 100],
+        BACKING_SIZE,
         1.0,
         ViewportOffset::new(0.0, 0.0),
     )
     .expect("identity browser viewport");
+    let before = viewport.project([0.0, 0.0]);
     let mut app = SnapApp::default();
     app.loaded = Some(test_volume([1, 100, 100]));
     app.active_tool = ToolKind::Pan;
@@ -50,4 +52,13 @@ fn browser_identity_pan_matches_backing_raster_displacement() {
         apply_app_event(&mut app, &viewport, event);
     }
     assert_eq!(app.pan_offset, ViewportOffset::new(24.0, -12.0));
+    let after =
+        viewport_for_display_with_zoom_pan(0, [1.0; 2], BACKING_SIZE, app.zoom, app.pan_offset)
+            .expect("panned browser viewport")
+            .project([0.0, 0.0]);
+    let rendered = [
+        (after[0] - before[0]) * f64::from(BACKING_SIZE[0]),
+        (after[1] - before[1]) * f64::from(BACKING_SIZE[1]),
+    ];
+    assert_eq!(rendered, [24.0, -12.0]);
 }
