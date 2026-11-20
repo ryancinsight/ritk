@@ -1314,7 +1314,7 @@ dependencies = [
 [[package]]
 name = "coeus-autograd"
 version = "0.13.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#aab2e374ab5867d780a44aeb9a3a9d2cb5bf1259"
+source = "git+https://github.com/ryancinsight/Coeus.git#7091030255ace1744de5df992a8b083984ace8dc"
 dependencies = [
  "apollo-fft",
  "coeus-core",
@@ -1330,7 +1330,7 @@ dependencies = [
 [[package]]
 name = "coeus-core"
 version = "0.13.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#aab2e374ab5867d780a44aeb9a3a9d2cb5bf1259"
+source = "git+https://github.com/ryancinsight/Coeus.git#7091030255ace1744de5df992a8b083984ace8dc"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -1345,7 +1345,7 @@ dependencies = [
 [[package]]
 name = "coeus-cpu"
 version = "0.13.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#aab2e374ab5867d780a44aeb9a3a9d2cb5bf1259"
+source = "git+https://github.com/ryancinsight/Coeus.git#7091030255ace1744de5df992a8b083984ace8dc"
 dependencies = [
  "coeus-core",
  "leto",
@@ -1355,7 +1355,7 @@ dependencies = [
 [[package]]
 name = "coeus-nn"
 version = "0.13.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#aab2e374ab5867d780a44aeb9a3a9d2cb5bf1259"
+source = "git+https://github.com/ryancinsight/Coeus.git#7091030255ace1744de5df992a8b083984ace8dc"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -1370,7 +1370,7 @@ dependencies = [
 [[package]]
 name = "coeus-ops"
 version = "0.13.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#aab2e374ab5867d780a44aeb9a3a9d2cb5bf1259"
+source = "git+https://github.com/ryancinsight/Coeus.git#7091030255ace1744de5df992a8b083984ace8dc"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -1387,7 +1387,7 @@ dependencies = [
 [[package]]
 name = "coeus-optim"
 version = "0.13.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#aab2e374ab5867d780a44aeb9a3a9d2cb5bf1259"
+source = "git+https://github.com/ryancinsight/Coeus.git#7091030255ace1744de5df992a8b083984ace8dc"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -1401,7 +1401,7 @@ dependencies = [
 [[package]]
 name = "coeus-sparse"
 version = "0.13.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#aab2e374ab5867d780a44aeb9a3a9d2cb5bf1259"
+source = "git+https://github.com/ryancinsight/Coeus.git#7091030255ace1744de5df992a8b083984ace8dc"
 dependencies = [
  "coeus-core",
  "coeus-tensor",
@@ -1412,7 +1412,7 @@ dependencies = [
 [[package]]
 name = "coeus-tensor"
 version = "0.13.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#aab2e374ab5867d780a44aeb9a3a9d2cb5bf1259"
+source = "git+https://github.com/ryancinsight/Coeus.git#7091030255ace1744de5df992a8b083984ace8dc"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -4195,7 +4195,7 @@ dependencies = [
 [[package]]
 name = "metis-core"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#dfb5fc52a0bc6570c5a81b027306b6fa5c388eea"
+source = "git+https://github.com/ryancinsight/metis.git#706995c002292e1f3a5d35b7296197d07fb6227d"
 dependencies = [
  "moirai-crypto",
 ]
@@ -4203,7 +4203,7 @@ dependencies = [
 [[package]]
 name = "metis-frontend"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#dfb5fc52a0bc6570c5a81b027306b6fa5c388eea"
+source = "git+https://github.com/ryancinsight/metis.git#706995c002292e1f3a5d35b7296197d07fb6227d"
 dependencies = [
  "iris-viz",
  "metis-core",
@@ -4215,7 +4215,7 @@ dependencies = [
 [[package]]
 name = "metis-ipc"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#dfb5fc52a0bc6570c5a81b027306b6fa5c388eea"
+source = "git+https://github.com/ryancinsight/metis.git#706995c002292e1f3a5d35b7296197d07fb6227d"
 dependencies = [
  "metis-core",
  "moirai-async",
@@ -4228,7 +4228,7 @@ dependencies = [
 [[package]]
 name = "metis-platform"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#dfb5fc52a0bc6570c5a81b027306b6fa5c388eea"
+source = "git+https://github.com/ryancinsight/metis.git#706995c002292e1f3a5d35b7296197d07fb6227d"
 dependencies = [
  "eunomia",
  "hermes-simd",
@@ -4242,7 +4242,7 @@ dependencies = [
 [[package]]
 name = "metis-ui-lang"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#dfb5fc52a0bc6570c5a81b027306b6fa5c388eea"
+source = "git+https://github.com/ryancinsight/metis.git#706995c002292e1f3a5d35b7296197d07fb6227d"
 dependencies = [
  "consus-raster",
  "eunomia",
@@ -4256,7 +4256,7 @@ dependencies = [
 [[package]]
 name = "metis-web"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#dfb5fc52a0bc6570c5a81b027306b6fa5c388eea"
+source = "git+https://github.com/ryancinsight/metis.git#706995c002292e1f3a5d35b7296197d07fb6227d"
 dependencies = [
  "metis-core",
  "metis-frontend",

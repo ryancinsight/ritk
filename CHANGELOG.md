@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## ritk-dicom 0.4.0
+
+### Breaking
+
+- [major] Import `DecodedFrame` from `ritk_dicom::backend`. The published
+  0.2.0 archive also exported it from the crate root.
+- [major] Resolve Spatial 0.5.0 and Diffusion Scheme 0.4.0 together so the
+  public geometry and diffusion types use the current providers.
+
 ## ritk-diffusion-scheme 0.4.0
 
 ### Breaking
