@@ -159,10 +159,14 @@ Reopen the study or use **Reset length calibration** to restore image-spacing
 readings. Inch/French-size input and source-specific calibration colors remain
 [calibration work](features.md#reading-and-annotations).
 
-Measurements currently require reliable image spacing. Missing or unusable
-DICOM spacing does not yet switch the displayed units to pixels; a millimetre
-suffix alone does not establish physical scale. See the
-[measurement-unit limitation](../../backlog/RITK-SNAP-MEASUREMENT-UNITS-001.md).
+Axial measurements require reliable
+[DICOM `(0028,0030) Pixel Spacing`](https://dicom.nema.org/Medical/dicom/current/output/chtml/part03/sect_10.7.html)
+on every retained source slice. If it is absent, unusable, inconsistent, or
+invalidated by a grid-changing filter, display geometry remains available but
+new physical measurements are rejected with an explicit status. Reconstructed
+planes remain unavailable until source stack geometry is qualified. Existing
+session records retain stored values, and patient-space lengths retain
+validated endpoints.
 
 ### Measure an angle or a region of interest
 

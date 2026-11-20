@@ -11,9 +11,11 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::*;
+use crate::dicom::loader::tests::fixtures;
 use crate::tools::interaction::{Annotation, ImagePoint};
 use crate::tools::kind::ToolKind;
 use arrayvec::ArrayString;
+use ritk_io::{DicomReadMetadata, DicomSliceMetadata};
 
 /// Constructs an anisotropic volume with spacing [dz=2.0, dy=3.0, dx=5.0]
 /// (prime distances, each uniquely identifiable) for spacing-dispatch tests.
@@ -40,6 +42,70 @@ fn make_anisotropic_volume() -> LoadedVolume {
         radiopharmaceutical_start_time: None,
         decay_correction: None,
     }
+}
+
+fn dicom_volume(pixel_spacings: &[Option<[f64; 2]>]) -> LoadedVolume {
+    let mut volume = make_anisotropic_volume();
+    volume.metadata = Some(Box::new(DicomReadMetadata {
+        slices: pixel_spacings
+            .iter()
+            .copied()
+            .map(|pixel_spacing| DicomSliceMetadata {
+                pixel_spacing,
+                ..DicomSliceMetadata::default()
+            })
+            .collect(),
+        ..DicomReadMetadata::default()
+    }));
+    volume
+}
+
+fn complete_length_on(app: &mut SnapApp, end: ImagePoint) {
+    app.active_tool = ToolKind::MeasureLength;
+    app.on_click(Some(ImagePoint::new(0.0, 0.0)));
+    app.on_click(Some(end));
+}
+
+fn complete_length(volume: LoadedVolume, axis: usize, end: ImagePoint) -> SnapApp {
+    let mut app = SnapApp::default();
+    app.load_volume(volume, "measurement".to_owned());
+    app.axis = axis;
+    complete_length_on(&mut app, end);
+    app
+}
+
+fn assert_physical_measurement_rejected(app: &SnapApp) {
+    assert!(
+        app.annotations.is_empty(),
+        "unqualified source geometry must not create a physical mark"
+    );
+    assert_eq!(
+        app.status_message,
+        "Measurement rejected: physical pixel spacing is unavailable for this image"
+    );
+}
+
+#[derive(Debug, Clone, Copy)]
+enum NativeGeometry {
+    Complete,
+    MissingPixelSpacing,
+}
+
+fn native_dicom_volume(geometry: NativeGeometry) -> LoadedVolume {
+    let root = tempfile::tempdir().unwrap();
+    let pixel_spacing = match geometry {
+        NativeGeometry::Complete => Some([1.5, 0.5]),
+        NativeGeometry::MissingPixelSpacing => None,
+    };
+    fixtures::write_study_with_pixel_spacing(
+        root.path(),
+        "CT",
+        fixtures::SERIES_UID,
+        &fixtures::SAMPLES,
+        pixel_spacing,
+    )
+    .unwrap();
+    crate::dicom::loader::load_volume_from_path(root.path()).unwrap()
 }
 
 /// Axial (axis 0): row_spacing = dy = 3.0, col_spacing = dx = 5.0
@@ -166,6 +232,128 @@ fn measurement_length_completion_records_active_axis_as_plane() {
             );
         }
         other => panic!("expected a completed Length, got {other:?}"),
+    }
+}
+
+#[test]
+fn dicom_missing_pixel_spacing_rejects_physical_measurement() {
+    let mut volume = dicom_volume(&[None]);
+    let display_spacing = volume.spacing;
+    volume.metadata.as_mut().unwrap().spacing = display_spacing;
+    assert_eq!(volume.measurement_pixel_spacing(), None);
+
+    let app = complete_length(volume, 0, ImagePoint::new(0.0, 1.0));
+    assert_physical_measurement_rejected(&app);
+}
+
+#[test]
+fn dicom_pixel_spacing_is_admitted_without_unit_fallback() {
+    let mut volume = dicom_volume(&[Some([7.0, 11.0])]);
+    volume.metadata.as_mut().unwrap().spacing = [1.0, 1.0, 1.0];
+    assert_eq!(volume.measurement_pixel_spacing(), Some([7.0, 11.0]));
+
+    let app = complete_length(volume, 0, ImagePoint::new(1.0, 0.0));
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [Annotation::Length { length_mm, .. }] if *length_mm == 11.0
+    ));
+}
+
+#[test]
+fn dicom_measurement_admission_requires_consistent_source_slices() {
+    for (case, pixel_spacings) in [
+        ("missing second", [Some([7.0, 11.0]), None]),
+        ("missing first", [None, Some([7.0, 11.0])]),
+        (
+            "conflicting spacing",
+            [Some([7.0, 11.0]), Some([7.0, 12.0])],
+        ),
+    ] {
+        assert_eq!(
+            dicom_volume(&pixel_spacings).measurement_pixel_spacing(),
+            None,
+            "{case} must reject physical measurement"
+        );
+    }
+}
+
+#[test]
+fn native_dicom_geometry_controls_measurement_admission() {
+    for (geometry, axis, length) in [
+        (NativeGeometry::MissingPixelSpacing, 0, None),
+        (NativeGeometry::Complete, 0, Some(0.5)),
+        (NativeGeometry::Complete, 1, None),
+    ] {
+        let volume = native_dicom_volume(geometry);
+        let in_plane =
+            (!matches!(geometry, NativeGeometry::MissingPixelSpacing)).then_some([1.5, 0.5]);
+        assert_eq!(volume.measurement_pixel_spacing(), in_plane, "{geometry:?}");
+        assert_eq!(
+            volume.measurement_spacing(),
+            in_plane.map(|spacing| (spacing, None))
+        );
+        if in_plane.is_none() {
+            let sources = &volume.metadata.as_ref().unwrap().slices;
+            assert!(sources.iter().all(|source| source.pixel_spacing.is_none()));
+        }
+        let end = if axis == 0 {
+            ImagePoint::new(1.0, 0.0)
+        } else {
+            ImagePoint::new(0.0, 1.0)
+        };
+        let app = complete_length(volume, axis, end);
+        match length {
+            Some(expected) => assert!(
+                matches!(app.annotations.as_slice(), [Annotation::Length { length_mm, .. }] if *length_mm == expected),
+                "{geometry:?} axis {axis} must use source-qualified geometry"
+            ),
+            None => assert_physical_measurement_rejected(&app),
+        }
+    }
+
+    let mut app = SnapApp::default();
+    app.loaded = Some(native_dicom_volume(NativeGeometry::Complete));
+    app.axis = 1;
+    complete_length_on(&mut app, ImagePoint::new(0.0, 1.0));
+    assert_physical_measurement_rejected(&app);
+}
+
+#[test]
+fn filters_update_measurement_admission_by_geometry_effect() {
+    use super::super::state::MeasurementSpacingState;
+
+    for (filter, length) in [
+        (crate::FilterKind::Abs, Some(11.0)),
+        (
+            crate::FilterKind::Shrink {
+                factor_z: 1,
+                factor_y: 1,
+                factor_x: 2,
+            },
+            None,
+        ),
+    ] {
+        let mut app = SnapApp::default();
+        app.load_volume(dicom_volume(&[Some([7.0, 11.0])]), "measurement".to_owned());
+        app.active_filter = filter;
+        app.apply_filter_to_loaded_volume();
+        let volume = app.loaded.as_ref().unwrap();
+        assert_eq!(volume.measurement_pixel_spacing(), Some([7.0, 11.0]));
+        let spacing = length.map_or(MeasurementSpacingState::Unavailable, |_| {
+            MeasurementSpacingState::Qualified {
+                in_plane: [7.0, 11.0],
+                slice: None,
+            }
+        });
+        assert_eq!(app.measurement_pixel_spacing, spacing);
+        complete_length_on(&mut app, ImagePoint::new(1.0, 0.0));
+        match length {
+            Some(expected) => assert!(matches!(
+                app.annotations.as_slice(),
+                [Annotation::Length { length_mm, .. }] if *length_mm == expected
+            )),
+            None => assert!(app.annotations.is_empty()),
+        }
     }
 }
 
