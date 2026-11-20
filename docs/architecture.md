@@ -2,12 +2,33 @@
 
 ## Table of Contents
 
-1. [Design Principles](#design-principles)
-2. [Theoretical Foundations](#theoretical-foundations)
-3. [Module Hierarchy](#module-hierarchy)
-4. [Algorithm Specifications](#algorithm-specifications)
-5. [Component Consolidation](#component-consolidation)
-6. [Testing Architecture](#testing-architecture)
+- [Design Principles](#design-principles)
+  - [1. Single Responsibility Principle (SRP)](#1-single-responsibility-principle-srp)
+  - [2. Separation of Concerns (SOC)](#2-separation-of-concerns-soc)
+  - [3. Single Source of Truth (SSOT)](#3-single-source-of-truth-ssot)
+  - [4. Don't Repeat Yourself (DRY)](#4-dont-repeat-yourself-dry)
+  - [5. Dependency Inversion Principle (DIP)](#5-dependency-inversion-principle-dip)
+  - [6. DICOM Backend Boundary](#6-dicom-backend-boundary)
+  - [7. NIfTI Spatial Boundary](#7-nifti-spatial-boundary)
+  - [8. NRRD Spatial Boundary](#8-nrrd-spatial-boundary)
+  - [9. MetaImage Spatial Boundary](#9-metaimage-spatial-boundary)
+  - [10. PNG Format Boundary](#10-png-format-boundary)
+  - [11. JPEG Format Boundary](#11-jpeg-format-boundary)
+  - [12. TIFF Format Boundary](#12-tiff-format-boundary)
+  - [13. MINC Format Boundary](#13-minc-format-boundary)
+  - [14. Format Facade Monomorphization Boundary](#14-format-facade-monomorphization-boundary)
+  - [15. PET/CT Fusion Display Boundary](#15-petct-fusion-display-boundary)
+  - [16. Color Volume Boundary](#16-color-volume-boundary)
+  - [17. Render Pipeline Scratch-Buffer Boundary](#17-render-pipeline-scratch-buffer-boundary)
+  - [18. Image Comparison Metrics Boundary](#18-image-comparison-metrics-boundary)
+  - [19. Gaia Meshing Boundary](#19-gaia-meshing-boundary)
+  - [20. Stored-Volume Conversion Contract Boundary](#20-stored-volume-conversion-contract-boundary)
+  - [21. NIfTI Stored Conversion Boundary](#21-nifti-stored-conversion-boundary)
+  - [22. NRRD Stored Conversion Boundary](#22-nrrd-stored-conversion-boundary)
+  - [23. Analyze Stored Conversion Boundary](#23-analyze-stored-conversion-boundary)
+  - [24. DICOM Stored Conversion Boundary](#24-dicom-stored-conversion-boundary)
+  - [Transform Theory](#transform-theory)
+  - [Interpolation Theory](#interpolation-theory)
 
 ---
 
@@ -79,13 +100,13 @@ Concrete Transforms (Translation, Rigid, Affine, BSpline)
 - `DicomParseBackend`: parses a Part 10 file into a backend-owned object.
 - `PixelDecodeBackend`: decodes one frame from a backend-owned object using `DecodeFrameRequest`.
 - `DicomBackend`: combines parse and decode without dynamic dispatch.
-- `DicomRsBackend`: current temporary implementation backed by `dicom-rs`.
+- [`NativeBackend`](../crates/ritk-dicom/src/backend/dataset.rs): current implementation over RITK's owned `DicomFile` dataset.
 
-**Replacement invariant**:
-Native codec replacement changes codec internals behind `ritk-codecs` / `NativeCodecBackend`; DICOM readers continue to call `decode_frame_with::<DicomRsBackend>` until the parser backend is replaced.
+**Current implementation**:
+The public [backend traits](../crates/ritk-dicom/src/backend/mod.rs) remain generic, while scalar and multiframe readers call parse and decode with `NativeBackend` ([scalar reader](../crates/ritk-io/src/format/dicom/reader/pixel.rs), [multiframe reader](../crates/ritk-io/src/format/dicom/multiframe/reader/volume.rs)). The owned parser, dataset, writer, and frame-source boundary implements [Accepted ADR 0063](adr/0063-native-dicom-dataset.md).
 
 **Codec ownership invariant**:
-`ritk-codecs` owns JPEG, JPEG-LS, JPEG 2000, RLE, PackBits, and native pixel primitive implementations. `ritk-dicom::codec` may re-export those primitives and dispatch by transfer syntax, but must not retain copied codec bodies. Native-owned JPEG syntaxes selected by `TransferSyntaxKind::is_native_jpeg_codec()` route exclusively through `NativeCodecBackend`; external backend fallback is limited to `TransferSyntaxKind::is_external_backend_codec_candidate()`.
+`ritk-codecs` owns JPEG, JPEG-LS, JPEG 2000, RLE, PackBits, and native pixel primitive implementations. `ritk-dicom::codec` may re-export those primitives and dispatch by transfer syntax, but must not retain copied codec bodies. Encapsulated syntaxes with a recognized codec route through [`NativeCodecBackend`](../crates/ritk-dicom/src/backend/native.rs); it returns an error when no native codec is registered. The current reader path has no external codec fallback.
 
 > **Theorem 6.2 (JPEG 2000 Backend Substitution)**: JPEG 2000 dependency replacement preserves the DICOM frame-decode contract when the decoded component stream is the same ordered integer sample sequence consumed by the DICOM modality LUT.
 
@@ -130,7 +151,7 @@ For scalar tensor shape `[depth, rows, cols]`, each frame contributes exactly `r
 - The SOS header fields are parsed as `NEAR`, `ILV`, and point transform; prediction is the ISO adaptive JPEG-LS predictor, not a DICOM-specific SOS selector.
 - JPEG-LS entropy decode implements bit stuffing, not byte stuffing: after an encoded `0xFF` data byte, exactly one stuffed zero bit is discarded and the remaining seven bits of the following byte remain entropy data.
 - JPEG-LS scan decode maintains the line-left guard equivalent to CharLS `current_line[-1]`; at column 0, `Rc` is the previous line's guard, not `Rb`.
-- `ritk-dicom::DicomRsBackend` delegates `TransferSyntaxKind::JpegLsLossless` to `NativeCodecBackend`; JPEG-LS Near-Lossless remains an external backend candidate.
+- `ritk-dicom::NativeCodecBackend` dispatches both `TransferSyntaxKind::JpegLsLossless` and `TransferSyntaxKind::JpegLsLossy` to `ritk-codecs::decode_jpeg_ls_fragment`; neither syntax has an external codec fallback.
 - DICOM UI padding bytes are stripped by `TransferSyntaxKind::from_uid` before transfer-syntax classification, so padded file-meta UIDs cannot bypass native codec dispatch.
 
 **Proof obligation**:
