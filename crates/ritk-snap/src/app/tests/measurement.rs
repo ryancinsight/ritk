@@ -184,7 +184,7 @@ fn dicom_missing_pixel_spacing_rejects_physical_measurement() {
     app.load_volume(volume, "missing-spacing".to_owned());
     app.active_tool = ToolKind::MeasureLength;
     app.on_click(Some(ImagePoint::new(0.0, 0.0)));
-    app.on_click(Some(ImagePoint::new(1.0, 0.0)));
+    app.on_click(Some(ImagePoint::new(0.0, 1.0)));
     assert!(
         app.annotations.is_empty(),
         "missing source spacing must not create a physical mark"
