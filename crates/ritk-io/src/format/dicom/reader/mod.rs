@@ -23,6 +23,7 @@ pub(super) mod geometry;
 pub(super) mod loader;
 mod parse;
 pub(super) mod pixel;
+mod pixel_aspect;
 mod preservation;
 pub(super) mod scan;
 pub(super) mod stored;
@@ -48,6 +49,7 @@ pub use stored::{
 // scan::scan_dicom_directory is accessed directly via `reader::scan::scan_dicom_directory`
 // by sibling modules (color.rs). No re-export needed.
 pub use budget::DicomReadBudget;
+pub use pixel_aspect::{DicomPixelAspect, DicomPixelAspectError, DicomPixelAspectSource};
 pub use types::literal_arraystring;
 pub use types::{
     DicomReadMetadata, DicomSeriesInfo as ScannedDicomSeries, DicomSliceMetadata, PatientPosition,
