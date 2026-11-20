@@ -149,9 +149,9 @@ dependencies = [
 
 [[package]]
 name = "aequitas"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "469b307baf5d2068d8f2952692ab1398aecfb9eb09503c17e111ce88eb527a8f"
+checksum = "aa1c7df9ce6ddf18b2f205cc24a2d9ce665434362dd015453b63f02283c3f619"
 dependencies = [
  "eunomia",
  "typenum",
@@ -335,16 +335,16 @@ dependencies = [
 [[package]]
 name = "apollo-dctdst-core"
 version = "0.17.2"
-source = "git+https://github.com/ryancinsight/apollo#7a8b226fa352b994405b0ae73239e5e479688d28"
+source = "git+https://github.com/ryancinsight/apollo#7b70b328f2bb788c321e7aa166f8300b42fb52b9"
 dependencies = [
  "eunomia",
 ]
 
 [[package]]
 name = "apollo-fft"
-version = "0.30.0"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30e7ad81e81572b600a8b5fba010f63103d7b56f4e2810e8a8bdfc2a29c0e3e0"
+checksum = "292666f08c04f9d4b647f33e80ba2364f853f39125d7ad9726f2737971bbeb6c"
 dependencies = [
  "apollo-fft-macros",
  "apollo-leto-interop",
@@ -374,18 +374,18 @@ dependencies = [
 
 [[package]]
 name = "apollo-leto-interop"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad8406de14d9a46164f48600fe497b38ea5e2e6f6e49b52eb75c6b09293f4a05"
+checksum = "e62abff161f1696edab00c5a13d6a8472eec4599e46a97f99e35b1376d178ad4"
 dependencies = [
  "leto",
 ]
 
 [[package]]
 name = "apollo-sht"
-version = "0.10.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6590890459651e5f09e22305591ff8341cce9f2cebf65c19eb34df4d6df5dae8"
+checksum = "2929b13da197e7bfd0b7d269f4001926e76825ffd3b80fd8c2f6b0adfc5cab0f"
 dependencies = [
  "apollo-fft",
  "apollo-leto-interop",
@@ -1326,9 +1326,9 @@ dependencies = [
 
 [[package]]
 name = "coeus-autograd"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80d97b03e4c35dfcc4a8fb7bf7b7bfc3bb169cc6242d07e927d8695072ff5279"
+checksum = "c5b044b0b9f46c1f802df0ca7a40f28f12c00cdae9c33267c59fd9aab68e315d"
 dependencies = [
  "apollo-fft",
  "coeus-core",
@@ -1343,9 +1343,9 @@ dependencies = [
 
 [[package]]
 name = "coeus-core"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ce1d0bed51a8b3fa5739bc93616aa82fb3483f1c2e440f453924db58669d4ca"
+checksum = "dc0e67a532c9f56ba56852c9733293574b93100bcc2ee8e37cff00e4fdb2b4ad"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -1359,9 +1359,9 @@ dependencies = [
 
 [[package]]
 name = "coeus-cpu"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0073ecd1c6eaf9935c968bf94d3e756c834eddf7b70b1067e744a5bd298ba0cb"
+checksum = "44a9c725ae7340f94e54acf8d84ced0a6fb9ae486a3a5a4a4f5f8655c6ebe2fc"
 dependencies = [
  "coeus-core",
  "leto",
@@ -1370,9 +1370,9 @@ dependencies = [
 
 [[package]]
 name = "coeus-nn"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b21651f9c06804fbad2d300feacd90ff9b7f03651197420dddec290305b726e"
+checksum = "1b7264470d4553ac96b43548f3053e1af1e9fcff84f26c705c4afbb31ce9dad5"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -1386,9 +1386,9 @@ dependencies = [
 
 [[package]]
 name = "coeus-ops"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c305d1543841157429d28cbd6199328736966233a64d23375612df89c8149c9f"
+checksum = "c133a23161419123fc90ed908b0aa2291a23baa403af6cc39d94ea91a793abe0"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -1404,9 +1404,9 @@ dependencies = [
 
 [[package]]
 name = "coeus-optim"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "511b97129165f76b4c6e41fd6f57171c154631b23a0ee1cce97a6fabcb4eaed0"
+checksum = "b4cc08e142e6c2bf5d5d08b5ec3f133476996dcf3c0843814586eee9d5aa671b"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -1419,9 +1419,9 @@ dependencies = [
 
 [[package]]
 name = "coeus-sparse"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2051acd59ae8f1928d2520813e555c2b0b833ac36267b5e81d036fad65050a6"
+checksum = "0c26c5f94e6f942603305f7d32a3471fb0ce45760bdc8606b28752f651046d7c"
 dependencies = [
  "coeus-core",
  "coeus-tensor",
@@ -1431,9 +1431,9 @@ dependencies = [
 
 [[package]]
 name = "coeus-tensor"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92c1fea404d631b9440d58d394824b72f4fe314c69d640c7cad673c1f7881700"
+checksum = "fbad2c88918f208c5e4a97818d0696247f640e22ce81b81c98cf45db1b5579d0"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -2747,9 +2747,9 @@ dependencies = [
 
 [[package]]
 name = "gaia-mesh"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9405d7e05da9ead527d823cd2dd8fb114e3ebf2fe6f9b82d55feaef5a55e8d1"
+checksum = "f90569e1d74dd84b8855473952e7015f0cb84957a9eeb90c46ce92f637a152fb"
 dependencies = [
  "aequitas",
  "consus-zip",
@@ -3997,9 +3997,9 @@ checksum = "7a79a3332a6609480d7d0c9eab957bca6b455b91bb84e66d19f5ff66294b85b8"
 
 [[package]]
 name = "leto"
-version = "0.51.0"
+version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4456796ebc4a7f79253330de70b2bcd6a719164009b327bacff589969a109c7a"
+checksum = "ebc2dcc1b2fb90e6f8f3c53de0ca975914b26219cacb10dea87a59c3fa8e0d1a"
 dependencies = [
  "aequitas",
  "eunomia",
@@ -4010,9 +4010,9 @@ dependencies = [
 
 [[package]]
 name = "leto-ops"
-version = "0.51.0"
+version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcef328e63814c88a9367d994ad9f661d1d5d69ee4902b0bc763a220382cb93d"
+checksum = "9a00c590edea971a5c6130fee3d3a9c9e03b2cd7c6b3606f5b5fe81984105525"
 dependencies = [
  "eunomia",
  "hermes-simd 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4221,7 +4221,7 @@ dependencies = [
 [[package]]
 name = "metis-core"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#b83d29f00b142174c6bbb890af70597c386fafaa"
+source = "git+https://github.com/ryancinsight/metis.git#3beab4635b573186f409f3ef802e7825c77ed2d9"
 dependencies = [
  "moirai-crypto",
 ]
@@ -4229,7 +4229,7 @@ dependencies = [
 [[package]]
 name = "metis-frontend"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#b83d29f00b142174c6bbb890af70597c386fafaa"
+source = "git+https://github.com/ryancinsight/metis.git#3beab4635b573186f409f3ef802e7825c77ed2d9"
 dependencies = [
  "iris-viz 0.1.4 (git+https://github.com/ryancinsight/iris)",
  "metis-core",
@@ -4241,7 +4241,7 @@ dependencies = [
 [[package]]
 name = "metis-ipc"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#b83d29f00b142174c6bbb890af70597c386fafaa"
+source = "git+https://github.com/ryancinsight/metis.git#3beab4635b573186f409f3ef802e7825c77ed2d9"
 dependencies = [
  "metis-core",
  "moirai-async 0.12.0 (git+https://github.com/ryancinsight/Moirai.git)",
@@ -4254,7 +4254,7 @@ dependencies = [
 [[package]]
 name = "metis-platform"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#b83d29f00b142174c6bbb890af70597c386fafaa"
+source = "git+https://github.com/ryancinsight/metis.git#3beab4635b573186f409f3ef802e7825c77ed2d9"
 dependencies = [
  "eunomia",
  "hermes-simd 0.10.0 (git+https://github.com/ryancinsight/hermes.git)",
@@ -4268,7 +4268,7 @@ dependencies = [
 [[package]]
 name = "metis-ui-lang"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#b83d29f00b142174c6bbb890af70597c386fafaa"
+source = "git+https://github.com/ryancinsight/metis.git#3beab4635b573186f409f3ef802e7825c77ed2d9"
 dependencies = [
  "consus-raster 0.5.0 (git+https://github.com/ryancinsight/consus.git)",
  "eunomia",
@@ -4282,7 +4282,7 @@ dependencies = [
 [[package]]
 name = "metis-web"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#b83d29f00b142174c6bbb890af70597c386fafaa"
+source = "git+https://github.com/ryancinsight/metis.git#3beab4635b573186f409f3ef802e7825c77ed2d9"
 dependencies = [
  "metis-core",
  "metis-frontend",

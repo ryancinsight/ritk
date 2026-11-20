@@ -111,10 +111,10 @@ ritk-trx = { path = "crates/ritk-trx", version = "0.2.0" }
 # The crates.io name `gaia` belongs to an unrelated third-party crate, so the
 # crate is published as `gaia-mesh`; the import path stays `gaia` via its
 # `[lib] name`, so no source changes.
-gaia = { package = "gaia-mesh", version = "0.7.0", default-features = false }
+gaia = { package = "gaia-mesh", version = "0.8.0", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
-coeus-nn = "0.13.0"
-coeus-optim = "0.13.0"
+coeus-nn = "0.14.0"
+coeus-optim = "0.14.0"
 pyo3 = { version = "0.29.2", default-features = false }
 numpy = { version = "0.29.0", git = "https://github.com/PyO3/rust-numpy", rev = "9df402373716a60f0e7825b6043568abe4e63b46" }
 moirai = { package = "moirai-runtime", version = "0.12.0", features = ["melinoe"] }
@@ -125,16 +125,16 @@ metis-ui-lang = { package = "metis-ui-lang", version = "0.5.0", git = "https://g
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { package = "mnemosyne-memory", version = "0.10.2", default-features = false, features = ["std_tls", "eunomia"] }
 eunomia = { version = "0.12.1", default-features = false }
-coeus-core = "0.13.0"
-coeus-tensor = "0.13.0"
-coeus-ops = "0.13.0"
-coeus-cpu = "0.13.0"
-coeus-autograd = "0.13.0"
-leto = { version = "0.51.0" }
-leto-ops = { version = "0.51.0" }
-apollo-fft = "0.30.0"
-apollo-sht = "0.10.0"
-aequitas = { version = "0.4.0" }
+coeus-core = "0.14.0"
+coeus-tensor = "0.14.0"
+coeus-ops = "0.14.0"
+coeus-cpu = "0.14.0"
+coeus-autograd = "0.14.0"
+leto = { version = "0.52.0" }
+leto-ops = { version = "0.52.0" }
+apollo-fft = "0.31.0"
+apollo-sht = "0.11.0"
+aequitas = { version = "0.5.0" }
 anyhow = "1.0"
 libc = "0.2"
 bytes = "1"
