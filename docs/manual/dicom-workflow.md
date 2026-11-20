@@ -139,8 +139,12 @@ handles, other labels, and the mark currently following the pointer.
 ### Calibrate measurements on one image
 
 1. Measure a reference of known length with **Tools → Length**.
-2. Choose **Tools → Calibrate last distance…**. Enter the known distance in
-   millimetres and press **Enter**. **Esc** cancels.
+2. Choose **Tools → Calibrate last distance…**. Enter the known distance,
+   then click **mm**, **inches**, or **French**. **Tab** cycles units;
+   **Shift+Tab** cycles backwards. Press **Enter** to apply or **Esc** to cancel.
+   [French sizes](https://nurses.uroweb.org/guidelines/indwelling-catheterisation-in-adults-urethral-and-suprapubic/chapter/equipment-and-products) describe outer diameter: 3 French equals 1 mm.
+   One [inch](https://www.nist.gov/pml/owm/si-units-length) equals 25.4 mm.
+   Applied measurement labels use millimetres.
 3. Check the labels on that image. If a 5 mm reading is calibrated to
    10 mm, image-plane lengths, deviations, and perimeters double while
    rectangular, elliptical, and closed-polygon areas become four times as
@@ -156,7 +160,7 @@ ROI Rect, and ROI Ellipse labels without changing the saved annotations.
 Patient-space lengths remain the Euclidean distance between their validated
 DICOM patient-coordinate endpoints and are never rescaled by this control.
 Reopen the study or use **Reset length calibration** to restore image-spacing
-readings. Inch/French-size input and source-specific calibration colors remain
+readings. Source-specific calibration colors remain
 [calibration work](features.md#reading-and-annotations).
 
 Axial measurements require reliable

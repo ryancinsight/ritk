@@ -24,8 +24,8 @@ fn dialog_geometry(framebuffer: &Framebuffer) -> anyhow::Result<(Rect, Rect, Rec
     let width = i32::try_from(framebuffer.width())?;
     let height = i32::try_from(framebuffer.height())?;
     let x = (width - 286).div_euclid(2).max(0);
-    let y = (height - 86).div_euclid(2).max(0);
-    let panel = Rect::new(x, y, 286, 86);
+    let y = (height - 124).div_euclid(2).max(0);
+    let panel = Rect::new(x, y, 286, 124);
     let caption = Rect::new(x + 12, y + 8, 262, 26);
     let field = Rect::new(x + 12, y + 38, 262, 32);
     Ok((panel, caption, field))
@@ -44,10 +44,21 @@ fn render_reference_dialog(
         framebuffer,
         caption.x,
         caption_y,
-        "Known distance (mm) · Enter to apply · Esc",
+        "Known distance · Tab: units · Enter",
         text,
     );
-    render_reference_input(framebuffer, input, scroll)
+    render_reference_input(framebuffer, input, scroll)?;
+    for (offset, width, label, color) in [
+        (12, 82, "mm", Color::rgb(53, 103, 151)),
+        (100, 82, "inches", FIELD_COLOR),
+        (188, 86, "French", FIELD_COLOR),
+    ] {
+        let bounds = Rect::new(panel.x + offset, panel.y + 80, width, 30);
+        fill_rect(framebuffer, bounds, CornerRadius::SQUARE, color);
+        let top = bounds.y + (bounds.height - LINE_BOX_HEIGHT).div_euclid(2);
+        draw_text(framebuffer, bounds.x + 8, top, label, text);
+    }
+    Ok(())
 }
 
 fn render_reference_input(
@@ -129,7 +140,7 @@ fn calibration_dialog_line_boxes_stay_in_controls() -> anyhow::Result<()> {
     let (_, _, field) = dialog_geometry(&short.framebuffer)?;
     assert_eq!(
         (field.x, field.y, field.width, field.height),
-        (509, 395, 262, 32)
+        (509, 376, 262, 32)
     );
     let mut empty_reference = short.framebuffer.clone();
     render_reference_dialog(&mut empty_reference, "", 0)?;
