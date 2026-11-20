@@ -40,11 +40,15 @@
 //! area = (max_r − min_r + 1) · s_r × (max_c − min_c + 1) · s_c [mm²]
 //! ```
 
+#[cfg(any(target_arch = "wasm32", windows, test))]
+mod calibration;
 mod ellipse;
 mod image;
 mod paths;
 mod patient_length;
 
+#[cfg(any(target_arch = "wasm32", windows, test))]
+pub(crate) use calibration::ImageMeasurementScale;
 pub use patient_length::PatientLength;
 
 /// Failure raised when physical measurement inputs or results cannot be
