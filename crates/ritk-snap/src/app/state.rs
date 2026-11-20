@@ -52,6 +52,13 @@ pub(crate) enum ProjectionBackend {
 
 // ── SnapApp ───────────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum MeasurementSpacingState {
+    Uninitialized,
+    Qualified([f64; 2]),
+    Unavailable,
+}
+
 pub(crate) struct SnapApp {
     // ── Volume ────────────────────────────────────────────────────────────────
     /// Currently loaded volume, if any.
@@ -60,7 +67,7 @@ pub(crate) struct SnapApp {
     ///
     /// This app-owned value is cleared when a filter changes the voxel grid;
     /// retained DICOM metadata remains the immutable source record.
-    pub(crate) measurement_pixel_spacing: Option<[f64; 2]>,
+    pub(crate) measurement_pixel_spacing: MeasurementSpacingState,
     #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     /// Secondary loaded volume for cross-study compare.
     pub(crate) loaded_secondary: Option<LoadedVolume>,

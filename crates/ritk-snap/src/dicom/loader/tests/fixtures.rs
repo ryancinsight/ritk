@@ -309,7 +309,7 @@ pub(crate) fn write_study(
 }
 
 /// Write the same deterministic study while omitting DICOM PixelSpacing.
-#[cfg(test)]
+#[cfg(all(test, feature = "eframe-shell"))]
 pub(crate) fn write_study_without_pixel_spacing(
     root: &Path,
     modality: &str,

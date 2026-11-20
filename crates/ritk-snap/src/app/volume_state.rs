@@ -6,7 +6,7 @@ use std::sync::Arc;
 use tracing::error;
 use tracing::info;
 
-use super::state::SnapApp;
+use super::state::{MeasurementSpacingState, SnapApp};
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use super::state::{ProjectionBackend, ProjectionMode, SeriesLoadTarget, DEFAULT_FUSION_ALPHA};
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
@@ -75,7 +75,10 @@ impl SnapApp {
         {
             self.selected_series = super::volume_input::VolumeInput::acquisition(&vol);
         }
-        self.measurement_pixel_spacing = vol.measurement_pixel_spacing();
+        self.measurement_pixel_spacing = vol.measurement_pixel_spacing().map_or(
+            MeasurementSpacingState::Unavailable,
+            MeasurementSpacingState::Qualified,
+        );
         self.loaded = Some(vol);
         self.viewer_state = state;
         self.axis = protocol.preferred_axis.min(2);

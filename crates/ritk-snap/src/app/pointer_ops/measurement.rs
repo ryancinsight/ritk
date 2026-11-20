@@ -1,5 +1,6 @@
 //! Completed measurements and slice geometry.
 
+use super::super::state::MeasurementSpacingState;
 use super::SnapApp;
 #[cfg(windows)]
 use crate::tools::interaction::ImageMeasurementScale;
@@ -247,9 +248,12 @@ impl SnapApp {
             return Err(MeasurementError::MissingVolume);
         };
         let [dz, _dy, _dx] = vol.spacing;
-        let [dy, dx] = self
-            .measurement_pixel_spacing
-            .ok_or(MeasurementError::MissingPhysicalSpacing)?;
+        let in_plane_spacing = match self.measurement_pixel_spacing {
+            MeasurementSpacingState::Qualified(spacing) => Some(spacing),
+            MeasurementSpacingState::Unavailable => None,
+            MeasurementSpacingState::Uninitialized => vol.measurement_pixel_spacing(),
+        };
+        let [dy, dx] = in_plane_spacing.ok_or(MeasurementError::MissingPhysicalSpacing)?;
         let spacing = match self.axis {
             0 => [dy, dx],
             1 => [dz, dx],

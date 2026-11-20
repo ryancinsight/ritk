@@ -29,7 +29,8 @@ fn native_length_calibration_scales_labels_and_resets() {
         .slices
         .iter_mut()
         .for_each(|slice| slice.pixel_spacing = Some([4.0, 3.0]));
-    session.app.measurement_pixel_spacing = Some([4.0, 3.0]);
+    session.app.measurement_pixel_spacing =
+        crate::app::state::MeasurementSpacingState::Qualified([4.0, 3.0]);
     let measure = |app: &mut SnapApp, end| {
         app.on_drag_start(
             crate::tools::kind::ToolKind::MeasureLength,

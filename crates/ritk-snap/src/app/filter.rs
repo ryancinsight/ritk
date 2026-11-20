@@ -1,4 +1,4 @@
-use super::state::SnapApp;
+use super::state::{MeasurementSpacingState, SnapApp};
 
 mod native;
 
@@ -30,7 +30,7 @@ impl SnapApp {
         volume.spacing = output.spacing;
         volume.direction = output.direction;
         if !filter_preserves_measurement_grid(&self.active_filter) {
-            self.measurement_pixel_spacing = None;
+            self.measurement_pixel_spacing = MeasurementSpacingState::Unavailable;
         }
         self.mark_filter_applied();
     }

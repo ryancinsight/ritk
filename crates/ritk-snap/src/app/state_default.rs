@@ -4,7 +4,7 @@
 //! growing it past the file budget; [SnapApp] and its helper types stay in
 //! [super::state].
 
-use super::state::SnapApp;
+use super::state::{MeasurementSpacingState, SnapApp};
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use super::state::{ProjectionBackend, ProjectionMode, SeriesLoadTarget, DEFAULT_FUSION_ALPHA};
 use crate::presentation::PresentationDispatcher;
@@ -18,7 +18,7 @@ impl Default for SnapApp {
     fn default() -> Self {
         Self {
             loaded: None,
-            measurement_pixel_spacing: None,
+            measurement_pixel_spacing: MeasurementSpacingState::Uninitialized,
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             loaded_secondary: None,
             viewer_state: ViewerState::new(),

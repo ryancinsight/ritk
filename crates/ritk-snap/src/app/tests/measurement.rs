@@ -336,7 +336,10 @@ fn intensity_filter_preserves_source_metadata_and_measurement_admission() {
             .and_then(LoadedVolume::measurement_pixel_spacing),
         Some([7.0, 11.0])
     );
-    assert_eq!(app.measurement_pixel_spacing, Some([7.0, 11.0]));
+    assert_eq!(
+        app.measurement_pixel_spacing,
+        super::super::state::MeasurementSpacingState::Qualified([7.0, 11.0])
+    );
     app.active_tool = ToolKind::MeasureLength;
     app.on_click(Some(ImagePoint::new(0.0, 0.0)));
     app.on_click(Some(ImagePoint::new(1.0, 0.0)));
@@ -366,7 +369,10 @@ fn geometry_filter_clears_private_admission_without_erasing_source_metadata() {
     };
     app.apply_filter_to_loaded_volume();
 
-    assert_eq!(app.measurement_pixel_spacing, None);
+    assert_eq!(
+        app.measurement_pixel_spacing,
+        super::super::state::MeasurementSpacingState::Unavailable
+    );
     assert_eq!(
         app.loaded
             .as_ref()
