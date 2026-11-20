@@ -170,8 +170,14 @@ pub(crate) fn read_multiframe_info_from_object(
     path: &Path,
     obj: &InMemDicomObject,
 ) -> Result<MultiFrameInfo> {
-    reject_temporal_organization(path, obj)?;
     let mut info = extract_multiframe_header(path, obj)?;
+    if !info
+        .sop_class_uid
+        .as_deref()
+        .is_some_and(super::super::pet_dimensions::is_enhanced_pet)
+    {
+        reject_temporal_organization(path, obj)?;
+    }
     info.per_frame = extract_functional_groups(obj, info.n_frames);
     Ok(info)
 }

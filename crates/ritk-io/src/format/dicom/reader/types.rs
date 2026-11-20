@@ -4,6 +4,10 @@
 //! patient position enum, and associated helpers. These types carry no I/O
 //! logic — they are the typed output of the read path.
 
+use aequitas::systems::si::{
+    quantities::{Activity, Angle, Length, Mass, Time},
+    units::{Becquerel, Degree, Millimeter},
+};
 use arrayvec::ArrayString;
 use std::collections::HashMap;
 use std::fmt;
@@ -19,14 +23,14 @@ pub struct DicomSliceMetadata {
     pub preservation: DicomPreservationSet,
     pub sop_instance_uid: Option<ArrayString<64>>,
     pub instance_number: Option<i32>,
-    pub slice_location: Option<f64>,
-    /// Image position patient (x, y, z) in mm.
-    pub image_position_patient: Option<[f64; 3]>,
+    pub slice_location: Option<Length>,
+    /// Image position in patient coordinates (x, y, z).
+    pub image_position_patient: Option<[Length; 3]>,
     /// Image orientation patient as two direction cosines.
     pub image_orientation_patient: Option<[f64; 6]>,
-    /// Pixel spacing (row, column) in mm.
-    pub pixel_spacing: Option<[f64; 2]>,
-    pub slice_thickness: Option<f64>,
+    /// Pixel spacing (row, column).
+    pub pixel_spacing: Option<[Length; 2]>,
+    pub slice_thickness: Option<Length>,
     pub rescale_slope: f32,
     pub rescale_intercept: f32,
     pub sop_class_uid: Option<ArrayString<64>>,
@@ -40,14 +44,36 @@ pub struct DicomSliceMetadata {
     pub bits_stored: u16,
     pub window_center: Option<f64>,
     pub window_width: Option<f64>,
-    /// GantryDetectorTilt (0018,1120) in degrees.
-    pub gantry_tilt: Option<f64>,
+    /// GantryDetectorTilt (0018,1120).
+    pub gantry_tilt: Option<Angle>,
     pub patient_position: Option<PatientPosition>,
     /// Exact Part 10 bytes validated by the scanner, retained for pixel decode.
     /// Filesystem, dropped-byte, and SCP scans populate this field so decoding
     /// never substitutes a file changed after metadata validation. Manually
     /// constructed descriptors may omit it to request path-based decoding.
     pub part10_bytes: Option<Vec<u8>>,
+}
+
+impl DicomSliceMetadata {
+    /// Return the ISO patient coordinates in DICOM wire units.
+    #[must_use]
+    pub fn image_position_mm(&self) -> Option<[f64; 3]> {
+        self.image_position_patient
+            .map(|position| position.map(|length| length.in_unit::<Millimeter>()))
+    }
+
+    /// Return in-plane pixel spacing in DICOM wire units.
+    #[must_use]
+    pub fn pixel_spacing_mm(&self) -> Option<[f64; 2]> {
+        self.pixel_spacing
+            .map(|spacing| spacing.map(|length| length.in_unit::<Millimeter>()))
+    }
+
+    /// Return the gantry tilt in DICOM wire units.
+    #[must_use]
+    pub fn gantry_tilt_degrees(&self) -> Option<f64> {
+        self.gantry_tilt.map(|angle| angle.in_unit::<Degree>())
+    }
 }
 
 impl Default for DicomSliceMetadata {
@@ -167,6 +193,31 @@ pub(super) fn parse_patient_position(code: &str) -> Option<PatientPosition> {
     }
 }
 
+/// Radionuclide activity, measured in decays per second.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[repr(transparent)]
+pub struct Radioactivity(Activity);
+
+impl Radioactivity {
+    /// Create a finite, positive activity from a value expressed in becquerels.
+    #[must_use]
+    pub fn from_becquerels(value: f64) -> Option<Self> {
+        Self::from_activity(Activity::from_unit::<Becquerel>(value))
+    }
+
+    /// Accept a finite, positive radionuclide activity.
+    #[must_use]
+    pub fn from_activity(value: Activity) -> Option<Self> {
+        (value.as_base().is_finite() && *value.as_base() > 0.0).then_some(Self(value))
+    }
+
+    /// Return the activity in becquerels.
+    #[must_use]
+    pub fn becquerels(self) -> f64 {
+        self.0.in_unit::<Becquerel>()
+    }
+}
+
 /// Series-level DICOM metadata.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DicomReadMetadata {
@@ -187,8 +238,9 @@ pub struct DicomReadMetadata {
     /// (`reader/loader.rs`, `color/mod.rs`) reads it as `[rows, cols, depth]`.
     pub dimensions: [usize; 3],
     /// Physical spacing in RITK tensor-axis order `\[Δdepth, Δrow, Δcol\]`.
-    pub spacing: [f64; 3],
-    pub origin: [f64; 3],
+    pub spacing: [Length; 3],
+    /// Patient-space position in XYZ order.
+    pub origin: [Length; 3],
     /// Direction cosines stored column-major in `[depth, row, col]` order
     /// (column 0 = slice normal, column 1 = row-axis, column 2 = column-axis);
     /// consumed by `Direction::from_column_major`.
@@ -199,17 +251,37 @@ pub struct DicomReadMetadata {
     pub photometric_interpretation: Option<ArrayString<16>>,
     pub slices: Vec<DicomSliceMetadata>,
     pub private_tags: HashMap<String, String>,
+    /// Quantity-mapped Enhanced PET samples aligned with the decoded viewer volume.
+    pub enhanced_pet_suv: Option<crate::BodyWeightSuvVolume>,
+    /// Shared temporal and gated volume selection, when loaded as a volume set.
+    pub enhanced_pet_selection: Option<crate::EnhancedPetSelection>,
     pub preservation: DicomPreservationSet,
     /// (0010,1030) Patient Weight \[kg\].
-    pub patient_weight_kg: Option<f64>,
+    pub patient_weight_kg: Option<Mass>,
     /// (0054,1102) Decay Correction: "NONE", "START", or "ADMIN".
     pub decay_correction: Option<ArrayString<16>>,
+    /// Whether classic PET pixel values are encoded as activity concentration in Bq/mL.
+    pub pet_pixels_in_bq_per_ml: bool,
     /// (0054,0016)\[0\]/(0018,1074) Radionuclide Total Dose \[Bq\].
-    pub radionuclide_total_dose_bq: Option<f64>,
+    pub radionuclide_total_dose_bq: Option<Radioactivity>,
     /// (0054,0016)\[0\]/(0018,1072) Radiopharmaceutical Start Time.
     pub radiopharmaceutical_start_time: Option<ArrayString<16>>,
-    /// (0054,0016)\[0\]/(0018,1076) Radionuclide Half Life \[s\].
-    pub radionuclide_half_life_s: Option<f64>,
+    /// (0054,0016)\[0\]/(0018,1075) Radionuclide Half Life \[s\].
+    pub radionuclide_half_life_s: Option<Time>,
+}
+
+impl DicomReadMetadata {
+    /// Voxel spacing in millimetres at image and display boundaries.
+    #[must_use]
+    pub fn spacing_mm(&self) -> [f64; 3] {
+        self.spacing.map(|length| length.in_unit::<Millimeter>())
+    }
+
+    /// Patient-space origin in millimetres at image and display boundaries.
+    #[must_use]
+    pub fn origin_mm(&self) -> [f64; 3] {
+        self.origin.map(|length| length.in_unit::<Millimeter>())
+    }
 }
 
 /// Simplified DICOM series descriptor returned from directory scan.
@@ -225,8 +297,8 @@ pub struct DicomSeriesInfo {
 pub(super) struct SeriesFirstSeen {
     pub rows: Option<u32>,
     pub cols: Option<u32>,
-    pub pixel_spacing: Option<[f64; 2]>,
-    pub slice_thickness: Option<f64>,
+    pub pixel_spacing: Option<[Length; 2]>,
+    pub slice_thickness: Option<Length>,
     pub series_instance_uid: Option<ArrayString<64>>,
     pub study_instance_uid: Option<ArrayString<64>>,
     pub series_description: Option<String>,
@@ -242,11 +314,13 @@ pub(super) struct SeriesFirstSeen {
     pub high_bit: Option<u16>,
     pub photometric_interpretation: Option<ArrayString<16>>,
     pub transfer_syntax_uid: Option<ArrayString<64>>,
-    pub patient_weight_kg: Option<f64>,
+    pub patient_weight_kg: Option<Mass>,
     pub decay_correction: Option<ArrayString<16>>,
-    pub radionuclide_total_dose_bq: Option<f64>,
+    /// Whether classic PET pixel values are encoded as activity concentration in Bq/mL.
+    pub pet_pixels_in_bq_per_ml: Option<bool>,
+    pub radionuclide_total_dose_bq: Option<Radioactivity>,
     pub radiopharmaceutical_start_time: Option<ArrayString<16>>,
-    pub radionuclide_half_life_s: Option<f64>,
+    pub radionuclide_half_life_s: Option<Time>,
 }
 
 /// Spatial geometry of a reconstructed DICOM series.
@@ -373,8 +447,8 @@ pub(super) fn assemble_metadata(
         series_date: first.series_date,
         series_time: first.series_time,
         dimensions: [rows, cols, slices.len()],
-        spacing,
-        origin,
+        spacing: spacing.map(Length::from_unit::<Millimeter>),
+        origin: origin.map(Length::from_unit::<Millimeter>),
         direction,
         bits_allocated: first.bits_allocated,
         bits_stored: first.bits_stored,
@@ -389,8 +463,11 @@ pub(super) fn assemble_metadata(
             // keeps an exact frame scope; see `inventory::dicom_metadata_losses`.
             losses: Vec::new(),
         },
+        enhanced_pet_suv: None,
+        enhanced_pet_selection: None,
         patient_weight_kg: first.patient_weight_kg,
         decay_correction: first.decay_correction,
+        pet_pixels_in_bq_per_ml: first.pet_pixels_in_bq_per_ml.unwrap_or(false),
         radionuclide_total_dose_bq: first.radionuclide_total_dose_bq,
         radiopharmaceutical_start_time: first.radiopharmaceutical_start_time,
         radionuclide_half_life_s: first.radionuclide_half_life_s,

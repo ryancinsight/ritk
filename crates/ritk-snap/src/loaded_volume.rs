@@ -36,11 +36,11 @@ pub struct LoadedVolume {
     /// Series time from metadata (TM VR, max 16 chars).
     pub series_time: Option<ArrayString<16>>,
     /// Patient weight in kg (for PET SUV computation).
-    pub patient_weight_kg: Option<f64>,
+    pub patient_weight_kg: Option<aequitas::systems::si::quantities::Mass>,
     /// Injected radionuclide total dose in Bq (for PET SUV computation).
-    pub injected_dose_bq: Option<f64>,
+    pub injected_dose_bq: Option<ritk_io::Radioactivity>,
     /// Radionuclide physical half-life in seconds (for PET SUV computation).
-    pub radionuclide_half_life_s: Option<f64>,
+    pub radionuclide_half_life_s: Option<aequitas::systems::si::quantities::Time>,
     /// Radiopharmaceutical start time (TM VR, max 16 chars).
     pub radiopharmaceutical_start_time: Option<ArrayString<16>>,
     /// Pixel decay-correction mode from (0054,1102) (CS VR, max 16 chars).
@@ -48,6 +48,62 @@ pub struct LoadedVolume {
 }
 
 impl LoadedVolume {
+    /// Replace the active PET reconstruction and its SUV and geometry together.
+    pub fn select_enhanced_pet_volume(&mut self, index: usize) -> Option<()> {
+        use aequitas::systems::si::{quantities::Length, units::Millimeter};
+
+        let metadata = self.metadata.as_deref_mut()?;
+        let volume = metadata.enhanced_pet_selection.as_mut()?.select(index)?;
+        self.data = std::sync::Arc::clone(&volume.data);
+        self.shape = volume.shape;
+        self.origin = volume.origin.to_array();
+        self.spacing = volume.spacing.to_array();
+        self.direction = volume.direction.to_row_major();
+        metadata.dimensions = [self.shape[1], self.shape[2], self.shape[0]];
+        metadata.origin = self.origin.map(Length::from_unit::<Millimeter>);
+        metadata.spacing = self.spacing.map(Length::from_unit::<Millimeter>);
+        metadata.direction = volume.direction.to_column_major();
+        metadata.enhanced_pet_suv = volume.suv_bw.clone();
+        Some(())
+    }
+
+    /// Label a reconstructed plane on the original DICOM stack axis.
+    #[must_use]
+    pub fn enhanced_pet_slice_label(&self, axis: usize, slice: usize) -> Option<&'static str> {
+        use ritk_io::SliceProvenance;
+
+        if axis != 0 {
+            return None;
+        }
+        let selection = self.metadata.as_ref()?.enhanced_pet_selection.as_ref()?;
+        let volume = selection.volumes().get(selection.selected_index())?;
+        match volume.slice_provenance.as_ref()?.get(slice)? {
+            SliceProvenance::Acquired => None,
+            SliceProvenance::Interpolated => Some("Interpolated PET slice"),
+            SliceProvenance::Copied => Some("Copied PET slice"),
+        }
+    }
+
+    /// Read an Enhanced PET quantitative voxel in grams per millilitre.
+    #[must_use]
+    pub fn enhanced_pet_suv_at(&self, [depth, row, col]: [usize; 3]) -> Option<f64> {
+        let [planes, rows, cols] = self.shape;
+        if depth >= planes || row >= rows || col >= cols {
+            return None;
+        }
+        let index = depth
+            .checked_mul(rows)?
+            .checked_add(row)?
+            .checked_mul(cols)?
+            .checked_add(col)?;
+        self.metadata
+            .as_ref()?
+            .enhanced_pet_suv
+            .as_ref()?
+            .at(index)
+            .map(|value| value.in_unit::<aequitas::systems::si::units::GramPerCubicCentimeter>())
+    }
+
     /// Get the first channel value at voxel position (d, r, c).
     ///
     /// For multi-channel volumes (e.g. RGB), returns the first channel.

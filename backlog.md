@@ -116,3 +116,22 @@
 <a id="RITK-SNAP-ELLIPSE-PIXEL-MASK-001"></a>- [RITK-SNAP-ELLIPSE-PIXEL-MASK-001](backlog/RITK-SNAP-ELLIPSE-PIXEL-MASK-001.md) — Show ellipse contributing-pixel outlines — todo
 <a id="RITK-SNAP-ROI-NATIVE-001"></a>- [RITK-SNAP-ROI-NATIVE-001](backlog/RITK-SNAP-ROI-NATIVE-001.md) — Test native ROI creation and labels — todo
 <a id="RITK-SNAP-ROI-LABEL-STATISTICS-001"></a>- [RITK-SNAP-ROI-LABEL-STATISTICS-001](backlog/RITK-SNAP-ROI-LABEL-STATISTICS-001.md) — Show complete ROI label statistics — todo
+
+- [x] [major] Carry typed DICOM geometry and isotope activity into the viewer.
+  Validate file round trips, isotope units by SOP class, and SUV pixel units.
+
+- [x] [major] Quantify Enhanced PET spatial voxels using the declared real-world
+  mapping and frame-appropriate isotope activity.
+
+- [x] [major] Reconstruct and select temporal and gated Enhanced PET volumes within one object.
+
+- [x] [minor] Reconstruct Enhanced PET concatenations from the exact scanned
+  instances. Validate ordinal continuity, geometry, and per-frame SUV.
+
+- [x] [patch] Use the published Aequitas and Eunomia releases in RITK.
+- [x] [patch] Verify geometry-based interpolation of an interior Enhanced
+  PET plane between complete concatenation members.
+- [x] [minor] Label synthesized Enhanced PET planes on the storage-depth
+  view. Preserve each selected reconstruction's measured, interpolated,
+  and copied-edge provenance.
+- [ ] [patch] Adopt published Aequitas 0.5.0 after Gaia and Leto accept it.

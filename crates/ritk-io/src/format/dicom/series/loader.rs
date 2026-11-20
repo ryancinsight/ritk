@@ -433,8 +433,16 @@ mod tests {
             series_date: None,
             series_time: None,
             dimensions: [rows, cols, depth],
-            spacing: [1.5, 0.75, 0.5],
-            origin: [1.0, 2.0, 3.0],
+            spacing: [1.5, 0.75, 0.5].map(
+                aequitas::systems::si::quantities::Length::from_unit::<
+                    aequitas::systems::si::units::Millimeter,
+                >,
+            ),
+            origin: [1.0, 2.0, 3.0].map(
+                aequitas::systems::si::quantities::Length::from_unit::<
+                    aequitas::systems::si::units::Millimeter,
+                >,
+            ),
             direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
             bits_allocated: Some(16),
             bits_stored: Some(16),
@@ -444,6 +452,9 @@ mod tests {
             private_tags: HashMap::new(),
             preservation: crate::format::dicom::DicomPreservationSet::new(),
             patient_weight_kg: None,
+            enhanced_pet_suv: None,
+            enhanced_pet_selection: None,
+            pet_pixels_in_bq_per_ml: false,
             decay_correction: None,
             radionuclide_total_dose_bq: None,
             radiopharmaceutical_start_time: None,

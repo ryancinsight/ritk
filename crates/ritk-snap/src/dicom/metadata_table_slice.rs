@@ -1,5 +1,6 @@
 //! First-slice DICOM metadata rows for the viewer tag inspector.
 
+use aequitas::systems::si::units::Millimeter;
 use ritk_io::DicomSliceMetadata;
 
 use super::{format_float_slice, push_slice_opt, MetadataRow};
@@ -23,7 +24,10 @@ pub(super) fn push_first_slice_rows<'a>(
             value.to_string(),
         ));
     }
-    if let Some(value) = slice.slice_location {
+    if let Some(value) = slice
+        .slice_location
+        .map(|length| length.in_unit::<Millimeter>())
+    {
         rows.push(MetadataRow::first_slice(
             "0020,1041",
             "SliceLocation",
@@ -31,7 +35,7 @@ pub(super) fn push_first_slice_rows<'a>(
             format!("{value:.6}"),
         ));
     }
-    if let Some(value) = slice.image_position_patient {
+    if let Some(value) = slice.image_position_mm() {
         rows.push(MetadataRow::first_slice(
             "0020,0032",
             "ImagePositionPatient",
@@ -55,7 +59,7 @@ pub(super) fn push_first_slice_rows<'a>(
             format!("{} ({})", value, value.label()),
         ));
     }
-    if let Some(value) = slice.pixel_spacing {
+    if let Some(value) = slice.pixel_spacing_mm() {
         rows.push(MetadataRow::first_slice(
             "0028,0030",
             "PixelSpacing",
@@ -63,7 +67,10 @@ pub(super) fn push_first_slice_rows<'a>(
             format_float_slice(value),
         ));
     }
-    if let Some(value) = slice.slice_thickness {
+    if let Some(value) = slice
+        .slice_thickness
+        .map(|length| length.in_unit::<Millimeter>())
+    {
         rows.push(MetadataRow::first_slice(
             "0018,0050",
             "SliceThickness",
@@ -125,7 +132,7 @@ pub(super) fn push_first_slice_rows<'a>(
             format!("{value:.6}"),
         ));
     }
-    if let Some(value) = slice.gantry_tilt {
+    if let Some(value) = slice.gantry_tilt_degrees() {
         rows.push(MetadataRow::first_slice(
             "0018,1120",
             "GantryDetectorTilt",

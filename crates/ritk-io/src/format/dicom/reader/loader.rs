@@ -4,6 +4,8 @@
 //! with associated `DicomReadMetadata`. All pixel I/O and resampling logic is
 //! contained here; callers only supply a scan result and a device handle.
 
+use aequitas::systems::si::quantities::Length;
+use aequitas::systems::si::units::Millimeter;
 use anyhow::{anyhow, bail, Context, Result};
 use coeus_core::ComputeBackend;
 use std::path::Path;
@@ -178,7 +180,7 @@ fn decode_series(series: DicomSeriesInfo, budget: &DicomReadBudget) -> Result<De
     let (needs_resample, final_spacing_z, resample_positions) = if let Some(normal) = maybe_normal {
         let proj: Vec<Option<f64>> = slices
             .iter()
-            .map(|s| s.image_position_patient.map(|ipp| dot(ipp, normal)))
+            .map(|s| s.image_position_mm().map(|ipp| dot(ipp, normal)))
             .collect();
         let missing_ipp = proj.iter().filter(|p| p.is_none()).count();
         if missing_ipp > 0 {
@@ -229,10 +231,10 @@ fn decode_series(series: DicomSeriesInfo, budget: &DicomReadBudget) -> Result<De
                 Some(positions),
             )
         } else {
-            (false, metadata.spacing[0], None)
+            (false, metadata.spacing[0].in_unit::<Millimeter>(), None)
         }
     } else {
-        (false, metadata.spacing[0], None)
+        (false, metadata.spacing[0].in_unit::<Millimeter>(), None)
     };
 
     let frame_len = dicom_frame_pixel_count(rows, cols)?;
@@ -291,11 +293,11 @@ fn decode_series(series: DicomSeriesInfo, budget: &DicomReadBudget) -> Result<De
     };
 
     metadata.dimensions[2] = final_depth;
-    metadata.spacing[0] = final_spacing_z.abs().max(1e-6);
+    metadata.spacing[0] = Length::from_unit::<Millimeter>(final_spacing_z.abs().max(1e-6));
 
     let shape = [final_depth, rows, cols];
-    let origin = Point::new(metadata.origin);
-    let spacing = Spacing::new(metadata.spacing);
+    let origin = Point::new(metadata.origin_mm());
+    let spacing = Spacing::new(metadata.spacing_mm());
     let direction = Direction::from_column_major(metadata.direction);
     metadata.slices = slices;
     Ok(DecodedDicomSeries {

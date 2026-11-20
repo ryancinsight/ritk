@@ -51,6 +51,7 @@ pub use budget::DicomReadBudget;
 pub use types::literal_arraystring;
 pub use types::{
     DicomReadMetadata, DicomSeriesInfo as ScannedDicomSeries, DicomSliceMetadata, PatientPosition,
+    Radioactivity,
 };
 
 pub(super) use geometry::{

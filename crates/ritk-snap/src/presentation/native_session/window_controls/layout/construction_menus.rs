@@ -62,11 +62,8 @@ pub(super) fn menu_item_count(
         Menu::File => 3,
         Menu::Anonymize => ANONYMIZE_ITEMS.len(),
         Menu::View => {
-            if workspace_layout.is_grid() {
-                3
-            } else {
-                6
-            }
+            let base = if workspace_layout.is_grid() { 3 } else { 6 };
+            base + 2 * usize::from(has_enhanced_pet_volumes(app))
         }
         Menu::Tools => {
             ToolKind::all()
@@ -86,6 +83,27 @@ pub(super) fn menu_item_count(
             .saturating_add(crate::app::state::MAX_CUSTOM_PRESETS)
             .saturating_add(1),
         Menu::GridPicker => 0,
+    }
+}
+
+fn has_enhanced_pet_volumes(app: &SnapApp) -> bool {
+    app.enhanced_pet_selection()
+        .is_some_and(|selection| selection.volumes().len() > 1)
+}
+
+fn pet_view_item(index: usize, app: &SnapApp) -> Result<(&'static str, WindowAction, bool)> {
+    match (has_enhanced_pet_volumes(app), index) {
+        (true, 0) => Ok((
+            "Previous PET volume",
+            WindowAction::StepEnhancedPetVolume(-1),
+            false,
+        )),
+        (true, 1) => Ok((
+            "Next PET volume",
+            WindowAction::StepEnhancedPetVolume(1),
+            false,
+        )),
+        _ => Err(anyhow!("native View menu row is outside its items")),
     }
 }
 
@@ -120,7 +138,7 @@ pub(super) fn menu_item(
                 app.cine.enabled,
             )),
             2 => Ok(("Reset view", WindowAction::ResetView, false)),
-            _ => Err(anyhow!("native View menu row is outside its items")),
+            _ => pet_view_item(index - 3, app),
         },
         Menu::View => match index {
             0 => Ok((
@@ -151,7 +169,7 @@ pub(super) fn menu_item(
                 app.cine.enabled,
             )),
             5 => Ok(("Reset view", WindowAction::ResetView, false)),
-            _ => Err(anyhow!("native View menu row is outside its items")),
+            _ => pet_view_item(index - 6, app),
         },
         Menu::Tools => {
             let tool_rows = ToolKind::all()
