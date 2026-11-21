@@ -91,7 +91,7 @@ fn dicom_voi_and_rescale_values_keep_declared_modality_units() {
         });
         tracing::info_span!("assert", index).in_scope(|| {
             let slice = &metadata.slices[0];
-            assert_eq!(slice.window_center, Some(expected));
+            assert_eq!(slice.window_center.as_ref(), Some(&expected));
             assert_eq!(slice.rescale_offset(), expected);
             assert!(slice.window_width.is_none());
             assert_eq!(metadata.pet_pixels_in_bq_per_ml, pet_units == Some("BQML"));

@@ -8,10 +8,10 @@ use aequitas::systems::si::{
 use anyhow::{bail, Result};
 use arrayvec::ArrayString;
 use ritk_dicom::dataset::{Dataset, DicomTag};
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 /// Unit of a decoded scalar DICOM image after rescale.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum DicomValueUnit {
     /// No quantitative unit is declared or established by the storage class.
     #[default]
@@ -25,7 +25,7 @@ pub enum DicomValueUnit {
     /// Standardized uptake value in grams per millilitre, with its normalization.
     StandardizedUptake(SuvNormalization),
     /// An explicitly declared DICOM unit without a supported physical mapping.
-    Declared(ArrayString<16>),
+    Declared(Arc<str>),
 }
 
 /// Normalization of a standardized uptake value encoded as mass per volume.
@@ -40,7 +40,7 @@ pub enum SuvNormalization {
 impl DicomValueUnit {
     /// Interpret one value in the decoded image's DICOM units.
     #[must_use]
-    pub fn sample(self, value: f64) -> DicomModalityValue {
+    pub fn sample(&self, value: f64) -> DicomModalityValue {
         match self {
             Self::Hounsfield => DicomModalityValue::Hounsfield(Dimensionless::from_base(value)),
             Self::ActivityConcentration => {
@@ -52,18 +52,19 @@ impl DicomValueUnit {
                 DicomModalityValue::MassConcentration(MassDensity::from_base(value))
             }
             Self::StandardizedUptake(normalization) => DicomModalityValue::StandardizedUptake {
-                normalization,
+                normalization: *normalization,
                 value: MassDensity::from_unit::<GramPerCubicCentimeter>(value),
             },
-            Self::Unspecified | Self::Declared(_) => {
-                DicomModalityValue::Unmapped { unit: self, value }
-            }
+            Self::Unspecified | Self::Declared(_) => DicomModalityValue::Unmapped {
+                unit: self.clone(),
+                value,
+            },
         }
     }
 }
 
 /// A decoded scalar, rescale offset, or window value in its modality units.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DicomModalityValue {
     /// The Hounsfield scale is dimensionless and has a CT-specific meaning.
     Hounsfield(Dimensionless),
@@ -90,13 +91,13 @@ pub enum DicomModalityValue {
 impl DicomModalityValue {
     /// Retrieve the scalar in the decoded DICOM image's units.
     #[must_use]
-    pub fn dicom_value(self) -> f64 {
+    pub fn dicom_value(&self) -> f64 {
         match self {
             Self::Hounsfield(value) => value.into_base(),
             Self::ActivityConcentration(value) => value.in_unit::<BecquerelPerMilliliter>(),
             Self::MassConcentration(value) => value.into_base(),
             Self::StandardizedUptake { value, .. } => value.in_unit::<GramPerCubicCentimeter>(),
-            Self::Unmapped { value, .. } => value,
+            Self::Unmapped { value, .. } => *value,
         }
     }
 }
@@ -116,9 +117,7 @@ pub(super) fn declared_rescale_unit(obj: &Dataset) -> Option<DicomValueUnit> {
         "US" => Some(DicomValueUnit::Unspecified),
         "HU" => Some(DicomValueUnit::Hounsfield),
         "MGML" => Some(DicomValueUnit::MassConcentration),
-        code => Some(
-            ArrayString::from(code).map_or(DicomValueUnit::Unspecified, DicomValueUnit::Declared),
-        ),
+        code => Some(DicomValueUnit::Declared(Arc::from(code))),
     }
 }
 
@@ -141,8 +140,7 @@ pub(super) fn resolve_value_unit(obj: &Dataset, class: Option<&str>) -> DicomVal
                 }),
             },
             "" => DicomValueUnit::Unspecified,
-            code => ArrayString::from(code)
-                .map_or(DicomValueUnit::Unspecified, DicomValueUnit::Declared),
+            code => DicomValueUnit::Declared(Arc::from(code)),
         };
     }
     if let Some(unit) = declared_rescale_unit(obj) {
@@ -166,7 +164,7 @@ pub(super) fn resolve_value_unit(obj: &Dataset, class: Option<&str>) -> DicomVal
 /// to each frame before interpolation. A missing declaration cannot inherit
 /// the meaning of a neighboring frame.
 pub(super) fn reconcile_interpolation_units<'a>(
-    frames: impl IntoIterator<Item = (DicomValueUnit, &'a Path, usize)>,
+    frames: impl IntoIterator<Item = (&'a DicomValueUnit, &'a Path, usize)>,
 ) -> Result<()> {
     let mut frames = frames.into_iter();
     let Some((unit, first_path, first_index)) = frames.next() else {

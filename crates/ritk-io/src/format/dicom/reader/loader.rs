@@ -244,7 +244,7 @@ fn decode_series(series: DicomSeriesInfo, budget: &DicomReadBudget) -> Result<De
             slices
                 .iter()
                 .enumerate()
-                .map(|(index, slice)| (slice.value_unit, slice.path.as_path(), index)),
+                .map(|(index, slice)| (&slice.value_unit, slice.path.as_path(), index)),
         )?;
         let positions = resample_positions.as_ref().ok_or_else(|| {
             anyhow!("resample positions missing despite resample-required series")

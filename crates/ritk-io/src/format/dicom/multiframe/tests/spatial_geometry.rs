@@ -141,28 +141,60 @@ fn oblique_multiframe_requires_compatible_calibrated_units_for_interpolation() {
             .with_test_writer()
             .finish(),
     );
-    let (fixture, matching, mixed, missing) = tracing::info_span!("arrange").in_scope(|| {
-        let fixture = tempfile::tempdir().expect("temporary fixture directory");
-        let matching = fixture.path().join("matching.dcm");
-        let mixed = fixture.path().join("mixed.dcm");
-        let missing = fixture.path().join("missing.dcm");
-        write_oblique_multiframe(&matching, Some(["HU"; 4]));
-        write_oblique_multiframe(&mixed, Some(["HU", "HU", "MGML", "HU"]));
-        write_oblique_multiframe(&missing, Some(["HU", "HU", "", "HU"]));
-        (fixture, matching, mixed, missing)
-    });
-    let (matching, mixed, missing) = tracing::info_span!("act").in_scope(|| {
-        (
-            load_dicom_multiframe_flat(matching),
-            load_dicom_multiframe_flat(mixed),
-            load_dicom_multiframe_flat(missing),
-        )
-    });
+    // DICOM Rescale Type permits vendor-defined LO labels.
+    let unit_a = "VENDOR_ACTIVITY_CONCENTRATION_SCALE";
+    let unit_b = "VENDOR_ATTENUATION_REFERENCE_SCALE";
+    let (fixture, matching, mixed, missing, matching_labels, mixed_labels) =
+        tracing::info_span!("arrange").in_scope(|| {
+            let fixture = tempfile::tempdir().expect("temporary fixture directory");
+            let matching = fixture.path().join("matching.dcm");
+            let mixed = fixture.path().join("mixed.dcm");
+            let missing = fixture.path().join("missing.dcm");
+            write_oblique_multiframe(&matching, Some(["HU"; 4]));
+            write_oblique_multiframe(&mixed, Some(["HU", "HU", "MGML", "HU"]));
+            write_oblique_multiframe(&missing, Some(["HU", "HU", "", "HU"]));
+            let matching_labels = fixture.path().join("matching-labels.dcm");
+            let mixed_labels = fixture.path().join("mixed-labels.dcm");
+            write_oblique_multiframe(&matching_labels, Some([unit_a; 4]));
+            write_oblique_multiframe(&mixed_labels, Some([unit_a, unit_a, unit_b, unit_a]));
+            (
+                fixture,
+                matching,
+                mixed,
+                missing,
+                matching_labels,
+                mixed_labels,
+            )
+        });
+    let (matching, mixed, missing, matching_labels, mixed_labels) = tracing::info_span!("act")
+        .in_scope(|| {
+            (
+                load_dicom_multiframe_flat(matching),
+                load_dicom_multiframe_flat(mixed),
+                load_dicom_multiframe_flat(missing),
+                load_dicom_multiframe_flat(matching_labels),
+                load_dicom_multiframe_flat(mixed_labels),
+            )
+        });
     tracing::info_span!("assert").in_scope(|| {
         // Both adjacent samples rescale to 400 HU, so the midpoint is 400 HU.
         assert_eq!(
             matching.expect("common calibrated scale").data,
             [100.0, 400.0, 400.0, 400.0, 500.0]
+        );
+        assert_eq!(
+            matching_labels.expect("common vendor scale").data,
+            [100.0, 400.0, 400.0, 400.0, 500.0]
+        );
+        let error = mixed_labels
+            .err()
+            .expect("different vendor labels must stop interpolation");
+        let message = format!("{error:#}");
+        assert!(
+            message.contains("interpolation")
+                && message.contains(unit_a)
+                && message.contains(unit_b),
+            "{message}"
         );
         for (result, expected_unit) in [(mixed, "MassConcentration"), (missing, "Unspecified")] {
             let error = result
