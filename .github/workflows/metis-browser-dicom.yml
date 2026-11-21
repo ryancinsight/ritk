@@ -139,6 +139,14 @@ jobs:
             --consumer-package "$GITHUB_WORKSPACE/ritk/target/wasm-bindgen/ritk-snap" \
             --consumer-gallery "$GITHUB_WORKSPACE/ritk/crates/ritk-snap/web/gallery"
 
+      - name: Check out Atlas process runtime
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ryancinsight/atlas
+          ref: 42f451bf117af8d1549460c8a04cbc28bba065db
+          path: atlas
+          persist-credentials: false
+
       - name: Install RITK script test tooling
         working-directory: ritk
         run: python -m pip install -r scripts/requirements-test.txt
@@ -148,6 +156,7 @@ jobs:
         shell: bash
         env:
           PYTHONPATH: ${{ github.workspace }}/metis/scripts
+          RITK_MANUAL_ATLAS_ROOT: ${{ github.workspace }}/atlas
         run: |
           set -euo pipefail
           python -m unittest discover -s scripts/tests
