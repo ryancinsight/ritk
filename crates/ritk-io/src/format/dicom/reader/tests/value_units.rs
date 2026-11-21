@@ -1,11 +1,10 @@
 use super::super::scan::scan_dicom_directory;
 use super::support::write_stub_dicom;
-use arrayvec::ArrayString;
 use ritk_dicom::dataset::{DicomTag, VR};
 
 #[test]
 fn dicom_voi_and_rescale_values_keep_declared_modality_units() {
-    use crate::format::dicom::{DicomModalityValue, DicomValueUnit};
+    use crate::format::dicom::{DicomModalityValue, DicomValueUnit, SuvNormalization};
     use aequitas::systems::si::quantities::{ActivityConcentration, Dimensionless, MassDensity};
 
     let _trace = tracing::subscriber::set_default(
@@ -56,7 +55,7 @@ fn dicom_voi_and_rescale_values_keep_declared_modality_units() {
             None,
             Some("GML"),
             "2",
-            DicomValueUnit::Declared(ArrayString::from("GML").expect("unit code")).sample(2.0),
+            DicomValueUnit::StandardizedUptake(SuvNormalization::BodyWeight).sample(2.0),
         ),
     ]
     .into_iter()
@@ -96,6 +95,10 @@ fn dicom_voi_and_rescale_values_keep_declared_modality_units() {
             assert_eq!(slice.rescale_offset(), expected);
             assert!(slice.window_width.is_none());
             assert_eq!(metadata.pet_pixels_in_bq_per_ml, pet_units == Some("BQML"));
+            assert_eq!(
+                metadata.pixels_are_body_weight_suv(),
+                pet_units == Some("GML")
+            );
         });
     }
 }

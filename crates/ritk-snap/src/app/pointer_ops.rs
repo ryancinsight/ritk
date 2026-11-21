@@ -384,7 +384,7 @@ impl SnapApp {
         }
     }
 
-    /// Compute SUVbw for a PET voxel value [Bq/mL].
+    /// Compute SUVbw from activity concentration or report pre-normalized SUVbw.
     ///
     /// Returns `None` when `PetAcquisitionParams::from_loaded_volume` fails,
     /// `pixel_bqml` is non-finite, or the result is non-finite.
@@ -399,6 +399,13 @@ impl SnapApp {
         };
         if !pixel_bqml.is_finite() {
             return None;
+        }
+        if vol
+            .metadata
+            .as_ref()
+            .is_some_and(|metadata| metadata.pixels_are_body_weight_suv())
+        {
+            return Some(pixel_bqml as f32).filter(|suv| suv.is_finite());
         }
         let pet = PetAcquisitionParams::from_loaded_volume(vol)?;
         let delta_t = PetAcquisitionParams::delta_t_s_from_vol(vol);

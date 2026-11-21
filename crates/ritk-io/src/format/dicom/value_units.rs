@@ -3,7 +3,7 @@
 use super::sop_class::{classify_sop_class, SopClassKind};
 use aequitas::systems::si::{
     quantities::{ActivityConcentration, Dimensionless, MassDensity},
-    units::BecquerelPerMilliliter,
+    units::{BecquerelPerMilliliter, GramPerCubicCentimeter},
 };
 use arrayvec::ArrayString;
 use ritk_dicom::dataset::{Dataset, DicomTag};
@@ -20,8 +20,19 @@ pub enum DicomValueUnit {
     ActivityConcentration,
     /// Mass concentration in mg/mL, numerically equal to kg/m³.
     MassConcentration,
+    /// Standardized uptake value in grams per millilitre, with its normalization.
+    StandardizedUptake(SuvNormalization),
     /// An explicitly declared DICOM unit without a supported physical mapping.
     Declared(ArrayString<16>),
+}
+
+/// Normalization of a standardized uptake value encoded as mass per volume.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SuvNormalization {
+    /// Normalize by body weight.
+    BodyWeight,
+    /// Another DICOM SUV Type, preserved without relabelling.
+    Other(ArrayString<16>),
 }
 
 impl DicomValueUnit {
@@ -38,6 +49,10 @@ impl DicomValueUnit {
             Self::MassConcentration => {
                 DicomModalityValue::MassConcentration(MassDensity::from_base(value))
             }
+            Self::StandardizedUptake(normalization) => DicomModalityValue::StandardizedUptake {
+                normalization,
+                value: MassDensity::from_unit::<GramPerCubicCentimeter>(value),
+            },
             Self::Unspecified | Self::Declared(_) => {
                 DicomModalityValue::Unmapped { unit: self, value }
             }
@@ -54,6 +69,13 @@ pub enum DicomModalityValue {
     ActivityConcentration(ActivityConcentration),
     /// Mass per unit volume.
     MassConcentration(MassDensity),
+    /// Already normalized PET uptake.
+    StandardizedUptake {
+        /// Normalization declared by the source.
+        normalization: SuvNormalization,
+        /// Standardized uptake in mass per volume.
+        value: MassDensity,
+    },
     /// Scalar with its original unit declaration when available.
     Unmapped {
         /// Unit declaration.
@@ -71,6 +93,7 @@ impl DicomModalityValue {
             Self::Hounsfield(value) => value.into_base(),
             Self::ActivityConcentration(value) => value.in_unit::<BecquerelPerMilliliter>(),
             Self::MassConcentration(value) => value.into_base(),
+            Self::StandardizedUptake { value, .. } => value.in_unit::<GramPerCubicCentimeter>(),
             Self::Unmapped { value, .. } => value,
         }
     }
@@ -105,6 +128,15 @@ pub(super) fn resolve_value_unit(obj: &Dataset, class: Option<&str>) -> DicomVal
     {
         return match units.trim() {
             "BQML" => DicomValueUnit::ActivityConcentration,
+            // PS3.3 C.8.9.1 supplies BW when GML carries no SUV Type.
+            "GML" => match read_text(obj, 0x0054, 0x1006).as_deref().map(str::trim) {
+                None | Some("" | "BW") => {
+                    DicomValueUnit::StandardizedUptake(SuvNormalization::BodyWeight)
+                }
+                Some(code) => ArrayString::from(code).map_or(DicomValueUnit::Unspecified, |code| {
+                    DicomValueUnit::StandardizedUptake(SuvNormalization::Other(code))
+                }),
+            },
             "" => DicomValueUnit::Unspecified,
             code => ArrayString::from(code)
                 .map_or(DicomValueUnit::Unspecified, DicomValueUnit::Declared),

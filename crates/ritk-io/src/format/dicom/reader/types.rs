@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;
 
-use super::super::value_units::{DicomModalityValue, DicomValueUnit};
+use super::super::value_units::{DicomModalityValue, DicomValueUnit, SuvNormalization};
 use crate::format::dicom::object_model::{DicomObjectModel, DicomPreservationSet};
 use ritk_dicom::PixelSignedness;
 
@@ -283,6 +283,15 @@ pub struct DicomReadMetadata {
 }
 
 impl DicomReadMetadata {
+    /// Whether all source instances carry already normalized body-weight SUV.
+    #[must_use]
+    pub fn pixels_are_body_weight_suv(&self) -> bool {
+        !self.slices.is_empty()
+            && self.slices.iter().all(|slice| {
+                slice.value_unit == DicomValueUnit::StandardizedUptake(SuvNormalization::BodyWeight)
+            })
+    }
+
     /// Voxel spacing in millimetres at image and display boundaries.
     #[must_use]
     pub fn spacing_mm(&self) -> [f64; 3] {

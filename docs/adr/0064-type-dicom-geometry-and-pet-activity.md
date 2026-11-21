@@ -65,6 +65,9 @@ non-localizer single-energy images. Ordinary MR or other unspecified
 values keep an uncalibrated numeric value. Mass per volume in mg/mL
 equals SI kg/m³. Classic PET BQML maps to activity concentration, and
 the viewer requires that code on every instance before calculating SUV.
+Classic GML carries mass-per-volume SUV and the source normalization.
+The standard supplies body weight when SUV Type is absent. The viewer
+reports a body-weight SUV directly only when every instance uses it.
 Enhanced PET keeps its existing frame-qualified Real World Value Mapping.
 
 Keep the established scalar codec parameters and image buffers for pixel

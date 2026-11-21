@@ -30,7 +30,7 @@ mod writer;
 mod writer_object;
 
 mod value_units;
-pub use value_units::{DicomModalityValue, DicomValueUnit};
+pub use value_units::{DicomModalityValue, DicomValueUnit, SuvNormalization};
 
 pub use anonymize::{
     anonymize_dicom_directory, anonymize_dicom_directory_verified, anonymize_dicom_file,
