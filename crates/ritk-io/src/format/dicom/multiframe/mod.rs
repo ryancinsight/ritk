@@ -59,6 +59,7 @@
 mod bytes;
 mod enhanced_pet;
 pub use enhanced_pet::BodyWeightSuvVolume;
+pub(super) mod geometry;
 mod per_frame;
 mod pet_dimensions;
 pub use pet_dimensions::{EnhancedPetCoordinate, EnhancedPetDimension};

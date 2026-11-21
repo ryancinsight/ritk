@@ -1,4 +1,5 @@
 use super::*;
+use aequitas::systems::si::units::Millimeter;
 use ritk_dicom::dataset::Value;
 
 // -------------------------------------------------------------------------
@@ -124,12 +125,14 @@ fn test_per_frame_shared_functional_groups() {
     // Both frames share the same template from (5200,9229).
     for (k, pfi) in result.iter().enumerate() {
         assert_eq!(
-            pfi.pixel_spacing,
+            pfi.pixel_spacing
+                .map(|spacing| spacing.map(|value| value.in_unit::<Millimeter>())),
             Some([0.5, 0.5]),
             "frame {k}: pixel_spacing must be [0.5, 0.5] from shared groups"
         );
         assert_eq!(
-            pfi.slice_thickness,
+            pfi.slice_thickness
+                .map(|value| value.in_unit::<Millimeter>()),
             Some(1.0),
             "frame {k}: slice_thickness must be 1.0 from shared groups"
         );

@@ -10,6 +10,13 @@
 
 ## Unreleased
 
+### Breaking
+
+- [major] Use Aequitas lengths for multiframe positions, pixel spacing,
+  slice thickness, and writer geometry. Build the quantity fields in
+  millimetres at the DICOM boundary and convert to millimetres for
+  existing image carriers.
+
 ### Fixed
 
 - [patch] Carry Aequitas lengths through native, Coeus, and metadata-preserving

@@ -2,6 +2,7 @@
 
 use crate::format::dicom::reader::types::literal_arraystring;
 use crate::format::dicom::transfer_syntax::TransferSyntaxKind;
+use aequitas::systems::si::quantities::Length;
 use arrayvec::ArrayString;
 use ritk_dicom::PixelSignedness;
 use std::path::PathBuf;
@@ -27,14 +28,14 @@ pub(crate) const MF_GRAYSCALE_WORD_SC_UID: &str = "1.2.840.10008.5.1.4.1.1.7.3";
 /// - `pixel_spacing\[k\]` / `slice_thickness\[k\]`: from (0028,9110) → (0028,0030/0018,0050).
 #[derive(Debug, Clone, Default)]
 pub struct PerFrameInfo {
-    /// Physical position P_k of this frame's origin in mm.
-    pub image_position: Option<[f64; 3]>,
+    /// Physical position P_k of this frame's origin. DICOM encodes it in millimetres.
+    pub image_position: Option<[Length; 3]>,
     /// Image orientation cosines for this frame.
     pub image_orientation: Option<[f64; 6]>,
-    /// Pixel spacing (row, column) in mm.
-    pub pixel_spacing: Option<[f64; 2]>,
-    /// Slice thickness in mm.
-    pub slice_thickness: Option<f64>,
+    /// Pixel spacing (row, column) (DICOM encodes millimetres).
+    pub pixel_spacing: Option<[Length; 2]>,
+    /// Slice thickness (DICOM encodes millimetres).
+    pub slice_thickness: Option<Length>,
     /// Rescale slope for this frame (0028,1053).
     pub rescale_slope: Option<f64>,
     /// Rescale intercept for this frame (0028,1052).
@@ -61,16 +62,16 @@ pub struct MultiFrameInfo {
     /// PixelRepresentation (0028,0103): unsigned or signed two's complement.
     /// Defaults to unsigned per DICOM PS3.3 C.7.6.3.1.
     pub pixel_representation: PixelSignedness,
-    /// Pixel spacing [row_spacing, col_spacing] in mm.
-    pub pixel_spacing: Option<[f64; 2]>,
-    /// Frame thickness (SliceThickness) in mm.
-    pub frame_thickness: Option<f64>,
+    /// Pixel spacing [row_spacing, col_spacing] (DICOM encodes millimetres).
+    pub pixel_spacing: Option<[Length; 2]>,
+    /// Frame thickness (SliceThickness) (DICOM encodes millimetres).
+    pub frame_thickness: Option<Length>,
     /// Modality string.
     pub modality: Option<ArrayString<16>>,
     /// SOP Class UID.
     pub sop_class_uid: Option<ArrayString<64>>,
-    /// ImagePositionPatient for frame 0: [x, y, z] in mm.
-    pub image_position: Option<[f64; 3]>,
+    /// ImagePositionPatient for frame 0: [x, y, z] (DICOM encodes millimetres).
+    pub image_position: Option<[Length; 3]>,
     /// ImageOrientationPatient: [row_x, row_y, row_z, col_x, col_y, col_z].
     pub image_orientation: Option<[f64; 6]>,
     /// RescaleSlope (0028,1053). Defaults to 1.0 when absent.
@@ -91,12 +92,12 @@ pub struct MultiFrameInfo {
 /// When absent, the writer behaves identically to [`write_dicom_multiframe`](super::write_dicom_multiframe).
 #[derive(Debug, Clone)]
 pub struct MultiFrameSpatialMetadata {
-    /// ImagePositionPatient for frame 0: [x, y, z] in mm.
-    pub origin: [f64; 3],
-    /// Pixel spacing [row_spacing, col_spacing] in mm.
-    pub pixel_spacing: [f64; 2],
-    /// Slice thickness in mm.
-    pub slice_thickness: f64,
+    /// ImagePositionPatient for frame 0: [x, y, z] (DICOM encodes millimetres).
+    pub origin: [Length; 3],
+    /// Pixel spacing [row_spacing, col_spacing] (DICOM encodes millimetres).
+    pub pixel_spacing: [Length; 2],
+    /// Slice thickness (DICOM encodes millimetres).
+    pub slice_thickness: Length,
     /// ImageOrientationPatient: [row_x, row_y, row_z, col_x, col_y, col_z].
     pub image_orientation: [f64; 6],
     /// Modality string (e.g., "CT", "MR", "OT").
