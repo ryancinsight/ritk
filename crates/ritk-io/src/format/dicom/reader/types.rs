@@ -330,10 +330,10 @@ pub(super) struct SeriesGeometry {
     pub rows: usize,
     /// Number of pixel columns per slice.
     pub cols: usize,
-    /// Voxel spacing \[mm\] in RITK tensor-axis order `[depth, row, col]`.
-    pub spacing: [f64; 3],
-    /// Image position of the first slice in patient coordinates \[mm\].
-    pub origin: [f64; 3],
+    /// Voxel spacing in RITK tensor-axis order `[depth, row, col]`.
+    pub spacing: [Length; 3],
+    /// Image position of the first slice in patient coordinate order `[x, y, z]`.
+    pub origin: [Length; 3],
     /// 3×3 direction cosines stored column-major in `[depth, row, col]` order
     /// (column 0 = slice normal, column 1 = row-axis direction, column 2 =
     /// column-axis direction); consumed by `Direction::from_column_major`.
@@ -447,8 +447,8 @@ pub(super) fn assemble_metadata(
         series_date: first.series_date,
         series_time: first.series_time,
         dimensions: [rows, cols, slices.len()],
-        spacing: spacing.map(Length::from_unit::<Millimeter>),
-        origin: origin.map(Length::from_unit::<Millimeter>),
+        spacing,
+        origin,
         direction,
         bits_allocated: first.bits_allocated,
         bits_stored: first.bits_stored,

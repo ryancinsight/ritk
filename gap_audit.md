@@ -202,3 +202,10 @@ Hephaestus. Locked all-feature metadata resolves one registry Aequitas
 0.5.0. The 58 selected PET, geometry, measurement, and Metal projection
 tests pass. Registry package promotion requires the published provider
 archives, including a Gaia version that admits Aequitas 0.5.0.
+
+## 2026-11-21 · Series geometry quantities
+
+The directory and stored-instance readers share series finalization. Series
+spacing follows tensor-axis order and patient origin follows XYZ. The scan
+keeps lengths through assembly, and the tensor interface converts them to
+millimetres. The oblique Part 10 fixture exercises measured and fallback depth.

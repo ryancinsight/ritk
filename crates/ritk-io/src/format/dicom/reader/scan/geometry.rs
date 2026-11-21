@@ -3,6 +3,8 @@
 //! IOP/spacing consistency checks, gantry tilt synthesis, slice normal
 //! computation, spatial sorting, and direction/origin/spacing assembly.
 
+use aequitas::systems::si::{quantities::Length, units::Millimeter};
+
 use super::super::geometry::{analyze_slice_spacing, cross, dot, normalize, slice_normal_from_iop};
 use super::super::types::DicomSliceMetadata;
 use super::thresholds::{
@@ -139,12 +141,15 @@ pub(super) fn check_pixel_spacing_consistency(slices: &[DicomSliceMetadata]) {
     }
 }
 
-/// Compute z-spacing using the median of adjacent-pair projected positions.
+/// Compute depth spacing using the median of adjacent-pair projected positions.
+///
+/// The shared slice analysis uses absolute thresholds in millimetres. Convert
+/// its nominal spacing at that boundary and preserve typed fallback thickness.
 pub(super) fn compute_spacing_z(
     slices: &[DicomSliceMetadata],
     maybe_normal: Option<[f64; 3]>,
-    fallback_thickness: Option<f64>,
-) -> f64 {
+    fallback_thickness: Option<Length>,
+) -> Length {
     let positions: Vec<f64> = if let Some(n) = maybe_normal {
         slices
             .iter()
@@ -156,10 +161,18 @@ pub(super) fn compute_spacing_z(
             .filter_map(|s| s.image_position_mm().map(|p| p[2]))
             .collect()
     };
-    if positions.len() >= 2 {
-        analyze_slice_spacing(&positions).nominal_spacing
+    let minimum = Length::from_unit::<Millimeter>(1e-6);
+    let spacing = if positions.len() >= 2 {
+        Length::from_unit::<Millimeter>(analyze_slice_spacing(&positions).nominal_spacing.abs())
     } else {
-        fallback_thickness.unwrap_or(1.0)
+        fallback_thickness.unwrap_or_else(|| Length::from_unit::<Millimeter>(1.0))
+    };
+    // The comparison also maps an indeterminate projection to the same
+    // minimum used by the scalar spacing clamp.
+    if spacing > minimum {
+        spacing
+    } else {
+        minimum
     }
 }
 
@@ -183,9 +196,9 @@ pub(super) fn assemble_direction(slices: &[DicomSliceMetadata]) -> [f64; 9] {
 }
 
 /// Extract the origin from the first slice's ImagePositionPatient.
-pub(super) fn assemble_origin(slices: &[DicomSliceMetadata]) -> [f64; 3] {
+pub(super) fn assemble_origin(slices: &[DicomSliceMetadata]) -> [Length; 3] {
     slices
         .first()
-        .and_then(|s| s.image_position_mm())
-        .unwrap_or([0.0, 0.0, 0.0])
+        .and_then(|s| s.image_position_patient)
+        .unwrap_or([Length::from_base(0.0); 3])
 }
