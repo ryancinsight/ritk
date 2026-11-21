@@ -1,5 +1,6 @@
 //! Metadata extraction after image SOP and series identity selection.
 
+use super::super::value_units::{resolve_value_unit, DicomValueUnit};
 use super::types::Radioactivity;
 use aequitas::systems::si::{
     quantities::{Activity, Angle, Length, Mass, Time},
@@ -123,6 +124,7 @@ pub(super) fn extract_dicom_metadata(
         pixel_representation: PixelSignedness::Unsigned,
         bits_allocated: 16,
         bits_stored: 16,
+        value_unit: DicomValueUnit::default(),
         window_center: None,
         window_width: None,
         gantry_tilt: None,
@@ -205,24 +207,18 @@ pub(super) fn extract_dicom_metadata(
     }
     slice_meta.bits_stored =
         read_required_unsigned(obj, DicomTag::new(0x0028, 0x0101), "BitsStored")?;
-    // WindowCenter (0028,1050) — first value of potentially multi-valued DS.
-    if let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x1050)) {
-        slice_meta.window_center = elem.to_str().ok().and_then(|s| {
-            s.trim()
-                .split('\\')
-                .next()
-                .and_then(|v| v.trim().parse().ok())
-        });
-    }
-    // WindowWidth (0028,1051) — first value of potentially multi-valued DS.
-    if let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x1051)) {
-        slice_meta.window_width = elem.to_str().ok().and_then(|s| {
-            s.trim()
-                .split('\\')
-                .next()
-                .and_then(|v| v.trim().parse().ok())
-        });
-    }
+    slice_meta.value_unit = resolve_value_unit(obj, slice_meta.sop_class_uid.as_deref());
+    let first_voi_value = |tag| {
+        obj.element(tag)
+            .ok()
+            .and_then(|element| element.to_str().ok())
+            .and_then(|value| value.split('\\').next().and_then(finite_decimal))
+    };
+    slice_meta.window_center = first_voi_value(DicomTag::new(0x0028, 0x1050))
+        .map(|value| slice_meta.value_unit.sample(value));
+    slice_meta.window_width = first_voi_value(DicomTag::new(0x0028, 0x1051))
+        .filter(|width| *width > 0.0)
+        .map(|value| slice_meta.value_unit.sample(value));
     if let Ok(elem) = obj.element(DicomTag::new(0x0018, 0x1120)) {
         slice_meta.gantry_tilt = elem
             .to_str()
@@ -359,13 +355,7 @@ pub(super) fn extract_dicom_metadata(
     {
         first.decay_correction = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
     }
-    let has_pet_concentration = slice_meta
-        .sop_class_uid
-        .as_deref()
-        .is_some_and(|uid| classify_sop_class(uid) == SopClassKind::PetImageStorage)
-        && obj
-            .element(DicomTag::new(0x0054, 0x1001))
-            .is_ok_and(|units| units.to_str().is_ok_and(|value| value.trim() == "BQML"));
+    let has_pet_concentration = slice_meta.value_unit == DicomValueUnit::ActivityConcentration;
     first.pet_pixels_in_bq_per_ml =
         Some(first.pet_pixels_in_bq_per_ml.unwrap_or(true) && has_pet_concentration);
     // A series-level activity is unambiguous only for a single isotope item.

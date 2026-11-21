@@ -43,6 +43,10 @@
 //! - IAEA Human Health Series No. 9, *Nuclear Medicine Physics* (2014) §10.3
 //! - DICOM PS3.3 §C.8.9.1 (PET Series Module), §C.8.9.4.1.1 (Rescale Slope/Intercept)
 
+use aequitas::systems::si::{
+    quantities::{Activity, ActivityConcentration, Mass, MassDensity},
+    units::{BecquerelPerMilliliter, Gram, GramPerCubicCentimeter},
+};
 use std::f64::consts::LN_2;
 
 // ── SuvParams ─────────────────────────────────────────────────────────────────
@@ -157,7 +161,22 @@ impl SuvParams {
 /// Returns `+∞` when the normalisation denominator is zero (invalid `SuvParams`).
 #[inline]
 pub fn compute_suvbw(pixel_bqml: f64, params: &SuvParams) -> f64 {
-    pixel_bqml / (params.injected_dose_bq * params.decay_factor / params.patient_weight_g)
+    normalized_pet_activity(
+        ActivityConcentration::from_unit::<BecquerelPerMilliliter>(pixel_bqml),
+        params,
+    )
+    .in_unit::<GramPerCubicCentimeter>()
+}
+
+/// Body-weight-normalized activity is mass per volume, since activity cancels.
+#[inline]
+pub(super) fn normalized_pet_activity(
+    concentration: ActivityConcentration,
+    params: &SuvParams,
+) -> MassDensity {
+    let mass = Mass::from_unit::<Gram>(params.patient_weight_g);
+    let activity = Activity::from_base(params.injected_dose_bq) * params.decay_factor;
+    concentration / (activity / mass)
 }
 
 #[cfg(test)]

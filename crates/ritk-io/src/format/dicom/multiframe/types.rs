@@ -1,5 +1,6 @@
 //! Public data types for multi-frame DICOM reader and writer.
 
+use super::super::value_units::DicomValueUnit;
 use crate::format::dicom::reader::types::literal_arraystring;
 use crate::format::dicom::transfer_syntax::TransferSyntaxKind;
 use aequitas::systems::si::quantities::Length;
@@ -36,6 +37,8 @@ pub struct PerFrameInfo {
     pub pixel_spacing: Option<[Length; 2]>,
     /// Slice thickness (DICOM encodes millimetres).
     pub slice_thickness: Option<Length>,
+    /// Optional output unit declared in this frame’s Pixel Value Transformation.
+    pub value_unit: Option<DicomValueUnit>,
     /// Rescale slope for this frame (0028,1053).
     pub rescale_slope: Option<f64>,
     /// Rescale intercept for this frame (0028,1052).
@@ -74,6 +77,8 @@ pub struct MultiFrameInfo {
     pub image_position: Option<[Length; 3]>,
     /// ImageOrientationPatient: [row_x, row_y, row_z, col_x, col_y, col_z].
     pub image_orientation: Option<[f64; 6]>,
+    /// Output unit of top-level rescale.
+    pub value_unit: DicomValueUnit,
     /// RescaleSlope (0028,1053). Defaults to 1.0 when absent.
     pub rescale_slope: f64,
     /// RescaleIntercept (0028,1052). Defaults to 0.0 when absent.

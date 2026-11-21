@@ -1,4 +1,5 @@
 use super::*;
+use aequitas::systems::si::units::{BecquerelPerMilliliter, GramPerCubicCentimeter};
 use arrayvec::ArrayString;
 use std::sync::Arc;
 
@@ -257,7 +258,12 @@ fn pixel_to_suvbw_start_corrected_realistic_fdg() {
     };
     let pixel_bqml = 10_000.0_f64;
     let expected = pixel_bqml * 70_000.0 / 370_000_000.0;
-    let suv = pet.pixel_to_suvbw(pixel_bqml, 0.0);
+    let suv = pet
+        .pixel_to_suvbw(
+            ActivityConcentration::from_unit::<BecquerelPerMilliliter>(pixel_bqml),
+            0.0,
+        )
+        .in_unit::<GramPerCubicCentimeter>();
     assert!(
         (suv - expected).abs() < 1e-10,
         "expected SUVbw = {expected:.6}, got {suv:.6}"
@@ -286,8 +292,18 @@ fn pixel_to_suvbw_none_correction_exceeds_start_correction() {
         ..start
     };
 
-    let suv_start = start.pixel_to_suvbw(pixel_bqml, 3_600.0);
-    let suv_none = none.pixel_to_suvbw(pixel_bqml, 3_600.0);
+    let suv_start = start
+        .pixel_to_suvbw(
+            ActivityConcentration::from_unit::<BecquerelPerMilliliter>(pixel_bqml),
+            3_600.0,
+        )
+        .in_unit::<GramPerCubicCentimeter>();
+    let suv_none = none
+        .pixel_to_suvbw(
+            ActivityConcentration::from_unit::<BecquerelPerMilliliter>(pixel_bqml),
+            3_600.0,
+        )
+        .in_unit::<GramPerCubicCentimeter>();
 
     assert!(
         suv_none > suv_start,
@@ -424,7 +440,11 @@ fn dicom_pet_suv_requires_activity_concentration_and_uses_typed_metadata() {
             .pet_pixels_in_bq_per_ml = true;
         let correct_units = PetAcquisitionParams::from_loaded_volume(&vol)
             .expect("activity concentration admits SUV calibration")
-            .pixel_to_suvbw(8_000.0, 0.0);
+            .pixel_to_suvbw(
+                ActivityConcentration::from_unit::<BecquerelPerMilliliter>(8_000.0),
+                0.0,
+            )
+            .in_unit::<GramPerCubicCentimeter>();
         (wrong_units, correct_units)
     });
     let _assert = tracing::info_span!("assert").entered();

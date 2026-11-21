@@ -18,15 +18,15 @@
 //!
 //! ```ignore
 //! if let Some(pet) = PetAcquisitionParams::from_loaded_volume(&vol) {
-//!     let suv = pet.pixel_to_suvbw(pixel_bqml, delta_t_s);
+//!     let suv = pet.pixel_to_suvbw(activity_concentration, delta_t_s);
 //! }
 //! ```
 
-use aequitas::systems::si::quantities::{Mass, Time};
+use aequitas::systems::si::quantities::{ActivityConcentration, Mass, MassDensity, Time};
 use aequitas::systems::si::units::Gram;
 use ritk_io::Radioactivity;
 
-use super::suv::{compute_suvbw, SuvParams};
+use super::suv::{normalized_pet_activity, SuvParams};
 use crate::LoadedVolume;
 
 // ── DecayCorrectionKind ───────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ impl PetAcquisitionParams {
         })
     }
 
-    /// Convert to [`SuvParams`] for use with [`compute_suvbw`].
+    /// Convert to [`SuvParams`] for use with [`compute_suvbw`][super::suv::compute_suvbw].
     ///
     /// `delta_t_s` is the elapsed time from injection to scan start \[s\].
     /// Ignored (forced to 0) when `decay_correction` is
@@ -140,8 +140,12 @@ impl PetAcquisitionParams {
     /// `delta_t_s` is the elapsed time from injection to scan start \[s\];
     /// ignored for `Start` and `Admin` decay correction modes.
     #[inline]
-    pub fn pixel_to_suvbw(&self, pixel_bqml: f64, delta_t_s: f64) -> f64 {
-        compute_suvbw(pixel_bqml, &self.to_suv_params(delta_t_s))
+    pub fn pixel_to_suvbw(
+        &self,
+        activity_concentration: ActivityConcentration,
+        delta_t_s: f64,
+    ) -> MassDensity {
+        normalized_pet_activity(activity_concentration, &self.to_suv_params(delta_t_s))
     }
 
     /// Compute elapsed time \[s\] from injection to scan using `LoadedVolume` time fields.

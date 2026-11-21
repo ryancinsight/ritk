@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;
 
+use super::super::value_units::{DicomModalityValue, DicomValueUnit, SuvNormalization};
 use crate::format::dicom::object_model::{DicomObjectModel, DicomPreservationSet};
 use ritk_dicom::PixelSignedness;
 
@@ -42,8 +43,12 @@ pub struct DicomSliceMetadata {
     pub bits_allocated: u16,
     /// Required BitsStored (0028,0101) value from the source instance.
     pub bits_stored: u16,
-    pub window_center: Option<f64>,
-    pub window_width: Option<f64>,
+    /// Output unit of the rescale transform.
+    pub value_unit: DicomValueUnit,
+    /// First VOI center in the modality output units.
+    pub window_center: Option<DicomModalityValue>,
+    /// First positive VOI width in the modality output units.
+    pub window_width: Option<DicomModalityValue>,
     /// GantryDetectorTilt (0018,1120).
     pub gantry_tilt: Option<Angle>,
     pub patient_position: Option<PatientPosition>,
@@ -55,6 +60,12 @@ pub struct DicomSliceMetadata {
 }
 
 impl DicomSliceMetadata {
+    /// Interpret the affine transform's offset in the declared modality unit.
+    #[must_use]
+    pub fn rescale_offset(&self) -> DicomModalityValue {
+        self.value_unit.sample(f64::from(self.rescale_intercept))
+    }
+
     /// Return the ISO patient coordinates in DICOM wire units.
     #[must_use]
     pub fn image_position_mm(&self) -> Option<[f64; 3]> {
@@ -96,6 +107,7 @@ impl Default for DicomSliceMetadata {
             pixel_representation: PixelSignedness::Unsigned,
             bits_allocated: 16,
             bits_stored: 16,
+            value_unit: DicomValueUnit::default(),
             window_center: None,
             window_width: None,
             gantry_tilt: None,
@@ -271,6 +283,15 @@ pub struct DicomReadMetadata {
 }
 
 impl DicomReadMetadata {
+    /// Whether all source instances carry already normalized body-weight SUV.
+    #[must_use]
+    pub fn pixels_are_body_weight_suv(&self) -> bool {
+        !self.slices.is_empty()
+            && self.slices.iter().all(|slice| {
+                slice.value_unit == DicomValueUnit::StandardizedUptake(SuvNormalization::BodyWeight)
+            })
+    }
+
     /// Voxel spacing in millimetres at image and display boundaries.
     #[must_use]
     pub fn spacing_mm(&self) -> [f64; 3] {

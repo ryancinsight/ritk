@@ -12,6 +12,11 @@
 
 ### Breaking
 
+- [major] DICOM window centers and widths carry their modality value unit.
+  Convert to the original DICOM numeric scale at renderer boundaries.
+  Classic PET SUV conversion takes activity concentration and returns
+  body-weight-normalized mass density.
+
 - [major] Use Aequitas lengths for multiframe positions, pixel spacing,
   slice thickness, and writer geometry. Build the quantity fields in
   millimetres at the DICOM boundary and convert to millimetres for

@@ -362,6 +362,7 @@ fn native_color_from_series_preserves_values_and_metadata() {
         pixel_representation: PixelSignedness::Unsigned,
         bits_allocated: 8,
         bits_stored: 8,
+        value_unit: Default::default(),
         window_center: None,
         window_width: None,
         gantry_tilt: None,

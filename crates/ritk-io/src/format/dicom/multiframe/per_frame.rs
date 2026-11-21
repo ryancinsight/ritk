@@ -7,6 +7,7 @@ use ritk_dicom::dataset::Dataset;
 use ritk_dicom::dataset::DicomTag;
 use ritk_dicom::dataset::Value;
 
+use super::super::value_units::{declared_rescale_unit, DicomValueUnit};
 use super::geometry::{length_from_mm, parse_lengths_mm};
 use super::reader::parse_ds_backslash;
 use super::types::PerFrameInfo;
@@ -30,6 +31,11 @@ fn read_nested_ds<Parsed>(
     } else {
         None
     }
+}
+
+fn value_unit(item: &Dataset) -> Option<DicomValueUnit> {
+    let transform = item.element(DicomTag::new(0x0028, 0x9145)).ok()?;
+    declared_rescale_unit(transform.value().items()?.first()?)
 }
 
 /// Extract per-frame metadata from functional group sequences per DICOM PS3.3 C.7.6.16.
@@ -91,6 +97,7 @@ pub(crate) fn extract_functional_groups(obj: &Dataset, n_frames: usize) -> Vec<P
                             DicomTag::new(0x0018, 0x0050),
                         )
                         .and_then(length_from_mm),
+                        value_unit: value_unit(item),
                         rescale_slope: read_nested_scalar::<f64>(
                             item,
                             DicomTag::new(0x0028, 0x9145),
@@ -186,6 +193,7 @@ pub(crate) fn extract_functional_groups(obj: &Dataset, n_frames: usize) -> Vec<P
                     )
                     .and_then(length_from_mm)
                 );
+                override_if_some!(value_unit, value_unit(item));
                 override_if_some!(
                     rescale_slope,
                     read_nested_scalar::<f64>(

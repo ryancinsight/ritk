@@ -28,8 +28,8 @@ use crate::ViewerState;
 /// only the initial value when the DICOM object provides one.
 pub(crate) fn metadata_window_level(volume: &LoadedVolume) -> Option<(f32, f32)> {
     let slice = volume.metadata.as_deref()?.slices.first()?;
-    let center = slice.window_center?;
-    let width = slice.window_width?;
+    let center = slice.window_center?.dicom_value();
+    let width = slice.window_width?.dicom_value();
     if !center.is_finite() || !width.is_finite() || width < 1.0 {
         return None;
     }

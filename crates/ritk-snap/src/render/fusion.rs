@@ -12,6 +12,10 @@
 //! The renderer uses this convex combination after each source has been
 //! windowed and colour-mapped.
 
+use aequitas::systems::si::{
+    quantities::ActivityConcentration,
+    units::{BecquerelPerMilliliter, GramPerCubicCentimeter},
+};
 use egui::ColorImage;
 use iris::color::{ColorMap, Normalized};
 
@@ -252,7 +256,12 @@ impl DisplayValueTransform {
         let raw = f64::from(pixel);
         Some(
             self.pet
-                .map(|pet| pet.pixel_to_suvbw(raw, self.delta_t_s))
+                .map(|pet| {
+                    let concentration =
+                        ActivityConcentration::from_unit::<BecquerelPerMilliliter>(raw);
+                    pet.pixel_to_suvbw(concentration, self.delta_t_s)
+                        .in_unit::<GramPerCubicCentimeter>()
+                })
                 .unwrap_or(raw),
         )
     }
