@@ -1,5 +1,12 @@
 # RITK Gap Audit
 
+## DICOM series writer geometry
+
+Native, Coeus, and metadata-preserving series writers share typed image
+plane geometry. Writer regressions inspect signed patient coordinates,
+anisotropic spacing, and depth progression in the emitted Part 10 tags
+and reject an unrepresentable positive spacing before output.
+
 <a id="ritk-native-dicom"></a>
 ## RITK-NATIVE-DICOM — Application cutover verified
 
@@ -202,3 +209,10 @@ Hephaestus. Locked all-feature metadata resolves one registry Aequitas
 0.5.0. The 58 selected PET, geometry, measurement, and Metal projection
 tests pass. Registry package promotion requires the published provider
 archives, including a Gaia version that admits Aequitas 0.5.0.
+
+## 2026-11-21 · Series geometry quantities
+
+The directory and stored-instance readers share series finalization. Series
+spacing follows tensor-axis order and patient origin follows XYZ. The scan
+keeps lengths through assembly, and the tensor interface converts them to
+millimetres. The oblique Part 10 fixture exercises measured and fallback depth.

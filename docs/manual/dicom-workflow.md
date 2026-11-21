@@ -32,6 +32,7 @@ describes startup selection and capture options.
 
 - [Adjust the image display](#adjust-the-image-display)
 - [Compare series](#compare-series)
+- [Export and verify a Strict DICOM copy](#export-and-verify-a-strict-dicom-copy)
 - [Scroll through a slice stack](#scroll-through-a-slice-stack)
 - [Measure and calibrate image-plane geometry](#calibrate-measurements-on-one-image)
 - [Measure angles and regions](#measure-an-angle-or-a-region-of-interest)
@@ -63,10 +64,9 @@ The measurement and orientation overlays follow the displayed image.
 
 In three-plane MPR, **View → Toggle clinical overlay** shows or hides the
 corner text. **View → Toggle anonymized overlay** hides the identity text in
-those corners. To create a de-identified study copy, use the **Anonymize**
-menu. **File → Repair Study Copy...** writes a corrected study copy.
-The [study-copy procedures](development.md#export-a-de-identified-study-or-series)
-describe their selection, output, and failure behavior.
+those corners without changing the DICOM files. To write a separate
+de-identified copy, follow the [Strict export steps](#export-and-verify-a-strict-dicom-copy).
+**File → Repair Study Copy...** is a separate action that corrects metadata.
 
 ## Compare series
 
@@ -84,6 +84,32 @@ cursor in all three MPR panes. Choose **Pan** to move without hiding the cursor.
 
 Patient-position synchronization and cross-reference lines between different
 series remain [linking work](features.md#reading-and-annotations).
+
+## Export and verify a Strict DICOM copy
+
+1. In the Windows viewer, open the [public MRI phantom](../../test_data/README.md)
+   above for practice. Click the image panel or series card you want to export.
+2. Choose **Anonymize → Active series (Strict)...** for that series, or
+   **Active study (Strict)...** for all listed series in the same study. Pick
+   an empty destination folder outside the source folder. The original files
+   stay in place.
+3. Check the destination and exported instance count in the status bar. The
+   complete phantom series has 94 DICOM instances. If export reports an error,
+   do not treat the destination as a verified copy.
+4. Choose **File → Open Study...** (**Ctrl+O**) and open the destination.
+   Select the exported series, compare its slice count with the original,
+   and scroll through it to check that the images still display.
+5. To check the files, compare input and output metadata in a local DICOM
+   header inspector. The patient name and ID should be replaced, study,
+   series and instance UIDs should be remapped, and the study, series,
+   acquisition and content dates and times and the study and series
+   descriptions should be cleared or absent in the Strict copy.
+
+**Strict changes DICOM metadata, not pixels.** Burned-in text and identifying
+anatomy remain. Reopening checks readability; it does not verify every
+header field or prove pixel equality. The profile and the checks above do not
+establish that a study is safe to share. See the [developer reference](development.md#export-a-de-identified-study-or-series)
+and [DICOM's Attribute Confidentiality Profiles](https://dicom.nema.org/medical/dicom/current/output/chtml/part15/chapter_E.html).
 
 ## Try the Windows slice and annotation tools
 

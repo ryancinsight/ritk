@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## Unreleased
+
+### Fixed
+
+- [patch] Carry Aequitas lengths through native, Coeus, and metadata-preserving
+  DICOM series writers. Image-plane tags share one geometry calculation and
+  encode patient position, spacing, and slice thickness in millimetres.
+
+- [patch] Carry typed series spacing and patient origin from the native DICOM
+  scan to image metadata. Preserve the millimetre tensor boundary and avoid
+  round trips for source pixel spacing, origin, and fallback thickness.
+
 ## Aequitas 0.5 provider cohort
 
 ### Breaking

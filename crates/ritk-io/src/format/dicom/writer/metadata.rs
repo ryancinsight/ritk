@@ -1,18 +1,17 @@
 use super::super::reader::DicomReadMetadata;
-use super::decimal_string::{format_dicom_decimal, format_pair, format_six, format_triplet};
+use super::decimal_string::format_dicom_decimal;
 use super::error::DicomWriteError;
+use super::geometry::SeriesGeometry;
 use super::output::{serialize_file, write_series_files};
 use super::pixel_encoding::{
     emit_pixel_format_tags, generate_instance_uid, generate_series_uid, prepare_frame_encodings,
-    validate_image_shape, validate_spatial_metadata, writer_exclusion_tags,
-    DICOM_SOP_CLASS_SECONDARY_CAPTURE,
+    validate_image_shape, writer_exclusion_tags, DICOM_SOP_CLASS_SECONDARY_CAPTURE,
 };
 use super::pixel_preflight::{pixel_bit_description_is_valid, preflight_native_pixel_data};
 use super::preservation::emit_preservation_nodes;
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 
 use anyhow::Result;
-use eunomia::FloatElement;
 use ritk_core::image::Image;
 use ritk_dicom::dataset::Dataset;
 use ritk_dicom::dataset::FileMetaBuilder;
@@ -66,29 +65,18 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
 
     let sop_class = DICOM_SOP_CLASS_SECONDARY_CAPTURE;
 
-    let spacing = metadata.map(|m| m.spacing_mm()).unwrap_or([1.0, 1.0, 1.0]);
-    let origin = metadata.map(|m| m.origin_mm()).unwrap_or([0.0, 0.0, 0.0]);
-    let direction = metadata
-        .map(|m| m.direction)
-        .unwrap_or([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
-    validate_spatial_metadata(&spacing, &origin, &direction)?;
-    validate_scalar_photometric_interpretation(photometric)?;
-    // Slice normal is column 0 of direction matrix = direction[0..3] = NÌ‚.
-    let normal = [direction[0], direction[1], direction[2]];
-
-    if metadata.is_some() {
-        for z in 0..dimensions.depth {
-            let zf = f64::from_count(z);
-            let position = [
-                origin[0] + zf * spacing[0] * normal[0],
-                origin[1] + zf * spacing[0] * normal[1],
-                origin[2] + zf * spacing[0] * normal[2],
-            ];
-            if position.iter().any(|coordinate| !coordinate.is_finite()) {
-                return Err(DicomWriteError::InvalidSpatialMetadata.into());
-            }
-        }
+    let geometry = metadata.map(|metadata| {
+        let [dx, dy, dz, rx, ry, rz, cx, cy, cz] = metadata.direction;
+        SeriesGeometry::new(
+            metadata.origin,
+            metadata.spacing,
+            [[dx, dy, dz], [rx, ry, rz], [cx, cy, cz]],
+        )
+    });
+    if let Some(geometry) = &geometry {
+        geometry.validate(dimensions.depth)?;
     }
+    validate_scalar_photometric_interpretation(photometric)?;
 
     let mut slices = Vec::new();
     slices
@@ -159,40 +147,8 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
         );
         obj.put_value(DicomTag::new(0x0028, 0x0004), VR::CS, photometric);
 
-        if metadata.is_some() {
-            let zf = f64::from_count(z);
-            let ipp_x = origin[0] + zf * spacing[0] * normal[0];
-            let ipp_y = origin[1] + zf * spacing[0] * normal[1];
-            let ipp_z = origin[2] + zf * spacing[0] * normal[2];
-            obj.put_value(
-                DicomTag::new(0x0020, 0x0032),
-                VR::DS,
-                format_triplet([ipp_x, ipp_y, ipp_z])?,
-            );
-            // IOP = [F_r, F_c] = [direction[6..9], direction[3..6]]
-            obj.put_value(
-                DicomTag::new(0x0020, 0x0037),
-                VR::DS,
-                format_six([
-                    direction[6],
-                    direction[7],
-                    direction[8],
-                    direction[3],
-                    direction[4],
-                    direction[5],
-                ])?,
-            );
-            // PixelSpacing = [ΔRow, ΔCol] = [spacing[1], spacing[2]]
-            obj.put_value(
-                DicomTag::new(0x0028, 0x0030),
-                VR::DS,
-                format_pair([spacing[1], spacing[2]])?,
-            );
-            obj.put_value(
-                DicomTag::new(0x0018, 0x0050),
-                VR::DS,
-                format_dicom_decimal(spacing[0])?,
-            );
+        if let Some(geometry) = &geometry {
+            geometry.emit_plane_tags(&mut obj, z)?;
         }
 
         // DICOM PS3.3 Type 2: tag must be present even when value is unknown; empty string is valid.
