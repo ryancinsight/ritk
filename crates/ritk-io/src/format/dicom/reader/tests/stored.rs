@@ -345,8 +345,7 @@ fn classic_dicom_requires_compatible_calibrated_units_for_interpolation() {
     });
     let error = tracing::info_span!("act").in_scope(|| {
         read_dicom_series_with_metadata(fixture.path(), &coeus_core::SequentialBackend)
-            .err()
-            .expect("different scales cannot form an interpolated volume")
+            .expect_err("different scales cannot form an interpolated volume")
     });
     tracing::info_span!("assert").in_scope(|| {
         let message = format!("{error:#}");
