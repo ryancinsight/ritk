@@ -582,8 +582,6 @@ fn dicom_voi_and_rescale_values_keep_declared_modality_units() {
         let metadata = tracing::info_span!("act", index).in_scope(|| {
             scan_dicom_directory(&path)
                 .expect("scan calibrated object")
-                .pop()
-                .expect("one fixture series")
                 .metadata
         });
         tracing::info_span!("assert", index).in_scope(|| {
