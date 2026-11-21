@@ -28,7 +28,8 @@ impl SeriesGeometry {
     }
 
     pub(super) fn validate(&self, depth: usize) -> Result<()> {
-        let direction = std::array::from_fn(|index| self.direction_columns[index / 3][index % 3]);
+        let direction: [f64; 9] =
+            std::array::from_fn(|index| self.direction_columns[index / 3][index % 3]);
         validate_spatial_metadata(
             &self.spacing.map(|length| length.in_unit::<Millimeter>()),
             &self.origin.map(|length| length.in_unit::<Millimeter>()),
