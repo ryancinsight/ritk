@@ -8,6 +8,14 @@
 
 # CHANGELOG
 
+## Unreleased
+
+### Fixed
+
+- [patch] Carry typed series spacing and patient origin from the native DICOM
+  scan to image metadata. Preserve the millimetre tensor boundary and avoid
+  round trips for source pixel spacing, origin, and fallback thickness.
+
 ## Aequitas 0.5 provider cohort
 
 ### Breaking

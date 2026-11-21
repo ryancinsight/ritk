@@ -20,3 +20,12 @@ is parsed, with viewer conversion reserved for a validated pixel mapping.
 A scalar or modality-only dispatch can produce a million-fold dose error.
 DICOM Part 10 fixtures cover all three storage classes, a nonrepresentable
 dose, and series spacing. Viewer tests cover normalization and pixel units.
+
+## Series assembly
+
+Preserve the parsed origin and in-plane lengths during series assembly. Depth
+is a length returned by the projection-spacing analysis, where the established
+absolute thresholds use millimetres. Compute patients' origin in XYZ and keep
+tensor spacing in depth, row, and column order. The tensor loader requests
+millimetres through the metadata accessors. An oblique Part 10 fixture checks
+the axis order, patient origin, measured depth, and single-slice fallback.
