@@ -18,6 +18,7 @@ use super::super::types::MultiFrameInfo;
 use crate::format::dicom::color_common::read_required_unsigned;
 use crate::format::dicom::reader::types::{cs_to_arraystring, uid_to_arraystring};
 use crate::format::dicom::reader::DicomReadBudget;
+use crate::format::dicom::value_units::resolve_value_unit;
 
 /// Parse a `\`-separated DICOM Decimal String (DS) field into a fixed-size array.
 ///
@@ -121,6 +122,8 @@ pub(crate) fn extract_multiframe_header(path: &Path, obj: &Dataset) -> Result<Mu
         .and_then(|e| e.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s)))
         .filter(|s| !s.is_empty());
 
+    let value_unit = resolve_value_unit(obj, sop_class_uid.as_deref());
+
     let image_position = obj
         .element(DicomTag::new(0x0020, 0x0032))
         .ok()
@@ -160,6 +163,7 @@ pub(crate) fn extract_multiframe_header(path: &Path, obj: &Dataset) -> Result<Mu
         sop_class_uid,
         image_position,
         image_orientation,
+        value_unit,
         rescale_slope,
         rescale_intercept,
         per_frame: Vec::new(),

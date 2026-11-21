@@ -102,8 +102,9 @@ fn metadata_fixture() -> DicomReadMetadata {
             pixel_representation: PixelSignedness::Signed,
             bits_allocated: 16,
             bits_stored: 12,
-            window_center: Some(40.0),
-            window_width: Some(400.0),
+            value_unit: Default::default(),
+            window_center: Some(ritk_io::format::dicom::DicomValueUnit::Unspecified.sample(40.0)),
+            window_width: Some(ritk_io::format::dicom::DicomValueUnit::Unspecified.sample(400.0)),
             gantry_tilt: Some(Angle::from_unit::<Degree>(0.5)),
             ..Default::default()
         }],

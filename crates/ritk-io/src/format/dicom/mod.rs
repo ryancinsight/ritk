@@ -29,6 +29,9 @@ mod transfer_syntax;
 mod writer;
 mod writer_object;
 
+mod value_units;
+pub use value_units::{DicomModalityValue, DicomValueUnit};
+
 pub use anonymize::{
     anonymize_dicom_directory, anonymize_dicom_directory_verified, anonymize_dicom_file,
     anonymize_dicom_file_verified, anonymize_dicom_study, anonymize_object, verify,

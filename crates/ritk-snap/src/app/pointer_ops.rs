@@ -393,12 +393,19 @@ impl SnapApp {
         pixel_bqml: f64,
     ) -> Option<f32> {
         use crate::dicom::pet::PetAcquisitionParams;
+        use aequitas::systems::si::{
+            quantities::ActivityConcentration,
+            units::{BecquerelPerMilliliter, GramPerCubicCentimeter},
+        };
         if !pixel_bqml.is_finite() {
             return None;
         }
         let pet = PetAcquisitionParams::from_loaded_volume(vol)?;
         let delta_t = PetAcquisitionParams::delta_t_s_from_vol(vol);
-        let suv = pet.pixel_to_suvbw(pixel_bqml, delta_t);
+        let concentration = ActivityConcentration::from_unit::<BecquerelPerMilliliter>(pixel_bqml);
+        let suv = pet
+            .pixel_to_suvbw(concentration, delta_t)
+            .in_unit::<GramPerCubicCentimeter>();
         if suv.is_finite() {
             Some(suv as f32)
         } else {

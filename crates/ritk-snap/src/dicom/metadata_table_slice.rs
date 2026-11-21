@@ -121,7 +121,7 @@ pub(super) fn push_first_slice_rows<'a>(
             "0028,1050",
             "WindowCenter",
             "DS",
-            format!("{value:.6}"),
+            format!("{:.6}", value.dicom_value()),
         ));
     }
     if let Some(value) = slice.window_width {
@@ -129,7 +129,7 @@ pub(super) fn push_first_slice_rows<'a>(
             "0028,1051",
             "WindowWidth",
             "DS",
-            format!("{value:.6}"),
+            format!("{:.6}", value.dicom_value()),
         ));
     }
     if let Some(value) = slice.gantry_tilt_degrees() {
