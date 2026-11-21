@@ -10,7 +10,7 @@ fn sequence(dataset: &mut Dataset, tag: DicomTag, items: Vec<Dataset>) {
     ));
 }
 
-fn write_oblique_multiframe(path: &std::path::Path) {
+fn write_oblique_multiframe(path: &std::path::Path, units: Option<[&str; 4]>) {
     let mut dataset = Dataset::new();
     dataset.put_value(
         DicomTag::new(0x0008, 0x0016),
@@ -47,7 +47,8 @@ fn write_oblique_multiframe(path: &std::path::Path) {
 
     let per_frame = [17, 21, 29, 33]
         .into_iter()
-        .map(|position| {
+        .enumerate()
+        .map(|(index, position)| {
             let mut plane = Dataset::new();
             plane.put_value(
                 DicomTag::new(0x0020, 0x0032),
@@ -56,6 +57,17 @@ fn write_oblique_multiframe(path: &std::path::Path) {
             );
             let mut frame = Dataset::new();
             sequence(&mut frame, DicomTag::new(0x0020, 0x9113), vec![plane]);
+            if let Some(units) = units {
+                let mut transform = Dataset::new();
+                transform.put_value(DicomTag::new(0x0028, 0x1054), VR::LO, units[index]);
+                transform.put_value(DicomTag::new(0x0028, 0x1052), VR::DS, "0");
+                transform.put_value(
+                    DicomTag::new(0x0028, 0x1053),
+                    VR::DS,
+                    if index == 1 { "2" } else { "1" },
+                );
+                sequence(&mut frame, DicomTag::new(0x0028, 0x9145), vec![transform]);
+            }
             frame
         })
         .collect();
@@ -91,7 +103,7 @@ fn oblique_multiframe_preserves_patient_origin_and_interpolated_plane() {
     );
     let fixture = tracing::info_span!("arrange").in_scope(|| {
         let fixture = tempfile::tempdir().expect("temporary fixture directory");
-        write_oblique_multiframe(&fixture.path().join("oblique-multiframe.dcm"));
+        write_oblique_multiframe(&fixture.path().join("oblique-multiframe.dcm"), None);
         fixture
     });
     let (volume, info) = tracing::info_span!("act").in_scope(|| {
@@ -119,4 +131,51 @@ fn oblique_multiframe_preserves_patient_origin_and_interpolated_plane() {
             "malformed tuple cannot shift patient axes"
         );
     });
+}
+
+#[test]
+fn oblique_multiframe_requires_compatible_calibrated_units_for_interpolation() {
+    let _trace = tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+            .with_test_writer()
+            .finish(),
+    );
+    let (fixture, matching, mixed, missing) = tracing::info_span!("arrange").in_scope(|| {
+        let fixture = tempfile::tempdir().expect("temporary fixture directory");
+        let matching = fixture.path().join("matching.dcm");
+        let mixed = fixture.path().join("mixed.dcm");
+        let missing = fixture.path().join("missing.dcm");
+        write_oblique_multiframe(&matching, Some(["HU"; 4]));
+        write_oblique_multiframe(&mixed, Some(["HU", "HU", "MGML", "HU"]));
+        write_oblique_multiframe(&missing, Some(["HU", "HU", "", "HU"]));
+        (fixture, matching, mixed, missing)
+    });
+    let (matching, mixed, missing) = tracing::info_span!("act").in_scope(|| {
+        (
+            load_dicom_multiframe_flat(matching),
+            load_dicom_multiframe_flat(mixed),
+            load_dicom_multiframe_flat(missing),
+        )
+    });
+    tracing::info_span!("assert").in_scope(|| {
+        // Both adjacent samples rescale to 400 HU, so the midpoint is 400 HU.
+        assert_eq!(
+            matching.expect("common calibrated scale").data,
+            [100.0, 400.0, 400.0, 400.0, 500.0]
+        );
+        for (result, expected_unit) in [(mixed, "MassConcentration"), (missing, "Unspecified")] {
+            let error = result
+                .err()
+                .expect("incompatible value units must stop interpolation");
+            let message = format!("{error:#}");
+            assert!(
+                message.contains("interpolation")
+                    && message.contains("Hounsfield")
+                    && message.contains(expected_unit),
+                "{message}"
+            );
+        }
+    });
+    drop(fixture);
 }

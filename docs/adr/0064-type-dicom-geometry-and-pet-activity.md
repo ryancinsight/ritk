@@ -78,3 +78,20 @@ activity concentration by activity per unit body mass.
 [DICOM CT Image Module](https://dicom.nema.org/medical/Dicom/current/output/chtml/part03/sect_C.8.2.html)
 and [PET Information Modules](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.9.html)
 define the interpretation used here.
+
+## Reconcile frame units before spatial resampling
+
+The [Pixel Value Transformation Macro](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.6.16.2.html#sect_C.7.6.16.2.9)
+defines the unit of each frame after its affine rescale. Enhanced frame
+metadata resolves per-frame, shared functional group, then instance-level
+units. The classic loader uses the unit resolved for each slice.
+
+Resampling forms `(1 − w)a + wb` after each frame's own affine calibration.
+That expression has a physical meaning only on a common value scale. The
+reader accepts equal resolved units, including arrays with consistently
+unspecified units. It reports the conflicting source frames for different
+units or a declared and unspecified pair. It does not infer units from
+adjacent planes. Uniform stacks do not enter this interpolation gate.
+Quantitative Enhanced PET SUV remains a separate channel with its existing
+validated real-world mappings. Part 10 fixtures exercise differing slopes
+on one scale, incompatible scales, and missing declarations.

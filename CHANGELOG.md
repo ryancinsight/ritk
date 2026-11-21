@@ -12,6 +12,10 @@
 
 ### Breaking
 
+- [major] DICOM spatial resampling requires a common decoded value unit
+  across classic slices and enhanced frames. Resolve inconsistent source
+  metadata before requesting an interpolated volume.
+
 - [major] DICOM window centers and widths carry their modality value unit.
   Convert to the original DICOM numeric scale at renderer boundaries.
   Classic PET SUV conversion takes activity concentration and returns

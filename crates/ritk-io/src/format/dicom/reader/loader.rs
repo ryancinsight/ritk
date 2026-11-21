@@ -24,6 +24,7 @@ use super::pixel::{read_slice_pixels, read_slice_pixels_from_bytes};
 use super::scan::scan_dicom_path_with_budget;
 use super::types::{DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata};
 use super::DicomReadBudget;
+use crate::format::dicom::value_units::reconcile_interpolation_units;
 
 /// Read a DICOM series and return both the image and metadata.
 ///
@@ -239,6 +240,12 @@ fn decode_series(series: DicomSeriesInfo, budget: &DicomReadBudget) -> Result<De
 
     let frame_len = dicom_frame_pixel_count(rows, cols)?;
     let target_depth = if needs_resample {
+        reconcile_interpolation_units(
+            slices
+                .iter()
+                .enumerate()
+                .map(|(index, slice)| (slice.value_unit, slice.path.as_path(), index)),
+        )?;
         let positions = resample_positions.as_ref().ok_or_else(|| {
             anyhow!("resample positions missing despite resample-required series")
         })?;
