@@ -5,8 +5,10 @@ use aequitas::systems::si::{
     quantities::{ActivityConcentration, Dimensionless, MassDensity},
     units::{BecquerelPerMilliliter, GramPerCubicCentimeter},
 };
+use anyhow::{bail, Result};
 use arrayvec::ArrayString;
 use ritk_dicom::dataset::{Dataset, DicomTag};
+use std::path::Path;
 
 /// Unit of a decoded scalar DICOM image after rescale.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -111,6 +113,7 @@ pub(super) fn declared_rescale_unit(obj: &Dataset) -> Option<DicomValueUnit> {
     let code = text.trim();
     match code {
         "" => None,
+        "US" => Some(DicomValueUnit::Unspecified),
         "HU" => Some(DicomValueUnit::Hounsfield),
         "MGML" => Some(DicomValueUnit::MassConcentration),
         code => Some(
@@ -156,4 +159,25 @@ pub(super) fn resolve_value_unit(obj: &Dataset, class: Option<&str>) -> DicomVal
         return DicomValueUnit::Hounsfield;
     }
     DicomValueUnit::Unspecified
+}
+
+/// Require one decoded value scale across the frames that will form a uniform volume.
+/// Equal units permit differing affine calibrations, which are already applied
+/// to each frame before interpolation. A missing declaration cannot inherit
+/// the meaning of a neighboring frame.
+pub(super) fn reconcile_interpolation_units<'a>(
+    frames: impl IntoIterator<Item = (DicomValueUnit, &'a Path, usize)>,
+) -> Result<()> {
+    let mut frames = frames.into_iter();
+    let Some((unit, first_path, first_index)) = frames.next() else {
+        return Ok(());
+    };
+    for (candidate, path, index) in frames {
+        if candidate != unit {
+            bail!(
+                "DICOM interpolation requires compatible value units: frame {first_index} in {first_path:?} uses {unit:?}, but frame {index} in {path:?} uses {candidate:?}"
+            );
+        }
+    }
+    Ok(())
 }

@@ -309,3 +309,51 @@ fn a_non_uniform_slice_spacing_is_rejected_rather_than_resampled() {
         "got {error:?}"
     );
 }
+
+#[test]
+fn classic_dicom_requires_compatible_calibrated_units_for_interpolation() {
+    use crate::format::dicom::reader::read_dicom_series_with_metadata;
+    let _trace = tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_test_writer()
+            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+            .finish(),
+    );
+    let fixture = tracing::info_span!("arrange").in_scope(|| {
+        let fixture = tempfile::tempdir().expect("fixture directory");
+        for (index, (z, unit)) in [(0., "HU"), (1., "HU"), (3., "MGML"), (4., "HU")]
+            .into_iter()
+            .enumerate()
+        {
+            let path = fixture.path().join(format!("slice-{index}.dcm"));
+            write_ct_slice(
+                &path,
+                "2.25.73007",
+                index as u32 + 1,
+                z,
+                "1.2.840.10008.1.2.1",
+                "MONOCHROME2",
+                1.0,
+                0.0,
+                &[1, 2, 3, 4],
+            );
+            let mut file = ritk_dicom::dataset::DicomFile::open(&path).expect("read fixture");
+            file.put_value(DicomTag::new(0x0028, 0x1054), VR::LO, unit);
+            file.write_to_file(&path).expect("write frame units");
+        }
+        fixture
+    });
+    let error = tracing::info_span!("act").in_scope(|| {
+        read_dicom_series_with_metadata(fixture.path(), &coeus_core::SequentialBackend)
+            .expect_err("different scales cannot form an interpolated volume")
+    });
+    tracing::info_span!("assert").in_scope(|| {
+        let message = format!("{error:#}");
+        assert!(
+            message.contains("interpolation")
+                && message.contains("Hounsfield")
+                && message.contains("MassConcentration"),
+            "{message}"
+        );
+    });
+}

@@ -24,6 +24,7 @@ use crate::format::dicom::reader::geometry::{
     resample_frames_with_provenance, SliceCoverage, SliceProvenance, SpacingUniformity,
 };
 use crate::format::dicom::reader::DicomReadBudget;
+use crate::format::dicom::value_units::reconcile_interpolation_units;
 /// Substrate-agnostic decoded multi-frame volume: a flat row-major `f32` buffer
 /// in `[frames, rows, cols]` order plus the resolved spatial metadata.
 ///
@@ -272,6 +273,15 @@ pub(super) fn decode_spatial_frames(
         if report.spacing_uniformity == SpacingUniformity::Nonuniform
             || report.slice_coverage == SliceCoverage::HasMissingSlices
         {
+            reconcile_interpolation_units(selected_frames().map(|frame| {
+                let source = &sources[frame.source];
+                let unit = source
+                    .geometry
+                    .get(frame.local)
+                    .and_then(|info| info.value_unit)
+                    .unwrap_or(source.info.value_unit);
+                (unit, source.path, frame.local)
+            }))?;
             let frame_pixels = info.rows * info.cols;
             // `floats` is already exactly `actual_n` contiguous frames (each
             // extend validated to `frame_pixels` above), so it is the flat
