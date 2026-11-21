@@ -1,5 +1,12 @@
 # RITK Gap Audit
 
+## DICOM series writer geometry
+
+Native, Coeus, and metadata-preserving series writers share typed image
+plane geometry. Writer regressions inspect signed patient coordinates,
+anisotropic spacing, and depth progression in the emitted Part 10 tags
+and reject an unrepresentable positive spacing before output.
+
 <a id="ritk-native-dicom"></a>
 ## RITK-NATIVE-DICOM — Application cutover verified
 
