@@ -115,7 +115,7 @@ impl PetAcquisitionParams {
         })
     }
 
-    /// Convert to [`SuvParams`] for use with [`compute_suvbw`].
+    /// Convert to [`SuvParams`] for use with [`compute_suvbw`][super::suv::compute_suvbw].
     ///
     /// `delta_t_s` is the elapsed time from injection to scan start \[s\].
     /// Ignored (forced to 0) when `decay_correction` is
