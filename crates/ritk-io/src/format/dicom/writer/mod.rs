@@ -9,6 +9,7 @@
 pub(crate) mod decimal_string;
 pub(crate) mod elements;
 mod error;
+mod geometry;
 mod metadata;
 pub(crate) mod output;
 pub(crate) mod pixel_encoding;

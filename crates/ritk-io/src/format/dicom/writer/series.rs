@@ -1,16 +1,16 @@
-use super::decimal_string::{format_dicom_decimal, format_pair, format_six, format_triplet};
+use super::decimal_string::format_dicom_decimal;
 use super::error::DicomWriteError;
+use super::geometry::SeriesGeometry;
 use super::output::{serialize_file, write_series_files};
 use super::pixel_encoding::{
     emit_pixel_format_tags, generate_instance_uid, generate_series_uid, prepare_frame_encodings,
-    validate_image_shape, validate_spatial_metadata, DICOM_SOP_CLASS_SECONDARY_CAPTURE,
-    MONOCHROME2,
+    validate_image_shape, DICOM_SOP_CLASS_SECONDARY_CAPTURE, MONOCHROME2,
 };
 use super::pixel_preflight::preflight_native_pixel_data;
 
+use aequitas::systems::si::{quantities::Length, units::Millimeter};
 use anyhow::{Context, Result};
 use coeus_core::MoiraiBackend;
-use eunomia::FloatElement;
 use ritk_core::image::Image;
 use ritk_dicom::dataset::Dataset;
 use ritk_dicom::dataset::FileMetaBuilder;
@@ -23,42 +23,18 @@ use std::path::Path;
 
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 
-/// Spatial geometry inputs for the substrate-free series encode core.
-///
-/// `spacing` follows the canonical RITK tensor-axis order
-/// `[Δdepth, Δrow, Δcol]` (shape `[depth, row, col]`, axis 0 slowest-varying —
-/// `docs/architecture.md`), matching `Spacing<3>` on every other RITK codec, so
-/// a written series round-trips through the series readers to the same voxels
-/// and geometry.
-///
-/// `direction_columns` are the columns returned by
-/// `Direction::axis_directions_array()`: column 0 is the depth (slice) axis,
-/// column 1 the row axis, column 2 the column axis. The encode core emits
-/// columns 2 and 1 as `ImageOrientationPatient` (`[col, row]`) and advances
-/// `ImagePositionPatient` along column 0; the series readers invert exactly that
-/// mapping. This is the same convention as `writer::metadata` and
-/// `reader::assemble_direction`.
-struct SeriesGeometry {
-    origin: [f64; 3],
-    spacing: [f64; 3],
-    direction_columns: [[f64; 3]; 3],
-}
-
 fn series_geometry(
     origin: &Point<3>,
     spacing: &Spacing<3>,
     direction: &Direction<3>,
 ) -> SeriesGeometry {
-    let columns = direction.axis_directions_array();
-    SeriesGeometry {
-        origin: origin.to_array(),
-        spacing: spacing.to_array(),
-        direction_columns: [
-            columns[0].to_array(),
-            columns[1].to_array(),
-            columns[2].to_array(),
-        ],
-    }
+    SeriesGeometry::new(
+        origin.to_array().map(Length::from_unit::<Millimeter>),
+        spacing.to_array().map(Length::from_unit::<Millimeter>),
+        direction
+            .axis_directions_array()
+            .map(|axis| axis.to_array()),
+    )
 }
 
 /// Write a 3-D `Image<f32, B, 3>` with shape `[depth, rows, cols]` as a series of
@@ -142,9 +118,8 @@ fn write_series_flat(
     geom: &SeriesGeometry,
 ) -> Result<()> {
     let dimensions = validate_image_shape(shape, all_data.len())?;
-    validate_series_geometry(geom)?;
+    geom.validate(dimensions.depth)?;
     let pixel_plans = prepare_frame_encodings::<u16>(all_data, dimensions)?;
-    validate_series_positions(geom, dimensions.depth)?;
     let mut slices = Vec::new();
     slices
         .try_reserve_exact(dimensions.depth)
@@ -152,19 +127,6 @@ fn write_series_flat(
     let series_uid = generate_series_uid();
     let study_uid = series_uid.clone();
     let series_instance_uid = format!("{}.1", series_uid);
-
-    let [dir_depth, dir_row, dir_col] = geom.direction_columns;
-    // DICOM PixelSpacing = [row spacing, col spacing] = [Δrow, Δcol]; the depth
-    // axis (spacing[0], canonical RITK order) carries the slice spacing.
-    let pixel_spacing = [geom.spacing[1], geom.spacing[2]];
-    let slice_spacing = geom.spacing[0];
-    // PS3.3 C.7.6.2: ImageOrientationPatient = [first-row direction cosine,
-    // first-column direction cosine] = [increasing-column-index direction,
-    // increasing-row-index direction] = [col-axis, row-axis]. Matches
-    // `writer::metadata` and the readers' `assemble_direction`.
-    let orientation = [
-        dir_col[0], dir_col[1], dir_col[2], dir_row[0], dir_row[1], dir_row[2],
-    ];
 
     for z in 0..dimensions.depth {
         let slice_offset = z
@@ -191,12 +153,6 @@ fn write_series_flat(
         let rescale_slope = plan.rescale_slope();
         let rescale_intercept = plan.rescale_intercept();
         let sop_instance_uid = generate_instance_uid(&series_uid, z);
-        let zf = f64::from_count(z);
-        let image_position = [
-            geom.origin[0] + zf * slice_spacing * dir_depth[0],
-            geom.origin[1] + zf * slice_spacing * dir_depth[1],
-            geom.origin[2] + zf * slice_spacing * dir_depth[2],
-        ];
         let mut obj = Dataset::new();
         obj.put_value(
             DicomTag::new(0x0008, 0x0016),
@@ -225,28 +181,7 @@ fn write_series_flat(
         obj.put_value(DicomTag::new(0x0008, 0x0020), VR::DA, "");
         // PS3.3 C.7.3.1 General Series Module: SeriesNumber (Type 2).
         obj.put_value(DicomTag::new(0x0020, 0x0011), VR::IS, "0");
-        // PS3.3 C.7.6.2 Image Plane Module: spatial geometry (round-trips
-        // through the series reader; see `write_dicom_series_native` docs).
-        obj.put_value(
-            DicomTag::new(0x0018, 0x0050),
-            VR::DS,
-            format_dicom_decimal(slice_spacing)?,
-        );
-        obj.put_value(
-            DicomTag::new(0x0020, 0x0032),
-            VR::DS,
-            format_triplet(image_position)?,
-        );
-        obj.put_value(
-            DicomTag::new(0x0020, 0x0037),
-            VR::DS,
-            format_six(orientation)?,
-        );
-        obj.put_value(
-            DicomTag::new(0x0028, 0x0030),
-            VR::DS,
-            format_pair(pixel_spacing)?,
-        );
+        geom.emit_plane_tags(&mut obj, z)?;
         obj.put_value(DicomTag::new(0x0028, 0x0002), VR::US, 1_u16);
         obj.put_value(
             DicomTag::new(0x0028, 0x0010),
@@ -287,36 +222,4 @@ fn write_series_flat(
         slices.push(serialize_file(&file_obj)?);
     }
     write_series_files(path, &slices)
-}
-
-fn validate_series_geometry(geom: &SeriesGeometry) -> Result<()> {
-    let direction = [
-        geom.direction_columns[0][0],
-        geom.direction_columns[0][1],
-        geom.direction_columns[0][2],
-        geom.direction_columns[1][0],
-        geom.direction_columns[1][1],
-        geom.direction_columns[1][2],
-        geom.direction_columns[2][0],
-        geom.direction_columns[2][1],
-        geom.direction_columns[2][2],
-    ];
-    validate_spatial_metadata(&geom.spacing, &geom.origin, &direction)
-}
-
-fn validate_series_positions(geom: &SeriesGeometry, depth: usize) -> Result<()> {
-    let dir_depth = geom.direction_columns[0];
-    let slice_spacing = geom.spacing[0];
-    for z in 0..depth {
-        let zf = f64::from_count(z);
-        let position = [
-            geom.origin[0] + zf * slice_spacing * dir_depth[0],
-            geom.origin[1] + zf * slice_spacing * dir_depth[1],
-            geom.origin[2] + zf * slice_spacing * dir_depth[2],
-        ];
-        if position.iter().any(|coordinate| !coordinate.is_finite()) {
-            return Err(DicomWriteError::InvalidSpatialMetadata.into());
-        }
-    }
-    Ok(())
 }

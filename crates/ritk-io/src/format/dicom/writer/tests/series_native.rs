@@ -233,3 +233,69 @@ fn coeus_series_writer_preserves_canonical_axis_order() {
         "Coeus series writer must not transpose the direction"
     );
 }
+
+#[test]
+fn oblique_native_series_writes_patient_positions_in_millimetres() {
+    use ritk_dicom::dataset::{DicomFile, DicomTag};
+    use tracing_subscriber::fmt::format::FmtSpan;
+
+    let _trace = tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_span_events(FmtSpan::FULL)
+            .with_test_writer()
+            .finish(),
+    );
+    let work = tempfile::tempdir().expect("fixture directory");
+    let out = work.path().join("series");
+    let image = tracing::info_span!("arrange").in_scope(|| {
+        NativeImage::<f32, MoiraiBackend, 3>::from_flat(
+            vec![1.0, 2.0, 3.0],
+            [3, 1, 1],
+            Point::new([17.0, -23.0, 41.0]),
+            Spacing::new([4.0, 3.0, 5.0]),
+            // tensor depth +X, row +Z, column +Y
+            Direction::from_row_major([1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0]),
+        )
+        .expect("native image")
+    });
+    let series = tracing::info_span!("act").in_scope(|| {
+        write_dicom_series_native(&out, &image).expect("write native oblique series");
+        load_dicom_series_with_metadata::<SequentialBackend, _>(&out, &SequentialBackend)
+            .expect("read the stored series")
+            .1
+    });
+    let _assert = tracing::info_span!("assert").entered();
+    for (index, x) in [17, 21, 25].into_iter().enumerate() {
+        let slice =
+            DicomFile::open(out.join(format!("slice_{index:04}.dcm"))).expect("read Part 10");
+        for (tag, value) in [
+            (DicomTag::new(0x0020, 0x0032), format!("{x}\\-23\\41")),
+            (DicomTag::new(0x0028, 0x0030), "3\\5".to_string()),
+            (DicomTag::new(0x0018, 0x0050), "4".to_string()),
+        ] {
+            assert_eq!(slice.element(tag).unwrap().to_str().unwrap(), value);
+        }
+    }
+    assert_eq!(series.origin_mm(), [17.0, -23.0, 41.0]);
+    assert_eq!(series.spacing_mm(), [4.0, 3.0, 5.0]);
+}
+
+#[test]
+fn series_writer_rejects_spacing_that_underflows_in_metres() {
+    let work = tempfile::tempdir().expect("fixture directory");
+    let out = work.path().join("series");
+    let image = NativeImage::<f32, MoiraiBackend, 3>::from_flat(
+        vec![1.0],
+        [1, 1, 1],
+        Point::new(ORIGIN),
+        Spacing::new([f64::from_bits(1), 3.0, 5.0]),
+        canonical_direction(),
+    )
+    .expect("positive finite spatial input");
+    let error = write_dicom_series_native(&out, &image).expect_err("unrepresentable typed spacing");
+    assert_eq!(
+        error.downcast_ref::<super::super::error::DicomWriteError>(),
+        Some(&super::super::error::DicomWriteError::InvalidSpatialMetadata)
+    );
+    assert!(!out.exists());
+}
