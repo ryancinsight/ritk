@@ -16,6 +16,7 @@ mod paths;
 mod pointer_bindings;
 mod polygon_edit;
 mod polygon_selection;
+mod roi_quantitative;
 mod wheel;
 
 fn viewport(source_size: [usize; 2]) -> ViewerViewport {
