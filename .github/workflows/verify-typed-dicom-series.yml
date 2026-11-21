@@ -21,12 +21,12 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          fetch-depth: 2
+          fetch-depth: 3
           persist-credentials: false
       - name: Check out the exact candidate and locate the Windows SDK
         shell: pwsh
         run: |
-          git switch --detach HEAD^
+          git switch --detach '957fa41fba7ec776e23bcfeb349bd83b6aec2b26'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $candidate = git rev-parse HEAD
           if ($candidate -ne '957fa41fba7ec776e23bcfeb349bd83b6aec2b26') { throw "Unexpected candidate $candidate" }
@@ -63,7 +63,7 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or !($overlay -match 'test result: ok\. 1 passed')) {
             throw 'The native overlay assertion did not pass'
           }
-          cargo test --locked -p ritk-io --lib part10_oblique_series_preserves_axis_order_and_patient_origin -- --test-threads=1 |
+          cargo test --locked -p ritk-io -p ritk-snap --lib part10_oblique_series_preserves_axis_order_and_patient_origin -- --test-threads=1 |
             Tee-Object -Variable series
           if ($LASTEXITCODE -ne 0 -or !($series -match 'test result: ok\. 1 passed')) {
             throw 'The oblique series geometry assertion did not pass'
