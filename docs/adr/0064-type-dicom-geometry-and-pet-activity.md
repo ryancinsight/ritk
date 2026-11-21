@@ -29,3 +29,13 @@ absolute thresholds use millimetres. Compute patients' origin in XYZ and keep
 tensor spacing in depth, row, and column order. The tensor loader requests
 millimetres through the metadata accessors. An oblique Part 10 fixture checks
 the axis order, patient origin, measured depth, and single-slice fallback.
+
+## Series writer image planes
+
+Native and Coeus image adapters interpret the image's origin and spacing
+in millimetres. The metadata-preserving writer takes the reader's existing
+lengths. All series writers compute `origin + z · Δdepth · dir_depth` in
+lengths and use the same Image Plane Module encoder. DICOM receives
+millimetres, pixel spacing in row/column order, and orientation cosines
+in column/row order. A spacing that underflows to zero metres or a
+patient position that exceeds the scalar range is rejected before output.
