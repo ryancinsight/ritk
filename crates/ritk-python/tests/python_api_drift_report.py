@@ -15,6 +15,23 @@ TOP_LEVEL_INIT = PYTHON_DIR / "__init__.py"
 TOP_LEVEL_STUB = PYTHON_DIR / "__init__.pyi"
 SMOKE_TEST = PYTHON_CRATE / "tests" / "test_smoke.py"
 
+# Published top-level API in the order promised by __all__. Do not derive this
+# contract from observed runtime or stub exports: agreement can still be drift.
+EXPECTED_TOP_LEVEL_EXPORTS = (
+    "Image",
+    "ColorImage",
+    "image",
+    "io",
+    "connectome",
+    "diffusion",
+    "filter",
+    "metrics",
+    "registration",
+    "segmentation",
+    "statistics",
+)
+ALLOWED_STUB_ONLY_EXPORTS: tuple[str, ...] = ()
+
 MODULES = {
     "filter": {
         "rust": SRC_DIR / "filter" / "mod.rs",
@@ -224,29 +241,7 @@ def compute_module_drift(module_name: str, paths: dict[str, Path]) -> ModuleDrif
 
 
 def compute_top_level_drift() -> TopLevelDrift:
-    expected_exports = {
-        "Image",
-        "ColorImage",
-        "image",
-        "io",
-        "filter",
-        "metrics",
-        "registration",
-        "segmentation",
-        "statistics",
-    }
-    expected_all = [
-        "Image",
-        "ColorImage",
-        "image",
-        "io",
-        "filter",
-        "metrics",
-        "registration",
-        "segmentation",
-        "statistics",
-    ]
-    allowed_stub_only_exports: set[str] = set()
+    expected_exports = set(EXPECTED_TOP_LEVEL_EXPORTS)
 
     runtime_exports = parse_top_level_reexports(TOP_LEVEL_INIT)
     stub_exports = parse_top_level_stub_reexports(TOP_LEVEL_STUB)
@@ -262,11 +257,11 @@ def compute_top_level_drift() -> TopLevelDrift:
         missing_stub_exports=sorted(expected_exports - stub_exports),
         extra_runtime_exports=sorted(runtime_exports - expected_exports),
         extra_stub_exports=sorted(
-            stub_exports - expected_exports - allowed_stub_only_exports
+            (stub_exports - expected_exports).difference(ALLOWED_STUB_ONLY_EXPORTS)
         ),
         missing_all_exports=sorted(expected_exports - set(all_exports)),
         extra_all_exports=sorted(set(all_exports) - expected_exports),
-        all_order_matches=all_exports == expected_all,
+        all_order_matches=tuple(all_exports) == EXPECTED_TOP_LEVEL_EXPORTS,
     )
 
 
@@ -289,25 +284,12 @@ def print_module_report(drift: ModuleDrift) -> None:
 
 
 def print_top_level_report(drift: TopLevelDrift) -> None:
-    expected_all = [
-        "Image",
-        "ColorImage",
-        "image",
-        "io",
-        "filter",
-        "metrics",
-        "registration",
-        "segmentation",
-        "statistics",
-    ]
-    allowed_stub_only_exports: list[str] = []
-
     print("[top-level:ritk]")
     print(f"  runtime exports  : {format_list(sorted(drift.runtime_exports))}")
     print(f"  stub exports     : {format_list(sorted(drift.stub_exports))}")
     print(f"  __all__          : {format_list(drift.all_exports)}")
-    print(f"  expected __all__ : {format_list(expected_all)}")
-    print(f"  stub-only allow  : {format_list(allowed_stub_only_exports)}")
+    print(f"  expected __all__ : {format_list(list(EXPECTED_TOP_LEVEL_EXPORTS))}")
+    print(f"  stub-only allow  : {format_list(list(ALLOWED_STUB_ONLY_EXPORTS))}")
     print(f"  __version__      : {drift.version or '<empty>'}")
     print(f"  missing runtime  : {format_list(drift.missing_runtime_exports)}")
     print(f"  missing stub     : {format_list(drift.missing_stub_exports)}")

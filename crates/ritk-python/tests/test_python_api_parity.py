@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import ast
 import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
 from pathlib import Path
+from typing import Callable
+
+from python_api_drift_report import EXPECTED_TOP_LEVEL_EXPORTS
 
 ROOT = Path(__file__).resolve().parents[3]
 PYTHON_CRATE = ROOT / "crates" / "ritk-python"
@@ -160,32 +168,7 @@ def test_top_level_package_exports_and_metadata_are_consistent() -> None:
     top_level_all = parse_top_level_all(TOP_LEVEL_INIT)
     top_level_version = parse_top_level_version(TOP_LEVEL_INIT)
 
-    expected_exports = {
-        "Image",
-        "ColorImage",
-        "image",
-        "io",
-        "connectome",
-        "diffusion",
-        "filter",
-        "metrics",
-        "registration",
-        "segmentation",
-        "statistics",
-    }
-    expected_all = [
-        "Image",
-        "ColorImage",
-        "image",
-        "io",
-        "connectome",
-        "diffusion",
-        "filter",
-        "metrics",
-        "registration",
-        "segmentation",
-        "statistics",
-    ]
+    expected_exports = set(EXPECTED_TOP_LEVEL_EXPORTS)
 
     missing_runtime_exports = sorted(expected_exports - top_level_exports)
     missing_stub_exports = sorted(expected_exports - top_level_stub_exports)
@@ -198,7 +181,7 @@ def test_top_level_package_exports_and_metadata_are_consistent() -> None:
     assert not missing_stub_exports, (
         f"top-level stub missing expected re-exports: {missing_stub_exports}"
     )
-    assert top_level_all == expected_all, (
+    assert tuple(top_level_all) == EXPECTED_TOP_LEVEL_EXPORTS, (
         f"top-level __all__ drifted from expected export order: {top_level_all}"
     )
     assert not extra_all_exports, (
@@ -208,3 +191,95 @@ def test_top_level_package_exports_and_metadata_are_consistent() -> None:
         f"top-level __all__ missing expected exports: {missing_all_exports}"
     )
     assert top_level_version, "top-level __version__ must not be empty"
+
+
+class TestPythonApiDriftReport(unittest.TestCase):
+    """Run the CI diagnostic against source files, not an installed wheel."""
+
+    def _run_report(
+        self, edit: Callable[[Path, Path], None] | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        report = Path(__file__).resolve().with_name("python_api_drift_report.py")
+        inputs = [report, TOP_LEVEL_INIT, TOP_LEVEL_STUB, SMOKE_TEST]
+        for paths in MODULES.values():
+            inputs.extend((paths["rust"], paths["stub"]))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for source in inputs:
+                target = root / source.relative_to(ROOT)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source, target)
+            if edit is not None:
+                edit(
+                    root / TOP_LEVEL_INIT.relative_to(ROOT),
+                    root / TOP_LEVEL_STUB.relative_to(ROOT),
+                )
+            return subprocess.run(
+                [sys.executable, "-B", str(root / report.relative_to(ROOT))],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+
+    def _require_drift(
+        self, result: subprocess.CompletedProcess[str], *details: str
+    ) -> None:
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("overall status     : drift detected", result.stdout)
+        for detail in details:
+            with self.subTest(diagnostic=detail):
+                self.assertIn(f"  {detail}", result.stdout.splitlines(), result.stdout)
+
+    def test_intended_top_level_exports_are_clean(self) -> None:
+        result = self._run_report()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("top-level clean    : yes", result.stdout)
+        self.assertIn("overall status     : clean", result.stdout)
+
+    def test_extra_export_is_drift_when_observed_surfaces_agree(self) -> None:
+        def edit(init: Path, stub: Path) -> None:
+            extra_import = "\nfrom ritk._ritk import segmentation as incidental_export\n"
+            runtime = init.read_text(encoding="utf-8")
+            anchor = "__all__ = [\n"
+            self.assertEqual(runtime.count(anchor), 1)
+            runtime = runtime.replace(anchor, anchor + '    "incidental_export",\n', 1)
+            init.write_text(runtime + extra_import, encoding="utf-8")
+            stub.write_text(
+                stub.read_text(encoding="utf-8") + extra_import, encoding="utf-8"
+            )
+
+        self._require_drift(
+            self._run_report(edit),
+            "extra runtime    : incidental_export",
+            "extra stub       : incidental_export",
+            "extra __all__    : incidental_export",
+        )
+
+    def test_missing_export_in_stub_is_drift(self) -> None:
+        def edit(_init: Path, stub: Path) -> None:
+            declaration = "from ritk._ritk import diffusion as diffusion\n"
+            contents = stub.read_text(encoding="utf-8")
+            self.assertEqual(contents.count(declaration), 1)
+            stub.write_text(contents.replace(declaration, "", 1), encoding="utf-8")
+
+        self._require_drift(
+            self._run_report(edit),
+            "missing stub     : diffusion",
+            "missing runtime  : none",
+        )
+
+    def test_reordered_exports_are_drift_without_membership_changes(self) -> None:
+        def edit(init: Path, _stub: Path) -> None:
+            contents = init.read_text(encoding="utf-8")
+            ordered = '    "connectome",\n    "diffusion",\n'
+            swapped = '    "diffusion",\n    "connectome",\n'
+            self.assertEqual(contents.count(ordered), 1)
+            init.write_text(contents.replace(ordered, swapped, 1), encoding="utf-8")
+
+        self._require_drift(
+            self._run_report(edit),
+            "missing __all__  : none",
+            "extra __all__    : none",
+            "__all__ order    : drift detected",
+        )
