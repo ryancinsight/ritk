@@ -4,6 +4,7 @@
 //! it. Header extraction lives in [`super::header`]; this module starts where
 //! a decoded pixel is required.
 
+use aequitas::systems::si::{quantities::Length, units::Millimeter};
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
 use ritk_core::image::Image;
@@ -145,7 +146,7 @@ pub(super) fn decode_spatial_frames(
     let first_source = &sources[first.source];
     let path = first_source.path;
     let mut info = first_source.info.clone();
-    if let Some(first) = selected.and_then(|_| first_source.geometry.get(first.local)) {
+    if let Some(first) = first_source.geometry.get(first.local) {
         info.image_position = first.image_position.or(info.image_position);
         info.image_orientation = first.image_orientation.or(info.image_orientation);
         info.pixel_spacing = first.pixel_spacing.or(info.pixel_spacing);
@@ -201,11 +202,14 @@ pub(super) fn decode_spatial_frames(
     // image_position. Compute per-adjacent-pair distances projected onto the
     // shared slice normal NÌ‚ = normalize(row × col). Use the median as nominal
     // spacing; warn and resample when nonuniform or missing frames are detected.
+    use super::super::geometry::{millimetres, project_position, DEFAULT_SPACING};
+
+    let fallback_depth = info.frame_thickness.unwrap_or(DEFAULT_SPACING);
     let mut slice_provenance = None;
     let (final_floats, final_n, spacing_z) = 'geometry: {
         if actual_n < 2 || sources.iter().all(|source| source.geometry.is_empty()) {
             // Fewer than 2 per-frame positions: cannot derive inter-frame spacing.
-            break 'geometry (floats, actual_n, info.frame_thickness.unwrap_or(1.0));
+            break 'geometry (floats, actual_n, fallback_depth);
         }
 
         // Resolve IOP: per-frame override first, then global.
@@ -215,7 +219,7 @@ pub(super) fn decode_spatial_frames(
             .or(info.image_orientation);
 
         let Some(normal) = iop.and_then(crate::format::dicom::reader::slice_normal_from_iop) else {
-            break 'geometry (floats, actual_n, info.frame_thickness.unwrap_or(1.0));
+            break 'geometry (floats, actual_n, fallback_depth);
         };
 
         let proj: Vec<Option<f64>> = selected_frames()
@@ -224,13 +228,13 @@ pub(super) fn decode_spatial_frames(
                     .geometry
                     .get(frame.local)
                     .and_then(|pf| pf.image_position)
-                    .map(|p| crate::format::dicom::reader::dot(p, normal))
+                    .map(|p| project_position(p, normal).in_unit::<Millimeter>())
             })
             .collect();
 
         if proj.iter().any(|p| p.is_none()) {
             // Not all frames have positions; fall back to global thickness.
-            break 'geometry (floats, actual_n, info.frame_thickness.unwrap_or(1.0));
+            break 'geometry (floats, actual_n, fallback_depth);
         }
 
         let src_positions: Vec<f64> = proj
@@ -304,18 +308,23 @@ pub(super) fn decode_spatial_frames(
                     report.nominal_spacing,
                 ));
             }
-            (new_floats, new_n, report.nominal_spacing)
+            (
+                new_floats,
+                new_n,
+                Length::from_unit::<Millimeter>(report.nominal_spacing),
+            )
         } else {
-            (floats, actual_n, report.nominal_spacing)
+            (
+                floats,
+                actual_n,
+                Length::from_unit::<Millimeter>(report.nominal_spacing),
+            )
         }
     };
 
-    let spacing = match info.pixel_spacing {
-        Some([rs, cs]) => Spacing::new([spacing_z, rs, cs]),
-        None => Spacing::new([spacing_z, 1.0, 1.0]),
-    };
-
-    let origin = info.image_position.unwrap_or([0.0, 0.0, 0.0]);
+    let [row, column] = info.pixel_spacing.unwrap_or([DEFAULT_SPACING; 2]);
+    let spacing = Spacing::new(millimetres([spacing_z, row, column]));
+    let origin = millimetres(info.image_position.unwrap_or([Length::from_base(0.0); 3]));
 
     let direction = if let Some(iop) = info.image_orientation {
         let (rx, ry, rz) = (iop[0], iop[1], iop[2]);

@@ -6,6 +6,8 @@ mod reader;
 #[cfg(test)]
 mod roundtrip;
 #[cfg(test)]
+mod spatial_geometry;
+#[cfg(test)]
 mod writer;
 #[cfg(test)]
 mod writer_compressed;

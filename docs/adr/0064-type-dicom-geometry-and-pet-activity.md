@@ -39,3 +39,19 @@ lengths and use the same Image Plane Module encoder. DICOM receives
 millimetres, pixel spacing in row/column order, and orientation cosines
 in column/row order. A spacing that underflows to zero metres or a
 patient position that exceeds the scalar range is rejected before output.
+
+## Multiframe image geometry
+
+Represent top-level and functional-group patient positions, pixel spacing,
+and thickness as lengths. A malformed dimensional tuple supplies no value
+and leaves the established metadata fallback in effect. The scalar and color
+decoders form signed plane projections from length components and
+dimensionless normals. The existing spacing analysis and interpolation
+receive millimetres.
+
+The generic scalar loader uses the first decoded frame's geometry when
+functional groups supply it. The top-level header remains its fallback.
+For an oblique Part 10 stack at patient x coordinates 17, 21, 29, and 33 mm,
+the 4 mm median gap places a reconstructed plane at 25 mm. The regression
+checks patient XYZ origin, anisotropic spacing, pixel values, the
+interpolated-plane label, and a malformed top-level tuple.

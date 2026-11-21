@@ -1,5 +1,6 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
+use aequitas::systems::si::{quantities::Length, units::Millimeter};
 use arrayvec::ArrayString;
 
 #[test]
@@ -128,9 +129,9 @@ fn test_write_multiframe_with_spatial_metadata_round_trip() {
     let data: Vec<f32> = (0..n_frames * rows * cols).map(|i| i as f32).collect();
     let image = native_image(data.clone(), [n_frames, rows, cols], [0.0; 3], [1.0; 3]);
     let spatial = MultiFrameSpatialMetadata {
-        origin: [10.0, 20.0, -50.0],
-        pixel_spacing: [0.8, 0.8],
-        slice_thickness: 2.5,
+        origin: [10.0, 20.0, -50.0].map(Length::from_unit::<Millimeter>),
+        pixel_spacing: [0.8, 0.8].map(Length::from_unit::<Millimeter>),
+        slice_thickness: Length::from_unit::<Millimeter>(2.5),
         image_orientation: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
         modality: ArrayString::from("CT").unwrap(),
     };
@@ -151,6 +152,10 @@ fn test_write_multiframe_with_spatial_metadata_round_trip() {
         "SOP class must be Multi-Frame Grayscale Word SC"
     );
     let ipp = info.image_position.expect("image_position must be Some");
+    assert_eq!(ipp, spatial.origin);
+    assert_eq!(info.pixel_spacing, Some(spatial.pixel_spacing));
+    assert_eq!(info.frame_thickness, Some(spatial.slice_thickness));
+    let ipp = ipp.map(|length| length.in_unit::<Millimeter>());
     assert!((ipp[0] - 10.0).abs() < 1e-4, "IPP x round-trip");
     assert!((ipp[1] - 20.0).abs() < 1e-4, "IPP y round-trip");
     assert!((ipp[2] - (-50.0)).abs() < 1e-4, "IPP z round-trip");
@@ -273,9 +278,9 @@ fn test_load_multiframe_spacing_from_slice_thickness() {
     let data: Vec<f32> = (0..3 * 4 * 4).map(|i| i as f32).collect();
     let image = native_image(data, [3, 4, 4], [0.0, 0.0, 0.0], [2.5, 1.0, 1.0]);
     let opts = MultiFrameSpatialMetadata {
-        origin: [0.0, 0.0, 0.0],
-        pixel_spacing: [1.0, 1.0],
-        slice_thickness: 2.5,
+        origin: [0.0, 0.0, 0.0].map(Length::from_unit::<Millimeter>),
+        pixel_spacing: [1.0, 1.0].map(Length::from_unit::<Millimeter>),
+        slice_thickness: Length::from_unit::<Millimeter>(2.5),
         image_orientation: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
         modality: ArrayString::from("CT").unwrap(),
     };

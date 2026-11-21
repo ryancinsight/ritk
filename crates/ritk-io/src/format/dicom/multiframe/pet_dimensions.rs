@@ -3,8 +3,8 @@
 use std::collections::BTreeMap;
 
 use aequitas::systems::si::{
-    quantities::{Dimensionless, Length, Time},
-    units::{Millimeter, Millisecond},
+    quantities::{Dimensionless, Time},
+    units::Millisecond,
 };
 use anyhow::{bail, ensure, Context, Result};
 use ritk_dicom::{
@@ -16,7 +16,7 @@ use crate::format::dicom::sop_class::{classify_sop_class, SopClassKind};
 
 use super::reader::frame_source::{FrameAddress, FrameSource};
 use super::temporal::reject_temporal_organization;
-use crate::format::dicom::reader::{dot, slice_normal_from_iop};
+use crate::format::dicom::reader::slice_normal_from_iop;
 
 const DIMENSIONS: Tag = Tag::new(0x0020, 0x9222);
 const POINTER: Tag = Tag::new(0x0020, 0x9165);
@@ -343,7 +343,7 @@ fn order_planes(planes: SpatialPlanes, sources: &[FrameSource<'_>]) -> Result<Ve
             let position = frame
                 .image_position
                 .context("Enhanced PET slice lacks patient position")?;
-            let projected = Length::from_unit::<Millimeter>(dot(position, normal));
+            let projected = super::geometry::project_position(position, normal);
             ensure!(
                 projected.as_base().is_finite(),
                 "Enhanced PET slice has a nonfinite position"

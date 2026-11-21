@@ -1,5 +1,13 @@
 # RITK Gap Audit
 
+## DICOM multiframe geometry
+
+Generic scalar and color headers and writer inputs carry typed lengths.
+The scalar loader takes the first decoded frame's position and uses
+the existing millimetre interpolation boundary. The oblique fixture
+checks a missing plane and prevents a malformed coordinate token from
+shifting later axes.
+
 ## DICOM series writer geometry
 
 Native, Coeus, and metadata-preserving series writers share typed image
