@@ -432,6 +432,24 @@ jobs:
           set -euo pipefail
           /usr/bin/safaridriver --diagnose -p 4444 > "$RUNNER_TEMP/safaridriver.log" 2>&1 &
 
+      # SafariDriver requires publicly readable uploads. The runner checkout
+      # is below a private home directory. Only stage the public MRI phantom.
+      - name: Stage the public study for the Safari file chooser
+        if: matrix.engine == 'webkit'
+        shell: bash
+        run: |
+          set -euo pipefail
+          source="$GITHUB_WORKSPACE/ritk/test_data/2_head_mri_t2/DICOM"
+          study="$(mktemp -d /Users/Shared/ritk-public-mri.XXXXXXXX)"
+          echo "SAFARI_STUDY=$study" >> "$GITHUB_ENV"
+          chmod 755 "$study"
+          files=("$source"/*.dcm)
+          test "${#files[@]}" -eq 94
+          for file in "${files[@]}"; do
+            install -m 644 "$file" "$study/"
+            cmp "$file" "$study/${file##*/}"
+          done
+
       - name: Record selected-file filesystem access
         if: matrix.engine == 'webkit'
         timeout-minutes: 1
@@ -445,7 +463,7 @@ jobs:
           from pathlib import Path
           import stat
 
-          study = Path(os.environ["GITHUB_WORKSPACE"]) / "ritk/test_data/2_head_mri_t2/DICOM"
+          study = Path(os.environ["SAFARI_STUDY"])
           selected = sorted(study.glob("*.dcm"))[0].resolve(strict=True)
           paths = [selected, *selected.parents]
           records = []
@@ -516,7 +534,7 @@ jobs:
             --device-scale "$DEVICE_SCALE"
             --input chooser
             --lifecycle-cycles "$LIFECYCLE_CYCLES"
-            --files "$GITHUB_WORKSPACE/ritk/test_data/2_head_mri_t2/DICOM"
+            --files "${SAFARI_STUDY:-$GITHUB_WORKSPACE/ritk/test_data/2_head_mri_t2/DICOM}"
             --pattern '*.dcm'
             --oracle "$GITHUB_WORKSPACE/metis/output/browser/$ORACLE"
             --consumer-revision "$RITK_REVISION"
@@ -587,6 +605,15 @@ jobs:
               --canvas-id ritk-snap-coronal \
               --canvas-id ritk-snap-sagittal
           done
+
+      - name: Remove staged public MRI files
+        if: always() && matrix.engine == 'webkit' && env.SAFARI_STUDY != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SAFARI_STUDY" == /Users/Shared/ritk-public-mri.* ]]
+          rm -f "$SAFARI_STUDY"/*.dcm
+          rmdir "$SAFARI_STUDY"
 
       - name: Capture WebKit sandbox diagnostics
         if: always() && matrix.engine == 'webkit'
