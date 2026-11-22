@@ -183,3 +183,90 @@ def test_dicom_export_reports_write_errors_without_publishing_partial_files(sour
     assert all(message for _, message in stats["errors"])
     assert list(output.iterdir()) == []
     assert _contents(source_study) == original
+
+
+def test_header_actions_preserve_sequence_shape_and_value_representations(source_study, tmp_path):
+    source = sorted(source_study.glob("*.dcm"))[0]
+    original = dcmread(source)
+    original["PatientName"].VR = "LO"  # A source sender used the wrong explicit VR.
+    original["PatientName"].value = str(original["PatientName"].value)
+    original.ContributingEquipmentSequence = [Dataset()]
+    original.ContributingEquipmentSequence[0].Manufacturer = "Fixture scanner"
+    dcmwrite(source, original)
+
+    output = tmp_path / "output"
+    assert _export(source_study, output, profile="enhanced") == _success_count(2)
+    result = dcmread(output / "000001.dcm")
+    assert result["PatientName"].VR == "PN"
+    assert result["PatientID"].VR == "LO"
+    assert list(result.ContributingEquipmentSequence[0].keys()) == [
+        original.ContributingEquipmentSequence[0]["Manufacturer"].tag
+    ]
+    assert result.ContributingEquipmentSequence[0].Manufacturer == "Fixture scanner"
+
+
+def test_enhanced_profile_protects_creation_and_contribution_metadata(source_study, tmp_path):
+    source = sorted(source_study.glob("*.dcm"))[0]
+    original = dcmread(source)
+    original.InstanceCreationDate = "20240229"
+    original.InstanceCreationTime = "123456"
+    equipment = Dataset()
+    equipment.Manufacturer = "Fixture scanner"
+    equipment.ContributionDateTime = "20240229123456"
+    equipment.ContributionDescription = "Fixture provenance"
+    original.ContributingEquipmentSequence = [equipment]
+    dcmwrite(source, original)
+
+    output = tmp_path / "output"
+    assert _export(source_study, output, profile="enhanced") == _success_count(2)
+    result = dcmread(output / "000001.dcm")
+    assert "InstanceCreationDate" not in result
+    assert "InstanceCreationTime" not in result
+    assert "ContributionDateTime" not in result.ContributingEquipmentSequence[0]
+    assert "ContributionDescription" not in result.ContributingEquipmentSequence[0]
+    assert result.ContributingEquipmentSequence[0].Manufacturer == "Fixture scanner"
+
+
+def test_replaced_uids_use_the_uuid_arc_for_irradiation_events(source_study, tmp_path):
+    event_uid = f"{UID_ROOT}.6"
+    for source in source_study.glob("*.dcm"):
+        original = dcmread(source)
+        original.IrradiationEventUID = [event_uid, f"{UID_ROOT}.7"]
+        dcmwrite(source, original)
+
+    output = tmp_path / "output"
+    assert _export(source_study, output, profile="enhanced") == _success_count(2)
+    first, second = map(dcmread, sorted(output.iterdir()))
+    assert first.IrradiationEventUID == second.IrradiationEventUID
+    assert len(first.IrradiationEventUID) == len(set(first.IrradiationEventUID)) == 2
+    for uid in (*first.IrradiationEventUID, first.SOPInstanceUID, second.SOPInstanceUID):
+        assert UID(uid).is_valid and uid.startswith("2.25.")
+        value = int(uid[5:])
+        assert 0 < value < 1 << 128
+        assert (value >> 76) & 0xF == 8
+        assert (value >> 62) & 0x3 == 2
+
+
+def test_flat_export_rejects_dicomdir_by_class_and_continues(source_study, tmp_path):
+    from pydicom.uid import MediaStorageDirectoryStorage
+
+    index = source_study / "000-index-renamed.dcm"
+    original = dcmread(sorted(source_study.glob("*.dcm"))[0])
+    meta = original.file_meta
+    meta.MediaStorageSOPClassUID = MediaStorageDirectoryStorage
+    directory = FileDataset(str(index), {}, file_meta=meta, preamble=bytes(128),
+                            is_implicit_VR=False, is_little_endian=True)
+    directory.FileSetID = "RITKTEST"
+    directory.DirectoryRecordSequence = []
+    dcmwrite(index, directory)
+
+    output = tmp_path / "output"
+    stats = _export(source_study, output)
+    assert {key: stats[key] for key in ("file_count", "success_count", "error_count")} == {
+        "file_count": 3, "success_count": 2, "error_count": 1
+    }
+    [(path, message)] = stats["errors"]
+    assert path == str(index)
+    assert "DICOMDIR" in message
+    assert [entry.name for entry in sorted(output.iterdir())] == ["000001.dcm", "000002.dcm"]
+    assert all(dcmread(path).SOPClassUID == CTImageStorage for path in output.iterdir())

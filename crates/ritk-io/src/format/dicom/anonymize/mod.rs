@@ -4,14 +4,13 @@
 //! - `anonymize_object` is the canonical entry point for single-object mutation.
 //! - `anonymize_dicom_file` wraps open + anonymize + write.
 //! - `anonymize_dicom_directory` batches over the files directly in a directory.
-//! - UID replacement uses SHA-256 deterministic hashing so the mapping is
-//!   cryptographically irreversible without the salt and referentially
-//!   consistent within a study processed in a single batch.
+//! - UID replacement uses a deterministic SHA-256-derived UUIDv8 mapping.
+//!   Use a secret salt where linkage to known source UIDs must be discouraged.
 //!
 //! # Invariants
 //! - Non-DICOM files in directory mode are skipped silently.
-//! - DicomTag actions and private-tag removal are applied at every sequence nesting
-//!   level, not only to top-level elements.
+//! - Tag actions and private-tag removal apply to existing attributes at every
+//!   sequence nesting level.
 //! - The file meta group keeps its transfer syntax, SOP class and
 //!   implementation identifiers; its Media Storage SOP Instance UID is set to
 //!   the data set's SOPInstanceUID when that is a single conformant UID, and
@@ -26,6 +25,7 @@
 //! - A step that cannot complete aborts the run with [`AnonymizeError`]; the
 //!   object it would have described is never returned as a success.
 
+mod action;
 mod directory;
 pub(in crate::format::dicom) mod file_meta;
 mod profile;
@@ -73,6 +73,8 @@ pub enum CleaningPolicy {
     Clean,
 }
 
+use self::action::apply_action;
+#[cfg(test)]
 use self::uid::generate_uid_from_hash;
 use anyhow::{Context, Result};
 use ritk_dicom::dataset::Value;
@@ -101,9 +103,7 @@ pub struct AnonymizeOptions {
     pub clean_pixel_data: CleaningPolicy,
     /// When `CleaningPolicy::Clean`, remove all private DICOM elements (those
     /// with an odd group number, excluding the file meta-header group 0x0002).
-    /// This achieves full PS 3.15 Annex E compliance for attribute
-    /// confidentiality by eliminating institutionally-specific private
-    /// attributes that may carry PHI.
+    /// This removes institution-specific private attributes that may carry PHI.
     /// Defaults to `CleaningPolicy::Skip`. The `Enhanced` profile sets this
     /// to `CleaningPolicy::Clean` automatically.
     pub clean_private_tags: CleaningPolicy,
@@ -131,9 +131,9 @@ impl Default for AnonymizeOptions {
 pub struct AnonymizeResult {
     /// Number of tags deleted (Remove action applied to a present element).
     pub tags_deleted: usize,
-    /// Number of tags zeroed (Empty action applied to a present element).
+    /// Number of present tags emptied or replaced with a dummy value.
     pub tags_zeroed: usize,
-    /// Number of UIDs remapped (ReplaceUid action applied to a present element).
+    /// Number of attributes with at least one UID remapped.
     pub uids_remapped: usize,
     /// Number of private elements actually removed from the object.
     pub private_tags_removed: usize,
@@ -143,12 +143,8 @@ pub struct AnonymizeResult {
 
 /// A de-identification step that could not be completed.
 ///
-/// [`AnonymizeResult`] is the evidence a caller relies on to certify a data set
-/// as de-identified, so a step that leaves identifying data behind aborts the
-/// run rather than being folded into a success report: a report that overstates
-/// de-identification is worse than no report. Every variant means the object
-/// still holds data the profile was asked to destroy, and the object is
-/// therefore never returned.
+/// An incomplete traversal or failed private-tag removal prevents the object
+/// from being returned as a successful result.
 ///
 /// The variants are surfaced through the `anyhow::Error` returned by
 /// [`anonymize_object`] and its file/directory wrappers; recover the structured
@@ -187,82 +183,6 @@ pub enum AnonymizeError {
         depth: u32,
     },
 }
-
-/// Apply `action` to `tag` in `obj`, tracking statistics in `result`.
-///
-/// For `Dummy`: reads the element's existing VR to preserve it; uses
-/// tag-specific placeholder strings controlled by `AnonymizeOptions`.
-/// For `Empty`: preserves the VR, replaces value with `PrimitiveValue::Empty`.
-/// For `ReplaceUid`: hashes the original UID string deterministically.
-/// For `Remove`: silently tolerates absent elements.
-fn apply_action(
-    obj: &mut Dataset,
-    tag: DicomTag,
-    action: TagAction,
-    opts: &AnonymizeOptions,
-    result: &mut AnonymizeResult,
-    uid_map: &mut HashMap<String, String>,
-) {
-    match action {
-        TagAction::Keep => {}
-        TagAction::Remove => {
-            if obj.remove_element(tag).is_some() {
-                result.tags_deleted += 1;
-            }
-        }
-        TagAction::Dummy => {
-            // Extract VR before the mutable put; VR is Copy so the borrow ends.
-            let vr = obj.element(tag).map(|e| e.vr()).unwrap_or(VR::LO);
-            let val: &str = match tag {
-                DicomTag {
-                    group: 0x0010,
-                    element: 0x0010,
-                } => &opts.patient_name, // PatientName
-                DicomTag {
-                    group: 0x0010,
-                    element: 0x0020,
-                } => &opts.patient_id, // PatientID
-                _ => &opts.patient_name, // default dummy
-            };
-            // `put` yields the element it displaced, so a suppressed value is
-            // counted from the replacement itself rather than from a presence
-            // check taken beforehand. Dummy replaces; count as zeroed.
-            if obj.put_value(tag, vr, val).is_some() {
-                result.tags_zeroed += 1;
-            }
-        }
-        TagAction::Empty => {
-            let vr = obj.element(tag).map(|e| e.vr()).unwrap_or(VR::LO);
-            if obj.put_value(tag, vr, PrimitiveValue::Empty).is_some() {
-                result.tags_zeroed += 1;
-            }
-        }
-        TagAction::ReplaceUid => {
-            // Read the original UID as an owned String before mutating obj.
-            let orig: String = obj
-                .element(tag)
-                .ok()
-                .and_then(|e| e.to_str().ok().map(|s| s.into_owned()))
-                .unwrap_or_default();
-
-            if orig.is_empty() {
-                return;
-            }
-
-            // Deterministic UID: entry API avoids double-lookup and reduces clones
-            // to one key clone + one value clone on extraction.
-            let new_uid = uid_map
-                .entry(orig.clone())
-                .or_insert_with(|| generate_uid_from_hash(&orig, &opts.uid_salt))
-                .clone();
-
-            obj.put_value(tag, VR::UI, new_uid.as_str());
-            result.uids_remapped += 1;
-        }
-    }
-}
-
-// ─── Dataset traversal ────────────────────────────────────────────────────────
 
 /// Maximum sequence nesting depth traversed by [`anonymize_dataset`].
 ///
