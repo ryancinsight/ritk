@@ -1,5 +1,12 @@
 # RITK Gap Audit
 
+## MetaImage sample byte order
+
+The reader decoded an `ElementByteOrderMSB = True` file containing −513 as −3.
+Both spellings now select the declared order, including for zlib and detached
+data. The [field inventory](docs/book/metaimage_format.md#conversion-inventory)
+records remaining sample, calibration, geometry, and packaging work.
+
 ## Analyze stored header fidelity
 
 The former stored writer admitted a header that rounded the source spacing,

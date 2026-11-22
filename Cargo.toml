@@ -79,7 +79,7 @@ ritk-codecs = { path = "crates/ritk-codecs", version = "0.8.0" }
 ritk-image-io = { path = "crates/ritk-image-io", version = "0.2.0" }
 ritk-nifti = { path = "crates/ritk-nifti", version = "0.5.0" }
 ritk-nrrd = { path = "crates/ritk-nrrd", version = "0.4.0" }
-ritk-metaimage = { path = "crates/ritk-metaimage", version = "0.4.0" }
+ritk-metaimage = { path = "crates/ritk-metaimage", version = "0.4.1" }
 ritk-mgh = { path = "crates/ritk-mgh", version = "0.6.1" }
 ritk-analyze = { path = "crates/ritk-analyze", version = "0.5.1" }
 ritk-png = { path = "crates/ritk-png", version = "0.4.0" }

@@ -8,6 +8,14 @@
 
 # CHANGELOG
 
+## MetaImage 0.4.1 (unreleased)
+
+### Fixed
+
+- [patch] Reading the MetaIO `ElementByteOrderMSB` spelling now decodes
+  big-endian samples correctly in inline and detached volumes. When both
+  spellings appear, `BinaryDataByteOrderMSB` takes precedence.
+
 ## AsterSlice 0.3.0 (unreleased)
 
 ### Added
