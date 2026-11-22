@@ -202,3 +202,23 @@ Any publication using the MRI-DIR data must cite:
 > Synthetic head and neck and phantom images for determining deformable image registration
 > accuracy in magnetic resonance imaging. *Medical Physics*, 45(9), 4315–4321.
 > https://doi.org/10.1002/mp.13090
+
+## Real DICOM directory-export acceptance
+
+Run against an installed wheel built from the revision under test. Use Python
+3.10 or newer with pytest, NumPy, pydicom 3, and pylibjpeg with its libjpeg
+plugin. From the repository root:
+
+```sh
+python -m pip install 'pytest>=8.4.2,<10' 'pytest-timeout>=2.4,<3' \
+  'pydicom>=3,<4' 'pylibjpeg>=2,<3' 'pylibjpeg-libjpeg>=2.1,<3'
+RITK_DICOM_TEST_DATA="$PWD/test_data" python -m pytest -q \
+  crates/ritk-python/tests/test_dicom_anonymization_real.py
+```
+
+The MRI fixture exercises RITK volume reopening. The cranial CT fixture
+exercises lossless JPEG decoding with pylibjpeg, five series, and DICOMDIR
+rejection at its media root. The test compares stored and decoded samples,
+calibrated and windowed pixels, image geometry, selected metadata and UID
+relationships. Set the environment variable to opt in. Pixel preservation
+does not assess burned-in annotations or disclosure safety.

@@ -2,6 +2,8 @@
 
 Status: Accepted
 
+[ADR 0069](0069-preserve-dicom-export-structure.md) updates DICOMDIR handling.
+
 ## Context
 
 Directory anonymization reused source filenames. Those names can disclose a

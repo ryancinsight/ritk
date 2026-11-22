@@ -12,6 +12,13 @@
 
 ### Breaking
 
+- [major] UID-replacing DICOM profiles encode valid UUIDv8 values under
+  the DICOM `2.25.` arc. Re-export the complete related batch from the
+  originals to keep cross-instance references consistent. Flat directory
+  export reports DICOMDIR in `errors` and continues processing immediate
+  image files. Pass the DICOM image folder and inspect `error_count`.
+  These changes target `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
+
 - [major] Directory DICOM anonymization exports numbered files and skips
   occupied destination names in `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
   Pass a separate destination and discover exported filenames there. Use the
@@ -44,6 +51,11 @@
   existing image carriers.
 
 ### Fixed
+
+- [patch] Apply DICOM header actions to existing attributes, use the
+  standard Patient Name and ID value representations, and remove source
+  creation and contribution metadata. UID-replacing profiles remap all
+  values of Irradiation Event UID.
 
 - [patch] Carry Aequitas lengths through native, Coeus, and metadata-preserving
   DICOM series writers. Image-plane tags share one geometry calculation and
