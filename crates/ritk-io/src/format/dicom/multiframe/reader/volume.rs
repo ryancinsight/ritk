@@ -278,8 +278,8 @@ pub(super) fn decode_spatial_frames(
                 let unit = source
                     .geometry
                     .get(frame.local)
-                    .and_then(|info| info.value_unit)
-                    .unwrap_or(source.info.value_unit);
+                    .and_then(|info| info.value_unit.as_ref())
+                    .unwrap_or(&source.info.value_unit);
                 (unit, source.path, frame.local)
             }))?;
             let frame_pixels = info.rows * info.cols;

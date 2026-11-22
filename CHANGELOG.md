@@ -14,7 +14,9 @@
 
 - [major] DICOM spatial resampling requires a common decoded value unit
   across classic slices and enhanced frames. Resolve inconsistent source
-  metadata before requesting an interpolated volume.
+  metadata before requesting an interpolated volume. Vendor Rescale Type
+  labels retain their full text. Borrow or clone DICOM modality metadata
+  values where a caller previously copied them.
 
 - [major] DICOM window centers and widths carry their modality value unit.
   Convert to the original DICOM numeric scale at renderer boundaries.

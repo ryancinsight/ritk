@@ -90,7 +90,10 @@ Resampling forms `(1 − w)a + wb` after each frame's own affine calibration.
 That expression has a physical meaning only on a common value scale. The
 reader accepts equal resolved units, including arrays with consistently
 unspecified units. It reports the conflicting source frames for different
-units or a declared and unspecified pair. It does not infer units from
+units or a declared and unspecified pair. The
+[Modality LUT and Rescale Type](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.11.html#sect_C.11.1.1.2)
+permits vendor declarations. Shared string ownership preserves their full
+identity through frame metadata and samples. It does not infer units from
 adjacent planes. Uniform stacks do not enter this interpolation gate.
 Quantitative Enhanced PET SUV remains a separate channel with its existing
 validated real-world mappings. Part 10 fixtures exercise differing slopes

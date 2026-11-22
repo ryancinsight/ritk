@@ -116,7 +116,7 @@ pub(super) fn push_first_slice_rows<'a>(
         "US",
         slice.bits_allocated.to_string(),
     ));
-    if let Some(value) = slice.window_center {
+    if let Some(value) = &slice.window_center {
         rows.push(MetadataRow::first_slice(
             "0028,1050",
             "WindowCenter",
@@ -124,7 +124,7 @@ pub(super) fn push_first_slice_rows<'a>(
             format!("{:.6}", value.dicom_value()),
         ));
     }
-    if let Some(value) = slice.window_width {
+    if let Some(value) = &slice.window_width {
         rows.push(MetadataRow::first_slice(
             "0028,1051",
             "WindowWidth",
