@@ -1,5 +1,15 @@
 # RITK Gap Audit
 
+## Scalar DICOM browser memory
+
+Loading the same 94-slice, 512 × 512 MRI four times on Chromium increased WebAssembly memory from 403,832,832 to 502,464,512 bytes on the fourth load. The scalar viewer previously transferred the entire reconstructed volume into a tensor and copied it back. It now takes ownership of the decoder’s pixel allocation. The native image loader and viewer use the same decoder and read budget.
+
+On the changed decoder, Chromium completed all four loads with 401,604,608 bytes after the first transfer. All three canvases passed native trace validation for each load. A separate attempt stopped when the coronal canvas reported an unexpected input type. Windows and hosted browser results remain qualification gates.
+
+## Python denoising parity
+
+On macOS ARM64, the optimized Python 3.13 wheel and SimpleITK 2.5.8 disagree in all four patch-denoising cases. The existing one-ULP acceptance bound remains in force. Release qualification requires resolving the discrepancy and running the full suite.
+
 ## MetaImage sample byte order
 
 The reader decoded an `ElementByteOrderMSB = True` file containing −513 as −3.

@@ -33,9 +33,10 @@ pub(crate) mod types;
 mod tests;
 
 pub use loader::{
-    load_dicom_from_series, load_dicom_from_series_with_budget, load_dicom_series_with_metadata,
-    load_dicom_series_with_metadata_with_budget, read_dicom_series_with_metadata,
-    read_dicom_series_with_metadata_with_budget,
+    decode_dicom_series, load_dicom_from_series, load_dicom_from_series_with_budget,
+    load_dicom_series_with_metadata, load_dicom_series_with_metadata_with_budget,
+    read_dicom_series_with_metadata, read_dicom_series_with_metadata_with_budget,
+    DecodedDicomSeries,
 };
 pub use scan::{
     scan_dicom_directory_with_budget, scan_dicom_files, scan_dicom_files_with_budget,

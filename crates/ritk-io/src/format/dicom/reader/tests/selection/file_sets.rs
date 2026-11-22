@@ -261,6 +261,46 @@ fn named_bytes_and_disk_preserve_identical_values_and_geometry() {
 }
 
 #[test]
+fn owned_series_decodes_sorted_samples_and_patient_grid() {
+    let subscriber = tracing_subscriber::fmt()
+        .with_test_writer()
+        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+        .finish();
+    let _guard = tracing::subscriber::set_default(subscriber);
+    let series = tracing::info_span!("arrange").in_scope(|| {
+        let first = instance(Some(SERIES), 1, 11);
+        let second = instance(Some(SERIES), 2, 13);
+        scan_dicom_part10_bytes(&[("second", &second), ("first", &first)]).expect("scan instances")
+    });
+    let decoded = tracing::info_span!("act").in_scope(|| {
+        crate::decode_dicom_series(series, &crate::DicomReadBudget::DEFAULT).expect("decode series")
+    });
+    tracing::info_span!("assert").in_scope(|| {
+        assert_eq!(
+            decoded.volume,
+            [11.0, 11.0, 11.0, 11.0, 13.0, 13.0, 13.0, 13.0]
+        );
+        assert_eq!(decoded.shape, [2, 2, 2]);
+        assert_eq!(decoded.origin.to_array(), [10.0, 20.0, 2.0]);
+        assert_eq!(decoded.spacing.to_array(), [2.0, 0.5, 0.5]);
+        assert_eq!(
+            decoded.direction.to_row_major(),
+            [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
+        );
+        assert_eq!(
+            decoded.metadata.series_instance_uid.as_deref(),
+            Some(SERIES)
+        );
+        assert_eq!(decoded.metadata.slices.len(), 2);
+        assert!(decoded
+            .metadata
+            .slices
+            .iter()
+            .all(|slice| slice.part10_bytes.is_none()));
+    });
+}
+
+#[test]
 fn source_orientation_survives_effective_gantry_tilt_synthesis() {
     use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
     let tag = DicomTag::new(0x0020, 0x0037);

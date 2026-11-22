@@ -10,8 +10,8 @@ pub use domain::{
 pub use format::analyze::{read_analyze, write_analyze, AnalyzeReader, AnalyzeWriter};
 pub use format::dicom::{
     anonymize_dicom_directory, anonymize_dicom_directory_verified, anonymize_dicom_file,
-    anonymize_dicom_file_verified, anonymize_object, dicom_echo, dicom_find, dicom_retrieve,
-    dicom_retrieve_series, dicom_seg_to_label_map, dicom_store, is_private_tag,
+    anonymize_dicom_file_verified, anonymize_object, decode_dicom_series, dicom_echo, dicom_find,
+    dicom_retrieve, dicom_retrieve_series, dicom_seg_to_label_map, dicom_store, is_private_tag,
     is_rgb_dicom_series, label_map_to_dicom_seg, label_map_to_rt_struct, literal_arraystring,
     load_atlas_color_multiframe, load_color_multiframe_flat, load_color_multiframe_flat_from_bytes,
     load_color_multiframe_flat_from_bytes_with_budget, load_color_volume_flat,
@@ -35,16 +35,17 @@ pub use format::dicom::{
     write_dicom_series_native, write_dicom_series_with_metadata, write_rt_dose, write_rt_plan,
     write_rt_struct, AeTitle, AnonymizationProfile, AnonymizeError, AnonymizeOptions,
     AnonymizeResult, AnonymizeStats, AssociationConfig, CleaningPolicy, ColorMultiFrameVolume,
-    ContourGeometricType, DicomAddress, DicomObjectModel, DicomObjectNode, DicomPreservationSet,
-    DicomPreservedElement, DicomReadBudget, DicomReadMetadata, DicomSegmentInfo, DicomSegmentation,
-    DicomSequenceItem, DicomSeriesInfo, DicomSliceMetadata, DicomStudyCatalog, DicomTag,
-    DicomValue, DicomWriteError, DicomWriter, EchoResponse, FindLevel, FindQuery, FindResult,
-    MoveDestination, MoveResponse, MultiFrameInfo, MultiFrameSpatialMetadata, MultiFrameVolume,
-    MultiFrameWriterConfig, NetworkingError, PatientPosition, PixelSignedness, RtBeamInfo,
-    RtContour, RtDoseGrid, RtDoseSummationType, RtDoseType, RtFractionGroup, RtPlanInfo, RtRoiInfo,
-    RtRoiInterpretedType, RtStructureSet, ScannedDicomSeries, ScpConfig, SegEncoding,
-    SegmentAlgorithmType, SegmentationType, StoreResponse, StoreScp, StoreScpHandle,
-    StoredInstance, TagAction, TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
+    ContourGeometricType, DecodedDicomSeries, DicomAddress, DicomObjectModel, DicomObjectNode,
+    DicomPreservationSet, DicomPreservedElement, DicomReadBudget, DicomReadMetadata,
+    DicomSegmentInfo, DicomSegmentation, DicomSequenceItem, DicomSeriesInfo, DicomSliceMetadata,
+    DicomStudyCatalog, DicomTag, DicomValue, DicomWriteError, DicomWriter, EchoResponse, FindLevel,
+    FindQuery, FindResult, MoveDestination, MoveResponse, MultiFrameInfo,
+    MultiFrameSpatialMetadata, MultiFrameVolume, MultiFrameWriterConfig, NetworkingError,
+    PatientPosition, PixelSignedness, RtBeamInfo, RtContour, RtDoseGrid, RtDoseSummationType,
+    RtDoseType, RtFractionGroup, RtPlanInfo, RtRoiInfo, RtRoiInterpretedType, RtStructureSet,
+    ScannedDicomSeries, ScpConfig, SegEncoding, SegmentAlgorithmType, SegmentationType,
+    StoreResponse, StoreScp, StoreScpHandle, StoredInstance, TagAction, TransferSyntaxKind,
+    RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
 };
 /// Conformant Part 10 file-set index construction for consumers' tests.
 #[cfg(feature = "test-util")]

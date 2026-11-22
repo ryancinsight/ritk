@@ -9,6 +9,7 @@
 <a id="M-viewer-compare"></a>
 ## M-viewer-compare — 0.3.0 — compare series by patient position
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_link) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
+- [minor] The scalar reader transfers its pixel allocation to the viewer. Browser qualification includes four loads of the same 94-slice MRI.
 - needs: M-viewer-reading
 - non-goals: fusion
 <a id="M-viewer-access"></a>

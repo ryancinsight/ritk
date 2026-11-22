@@ -8,6 +8,12 @@
 
 # CHANGELOG
 
+## RITK I/O 0.9.0 (unreleased)
+
+### Added
+
+- [minor] `decode_dicom_series` returns owned calibrated pixels and the resolved patient grid. AsterSlice now transfers the pixel allocation directly into its scalar viewer.
+
 ## MGH 0.7.0 (unreleased)
 
 ### Added

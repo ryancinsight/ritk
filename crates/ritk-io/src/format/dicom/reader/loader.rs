@@ -109,33 +109,46 @@ pub(crate) fn load_from_series_with_budget<B: ComputeBackend>(
         origin,
         spacing,
         direction,
-        mut metadata,
-    } = decode_series(series, budget)?;
+        metadata,
+    } = decode_dicom_series(series, budget)?;
     let image = Image::from_flat_on(volume, shape, origin, spacing, direction, backend)?;
-
-    // Part-10 bytes protect the scan-to-decode interval. Once the image has
-    // been reconstructed, retaining every encoded slice would duplicate the
-    // study's storage for the lifetime of the viewer without serving a read
-    // contract.
-    for slice in &mut metadata.slices {
-        slice.part10_bytes = None;
-    }
 
     Ok((image, metadata))
 }
 
-struct DecodedDicomSeries {
-    volume: Vec<f32>,
-    shape: [usize; 3],
-    origin: Point<3>,
-    spacing: Spacing<3>,
-    direction: Direction<3>,
-    metadata: DicomReadMetadata,
+/// Owned CPU reconstruction of a scalar DICOM series with its resolved LPS grid.
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct DecodedDicomSeries {
+    /// Calibrated samples in contiguous depth, row, column order.
+    pub volume: Vec<f32>,
+    /// Depth, height and width after spatial resampling.
+    pub shape: [usize; 3],
+    /// LPS millimeter position of the first voxel.
+    pub origin: Point<3>,
+    /// Millimeter spacing in tensor-axis order.
+    pub spacing: Spacing<3>,
+    /// LPS direction columns in tensor-axis order.
+    pub direction: Direction<3>,
+    /// Validated descriptive metadata after releasing encoded slice bytes.
+    pub metadata: DicomReadMetadata,
 }
 
-fn decode_series(series: DicomSeriesInfo, budget: &DicomReadBudget) -> Result<DecodedDicomSeries> {
+/// Reconstruct a scanned scalar series directly into an owned CPU buffer.
+///
+/// The image API uses this same decoder. A caller that consumes the buffer
+/// can transfer ownership without copying an entire study to and from a tensor.
+///
+/// # Errors
+///
+/// Reports parser or decoded-volume budget violations, invalid series grids,
+/// unsupported transfer syntaxes, and pixel decoding or resampling errors.
+pub fn decode_dicom_series(
+    series: DicomSeriesInfo,
+    budget: &DicomReadBudget,
+) -> Result<DecodedDicomSeries> {
     let mut metadata = series.metadata;
-    let slices = std::mem::take(&mut metadata.slices);
+    let mut slices = std::mem::take(&mut metadata.slices);
     let parser_budget = budget.parser();
 
     slices
@@ -306,6 +319,10 @@ fn decode_series(series: DicomSeriesInfo, budget: &DicomReadBudget) -> Result<De
     let origin = Point::new(metadata.origin_mm());
     let spacing = Spacing::new(metadata.spacing_mm());
     let direction = Direction::from_column_major(metadata.direction);
+    // Retained Part-10 bytes are needed only until all slices have decoded.
+    for slice in &mut slices {
+        slice.part10_bytes = None;
+    }
     metadata.slices = slices;
     Ok(DecodedDicomSeries {
         volume,
