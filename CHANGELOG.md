@@ -32,7 +32,7 @@
 
 ### Added
 
-- [minor] `decode_dicom_series` returns owned calibrated pixels and the resolved patient grid. AsterSlice now transfers the pixel allocation directly into its scalar viewer.
+- [minor] `decode_dicom_series` reconstructs owned calibrated pixels and the resolved patient grid independently of backend image loading. AsterSlice now transfers the pixel allocation directly into its scalar viewer.
 
 ## MGH 0.7.0 (unreleased)
 

@@ -25,6 +25,7 @@ mod parse;
 mod pet_calibration;
 pub(super) mod pixel;
 mod preservation;
+mod reconstruction;
 pub(super) mod scan;
 pub(super) mod stored;
 pub(crate) mod types;
@@ -33,11 +34,11 @@ pub(crate) mod types;
 mod tests;
 
 pub use loader::{
-    decode_dicom_series, load_dicom_from_series, load_dicom_from_series_with_budget,
-    load_dicom_series_with_metadata, load_dicom_series_with_metadata_with_budget,
-    read_dicom_series_with_metadata, read_dicom_series_with_metadata_with_budget,
-    DecodedDicomSeries,
+    load_dicom_from_series, load_dicom_from_series_with_budget, load_dicom_series_with_metadata,
+    load_dicom_series_with_metadata_with_budget, read_dicom_series_with_metadata,
+    read_dicom_series_with_metadata_with_budget,
 };
+pub use reconstruction::{decode_dicom_series, DecodedDicomSeries};
 pub use scan::{
     scan_dicom_directory_with_budget, scan_dicom_files, scan_dicom_files_with_budget,
     scan_dicom_instances, scan_dicom_instances_with_budget, scan_dicom_part10_bytes,

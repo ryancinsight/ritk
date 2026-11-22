@@ -1,5 +1,7 @@
 # RITK execution backlog
 
+Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the acceptance checklist. [Executed verification](gap_audit.md#10-candidate-verification) records completed checks.
+
 # Milestones
 <a id="M-viewer-reading"></a>
 ## M-viewer-reading — 0.2.0 — read a single study on the native shell
