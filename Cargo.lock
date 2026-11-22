@@ -6628,7 +6628,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-io"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "aequitas",
  "anyhow",
@@ -6667,6 +6667,7 @@ dependencies = [
  "ritk-spatial",
  "ritk-tiff",
  "ritk-vtk",
+ "same-file",
  "serde_json",
  "sha2 0.10.9",
  "tempfile",

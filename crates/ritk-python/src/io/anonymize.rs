@@ -39,13 +39,20 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyCleaningPolicy {
     }
 }
 
-/// Anonymize all DICOM files in `input_dir`, writing results to `output_dir`.
+/// Anonymize DICOM files directly in `input_dir` and write copies to `output_dir`.
 ///
-/// Applies PS 3.15 Annex E patient de-identification.
+/// Writes numbered names such as `000001.dcm` in source-path order, skipping
+/// occupied destination names. Files that cannot be opened as DICOM and files
+/// in subdirectories are skipped. A fresh output directory keeps the exported
+/// batch separate from existing files.
+///
+/// Metadata handling follows the selected profile. By default, pixel data is
+/// preserved. Pixel cleaning zero-fills readable flat pixel data. The export
+/// does not detect burned-in identifiers or verify PS 3.15 Annex E conformance.
 ///
 /// Args:
 /// input_dir: Source directory containing DICOM files (str).
-/// output_dir: Destination directory; created if absent (str).
+/// output_dir: Separate destination directory, created with any missing parents (str).
 /// profile: Anonymization profile name (str, default "basic").
 /// Choices: `"basic"` | `"basic_replace_uids"` | `"aggressive"` | `"enhanced"`.
 /// patient_name: Replacement for PatientName (str, default "ANONYMOUS").
@@ -54,17 +61,17 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyCleaningPolicy {
 /// cleaning: DICOM cleaning policy (str, default "none").
 /// Choices: `"none"` | `"clean_pixel_data"` (or `"pixel"`) |
 /// `"clean_private_tags"` (or `"private"`) | `"clean_all"` (or `"all"`).
-/// `"clean_all"` is required for full PS 3.15 Annex E compliance.
 ///
 /// Returns:
 /// dict with keys:
-/// - `"file_count"` (int): total files processed.
+/// - `"file_count"` (int): files opened as DICOM, including per-file failures.
 /// - `"success_count"` (int): files successfully anonymized.
 /// - `"error_count"` (int): files that failed.
 /// - `"errors"` (list[list[str]]): `[[path, error_msg], ...]` for failures.
+///   Source paths can contain patient identifiers.
 ///
 /// Raises:
-/// IOError: if `input_dir` cannot be scanned or `output_dir` cannot be created.
+/// IOError: if the directories cannot be prepared or refer to the same directory.
 #[pyfunction]
 #[pyo3(signature = (input_dir, output_dir, profile="basic", patient_name="ANONYMOUS", patient_id="ANON001", uid_salt="ritk-anon-salt", cleaning=PyCleaningPolicy::None))]
 pub fn anonymize_dicom_dir(
