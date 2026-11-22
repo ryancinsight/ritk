@@ -263,7 +263,11 @@ metadata from silently shipping to a destination PACS:
   batch, irreversible without the salt).
 - `anonymize_dicom_file` / `anonymize_dicom_directory` — single-object and
   directory-batch de-identification with per-run statistics and optional
-  pixel-data / private-tag cleaning.
+  pixel-data / private-tag cleaning. Directory mode, also exposed as
+  `ritk.io.anonymize_dicom_dir`, scans immediate files and exports copies as
+  `000001.dcm`, `000002.dcm`, and so on. It skips occupied names and rejects
+  the input directory as a destination. Source paths in error reports can
+  contain patient identifiers.
 - `anonymize::verify` — the export gate:
   - re-parse check (the exported file must open as a conformant Part 10 object),
   - Study/Series/SOP Instance UID presence, DICOM-conformant format (Frame
@@ -279,13 +283,18 @@ metadata from silently shipping to a destination PACS:
   - `verify_dicom_instances` for an export spanning several series: unique
     SOPInstanceUIDs and one study per series.
 - `anonymize_dicom_file_verified` / `anonymize_dicom_directory_verified` —
-  run anonymization and the export gate as one operation, failing closed on
-  any defect.
+  run anonymization followed by the export gate. Directory verification scans
+  the destination, including any DICOM files already there.
 - `anonymize_dicom_study` — de-identifies every instance under a study folder
   into a separate empty folder as `000001.dcm`, `000002.dcm`, ..., copying
   no source folder or file name, then runs the export
   gate over the whole set with the source patient names and IDs prohibited;
   any failure removes everything the run wrote.
+
+Filename protection and metadata rules address different sources of identifying
+information. Pixel bytes are preserved by default. The optional pixel cleaning
+zero-fills readable flat pixel data. Burned-in identifier detection and full
+PS 3.15 Annex E conformance are outside these checks.
 
 See `crates/ritk-io/examples/anonymize_pacs_export.rs` for the complete
 PACS-bound export pipeline.

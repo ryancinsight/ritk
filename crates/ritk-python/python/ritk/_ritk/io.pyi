@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypedDict
 
 from ritk._ritk.image import Image
 
@@ -18,6 +18,12 @@ def write_transform(
 
 # -- DICOM anonymization ------------------------------------------------------
 
+class _AnonymizeStats(TypedDict):
+    file_count: int
+    success_count: int
+    error_count: int
+    errors: list[list[str]]
+
 def anonymize_dicom_dir(
     input_dir: str,
     output_dir: str,
@@ -25,8 +31,8 @@ def anonymize_dicom_dir(
     patient_name: str = "ANONYMOUS",
     patient_id: str = "ANON001",
     uid_salt: str = "ritk-anon-salt",
-    cleaning: Any | None = None,
-) -> int: ...
+    cleaning: str = "none",
+) -> _AnonymizeStats: ...
 
 # -- Polygonal mesh I/O -------------------------------------------------------
 

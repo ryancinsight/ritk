@@ -243,6 +243,7 @@ jobs:
         if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
         run: >-
           pytest
+          crates/ritk-python/tests/test_dicom_anonymization.py
           crates/ritk-python/tests/test_diffusion.py
           crates/ritk-python/tests/test_python_api_parity.py
           crates/ritk-python/tests/test_segmentation_bindings.py
