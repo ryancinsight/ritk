@@ -148,6 +148,8 @@ remains open. The reference transform is FreeSurfer's
 
 ## Bounded streaming decode
 
+Both the scalar and series readers consume every gzip member of an MGZ file. A member may split a sample. Checksums and the 1 GiB expanded cap apply through the last footer byte.
+
 The reader validates version, dimensions, frame count, scalar type, and
 geometry before constructing an image. It then converts the payload through a
 fixed 16 KiB input scratch buffer directly into the final `Vec<f32>`.

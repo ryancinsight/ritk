@@ -29,6 +29,10 @@
   member leaves the existing destination intact, including during in-place
   repacking.
 
+### Fixed
+
+- [patch] Scalar and series MGZ readers decode samples spanning gzip members and validate the expanded footer and final checksum before returning the image.
+
 ## NIfTI 0.5.1 (unreleased)
 
 ### Fixed
