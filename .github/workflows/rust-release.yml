@@ -87,7 +87,7 @@ jobs:
           "ritk-image": "0.6.0",
           "ritk-image-io": "0.2.0",
           "ritk-interpolation": "0.7.0",
-          "ritk-io": "0.7.0",
+          "ritk-io": "0.8.0",
           "ritk-jpeg": "0.5.0",
           "ritk-metaimage": "0.4.0",
           "ritk-mgh": "0.6.0",

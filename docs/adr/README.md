@@ -77,3 +77,4 @@
 | [0066](0066-enhanced-pet-temporal-and-gated-volumes.md) | Reconstruct temporal and gated Enhanced PET volumes | Proposed |
 | [0067](0067-enhanced-pet-concatenations.md) | Reconstruct Enhanced PET concatenations | Proposed |
 | [0068](0068-number-dicom-directory-exports.md) | Number DICOM directory exports | Accepted |
+| [0069](0069-preserve-dicom-export-structure.md) | Preserve DICOM export structure | Accepted |

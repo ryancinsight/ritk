@@ -259,16 +259,18 @@ export-time metadata integrity gate — the piece that stops corrupt or leaking
 metadata from silently shipping to a destination PACS:
 
 - `AnonymizationProfile` — `Basic`, `BasicReplaceUids`, `Aggressive`, and
-  `Enhanced` profiles covering every Annex E Table E.1-1 attribute, with
-  deterministic SHA-256 UID remapping (referentially consistent within a
-  batch, irreversible without the salt).
+  `Enhanced` profiles implementing selected Annex E Table E.1-1 rules, with
+  deterministic SHA-256–derived UUIDv8 UID remapping in the UID-replacing
+  profiles. Treat the salt as secret when protecting against linkage to known
+  source UIDs. Basic retains source entity UIDs.
 - `anonymize_dicom_file` / `anonymize_dicom_directory` — single-object and
   directory-batch de-identification with per-run statistics and optional
   pixel-data / private-tag cleaning. Directory mode, also exposed as
   `ritk.io.anonymize_dicom_dir`, scans immediate files and exports copies as
   `000001.dcm`, `000002.dcm`, and so on. It skips occupied names and rejects
-  the input directory as a destination. Source paths in error reports can
-  contain patient identifiers.
+  the input directory as a destination. A DICOMDIR counts as a per-file
+  error. Pass the folder containing the actual instances. Source paths in
+  error reports can contain patient identifiers.
 - `anonymize::verify` — the export gate:
   - re-parse check (the exported file must open as a conformant Part 10 object),
   - Study/Series/SOP Instance UID presence, DICOM-conformant format (Frame

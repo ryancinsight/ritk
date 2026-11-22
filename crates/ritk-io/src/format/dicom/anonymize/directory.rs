@@ -4,11 +4,11 @@ use std::fs;
 use std::io::{BufWriter, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
-use anyhow::{ensure, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use ritk_dicom::dataset::DicomFile;
 
 use super::{anonymize_object, verify, AnonymizeOptions};
-use crate::format::dicom::export_source::numbered_instance_path;
+use crate::format::dicom::export_source::{numbered_instance_path, read_source, Source};
 
 /// Cumulative statistics for a `anonymize_dicom_directory` run.
 #[derive(Debug, Clone)]
@@ -32,7 +32,8 @@ pub struct AnonymizeStats {
 /// published, and publishing never replaces an existing destination entry.
 ///
 /// Files that cannot be opened as DICOM are skipped silently and not counted.
-/// A parsed file that fails anonymization or writing is recorded in
+/// A DICOMDIR is counted as a per-file error because this API does not export
+/// the media file set. A parsed file that fails anonymization or writing is recorded in
 /// [`AnonymizeStats::errors`] and logged at `WARN` level. Those diagnostics
 /// include the source path and can contain patient identifiers.
 ///
@@ -72,15 +73,18 @@ pub fn anonymize_dicom_directory(
     let mut ordinal = 0;
 
     for input_path in entries {
-        // Non-DICOM files are skipped silently without counting.
-        let Ok(object) = DicomFile::open(&input_path) else {
-            continue;
+        let result = match read_source(&input_path) {
+            Source::NotDicom => continue,
+            Source::Index => Err(anyhow!(
+                "DICOMDIR is unsupported in flat export; pass the directory containing the image instances"
+            )),
+            Source::Instance(object) => anonymize_object(*object, options).and_then(|(object, _)| {
+                write_numbered_instance(&object, output_dir, &mut ordinal)
+            }),
         };
         stats.file_count += 1;
 
-        match anonymize_object(object, options)
-            .and_then(|(object, _)| write_numbered_instance(&object, output_dir, &mut ordinal))
-        {
+        match result {
             Ok(()) => stats.success_count += 1,
             Err(error) => {
                 tracing::warn!(path = ?input_path, error = %error, "anonymization failed");

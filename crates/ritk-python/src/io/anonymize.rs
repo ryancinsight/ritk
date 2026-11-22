@@ -43,8 +43,9 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyCleaningPolicy {
 ///
 /// Writes numbered names such as `000001.dcm` in source-path order, skipping
 /// occupied destination names. Files that cannot be opened as DICOM and files
-/// in subdirectories are skipped. A fresh output directory keeps the exported
-/// batch separate from existing files.
+/// in subdirectories are skipped. DICOMDIR objects are reported as per-file
+/// errors. Pass the directory containing the images. A fresh destination
+/// keeps the exported batch separate from existing files.
 ///
 /// Metadata handling follows the selected profile. By default, pixel data is
 /// preserved. Pixel cleaning zero-fills readable flat pixel data. The export

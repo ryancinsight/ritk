@@ -32,7 +32,9 @@ def anonymize_dicom_dir(
     patient_id: str = "ANON001",
     uid_salt: str = "ritk-anon-salt",
     cleaning: str = "none",
-) -> _AnonymizeStats: ...
+) -> _AnonymizeStats:
+    """Export immediate DICOM instances and report DICOMDIR as a per-file error."""
+    ...
 
 # -- Polygonal mesh I/O -------------------------------------------------------
 

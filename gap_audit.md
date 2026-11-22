@@ -28,7 +28,7 @@ test measures the native 30-pixel menu, 48-pixel toolbar, 276-pixel series
 sidebar and 26-pixel status bar. It exercises pane focus, sidebar visibility,
 toolbar selection, the thumbnail, narrow-screen sizing and a projection link.
 The unchanged axial, coronal and sagittal frames match the three saved RGBA
-digests. Local Chromium passes the raster and WebGPU control journeys and the responsive four-pane MIP journey. Cross-series comparison remains a separate milestone.
+digests. In reflected and rotated content-box and border-box layouts, Chromium selects voxel (47, 340, 173) and one wheel step selects (46, 340, 173). Local Chromium passes the raster and WebGPU control journeys and the responsive four-pane MIP journey. Cross-series comparison remains a separate milestone.
 
 ## Shared fixture inventory
 
@@ -46,7 +46,7 @@ A manually dispatched development-branch run supplied no event base. The job com
 
 The gallery slice and window samplers requested a 2D context on a canvas already bound to WebGPU. On a real Chromium adapter this failed before sampling. Directly drawing the live GPU canvas into a second context also returned a cleared frame. Serializing its presented bitmap as lossless PNG yields the native-resolution RGBA samples. A six-pixel fixture with distinct color channels produced the same SHA-256 in both presentation modes and matched the independent input bytes.
 
-The saved 94-slice MRI passes 50 slider actions with the Métis rejection-order correction. Each anatomical plane returns to its starting pixel digest. Native RITK validation accepts the three-canvas trace. The subsequent macOS Chromium window-preset action timed out with all three canvases still reporting the previous selection. Hosted Chromium offered no WebGPU adapter, and hosted WebKit could not read the selected files. These acceptance checks remain open.
+The saved 94-slice MRI passes 50 slider actions with the Métis rejection-order correction. Each anatomical plane returns to its starting pixel digest. Native RITK validation accepts the three-canvas trace. The earlier macOS Chromium window-preset action timed out with the previous selection. The workspace’s keyboard-selectable preset list now passes the raster and WebGPU journeys on that MRI. Hosted Chromium offered no WebGPU adapter, and hosted WebKit could not read the selected files. These acceptance checks remain open.
 
 ## Scalar DICOM browser memory
 
@@ -104,6 +104,10 @@ and the exact expanded-byte boundary.
 ## FreeSurfer volume geometry
 
 The MGH 0.6.0 reader and writer use the same displaced center and therefore pass a mutual round trip. The independent viewer fixture, hand-built header and emitted-header regressions all fail on `533f2e077`. Version 0.6.1 corrects both transforms. The [inventory](docs/book/mgh_format.md#conversion-inventory) identifies the remaining stored-sample and metadata work.
+
+## Viewer dependency audit [patch]
+
+The locked viewer path through Metis now resolves Moirai Crypto 0.12.1 and RSA 0.10.0. URL resolves to 2.5.9. The all-feature audit no longer reports either vulnerability. It still fails on 13 unmaintained package-version findings and reports one yanked async-executor. The [stable qualification checklist](backlog/ritk-stable-qualification.md) tracks their disposition. The [viewer qualification run](https://github.com/ryancinsight/ritk/actions/runs/45070084596) built the bundle and passed six of eight saved-study scenarios. All 573 native viewer library tests passed. WebKit rejected the same 94-file read observed with the [previous provider](https://github.com/ryancinsight/ritk/actions/runs/45068110842/job/137350386939). Chromium reported no WebGPU adapter on the hosted runner. [Viewer work](https://github.com/ryancinsight/ritk/pull/1108) tracks both platform exits.
 
 ## Classic PET SUV timing
 
@@ -216,6 +220,15 @@ and reject an unrepresentable positive spacing before output.
 - risk: Rust directory export and its Python binding copied patient names and source UIDs embedded in filenames. Concurrent calls could overwrite an earlier export while reporting success.
 - evidence: the installed-wheel fixture reproduces both failures on `762f0e92`. The proposed correction shares the study export's numbering and publishes each encoded copy without replacing an occupied name. The Python fixture checks source bytes, collisions, per-file statistics, and remapped UID relationships after reopening. The Rust directory verification test reopens the numbered export through the existing gate.
 - status: [ADR 0068](docs/adr/0068-number-dicom-directory-exports.md) accepted. The fix is committed on the implementation branch. Hosted integration and release verification are pending.
+
+<a id="RITK-DICOM-ANONYMIZE-REAL-001"></a>
+## RITK-DICOM-ANONYMIZE-REAL-001 — Preserve real DICOM export structure [major]
+- risk: the profile added absent attributes to sequence items, retained CT creation and contribution metadata and irradiation-event identifiers, encoded UUIDs outside their 128-bit range, and published a DICOMDIR whose paths did not resolve.
+- evidence: the installed wheel at `84de2d4ae` preserves all 94 MRI and 303 CT images, but exposes these regressions. The real CT file-set index contains 304 references, one of which is already missing in the source fixture.
+- status: [ADR 0069](docs/adr/0069-preserve-dicom-export-structure.md) records the selected contract. The opt-in Python suite covers both fixtures and the file-set root. RITK Python volume reopening of the source compressed CT is a separate gap. The independent decoder verifies all CT slices.
+- verification: the macOS arm64 wheel passes both profiles for the 94-instance MRI and 303-instance CT fixtures and rejects the CT DICOMDIR. All 564 `ritk-io` library tests pass on the integrated source.
+- target: `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
+- integration: PRs #1104 and #1105 merged after their required checks passed. The crates.io release cohort tracks the `ritk-io` 0.8.0 manifest.
 
 <a id="RITK-DICOM-ANONYMIZE-NESTED-META-001"></a>
 ## RITK-DICOM-ANONYMIZE-NESTED-META-001: group 0002 elements inside sequence items survive de-identification
