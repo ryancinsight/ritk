@@ -93,6 +93,7 @@ pub(super) enum WindowAction {
     SetColormap(crate::render::NamedColorMap),
     RotateCw,
     RotateCcw,
+    RotateHalfTurn,
     FlipHorizontal,
     FlipVertical,
     ResetOrientation,

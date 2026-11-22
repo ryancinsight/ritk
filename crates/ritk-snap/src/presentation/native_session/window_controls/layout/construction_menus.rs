@@ -22,6 +22,21 @@ pub(super) const POINTER_BUTTON_ROWS: [(&str, PointerButton); 4] = [
     ("Bind forward button", PointerButton::X2),
 ];
 
+const DISPLAY_CONTROLS: &[(&str, WindowAction)] = &[
+    ("Flip horizontal  H", WindowAction::FlipHorizontal),
+    ("Flip vertical  V", WindowAction::FlipVertical),
+    ("Rotate 90 CW  R", WindowAction::RotateCw),
+    ("Rotate 90 CCW  Shift+R", WindowAction::RotateCcw),
+    ("Rotate 180", WindowAction::RotateHalfTurn),
+    ("Reset orientation  Shift+O", WindowAction::ResetOrientation),
+    ("Zoom to fit  Ctrl+0", WindowAction::ZoomFit),
+    ("Zoom 1:1", WindowAction::ZoomOneToOne),
+    (
+        "Save W/L as custom...",
+        WindowAction::SaveCustomPreset { index: None },
+    ),
+];
+
 pub(super) const MENU_TABS: [(Menu, &str, u32); 6] = [
     (Menu::File, "File", 54),
     (Menu::View, "View", 58),
@@ -79,9 +94,8 @@ pub(super) fn menu_item_count(
             .len()
             .saturating_add(1)
             .saturating_add(crate::render::NamedColorMap::ALL.len())
-            .saturating_add(7)
-            .saturating_add(crate::app::state::MAX_CUSTOM_PRESETS)
-            .saturating_add(1),
+            .saturating_add(DISPLAY_CONTROLS.len())
+            .saturating_add(crate::app::state::MAX_CUSTOM_PRESETS),
         Menu::GridPicker => 0,
     }
 }
@@ -270,58 +284,24 @@ pub(super) fn menu_item(
                     app.colormap == map,
                 ));
             }
-            let transform = app.view_transform;
-            match index
-                .saturating_sub(
-                    presets
-                        .len()
-                        .saturating_add(1)
-                        .saturating_add(crate::render::NamedColorMap::ALL.len()),
-                )
-                .saturating_add(1)
-            {
-                1 => Ok((
-                    "Flip horizontal  H",
-                    WindowAction::FlipHorizontal,
-                    transform.flip_h,
-                )),
-                2 => Ok((
-                    "Flip vertical  V",
-                    WindowAction::FlipVertical,
-                    transform.flip_v,
-                )),
-                3 => Ok(("Rotate 90 CW  R", WindowAction::RotateCw, false)),
-                4 => Ok(("Rotate 90 CCW  Shift+R", WindowAction::RotateCcw, false)),
-                5 => Ok((
-                    "Reset orientation  Shift+O",
-                    WindowAction::ResetOrientation,
-                    false,
-                )),
-                6 => Ok(("Zoom to fit  Ctrl+0", WindowAction::ZoomFit, false)),
-                7 => Ok(("Zoom 1:1", WindowAction::ZoomOneToOne, false)),
-                8 => Ok((
-                    "Save W/L as custom...",
-                    WindowAction::SaveCustomPreset { index: None },
-                    false,
-                )),
-                _ => {
-                    let custom = index.saturating_sub(
-                        presets
-                            .len()
-                            .saturating_add(1)
-                            .saturating_add(crate::render::NamedColorMap::ALL.len())
-                            .saturating_add(8),
-                    );
-                    let label = crate::app::state::CUSTOM_PRESET_LABELS
-                        .get(custom)
-                        .ok_or_else(|| anyhow!("native Display menu row is outside its items"))?;
-                    Ok((
-                        label,
-                        WindowAction::ApplyCustomPreset { index: custom },
-                        app.custom_preset_index() == Some(custom),
-                    ))
-                }
+            let control_index = colormap_index - crate::render::NamedColorMap::ALL.len();
+            if let Some(&(label, action)) = DISPLAY_CONTROLS.get(control_index) {
+                let checked = match action {
+                    WindowAction::FlipHorizontal => app.view_transform.flip_h,
+                    WindowAction::FlipVertical => app.view_transform.flip_v,
+                    _ => false,
+                };
+                return Ok((label, action, checked));
             }
+            let custom = control_index - DISPLAY_CONTROLS.len();
+            let label = crate::app::state::CUSTOM_PRESET_LABELS
+                .get(custom)
+                .ok_or_else(|| anyhow!("native Display menu row is outside its items"))?;
+            Ok((
+                label,
+                WindowAction::ApplyCustomPreset { index: custom },
+                app.custom_preset_index() == Some(custom),
+            ))
         }
         Menu::GridPicker => Err(anyhow!("panel grid picker has no menu rows")),
     }

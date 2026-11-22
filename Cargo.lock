@@ -6939,7 +6939,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-snap"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "aequitas",
  "anyhow",

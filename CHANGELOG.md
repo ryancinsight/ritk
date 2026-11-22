@@ -8,6 +8,13 @@
 
 # CHANGELOG
 
+## AsterSlice 0.3.0 (unreleased)
+
+### Added
+
+- [minor] The native Display menu can rotate the active view by 180 degrees
+  in one click while preserving its flips and zoom.
+
 ## Analyze 0.5.1 (unreleased)
 
 ### Fixed

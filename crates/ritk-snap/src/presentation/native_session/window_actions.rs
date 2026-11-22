@@ -260,6 +260,12 @@ impl NativeViewerSession {
                 app.bump_visual_revision();
                 Ok(true)
             }
+            WindowAction::RotateHalfTurn => {
+                let app = self.active_app_mut();
+                app.view_transform = app.view_transform.rotate_cw().rotate_cw();
+                app.bump_visual_revision();
+                Ok(true)
+            }
             WindowAction::FlipHorizontal => {
                 let app = self.active_app_mut();
                 app.view_transform = app.view_transform.toggle_flip_h();

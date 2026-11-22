@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "org.ritk.snap",
   "name": "AsterSlice",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "manufacturer": "RITK",
   "upgrade_code": "{669EFDB7-4962-42C9-8F61-77418910C841}",
   "cargo_manifest": "Cargo.toml",
