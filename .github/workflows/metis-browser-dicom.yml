@@ -324,7 +324,7 @@ jobs:
             oracle: mri-oracle.json
             projection: ""
           - engine: chromium
-            runner: ubuntu-24.04
+            runner: macos-26
             driver_url: http://127.0.0.1:9515
             device_scale: "2"
             mode: webgpu
@@ -396,7 +396,7 @@ jobs:
           path: metis/output/browser
 
       - name: Start virtual display
-        if: matrix.engine != 'webkit'
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
@@ -409,7 +409,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          "$CHROMEWEBDRIVER/chromedriver" --port=9515 > "$RUNNER_TEMP/chromedriver.log" 2>&1 &
+          driver="$(command -v chromedriver || true)"
+          if [[ -z "$driver" ]]; then driver="${CHROMEWEBDRIVER:?}/chromedriver"; fi
+          "$driver" --port=9515 > "$RUNNER_TEMP/chromedriver.log" 2>&1 &
 
       - name: Start Firefox WebDriver
         if: matrix.engine == 'firefox'
