@@ -8,11 +8,6 @@
 - needs: RITK-SNAP-NATIVE-LINK-001
 - priority: feature; milestone: M-viewer-advanced
 
-### Quantitative PET acceptance
-
-- [x] [patch] Classic PET pointer and compatibility fusion regression uses
-  Part 10 data and verifies both available and withheld SUVbw.
-- [ ] [minor] Exercise native Windows compare controls and source-qualified
-  SUV readouts in a real viewer session.
-- [ ] [minor] Admit classic PET series with distinct valid frame references
-  by normalizing each frame before spatial interpolation.
+- [x] [patch] Verify available and withheld classic PET SUVbw with Part 10 pointer and compatibility fusion regressions.
+- [ ] [minor] Verify native Windows compare controls and SUV readouts in a viewer session.
+- [ ] [minor] Normalize distinct valid frame references before spatial interpolation.
