@@ -106,7 +106,9 @@ pub fn decide_dropped_input_action(files: &[DroppedInput]) -> DroppedInputAction
                 return DroppedInputAction::QueueDicom(path.to_path_buf());
             }
 
-            if first_supported_volume_path.is_none() && is_supported_volume_path(path) {
+            if first_supported_volume_path.is_none()
+                && crate::dicom::input_path::scalar_volume_format(path).is_some()
+            {
                 first_supported_volume_path = Some(path.to_path_buf());
             }
 
@@ -185,18 +187,6 @@ fn is_likely_dicom_payload(name: &str, mime: &str, bytes: &[u8]) -> bool {
         return true;
     }
     bytes.len() >= 132 && &bytes[128..132] == b"DICM"
-}
-
-fn is_supported_volume_path(path: &Path) -> bool {
-    let s = path.to_string_lossy().to_lowercase();
-    s.ends_with(".nii")
-        || s.ends_with(".nii.gz")
-        || s.ends_with(".mha")
-        || s.ends_with(".mhd")
-        || s.ends_with(".nrrd")
-        || s.ends_with(".nhdr")
-        || s.ends_with(".mgh")
-        || s.ends_with(".mgz")
 }
 
 #[cfg(test)]

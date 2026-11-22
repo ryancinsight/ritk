@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## MGH 0.6.1 and AsterSlice 0.2.1 (unreleased)
+
+### Fixed
+
+- [patch] MGH and MGZ read and write the FreeSurfer voxel-to-RAS center at half
+  the dimensions. Previous RITK writers encoded a center displaced by half
+  a voxel on each file axis. Regenerate affected outputs from the original
+  geometry when aligning them with other images. The header alone cannot
+  distinguish an older RITK output from a file authored by another tool.
+- [patch] AsterSlice opens compound `.mgh.gz` paths at startup and through
+  filesystem drop routing, including mixed-case extensions.
+
 ## Unreleased
 
 ### Breaking

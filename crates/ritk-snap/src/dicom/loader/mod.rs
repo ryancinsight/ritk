@@ -107,7 +107,7 @@ pub(crate) fn validate_series_uid(series_uid: &str) -> Result<()> {
 /// | Extension is `.nii` or the path ends in `.nii.gz` | [`load_nifti_volume`] |
 /// | Extension is `.mha` or `.mhd` | MetaImage (via ritk_io) |
 /// | Extension is `.nrrd` | NRRD (via ritk_io) |
-/// | Extension is `.mgh` or `.mgz` | MGH (via ritk_io) |
+/// | Extension is `.mgh`, `.mgz`, or `.mgh.gz` | MGH (via ritk_io) |
 /// | No extension / unknown extension | [`load_dicom_volume`] |
 ///
 /// # Errors
@@ -124,23 +124,12 @@ pub fn load_volume_from_path<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
         return load_dicom_volume(path);
     }
 
-    let path_str = path.to_string_lossy().to_lowercase();
-    if path_str.ends_with(".nii.gz") || path_str.ends_with(".nii") {
-        return load_nifti_volume(path);
-    }
-    if path_str.ends_with(".mha") || path_str.ends_with(".mhd") {
+    if let Some(format) = crate::dicom::input_path::scalar_volume_format(path) {
+        if format == ritk_io::ImageFormat::NIfTI {
+            return load_nifti_volume(path);
+        }
         let image = ritk_io::read_image_native(path)
-            .with_context(|| format!("failed to read MetaImage '{}'", path.display()))?;
-        return convert::volume_from_image_no_meta(image, path.to_path_buf());
-    }
-    if path_str.ends_with(".nrrd") || path_str.ends_with(".nhdr") {
-        let image = ritk_io::read_image_native(path)
-            .with_context(|| format!("failed to read NRRD '{}'", path.display()))?;
-        return convert::volume_from_image_no_meta(image, path.to_path_buf());
-    }
-    if path_str.ends_with(".mgh") || path_str.ends_with(".mgz") {
-        let image = ritk_io::read_image_native(path)
-            .with_context(|| format!("failed to read MGH '{}'", path.display()))?;
+            .with_context(|| format!("failed to read {} '{}'", format.as_str(), path.display()))?;
         return convert::volume_from_image_no_meta(image, path.to_path_buf());
     }
 

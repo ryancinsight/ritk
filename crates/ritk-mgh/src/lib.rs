@@ -32,7 +32,7 @@
 //! ```text
 //! Mdc       = [x_ras, y_ras, z_ras]       (3×3 direction cosine matrix)
 //! D         = diag(spacing_x, spacing_y, spacing_z)
-//! h         = [(width−1)/2, (height−1)/2, (depth−1)/2]^T
+//! h         = [width/2, height/2, depth/2]^T
 //! origin_ras = c_ras − Mdc · D · h
 //! origin_lps = [−origin_ras.x, −origin_ras.y, origin_ras.z]
 //! ```

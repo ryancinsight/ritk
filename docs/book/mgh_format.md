@@ -78,10 +78,11 @@ RITK stores the physical coordinate of voxel index zero. For dimensions
 `(width, height, depth)`, define
 
 ```text
-h = [(width - 1)/2, (height - 1)/2, (depth - 1)/2]ᵀ
+h = [width/2, height/2, depth/2]ᵀ
 ```
 
-Then the header's RAS corner is
+FreeSurfer evaluates the center at this continuous voxel index, including
+when an extent equals one. The RAS position of voxel zero is
 
 ```text
 origin_ras = c_ras - Mdc · D · h
@@ -92,7 +93,7 @@ and y components, and negates the same two components of every direction
 column. Writing applies both inverses; the flip is its own inverse:
 
 ```text
-c_ras = flip(origin + Mdc · D · h),   flip(v) = [-v_x, -v_y, v_z]
+c_ras = flip(origin_lps) + Mdc · D · h,   flip(v) = [-v_x, -v_y, v_z]
 ```
 
 The header orders `spacing` and `Mdc` by the x, y, z voxel axes, while RITK
@@ -115,6 +116,26 @@ When the RAS flag is absent, the reader uses zero origin, unit spacing, and
 identity direction. Applications that require scanner-space agreement should
 inspect geometry before combining volumes; equal array dimensions alone do
 not imply equal physical space.
+
+## Conversion inventory
+
+| Source field | Compute/viewer behavior | Requirement for lossless conversion |
+| --- | --- | --- |
+| Width, height, depth, frame count | One 3-D image uses ZYX dimensions. The series reader preserves frame order and the common grid. | Preserve every frame. A single-volume read rejects multiple frames. Frame count alone supplies no temporal spacing or diffusion directions. |
+| Scalar type and payload | Big-endian `u8`, `i16`, `i32`, and `f32` decode to binary32. The writer emits binary32. | Preserve the original scalar type and sample bits. For example, signed integer 16,777,217 becomes 16,777,216 on the compute path. |
+| Valid RAS block | Binary32 center, spacing, and direction determine the LPS affine above. | Preserve the affine. Target geometry outside the header's binary32 precision requires a reported loss or a format-specific representation. |
+| Absent RAS block | The compute reader supplies synthetic geometry. Its writer emits a valid RAS block. | Retain the source validity flag or report its loss before writing. |
+| DOF, acquisition footer, trailing tags | The compute reader ignores DOF and ends after the declared samples. Its writer emits zero DOF and ends after the data. | Retain these fields or report unrepresented metadata. |
+| Calibration | The compute reader exposes stored numeric intensity without a slope or intercept. | An incoming nonidentity calibration needs a representation or a typed rejection before writing. |
+| Packaging | `.mgh` is raw. `.mgz` and `.mgh.gz` select gzip. The viewer accepts either compressed spelling as a file path. | Compression may change the container bytes while preserving the decoded document. |
+
+The [codec read tests](../../crates/ritk-mgh/src/reader/tests),
+[emitted-header test](../../crates/ritk-mgh/src/writer/tests/header.rs),
+[series dispatch tests](../../crates/ritk-io/tests/native_series_dispatch.rs),
+and [viewer coordinate test](../../crates/ritk-snap/src/dicom/loader/tests/volumes.rs)
+exercise these compute paths. The [stored-format adapter](../../backlog/RITK-MGH-CONVERSION-001.md)
+remains open. The reference transform is FreeSurfer's
+[VGgetVoxelToRasXform](https://github.com/freesurfer/freesurfer/blob/dev/utils/transform.cpp).
 
 ## Bounded streaming decode
 

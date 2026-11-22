@@ -31,14 +31,14 @@
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
 <a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Write permuted images to VTK and Analyze — todo
 <a id="RITK-METAIMAGE-CONVERSION-INVENTORY-001"></a>- [RITK-METAIMAGE-CONVERSION-INVENTORY-001](backlog/RITK-METAIMAGE-CONVERSION-INVENTORY-001.md) — Map MetaImage volume semantics — todo
-<a id="RITK-MGH-CONVERSION-INVENTORY-001"></a>- [RITK-MGH-CONVERSION-INVENTORY-001](backlog/RITK-MGH-CONVERSION-INVENTORY-001.md) — Map MGH volume semantics — todo
+<a id="RITK-MGH-CONVERSION-INVENTORY-001"></a>- [RITK-MGH-CONVERSION-INVENTORY-001](backlog/RITK-MGH-CONVERSION-INVENTORY-001.md) — Map MGH volume semantics — done [patch]
 <a id="RITK-VTK-IMAGE-CONTRACT-001"></a>- [RITK-VTK-IMAGE-CONTRACT-001](backlog/RITK-VTK-IMAGE-CONTRACT-001.md) — Separate VTK image semantics — todo
 <a id="SEC-446-05"></a>- [SEC-446-05](backlog/SEC-446-05.md) — Bound parser header counts by ImageReadBudget — todo
 <a id="RITK-NRRD-NIFTI-001"></a>- [RITK-NRRD-NIFTI-001](backlog/RITK-NRRD-NIFTI-001.md) — Convert NRRD and NIfTI volumes — blocked
 <a id="RITK-METAIMAGE-CONVERSION-001"></a>- [RITK-METAIMAGE-CONVERSION-001](backlog/RITK-METAIMAGE-CONVERSION-001.md) — Preserve MetaImage volume semantics — blocked
 <a id="RITK-MINC-CONVERSION-001"></a>- [RITK-MINC-CONVERSION-001](backlog/RITK-MINC-CONVERSION-001.md) — Preserve MINC volume semantics — blocked
 <a id="RITK-MIF-CONVERSION-001"></a>- [RITK-MIF-CONVERSION-001](backlog/RITK-MIF-CONVERSION-001.md) — Preserve MRtrix image semantics — blocked
-<a id="RITK-MGH-CONVERSION-001"></a>- [RITK-MGH-CONVERSION-001](backlog/RITK-MGH-CONVERSION-001.md) — Preserve MGH and MGZ volume semantics — blocked
+<a id="RITK-MGH-CONVERSION-001"></a>- [RITK-MGH-CONVERSION-001](backlog/RITK-MGH-CONVERSION-001.md) — Preserve MGH and MGZ volume semantics — todo
 <a id="RITK-VTK-VOLUME-CONVERSION-001"></a>- [RITK-VTK-VOLUME-CONVERSION-001](backlog/RITK-VTK-VOLUME-CONVERSION-001.md) — Preserve VTK image-volume semantics — blocked
 <a id="RITK-SNAP-OBLIQUE-SESSION-WIRING-001"></a>- [RITK-SNAP-OBLIQUE-SESSION-WIRING-001](backlog/RITK-SNAP-OBLIQUE-SESSION-WIRING-001.md) — Wire the oblique session pane — blocked
 <a id="RITK-DICOM-CALIBRATION-UNITS-001"></a>- [RITK-DICOM-CALIBRATION-UNITS-001](backlog/RITK-DICOM-CALIBRATION-UNITS-001.md) — Preserve DICOM values and units — blocked

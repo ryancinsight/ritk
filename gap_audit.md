@@ -1,5 +1,9 @@
 # RITK Gap Audit
 
+## FreeSurfer volume geometry
+
+The MGH 0.6.0 reader and writer use the same displaced center and therefore pass a mutual round trip. The independent viewer fixture, hand-built header and emitted-header regressions all fail on `533f2e077`. Version 0.6.1 corrects both transforms. The [inventory](docs/book/mgh_format.md#conversion-inventory) identifies the remaining stored-sample and metadata work.
+
 ## Classic PET SUV timing
 
 The classic PET reader admits a common activity reference across instances
