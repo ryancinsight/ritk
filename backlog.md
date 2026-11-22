@@ -24,6 +24,7 @@
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_filter) or test(native_vr) or test(native_fusion) or test(native_dynamic) or test(native_documents) or test(native_movie) or test(native_shell)'`
 - exit: `cargo semver-checks` for `ritk-snap`; `cargo publish --dry-run` for the viewer's closure
 - exit: `cargo doc` with no new warnings; zero open correctness items and verified compatibility for AsterSlice controls, the CLI, Python and published Rust crate APIs ([ADR 0059](docs/adr/0059-release-scope-1-0.md))
+- [patch] The macOS ARM64 Python wheel passes the SimpleITK denoising and squared-magnitude comparisons. Cross-platform Python qualification remains open.
 - needs: M-viewer-access
 - non-goals: encrypted ZIP, optical disc burning, unlisted RadiAnt add-ons
 # Items

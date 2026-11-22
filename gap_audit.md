@@ -8,7 +8,7 @@ On the changed decoder, Chromium completed all four loads with 401,604,608 bytes
 
 ## Python denoising parity
 
-On macOS ARM64, the optimized Python 3.13 wheel and SimpleITK 2.5.8 disagree in all four patch-denoising cases. The existing one-ULP acceptance bound remains in force. Release qualification requires resolving the discrepancy and running the full suite.
+Six failures in the macOS ARM64 optimized wheel traced to three numeric differences from SimpleITK 2.5.8. ITK converts floored Gaussian draws to unsigned coordinates before testing the boundary. Apple ARM64 saturates negative draws to zero. Apple libc++ selects float powers for spline weights, and Clang contracts two multiply-adds in the squared norm. Correcting these operations preserves the existing bounds. All 1,301 Python tests that ran as ordinary passing cases now pass, with eight skips and one unexpected pass. The eight affected Rust packages pass 2,851 tests. All 223 applicable patch compatibility checks pass against published RITK Filter 0.6.0.
 
 ## MetaImage sample byte order
 

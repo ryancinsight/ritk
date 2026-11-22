@@ -8,6 +8,12 @@
 
 # CHANGELOG
 
+## RITK Filter 0.6.1 (unreleased)
+
+### Fixed
+
+- [patch] Match Apple ARM64 SimpleITK boundary sampling, spline weight precision, and squared-magnitude rounding. The denoising and magnitude filters retain their existing public signatures.
+
 ## RITK I/O 0.9.0 (unreleased)
 
 ### Added
