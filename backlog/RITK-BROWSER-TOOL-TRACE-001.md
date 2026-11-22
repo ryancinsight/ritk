@@ -7,3 +7,4 @@
 - basis: 30b8ba098
 - needs: none
 - priority: verification; milestone: M-viewer-compare
+- [patch] On a local Chromium GPU adapter, the saved MRI passes all 50 slice actions and restores the initial RGBA hashes on all three planes. The upstream rejection-order correction is in [Métis PR 588](https://github.com/ryancinsight/metis/pull/588).

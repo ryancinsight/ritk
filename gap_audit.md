@@ -32,6 +32,12 @@ The owner authorized local retention and removal from new checkouts for the skul
 
 A manually dispatched development-branch run supplied no event base. The job compared the candidate with the repository root and attributed historical images to the current branch. The job now uses the common commit with the default branch for this event. A diverged-branch regression reproduces the old failure and checks the default-branch, push, and PR comparisons.
 
+## Browser GPU pixel verification
+
+The gallery slice and window samplers requested a 2D context on a canvas already bound to WebGPU. On a real Chromium adapter this failed before sampling. Directly drawing the live GPU canvas into a second context also returned a cleared frame. Serializing its presented bitmap as lossless PNG yields the native-resolution RGBA samples. A six-pixel fixture with distinct color channels produced the same SHA-256 in both presentation modes and matched the independent input bytes.
+
+The saved 94-slice MRI passes 50 slider actions with the Métis rejection-order correction. Each anatomical plane returns to its starting pixel digest. Native RITK validation accepts the three-canvas trace. The subsequent macOS Chromium window-preset action timed out with all three canvases still reporting the previous selection. Hosted Chromium offered no WebGPU adapter, and hosted WebKit could not read the selected files. These acceptance checks remain open.
+
 ## Scalar DICOM browser memory
 
 Loading the same 94-slice, 512 × 512 MRI four times on Chromium increased WebAssembly memory from 403,832,832 to 502,464,512 bytes on the fourth load. The scalar viewer previously transferred the entire reconstructed volume into a tensor and copied it back. It now takes ownership of the decoder’s pixel allocation. The native image loader and viewer use the same decoder and read budget.

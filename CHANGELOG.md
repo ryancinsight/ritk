@@ -20,6 +20,7 @@
 
 ### Fixed
 
+- [patch] Browser gallery verification reads native-resolution samples from the presented WebGPU bitmap for slice and window controls.
 - [patch] Manual documentation checks on development branches evaluate changes since their common commit with the default branch.
 
 ## RITK Filter 0.6.1 (unreleased)

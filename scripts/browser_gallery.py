@@ -198,6 +198,7 @@ def capture_slice_gallery(
                 "browser_gallery.py",
                 "browser_gallery_actions.py",
                 "browser_gallery_artifacts.py",
+                "browser_gallery_pixels.py",
                 "browser_gallery_projection.py",
                 "browser_gallery_trace.py",
             )
