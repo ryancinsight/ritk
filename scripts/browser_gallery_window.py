@@ -366,10 +366,10 @@ def capture_window_preset_gallery(
         client.click(select_element)
         client.key_press("Escape", source_id="ritk-window-preset-keyboard")
         _focus_preset(client)
-        client.key_press("Home", source_id="ritk-window-preset-keyboard")
-        for _ in range(target):
-            client.key_press("ArrowDown", source_id="ritk-window-preset-keyboard")
-        client.key_press("Enter", source_id="ritk-window-preset-keyboard")
+        # Native selects can retain selectedIndex == -1 for a custom window.
+        # Type the displayed label to select it through the browser keyboard.
+        for key in select["options"][target]["label"]:
+            client.key_press(key, source_id="ritk-window-preset-keyboard")
         settle_canvas_input(client)
         _wait_for_preset(client, target, initial["canvases"])
         selected = _snapshot(client)
