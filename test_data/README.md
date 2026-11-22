@@ -98,12 +98,14 @@ ritk-cli register syn --fixed test_data/ants_example/mni152.nii.gz \
 | Format | NIfTI-1 (.nii.gz) |
 | File | `sub-01_T1w.nii.gz` |
 | Region | Brain |
-| Source | OpenNeuro (https://openneuro.org) |
+| Source | OpenNeuro ds000102, Flanker task (event-related) |
 | Purpose | T1 MRI filter testing, normalization validation, MR viewer display |
 
 **Usage in ritk-snap**: Open `openneuro/sub-01_T1w.nii.gz` with File → Open File.
 
 ---
+
+Registration tests read this volume from `ATLAS_FIXTURE_CACHE/openneuro/sub-01_T1w.nii.gz` when that environment variable is set. The Atlas fixtures catalog verifies the 10,581,116-byte upstream object against SHA-256 `5b2b2b2dba19d5a6bbcdc39a6cd6a8e2169a8288137f4f90e75015c113070cbe` and supplies the path. Existing checkouts can use their tracked copy. [Shared catalog and resolver](https://github.com/ryancinsight/atlas-fixtures/tree/1ebc12244f2e5d4ab7c08a80fb98479d935e2d3a)
 
 ### `ants_example/` — MNI152 Brain Atlas and Visible Human (NIfTI)
 
@@ -192,7 +194,7 @@ provides a NIfTI-format registration workflow without DICOM I/O.
 | `2_head_mri_t2/` (MRI-DIR) | CC BY 4.0 — cite Ger et al. 2018 |
 | `3_head_ct_mridir/` (MRI-DIR) | CC BY 4.0 — cite Ger et al. 2018 |
 | `registration/` | Per source repository license |
-| `openneuro/` | CC0 (OpenNeuro default) |
+| `openneuro/` | PDDL, per the [ds000102 dataset record](https://github.com/OpenNeuroDatasets/ds000102/blob/fdc1ce49d524fc1e77e5b763f10acb02f403c581/dataset_description.json) |
 | `ants_example/` | Per ANTs/MNI152 distribution terms |
 
 Any publication using the MRI-DIR data must cite:

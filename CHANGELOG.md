@@ -8,6 +8,12 @@
 
 # CHANGELOG
 
+## Verification fixtures (unreleased)
+
+### Changed
+
+- [patch] Registration tests can reuse the verified OpenNeuro MRI from `ATLAS_FIXTURE_CACHE`. The fixture documentation records the dataset’s PDDL declaration.
+
 ## RITK Filter 0.6.1 (unreleased)
 
 ### Fixed

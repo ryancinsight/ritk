@@ -1,5 +1,11 @@
 # RITK Gap Audit
 
+## Shared fixture inventory
+
+The RITK tree at f0458cb7a contains 3,191 tracked test-data files totaling 1,490,441,937 bytes. A local inventory records path, size, Git blob, available provenance, code references, and the names of selected populated DICOM fields. It parsed 1,980 DICOM headers. Identifying-field presence does not establish a subject’s identity or permission to redistribute.
+
+The independently downloaded OpenNeuro ds000102 T1 volume agrees with the tracked copy. Its source record declares PDDL. The shared catalog resolves it into a local checksum-verified cache, and the inter-subject registration test runs from that cache. License and source records for the skull CT and paired MRI/CT collections remain unknown.
+
 ## Scalar DICOM browser memory
 
 Loading the same 94-slice, 512 × 512 MRI four times on Chromium increased WebAssembly memory from 403,832,832 to 502,464,512 bytes on the fourth load. The scalar viewer previously transferred the entire reconstructed volume into a tensor and copied it back. It now takes ownership of the decoder’s pixel allocation. The native image loader and viewer use the same decoder and read budget.
