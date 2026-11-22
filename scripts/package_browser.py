@@ -13,6 +13,11 @@ def package(metis: pathlib.Path, modules: pathlib.Path, output: pathlib.Path) ->
     # Métis checks the module header, byte limits and same-origin policy.
     metis_browser.OUTPUT = output.resolve()
     metis_browser.package_consumer(modules.resolve(), web / "gallery")
+    # The mounted host creates a picture element even while its header is hidden.
+    assets = output / "assets"
+    assets.mkdir(exist_ok=True)
+    for name in ("metis-mark.svg", "metis-mark.png"):
+        shutil.copyfile(metis / "examples/browser/assets" / name, assets / name)
     shutil.copyfile(web / "workspace.js", output / "workspace.js")
     shutil.copyfile(output / "gallery.html", output / "index.html")
 

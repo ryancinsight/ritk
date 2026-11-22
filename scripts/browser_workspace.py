@@ -31,6 +31,7 @@ def verify(client: WebDriverClient, origin: str, study: Path) -> None:
     client.navigate(origin)
     require('document.title === "AsterSlice"', "directory index opens the wrong application")
     wait("window.metisGallery?.sample().mounted")
+    wait("document.querySelector('#metis-app picture img')?.naturalWidth > 0")
     require('document.querySelector("#series-bar").offsetWidth === 276', "native series width")
     require('document.querySelector(".menubar").offsetHeight === 30', "native menu height")
     require('document.querySelector(".toolbar").offsetHeight === 48', "native toolbar height")

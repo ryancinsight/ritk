@@ -497,13 +497,20 @@ jobs:
           raise SystemExit(f"WebDriver did not become ready within 20 seconds: {last_error}")
           PY
 
+      - name: Download the standalone application for the root-entry check
+        if: matrix.result == 'chromium'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: asterslice-web
+          path: metis/output/browser/standalone
+
       - name: Open the AsterSlice workspace from the application root
         if: matrix.result == 'chromium'
         working-directory: ritk
         env:
           PYTHONPATH: ${{ github.workspace }}/metis/scripts
         run: >-
-          python scripts/browser_workspace.py ../metis/output/browser test_data/2_head_mri_t2/DICOM
+          python scripts/browser_workspace.py ../metis/output/browser/standalone test_data/2_head_mri_t2/DICOM
           --driver-url ${{ matrix.driver_url }}
 
       - name: Run the saved-study chooser workflow
