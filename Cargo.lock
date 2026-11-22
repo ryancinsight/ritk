@@ -4224,7 +4224,7 @@ dependencies = [
 [[package]]
 name = "metis-core"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#78444d3f525f7164eb13b722b8c2ddb2dac8a437"
+source = "git+https://github.com/ryancinsight/metis.git#9ae662ef0e4b61381f938deb14197493c0142859"
 dependencies = [
  "moirai-crypto",
 ]
@@ -4232,7 +4232,7 @@ dependencies = [
 [[package]]
 name = "metis-frontend"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#78444d3f525f7164eb13b722b8c2ddb2dac8a437"
+source = "git+https://github.com/ryancinsight/metis.git#9ae662ef0e4b61381f938deb14197493c0142859"
 dependencies = [
  "iris-viz 0.1.4 (git+https://github.com/ryancinsight/iris)",
  "metis-core",
@@ -4244,7 +4244,7 @@ dependencies = [
 [[package]]
 name = "metis-ipc"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#78444d3f525f7164eb13b722b8c2ddb2dac8a437"
+source = "git+https://github.com/ryancinsight/metis.git#9ae662ef0e4b61381f938deb14197493c0142859"
 dependencies = [
  "metis-core",
  "moirai-async 0.12.0 (git+https://github.com/ryancinsight/Moirai.git)",
@@ -4257,7 +4257,7 @@ dependencies = [
 [[package]]
 name = "metis-platform"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#78444d3f525f7164eb13b722b8c2ddb2dac8a437"
+source = "git+https://github.com/ryancinsight/metis.git#9ae662ef0e4b61381f938deb14197493c0142859"
 dependencies = [
  "eunomia",
  "hermes-simd 0.10.0 (git+https://github.com/ryancinsight/hermes.git)",
@@ -4271,7 +4271,7 @@ dependencies = [
 [[package]]
 name = "metis-ui-lang"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#78444d3f525f7164eb13b722b8c2ddb2dac8a437"
+source = "git+https://github.com/ryancinsight/metis.git#9ae662ef0e4b61381f938deb14197493c0142859"
 dependencies = [
  "consus-raster 0.5.0 (git+https://github.com/ryancinsight/consus.git)",
  "eunomia",
@@ -4285,7 +4285,7 @@ dependencies = [
 [[package]]
 name = "metis-web"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/metis.git#78444d3f525f7164eb13b722b8c2ddb2dac8a437"
+source = "git+https://github.com/ryancinsight/metis.git#9ae662ef0e4b61381f938deb14197493c0142859"
 dependencies = [
  "metis-core",
  "metis-frontend",
