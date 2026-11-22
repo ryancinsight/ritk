@@ -76,3 +76,4 @@
 | [0065](0065-enhanced-pet-quantitative-voxels.md) | Quantify Enhanced PET stored voxels | Proposed |
 | [0066](0066-enhanced-pet-temporal-and-gated-volumes.md) | Reconstruct temporal and gated Enhanced PET volumes | Proposed |
 | [0067](0067-enhanced-pet-concatenations.md) | Reconstruct Enhanced PET concatenations | Proposed |
+| [0068](0068-number-dicom-directory-exports.md) | Number DICOM directory exports | Proposed |

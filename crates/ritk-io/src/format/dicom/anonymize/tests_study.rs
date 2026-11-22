@@ -1,9 +1,9 @@
 //! Study-level de-identification over a folder tree.
 
-use super::verify::VerifyIssue;
+use super::verify::{VerifyIssue, VerifyOptions};
 use super::{
-    anonymize_dicom_selection, anonymize_dicom_study, AnonymizationProfile, AnonymizeOptions,
-    StudyAnonymizeError,
+    anonymize_dicom_directory_verified, anonymize_dicom_selection, anonymize_dicom_study,
+    AnonymizationProfile, AnonymizeOptions, StudyAnonymizeError,
 };
 use crate::format::dicom::export_tree::ExportTreeError;
 use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
@@ -150,6 +150,56 @@ fn a_study_tree_is_exported_under_neutral_names_with_series_kept_together() -> T
     assert_ne!(data_set_uid, "1.2.3.10.1");
     assert_eq!(std::fs::read(source.path().join("s1/a.dcm"))?, original);
     Ok(())
+}
+
+#[test]
+fn numbered_directory_output_passes_the_export_gate() -> TestResult {
+    use tracing_subscriber::fmt::format::FmtSpan;
+
+    let _trace = tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_span_events(FmtSpan::FULL)
+            .with_test_writer()
+            .finish(),
+    );
+    let (source, destination, original_path, original_bytes) = tracing::info_span!("arrange")
+        .in_scope(|| -> Result<_, Box<dyn std::error::Error>> {
+            let source = tempfile::tempdir()?;
+            let destination = tempfile::tempdir()?;
+            let path = source.path().join("Doe-John_PAT001_1.2.3.10.1.dcm");
+            write(
+                &instance("1.2.3.10", "1.2.3.10.1", CT_IMAGE_STORAGE)?,
+                &path,
+            )?;
+            let bytes = std::fs::read(&path)?;
+            Ok((source, destination, path, bytes))
+        })?;
+
+    let report = tracing::info_span!("act").in_scope(|| {
+        anonymize_dicom_directory_verified(
+            source.path(),
+            destination.path(),
+            &options(),
+            &VerifyOptions {
+                prohibited_values: vec!["Doe^John".into(), "PAT001".into()],
+                ..VerifyOptions::default()
+            },
+        )
+    })?;
+
+    tracing::info_span!("assert").in_scope(|| -> TestResult {
+        assert_eq!(
+            (report.file_count, report.success_count, report.error_count),
+            (1, 1, 0)
+        );
+        assert!(report.errors.is_empty());
+        assert_eq!(listing(destination.path())?, ["000001.dcm"]);
+        let exported = destination.path().join("000001.dcm");
+        assert_eq!(value(&exported, PATIENT_NAME)?, "ANONYMOUS");
+        assert_eq!(value(&exported, PATIENT_ID)?, "ANON001");
+        assert_eq!(std::fs::read(original_path)?, original_bytes);
+        Ok(())
+    })
 }
 
 #[test]
