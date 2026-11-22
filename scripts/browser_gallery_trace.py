@@ -6,6 +6,7 @@ import math
 from collections import Counter
 from typing import Any, Mapping, Sequence
 
+from browser_gallery_pixels import READ_CANVAS_PIXELS
 from browser_canvas import settle_canvas_input
 from browser_protocol import BrowserRuntimeError, WebDriverClient
 
@@ -25,11 +26,9 @@ SLIDER_EVENT_TYPES = (
     "change",
 )
 
-GALLERY_SNAPSHOT_SCRIPT = """
+GALLERY_SNAPSHOT_SCRIPT = READ_CANVAS_PIXELS + """
 const done = arguments[arguments.length - 1];
 const axes = arguments[0];
-const hex = (bytes) => Array.from(new Uint8Array(bytes),
-  (byte) => byte.toString(16).padStart(2, "0")).join("");
 Promise.all(axes.map(async (axis) => {
   const canvas = document.getElementById(`ritk-snap-${axis}`);
   const slider = document.getElementById(`slice-${axis}`);
@@ -39,9 +38,7 @@ Promise.all(axes.map(async (axis) => {
       slider.type !== "range" || !output) {
     return {axis, error: "gallery controls were not found"};
   }
-  const pixels = canvas.getContext("2d", {willReadFrequently: true})
-    .getImageData(0, 0, canvas.width, canvas.height).data;
-  const digest = await crypto.subtle.digest("SHA-256", pixels);
+  const sampled = await samplePixels(canvas);
   const rect = slider.getBoundingClientRect();
   return {
     axis,
@@ -52,7 +49,7 @@ Promise.all(axes.map(async (axis) => {
       slice_count: canvas.getAttribute("data-ritk-slice-count"),
       frame_generation: canvas.getAttribute("data-ritk-frame-generation"),
       frame_state: canvas.getAttribute("data-ritk-frame-state"),
-      rgba_sha256: hex(digest),
+      ...sampled,
     },
     slider: {
       min: slider.min,
@@ -260,6 +257,7 @@ def _snapshot(client: WebDriverClient, expected_counts: Mapping[str, int]) -> di
             "count": count,
             "generation": generation,
             "rgba_sha256": digest,
+            "pixel_source": canvas.get("pixel_source", "canvas-2d"),
             "width": width,
             "height": height,
             "slider_width": float(slider_width),

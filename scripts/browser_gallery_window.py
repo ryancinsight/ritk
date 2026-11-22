@@ -9,6 +9,7 @@ import pathlib
 import sys
 from typing import Any, Mapping
 
+from browser_gallery_pixels import READ_CANVAS_PIXELS
 from browser_canvas import settle_canvas_input
 from browser_gallery_artifacts import _write_png
 from browser_protocol import ROOT, BrowserRuntimeError, WebDriverClient, _safe_path
@@ -19,17 +20,13 @@ WINDOW_PRESET_EVENT_TYPES = ("click", "keydown", "keyup", "input", "change")
 MAX_PRESET_COUNT = 64
 WINDOW_PRESET_TIMEOUT_MS = 60_000
 
-WINDOW_PRESET_SNAPSHOT_SCRIPT = """
+WINDOW_PRESET_SNAPSHOT_SCRIPT = READ_CANVAS_PIXELS + """
 const done = arguments[arguments.length - 1];
 const axes = arguments[0];
-const hex = (bytes) => Array.from(new Uint8Array(bytes),
-  (byte) => byte.toString(16).padStart(2, "0")).join("");
 const read = async (axis) => {
   const canvas = document.getElementById(`ritk-snap-${axis}`);
   if (!(canvas instanceof HTMLCanvasElement)) return {axis, error: "canvas missing"};
-  const pixels = canvas.getContext("2d", {willReadFrequently: true})
-    .getImageData(0, 0, canvas.width, canvas.height).data;
-  const digest = await crypto.subtle.digest("SHA-256", pixels);
+  const sampled = await samplePixels(canvas);
   return {
     axis,
     center: canvas.getAttribute("data-ritk-window-center"),
@@ -37,7 +34,7 @@ const read = async (axis) => {
     preset_index: canvas.getAttribute("data-ritk-window-preset-index"),
     frame_generation: canvas.getAttribute("data-ritk-frame-generation"),
     frame_state: canvas.getAttribute("data-ritk-frame-state"),
-    rgba_sha256: hex(digest),
+    ...sampled,
   };
 };
 Promise.all(axes.map(read)).then((canvases) => {
@@ -239,6 +236,7 @@ def _snapshot(client: WebDriverClient) -> dict[str, Any]:
             "preset_index": preset_index,
             "generation": generation,
             "rgba_sha256": digest,
+            "pixel_source": canvas.get("pixel_source", "canvas-2d"),
         }
     centers = {state["center"] for state in validated.values()}
     widths = {state["width"] for state in validated.values()}
@@ -406,8 +404,11 @@ def capture_window_preset_gallery(
                 "diagnostic_listener_count": expected_listener_count,
                 "diagnostic_listeners_released": True},
         }
-        source = pathlib.Path(__file__).resolve()
-        evidence["sources"] = {source.name: hashlib.sha256(source.read_bytes()).hexdigest()}
+        source_root = pathlib.Path(__file__).resolve().parent
+        evidence["sources"] = {
+            name: hashlib.sha256((source_root / name).read_bytes()).hexdigest()
+            for name in ("browser_gallery_window.py", "browser_gallery_pixels.py")
+        }
         evidence_path = _safe_path(directory / "gallery-window-level.json", directory=directory)
         evidence["artifact"] = evidence_path.relative_to(ROOT).as_posix()
         encoded = json.dumps(evidence, indent=2, sort_keys=True) + "\n"
