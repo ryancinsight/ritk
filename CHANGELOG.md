@@ -69,7 +69,13 @@
 
 ## AsterSlice 0.3.0 (unreleased)
 
+### Fixed
+
+- [patch] The web app and existing gallery links open the same AsterSlice reading workspace.
+
 ### Added
+
+- [minor] The web workspace includes native-style pane focus, series preview, and diagnostic tool menus.
 
 - [minor] The native Display menu can rotate the active view by 180 degrees
   in one click while preserving its flips and zoom.

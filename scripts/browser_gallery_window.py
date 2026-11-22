@@ -11,7 +11,7 @@ from typing import Any, Mapping
 
 from browser_gallery_pixels import READ_CANVAS_PIXELS
 from browser_canvas import settle_canvas_input
-from browser_gallery_artifacts import _write_png
+from browser_gallery_artifacts import capture_menu_controls, set_menu_open
 from browser_protocol import ROOT, BrowserRuntimeError, WebDriverClient, _safe_path
 
 
@@ -297,7 +297,7 @@ def _cleanup_trace(client: WebDriverClient, expected_count: int) -> None:
 
 
 def _focus_preset(client: WebDriverClient) -> None:
-    """Refocus the DOM select after closing Chromium's native popup."""
+    """Focus the window preset list for keyboard selection."""
     if client.execute(FOCUS_PRESET_SCRIPT) is not True:
         raise BrowserRuntimeError("window preset select could not be focused")
 
@@ -322,18 +322,6 @@ def _invalid_probes(client: WebDriverClient) -> list[dict[str, Any]]:
         ):
             raise BrowserRuntimeError(f"window preset API accepted an invalid index: {probe!r}")
     return probes
-
-
-def _write_window_screenshots(client: WebDriverClient, directory: pathlib.Path) -> dict[str, Any]:
-    """Store the real three-plane viewport and visible display controls."""
-    window = _write_png(client.screenshot(), directory, "gallery-window-level.png", "window")
-    controls = _write_png(
-        client.element_screenshot(client.find(".presentation-controls")),
-        directory,
-        "gallery-window-level-controls.png",
-        "element",
-    )
-    return {"window": window, "controls": controls}
 
 
 def capture_window_preset_gallery(
@@ -362,9 +350,9 @@ def capture_window_preset_gallery(
     trace_installed = True
     actions_released = False
     try:
+        set_menu_open(client, "display-menu", True)
         select_element = client.find("#window-preset")
         client.click(select_element)
-        client.key_press("Escape", source_id="ritk-window-preset-keyboard")
         _focus_preset(client)
         client.key_press("Home", source_id="ritk-window-preset-keyboard")
         for _ in range(target):
@@ -391,7 +379,7 @@ def capture_window_preset_gallery(
         actions_released = True
         _cleanup_trace(client, expected_listener_count)
         trace_installed = False
-        screenshots = _write_window_screenshots(client, directory)
+        screenshots = capture_menu_controls(client, directory, "display-menu", ".presentation-controls", "gallery-window-level")
         evidence = {
             "schema": 1,
             "consumer": "ritk-snap",

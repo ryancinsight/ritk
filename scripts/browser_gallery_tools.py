@@ -16,31 +16,12 @@ from browser_canvas import (
     ensure_canvas_visible,
     settle_canvas_input,
 )
-from browser_gallery_artifacts import _write_png
+from browser_gallery_artifacts import capture_menu_controls, set_menu_open
 from browser_gallery_trace import AXES
 from browser_protocol import ROOT, BrowserRuntimeError, WebDriverClient, _safe_path
 
 TOOL_TIMEOUT_MS = 60_000
 TOOL_COUNT_LIMIT = 32
-TOOL_LABELS = (
-    "Pan",
-    "Zoom",
-    "W/L",
-    "Length",
-    "Angle",
-    "Deviation",
-    "ROI Rect",
-    "ROI Ellipse",
-    "Crosshair",
-    "HU Point",
-    "Label Paint",
-    "Label Erase",
-    "Closed Polygon",
-    "Open Polygon",
-    "Arrow",
-    "Pencil",
-    "Cobb Angle",
-)
 ANNOTATION_KINDS = {"length", "angle", "deviation", "roi-rect", "roi-ellipse", "hu-point"}
 ANNOTATION_TOOL_KINDS = {
     3: "length",
@@ -54,7 +35,7 @@ ANNOTATION_TOOL_KINDS = {
 from browser_gallery_tool_trace import (
     CLEANUP_TOOL_TRACE_SCRIPT, FOCUS_TOOL_CANVAS_SCRIPT, INSTALL_TOOL_TRACE_SCRIPT,
     INVALID_TOOL_API_PROBE_SCRIPT, READ_TOOL_TRACE_SCRIPT, STOPPED_TOOL_STATE_SCRIPT,
-    TOOL_EVENT_TYPES, TOOL_SNAPSHOT_SCRIPT, WAIT_TOOL_FRAME_SCRIPT, WAIT_TOOL_STATE_SCRIPT,
+    TOOL_EVENT_TYPES, TOOL_LABELS, TOOL_SNAPSHOT_SCRIPT, WAIT_TOOL_FRAME_SCRIPT, WAIT_TOOL_STATE_SCRIPT,
 )
 
 
@@ -324,19 +305,6 @@ def _gesture(
     return "trusted-click", [], canvas_state
 
 
-def _write_tool_screenshots(client: WebDriverClient, directory: pathlib.Path) -> dict[str, Any]:
-    """Store the real three-plane viewport and diagnostic palette."""
-    return {
-        "window": _write_png(client.screenshot(), directory, "gallery-tools.png", "window"),
-        "controls": _write_png(
-            client.element_screenshot(client.find(".tool-controls")),
-            directory,
-            "gallery-tools-controls.png",
-            "element",
-        ),
-    }
-
-
 def capture_tool_gallery(client: WebDriverClient, output_directory: pathlib.Path) -> dict[str, Any]:
     """Exercise every RITK browser tool with trusted input and save evidence."""
     if not isinstance(output_directory, pathlib.Path):
@@ -357,6 +325,7 @@ def capture_tool_gallery(client: WebDriverClient, output_directory: pathlib.Path
         for index in _tool_replay_order(buttons):
             label = buttons[index]["label"]
             before = _snapshot(client)
+            set_menu_open(client, "tools", True)
             client.click(client.find(f'#tool-buttons button[data-tool-index="{index}"]'))
             _wait_for_tool(client, index, label)
             selected = _snapshot(client)
@@ -440,7 +409,7 @@ def capture_tool_gallery(client: WebDriverClient, output_directory: pathlib.Path
         _cleanup_trace(client, expected_listener_count)
         trace_installed = False
         samples = {"before_stop": client.execute("return window.metisGallery.sample();")}
-        screenshots = _write_tool_screenshots(client, directory)
+        screenshots = capture_menu_controls(client, directory, "tools", ".tool-controls", "gallery-tools")
         client.execute("window.metisGallery.stop(); return true;")
         samples["after_stop"] = client.execute("return window.metisGallery.sample();")
         stopped = client.execute(STOPPED_TOOL_STATE_SCRIPT)

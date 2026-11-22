@@ -1,5 +1,25 @@
 """Browser JavaScript contracts for the RITK diagnostic-tool gallery."""
 
+TOOL_LABELS = (
+    "Pan",
+    "Zoom",
+    "W/L",
+    "Length",
+    "Angle",
+    "Deviation",
+    "ROI Rect",
+    "ROI Ellipse",
+    "Crosshair",
+    "HU Point",
+    "Label Paint",
+    "Label Erase",
+    "Closed Polygon",
+    "Open Polygon",
+    "Arrow",
+    "Pencil",
+    "Cobb Angle",
+)
+
 TOOL_EVENT_TYPES = ("click", "keydown", "keyup", "pointerdown", "pointermove", "pointerup")
 
 TOOL_SNAPSHOT_SCRIPT = """

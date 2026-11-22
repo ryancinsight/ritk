@@ -8,6 +8,7 @@ stack.
 
 - [DICOM viewer manual](docs/manual/dicom-workflow.md) for Windows controls,
   measurements, annotation editing, and current screenshots.
+- [AsterSlice web viewer](crates/ritk-snap/README.md#browser-host) for opening the browser workspace and building its standalone web bundle.
 - [Viewer developer reference](docs/manual/development.md) for generated fixtures,
   browser procedures, and historical capture records.
 - [RITK medical imaging book](https://ryancinsight.github.io/ritk/) — hosted

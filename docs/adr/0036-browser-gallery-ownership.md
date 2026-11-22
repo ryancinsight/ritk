@@ -30,11 +30,19 @@ that import the generated RITK WebAssembly package, configure the DICOM chooser
 after Metis mounts, start and stop the three RITK canvases, and synchronize the
 slice controls with RITK's `data-ritk-*` attributes.
 
-The RITK browser workflow supplies this directory together with the generated
-package through Metis's explicit `--consumer-gallery` and
-`--consumer-package` arguments. Metis validates and copies the bounded assets;
-it does not classify files or interpret viewer state. The workflow remains the
-single source for saved-study commands, real image captures and pixel oracles.
+RITK packages the web application with `scripts/package_browser.py`. It uses
+Métis's consumer validator for the page, content security policy and generated
+modules. RITK adds its workspace controls and installs the same HTML at both
+the directory index and the historical gallery URL. The browser harness
+exercises the app alongside the generic verification assets. The downloadable
+AsterSlice artifact contains only the application and its runtime.
+
+The native window-control geometry and palette define the browser menu,
+toolbar, sidebar, image panels and status bar. The sidebar derives its
+thumbnail and slice count from the presented image. Pane focus changes
+visibility without replacing canvases or resetting the study. Responsive mode
+continues to delegate pane placement to RITK. Empty and rejected input retain
+the host's admission and decoding behavior.
 
 The workflow invokes `wasm-bindgen` with `--target web --no-typescript`,
 producing the JavaScript and WebAssembly runtime pair that the Metis package
@@ -69,7 +77,8 @@ bounded host handoff; it does not turn browser names into filesystem paths.
 The current ownership seams are executable and reviewable at these locations:
 
 - [`gallery.js`](../../crates/ritk-snap/web/gallery/gallery.js) owns mount,
-  picker customization, slice controls and RITK presentation attributes.
+  slice controls and RITK presentation attributes. The workspace module owns
+  browser chrome and picker customization.
 - [The browser workflow](../../.github/workflows/metis-browser-dicom.yml)
   supplies the package and gallery inputs and defines the saved-study matrix.
 - [`browser_gallery.py`](../../scripts/browser_gallery.py) requires the Metis

@@ -6,6 +6,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="M-viewer-reading"></a>
 ## M-viewer-reading — 0.2.0 — read a single study on the native shell
 - exit: `cargo nextest run -p ritk-snap -E 'test(pointer_bindings) or test(modifier_gesture) or test(native_annotation) or test(native_display) or test(native_view_transform) or test(native_overlay_text) or test(measure_set)'`
+- [patch] Browser workspace and root entry verified against the native chrome and the saved 94-image MRI. See [the reading workspace checklist](backlog/RITK-SNAP-RADIANT-UI-001.md).
 - needs: none
 - non-goals: PACS, archive, 3D rendering
 <a id="M-viewer-compare"></a>

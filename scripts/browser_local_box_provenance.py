@@ -18,6 +18,8 @@ def file_digest(path: pathlib.Path) -> dict[str, Any]:
 
 def bundle_manifest(bundle: pathlib.Path) -> dict[str, dict[str, Any]]:
     names = (
+        "index.html",
+        "workspace.js",
         "gallery.html",
         "gallery.css",
         "gallery.js",
@@ -43,6 +45,8 @@ def bundle_manifest(bundle: pathlib.Path) -> dict[str, dict[str, Any]]:
 def copy_bundle(source: pathlib.Path, destination: pathlib.Path) -> None:
     destination.mkdir()
     for name in (
+        "index.html",
+        "workspace.js",
         "gallery.html",
         "gallery.css",
         "gallery.js",

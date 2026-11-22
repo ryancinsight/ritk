@@ -1,3 +1,4 @@
+import { createWorkspace } from "./workspace.js";
 // RITK owns the viewer loop and consumes Metis's bounded byte handoff.
 const status = document.getElementById("gallery-status");
 const describeError = (error) => error instanceof Error ? error.message : String(error);
@@ -57,6 +58,7 @@ try {
   projectionStatistic.textContent = activeProjectionMode === null
     ? "No projection"
     : activeProjectionMode === "mip" ? "MIP" : activeProjectionMode === "minip" ? "MinIP" : "Average";
+  const workspace = createWorkspace(chooseTool);
   let mounted = false;
   const windowPreset = document.getElementById("window-preset");
   const windowLevel = document.getElementById("window-level");
@@ -326,16 +328,9 @@ try {
         button.type = "button";
         button.textContent = label;
         button.dataset.toolIndex = String(index);
+        button.dataset.tool = label;
         button.setAttribute("aria-pressed", "false");
-        button.addEventListener("click", () => {
-          try {
-            select_web_tool(Number(button.dataset.toolIndex));
-            syncTools();
-          } catch (error) {
-            status.textContent = `Viewer tool could not change: ${describeError(error)}`;
-            syncTools();
-          }
-        });
+        button.addEventListener("click", () => chooseTool(index));
         return button;
       }));
       toolSignature = signature;
@@ -349,6 +344,15 @@ try {
       button.setAttribute("aria-pressed", String(isSelected));
     }
   };
+  function chooseTool(index) {
+    try {
+      select_web_tool(index);
+    } catch (error) {
+      status.textContent = `Viewer tool could not change: ${describeError(error)}`;
+    }
+    syncTools();
+    workspace.syncTools();
+  }
   const controls = ["axial", "coronal", "sagittal"].map((name, axis) => {
     const canvas = document.getElementById(`ritk-snap-${name}`);
     const slider = document.getElementById(`slice-${name}`);
@@ -358,6 +362,7 @@ try {
       const index = Number(canvas.getAttribute("data-ritk-slice-index"));
       const ready = mounted && count > 0 &&
         canvas.getAttribute("data-ritk-frame-state") === "presented";
+      workspace.syncFrame(canvas, ready);
       slider.disabled = !ready;
       slider.max = String(ready ? count - 1 : 0);
       slider.value = String(ready ? index : 0);
@@ -378,6 +383,7 @@ try {
       syncCine();
       syncCrosshair();
       syncTools();
+      workspace.syncTools();
     };
     const observer = new MutationObserver(syncAll);
     observer.observe(canvas, { attributes: true, attributeFilter: [
@@ -399,16 +405,8 @@ try {
     syncCine();
     syncCrosshair();
     syncTools();
+    workspace.stop();
     status.textContent = "Stopped. Viewer resources released.";
-  };
-  const customizePicker = () => {
-    const fileInput = document.getElementById("file-input");
-    const fileLabel = document.querySelector('label[for="file-input"]');
-    if (!(fileInput instanceof HTMLInputElement) || !(fileLabel instanceof HTMLLabelElement)) {
-      throw new Error("Metis file picker controls are missing");
-    }
-    fileInput.accept = ".dcm,application/dicom";
-    fileLabel.textContent = "Choose study files";
   };
   const mount = async () => {
     stop();
@@ -433,14 +431,14 @@ try {
     mounted = true;
     // Host mounting may replace the format-neutral controls on every cycle.
     // Reapply the consumer's DICOM policy after each mount.
-    customizePicker();
+    workspace.mountPicker();
     syncPresentation();
     syncCine();
     syncCrosshair();
     const rendererLabel = renderer === "webgpu" ? " with WebGPU" : "";
     const layoutLabel = responsiveLayout ? " in responsive layout" : "";
     const projectionLabel = activeProjectionMode === null ? "" : ` and ${projectionStatistic.textContent} projection`;
-    status.textContent = `Ready${rendererLabel}${layoutLabel}${projectionLabel}. Drop study files into the area below.`;
+    status.textContent = `Ready${rendererLabel}${layoutLabel}${projectionLabel}.`;
   };
   await mount();
   window.metisGallery = Object.freeze({

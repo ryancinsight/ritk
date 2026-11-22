@@ -130,14 +130,22 @@ jobs:
             target/wasm32-unknown-unknown/release/ritk_snap.wasm \
             --target web --no-typescript --out-dir target/wasm-bindgen/ritk-snap
 
-      - name: Build the Métis gallery with the RITK consumer
-        working-directory: metis
+      - name: Build the browser verification host and AsterSlice application
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/browser.py build \
-            --consumer-package "$GITHUB_WORKSPACE/ritk/target/wasm-bindgen/ritk-snap" \
-            --consumer-gallery "$GITHUB_WORKSPACE/ritk/crates/ritk-snap/web/gallery"
+          python metis/scripts/browser.py build
+          python ritk/scripts/package_browser.py --metis-root metis \
+            ritk/target/wasm-bindgen/ritk-snap ritk/target/asterslice-web
+          cp -R ritk/target/asterslice-web/. metis/output/browser/
+
+      - name: Save the standalone AsterSlice web app
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: asterslice-web
+          path: ritk/target/asterslice-web
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Check out Atlas process runtime
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -488,6 +496,15 @@ jobs:
               time.sleep(0.1)
           raise SystemExit(f"WebDriver did not become ready within 20 seconds: {last_error}")
           PY
+
+      - name: Open the AsterSlice workspace from the application root
+        if: matrix.result == 'chromium'
+        working-directory: ritk
+        env:
+          PYTHONPATH: ${{ github.workspace }}/metis/scripts
+        run: >-
+          python scripts/browser_workspace.py ../metis/output/browser test_data/2_head_mri_t2/DICOM
+          --driver-url ${{ matrix.driver_url }}
 
       - name: Run the saved-study chooser workflow
         working-directory: ritk

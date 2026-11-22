@@ -5,76 +5,104 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self' blob: http://127.0.0.1:8766 ws://127.0.0.1:8765; img-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'">
   <title>AsterSlice</title>
-  <link rel="icon" type="image/svg+xml" href="./assets/metis-mark.svg">
-  <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./gallery.css">
 </head>
 <body class="gallery">
-  <header>
+  <header class="menubar">
+    <button popovertarget="file-menu">File</button>
+    <button popovertarget="view-menu">View</button>
+    <button id="tools-menu" popovertarget="tools">Tools</button>
+    <button popovertarget="display-menu">Display</button>
     <h1>AsterSlice</h1>
-    <p>Choose the DICOM files of one study with <strong>Choose study files</strong>, or drag them from your file manager onto the drop area below. Select files, not their enclosing folder.</p>
-    <p>Up to 512 files, 64 MiB per file, 256 MiB total. Files stay in this browser; RITK opens the study and renders the three views. Add <code>?projection=mip</code>, <code>?projection=minip</code>, or <code>?projection=average</code> to show a scalar slab projection.</p>
-    <p id="gallery-status" role="status" aria-live="polite">Loading viewer…</p>
   </header>
-  <main id="metis-app" aria-label="Study file transfer"></main>
-  <section class="presentation-controls" aria-label="Display controls">
-    <label for="window-preset">Window/level preset</label>
-    <select id="window-preset" aria-label="Window/level preset" disabled>
-      <option value="">Load a study to choose a preset</option>
-    </select>
-    <output id="window-level" aria-live="polite">No study</output>
-  </section>
-  <section class="cine-controls" aria-label="Cine playback controls">
-    <button id="cine-toggle" type="button" disabled aria-pressed="false">Play</button>
-    <label for="cine-rate">Cine rate</label>
-    <input id="cine-rate" type="range" min="1" max="60" step="1" value="12" aria-label="Cine playback rate" disabled>
-    <output id="cine-rate-value" aria-live="polite">12 FPS</output>
-  </section>
-  <section class="crosshair-controls" aria-label="Linked crosshair controls">
+  <section class="toolbar" aria-label="Study toolbar">
+    <button class="open-study" data-open-study disabled>Open Study…</button>
+    <div id="quick-tools" role="group" aria-label="Interaction tools"></div>
+    <button id="cine-toggle" type="button" disabled aria-pressed="false" aria-label="Cine playback">Play</button>
     <button id="crosshair-toggle" type="button" disabled aria-pressed="false">Show crosshair</button>
-    <output id="crosshair-state" aria-live="polite">No study</output>
+    <button id="split-screen" popovertarget="view-menu">Split screen</button>
+    <button id="series-toggle" type="button" aria-controls="series-bar" aria-pressed="true">Series bar</button>
   </section>
-  <section class="tool-controls" aria-label="Viewer interaction tools">
+  <div id="file-menu" popover>
+    <button data-open-study disabled>Open Study…</button>
+    <p>Select the DICOM files from one study. Up to 512 files, 64 MiB each and 256 MiB total.</p>
+  </div>
+  <div id="view-menu" popover aria-label="Pane layout">
+    <button data-view="all">All panes</button>
+    <button data-view="axial">Axial</button>
+    <button data-view="coronal">Coronal</button>
+    <button data-view="sagittal">Sagittal</button>
+  </div>
+  <div id="tools" class="tool-controls" popover>
     <div id="tool-buttons" role="toolbar" aria-label="Viewer interaction tools"></div>
     <output id="active-tool" aria-live="polite">No study</output>
-  </section>
+  </div>
+  <div id="display-menu" popover>
+    <section class="presentation-controls" aria-label="Display controls">
+      <label for="window-preset">Window/level preset</label>
+      <select id="window-preset" size="4" disabled><option value="">Load a study to choose a preset</option></select>
+      <output id="window-level" aria-live="polite">No study</output>
+    </section>
+    <section class="cine-controls" aria-label="Cine playback controls">
+      <label for="cine-rate">Cine rate</label>
+      <input id="cine-rate" type="range" min="1" max="60" step="1" value="12" disabled>
+      <output id="cine-rate-value">12 FPS</output>
+    </section>
+    <output id="crosshair-state" aria-live="polite">No study</output>
+  </div>
+  <div class="workspace">
+    <aside id="series-bar" aria-label="Series preview">
+      <h2>Series preview</h2>
+      <div id="series-card" hidden>
+        <canvas id="series-thumb" width="64" height="64" aria-label="Current axial image thumbnail"></canvas>
+        <div>Current series<small id="series-size"></small></div>
+      </div>
+      <main id="metis-app" aria-label="Study file transfer"></main>
+    </aside>
+    <div class="reading-area">
   <section id="responsive-views" class="responsive-views" hidden aria-label="Responsive orthogonal study views"></section>
   <section class="gallery-views" aria-label="Orthogonal study views">
-    <figure>
-      <figcaption>Axial</figcaption>
-      <div class="canvas-view">
+    <figure data-pane="axial">
+      <figcaption>Axial<button id="focus-axial" data-focus="axial" aria-label="Maximize axial pane" aria-pressed="false">□</button></figcaption>
+      <div class="image-field"><div class="canvas-view">
         <canvas id="ritk-snap-axial" width="512" height="512" aria-label="Axial study view"></canvas>
         <span class="crosshair-line crosshair-row" aria-hidden="true"></span>
         <span class="crosshair-line crosshair-column" aria-hidden="true"></span>
       </div>
-      <label class="slice-control" for="slice-axial">Slice <output id="position-axial" for="slice-axial">No study</output></label>
+      </div>
+      <label class="slice-control" for="slice-axial">Image <output id="position-axial" for="slice-axial">No study</output></label>
       <input id="slice-axial" type="range" min="0" max="0" value="0" step="1" aria-label="Axial slice" disabled>
     </figure>
-    <figure>
-      <figcaption>Coronal</figcaption>
-      <div class="canvas-view">
+    <figure data-pane="coronal">
+      <figcaption>Coronal<button id="focus-coronal" data-focus="coronal" aria-label="Maximize coronal pane" aria-pressed="false">□</button></figcaption>
+      <div class="image-field"><div class="canvas-view">
         <canvas id="ritk-snap-coronal" width="512" height="512" aria-label="Coronal study view"></canvas>
         <span class="crosshair-line crosshair-row" aria-hidden="true"></span>
         <span class="crosshair-line crosshair-column" aria-hidden="true"></span>
       </div>
-      <label class="slice-control" for="slice-coronal">Slice <output id="position-coronal" for="slice-coronal">No study</output></label>
+      </div>
+      <label class="slice-control" for="slice-coronal">Image <output id="position-coronal" for="slice-coronal">No study</output></label>
       <input id="slice-coronal" type="range" min="0" max="0" value="0" step="1" aria-label="Coronal slice" disabled>
     </figure>
-    <figure>
-      <figcaption>Sagittal</figcaption>
-      <div class="canvas-view">
+    <figure data-pane="sagittal">
+      <figcaption>Sagittal<button id="focus-sagittal" data-focus="sagittal" aria-label="Maximize sagittal pane" aria-pressed="false">□</button></figcaption>
+      <div class="image-field"><div class="canvas-view">
         <canvas id="ritk-snap-sagittal" width="512" height="512" aria-label="Sagittal study view"></canvas>
         <span class="crosshair-line crosshair-row" aria-hidden="true"></span>
         <span class="crosshair-line crosshair-column" aria-hidden="true"></span>
       </div>
-      <label class="slice-control" for="slice-sagittal">Slice <output id="position-sagittal" for="slice-sagittal">No study</output></label>
+      </div>
+      <label class="slice-control" for="slice-sagittal">Image <output id="position-sagittal" for="slice-sagittal">No study</output></label>
       <input id="slice-sagittal" type="range" min="0" max="0" value="0" step="1" aria-label="Sagittal slice" disabled>
     </figure>
     <figure id="projection-view" hidden>
       <figcaption>Projection <output id="projection-statistic" aria-live="polite">No projection</output></figcaption>
-      <canvas id="ritk-snap-projection" width="512" height="512" aria-label="Scalar slab projection"></canvas>
+      <div class="image-field"><canvas id="ritk-snap-projection" width="512" height="512" aria-label="Scalar slab projection"></canvas></div>
     </figure>
   </section>
+    </div>
+  </div>
+  <footer><span id="gallery-status" role="status" aria-live="polite">Loading viewer…</span><span id="image-status"></span><span id="pane-status"></span></footer>
   <script type="module" src="./gallery.js"></script>
 </body>
 </html>

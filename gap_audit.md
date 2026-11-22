@@ -20,6 +20,16 @@ The [release backlog](backlog.md#milestones) records the remaining milestone cri
 - [patch] Verify the OpenNeuro ds000102 source, license and checksum and run the registration consumer from the shared fixture cache.
 - [major] Record the four 1.0 compatibility surfaces in [ADR 0059](docs/adr/0059-release-scope-1-0.md). Compatibility qualification remains pending.
 
+## AsterSlice browser workspace
+
+The previous bundle served the Métis workbench at its root. The saved MRI now
+opens in the same AsterSlice shell from both application URLs. The browser
+test measures the native 30-pixel menu, 48-pixel toolbar, 276-pixel series
+sidebar and 26-pixel status bar. It exercises pane focus, sidebar visibility,
+toolbar selection, the thumbnail, narrow-screen sizing and a projection link.
+The unchanged axial, coronal and sagittal frames match the three saved RGBA
+digests. Local Chromium passes the raster and WebGPU control journeys and the responsive four-pane MIP journey. Cross-series comparison remains a separate milestone.
+
 ## Shared fixture inventory
 
 The pre-retention RITK inventory records 3,191 tracked test-data files totaling 1,490,441,937 bytes. A local inventory records path, size, Git blob, available provenance, code references, and the names of selected populated DICOM fields. It parsed 1,980 DICOM headers. Identifying-field presence does not establish a subject’s identity or permission to redistribute.

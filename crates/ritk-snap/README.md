@@ -250,11 +250,25 @@ canvas workflow. The page must provide both a `#metis-app` element for the
 Métis host and the canvas element whose ID is passed to `start_web`. Métis owns
 the browser `File` handles and transfers one bounded named-byte batch; RITK
 then classifies, scans and decodes those bytes through its DICOM loader.
-The checked-in DICOM consumer page is
-[`web/gallery`](web/gallery); it owns the chooser wording, DICOM filter, slice
-controls and the default three-canvas layout. An explicit `projection` query
-selects the four-canvas scalar projection workflow. The browser workflow passes
-that directory explicitly to Metis together with the generated RITK package.
+The browser opens the AsterSlice reading workspace. **Open Study…** accepts
+the files of one DICOM study. The toolbar selects interaction tools, the series
+bar previews the loaded axial frame, and **Display** contains window presets
+and cine rate. **Split screen** and each pane's maximize button switch between
+the three orthogonal views and a focused view. The sidebar collapses on narrow
+screens and can be reopened with **Series bar**.
+
+The directory index and existing `gallery.html` links serve the same page.
+Projection, responsive layout and WebGPU query parameters are preserved.
+After generating the WASM module as described below, package and serve the
+application from the RITK checkout using the Métis revision in `Cargo.lock`:
+
+```sh
+python3 scripts/package_browser.py --metis-root ../metis target/wasm-bindgen/ritk-snap target/asterslice-web
+python3 -m http.server --bind 127.0.0.1 --directory target/asterslice-web 8000
+```
+
+Open [the local viewer](http://127.0.0.1:8000/). The browser CI build also
+produces the same standalone directory in the `asterslice-web` artifact.
 
 ```javascript
 import init, { start_web } from "./ritk_snap.js";

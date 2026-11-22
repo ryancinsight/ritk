@@ -9,7 +9,7 @@ from collections import Counter
 from typing import Any, Mapping
 
 from browser_canvas import settle_canvas_input
-from browser_gallery_artifacts import _write_png
+from browser_gallery_artifacts import capture_menu_controls, set_menu_open
 from browser_gallery_cine_lifecycle import (
     finalize_cine_teardown,
     source_digests,
@@ -367,6 +367,7 @@ def _set_rate(client: WebDriverClient, target: int) -> None:
     """Set one exact rate through trusted range-keyboard input."""
     if not 1 <= target <= MAX_CINE_RATE:
         raise BrowserRuntimeError(f"cine target rate is outside 1..={MAX_CINE_RATE}: {target}")
+    set_menu_open(client, "display-menu", True)
     client.click(client.find("#cine-rate"))
     client.key_press("Home", source_id="ritk-cine-rate-keyboard")
     steps = target - 1
@@ -427,15 +428,7 @@ def capture_cine_gallery(
         actions_released = True
         _cleanup_trace(client, expected_listener_count)
         trace_installed = False
-        screenshots = {
-            "window": _write_png(client.screenshot(), directory, "gallery-cine.png", "window"),
-            "controls": _write_png(
-                client.element_screenshot(client.find(".cine-controls")),
-                directory,
-                "gallery-cine-controls.png",
-                "element",
-            ),
-        }
+        screenshots = capture_menu_controls(client, directory, "display-menu", ".cine-controls", "gallery-cine")
         sample_before_stop = client.execute("return window.metisGallery.sample();")
         sample_after_stop = None
         stopped = None

@@ -44,3 +44,23 @@ def _write_gallery_screenshots(client: WebDriverClient, directory: pathlib.Path)
         "element",
     )
     return {"window": window, "orthogonal_views": views}
+
+
+def set_menu_open(client: WebDriverClient, menu: str, opened: bool) -> None:
+    visible = client.execute("return document.getElementById(arguments[0]).matches(':popover-open');", [menu])
+    if visible != opened:
+        client.click(client.find(f'[popovertarget="{menu}"]'))
+
+
+def capture_menu_controls(client: WebDriverClient, directory: pathlib.Path, menu: str,
+                          controls: str, filename: str) -> dict[str, Any]:
+    """Save the reading workspace and its controls, then restore the workspace."""
+    set_menu_open(client, menu, False)
+    window = _write_png(client.screenshot(), directory, f"{filename}.png", "window")
+    set_menu_open(client, menu, True)
+    try:
+        png = client.element_screenshot(client.find(controls))
+        detail = _write_png(png, directory, f"{filename}-controls.png", "element")
+    finally:
+        set_menu_open(client, menu, False)
+    return {"window": window, "controls": detail}
