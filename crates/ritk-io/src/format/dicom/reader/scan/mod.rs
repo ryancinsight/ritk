@@ -22,6 +22,7 @@ use crate::format::dicom::object_model::{DicomObjectModel, DicomObjectNode};
 
 mod finalize;
 mod geometry;
+mod metadata;
 mod thresholds;
 
 use finalize::finalize_scanned_series;

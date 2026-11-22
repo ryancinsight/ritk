@@ -110,15 +110,9 @@ fn from_loaded_volume_complete_fields_returns_some_with_correct_values() {
 }
 
 #[test]
-fn from_loaded_volume_absent_decay_correction_defaults_to_none_kind() {
-    let vol = minimal_vol(Some(70.0), Some(370_000_000.0), Some(F18_HALF_LIFE_S), None);
-    let pet =
-        PetAcquisitionParams::from_loaded_volume(&vol).expect("infallible: validated precondition");
-    assert_eq!(
-        pet.decay_correction,
-        DecayCorrectionKind::None,
-        "absent decay_correction field must default to DecayCorrectionKind::None"
-    );
+fn from_loaded_volume_requires_explicit_decay_correction() {
+    let volume = minimal_vol(Some(70.0), Some(370_000_000.0), Some(F18_HALF_LIFE_S), None);
+    assert!(PetAcquisitionParams::from_loaded_volume(&volume).is_none());
 }
 
 // ── DecayCorrectionKind::from_dicom_str ───────────────────────────────────
@@ -127,7 +121,7 @@ fn from_loaded_volume_absent_decay_correction_defaults_to_none_kind() {
 fn decay_correction_kind_start_parses_correctly() {
     assert_eq!(
         DecayCorrectionKind::from_dicom_str("START"),
-        DecayCorrectionKind::Start
+        Some(DecayCorrectionKind::Start)
     );
 }
 
@@ -135,7 +129,7 @@ fn decay_correction_kind_start_parses_correctly() {
 fn decay_correction_kind_admin_parses_correctly() {
     assert_eq!(
         DecayCorrectionKind::from_dicom_str("ADMIN"),
-        DecayCorrectionKind::Admin
+        Some(DecayCorrectionKind::Admin)
     );
 }
 
@@ -143,31 +137,28 @@ fn decay_correction_kind_admin_parses_correctly() {
 fn decay_correction_kind_none_string_maps_to_none_kind() {
     assert_eq!(
         DecayCorrectionKind::from_dicom_str("NONE"),
-        DecayCorrectionKind::None
+        Some(DecayCorrectionKind::None)
     );
 }
 
 #[test]
-fn decay_correction_kind_unknown_string_maps_to_none_kind() {
-    assert_eq!(
-        DecayCorrectionKind::from_dicom_str("UNKNOWN_VALUE"),
-        DecayCorrectionKind::None
-    );
+fn decay_correction_kind_unknown_string_is_unavailable() {
+    assert_eq!(DecayCorrectionKind::from_dicom_str("UNKNOWN_VALUE"), None);
 }
 
 #[test]
 fn decay_correction_kind_trims_whitespace() {
     assert_eq!(
         DecayCorrectionKind::from_dicom_str(" START "),
-        DecayCorrectionKind::Start
+        Some(DecayCorrectionKind::Start)
     );
 }
 
 // ── to_suv_params ─────────────────────────────────────────────────────────
 
-/// Start correction → decay_factor = 1.0 regardless of delta_t_s.
+/// The START dose at one physical half-life is half the administered dose.
 #[test]
-fn to_suv_params_start_gives_unit_decay_factor() {
+fn to_suv_params_start_decays_the_administered_dose() {
     let pet = PetAcquisitionParams {
         patient_weight_kg: Mass::from_base(70.0),
         injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0)
@@ -175,15 +166,11 @@ fn to_suv_params_start_gives_unit_decay_factor() {
         radionuclide_half_life_s: Time::from_base(F18_HALF_LIFE_S),
         decay_correction: DecayCorrectionKind::Start,
     };
-    let params = pet.to_suv_params(3_600.0);
-    assert_eq!(
-        params.decay_factor, 1.0,
-        "Start decay correction must yield decay_factor = 1.0; got {}",
-        params.decay_factor
-    );
+    let params = pet.to_suv_params(F18_HALF_LIFE_S);
+    assert_eq!(params.decay_factor, 0.5);
 }
 
-/// Admin correction → decay_factor = 1.0 (treated as Start).
+/// ADMIN values share the time reference of the administered dose.
 #[test]
 fn to_suv_params_admin_gives_unit_decay_factor() {
     let pet = PetAcquisitionParams {
@@ -245,16 +232,16 @@ fn to_suv_params_converts_kg_to_g() {
 
 /// ¹â¸F-FDG PET: 370 MBq injected, 70 kg, 1 h PI, 10 000 Bq/mL tumour voxel.
 ///
-/// DICOM pixels are already decay-corrected (Start); SUVbw = pixel × BW / dose.
+/// DICOM pixels are ADMIN-corrected. SUVbw = pixel × BW / dose.
 /// Expected: 10 000 × 70 000 / 370 000 000 ≈ 1.8919 g/mL.
 #[test]
-fn pixel_to_suvbw_start_corrected_realistic_fdg() {
+fn pixel_to_suvbw_admin_corrected_realistic_fdg() {
     let pet = PetAcquisitionParams {
         patient_weight_kg: Mass::from_base(70.0),
         injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0)
             .expect("the fixture dose is finite and positive"),
         radionuclide_half_life_s: Time::from_base(F18_HALF_LIFE_S),
-        decay_correction: DecayCorrectionKind::Start,
+        decay_correction: DecayCorrectionKind::Admin,
     };
     let pixel_bqml = 10_000.0_f64;
     let expected = pixel_bqml * 70_000.0 / 370_000_000.0;
@@ -275,9 +262,9 @@ fn pixel_to_suvbw_start_corrected_realistic_fdg() {
 }
 
 /// Raw pixels (None), 1 h PI. Decay factor reduces effective dose;
-/// SUVbw must exceed the Start-corrected value.
+/// SUVbw must exceed the ADMIN value.
 #[test]
-fn pixel_to_suvbw_none_correction_exceeds_start_correction() {
+fn pixel_to_suvbw_none_correction_exceeds_admin_correction() {
     let pixel_bqml = 10_000.0_f64;
 
     let start = PetAcquisitionParams {
@@ -285,7 +272,7 @@ fn pixel_to_suvbw_none_correction_exceeds_start_correction() {
         injected_dose_bq: Radioactivity::from_becquerels(370_000_000.0)
             .expect("the fixture dose is finite and positive"),
         radionuclide_half_life_s: Time::from_base(F18_HALF_LIFE_S),
-        decay_correction: DecayCorrectionKind::Start,
+        decay_correction: DecayCorrectionKind::Admin,
     };
     let none = PetAcquisitionParams {
         decay_correction: DecayCorrectionKind::None,
@@ -307,147 +294,7 @@ fn pixel_to_suvbw_none_correction_exceeds_start_correction() {
 
     assert!(
         suv_none > suv_start,
-        "None-corrected SUVbw must exceed Start-corrected at Δt > 0; \
+        "None-corrected SUVbw must exceed ADMIN at Δt > 0; \
          start = {suv_start:.4}, none = {suv_none:.4}"
     );
-}
-
-// ── parse_dicom_tm ────────────────────────────────────────────────────────
-
-#[test]
-fn parse_dicom_tm_hhmmss_gives_correct_seconds() {
-    // 13:30:45 = 13*3600 + 30*60 + 45 = 48645 s
-    let s = parse_dicom_tm("133045").expect("infallible: validated precondition");
-    assert!(
-        (s - 48_645.0).abs() < 1e-9,
-        "133045 must be 48645 s; got {s}"
-    );
-}
-
-#[test]
-fn parse_dicom_tm_hhmm_gives_correct_seconds() {
-    // 08:00 = 8*3600 = 28800 s
-    let s = parse_dicom_tm("0800").expect("infallible: validated precondition");
-    assert!((s - 28_800.0).abs() < 1e-9, "0800 must be 28800 s; got {s}");
-}
-
-#[test]
-fn parse_dicom_tm_hh_gives_correct_seconds() {
-    // 06h = 6*3600 = 21600 s
-    let s = parse_dicom_tm("06").expect("infallible: validated precondition");
-    assert!((s - 21_600.0).abs() < 1e-9, "06 must be 21600 s; got {s}");
-}
-
-#[test]
-fn parse_dicom_tm_fractional_seconds_parsed_correctly() {
-    // 12:00:00.500 = 43200.5 s
-    let s = parse_dicom_tm("120000.500").expect("infallible: validated precondition");
-    assert!(
-        (s - 43_200.5).abs() < 1e-9,
-        "120000.500 must be 43200.5 s; got {s}"
-    );
-}
-
-#[test]
-fn parse_dicom_tm_invalid_returns_none() {
-    assert!(parse_dicom_tm("").is_none(), "empty string must be None");
-    assert!(
-        parse_dicom_tm("AB0000").is_none(),
-        "non-digit HH must be None"
-    );
-    assert!(parse_dicom_tm("250000").is_none(), "HH=25 must be None");
-}
-
-// ── compute_delta_t_s ─────────────────────────────────────────────────────
-
-#[test]
-fn compute_delta_t_s_normal_same_day() {
-    // inject 08:00:00, scan 09:00:00 → 3600 s
-    let d = compute_delta_t_s(28_800.0, 32_400.0);
-    assert!(
-        (d - 3_600.0).abs() < 1e-9,
-        "same-day delta must be 3600 s; got {d}"
-    );
-}
-
-#[test]
-fn compute_delta_t_s_midnight_rollover() {
-    // inject 23:50:00 (85800 s), scan 00:10:00 (600 s) → 1200 s
-    let d = compute_delta_t_s(85_800.0, 600.0);
-    assert!(
-        (d - 1_200.0).abs() < 1e-9,
-        "midnight rollover must be 1200 s; got {d}"
-    );
-}
-
-// ── delta_t_s_from_vol ────────────────────────────────────────────────────
-
-#[test]
-fn delta_t_s_from_vol_parses_both_fields() {
-    let mut vol = minimal_vol(
-        Some(70.0),
-        Some(370_000_000.0),
-        Some(F18_HALF_LIFE_S),
-        Some("START"),
-    );
-    vol.radiopharmaceutical_start_time =
-        Some(ArrayString::from("080000").expect("infallible: validated precondition"));
-    vol.series_time =
-        Some(ArrayString::from("090000").expect("infallible: validated precondition"));
-    let delta = PetAcquisitionParams::delta_t_s_from_vol(&vol);
-    assert!(
-        (delta - 3_600.0).abs() < 1e-9,
-        "delta_t_s must be 3600 s; got {delta}"
-    );
-}
-
-#[test]
-fn delta_t_s_from_vol_missing_series_time_returns_zero() {
-    let vol = minimal_vol(
-        Some(70.0),
-        Some(370_000_000.0),
-        Some(F18_HALF_LIFE_S),
-        Some("START"),
-    );
-    let delta = PetAcquisitionParams::delta_t_s_from_vol(&vol);
-    assert_eq!(delta, 0.0, "missing series_time must return 0.0");
-}
-
-#[test]
-fn dicom_pet_suv_requires_activity_concentration_and_uses_typed_metadata() {
-    use tracing_subscriber::fmt::format::FmtSpan;
-    let _trace = tracing::subscriber::set_default(
-        tracing_subscriber::fmt()
-            .with_span_events(FmtSpan::FULL)
-            .with_test_writer()
-            .finish(),
-    );
-    let mut vol = tracing::info_span!("arrange").in_scope(|| {
-        let mut vol = minimal_vol(
-            Some(70.0),
-            Some(350_000_000.0),
-            Some(6_584.04),
-            Some("START"),
-        );
-        vol.metadata = Some(Box::new(ritk_io::DicomReadMetadata::default()));
-        vol
-    });
-    let (wrong_units, correct_units) = tracing::info_span!("act").in_scope(|| {
-        let wrong_units = PetAcquisitionParams::from_loaded_volume(&vol);
-        vol.metadata
-            .as_mut()
-            .expect("the study has PET metadata")
-            .pet_pixels_in_bq_per_ml = true;
-        let correct_units = PetAcquisitionParams::from_loaded_volume(&vol)
-            .expect("activity concentration admits SUV calibration")
-            .pixel_to_suvbw(
-                ActivityConcentration::from_unit::<BecquerelPerMilliliter>(8_000.0),
-                0.0,
-            )
-            .in_unit::<GramPerCubicCentimeter>();
-        (wrong_units, correct_units)
-    });
-    let _assert = tracing::info_span!("assert").entered();
-    assert!(wrong_units.is_none());
-    assert!((correct_units - 1.6).abs() <= 2.0 * f64::EPSILON);
 }

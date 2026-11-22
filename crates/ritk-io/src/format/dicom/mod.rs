@@ -1,4 +1,6 @@
 pub mod anonymize;
+#[cfg(feature = "test-util")]
+pub mod classic_pet_fixture;
 mod codec;
 mod color;
 mod color_common;
@@ -16,6 +18,7 @@ pub mod inventory;
 mod multiframe;
 pub mod networking;
 mod object_model;
+mod pet_datetime;
 mod reader;
 pub mod repair;
 mod rt_dose;
@@ -70,6 +73,7 @@ pub use object_model::{
     DicomRetentionLoss, DicomRetentionReason, DicomSequenceItem, DicomTag, DicomValue,
 };
 pub use reader::geometry::SliceProvenance;
+pub use reader::ClassicPetCalibration;
 pub use reader::{
     literal_arraystring, load_dicom_from_series, load_dicom_from_series_with_budget,
     load_dicom_series_stored, load_dicom_series_with_metadata,

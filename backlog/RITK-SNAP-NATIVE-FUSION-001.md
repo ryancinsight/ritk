@@ -7,3 +7,7 @@
 - basis: 30b8ba098
 - needs: RITK-SNAP-NATIVE-LINK-001
 - priority: feature; milestone: M-viewer-advanced
+
+- [x] [patch] Verify available and withheld classic PET SUVbw with Part 10 pointer and compatibility fusion regressions.
+- [ ] [minor] Verify native Windows compare controls and SUV readouts in a viewer session.
+- [ ] [minor] Normalize distinct valid frame references before spatial interpolation.
