@@ -8,6 +8,16 @@
 
 # CHANGELOG
 
+## RITK CLI 0.3.0 (unreleased)
+
+### Added
+
+- [minor] `ritk convert` repacks single-file NIfTI documents between `.nii`
+  and `.nii.gz` while retaining the full decompressed byte stream, including
+  multi-volume data, header extensions and calibration. This path uses the
+  NIfTI document reader's 1 GiB expanded-document limit and reports document
+  preservation in its completion message.
+
 ## MGH 0.6.1 and AsterSlice 0.2.1 (unreleased)
 
 ### Fixed

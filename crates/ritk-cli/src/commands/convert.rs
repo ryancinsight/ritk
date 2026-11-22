@@ -18,7 +18,7 @@
     reason = "RITK-LINT-1: ritk-cli is the application output layer"
 )]
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use ritk_io::ImageFormat;
 use std::path::PathBuf;
@@ -71,7 +71,7 @@ pub struct ConvertArgs {
 /// 1. Reads the image at `args.input` (format inferred from extension).
 /// 2. Writes the image to `args.output` (format taken from `--format` or
 ///    inferred from the output extension).
-/// 3. Prints a one-line summary: path pair, shape in ZxYxX, and spacing.
+/// 3. Reports the path pair and either document preservation or image shape and spacing.
 ///
 /// # Errors
 /// Returns an error when the input cannot be read, the output cannot be
@@ -125,6 +125,21 @@ pub fn run(args: ConvertArgs) -> Result<()> {
         "convert does not support {:?} output until its native writer exists",
         out_fmt
     );
+    if in_fmt == ImageFormat::NIfTI && out_fmt == ImageFormat::NIfTI {
+        // Changing file framing must preserve all header fields, extensions,
+        // frames and stored sample bits, including integers wider than binary32.
+        let document = ritk_nifti::NiftiDocument::read(&args.input)
+            .with_context(|| format!("Failed to read NIfTI file: {}", args.input.display()))?;
+        document
+            .write(&args.output)
+            .with_context(|| format!("Failed to write NIfTI file: {}", args.output.display()))?;
+        println!(
+            "Converted {} → {} (preserved NIfTI document)",
+            args.input.display(),
+            args.output.display()
+        );
+        return Ok(());
+    }
     let image = read_image(&args.input)?;
     let shape = image.shape();
     let spacing = *image.spacing();

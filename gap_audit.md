@@ -1,5 +1,13 @@
 # RITK Gap Audit
 
+## NIfTI document conversion
+
+The CLI previously sent same-format conversion through the single-volume
+binary32 compute reader. This rejected a two-volume NIfTI-2 input and could
+round wide integers in a single volume. The CLI now delegates this route
+to the document transcoder. The [cross-format item](backlog/RITK-NRRD-NIFTI-001.md)
+tracks the distinct requirements for NRRD interchange.
+
 ## FreeSurfer volume geometry
 
 The MGH 0.6.0 reader and writer use the same displaced center and therefore pass a mutual round trip. The independent viewer fixture, hand-built header and emitted-header regressions all fail on `533f2e077`. Version 0.6.1 corrects both transforms. The [inventory](docs/book/mgh_format.md#conversion-inventory) identifies the remaining stored-sample and metadata work.
