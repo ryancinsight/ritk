@@ -27,6 +27,7 @@
 - non-goals: encrypted ZIP, optical disc burning, unlisted RadiAnt add-ons
 # Items
 
+<a id="ritk-stable-qualification"></a>- [RITK-STABLE-QUALIFICATION](backlog/ritk-stable-qualification.md) — ritk stable-release qualification [patch] — todo
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — blocked
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
 <a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Write permuted images to VTK and Analyze — todo
@@ -140,3 +141,4 @@
   viewer and registry package verification on the integration head.
 
 - [x] [major] Approve [numbered DICOM directory exports](docs/adr/0068-number-dicom-directory-exports.md) for `ritk-io` 0.8.0 and `ritk-python` 0.13.0. See [RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001](gap_audit.md#RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001) for regression evidence.
+- [x] [major] Correct [real-data DICOM export structure](docs/adr/0069-preserve-dicom-export-structure.md). See [RITK-DICOM-ANONYMIZE-REAL-001](gap_audit.md#RITK-DICOM-ANONYMIZE-REAL-001).
