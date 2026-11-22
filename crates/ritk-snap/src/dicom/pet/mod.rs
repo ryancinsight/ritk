@@ -1,18 +1,19 @@
-//! PET acquisition parameter SSOT for SUVbw normalisation.
+//! Adapters from PET data to body-weight SUV measurements.
 //!
 //! # Responsibility
 //!
 //! [`PetAcquisitionParams`] bridges [`crate::LoadedVolume`] (which carries raw
 //! DICOM PET fields) and [`super::suv::SuvParams`] (which performs the SUVbw
-//! formula). All field validation and decay-correction mode dispatch live here.
+//! formula) when an activity reference is supplied explicitly. Classic PET
+//! viewer measurements use the source-qualified series calibration from RITK IO.
 //!
 //! # Decay correction modes (DICOM PS3.3 §C.8.9.1)
 //!
 //! | (0054,1102) value | Meaning                                  | Decay factor |
 //! |-------------------|------------------------------------------|--------------|
-//! | `"START"`         | Corrected to series start (injection)    | 1.0          |
+//! | `"START"`         | Corrected to acquisition start           | exp(−λΔt)    |
 //! | `"ADMIN"`         | Corrected to administration time         | 1.0          |
-//! | `"NONE"`          | Raw pixel activity at scan acquisition   | exp(−λΔt)    |
+//! | `"NONE"`          | Raw pixel activity at the frame reference   | exp(−λΔt)    |
 //!
 //! # Usage
 //!
@@ -34,9 +35,9 @@ use crate::LoadedVolume;
 /// Pixel decay-correction mode as encoded in DICOM (0054,1102).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DecayCorrectionKind {
-    /// Pixels corrected to injection time; `decay_factor = 1.0`.
+    /// Pixels corrected to acquisition start.
     Start,
-    /// Pixels corrected to administration time; treated as `Start` for SUVbw.
+    /// Pixels corrected to administration time; `decay_factor = 1.0`.
     Admin,
     /// Raw activity at scan acquisition; physical decay factor must be applied.
     None,
@@ -45,13 +46,13 @@ pub enum DecayCorrectionKind {
 impl DecayCorrectionKind {
     /// Parse a DICOM (0054,1102) Decay Correction string (case-sensitive, per PS3.3).
     ///
-    /// "START" → [`Start`][Self::Start], "ADMIN" → [`Admin`][Self::Admin],
-    /// anything else (including "NONE" and absent) → [`None`][Self::None].
-    pub fn from_dicom_str(s: &str) -> Self {
+    /// Returns `None` for anything other than START, ADMIN, or NONE.
+    pub fn from_dicom_str(s: &str) -> Option<Self> {
         match s.trim() {
-            "START" => Self::Start,
-            "ADMIN" => Self::Admin,
-            _ => Self::None,
+            "START" => Some(Self::Start),
+            "ADMIN" => Some(Self::Admin),
+            "NONE" => Some(Self::None),
+            _ => None,
         }
     }
 }
@@ -83,8 +84,9 @@ impl PetAcquisitionParams {
     /// Returns `None` when any of `patient_weight_kg`, `injected_dose_bq`, or
     /// `radionuclide_half_life_s` is absent or ≤ 0.
     ///
-    /// `decay_correction` defaults to [`DecayCorrectionKind::None`] when the
-    /// DICOM field is absent. Scanned DICOM data must declare Bq/mL pixel units.
+    /// Scanned DICOM data must declare Bq/mL pixel units and a recognized mode.
+    /// For a classic PET viewer measurement use the source-qualified calibration
+    /// carried by `DicomReadMetadata`.
     pub fn from_loaded_volume(vol: &LoadedVolume) -> Option<Self> {
         if vol
             .metadata
@@ -104,8 +106,7 @@ impl PetAcquisitionParams {
         let decay_correction = vol
             .decay_correction
             .as_deref()
-            .map(DecayCorrectionKind::from_dicom_str)
-            .unwrap_or(DecayCorrectionKind::None);
+            .and_then(DecayCorrectionKind::from_dicom_str)?;
 
         Some(Self {
             patient_weight_kg,
@@ -117,28 +118,29 @@ impl PetAcquisitionParams {
 
     /// Convert to [`SuvParams`] for use with [`compute_suvbw`][super::suv::compute_suvbw].
     ///
-    /// `delta_t_s` is the elapsed time from injection to scan start \[s\].
-    /// Ignored (forced to 0) when `decay_correction` is
-    /// [`Start`][DecayCorrectionKind::Start] or [`Admin`][DecayCorrectionKind::Admin].
+    /// `delta_t_s` is the verified elapsed time from administration to the
+    /// activity reference time in seconds. It is ignored for `Admin`.
     pub fn to_suv_params(&self, delta_t_s: f64) -> SuvParams {
         let weight_g = self.patient_weight_kg.in_unit::<Gram>();
         match self.decay_correction {
-            DecayCorrectionKind::Start | DecayCorrectionKind::Admin => {
+            DecayCorrectionKind::Admin => {
                 SuvParams::without_decay_correction(self.injected_dose_bq.becquerels(), weight_g)
             }
-            DecayCorrectionKind::None => SuvParams::with_decay_correction(
-                self.injected_dose_bq.becquerels(),
-                weight_g,
-                self.radionuclide_half_life_s.into_base(),
-                delta_t_s,
-            ),
+            DecayCorrectionKind::Start | DecayCorrectionKind::None => {
+                SuvParams::with_decay_correction(
+                    self.injected_dose_bq.becquerels(),
+                    weight_g,
+                    self.radionuclide_half_life_s.into_base(),
+                    delta_t_s,
+                )
+            }
         }
     }
 
     /// Compute SUVbw for a single voxel expressed in \[Bq/mL\].
     ///
-    /// `delta_t_s` is the elapsed time from injection to scan start \[s\];
-    /// ignored for `Start` and `Admin` decay correction modes.
+    /// `delta_t_s` is the verified elapsed time to the activity reference in
+    /// seconds and is ignored for `Admin`.
     #[inline]
     pub fn pixel_to_suvbw(
         &self,
@@ -147,88 +149,36 @@ impl PetAcquisitionParams {
     ) -> MassDensity {
         normalized_pet_activity(activity_concentration, &self.to_suv_params(delta_t_s))
     }
+}
 
-    /// Compute elapsed time \[s\] from injection to scan using `LoadedVolume` time fields.
-    ///
-    /// Parses `vol.radiopharmaceutical_start_time` (0018,1072) and `vol.series_time`
-    /// (0008,0031) as DICOM TM strings. Returns `0.0` when either field is absent or
-    /// unparseable (safe fallback for Start/Admin corrected scans where delta_t is
-    /// unused in the SUVbw formula).
-    pub fn delta_t_s_from_vol(vol: &LoadedVolume) -> f64 {
-        let rph_start = vol
-            .radiopharmaceutical_start_time
-            .as_deref()
-            .and_then(parse_dicom_tm);
-        let series = vol.series_time.as_deref().and_then(parse_dicom_tm);
-        match (rph_start, series) {
-            (Some(t0), Some(t1)) => compute_delta_t_s(t0, t1),
-            _ => 0.0,
+/// Classic PET normalization prepared from decoded modality and source metadata.
+#[derive(Clone, Copy)]
+pub(crate) enum ClassicPetDisplay {
+    BodyWeight,
+    Activity(ritk_io::format::dicom::ClassicPetCalibration),
+}
+
+impl ClassicPetDisplay {
+    pub(crate) fn for_volume(volume: &LoadedVolume) -> Option<Self> {
+        let metadata = volume.metadata.as_deref()?;
+        if metadata.pixels_are_body_weight_suv() {
+            return Some(Self::BodyWeight);
         }
-    }
-}
-
-// ── DICOM TM time-field parsing ───────────────────────────────────────────────
-
-/// Parse a DICOM TM value string (HH[MM[SS[.FFFFFF]]]) to seconds since midnight.
-///
-/// DICOM PS3.5 §6.2 TM format: each integer component is exactly 2 ASCII digits.
-/// Returns `None` when the string is malformed, has non-digit characters in the
-/// integer part, or the hours component is ≥ 24.
-pub fn parse_dicom_tm(s: &str) -> Option<f64> {
-    let s = s.trim();
-    if s.len() < 2 {
-        return None;
+        metadata.classic_pet_calibration.map(Self::Activity)
     }
 
-    let (int_part, frac_part) = if let Some(dot) = s.find('.') {
-        (&s[..dot], &s[dot + 1..])
-    } else {
-        (s, "")
-    };
+    pub(crate) fn suvbw(self, pixel: f64) -> Option<f64> {
+        use aequitas::systems::si::units::{BecquerelPerMilliliter, GramPerCubicCentimeter};
 
-    if int_part.len() < 2 || !int_part.chars().all(|c| c.is_ascii_digit()) {
-        return None;
-    }
-
-    let hh: f64 = int_part[..2].parse().ok()?;
-    if hh >= 24.0 {
-        return None;
-    }
-
-    let mm: f64 = if int_part.len() >= 4 {
-        int_part[2..4].parse().ok()?
-    } else {
-        0.0
-    };
-
-    let ss: f64 = if int_part.len() >= 6 {
-        int_part[4..6].parse().ok()?
-    } else {
-        0.0
-    };
-
-    let frac: f64 = if !frac_part.is_empty() {
-        let digits = frac_part.len().min(6);
-        let n: u32 = frac_part[..digits].parse().ok()?;
-        let denom = 10u32.pow(digits as u32) as f64;
-        n as f64 / denom
-    } else {
-        0.0
-    };
-
-    Some(hh * 3600.0 + mm * 60.0 + ss + frac)
-}
-
-/// Compute elapsed time \[s\] from radiopharmaceutical injection to series acquisition.
-///
-/// Handles midnight rollover: if `series_time_s < rph_start_s`, the scan crossed
-/// midnight and 86 400 s is added. Result ∈ [0, 86 400).
-pub fn compute_delta_t_s(rph_start_s: f64, series_time_s: f64) -> f64 {
-    let diff = series_time_s - rph_start_s;
-    if diff < 0.0 {
-        diff + 86_400.0
-    } else {
-        diff
+        let suv = match self {
+            Self::BodyWeight => pixel,
+            Self::Activity(calibration) => calibration
+                .suvbw(ActivityConcentration::from_unit::<BecquerelPerMilliliter>(
+                    pixel,
+                ))
+                .in_unit::<GramPerCubicCentimeter>(),
+        };
+        suv.is_finite().then_some(suv)
     }
 }
 

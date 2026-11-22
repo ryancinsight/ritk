@@ -12,7 +12,7 @@
 //!   A₀    = injected activity at injection time            [Bq]
 //!   F(t)  = physical decay factor at scan time             [dimensionless]
 //!         = exp(−λ · Δt),  λ = ln 2 / T½
-//!   Δt    = elapsed time from injection to scan start      [s]
+//!   Δt    = elapsed time from administration to the pixel activity reference      [s]
 //!   T½    = radionuclide physical half-life                 [s]
 //!   BW    = patient body weight                            [g]
 //! ```
@@ -30,12 +30,10 @@
 //!
 //! ## Decay-corrected DICOM pixels
 //!
-//! When DICOM attribute (0054,1102) Decay Correction = "START", the scanner has
-//! already corrected pixel values to injection-time activity.  In that case set
-//! `decay_factor = 1.0` via [`SuvParams::without_decay_correction`].
-//!
-//! When Decay Correction = "NONE", raw pixel values represent activity at scan
-//! time; compute the decay factor via [`SuvParams::with_decay_correction`].
+//! When DICOM Decay Correction = "ADMIN", voxel values are referenced to
+//! administration and use a decay factor of 1.0. START and NONE instead
+//! require the factor for the acquisition start and frame reference,
+//! respectively.
 //!
 //! ## References
 //!
@@ -68,14 +66,14 @@ pub struct SuvParams {
     /// Physical decay factor F(t) = exp(−λ · Δt) \[dimensionless, ∈ (0, 1\].
     ///
     /// Set to `1.0` when DICOM pixels are already decay-corrected to injection
-    /// time (Decay Correction = "START").
+    /// time (Decay Correction = "ADMIN").
     pub decay_factor: f64,
 }
 
 impl SuvParams {
     /// Construct `SuvParams` for decay-corrected DICOM pixels.
     ///
-    /// Use when (0054,1102) Decay Correction = "START": pixel values already
+    /// Use when (0054,1102) Decay Correction = "ADMIN": pixel values already
     /// represent injection-time activity; `decay_factor = 1.0`.
     #[inline]
     pub fn without_decay_correction(injected_dose_bq: f64, patient_weight_g: f64) -> Self {
@@ -96,8 +94,8 @@ impl SuvParams {
 
     /// Construct `SuvParams` with physical decay correction.
     ///
-    /// Use when (0054,1102) Decay Correction = "NONE": pixel values represent
-    /// raw activity at scan time.
+    /// Use when dose and pixel activity must be aligned to a verified
+    /// reference time later than administration.
     ///
     /// ```text
     /// F(t) = exp(−ln 2 · Δt / T½)

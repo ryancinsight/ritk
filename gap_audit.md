@@ -1,5 +1,22 @@
 # RITK Gap Audit
 
+## Classic PET SUV timing
+
+The classic PET reader admits a common activity reference across instances
+before the shared pointer and compatibility fusion paths display SUVbw.
+The baseline disagrees with the decimal reference or reports SUV for
+unavailable timing in 31 of the initial 50 Part 10 cases. Seven further
+cases exercise single-valued Frame Reference Time and Decay Factor,
+valid padding in decay mode, UTC offset and frame duration, and the
+DICOM Integer String range. Coverage includes verified zero, one-hour
+and dated midnight intervals, offset-aware clocks, and conflicting
+frame timing.
+
+Classic series with distinct frame-scale factors retain activity display
+and need frame-specific normalization before interpolation to support
+quantitative SUV. Native Windows UI verification remains part of
+[RITK-SNAP-NATIVE-FUSION-001](backlog/RITK-SNAP-NATIVE-FUSION-001.md).
+
 ## DICOM multiframe geometry
 
 Generic scalar and color headers and writer inputs carry typed lengths.

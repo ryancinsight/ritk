@@ -77,7 +77,7 @@
 <a id="RITK-SNAP-NATIVE-DYNAMIC-001"></a>- [RITK-SNAP-NATIVE-DYNAMIC-001](backlog/RITK-SNAP-NATIVE-DYNAMIC-001.md) — Add time-intensity curves and DSA — todo
 <a id="RITK-SNAP-NATIVE-EXPORT-001"></a>- [RITK-SNAP-NATIVE-EXPORT-001](backlog/RITK-SNAP-NATIVE-EXPORT-001.md) — Export and copy displayed images — todo
 <a id="RITK-SNAP-NATIVE-FILTERS-001"></a>- [RITK-SNAP-NATIVE-FILTERS-001](backlog/RITK-SNAP-NATIVE-FILTERS-001.md) — Apply image filters natively — todo
-<a id="RITK-SNAP-NATIVE-FUSION-001"></a>- [RITK-SNAP-NATIVE-FUSION-001](backlog/RITK-SNAP-NATIVE-FUSION-001.md) — Fuse series and read SUV natively — blocked
+<a id="RITK-SNAP-NATIVE-FUSION-001"></a>- [RITK-SNAP-NATIVE-FUSION-001](backlog/RITK-SNAP-NATIVE-FUSION-001.md) — Fuse series and read SUV natively — blocked on native comparison controls
 <a id="RITK-SNAP-NATIVE-LINK-001"></a>- [RITK-SNAP-NATIVE-LINK-001](backlog/RITK-SNAP-NATIVE-LINK-001.md) — Link panes by patient position — todo
 <a id="RITK-SNAP-NATIVE-LOAD-001"></a>- [RITK-SNAP-NATIVE-LOAD-001](backlog/RITK-SNAP-NATIVE-LOAD-001.md) — Browse a study while it loads — todo
 <a id="RITK-SNAP-NATIVE-INPUT-PARITY-001"></a>- [RITK-SNAP-NATIVE-INPUT-PARITY-001](backlog/RITK-SNAP-NATIVE-INPUT-PARITY-001.md) — Finish native input parity — todo

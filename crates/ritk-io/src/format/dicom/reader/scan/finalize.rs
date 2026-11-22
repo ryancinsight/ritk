@@ -65,7 +65,7 @@ pub(super) fn finalize_scanned_series(
     let origin = assemble_origin(&slices);
 
     let series_object = build_series_object(&series_path, &slices);
-    let metadata = super::super::types::assemble_metadata(
+    let metadata = super::metadata::assemble_metadata(
         first,
         slices,
         SeriesGeometry {

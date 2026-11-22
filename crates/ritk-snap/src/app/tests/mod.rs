@@ -38,6 +38,7 @@ mod load_tasks;
 mod measurement;
 #[cfg(test)]
 mod navigation;
+mod pet_timing;
 #[cfg(test)]
 #[cfg(feature = "eframe-shell")]
 mod physical_aspect;

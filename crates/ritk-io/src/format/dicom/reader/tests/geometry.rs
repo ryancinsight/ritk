@@ -295,6 +295,7 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
         patient_weight_kg: None,
         enhanced_pet_suv: None,
         enhanced_pet_selection: None,
+        classic_pet_calibration: None,
         pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,
