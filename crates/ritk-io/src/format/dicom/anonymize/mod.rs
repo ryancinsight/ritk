@@ -3,7 +3,7 @@
 //! # Design
 //! - `anonymize_object` is the canonical entry point for single-object mutation.
 //! - `anonymize_dicom_file` wraps open + anonymize + write.
-//! - `anonymize_dicom_directory` batches across a directory tree.
+//! - `anonymize_dicom_directory` batches over the files directly in a directory.
 //! - UID replacement uses SHA-256 deterministic hashing so the mapping is
 //!   cryptographically irreversible without the salt and referentially
 //!   consistent within a study processed in a single batch.
@@ -26,6 +26,7 @@
 //! - A step that cannot complete aborts the run with [`AnonymizeError`]; the
 //!   object it would have described is never returned as a success.
 
+mod directory;
 pub(in crate::format::dicom) mod file_meta;
 mod profile;
 #[cfg(not(target_arch = "wasm32"))]
@@ -49,8 +50,12 @@ mod tests_study;
 mod tests_verify;
 #[cfg(test)]
 mod tests_verify_geometry;
+mod uid;
 pub mod verify;
 
+pub use directory::{
+    anonymize_dicom_directory, anonymize_dicom_directory_verified, AnonymizeStats,
+};
 pub use profile::{AnonymizationProfile, TagAction};
 #[cfg(not(target_arch = "wasm32"))]
 pub use salt::SaltError;
@@ -68,13 +73,13 @@ pub enum CleaningPolicy {
     Clean,
 }
 
+use self::uid::generate_uid_from_hash;
 use anyhow::{Context, Result};
 use ritk_dicom::dataset::Value;
 use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
 use ritk_dicom::dataset::{Dataset, DicomFile};
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Options controlling how a DICOM object is anonymized.
 #[derive(Debug, Clone)]
@@ -182,95 +187,6 @@ pub enum AnonymizeError {
         depth: u32,
     },
 }
-
-/// Cumulative statistics for a `anonymize_dicom_directory` run.
-#[derive(Debug, Clone)]
-pub struct AnonymizeStats {
-    /// Number of files recognised as valid DICOM and processed.
-    pub file_count: usize,
-    /// Number of DICOM files successfully anonymized and written.
-    pub success_count: usize,
-    /// Number of DICOM files that failed anonymization or writing.
-    pub error_count: usize,
-    /// Per-file error messages for failed files.
-    pub errors: Vec<(PathBuf, String)>,
-}
-
-// ─── UID generation ───────────────────────────────────────────────────────────
-
-/// Produce a deterministic DICOM-conformant UID from `original` and `salt`.
-///
-/// # Algorithm
-/// SHA-256 over `original || "||" || salt`, the first 19 bytes of the digest
-/// are converted to decimal digits (each byte → 2 or 3 decimal digits),
-/// producing at most 57 decimal characters. The result is prefixed with
-/// `"2.25."` (ISO/IEC 9834-8 UUID arc), yielding a UID ≤ 64 characters.
-///
-/// # Invariants
-/// - Same `(original, salt)` → same output (pure function).
-/// - Output matches `^2\.25\.[0-9]+$` and is ≤ 64 characters.
-/// - Original UID cannot be recovered without the salt.
-/// - Collision probability is O(1/2^152) (19 bytes of SHA-256 entropy).
-pub(crate) fn generate_uid_from_hash(original: &str, salt: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(original.as_bytes());
-    hasher.update(b"||");
-    hasher.update(salt.as_bytes());
-    let digest = hasher.finalize();
-
-    // Convert first 19 bytes of SHA-256 digest to decimal string.
-    // Each byte [0,255] → 2 or 3 decimal digits → max 57 characters.
-    // With "2.25." prefix (5 chars), total ≤ 62 characters < 64 max.
-    let decimal: String = digest[..19]
-        .iter()
-        .flat_map(|b| {
-            let d = u32::from(*b);
-            if d < 10 {
-                vec![b'0', b'0', b'0' + (d as u8)]
-            } else if d < 100 {
-                let tens = (d / 10) as u8;
-                let ones = (d % 10) as u8;
-                vec![b'0', b'0' + tens, b'0' + ones]
-            } else {
-                let hundreds = (d / 100) as u8;
-                let rem = (d % 100) as u8;
-                let tens = rem / 10;
-                let ones = rem % 10;
-                vec![b'0' + hundreds, b'0' + tens, b'0' + ones]
-            }
-        })
-        .map(|b| b as char)
-        .collect();
-
-    // Strip leading zeros from the decimal portion to avoid UID components
-    // with leading zeros (DICOM forbids leading-zero components after the root).
-    let decimal_stripped = decimal.trim_start_matches('0');
-    let uid_body = if decimal_stripped.is_empty() {
-        "0"
-    } else {
-        decimal_stripped
-    };
-    let uid = format!("2.25.{uid_body}");
-
-    debug_assert!(
-        uid.len() <= 64,
-        "Generated UID exceeds 64-char DICOM limit: {} (len={})",
-        uid,
-        uid.len()
-    );
-    debug_assert!(
-        uid.chars().all(|c| c.is_ascii_digit() || c == '.'),
-        "Generated UID contains invalid characters: {uid}"
-    );
-    debug_assert!(
-        !uid.contains(".00"),
-        "Generated UID has leading-zero component: {uid}"
-    );
-
-    uid
-}
-
-// ─── Action dispatch ──────────────────────────────────────────────────────────
 
 /// Apply `action` to `tag` in `obj`, tracking statistics in `result`.
 ///
@@ -560,80 +476,6 @@ pub fn anonymize_dicom_file(
     Ok(result)
 }
 
-/// Anonymize all DICOM files in `input_dir`, writing results to `output_dir`.
-///
-/// `output_dir` is created if it does not exist.
-/// Files that cannot be opened as DICOM are skipped silently and not counted.
-/// Files that are valid DICOM but fail during anonymization ([`AnonymizeError`])
-/// or writing are counted in `AnonymizeStats::error_count`, recorded in
-/// `AnonymizeStats::errors`, and logged at `WARN` level; no output file is
-/// written for them.
-/// Output filenames match input filenames; directory structure is not
-/// recursed.
-///
-/// # Errors
-///
-/// Fails only if `output_dir` cannot be created or `input_dir` cannot be read;
-/// per-file failures are reported through `AnonymizeStats` rather than aborting
-/// the run.
-pub fn anonymize_dicom_directory(
-    input_dir: impl AsRef<Path>,
-    output_dir: impl AsRef<Path>,
-    options: &AnonymizeOptions,
-) -> Result<AnonymizeStats> {
-    let input_dir = input_dir.as_ref();
-    let output_dir = output_dir.as_ref();
-    std::fs::create_dir_all(output_dir)
-        .with_context(|| format!("Failed to create output directory {output_dir:?}"))?;
-
-    let entries: Vec<PathBuf> = std::fs::read_dir(input_dir)
-        .with_context(|| format!("Failed to read input directory {input_dir:?}"))?
-        .filter_map(|e| e.ok())
-        .map(|e| e.path())
-        .filter(|p| p.is_file())
-        .collect();
-
-    let mut stats = AnonymizeStats {
-        file_count: 0,
-        success_count: 0,
-        error_count: 0,
-        errors: Vec::new(),
-    };
-
-    for input_path in &entries {
-        // Non-DICOM files are skipped silently without counting.
-        let obj = match ritk_dicom::dataset::DicomFile::open(input_path) {
-            Ok(o) => o,
-            Err(_) => continue,
-        };
-        stats.file_count += 1;
-
-        let file_name = match input_path.file_name() {
-            Some(n) => n,
-            None => continue,
-        };
-        let output_path = output_dir.join(file_name);
-
-        match anonymize_object(obj, options).and_then(|(o, _)| {
-            o.write_to_file(&output_path)
-                .with_context(|| format!("Failed to write {output_path:?}"))
-        }) {
-            Ok(()) => stats.success_count += 1,
-            Err(e) => {
-                tracing::warn!(
-                    path = ?input_path,
-                    error = %e,
-                    "anonymization failed"
-                );
-                stats.error_count += 1;
-                stats.errors.push((input_path.clone(), e.to_string()));
-            }
-        }
-    }
-
-    Ok(stats)
-}
-
 /// Anonymize a DICOM file and verify the exported metadata is intact.
 ///
 /// This is the export-gate entry point recommended for PACS-bound output: it
@@ -654,25 +496,4 @@ pub fn anonymize_dicom_file_verified(
     let result = anonymize_dicom_file(&input_path, &output_path, options)?;
     verify::ensure_dicom_file_clean(&output_path, verify_options)?;
     Ok(result)
-}
-
-/// Anonymize a directory tree and verify every exported file.
-///
-/// Runs `anonymize_dicom_directory` and then a cross-file export gate
-/// (`verify::ensure_dicom_directory_clean`) that asserts one Study/Series UID
-/// set, unique SOPInstanceUIDs, and clean per-file metadata across the output
-/// directory.
-///
-/// # Errors
-/// Returns an error when the directory pass fails or verification finds any
-/// issue in any exported file.
-pub fn anonymize_dicom_directory_verified(
-    input_dir: impl AsRef<Path>,
-    output_dir: impl AsRef<Path>,
-    options: &AnonymizeOptions,
-    verify_options: &verify::VerifyOptions,
-) -> Result<AnonymizeStats> {
-    let stats = anonymize_dicom_directory(&input_dir, &output_dir, options)?;
-    verify::ensure_dicom_directory_clean(&output_dir, verify_options)?;
-    Ok(stats)
 }

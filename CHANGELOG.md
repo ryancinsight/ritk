@@ -12,6 +12,12 @@
 
 ### Breaking
 
+- [major] Directory DICOM anonymization exports numbered files and skips
+  occupied destination names in `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
+  Pass a separate destination and discover exported filenames there. Use the
+  anonymized DICOM metadata to associate instances. The Python result still
+  reports `file_count`, `success_count`, `error_count`, and `errors`.
+
 - [major] Classic PET SUVbw requires a source-qualified activity reference
   for `START` and `NONE`. Missing or inconsistent timing leaves the PET
   activity concentration available for display and withholds numeric SUVbw.

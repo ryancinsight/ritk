@@ -30,6 +30,11 @@ pub(crate) fn read_source(path: &Path) -> Source {
     }
 }
 
+/// Name an exported instance from a one-based ordinal and a fixed extension.
+pub(crate) fn numbered_instance_path(output: &Path, ordinal: usize) -> PathBuf {
+    output.join(format!("{ordinal:06}.dcm"))
+}
+
 /// Remove the files a failed export wrote; returns those still on disk.
 pub(crate) fn remove_written(written: &[PathBuf]) -> Vec<PathBuf> {
     written
