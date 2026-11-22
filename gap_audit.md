@@ -119,7 +119,7 @@ and reject an unrepresentable positive spacing before output.
 - status: [ADR 0069](docs/adr/0069-preserve-dicom-export-structure.md) records the selected contract. The opt-in Python suite covers both fixtures and the file-set root. RITK Python volume reopening of the source compressed CT is a separate gap. The independent decoder verifies all CT slices.
 - verification: the macOS arm64 wheel passes both profiles for the 94-instance MRI and 303-instance CT fixtures and rejects the CT DICOMDIR. All 564 `ritk-io` library tests pass on the integrated source.
 - target: `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
-- next: review PR #1105 against main and verify its required checks. PR #1104 has merged.
+- integration: PRs #1104 and #1105 merged after their required checks passed. The crates.io release cohort tracks the `ritk-io` 0.8.0 manifest.
 
 <a id="RITK-DICOM-ANONYMIZE-NESTED-META-001"></a>
 ## RITK-DICOM-ANONYMIZE-NESTED-META-001: group 0002 elements inside sequence items survive de-identification
