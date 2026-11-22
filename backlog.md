@@ -27,6 +27,7 @@
 - non-goals: encrypted ZIP, optical disc burning, unlisted RadiAnt add-ons
 # Items
 
+<a id="ritk-stable-qualification"></a>- [RITK-STABLE-QUALIFICATION](backlog/ritk-stable-qualification.md) — ritk stable-release qualification [patch] — todo
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — blocked
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
 <a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Write permuted images to VTK and Analyze — todo
