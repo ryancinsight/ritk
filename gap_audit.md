@@ -1,5 +1,9 @@
 # RITK Gap Audit
 
+## Viewer dependency audit [patch]
+
+The locked viewer path through Metis now resolves Moirai Crypto 0.12.1 and RSA 0.10.0. URL resolves to 2.5.9. The all-feature audit no longer reports either vulnerability. It still fails on 13 unmaintained package-version findings and reports one yanked async-executor. The [stable qualification checklist](backlog/ritk-stable-qualification.md) tracks their disposition.
+
 ## Classic PET SUV timing
 
 The classic PET reader admits a common activity reference across instances

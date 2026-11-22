@@ -52,6 +52,8 @@
 
 ### Fixed
 
+- [patch] Update the locked viewer dependencies to URL 2.5.9 and the Metis revision using Moirai Crypto 0.12.1 with RSA 0.10.0.
+
 - [patch] Apply DICOM header actions to existing attributes, use the
   standard Patient Name and ID value representations, and remove source
   creation and contribution metadata. UID-replacing profiles remap all
