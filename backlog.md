@@ -22,7 +22,7 @@
 ## M-viewer-advanced — 1.0.0 — advanced reading tools
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_filter) or test(native_vr) or test(native_fusion) or test(native_dynamic) or test(native_documents) or test(native_movie) or test(native_shell)'`
 - exit: `cargo semver-checks` for `ritk-snap`; `cargo publish --dry-run` for the viewer's closure
-- exit: `cargo doc` with no new warnings; zero open correctness items (M-1.0 per ADR 0059, authority-gated: release authority sets the API-freeze contents, never forces `publish = true` without it)
+- exit: `cargo doc` with no new warnings; zero open correctness items and verified compatibility for AsterSlice controls, the CLI, Python and published Rust crate APIs ([ADR 0059](docs/adr/0059-release-scope-1-0.md))
 - needs: M-viewer-access
 - non-goals: encrypted ZIP, optical disc burning, unlisted RadiAnt add-ons
 # Items
