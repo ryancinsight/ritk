@@ -35,6 +35,10 @@ opening either destination file. The independent VTK and Analyze Python
 geometry checks exercise the representable signed-permutation case. The
 legacy Analyze compute writer retains its documented quantization behavior.
 
+## NIfTI compute intensities
+
+In OpenNeuro ds000208 the first background sample decoded as −32,768 while NiBabel and SimpleITK both returned zero. The compute reader discarded the slope and intercept. Two independent regressions exercise signed-zero identity, invalid coefficients and integer cancellation above 2²⁴. Corrected compute reads agree with both libraries at every one of the 42,991,616 voxels in the four cataloged MRIs.
+
 ## NIfTI document conversion
 
 Two gzip regressions reproduced a split header failing to read and a damaged

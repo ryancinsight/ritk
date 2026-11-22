@@ -43,6 +43,8 @@
 
 ### Fixed
 
+- [patch] Apply global intensity calibration to scalar and series image reads before narrowing to binary32. A zero slope disables scaling. Repacking preserves stored sample and calibration bytes.
+
 - [patch] Readers decode samples across gzip member boundaries. The document
   transport preserves the combined expanded stream and checks each member's
   trailer before replacing an output. File reads apply the document size limit

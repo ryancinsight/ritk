@@ -29,4 +29,4 @@ macro_rules! nifti_lane {
 // bodies are the std constructors themselves; a declarative macro is the one
 // place this file needs to name each scalar, and it is generated once here
 // rather than written out four times.
-nifti_lane!(i16 => 2, i32 => 4, u32 => 4, f32 => 4);
+nifti_lane!(u8 => 1, i16 => 2, i32 => 4, u32 => 4, f32 => 4);

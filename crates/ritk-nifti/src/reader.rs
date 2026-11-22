@@ -176,23 +176,12 @@ fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
 
     // NIfTI stores x fastest, then y, z, and finally the acquisition axis, so
     // each volume is one contiguous block of `voxel_count` voxels.
-    let volumes = (0..header.volume_count())
-        .map(|volume| {
-            let base = volume * voxel_count * lane_width;
-            let mut data_vec = vec![0.0_f32; voxel_count];
-            for z in 0..nz {
-                for y in 0..ny {
-                    for x in 0..nx {
-                        let file_index = x + nx * (y + ny * z);
-                        let offset = base + file_index * lane_width;
-                        let value =
-                            header.read_f32_voxel(&data_bytes[offset..offset + lane_width])?;
-                        data_vec[z * ny * nx + y * nx + x] = value;
-                    }
-                }
-            }
-            Ok(data_vec)
-        })
+    let calibration = header
+        .linear_calibration()?
+        .filter(|scale| !scale.is_identity());
+    let volumes = data_bytes
+        .chunks_exact(voxel_count * lane_width)
+        .map(|volume| header.decode_intensities(volume, calibration))
         .collect::<Result<Vec<_>>>()?;
 
     Ok(DecodedNifti {

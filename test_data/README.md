@@ -105,7 +105,7 @@ ritk-cli register syn --fixed test_data/ants_example/mni152.nii.gz \
 
 ---
 
-Registration tests read this volume from `ATLAS_FIXTURE_CACHE/openneuro/sub-01_T1w.nii.gz` when that environment variable is set. The Atlas fixtures catalog verifies the 10,581,116-byte upstream object against SHA-256 `5b2b2b2dba19d5a6bbcdc39a6cd6a8e2169a8288137f4f90e75015c113070cbe` and supplies the path. Existing checkouts can use their tracked copy. [Shared catalog and resolver](https://github.com/ryancinsight/atlas-fixtures/tree/1ebc12244f2e5d4ab7c08a80fb98479d935e2d3a)
+Registration tests read this volume from `ATLAS_FIXTURE_CACHE/openneuro/sub-01_T1w.nii.gz` when that environment variable is set. The Atlas fixtures catalog verifies the 10,581,116-byte upstream object against SHA-256 `5b2b2b2dba19d5a6bbcdc39a6cd6a8e2169a8288137f4f90e75015c113070cbe` and supplies the path. Existing checkouts can use their tracked copy. [Shared catalog and resolver](https://github.com/ryancinsight/atlas-fixtures/tree/35656a6a21b0b2a5f419fa4fe8fbc4e6fc488a41)
 
 ### `ants_example/` — MNI152 Brain Atlas and Visible Human (NIfTI)
 

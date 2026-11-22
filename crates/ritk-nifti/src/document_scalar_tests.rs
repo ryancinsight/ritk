@@ -176,3 +176,41 @@ fn invalid_scalar_documents_leave_existing_destinations_unchanged() -> Result<()
 
     Ok(())
 }
+
+#[test]
+fn compute_scaling_precedes_binary32_rounding() -> Result<()> {
+    let backend = coeus_core::SequentialBackend;
+    let values = little_endian([16_777_217_i32, 16_777_219], i32::to_le_bytes);
+    for version in [HeaderVersion::One, HeaderVersion::Two] {
+        let mut bytes = scalar_document_bytes(version, SampleType::I32, &values)?;
+        match version {
+            HeaderVersion::One => bytes[116..120].copy_from_slice(&(-16_777_216_f32).to_le_bytes()),
+            HeaderVersion::Two => bytes[184..192].copy_from_slice(&(-16_777_216_f64).to_le_bytes()),
+        }
+        let image = crate::read_nifti_from_bytes(&bytes, &backend)?;
+        assert_eq!(image.data_cow_on(&backend)?.as_ref(), [1.0, 3.0]);
+        let series = crate::read_nifti_series_from_bytes(&bytes, &backend)?;
+        assert_eq!(series.len(), 1);
+        assert_eq!(series[0].data_cow_on(&backend)?.as_ref(), [1.0, 3.0]);
+    }
+    Ok(())
+}
+
+#[test]
+fn compute_scaling_handles_disabled_and_invalid_coefficients() -> Result<()> {
+    let backend = coeus_core::SequentialBackend;
+    let values = little_endian([-0.0_f32, -3.25], f32::to_le_bytes);
+    let mut bytes = scalar_document_bytes(HeaderVersion::Two, SampleType::F32, &values)?;
+    bytes[176..184].copy_from_slice(&(-0.0_f64).to_le_bytes());
+    bytes[184..192].copy_from_slice(&f64::NAN.to_le_bytes());
+    let image = crate::read_nifti_from_bytes(&bytes, &backend)?;
+    let actual = image.data_cow_on(&backend)?;
+    assert_eq!(actual[0].to_bits(), (-0.0_f32).to_bits());
+    assert_eq!(actual[1], -3.25);
+    bytes[176..184].copy_from_slice(&(-2.0_f64).to_le_bytes());
+    assert!(crate::read_nifti_from_bytes(&bytes, &backend).is_err());
+    bytes[184..192].copy_from_slice(&1.0_f64.to_le_bytes());
+    let image = crate::read_nifti_from_bytes(&bytes, &backend)?;
+    assert_eq!(image.data_cow_on(&backend)?.as_ref(), [1.0, 7.5]);
+    Ok(())
+}

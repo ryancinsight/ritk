@@ -21,13 +21,14 @@ Requires:
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import numpy as np
 import pytest
 import ritk
 import SimpleITK as sitk
+
+from _fixture_cache import catalog_fixture
 
 # ---------------------------------------------------------------------------
 # Custom pytest markers
@@ -67,11 +68,7 @@ _BRAIN_MOVING = _BRAIN_FIXED
 _MNI_FIXED = (
     _TEST_DATA / "ants_example" / "mni152.nii.gz" if _TEST_DATA else None
 )
-# Readers in different repositories may use the same catalog-resolved MRI.
-# The repository fixture supports existing checkouts without a shared cache.
-_shared_cache = os.environ.get("ATLAS_FIXTURE_CACHE")
-_mni_root = Path(_shared_cache) if _shared_cache else _TEST_DATA
-_MNI_MOVING = _mni_root / "openneuro/sub-01_T1w.nii.gz" if _mni_root else None
+_MNI_MOVING = catalog_fixture("openneuro/sub-01_T1w.nii.gz")
 _RIRE_CT = (
     _TEST_DATA / "registration" / "rire" / "training_001_ct.mha" if _TEST_DATA else None
 )
