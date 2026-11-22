@@ -11,8 +11,7 @@ use ritk_dicom::{
 
 use super::pet_dimensions::is_enhanced_pet;
 
-mod datetime;
-use datetime::Timestamp;
+use super::super::pet_datetime::Timestamp;
 use std::sync::Arc;
 
 /// Quantitative body-weight-normalized uptake aligned with the decoded volume.

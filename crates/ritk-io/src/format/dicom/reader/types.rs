@@ -17,6 +17,8 @@ use super::super::value_units::{DicomModalityValue, DicomValueUnit, SuvNormaliza
 use crate::format::dicom::object_model::{DicomObjectModel, DicomPreservationSet};
 use ritk_dicom::PixelSignedness;
 
+use super::pet_calibration::{ClassicPetCalibration, SeriesPetCalibration};
+
 /// Per-slice DICOM metadata extracted during series loading.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DicomSliceMetadata {
@@ -267,6 +269,8 @@ pub struct DicomReadMetadata {
     pub enhanced_pet_suv: Option<crate::BodyWeightSuvVolume>,
     /// Shared temporal and gated volume selection, when loaded as a volume set.
     pub enhanced_pet_selection: Option<crate::EnhancedPetSelection>,
+    /// Uniform, source-qualified normalization for classic PET activity data.
+    pub classic_pet_calibration: Option<ClassicPetCalibration>,
     pub preservation: DicomPreservationSet,
     /// (0010,1030) Patient Weight \[kg\].
     pub patient_weight_kg: Option<Mass>,
@@ -339,6 +343,7 @@ pub(super) struct SeriesFirstSeen {
     pub decay_correction: Option<ArrayString<16>>,
     /// Whether classic PET pixel values are encoded as activity concentration in Bq/mL.
     pub pet_pixels_in_bq_per_ml: Option<bool>,
+    pub(super) classic_pet_calibration: SeriesPetCalibration,
     pub radionuclide_total_dose_bq: Option<Radioactivity>,
     pub radiopharmaceutical_start_time: Option<ArrayString<16>>,
     pub radionuclide_half_life_s: Option<Time>,
@@ -486,6 +491,7 @@ pub(super) fn assemble_metadata(
         },
         enhanced_pet_suv: None,
         enhanced_pet_selection: None,
+        classic_pet_calibration: first.classic_pet_calibration.common(),
         patient_weight_kg: first.patient_weight_kg,
         decay_correction: first.decay_correction,
         pet_pixels_in_bq_per_ml: first.pet_pixels_in_bq_per_ml.unwrap_or(false),

@@ -15,6 +15,7 @@ use ritk_dicom::dataset::DicomFile;
 use ritk_dicom::dataset::DicomTag;
 use ritk_dicom::PixelSignedness;
 
+use super::pet_calibration::ClassicPetCalibration;
 use super::preservation::preserve_unhandled_elements;
 use super::types::{
     cs_to_arraystring, da_to_arraystring, parse_patient_position, tm_to_arraystring,
@@ -356,6 +357,12 @@ pub(super) fn extract_dicom_metadata(
         first.decay_correction = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
     }
     let has_pet_concentration = slice_meta.value_unit == DicomValueUnit::ActivityConcentration;
+    let calibration = (has_pet_concentration
+        && slice_meta.sop_class_uid.as_deref().map(classify_sop_class)
+            == Some(SopClassKind::PetImageStorage))
+    .then(|| ClassicPetCalibration::from_image(obj))
+    .flatten();
+    first.classic_pet_calibration.record(calibration);
     first.pet_pixels_in_bq_per_ml =
         Some(first.pet_pixels_in_bq_per_ml.unwrap_or(true) && has_pet_concentration);
     // A series-level activity is unambiguous only for a single isotope item.

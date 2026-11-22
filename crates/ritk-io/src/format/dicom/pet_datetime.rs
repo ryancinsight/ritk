@@ -9,6 +9,7 @@ const SECONDS_PER_HOUR: i64 = 60 * SECONDS_PER_MINUTE;
 const SECONDS_PER_DAY: i64 = 24 * SECONDS_PER_HOUR;
 const MICROS_PER_SECOND: i64 = 1_000_000;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct Timestamp {
     micros: i64,
     has_offset: bool,
@@ -50,6 +51,46 @@ impl Timestamp {
             micros: seconds * MICROS_PER_SECOND + micros,
             has_offset: !offset_text.is_empty(),
         })
+    }
+
+    pub(super) fn parse_with_default_offset(text: &str, offset: &str) -> Option<Self> {
+        let parsed = Self::parse(text)?;
+        if offset.is_empty() || parsed.has_offset {
+            return Some(parsed);
+        }
+        Self::parse(&format!("{text}{offset}"))
+    }
+
+    pub(super) fn matches_clock(datetime: &str, time: &str) -> bool {
+        let Some(clock) = datetime.get(8..14) else {
+            return false;
+        };
+        let (whole, fraction) = time.split_once('.').unwrap_or((time, ""));
+        if !matches!(whole.len(), 2 | 4 | 6) || !clock.starts_with(whole) {
+            return false;
+        }
+        if !time.contains('.') {
+            return true;
+        }
+        if whole.len() != 6 || fraction.is_empty() || fraction_micros(&time[6..]).is_none() {
+            return false;
+        }
+        let suffix = &datetime[14..];
+        let expected = suffix
+            .split(['+', '-'])
+            .next()
+            .and_then(|part| part.strip_prefix('.'))
+            .unwrap_or_default();
+        expected.starts_with(fraction) || fraction.starts_with(expected)
+    }
+
+    pub(super) fn signed_seconds_since(self, start: Self) -> Option<f64> {
+        if self.has_offset != start.has_offset {
+            return None;
+        }
+        let micros = self.micros - start.micros;
+        let seconds = Duration::from_micros(micros.unsigned_abs()).as_secs_f64();
+        Some(if micros < 0 { -seconds } else { seconds })
     }
 
     pub(super) fn seconds_since(self, start: Self) -> Option<f64> {
