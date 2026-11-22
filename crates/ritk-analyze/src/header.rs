@@ -189,12 +189,18 @@ pub(crate) fn parse(hdr_path: &Path) -> Result<AnalyzeHeader> {
         ));
     }
 
+    decode(&hdr)
+}
+
+/// Decode a fixed-size header after the transport has checked length and magic.
+/// Stored conversion also uses this to check the header it intends to write.
+pub(crate) fn decode(hdr: &[u8; HDR_SIZE]) -> Result<AnalyzeHeader> {
     // sizeof_hdr must be exactly 348. Identify the unsupported byte order so a
     // big-endian file is not reported as arbitrary header corruption.
-    let sizeof_hdr = read_le::<i32>(&hdr, 0);
+    let sizeof_hdr = read_le::<i32>(hdr, 0);
     let hdr_size_i32 = i32::try_from(HDR_SIZE).expect("Analyze header size fits i32");
     if sizeof_hdr != hdr_size_i32 {
-        if read_integer::<i32>(&hdr, ByteOrder::BigEndian) == Some(hdr_size_i32) {
+        if read_integer::<i32>(hdr, ByteOrder::BigEndian) == Some(hdr_size_i32) {
             return Err(anyhow!(
                 "Unsupported big-endian Analyze file; RITK currently accepts little-endian Analyze 7.5 only"
             ));
@@ -205,17 +211,17 @@ pub(crate) fn parse(hdr_path: &Path) -> Result<AnalyzeHeader> {
         ));
     }
 
-    let dimension_count = read_le::<i16>(&hdr, 40);
+    let dimension_count = read_le::<i16>(hdr, 40);
     if !(3..=4).contains(&dimension_count) {
         return Err(anyhow!(
             "Unsupported Analyze dimension count {dimension_count}; the RITK reader accepts one 3-D volume"
         ));
     }
-    let nx = positive_dimension(read_le::<i16>(&hdr, 42), "nx")?;
-    let ny = positive_dimension(read_le::<i16>(&hdr, 44), "ny")?;
-    let nz = positive_dimension(read_le::<i16>(&hdr, 46), "nz")?;
+    let nx = positive_dimension(read_le::<i16>(hdr, 42), "nx")?;
+    let ny = positive_dimension(read_le::<i16>(hdr, 44), "ny")?;
+    let nz = positive_dimension(read_le::<i16>(hdr, 46), "nz")?;
     if dimension_count == 4 {
-        let volume_count = read_le::<i16>(&hdr, 48);
+        let volume_count = read_le::<i16>(hdr, 48);
         if volume_count != 1 {
             return Err(anyhow!(
                 "Unsupported Analyze volume count {volume_count}; the RITK reader accepts exactly one 3-D volume"
@@ -223,10 +229,10 @@ pub(crate) fn parse(hdr_path: &Path) -> Result<AnalyzeHeader> {
         }
     }
 
-    let datatype_code = read_le::<i16>(&hdr, 70);
+    let datatype_code = read_le::<i16>(hdr, 70);
     let datatype = AnalyzeDatatype::parse(datatype_code)?;
     let bytes_per_voxel = datatype.width();
-    let bitpix = read_le::<i16>(&hdr, 72);
+    let bitpix = read_le::<i16>(hdr, 72);
     let expected_bitpix = i16::try_from(bytes_per_voxel * 8)
         .expect("invariant: supported Analyze voxel widths fit in i16 bits");
     if bitpix != expected_bitpix {
@@ -235,21 +241,18 @@ pub(crate) fn parse(hdr_path: &Path) -> Result<AnalyzeHeader> {
         ));
     }
 
-    let sx_raw = f64::from(finite_header_value(read_le::<f32>(&hdr, 80), "pixdim[1]")?);
-    let sy_raw = f64::from(finite_header_value(read_le::<f32>(&hdr, 84), "pixdim[2]")?);
-    let sz_raw = f64::from(finite_header_value(read_le::<f32>(&hdr, 88), "pixdim[3]")?);
+    let sx_raw = f64::from(finite_header_value(read_le::<f32>(hdr, 80), "pixdim[1]")?);
+    let sy_raw = f64::from(finite_header_value(read_le::<f32>(hdr, 84), "pixdim[2]")?);
+    let sz_raw = f64::from(finite_header_value(read_le::<f32>(hdr, 88), "pixdim[3]")?);
     // Fall back to unit spacing when the stored value is zero or negative.
     let sx = if sx_raw > 0.0 { sx_raw } else { 1.0 };
     let sy = if sy_raw > 0.0 { sy_raw } else { 1.0 };
     let sz = if sz_raw > 0.0 { sz_raw } else { 1.0 };
 
-    let scale_raw = finite_header_value(read_le::<f32>(&hdr, 112), "funused1 scale")?;
+    let scale_raw = finite_header_value(read_le::<f32>(hdr, 112), "funused1 scale")?;
     let scale = if scale_raw == 0.0 { 1.0_f32 } else { scale_raw };
 
-    let vox_offset_raw = f64::from(finite_header_value(
-        read_le::<f32>(&hdr, 108),
-        "vox_offset",
-    )?);
+    let vox_offset_raw = f64::from(finite_header_value(read_le::<f32>(hdr, 108), "vox_offset")?);
     if vox_offset_raw < 0.0 || vox_offset_raw.fract() != 0.0 || vox_offset_raw > u64::MAX as f64 {
         return Err(anyhow!(
             "Unsupported Analyze vox_offset {vox_offset_raw}; expected a non-negative whole-byte offset"
@@ -257,9 +260,9 @@ pub(crate) fn parse(hdr_path: &Path) -> Result<AnalyzeHeader> {
     }
     let vox_offset = vox_offset_raw as u64;
 
-    let ox_vox = f64::from_integer(i64::from(read_le::<i16>(&hdr, 253)));
-    let oy_vox = f64::from_integer(i64::from(read_le::<i16>(&hdr, 255)));
-    let oz_vox = f64::from_integer(i64::from(read_le::<i16>(&hdr, 257)));
+    let ox_vox = f64::from_integer(i64::from(read_le::<i16>(hdr, 253)));
+    let oy_vox = f64::from_integer(i64::from(read_le::<i16>(hdr, 255)));
+    let oz_vox = f64::from_integer(i64::from(read_le::<i16>(hdr, 257)));
 
     Ok(AnalyzeHeader {
         shape: [nz, ny, nx],
@@ -268,7 +271,7 @@ pub(crate) fn parse(hdr_path: &Path) -> Result<AnalyzeHeader> {
         origin: Point::new([ox_vox * sx, oy_vox * sy, oz_vox * sz]),
         scale,
         vox_offset,
-        description: descrip_bytes(&hdr),
+        description: descrip_bytes(hdr),
     })
 }
 

@@ -1,5 +1,13 @@
 # RITK Gap Audit
 
+## Analyze stored header fidelity
+
+The former stored writer admitted a header that rounded the source spacing,
+origin or intensity scale. Its preflight now rejects that conversion before
+opening either destination file. The independent VTK and Analyze Python
+geometry checks exercise the representable signed-permutation case. The
+legacy Analyze compute writer retains its documented quantization behavior.
+
 ## NIfTI document conversion
 
 The CLI previously sent same-format conversion through the single-volume

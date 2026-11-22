@@ -8,6 +8,14 @@
 
 # CHANGELOG
 
+## Analyze 0.5.1 (unreleased)
+
+### Fixed
+
+- [patch] The Analyze stored-series writer rejects rounding of voxel spacing,
+  physical origin, or intensity scale before it replaces the header or image.
+  Existing Analyze pairs with representable metadata still round-trip.
+
 ## RITK CLI 0.3.0 (unreleased)
 
 ### Added
