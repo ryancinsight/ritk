@@ -52,6 +52,8 @@
 
 ### Fixed
 
+- [patch] Run the saved-study WebGPU scenario on a hosted Mac, sample the presented canvas, and select window presets by their displayed labels. The Metis rejection check compares frames immediately before and after the rejected selection.
+
 - [patch] Refresh the native chooser and dataset progress dependencies and update the yanked async-executor lock. The all-feature audit removes four maintenance findings.
 
 - [patch] Update the locked viewer dependencies to URL 2.5.9 and the Metis revision using Moirai Crypto 0.12.1 with RSA 0.10.0.

@@ -4,7 +4,7 @@
 - outcome: Read the public MRI-DIR study through the supported browser file chooser.
 - acceptance: A 94-file replay checks decoded pixels, bounded malformed-file rejection, and listener cleanup on Chromium, Firefox, and WebKit.
 - scope: RITK browser presentation, Metis file boundary, and cross-engine replay
-- next: Reopen when hosted WebKit permits bounded Blob reads.
-- basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
-- blocker: Safari 26.6.2 accepts all files but rejects the first bounded Blob.arrayBuffer read; run 35759891764 records the failure.
+- next: Replay the 94-file chooser and malformed-file cases on a SafariDriver build that grants read access to the selected files. Track the [upstream WebDriver upload regression](https://bugs.webkit.org/show_bug.cgi?id=322034).
+- basis: 54140426be0173d8aa8f937bc49c6255647231b4
+- blocker: In [hosted Safari 27.2](https://github.com/ryancinsight/ritk/actions/runs/45079835823/job/137389340300), the trusted chooser reported all 94 files and 49,807,236 bytes. macOS denied WebContent the first file read. The workflow verified identical copies of all public fixtures, readable files and traversable parent directories. Safari 26.6.2 previously failed the same read in run 35759891764.
 - needs: none

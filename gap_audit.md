@@ -13,7 +13,11 @@ The locked all-feature audit of the 2026-11-22 candidate clears the URL and RSA 
 | RITK native viewer text, ab_glyph and owned_ttf_parser | ttf-parser 0.25.1 | Qualify a font stack using skrifa. Preserve text layout, glyph selection and exact input interactions across supported hosts. |
 | RITK native rendering and image codecs | paste 1.0.15 | Coordinate all three paths through Windows AccessKit, wgpu’s Metal backend and the EXR codec’s pulp dependency. Retest accessible windows, Metal rendering and EXR decoding before retiring the final edge. |
 
-The [browser qualification checklist](backlog/ritk-stable-qualification.md) tracks the independent saved-study scenarios.
+## Saved-study browser qualification [patch]
+
+[Run 45079835823](https://github.com/ryancinsight/ritk/actions/runs/45079835823) exercised all eight scenarios on RITK `54140426b` with Metis `94b698dcd`. Seven passed. Hosted Chromium WebGPU read the 94-file study, presented all three anatomical planes, passed the native cine-rate trace validator, removed its observer and closed the session. Both responsive scenarios, Chromium raster, the Chromium window and projection scenarios, and Firefox raster passed.
+
+Safari 27.2 recorded a trusted selection of 49,807,236 bytes across all 94 files. macOS denied WebContent access to the first file before decoding. Byte-for-byte verification and filesystem permissions are recorded in the [Safari job](https://github.com/ryancinsight/ritk/actions/runs/45079835823/job/137389340300). The [qualification checklist](backlog/ritk-stable-qualification.md) keeps Safari and the post-merge replay open.
 
 ## Classic PET SUV timing
 
