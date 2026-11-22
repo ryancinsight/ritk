@@ -10,6 +10,10 @@
 
 ## Verification fixtures (unreleased)
 
+### Removed
+
+- [patch] Checkouts omit the skull CT and paired MRI/CT collections. The owner retains a verified local copy of all 2,642 files.
+
 ### Changed
 
 - [patch] Registration tests can reuse the verified OpenNeuro MRI from `ATLAS_FIXTURE_CACHE`. The fixture documentation records the dataset’s PDDL declaration.

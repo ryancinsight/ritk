@@ -15,6 +15,7 @@ exit checks. The current increment belongs to M-viewer-reading.
 - [x] [patch] Verify complete MGZ framing on scalar and multi-frame reads. All 2,853 affected Rust tests pass across eight packages.
 - [ ] [minor] Implement the [stored MGH adapter](backlog/RITK-MGH-CONVERSION-001.md) and verify exact scalar types and metadata-loss rejection.
 - [x] [patch] Apply NIfTI calibration before binary32 narrowing. Compare all 42,991,616 voxels in the four shared OpenNeuro MRIs with NiBabel and SimpleITK.
+- [x] [patch] Remove the skull CT and paired MRI/CT collections from the candidate tree after verifying all 2,642 retained files against their Git objects.
 - [x] [patch] Verify the OpenNeuro ds000102 source, license and checksum and run the registration consumer from the shared fixture cache.
 - [ ] [major] Execute the native Windows viewer and browser acceptance gates and complete the remaining [milestone items](backlog.md).
 - [x] [major] Record the four 1.0 compatibility surfaces in [ADR 0059](docs/adr/0059-release-scope-1-0.md). Compatibility qualification remains pending.

@@ -6,19 +6,7 @@ Curated cranial imaging datasets for registration, filtering, and viewer validat
 
 ## Dataset Inventory
 
-### `2_skull_ct/` — Cranial CT (DICOM, 303 slices)
-
-| Field | Value |
-|---|---|
-| Modality | CT |
-| Format | DICOM (series folder + DICOMDIR) |
-| Slices | 303 axial slices |
-| Region | Cranium / skull |
-| Purpose | Viewer display, CT window/level validation, BedSeparation filter, registration fixed image |
-
-**Usage in ritk-snap**: Open `2_skull_ct/DICOM/` with File → Open DICOM Folder.
-
----
+The skull CT and paired MRI/CT collections are retained locally by their owner. Their redistribution terms are unresolved. Use the documented MRI-DIR phantom for checkout-based CT and MR workflows.
 
 ### `2_head_mri_t2/` — Head T2-Weighted MRI (DICOM, 94 slices)
 
@@ -145,7 +133,6 @@ CT↔MRI registration test case** — both volumes are from the same `MRI-DIR-zz
 porcine phantom with implanted gold fiducial ground truth:
 
 1. **Load CT fixed image** from `3_head_ct_mridir/DICOM/`
-   *(previously `2_skull_ct/DICOM/`; `3_head_ct_mridir` is now the primary paired CT dataset)*
 2. **Load MR moving image** from `2_head_mri_t2/DICOM/`
 3. **Run registration** (rigid → affine → deformable SyN)
 4. **Validate** using the gold fiducial markers embedded in the MRI-DIR phantom
@@ -153,8 +140,7 @@ porcine phantom with implanted gold fiducial ground truth:
 > **CT↔MRI parity**: The `3_head_ct_mridir/` CT and `2_head_mri_t2/` MRI are from the
 > **same phantom** with **gold fiducial ground truth**, making them the preferred pair for
 > quantitative registration accuracy evaluation (target registration error via fiducial
-> centroids). The `2_skull_ct/` dataset remains available for CT-only filter and viewer
-> testing.
+> centroids).
 
 The canonical `ants_example/mni152.nii.gz` + `openneuro/sub-01_T1w.nii.gz` pair
 provides a NIfTI-format registration workflow without DICOM I/O.
@@ -165,11 +151,11 @@ provides a NIfTI-format registration workflow without DICOM I/O.
 
 | Filter | Recommended Dataset | Expected Outcome |
 |---|---|---|
-| BedSeparation | `2_skull_ct/DICOM/` | Table removed, skull/brain retained |
+| BedSeparation | CT volume with a patient table | Table removed, anatomy retained |
 | Gaussian | Any volume | Reduced high-frequency noise |
 | Median | Any volume | Salt-and-pepper noise suppression |
 | N4 Bias Field | `openneuro/sub-01_T1w.nii.gz` | Intensity non-uniformity corrected |
-| Anisotropic Diffusion | `2_skull_ct/DICOM/` | Edge-preserving smoothing |
+| Anisotropic Diffusion | `3_head_ct_mridir/DICOM/` | Edge-preserving smoothing |
 | Frangi Vesselness | `openneuro/sub-01_T1w.nii.gz` | Vessel enhancement |
 
 ---
@@ -178,8 +164,6 @@ provides a NIfTI-format registration workflow without DICOM I/O.
 
 | Dataset | Modality | Recommended Centre | Recommended Width |
 |---|---|---|---|
-| `2_skull_ct` | CT | Brain: 40 HU | Brain: 80 HU |
-| `2_skull_ct` | CT | Bone: 400 HU | Bone: 1000 HU |
 | `2_head_mri_t2` | MR | 600 | 1200 |
 | `3_head_ct_mridir` | CT | Brain: 40 HU | Brain: 80 HU |
 | `3_head_ct_mridir` | CT | Bone: 400 HU | Bone: 1000 HU |

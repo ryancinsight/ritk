@@ -60,7 +60,7 @@
 <a id="RITK-GAP-2026-08-20-06"></a>- [RITK-GAP-2026-08-20-06](backlog/RITK-GAP-2026-08-20-06.md) — Raise lint and documentation floors — todo
 <a id="RITK-GAP-2026-08-20-08"></a>- [RITK-GAP-2026-08-20-08](backlog/RITK-GAP-2026-08-20-08.md) — Complete registration and dispatch chapters — todo
 <a id="RITK-SNAP-OBLIQUE-APP-TESTS-001"></a>- [RITK-SNAP-OBLIQUE-APP-TESTS-001](backlog/RITK-SNAP-OBLIQUE-APP-TESTS-001.md) — Verify oblique adapter boundaries — blocked
-<a id="RITK-FIXTURE-RETENTION-001"></a>- [RITK-FIXTURE-RETENTION-001](backlog/RITK-FIXTURE-RETENTION-001.md) — Decide imaging fixture retention — blocked
+<a id="RITK-FIXTURE-RETENTION-001"></a>- [RITK-FIXTURE-RETENTION-001](backlog/RITK-FIXTURE-RETENTION-001.md) — Decide imaging fixture retention — two collections retained locally, remaining records blocked [patch]
 <a id="RITK-TEST-DATASET-RELAY-001"></a>- [RITK-TEST-DATASET-RELAY-001](backlog/RITK-TEST-DATASET-RELAY-001.md) — Externalize large public test datasets — blocked
 <a id="RITK-SNAP-OBLIQUE-SESSION-TESTS-001"></a>- [RITK-SNAP-OBLIQUE-SESSION-TESTS-001](backlog/RITK-SNAP-OBLIQUE-SESSION-TESTS-001.md) — Verify oblique rendering and startup — blocked
 <a id="RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001"></a>- [RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001](backlog/RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001.md) — Verify complete native gestures — blocked

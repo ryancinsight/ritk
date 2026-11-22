@@ -6,6 +6,8 @@ The RITK tree at f0458cb7a contains 3,191 tracked test-data files totaling 1,490
 
 The independently downloaded OpenNeuro ds000102 T1 volume agrees with the tracked copy. Its source record declares PDDL. The shared catalog resolves it into a local checksum-verified cache, and the inter-subject registration test runs from that cache. License and source records for the skull CT and paired MRI/CT collections remain unknown.
 
+The owner authorized local retention and removal from new checkouts for the skull CT and paired MRI/CT collections. Before removing their index entries we verified 308 and 2,334 retained files respectively against the source tree at `0d0c53537`. Their total size is 1,134,385,072 bytes. The owner holds a private per-file SHA-256 inventory alongside the files. Prior Git history still contains the original objects.
+
 ## Scalar DICOM browser memory
 
 Loading the same 94-slice, 512 × 512 MRI four times on Chromium increased WebAssembly memory from 403,832,832 to 502,464,512 bytes on the fourth load. The scalar viewer previously transferred the entire reconstructed volume into a tensor and copied it back. It now takes ownership of the decoder’s pixel allocation. The native image loader and viewer use the same decoder and read budget.

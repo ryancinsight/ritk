@@ -4,7 +4,8 @@
 - outcome: Preserve identifiable or unique imaging data until its owner records a retention decision.
 - acceptance: Each inventory row with unknown provenance, license, or identifying metadata has an explicit owner decision before removal or redistribution.
 - scope: test_data/, payload manifest, and fixture documentation
-- next: After the provenance inventory, ask the owner about each unresolved row; keep all bytes until answered.
-- basis: 961e2bc62737367c1bd125dab0c3d35526a1feef
-- status: The inventory finds 308 files under 2_skull_ct and 2,334 under paired_mri_ct. All 304 and 1,167 parsed DICOM headers respectively contain a populated patient name or ID tag. These counts include directory records and reveal no tag values. The owner prefers a single shared catalog and supplied no release terms for these two collections. Keep their bytes in place.
+- decision: [patch] The owner authorizes removing the skull CT and paired MRI/CT collections from new checkouts and retaining both locally. Other unresolved collections still require an individual decision.
+- evidence: All 308 skull CT files and 2,334 paired MRI/CT files match their tracked objects at `0d0c53537`. The owner's local inventory records each retained file's size and SHA-256. The private shared catalog contains only verified public fixture records.
+- next: Reconcile source records for the remaining tracked collections and request a retention decision where terms remain unresolved.
+- basis: 0d0c5353731d66b28ba517233ca166d5c89e0bc9
 - needs: RITK-GAP-2026-08-20-04
