@@ -231,11 +231,14 @@ jobs:
         shell: bash
         env:
           ATLAS_HOOK_SOURCE_COMMIT: ${{ env.ATLAS_DOCUMENTATION_SOURCE }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           BASE_REVISION: ${{ github.event.pull_request.base.sha || github.event.before }}
           CANDIDATE_REVISION: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [[ -z "$BASE_REVISION" || "$BASE_REVISION" =~ ^0+$ ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/* && "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]]; then
+            BASE_REVISION="$(git merge-base "$CANDIDATE_REVISION" "refs/remotes/origin/$DEFAULT_BRANCH")"
+          elif [[ -z "$BASE_REVISION" || "$BASE_REVISION" =~ ^0+$ ]]; then
             BASE_REVISION="$(git rev-list --max-parents=0 "$CANDIDATE_REVISION")"
           fi
           python3 -I ../../scripts/pre_push_gate.py \

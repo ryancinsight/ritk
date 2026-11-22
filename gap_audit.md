@@ -8,6 +8,10 @@ The independently downloaded OpenNeuro ds000102 T1 volume agrees with the tracke
 
 The owner authorized local retention and removal from new checkouts for the skull CT and paired MRI/CT collections. Before removing their index entries we verified 308 and 2,334 retained files respectively against the source tree at `0d0c53537`. Their total size is 1,134,385,072 bytes. The owner holds a private per-file SHA-256 inventory alongside the files. Prior Git history still contains the original objects.
 
+## Documentation check range
+
+A manually dispatched development-branch run supplied no event base. The job compared the candidate with the repository root and attributed historical images to the current branch. The job now uses the common commit with the default branch for this event. A diverged-branch regression reproduces the old failure and checks the default-branch, push, and PR comparisons.
+
 ## Scalar DICOM browser memory
 
 Loading the same 94-slice, 512 × 512 MRI four times on Chromium increased WebAssembly memory from 403,832,832 to 502,464,512 bytes on the fourth load. The scalar viewer previously transferred the entire reconstructed volume into a tensor and copied it back. It now takes ownership of the decoder’s pixel allocation. The native image loader and viewer use the same decoder and read budget.

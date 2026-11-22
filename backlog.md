@@ -27,6 +27,8 @@
 - [patch] The macOS ARM64 Python wheel passes the SimpleITK denoising and squared-magnitude comparisons. Cross-platform Python qualification remains open.
 - needs: M-viewer-access
 - non-goals: encrypted ZIP, optical disc burning, unlisted RadiAnt add-ons
+- [patch] Manual documentation qualification compares a development branch against its merge base with the default branch.
+
 # Items
 
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — blocked

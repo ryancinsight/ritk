@@ -18,6 +18,10 @@
 
 - [patch] Registration tests can reuse the verified OpenNeuro MRI from `ATLAS_FIXTURE_CACHE`. The fixture documentation records the dataset’s PDDL declaration.
 
+### Fixed
+
+- [patch] Manual documentation checks on development branches evaluate changes since their common commit with the default branch.
+
 ## RITK Filter 0.6.1 (unreleased)
 
 ### Fixed

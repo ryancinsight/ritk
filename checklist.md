@@ -10,11 +10,12 @@ exit checks. The current increment belongs to M-viewer-reading.
 - [x] [patch] Inventory MetaImage conversion fields and correct big-endian reads using the alternate header key. All 25 library tests pass, including 16 packaging/key combinations.
 - [x] [minor] Transfer decoded scalar DICOM pixels into the viewer with their resolved grid and release encoded inputs after decoding. Across seven affected packages, 1,666 Rust tests pass. All 196 applicable minor-release checks pass against the 0.8.0 source on main.
 - [x] [patch] Qualify the optimized macOS ARM64 Python wheel against SimpleITK 2.5.8 for patch denoising and ternary magnitude on the original numeric bounds.
-- [ ] [minor] Verify the native Display menu half-turn and its inverse on Windows. A rectangular DICOM fixture checks every presented pixel.
+- [x] [minor] Verify the native Display menu half-turn and its inverse on Windows. The hosted acceptance test at `f0458cb7a` compares every presented pixel on the rectangular fixture and passes.
 - [x] [minor] MGH 0.7.0 and the CLI repack FreeSurfer documents with exact header, frame, and footer bytes. Multi-frame signed integers, gzip trailer validation and in-place replacement are covered.
 - [x] [patch] Verify complete MGZ framing on scalar and multi-frame reads. All 2,853 affected Rust tests pass across eight packages.
 - [ ] [minor] Implement the [stored MGH adapter](backlog/RITK-MGH-CONVERSION-001.md) and verify exact scalar types and metadata-loss rejection.
 - [x] [patch] Apply NIfTI calibration before binary32 narrowing. Compare all 42,991,616 voxels in the four shared OpenNeuro MRIs with NiBabel and SimpleITK.
+- [x] [patch] Verify manual feature-branch documentation runs against the default-branch merge base, including when both branches have advanced.
 - [x] [patch] Remove the skull CT and paired MRI/CT collections from the candidate tree after verifying all 2,642 retained files against their Git objects.
 - [x] [patch] Verify the OpenNeuro ds000102 source, license and checksum and run the registration consumer from the shared fixture cache.
 - [ ] [major] Execute the native Windows viewer and browser acceptance gates and complete the remaining [milestone items](backlog.md).
