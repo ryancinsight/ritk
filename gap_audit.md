@@ -1,5 +1,9 @@
 # RITK Gap Audit
 
+## Viewer dependency audit [patch]
+
+The locked viewer path through Metis now resolves Moirai Crypto 0.12.1 and RSA 0.10.0. URL resolves to 2.5.9. The all-feature audit no longer reports either vulnerability. It still fails on 13 unmaintained package-version findings and reports one yanked async-executor. The [stable qualification checklist](backlog/ritk-stable-qualification.md) tracks their disposition. The [viewer qualification run](https://github.com/ryancinsight/ritk/actions/runs/45070084596) built the bundle and passed six of eight saved-study scenarios. All 573 native viewer library tests passed. WebKit rejected the same 94-file read observed with the [previous provider](https://github.com/ryancinsight/ritk/actions/runs/45068110842/job/137350386939). Chromium reported no WebGPU adapter on the hosted runner. [Viewer work](https://github.com/ryancinsight/ritk/pull/1108) tracks both platform exits.
+
 ## Classic PET SUV timing
 
 The classic PET reader admits a common activity reference across instances
