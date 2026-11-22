@@ -61,6 +61,7 @@ fn native_series_loader_matches_legacy_loader() {
         patient_weight_kg: None,
         enhanced_pet_suv: None,
         enhanced_pet_selection: None,
+        classic_pet_calibration: None,
         pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,

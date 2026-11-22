@@ -25,6 +25,15 @@
   anonymized DICOM metadata to associate instances. The Python result still
   reports `file_count`, `success_count`, `error_count`, and `errors`.
 
+- [major] Classic PET SUVbw requires a source-qualified activity reference
+  for `START` and `NONE`. Missing or inconsistent timing leaves the PET
+  activity concentration available for display and withholds numeric SUVbw.
+  Initialize `DicomReadMetadata::classic_pet_calibration` to `None` when
+  constructing metadata without a validated calibration. Use the reader's
+  calibration for measurements and supply verified time to explicit
+  `PetAcquisitionParams` calculations. The decay-mode parser returns an
+  option for unrecognized values.
+
 - [major] DICOM spatial resampling requires a common decoded value unit
   across classic slices and enhanced frames. Resolve inconsistent source
   metadata before requesting an interpolated volume. Vendor Rescale Type

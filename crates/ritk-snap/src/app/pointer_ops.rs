@@ -384,40 +384,10 @@ impl SnapApp {
         }
     }
 
-    /// Compute SUVbw from activity concentration or report pre-normalized SUVbw.
-    ///
-    /// Returns `None` when `PetAcquisitionParams::from_loaded_volume` fails,
-    /// `pixel_bqml` is non-finite, or the result is non-finite.
-    pub(crate) fn compute_suv_from_volume(
-        vol: &crate::LoadedVolume,
-        pixel_bqml: f64,
-    ) -> Option<f32> {
-        use crate::dicom::pet::PetAcquisitionParams;
-        use aequitas::systems::si::{
-            quantities::ActivityConcentration,
-            units::{BecquerelPerMilliliter, GramPerCubicCentimeter},
-        };
-        if !pixel_bqml.is_finite() {
-            return None;
-        }
-        if vol
-            .metadata
-            .as_ref()
-            .is_some_and(|metadata| metadata.pixels_are_body_weight_suv())
-        {
-            return Some(pixel_bqml as f32).filter(|suv| suv.is_finite());
-        }
-        let pet = PetAcquisitionParams::from_loaded_volume(vol)?;
-        let delta_t = PetAcquisitionParams::delta_t_s_from_vol(vol);
-        let concentration = ActivityConcentration::from_unit::<BecquerelPerMilliliter>(pixel_bqml);
-        let suv = pet
-            .pixel_to_suvbw(concentration, delta_t)
-            .in_unit::<GramPerCubicCentimeter>();
-        if suv.is_finite() {
-            Some(suv as f32)
-        } else {
-            None
-        }
+    /// Return available classic PET SUVbw within the pointer readout range.
+    pub(crate) fn compute_suv_from_volume(vol: &crate::LoadedVolume, pixel: f64) -> Option<f32> {
+        let suv = crate::dicom::pet::ClassicPetDisplay::for_volume(vol)?.suvbw(pixel)? as f32;
+        suv.is_finite().then_some(suv)
     }
 
     fn suv_at_voxel(volume: &crate::LoadedVolume, voxel: [usize; 3], raw: f64) -> Option<f32> {

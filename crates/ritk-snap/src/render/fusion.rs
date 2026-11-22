@@ -12,14 +12,10 @@
 //! The renderer uses this convex combination after each source has been
 //! windowed and colour-mapped.
 
-use aequitas::systems::si::{
-    quantities::ActivityConcentration,
-    units::{BecquerelPerMilliliter, GramPerCubicCentimeter},
-};
 use egui::ColorImage;
 use iris::color::{ColorMap, Normalized};
 
-use crate::dicom::pet::PetAcquisitionParams;
+use crate::dicom::pet::ClassicPetDisplay;
 use crate::render::{GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 
@@ -118,9 +114,9 @@ pub fn render_fused_slice(
     let alpha = secondary_alpha.clamp(0.0, 1.0);
     let inverse_alpha = 1.0 - alpha;
     let mut rgb = vec![0_u8; width * height * 3];
-    let primary_value_transform = DisplayValueTransform::for_volume(primary.volume);
-    let secondary_value_transform = DisplayValueTransform::for_volume(secondary.volume);
 
+    let primary_values = DisplayValueTransform::for_volume(primary.volume);
+    let secondary_values = DisplayValueTransform::for_volume(secondary.volume);
     for row in 0..height {
         for col in 0..width {
             let primary_voxel = voxel_for_slice(primary.axis, primary.slice, row, col);
@@ -132,7 +128,7 @@ pub fn render_fused_slice(
                 return Err(FusionError::PlaneMismatch);
             }
 
-            let p = primary_value_transform.apply(
+            let p = primary_values.apply(
                 primary.volume,
                 primary_voxel.map(|coordinate| coordinate as usize),
                 primary_pixels[row * width + col],
@@ -144,11 +140,7 @@ pub fn render_fused_slice(
                 secondary.slice,
             )
             .and_then(|voxel @ [z, y, x]| {
-                secondary_value_transform.apply(
-                    secondary.volume,
-                    voxel,
-                    secondary.volume.pixel_at(z, y, x),
-                )
+                secondary_values.apply(secondary.volume, voxel, secondary.volume.pixel_at(z, y, x))
             });
             let p_rgb = primary
                 .colormap
@@ -227,50 +219,32 @@ pub fn secondary_slice_for_primary(
 
 #[derive(Clone, Copy)]
 struct DisplayValueTransform {
-    pet: Option<PetAcquisitionParams>,
-    delta_t_s: f64,
+    enhanced: bool,
+    classic: Option<ClassicPetDisplay>,
 }
 
 impl DisplayValueTransform {
     fn for_volume(volume: &LoadedVolume) -> Self {
-        let pet = if is_pet_modality(volume.modality.as_deref()) {
-            PetAcquisitionParams::from_loaded_volume(volume)
-        } else {
-            None
-        };
         Self {
-            pet,
-            delta_t_s: PetAcquisitionParams::delta_t_s_from_vol(volume),
+            enhanced: volume
+                .metadata
+                .as_ref()
+                .is_some_and(|meta| meta.enhanced_pet_suv.is_some()),
+            classic: ClassicPetDisplay::for_volume(volume),
         }
     }
 
     #[inline]
     fn apply(self, volume: &LoadedVolume, voxel: [usize; 3], pixel: f32) -> Option<f64> {
-        if volume
-            .metadata
-            .as_ref()
-            .is_some_and(|meta| meta.enhanced_pet_suv.is_some())
-        {
+        if self.enhanced {
             return volume.enhanced_pet_suv_at(voxel);
         }
         let raw = f64::from(pixel);
-        Some(
-            self.pet
-                .map(|pet| {
-                    let concentration =
-                        ActivityConcentration::from_unit::<BecquerelPerMilliliter>(raw);
-                    pet.pixel_to_suvbw(concentration, self.delta_t_s)
-                        .in_unit::<GramPerCubicCentimeter>()
-                })
-                .unwrap_or(raw),
-        )
+        if let Some(classic) = self.classic {
+            return classic.suvbw(raw);
+        }
+        Some(raw)
     }
-}
-
-fn is_pet_modality(modality: Option<&str>) -> bool {
-    modality
-        .and_then(|m| m.trim().get(..2).map(str::to_ascii_uppercase))
-        .is_some_and(|prefix| prefix == "PT")
 }
 
 #[cfg(test)]

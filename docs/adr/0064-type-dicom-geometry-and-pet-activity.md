@@ -98,3 +98,40 @@ adjacent planes. Uniform stacks do not enter this interpolation gate.
 Quantitative Enhanced PET SUV remains a separate channel with its existing
 validated real-world mappings. Part 10 fixtures exercise differing slopes
 on one scale, incompatible scales, and missing declarations.
+
+## Classic PET activity reference
+
+Calculate body-weight SUV only when pixel concentration and administered
+activity refer to the same time. For a concentration `C`, body mass `M`,
+administered activity `A₀`, and elapsed time `t`, the normalization is
+`C × M / (A₀ × 2^(−t/half_life))`. `ADMIN` pixels already share the
+administration reference. For `START`, subtract
+`half_life × log₂(Decay Factor)` from the declared frame reference to
+recover the scanner's acquisition-start reference. For `NONE`, use the
+declared frame reference when it falls within the acquisition interval.
+Series Date and Time locate Frame Reference Time on the timeline.
+
+An explicit date distinguishes midnight rollover from reversed timing.
+Interpret timestamps on a common time base and require a known decay
+mode, a unique isotope, and nonnegative elapsed time for `START` and
+`NONE`. Withhold SUV for time-only administration, malformed or
+contradictory clocks, and series that require distinct normalization
+factors. A series scalar can move across spatial interpolation because
+`k((1−w)a + wb) = (1−w)ka + wkb` for constant `k`. Series with
+different factors would require frame-specific normalization before
+interpolation. Keep their decoded activity concentration available for
+display. Pre-normalized GML body-weight SUV and the Enhanced PET
+quantitative channel continue to use their source mappings.
+
+Using zero for missing time conflates unavailable data with an actual
+zero interval. Using Series Time as the acquisition event or inferring
+the administration date from times of day can manufacture an interval.
+The reader instead resolves calibration while it has each source dataset.
+Viewer pointer and fusion code consume the same optional calibration.
+Part 10 regressions check the two-voxel scaling against a decimal
+reference, mode semantics, dated rollover, UTC offsets, malformed
+timing, and cross-slice agreement.
+
+[DICOM PET Isotope Module](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.9.2.html)
+and [PET Image Module](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.9.4.html)
+define the timing attributes.

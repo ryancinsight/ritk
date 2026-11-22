@@ -22,6 +22,7 @@ mod dicomdir_bytes;
 pub(super) mod geometry;
 pub(super) mod loader;
 mod parse;
+mod pet_calibration;
 pub(super) mod pixel;
 mod preservation;
 pub(super) mod scan;
@@ -48,6 +49,7 @@ pub use stored::{
 // scan::scan_dicom_directory is accessed directly via `reader::scan::scan_dicom_directory`
 // by sibling modules (color.rs). No re-export needed.
 pub use budget::DicomReadBudget;
+pub use pet_calibration::ClassicPetCalibration;
 pub use types::literal_arraystring;
 pub use types::{
     DicomReadMetadata, DicomSeriesInfo as ScannedDicomSeries, DicomSliceMetadata, PatientPosition,
