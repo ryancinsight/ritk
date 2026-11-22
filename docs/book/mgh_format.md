@@ -117,6 +117,15 @@ identity direction. Applications that require scanner-space agreement should
 inspect geometry before combining volumes; equal array dimensions alone do
 not imply equal physical space.
 
+## Repacking MGH and MGZ
+
+`ritk convert -i scan.mgh -o scan.mgz` and `transcode_mgh_document`
+preserve the complete expanded file, including the header, every frame,
+degrees of freedom, acquisition parameters and opaque tags. The operation
+checks the declared sample length and drains all gzip members before it
+replaces the destination. It also supports in-place repacking. Transfers
+involving gzip admit up to 1 GiB expanded, including the header and footer.
+
 ## Conversion inventory
 
 | Source field | Compute/viewer behavior | Requirement for lossless conversion |

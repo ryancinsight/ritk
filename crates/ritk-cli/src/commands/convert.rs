@@ -140,6 +140,21 @@ pub fn run(args: ConvertArgs) -> Result<()> {
         );
         return Ok(());
     }
+    if in_fmt == ImageFormat::Mgh && out_fmt == ImageFormat::Mgh {
+        ritk_mgh::transcode_mgh_document(&args.input, &args.output).with_context(|| {
+            format!(
+                "Failed to repack MGH file {} to {}",
+                args.input.display(),
+                args.output.display()
+            )
+        })?;
+        println!(
+            "Converted {} → {} (preserved MGH document)",
+            args.input.display(),
+            args.output.display()
+        );
+        return Ok(());
+    }
     let image = read_image(&args.input)?;
     let shape = image.shape();
     let spacing = *image.spacing();

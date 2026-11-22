@@ -4,6 +4,7 @@
 //! at `tests/`, because each such file is an independent binary that re-links
 //! the whole stack. One harness links once.
 
+mod mgh_document;
 mod nifti_document;
 mod parcellate_atlas;
 mod tract_connectome;

@@ -19,6 +19,7 @@ use std::path::Path;
 /// Decompression cap for MGZ files (1 GiB).
 const MAX_MGZ_UNCOMPRESSED_BYTES: u64 = 1 << 30;
 
+pub(crate) mod document;
 #[cfg(test)]
 mod tests;
 mod voxel_decode;
@@ -94,6 +95,7 @@ struct MghHeader {
     direction: ritk_spatial::Direction<3>,
     voxel_type: VoxelType,
     voxels_per_frame: usize,
+    payload_bytes: usize,
     nframes: usize,
 }
 
@@ -270,12 +272,13 @@ fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader, MghError> {
         })?;
     let voxel_type = VoxelType::try_from(mri_type)?;
     let bytes_per_voxel = voxel_type.bytes_per_voxel();
-    total_voxels
-        .checked_mul(bytes_per_voxel)
-        .ok_or(MghError::DataSizeOverflow {
-            voxels: total_voxels,
-            bytes_per_voxel,
-        })?;
+    let payload_bytes =
+        total_voxels
+            .checked_mul(bytes_per_voxel)
+            .ok_or(MghError::DataSizeOverflow {
+                voxels: total_voxels,
+                bytes_per_voxel,
+            })?;
 
     Ok(MghHeader {
         dims: [nz, ny, nx],
@@ -284,6 +287,7 @@ fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader, MghError> {
         direction,
         voxel_type,
         voxels_per_frame: n_voxels,
+        payload_bytes,
         nframes,
     })
 }

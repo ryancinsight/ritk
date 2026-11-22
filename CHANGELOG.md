@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## MGH 0.7.0 (unreleased)
+
+### Added
+
+- [minor] `transcode_mgh_document` and the CLI preserve every expanded
+  byte while repacking MGH and MGZ. An incomplete volume or corrupt gzip
+  member leaves the existing destination intact, including during in-place
+  repacking.
+
 ## NIfTI 0.5.1 (unreleased)
 
 ### Fixed

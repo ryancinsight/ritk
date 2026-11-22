@@ -27,6 +27,14 @@ round wide integers in a single volume. The CLI now delegates this route
 to the document transcoder. The [cross-format item](backlog/RITK-NRRD-NIFTI-001.md)
 tracks the distinct requirements for NRRD interchange.
 
+## FreeSurfer document repacking
+
+The CLI rejected a two-frame MRI_INT input during a pure compression change.
+The document path checks the declared payload and copies every expanded byte
+through a temporary output. Coverage includes the four supported scalar types,
+nonzero DOF, an unset RAS flag, padding, acquisition footer, corrupt trailers,
+and the exact expanded-byte boundary.
+
 ## FreeSurfer volume geometry
 
 The MGH 0.6.0 reader and writer use the same displaced center and therefore pass a mutual round trip. The independent viewer fixture, hand-built header and emitted-header regressions all fail on `533f2e077`. Version 0.6.1 corrects both transforms. The [inventory](docs/book/mgh_format.md#conversion-inventory) identifies the remaining stored-sample and metadata work.

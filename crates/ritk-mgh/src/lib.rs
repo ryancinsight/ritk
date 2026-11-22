@@ -72,6 +72,7 @@ mod types;
 mod writer;
 
 pub use error::MghError;
+pub use reader::document::{transcode_mgh_document, MghDocumentError};
 pub use reader::{read_mgh, read_mgh_series, MghReader};
 pub use writer::{write_mgh, write_mgh_series, MghWriter};
 

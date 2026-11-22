@@ -6414,6 +6414,7 @@ dependencies = [
  "ritk-image",
  "ritk-interpolation",
  "ritk-io",
+ "ritk-mgh",
  "ritk-nifti",
  "ritk-parcellation",
  "ritk-registration",
@@ -6712,7 +6713,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-mgh"
-version = "0.6.1"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
