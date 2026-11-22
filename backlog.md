@@ -140,3 +140,4 @@
   viewer and registry package verification on the integration head.
 
 - [x] [major] Approve [numbered DICOM directory exports](docs/adr/0068-number-dicom-directory-exports.md) for `ritk-io` 0.8.0 and `ritk-python` 0.13.0. See [RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001](gap_audit.md#RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001) for regression evidence.
+- [x] [major] Correct [real-data DICOM export structure](docs/adr/0069-preserve-dicom-export-structure.md). See [RITK-DICOM-ANONYMIZE-REAL-001](gap_audit.md#RITK-DICOM-ANONYMIZE-REAL-001).
