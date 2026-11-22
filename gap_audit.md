@@ -93,7 +93,7 @@ and reject an unrepresentable positive spacing before output.
 ## RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001 — Number directory exports [major]
 - risk: Rust directory export and its Python binding copied patient names and source UIDs embedded in filenames. Concurrent calls could overwrite an earlier export while reporting success.
 - evidence: the installed-wheel fixture reproduces both failures on `762f0e92`. The proposed correction shares the study export's numbering and publishes each encoded copy without replacing an occupied name. The Python fixture checks source bytes, collisions, per-file statistics, and remapped UID relationships after reopening. The Rust directory verification test reopens the numbered export through the existing gate.
-- status: proposal verified locally, pending approval of [ADR 0068](docs/adr/0068-number-dicom-directory-exports.md) and integration checks.
+- status: [ADR 0068](docs/adr/0068-number-dicom-directory-exports.md) accepted. The fix is committed on the implementation branch. Hosted integration and release verification are pending.
 
 <a id="RITK-DICOM-ANONYMIZE-NESTED-META-001"></a>
 ## RITK-DICOM-ANONYMIZE-NESTED-META-001: group 0002 elements inside sequence items survive de-identification

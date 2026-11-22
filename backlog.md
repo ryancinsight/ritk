@@ -139,4 +139,4 @@
 - [ ] [patch] Advance the lock to merged provider revisions and repeat native
   viewer and registry package verification on the integration head.
 
-- [ ] [major] Approve [numbered DICOM directory exports](docs/adr/0068-number-dicom-directory-exports.md) for `ritk-io` 0.8.0 and `ritk-python` 0.13.0. See [RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001](gap_audit.md#RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001) for regression evidence.
+- [x] [major] Approve [numbered DICOM directory exports](docs/adr/0068-number-dicom-directory-exports.md) for `ritk-io` 0.8.0 and `ritk-python` 0.13.0. See [RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001](gap_audit.md#RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001) for regression evidence.

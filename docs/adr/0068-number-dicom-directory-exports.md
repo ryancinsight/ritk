@@ -1,6 +1,6 @@
 # 0068 — Number DICOM directory exports
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
