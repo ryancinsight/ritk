@@ -27,6 +27,30 @@
 - non-goals: encrypted ZIP, optical disc burning, unlisted RadiAnt add-ons
 # Items
 
+## DICOM and provider checklist
+
+- [x] [major] Carry typed DICOM geometry and isotope activity into the viewer.
+  Validate file round trips, isotope units by SOP class, and SUV pixel units.
+
+- [x] [major] Quantify Enhanced PET spatial voxels using the declared real-world
+  mapping and frame-appropriate isotope activity.
+
+- [x] [major] Reconstruct and select temporal and gated Enhanced PET volumes within one object.
+
+- [x] [minor] Reconstruct Enhanced PET concatenations from the exact scanned
+  instances. Validate ordinal continuity, geometry, and per-frame SUV.
+
+- [x] [patch] Use the published Aequitas and Eunomia releases in RITK.
+- [x] [patch] Verify geometry-based interpolation of an interior Enhanced
+  PET plane between complete concatenation members.
+- [x] [minor] Label synthesized Enhanced PET planes on the storage-depth
+  view. Preserve each selected reconstruction's measured, interpolated,
+  and copied-edge provenance.
+- [x] [patch] Resolve one published Aequitas 0.5.0 and one Eunomia 0.12.1
+  in the public compatibility candidate.
+- [ ] [patch] Advance the lock to merged provider revisions and repeat native
+  viewer and registry package verification on the integration head.
+
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — blocked
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
 <a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Write permuted images to VTK and Analyze — todo
@@ -77,7 +101,6 @@
 <a id="RITK-SNAP-NATIVE-DYNAMIC-001"></a>- [RITK-SNAP-NATIVE-DYNAMIC-001](backlog/RITK-SNAP-NATIVE-DYNAMIC-001.md) — Add time-intensity curves and DSA — todo
 <a id="RITK-SNAP-NATIVE-EXPORT-001"></a>- [RITK-SNAP-NATIVE-EXPORT-001](backlog/RITK-SNAP-NATIVE-EXPORT-001.md) — Export and copy displayed images — todo
 <a id="RITK-SNAP-NATIVE-FILTERS-001"></a>- [RITK-SNAP-NATIVE-FILTERS-001](backlog/RITK-SNAP-NATIVE-FILTERS-001.md) — Apply image filters natively — todo
-<a id="RITK-SNAP-NATIVE-FUSION-001"></a>- [RITK-SNAP-NATIVE-FUSION-001](backlog/RITK-SNAP-NATIVE-FUSION-001.md) — Fuse series and read SUV natively — blocked on native comparison controls
 <a id="RITK-SNAP-NATIVE-LINK-001"></a>- [RITK-SNAP-NATIVE-LINK-001](backlog/RITK-SNAP-NATIVE-LINK-001.md) — Link panes by patient position — todo
 <a id="RITK-SNAP-NATIVE-LOAD-001"></a>- [RITK-SNAP-NATIVE-LOAD-001](backlog/RITK-SNAP-NATIVE-LOAD-001.md) — Browse a study while it loads — todo
 <a id="RITK-SNAP-NATIVE-INPUT-PARITY-001"></a>- [RITK-SNAP-NATIVE-INPUT-PARITY-001](backlog/RITK-SNAP-NATIVE-INPUT-PARITY-001.md) — Finish native input parity — todo
@@ -116,25 +139,5 @@
 <a id="RITK-SNAP-ELLIPSE-PIXEL-MASK-001"></a>- [RITK-SNAP-ELLIPSE-PIXEL-MASK-001](backlog/RITK-SNAP-ELLIPSE-PIXEL-MASK-001.md) — Show ellipse contributing-pixel outlines — todo
 <a id="RITK-SNAP-ROI-NATIVE-001"></a>- [RITK-SNAP-ROI-NATIVE-001](backlog/RITK-SNAP-ROI-NATIVE-001.md) — Test native ROI creation and labels — todo
 <a id="RITK-SNAP-ROI-LABEL-STATISTICS-001"></a>- [RITK-SNAP-ROI-LABEL-STATISTICS-001](backlog/RITK-SNAP-ROI-LABEL-STATISTICS-001.md) — Show complete ROI label statistics — todo
-
-- [x] [major] Carry typed DICOM geometry and isotope activity into the viewer.
-  Validate file round trips, isotope units by SOP class, and SUV pixel units.
-
-- [x] [major] Quantify Enhanced PET spatial voxels using the declared real-world
-  mapping and frame-appropriate isotope activity.
-
-- [x] [major] Reconstruct and select temporal and gated Enhanced PET volumes within one object.
-
-- [x] [minor] Reconstruct Enhanced PET concatenations from the exact scanned
-  instances. Validate ordinal continuity, geometry, and per-frame SUV.
-
-- [x] [patch] Use the published Aequitas and Eunomia releases in RITK.
-- [x] [patch] Verify geometry-based interpolation of an interior Enhanced
-  PET plane between complete concatenation members.
-- [x] [minor] Label synthesized Enhanced PET planes on the storage-depth
-  view. Preserve each selected reconstruction's measured, interpolated,
-  and copied-edge provenance.
-- [x] [patch] Resolve one published Aequitas 0.5.0 and one Eunomia 0.12.1
-  in the public compatibility candidate.
-- [ ] [patch] Advance the lock to merged provider revisions and repeat native
-  viewer and registry package verification on the integration head.
+<a id="ritk-stable-qualification"></a>- [RITK-STABLE-QUALIFICATION](backlog/ritk-stable-qualification.md) — ritk stable-release qualification [patch] — todo
+<a id="RITK-SNAP-NATIVE-FUSION-001"></a>- [RITK-SNAP-NATIVE-FUSION-001](backlog/RITK-SNAP-NATIVE-FUSION-001.md) — Fuse series and read SUV natively — blocked
