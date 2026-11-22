@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## NIfTI 0.5.1 (unreleased)
+
+### Fixed
+
+- [patch] Readers decode samples across gzip member boundaries. The document
+  transport preserves the combined expanded stream and checks each member's
+  trailer before replacing an output. File reads apply the document size limit
+  as they read the expanded stream.
+
 ## MetaImage 0.4.1 (unreleased)
 
 ### Fixed

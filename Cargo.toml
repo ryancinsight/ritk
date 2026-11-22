@@ -77,7 +77,7 @@ ritk-core = { path = "crates/ritk-core", version = "0.12.0" }
 ritk-dicom = { path = "crates/ritk-dicom", version = "0.6.0" }
 ritk-codecs = { path = "crates/ritk-codecs", version = "0.8.0" }
 ritk-image-io = { path = "crates/ritk-image-io", version = "0.2.0" }
-ritk-nifti = { path = "crates/ritk-nifti", version = "0.5.0" }
+ritk-nifti = { path = "crates/ritk-nifti", version = "0.5.1" }
 ritk-nrrd = { path = "crates/ritk-nrrd", version = "0.4.0" }
 ritk-metaimage = { path = "crates/ritk-metaimage", version = "0.4.1" }
 ritk-mgh = { path = "crates/ritk-mgh", version = "0.6.1" }

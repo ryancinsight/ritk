@@ -4,6 +4,10 @@
 single-file NIfTI boundary. It reads NIfTI-1 and NIfTI-2 `.nii` files, detects
 gzip-wrapped `.nii.gz` input, and writes either header version explicitly.
 
+A gzip-framed document may contain multiple consecutive members. The document
+reader joins their expanded bytes and validates each trailer, including members
+after the last sample. The combined document has a 1 GiB limit.
+
 ## Ownership
 
 `ritk-nifti` owns the NIfTI file reader and writer. `ritk-io::format::nifti`

@@ -29,7 +29,7 @@ ritk-diffusion-scheme = { workspace = true }
 ritk-tractography = { path = "../ritk-tractography", version = "0.2.0" }
 ritk-connectome = { path = "../ritk-connectome", version = "0.2.0" }
 ritk-parcellation = { path = "../ritk-parcellation", version = "0.3.0" }
-ritk-nifti = { path = "../ritk-nifti", version = "0.5.0" }
+ritk-nifti = { path = "../ritk-nifti", version = "0.5.1" }
 ritk-tck = { path = "../ritk-tck", version = "0.2.0" }
 ritk-trk = { path = "../ritk-trk", version = "0.2.0" }
 ritk-trx = { path = "../ritk-trx", version = "0.2.0" }
@@ -46,7 +46,6 @@ mnemosyne = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 ritk-core = { path = "../ritk-core", features = ["test-helpers"], version = "0.12.0" }
-ritk-nifti = { path = "../ritk-nifti", version = "0.5.0" }
 
 [lints]
 workspace = true

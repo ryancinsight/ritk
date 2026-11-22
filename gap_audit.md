@@ -17,6 +17,10 @@ legacy Analyze compute writer retains its documented quantization behavior.
 
 ## NIfTI document conversion
 
+Two gzip regressions reproduced a split header failing to read and a damaged
+second member being accepted. The document reader now drains all members within
+the expanded limit and the compute reader can decode samples spanning members.
+
 The CLI previously sent same-format conversion through the single-volume
 binary32 compute reader. This rejected a two-volume NIfTI-2 input and could
 round wide integers in a single volume. The CLI now delegates this route

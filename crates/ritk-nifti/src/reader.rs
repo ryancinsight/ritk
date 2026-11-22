@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, Context, Result};
 use coeus_core::ComputeBackend;
-use flate2::read::GzDecoder;
+use flate2::read::MultiGzDecoder;
 use ritk_image::Image;
 use std::fs;
 use std::io::Read;
@@ -263,7 +263,7 @@ fn dims_xyz(header: &NiftiHeader) -> Result<[usize; 3]> {
 }
 
 fn decode_gzip(bytes: &[u8]) -> Result<Vec<u8>> {
-    let mut decoder = GzDecoder::new(bytes);
+    let mut decoder = MultiGzDecoder::new(bytes);
     let mut decoded = Vec::new();
     Read::by_ref(&mut decoder)
         .take(MAX_HEADER_PREFIX_BYTES)
