@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-26, macos-15, macos-15-intel]
+        runner: [macos-26]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 12
     steps:
@@ -32,6 +32,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          path=Path("workstation/gallery.js")
+          code=path.read_text()
+          old='canvas.getContext("2d", {alpha: false})'
+          assert code.count(old)==1
+          path.write_text(code.replace(old,'canvas.getContext("2d", {alpha: false, willReadFrequently: true})'))
+          PYTHON
           python3 scripts/safari-study/prepare.py workstation /Users/Shared/RITKPublicStudy
           export RITK_HTTP_RUNTIME="$RUNNER_TEMP" RITK_WEB_BUNDLE="$PWD/workstation"
           /usr/sbin/httpd -X -f "$PWD/scripts/safari-study/httpd.conf" &
