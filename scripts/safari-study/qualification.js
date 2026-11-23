@@ -1,6 +1,6 @@
 // Publish bounded observations through the standard Safari accessibility tree.
 // All workstation input, including file access, comes from the native UI.
-import {screenSamples, comparePlane, stopEmbeddedViewer} from "./workstation_pixels.js";
+import {screenSamples, comparePlane} from "./workstation_pixels.js";
 
 const surface = document.querySelector("#workstation, #ritk-snap-axial");
 function report(value) {
@@ -62,7 +62,7 @@ async function embedded() {
         const [matches, hash] = await comparePlane(name, samples[index]);
         if (!matches || hash !== oracle[name]) throw Error(name + " reference mismatch: " + hash);
       }
-      const [before, after] = await stopEmbeddedViewer();
+      const [before, after] = window.stopStudyReference();
       report({planes: 3, before, after});
     } catch (error) { report({error:String(error)}); }
   }, 100);

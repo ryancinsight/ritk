@@ -54,8 +54,10 @@ def copy_bundle(source: pathlib.Path, destination: pathlib.Path) -> None:
         'body,figure{margin:0}.gallery-views{display:flex}.gallery-views canvas{width:1024px!important;height:1024px!important}',
         encoding="utf-8")
     (destination / "embed.js").write_text(
-        'import init,{start_web_orthogonal_canvases} from "./consumer/ritk_snap.js";'
+        'import init,{start_web_orthogonal_canvases,stop_web_canvas,web_canvas_listener_count} from "./consumer/ritk_snap.js";'
         'await init();start_web_orthogonal_canvases("ritk-snap-axial","ritk-snap-coronal","ritk-snap-sagittal");'
+        'window.stopStudyReference=()=>{const before=web_canvas_listener_count();stop_web_canvas();'
+        'return [before,web_canvas_listener_count()];};'
         'document.querySelector("#ready").textContent="Ready.";', encoding="utf-8")
 
 

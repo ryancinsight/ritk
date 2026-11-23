@@ -63,11 +63,16 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
             import(url).then(m => m[method](...args)).then(done, e => done({error:String(e)}));
         """, [module, method, list(arguments)])
 
+    client.execute("""
+        const script = document.createElement("script");
+        script.type = "module";
+        script.src = arguments[0];
+        document.head.append(script);
+    """, [urljoin(embed, "workstation_memory.js")])
+    wait("Number.isSafeInteger(window.studyWasmBytes) && window.studyWasmBytes > 0")
+
     def capacity():
-        return client.execute_async("""
-            const done = arguments[arguments.length - 1];
-            import('./consumer/ritk_snap.js').then(async m => done((await m.default()).memory.buffer.byteLength));
-        """)
+        return client.execute("return window.studyWasmBytes")
 
     client.execute("""
         window.studySelection = {generation:0};
@@ -103,6 +108,8 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
         wait("Math.abs(" + state + ".indices[0] - 47) === 1")
         history.append({"selection":selection, "before":initial_bytes, "decoded":loaded_bytes,
                         "navigated":capacity(), "slice":client.execute("return "+state+".indices[0]")})
+    if history[0]["decoded"] <= history[0]["before"]:
+        raise BrowserRuntimeError(f"the decoded MRI did not grow the active workstation memory: {history[0]}")
     if cycles >= 4:
         if output:
             (output / "consecutive-loads.json").write_text(json.dumps(history, indent=2)+"\n")
@@ -187,7 +194,7 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
         if result != [True, views[name]["rgba_sha256"]]:
             raise BrowserRuntimeError(f"{name} screen samples or reference plane differ: {result}")
 
-    cleanup = probe("stopEmbeddedViewer")
+    cleanup = client.execute("return window.stopStudyReference()")
     if not (isinstance(cleanup, list) and len(cleanup) == 2 and cleanup[0] > 0 and cleanup[1] == 0):
         raise BrowserRuntimeError(f"embedded viewer listeners remained after stop: {cleanup}")
 
@@ -217,7 +224,8 @@ if __name__ == "__main__":
         with tempfile.TemporaryDirectory(dir=bundle) as temporary:
             fixture = Path(temporary) / "embedded"
             copy_bundle(bundle, fixture)
-            shutil.copy(Path(__file__).with_name("workstation_pixels.js"), fixture)
+            for script in ("workstation_pixels.js", "workstation_memory.js"):
+                shutil.copy(Path(__file__).with_name(script), fixture)
             with StaticServer(bundle) as origin:
                 embedded_url = origin + fixture.relative_to(bundle).as_posix() + "/embed.html"
                 for cycle in range(args.cycles):
