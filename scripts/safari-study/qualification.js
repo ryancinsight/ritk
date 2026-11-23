@@ -39,9 +39,13 @@ async function workstation() {
       const pixels = await screenSamples();
       rejected = JSON.stringify(pixels) === sessionStorage.getItem("screenSamples");
     }
-    report({...state, selection, rejected, captured: !!sessionStorage.getItem("screenSamples"),
-      overflow: document.documentElement.scrollWidth > innerWidth,
-      error: captureError || document.querySelector("#notice")?.textContent || ""});
+    // Safari bounds accessibility labels. Expose only the values XCTest asserts.
+    const {width, panes, counts, indices, tool, window: levels, annotations, measurement, zoom,
+      orientationIdentity, cine, series, panel, panels, projection} = state;
+    report({width, panes, counts, indices, tool, window: levels, annotations, measurement, zoom,
+      orientationIdentity, cine, series, panel, panels, projection, selection, rejected,
+      captured: !!sessionStorage.getItem("screenSamples"), overflow: document.documentElement.scrollWidth > innerWidth,
+      ...(captureError ? {error:captureError.slice(0,60)} : {})});
   }, 175);
 }
 
