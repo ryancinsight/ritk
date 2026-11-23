@@ -115,8 +115,8 @@ gaia = { package = "gaia-mesh", version = "0.8.0", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 coeus-nn = { version = "0.14.0" }
 coeus-optim = { version = "0.14.0" }
-pyo3 = { version = "0.29.2", default-features = false }
-numpy = { version = "0.29.0", git = "https://github.com/PyO3/rust-numpy", rev = "9df402373716a60f0e7825b6043568abe4e63b46" }
+pyo3 = { version = "0.30.1", default-features = false }
+numpy = { version = "0.30.0" }
 moirai = { package = "moirai-runtime", version = "0.12.0", features = ["melinoe"] }
 moirai-pal = { package = "moirai-pal", version = "0.12.0", default-features = false }
 metis-platform = { package = "metis-platform", version = "0.5.0", git = "https://github.com/ryancinsight/metis.git" }
@@ -186,7 +186,7 @@ consus-hdf5 = { version = "0.5.0", features = ["std"] }
 consus-core = { version = "0.5.0", features = ["std"] }
 consus-io = { version = "0.5.0", features = ["std", "alloc"] }
 consus-onnx = { version = "0.5.0", features = ["std", "alloc"] }
-consus-raster = { version = "0.5.0" }
+consus-raster = { version = "0.5.1" }
 
 arrayvec = "0.7"
 
