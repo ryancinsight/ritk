@@ -62,10 +62,10 @@ jobs:
             base="${{ github.event.pull_request.base.sha }}"
             git fetch --no-tags --depth=1 origin "$base"
             changed="$(git diff --name-only "$base" HEAD)"
-            if ! printf '%s\n' "$changed" | grep -qE '^(crates/ritk-python/|Cargo\.lock$|Cargo\.toml$|\.github/workflows/)'; then
+            if ! grep -qE '^(crates/ritk-python/|Cargo\.lock$|Cargo\.toml$|\.github/workflows/)' <<< "$changed"; then
               python=false
             fi
-            if ! printf '%s\n' "$changed" | grep -qE '^(crates/|Cargo\.lock$|Cargo\.toml$|xtask/|scripts/|rust-toolchain\.toml$|\.github/workflows/)'; then
+            if ! grep -qE '^(crates/|Cargo\.lock$|Cargo\.toml$|xtask/|scripts/|rust-toolchain\.toml$|\.github/workflows/)' <<< "$changed"; then
               rust=false
             fi
           fi
@@ -361,7 +361,8 @@ jobs:
           # T1 (RITK-SNAP-RETURN-001): ritk-snap is excluded from the workspace
           # until the metis advance lands; skip the viewer capture meanwhile.
           # T2 restores the unconditional build below.
-          if ! cargo metadata --locked --no-deps --format-version 1 2>/dev/null | grep -q '"name":"ritk-snap"'; then
+          workspace_metadata="$(cargo metadata --locked --no-deps --format-version 1)"
+          if ! grep -q '"name":"ritk-snap"' <<< "$workspace_metadata"; then
             echo "ritk-snap is not a workspace member (Track 1); skipping viewer capture."
             exit 0
           fi
