@@ -9,6 +9,13 @@ function report(value) {
 }
 
 async function workstation() {
+  // Use normal same-tab navigation to retain only this test's reference samples.
+  const link = document.createElement("a");
+  const gallery = location.pathname.endsWith("gallery.html");
+  link.href = gallery ? "embedded/embed.html" : "gallery.html?projection=mip";
+  link.textContent = gallery ? "Open independent reference" : "Open projection entry";
+  link.className = "qualification-link";
+  document.body.append(link);
   let sampled = false;
   let captureError;
   let selection = [];

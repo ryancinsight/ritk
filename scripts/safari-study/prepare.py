@@ -22,6 +22,8 @@ for name, files in (("MRI", mr), ("Comparison", mr + ct[:2])):
     for index, path in enumerate(files, 1):
         shutil.copyfile(path, directory / f"{index:08}.dcm")
 list(invalid_studies(stage))
+with (bundle / "gallery.css").open("a") as stylesheet:
+    stylesheet.write("\n.qualification-link { position: fixed; right: 0; bottom: 0; background: white; }\n")
 embedded = bundle / "embedded"
 copy_bundle(bundle, embedded)
 for page in (bundle / "index.html", bundle / "gallery.html", embedded / "embed.html"):

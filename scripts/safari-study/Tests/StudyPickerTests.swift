@@ -4,12 +4,6 @@ final class StudyPickerTests: XCTestCase {
     let safari = XCUIApplication(bundleIdentifier: "com.apple.Safari")
     typealias State = [String: Any]
 
-    func go(_ path: String) {
-        safari.typeKey("l", modifierFlags: .command)
-        safari.typeText("http://127.0.0.1:17823/" + path)
-        safari.typeKey(.return, modifierFlags: [])
-    }
-
     @discardableResult
     func wait(_ description: String, _ test: (State) -> Bool,
               file: StaticString = #filePath, line: UInt = #line) -> State {
@@ -60,8 +54,8 @@ final class StudyPickerTests: XCTestCase {
 
     func testPublicStudy() throws {
         continueAfterFailure = false
-        safari.activate()
-        go("")
+        let url = try XCTUnwrap(URL(string: "http://127.0.0.1:17823/index.html"))
+        safari.open(url)
         let window = safari.windows.matching(NSPredicate(format: "title == %@", "AsterSlice")).firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 20), safari.debugDescription)
         let ready = wait("workstation layout") { $0["width"] as? Int ?? 0 > 0 }
@@ -124,9 +118,9 @@ final class StudyPickerTests: XCTestCase {
             ($0["panes"] as? [[Int]])?.first?.first == 0 && $0["overflow"] as? Bool == false
         }
         safari.typeKey("0", modifierFlags: .command)
-        go("gallery.html?projection=mip")
+        safari.links["Open projection entry"].click()
         wait("MIP entry") { $0["projection"] as? Bool == true }
-        go("embedded/embed.html")
+        safari.links["Open independent reference"].click()
         XCTAssertTrue(safari.buttons["Open reference study"].waitForExistence(timeout: 20))
         choose("MRI", embedded: true)
         wait("all three full-plane digests, screen samples and listener cleanup") {
