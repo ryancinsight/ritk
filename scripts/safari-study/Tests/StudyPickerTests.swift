@@ -16,7 +16,7 @@ final class StudyPickerTests: XCTestCase {
         let deadline = Date().addingTimeInterval(30)
         var last = ""
         repeat {
-            let view = safari.webViews.firstMatch
+            let view = safari.images.matching(NSPredicate(format: "label BEGINSWITH %@", "RITK {")).firstMatch
             if view.exists {
                 last = view.label
                 if last.hasPrefix("RITK "),
@@ -34,7 +34,13 @@ final class StudyPickerTests: XCTestCase {
         else { point(62,53).click() }  // Open Study in the workstation toolbar.
         let panel = safari.sheets["open-panel"]
         let upload = panel.buttons["Upload"].firstMatch
-        XCTAssertTrue(upload.waitForExistence(timeout: 10), safari.debugDescription)
+        if !upload.waitForExistence(timeout: 10) {
+            let screen = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screen.name = "Open Study"
+            screen.lifetime = .keepAlways
+            add(screen)
+            XCTFail("Open Study panel is unavailable: " + safari.debugDescription)
+        }
         safari.typeKey("g", modifierFlags: [.command, .shift])
         safari.typeText("/Users/Shared/RITKPublicStudy/" + directory + "/00000001.dcm")
         safari.typeKey(.return, modifierFlags: [])
@@ -56,6 +62,8 @@ final class StudyPickerTests: XCTestCase {
         continueAfterFailure = false
         safari.activate()
         go("")
+        let window = safari.windows.matching(NSPredicate(format: "title == %@", "AsterSlice")).firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 20), safari.debugDescription)
         let ready = wait("workstation layout") { $0["width"] as? Int ?? 0 > 0 }
         let panes = try XCTUnwrap(ready["panes"] as? [[Int]])
         XCTAssertEqual(Array(panes[0].prefix(2)), [276, 78])

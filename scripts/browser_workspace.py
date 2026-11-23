@@ -5,7 +5,7 @@ import argparse
 import json
 import shutil
 import tempfile
-from urllib.parse import urlencode, urljoin
+from urllib.parse import parse_qs, urlencode, urljoin
 from browser_local_box_provenance import copy_bundle
 from pathlib import Path
 from workstation_admission import invalid_studies
@@ -45,6 +45,12 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
     state = "window.asterSlice.state()"
     require(state + ".panes[0][0] === 276", "native study rail width")
     require(state + ".panes[0][1] === 78", "native menu and toolbar height")
+    options = parse_qs(query)
+    if options.get("renderer") == ["webgpu"]:
+        require('document.querySelector("#workstation").getContext("webgpu") instanceof GPUCanvasContext',
+                "workstation did not present through WebGPU")
+    if options.get("projection") == ["mip"]:
+        require(state + ".projection", "requested projection is absent from the primary workstation")
     files = sorted(study.resolve().glob("*.dcm"))
     if len(files) != 94:
         raise BrowserRuntimeError(f"expected all 94 public MRI instances, got {len(files)}")
@@ -133,6 +139,14 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
     wait(state + ".indices[0] !== window.cineSlice")
     client.send_keys(canvas, " ")
     wait("!" + state + ".cine")
+    if options.get("layout") == ["responsive"]:
+        # The responsive compositor exposes the three orthogonal viewports at desktop
+        # width and a single axial viewport below the 640-pixel dual-pane threshold.
+        require(state + ".panes.length === 3", "desktop responsive orthogonal pane count")
+        client.set_window_rect(500, 820)
+        wait(state + ".width === innerWidth && " + state + ".panes.length === 1")
+        client.set_window_rect(1440, 900)
+        wait(state + ".width === innerWidth && " + state + ".panes.length === 3")
     if comparison:
         members = sorted(comparison.resolve().glob("*.dcm"))
         if len(members) < 2:

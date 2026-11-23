@@ -2,7 +2,11 @@
 // All workstation input, including file access, comes from the native UI.
 import {screenSamples, comparePlane} from "./workstation_pixels.js";
 
-function report(value) { document.title = "RITK " + JSON.stringify(value); }
+const surface = document.querySelector("#workstation, #ritk-snap-axial");
+function report(value) {
+  const label = "RITK " + JSON.stringify(value);
+  if (surface.getAttribute("aria-label") !== label) surface.setAttribute("aria-label", label);
+}
 
 async function workstation() {
   let sampled = false;
