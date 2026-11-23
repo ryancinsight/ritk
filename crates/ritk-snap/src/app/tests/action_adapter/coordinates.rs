@@ -438,3 +438,29 @@ fn large_client_coordinates_feed_image_space_consumers() {
     assert_eq!(labels.current_map().label_at([0, 2, 1]), LabelId(1));
     assert_eq!(labels.current_map().label_at([0, 2, 0]), LabelId(0));
 }
+
+#[test]
+fn release_without_an_intervening_move_uses_final_display_position() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([1, 4, 8]));
+    app.active_tool = ToolKind::Pan;
+    let viewport = ViewerViewport::new(0, [0., 0.], [20., 20.], [8, 4], ViewTransform::default())
+        .expect("rectangular native image");
+    for event in [
+        PresentationEvent::PointerDown {
+            x: 80.,
+            y: 40.,
+            button: PointerButton::Left,
+            modifiers: crate::presentation::PresentationModifiers::NONE,
+        },
+        PresentationEvent::PointerUp {
+            x: 104.,
+            y: 28.,
+            button: PointerButton::Left,
+        },
+    ] {
+        apply_app_event(&mut app, &viewport, event);
+    }
+    assert_eq!(app.pan_offset, ViewportOffset::new(24., -12.));
+    assert!(app.pointer.display_drag.is_none());
+}

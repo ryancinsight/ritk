@@ -122,9 +122,8 @@ impl SnapApp {
         }
         let recorded = self.pointer.drag_measurement_location.take();
         if pos.is_some() && recorded.is_none_or(|location| location == self.annotation_location()) {
-            // Only a measurement takes its release as a final point. The
-            // viewport mapping a display gesture's release already includes
-            // that gesture's own zoom and pan, so reapplying it would move it.
+            // Only a measurement consumes a mapped image point on release.
+            // Display gestures have already consumed the host coordinates.
             if matches!(
                 self.tool_state,
                 ToolState::RoiDrag { .. }

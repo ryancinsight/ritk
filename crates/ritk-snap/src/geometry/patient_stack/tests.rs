@@ -12,7 +12,7 @@ fn traced() -> tracing::subscriber::DefaultGuard {
 }
 
 fn read(positions: [i32; 3], frame: Option<&str>) -> LoadedVolume {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("create the DICOM directory");
     fixtures::write_positioned_study(
         dir.path(),
         "CT",
@@ -22,15 +22,16 @@ fn read(positions: [i32; 3], frame: Option<&str>) -> LoadedVolume {
         positions,
         frame,
     )
-    .unwrap();
-    load_volume_from_path(dir.path()).unwrap()
+    .expect("write the three positioned slices");
+    load_volume_from_path(dir.path()).expect("decode the real Part 10 series")
 }
 
 #[test]
 fn decoded_planes_use_patient_centers_and_measured_irregular_intervals() {
     let _trace = traced();
     let v = tracing::info_span!("arrange").in_scope(|| read([10, 12, 16], Some("2.25.259")));
-    let stack = tracing::info_span!("act").in_scope(|| PatientStack::from_volume(&v).unwrap());
+    let stack = tracing::info_span!("act")
+        .in_scope(|| PatientStack::from_volume(&v).expect("qualify the irregular stack"));
     let _check = tracing::info_span!("assert").entered();
     assert_eq!(stack.centers[1].as_slice(), &[12.0, 20.75, 30.75]);
     assert_eq!(stack.distances, [0., 2., 6.]);
@@ -55,10 +56,10 @@ fn synchronization_qualifies_frame_and_unoriented_dihedral_angle() {
     let _trace = traced();
     let (volume, mut tilted) = tracing::info_span!("arrange").in_scope(|| {
         let v = read([10, 12, 14], Some("2.25.259"));
-        let target = PatientStack::from_volume(&v).unwrap();
+        let target = PatientStack::from_volume(&v).expect("qualify the target stack");
         (v, target)
     });
-    let source = PatientStack::from_volume(&volume).unwrap();
+    let source = PatientStack::from_volume(&volume).expect("qualify the source stack");
     for (degrees, expected) in [
         (0.0_f64, Some(1)),
         (5., Some(1)),

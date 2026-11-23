@@ -338,8 +338,8 @@ fn drag_zoom_in_batches(separate_moves: bool, step: i32) -> f32 {
 #[test]
 fn display_drags_use_full_displacement_independent_of_event_batches() {
     let (session, _root) = navigation_session();
-    let expected_pan =
-        pan_from_drag_delta(session.app.pan_offset, ViewportOffset::new(3.0, 0.0)).unwrap();
+    let expected_pan = pan_from_drag_delta(session.app.pan_offset, ViewportOffset::new(3.0, 0.0))
+        .expect("finite display pan");
     let expected_zoom = zoom_from_drag_delta(session.app.zoom, -3.0);
 
     let combined_pan = drag_pan_in_batches(false, 1);
@@ -358,8 +358,8 @@ fn display_drags_use_full_displacement_independent_of_event_batches() {
 #[test]
 fn captured_display_drags_continue_beyond_the_press_image_bounds() {
     let (session, _root) = navigation_session();
-    let expected_pan =
-        pan_from_drag_delta(session.app.pan_offset, ViewportOffset::new(24.0, 0.0)).unwrap();
+    let expected_pan = pan_from_drag_delta(session.app.pan_offset, ViewportOffset::new(24.0, 0.0))
+        .expect("finite display pan");
     let expected_zoom = zoom_from_drag_delta(session.app.zoom, -24.0);
 
     assert_eq!(drag_pan_in_batches(false, 8), expected_pan);

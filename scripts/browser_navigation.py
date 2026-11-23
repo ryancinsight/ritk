@@ -2,6 +2,8 @@
 
 
 def verify_navigation(client, canvas, state, wait):
+    client.send_keys(canvas, chr(0xe008) + "o" + chr(0xe000))
+    wait(state + ".orientationIdentity")
     fit = chr(0xe009) + "0" + chr(0xe000)
     for width, height in [(1440, 900), (960, 720)]:
         client.set_window_rect(width, height)

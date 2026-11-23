@@ -368,6 +368,9 @@ impl SnapApp {
                     }
                     self.on_click_end();
                 } else {
+                    // Hosts may coalesce every move before release. The captured
+                    // press makes repeating the last displacement idempotent.
+                    self.update_display_drag([position.x(), position.y()]);
                     self.on_drag_end(mapped);
                 }
                 Ok(ViewerActionDisposition::Continue { repaint: true })

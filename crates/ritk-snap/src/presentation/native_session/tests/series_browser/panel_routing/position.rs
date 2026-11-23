@@ -10,7 +10,7 @@ fn native_scroll_matches_physical_planes_and_preserves_disabled_target() {
             .finish(),
     );
     let (mut viewer, _initial) = tracing::info_span!("arrange").in_scope(session);
-    let root = tempfile::tempdir().unwrap();
+    let root = tempfile::tempdir().expect("create the paired study directory");
     for (uid, positions) in [
         (fixtures::SERIES_UID, [10, 12, 14]),
         (SECOND_SERIES_UID, [10, 14, 18]),
@@ -24,7 +24,7 @@ fn native_scroll_matches_physical_planes_and_preserves_disabled_target() {
             positions,
             Some("2.25.259"),
         )
-        .unwrap();
+        .expect("write a positioned series");
     }
     show_two_panels(&mut viewer, root.path());
     viewer.active_panel = 0;
@@ -37,7 +37,9 @@ fn native_scroll_matches_physical_planes_and_preserves_disabled_target() {
     ] {
         tracing::info_span!("act").in_scope(|| {
             for k in keys {
-                viewer.handle_events(&[key(k)]).unwrap();
+                viewer
+                    .handle_events(&[key(k)])
+                    .expect("dispatch the native input");
             }
         });
         tracing::info_span!("assert").in_scope(|| {
