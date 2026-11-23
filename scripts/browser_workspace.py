@@ -168,18 +168,19 @@ if __name__ == "__main__":
     parser.add_argument("--layout", default="")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
+    bundle = args.bundle.resolve(strict=True)
     client = WebDriverClient(args.driver_url, 60)
     client.create_session({"chromium":"chrome", "firefox":"firefox", "webkit":"safari"}[args.engine],
                           args.scale * 1000, headless=args.engine != "webkit")
     query = urlencode({k:v for k,v in {"renderer":args.renderer, "projection":args.projection,
                                          "layout":args.layout}.items() if v})
     try:
-        with tempfile.TemporaryDirectory(dir=args.bundle) as temporary:
+        with tempfile.TemporaryDirectory(dir=bundle) as temporary:
             fixture = Path(temporary) / "embedded"
-            copy_bundle(args.bundle, fixture)
-            with StaticServer(args.bundle.resolve()) as origin:
+            copy_bundle(bundle, fixture)
+            with StaticServer(bundle) as origin:
                 for cycle in range(args.cycles):
                     verify(client, origin, args.study, comparison=args.comparison, query=query,
-                           output=args.output, embed=origin + fixture.relative_to(args.bundle).as_posix() + "/embed.html")
+                           output=args.output, embed=origin + fixture.relative_to(bundle).as_posix() + "/embed.html")
     finally:
         client.close()
