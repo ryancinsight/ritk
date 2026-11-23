@@ -41,3 +41,33 @@ jobs:
           name: safari-report
           path: ${{ runner.temp }}/Safari.xcresult
           retention-days: 2
+  firefox:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ inputs.candidate }}
+          path: ritk
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ryancinsight/metis
+          ref: 94b698dcdb49fde0c2dbf7ec855183ffa300a3c9
+          path: metis
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          run-id: 45100016465
+          github-token: ${{ github.token }}
+          name: asterslice-web
+          path: metis/output/browser
+      - working-directory: ritk
+        shell: bash
+        run: |
+          set -euo pipefail
+          Xvfb :99 -screen 0 1280x800x24 -nolisten tcp >/dev/null 2>&1 &
+          export DISPLAY=:99
+          "$GECKOWEBDRIVER/geckodriver" --port 4444 &
+          for i in {1..40}; do if curl -sf 127.0.0.1:4444/status >/dev/null; then break; fi; sleep 0.25; done
+          PYTHONPATH="$GITHUB_WORKSPACE/metis/scripts" python3 scripts/browser_workspace.py ../metis/output/browser test_data/2_head_mri_t2/DICOM --comparison test_data/3_head_ct_mridir/DICOM --driver-url http://127.0.0.1:4444 --engine firefox --scale 2 --cycles 4 --output "$RUNNER_TEMP/evidence"
