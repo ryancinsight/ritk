@@ -38,15 +38,27 @@ final class StudyPickerTests: XCTestCase {
             add(screen)
             XCTFail("Open Study panel is unavailable: " + safari.debugDescription)
         }
+        safari.typeKey("2", modifierFlags: .command)  // Standard macOS list view.
+        let filename = directory + "-00000001.dcm"
         safari.typeKey("g", modifierFlags: [.command, .shift])
-        safari.typeText("/Users/Shared/RITKPublicStudy/" + directory + "/00000001.dcm")
+        safari.typeText("/Users/Shared/RITKPublicStudy/" + directory + "/" + filename)
         safari.typeKey(.return, modifierFlags: [])
-        let first = panel.descendants(matching: .any)
-            .matching(NSPredicate(format: "label == %@ OR value == %@ OR title == %@",
-                                  "00000001.dcm", "00000001.dcm", "00000001.dcm")).firstMatch
+        let list = panel.outlines["ListView"]
+        let first = list.textFields.matching(NSPredicate(format: "value == %@", filename)).firstMatch
         XCTAssertTrue(first.waitForExistence(timeout: 12), panel.debugDescription)
-        // Go to Folder already selects the exact file and focuses the native file list.
+        // Click the visible file in panel coordinates. Asking XCTest to scroll an
+        // AppKit filename editor into view can invalidate its accessibility row.
+        let file = first.frame, sheet = panel.frame
+        let center = CGPoint(x: file.midX, y: file.midY)
+        XCTAssertTrue(sheet.contains(center), "The selected filename must be visible")
+        panel.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: center.x - sheet.minX, dy: center.y - sheet.minY)).click()
         safari.typeKey("a", modifierFlags: .command)
+        if directory != "File" {
+            let second = list.textFields.matching(NSPredicate(format: "value == %@",
+                directory + "-00000002.dcm")).firstMatch
+            XCTAssertTrue(second.isSelected, "The native list must select multiple files before upload")
+        }
         upload.click()
     }
 
