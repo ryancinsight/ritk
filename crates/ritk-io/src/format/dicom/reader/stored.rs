@@ -35,7 +35,8 @@ pub use error::DicomStoredImportError;
 use crate::format::dicom::inventory::dicom_series_metadata_losses;
 
 use super::geometry::{
-    analyze_slice_spacing, dot, slice_normal_from_iop, SliceCoverage, SpacingUniformity,
+    analyze_slice_spacing, dot, first_orientation_mismatch, slice_normal_from_iop, SliceCoverage,
+    SpacingUniformity,
 };
 use super::pixel::ensure_scalar_samples_per_pixel;
 use super::scan::scan_dicom_path_with_budget;
@@ -202,6 +203,9 @@ fn validate_uniform_geometry(metadata: &DicomReadMetadata) -> Result<(), DicomSt
     let slices = &metadata.slices;
     if slices.len() < 2 {
         return Ok(());
+    }
+    if let Some((slice_index, _)) = first_orientation_mismatch(slices) {
+        return Err(DicomStoredImportError::InconsistentOrientation { slice_index });
     }
     let Some(normal) = slices
         .first()

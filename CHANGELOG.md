@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## RITK I/O 0.9.1 and RITK Python 0.13.1
+
+### Fixed
+
+- [patch] Reject mixed in-plane orientations at scalar and stored DICOM volume
+  import. Select a coherent set of instances when a series UID spans
+  separate image orientations. Python includes the geometry error in
+  its read exception.
+
 ## AsterSlice 0.3.1 (private viewer)
 
 ### Fixed
@@ -16,7 +25,7 @@
   embedded raster plane first opens its canvas. This supports exact RGBA
   readback on Apple-silicon Safari while retaining explicit WebGPU selection.
 
-## RITK Python 0.13.0 (unreleased)
+## RITK Python 0.13.0 — 2026-11-23
 
 ### Fixed
 

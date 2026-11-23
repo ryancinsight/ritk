@@ -269,6 +269,26 @@ and reject an unrepresentable positive spacing before output.
 - target: `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
 - integration: PRs #1104 and #1105 merged after their required checks passed. The crates.io release cohort tracks the `ritk-io` 0.8.0 manifest.
 
+## RITK-DICOM-MIXED-IOP-001
+
+- The retained skull CT contains mixed orientations under the 2-, 89- and
+  111-instance series UIDs. The 89-instance series mixes one coronal
+  reformat with 88 sagittal planes. Projection onto the sagittal normal
+  gives an apparent 207.360 mm span on a 2 mm grid, which previously
+  produced 105 planes.
+- A volume has one in-plane basis. The scalar and stored readers both
+  check the two orientation vectors against the first known orientation
+  at the existing component tolerance before reading pixel data.
+- The regression checks rejection of the mixed file sets and exact
+  calibrated pixels and geometry of the separately selected 88- and
+  110-plane stacks.
+- The stored-volume regression fails at the baseline. The candidate passes
+  all 630 Rust tests in `ritk-io` and `ritk-python`, and all 26 geometry
+  cases and 22 export and smoke controls on the locally rebuilt macOS
+  ARM64 wheel.
+- Release targets are `ritk-io` 0.9.1 and `ritk-python` 0.13.1. The
+  post-merge skull CT matrix is the publication gate.
+
 ## RITK-DICOM-LJIF-001
 
 - [patch] Compare each UID-selected original, basic and enhanced skull CT

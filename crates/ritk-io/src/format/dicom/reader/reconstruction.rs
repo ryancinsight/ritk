@@ -10,8 +10,8 @@ use ritk_dicom::{ParseBudget, TransferSyntaxKind};
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::geometry::{
-    analyze_slice_spacing, dot, resample_frames_linear, resampled_frame_count,
-    slice_normal_from_iop, SliceCoverage, SpacingUniformity,
+    analyze_slice_spacing, dot, first_orientation_mismatch, resample_frames_linear,
+    resampled_frame_count, slice_normal_from_iop, SliceCoverage, SpacingUniformity,
 };
 use super::pixel::{read_slice_pixels, read_slice_pixels_from_bytes};
 use super::types::{DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata};
@@ -56,6 +56,13 @@ pub fn decode_dicom_series(
     slices
         .first()
         .ok_or_else(|| anyhow!("DICOM series is empty"))?;
+
+    if let Some((index, _)) = first_orientation_mismatch(&slices) {
+        bail!(
+            "DICOM series cannot form one volume: inconsistent ImageOrientationPatient \
+             at slice index {index}. Select a single orientation stack"
+        );
+    }
 
     // Guard: reject unsupported / big-endian transfer syntaxes before pixel decode.
     for slice in slices.iter() {

@@ -5,11 +5,12 @@
 
 use aequitas::systems::si::{quantities::Length, units::Millimeter};
 
-use super::super::geometry::{analyze_slice_spacing, cross, dot, normalize, slice_normal_from_iop};
+use super::super::geometry::{
+    analyze_slice_spacing, cross, dot, first_orientation_mismatch, normalize, slice_normal_from_iop,
+};
 use super::super::types::DicomSliceMetadata;
 use super::thresholds::{
-    AXIAL_IOP_THRESHOLD, GANTRY_TILT_MIN_DEGREES, IOP_CONSISTENCY_THRESHOLD,
-    PIXEL_SPACING_CONSISTENCY_THRESHOLD,
+    AXIAL_IOP_THRESHOLD, GANTRY_TILT_MIN_DEGREES, PIXEL_SPACING_CONSISTENCY_THRESHOLD,
 };
 
 /// Compute the slice normal from the first available IOP in the slice list.
@@ -91,29 +92,14 @@ pub(super) fn synthesize_gantry_tilt(slices: &mut [DicomSliceMetadata]) {
     }
 }
 
-/// Cross-slice IOP consistency guard (DICOM PS3.3 C.7.6.1.1.1).
-///
-/// Emits a warning when any slice's IOP deviates from the first slice's IOP
-/// by more than [`IOP_CONSISTENCY_THRESHOLD`].
+/// Report mixed orientation during discovery. Volume loaders reject it.
 pub(super) fn check_iop_consistency(slices: &[DicomSliceMetadata]) {
-    if let Some(ref_iop) = slices.first().and_then(|s| s.image_orientation_patient) {
-        for (i, s) in slices.iter().enumerate().skip(1) {
-            if let Some(iop) = s.image_orientation_patient {
-                let max_dev = iop
-                    .iter()
-                    .zip(ref_iop.iter())
-                    .map(|(a, b)| (a - b).abs())
-                    .fold(0.0_f64, f64::max);
-                if max_dev > IOP_CONSISTENCY_THRESHOLD {
-                    tracing::warn!(
-                        slice_index = i,
-                        max_iop_deviation = max_dev,
-                        "DICOM series has inconsistent ImageOrientationPatient across slices; \
-                         using first slice IOP as canonical"
-                    );
-                }
-            }
-        }
+    if let Some((slice_index, max_iop_deviation)) = first_orientation_mismatch(slices) {
+        tracing::warn!(
+            slice_index,
+            max_iop_deviation,
+            "DICOM series has inconsistent ImageOrientationPatient across slices"
+        );
     }
 }
 
