@@ -258,6 +258,12 @@ Canvas2D is the default. Use `?renderer=webgpu` for WebGPU,
 `?layout=responsive` for adaptive panes, or `?projection=mip|minip|average|vr`
 with one projection name.
 
+The workstation and embedded raster viewers request a readable Canvas2D
+backing store. Let RITK acquire each canvas first. If an embedding host creates
+the context itself, pass `{willReadFrequently: true}` on its first
+`getContext("2d", options)` call. The browser retains that context and its
+original options for subsequent pixel reads.
+
 After generating the WASM module as described below, package and serve the
 application from the RITK checkout using the Métis revision in `Cargo.lock`:
 

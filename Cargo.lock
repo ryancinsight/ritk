@@ -6850,7 +6850,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-snap"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "aequitas",
  "anyhow",
@@ -6891,6 +6891,7 @@ dependencies = [
  "walkdir",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "web-sys",
  "wgpu",
  "windows 0.62.2",
 ]

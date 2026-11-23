@@ -13,7 +13,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 ## M-viewer-compare — 0.3.0 — compare series by patient position
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_link) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
 <a id="RITK-BROWSER-READ-001"></a><a id="RITK-BROWSER-WEBGPU-001"></a>
-- [minor] The scalar reader transfers its pixel allocation to the viewer. All eight [saved-study browser scenarios](gap_audit.md#saved-study-browser-qualification-patch) passed on main, including four consecutive Chromium loads, native Safari and hosted WebGPU.
+- [minor] The scalar reader transfers its pixel allocation to the viewer. All eight [saved-study browser scenarios](gap_audit.md#saved-study-browser-qualification-patch) passed on main, including four consecutive Chromium loads, native Safari and hosted WebGPU. The [viewer checklist](backlog/ritk-stable-qualification.md) tracks Apple-silicon and Intel raster readback.
 - needs: M-viewer-reading
 - non-goals: fusion
 <a id="M-viewer-access"></a>

@@ -123,6 +123,15 @@ The locked all-feature audit of the 2026-11-22 candidate clears the URL and RSA 
 
 ## Saved-study browser qualification [patch]
 
+Apple-silicon Safari decoded all 94 files but its default raster store raised
+`InvalidStateError` on pixel readback. The workstation and embedded raster
+presenters now request frequent reads when acquiring the first 2D context.
+At a 1024 × 622 viewport the calibrated window legend can cover an anatomical
+sample. The dual-Mac qualification compares the complete visible image rectangles,
+including clinical overlays, against Chromium rendering the same saved study at
+the measured dimensions. Separately it checks all three unannotated RGBA plane
+hashes against the reviewed MRI oracle.
+
 All eight scenarios passed on the [integrated candidate](https://github.com/ryancinsight/ritk/actions/runs/45110321950) and on [merged main `8550491eb`](https://github.com/ryancinsight/ritk/actions/runs/45111738624). Safari used the macOS Open panel for the workstation and its independent three-plane reference. Chromium completed four 94-file MRI loads on one page. The [release checklist](backlog/ritk-stable-qualification.md) records CI and the nine outstanding dependency maintenance findings.
 
 The [native Safari job](https://github.com/ryancinsight/ritk/actions/runs/45111738624/job/137486577976) opened the full 49,807,236-byte MRI through the macOS file chooser in both viewers. It compared three independent plane digests and visible samples, rejected all three out-of-bounds selections, exercised the reading tools and CT/MR comparison, and removed the registered listeners. The [file verification](https://github.com/ryancinsight/ritk/actions/runs/45098982271) matched all 94 checksums. The accepted Safari host used Intel macOS. A separate [ARM macOS 26 Safari run](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583318) decoded the MRI and failed framebuffer readback.
