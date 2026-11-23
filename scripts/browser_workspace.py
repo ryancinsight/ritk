@@ -6,6 +6,7 @@ import json
 import tempfile
 from urllib.parse import urlencode
 from browser_local_box_provenance import copy_bundle
+from browser_navigation import verify_navigation
 from pathlib import Path
 
 from browser_protocol import BrowserRuntimeError, StaticServer, WebDriverClient
@@ -82,6 +83,7 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
     center = (x + w // 2 - cw // 2, y + h // 2 - ch // 2)
     canvas = client.find("#workstation")
     home, end = chr(0xe011), chr(0xe010)
+    verify_navigation(client, canvas, state, wait)
     initial_slice = client.execute("return " + state + ".indices[0]")
     client.wheel(canvas, center, (0, 120))
     wait(f"Math.abs({state}.indices[0] - {initial_slice}) === 1")

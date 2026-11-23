@@ -263,11 +263,15 @@ impl SnapApp {
                     && !modified
                     && tool != ToolKind::MeasureCobb
                     && self.tool_state.is_pending_measurement();
-                if !places_next_anchor {
+                if matches!(tool, ToolKind::Pan | ToolKind::Zoom | ToolKind::WindowLevel) {
+                    self.begin_display_drag(
+                        tool,
+                        [position.x(), position.y()],
+                        viewport.display_units,
+                    );
+                } else if !places_next_anchor {
                     self.on_drag_start(tool, Some(image));
                 }
-                self.pointer
-                    .capture_navigation_viewport(&self.tool_state, *viewport);
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerDragged {
@@ -282,8 +286,11 @@ impl SnapApp {
                 let Some(viewport) = viewport else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
-                let Some(image) = self.pointer.map_drag(&self.tool_state, *viewport, *current)
-                else {
+                if self.pointer.display_drag.is_some() {
+                    self.update_display_drag([current.x(), current.y()]);
+                    return Ok(ViewerActionDisposition::Continue { repaint: true });
+                }
+                let Some(image) = viewport.map(*current) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
                 if self.pointer.pending_annotation_move.is_some() {

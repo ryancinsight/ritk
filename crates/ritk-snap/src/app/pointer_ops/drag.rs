@@ -9,6 +9,59 @@ use eunomia::FloatElement;
 use metis_ui_lang::PathPush;
 
 impl SnapApp {
+    /// Apply the full displacement since the press in display pixels.
+    pub(crate) fn update_display_drag(&mut self, current: [f64; 2]) {
+        let Some(capture) = self.pointer.display_drag else {
+            return;
+        };
+        let Ok(delta) = capture.displacement(current) else {
+            return;
+        };
+        if delta.iter().any(|value| value.abs() > f64::from(f32::MAX)) {
+            self.status_message =
+                "Navigation rejected: the pan displacement must be finite".to_owned();
+            return;
+        }
+        // Public viewport offsets and zoom use binary32 after subtraction in host precision.
+        let [dx, dy] = delta.map(f32::from_f64);
+        match self.tool_state {
+            ToolState::Panning {
+                viewport_origin, ..
+            } => {
+                let displacement = crate::tools::interaction::ViewportOffset::new(dx, dy);
+                match pan_from_drag_delta(viewport_origin, displacement) {
+                    Ok(offset) => self.pan_offset = offset,
+                    Err(error) => {
+                        tracing::warn!(%error, "pan update rejected");
+                        self.status_message = format!("Navigation rejected: {error}");
+                    }
+                }
+            }
+            ToolState::Zooming { original_zoom, .. } => {
+                let drag_delta_y = dy;
+                self.zoom = zoom_from_drag_delta(original_zoom, drag_delta_y);
+                self.status_message = format!("Zoom: {:.0}%", self.zoom * 100.0);
+            }
+            ToolState::WindowLevelDrag {
+                original_center,
+                original_width,
+                ..
+            } => {
+                let (new_center, new_width) = window_level_from_drag_delta(
+                    original_center,
+                    original_width,
+                    dx,
+                    dy,
+                    WINDOW_LEVEL_SENSITIVITY,
+                );
+                self.viewer_state.window_center = Some(FloatElement::from_f64(new_center));
+                self.viewer_state.window_width = Some(FloatElement::from_f64(new_width));
+                self.bump_visual_revision();
+            }
+            _ => {}
+        }
+    }
+
     pub(crate) fn on_drag(&mut self, pos: Option<ImagePoint>) {
         let Some(pos) = pos else { return };
         if let ToolState::PencilDrag { capture } = &mut self.tool_state {
@@ -18,46 +71,6 @@ impl SnapApp {
             return;
         }
         match self.tool_state.clone() {
-            ToolState::Panning {
-                start,
-                viewport_origin,
-            } => {
-                let displacement = crate::tools::interaction::ViewportOffset::new(
-                    pos.x() - start.x(),
-                    pos.y() - start.y(),
-                );
-                match pan_from_drag_delta(viewport_origin, displacement) {
-                    Ok(offset) => self.pan_offset = offset,
-                    Err(error) => {
-                        tracing::warn!(%error, "pan update rejected");
-                        self.status_message = format!("Navigation rejected: {error}");
-                    }
-                }
-            }
-            ToolState::Zooming {
-                start,
-                original_zoom,
-            } => {
-                let drag_delta_y = pos.y() - start.y();
-                self.zoom = zoom_from_drag_delta(original_zoom, drag_delta_y);
-                self.status_message = format!("Zoom: {:.0}%", self.zoom * 100.0);
-            }
-            ToolState::WindowLevelDrag {
-                start,
-                original_center,
-                original_width,
-            } => {
-                let (new_center, new_width) = window_level_from_drag_delta(
-                    original_center,
-                    original_width,
-                    pos.x() - start.x(),
-                    pos.y() - start.y(),
-                    WINDOW_LEVEL_SENSITIVITY,
-                );
-                self.viewer_state.window_center = Some(FloatElement::from_f64(new_center));
-                self.viewer_state.window_width = Some(FloatElement::from_f64(new_width));
-                self.bump_visual_revision();
-            }
             ToolState::RoiDrag { start, kind, .. } => {
                 self.tool_state = ToolState::RoiDrag {
                     start,

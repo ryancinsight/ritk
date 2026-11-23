@@ -16,6 +16,20 @@ use metis_ui_lang::{PathCapture, PathPush};
 // ── Pointer / interaction event handlers ───────────────────────────────────
 
 impl SnapApp {
+    pub(crate) fn begin_display_drag(&mut self, tool: ToolKind, point: [f64; 2], units: [f64; 2]) {
+        use eunomia::FloatElement;
+        let Ok(capture) = metis_core::input::PointerDrag::try_new(point, units) else {
+            return;
+        };
+        let origin = [point[0] * units[0], point[1] * units[1]];
+        if origin.iter().any(|value| value.abs() > f64::from(f32::MAX)) {
+            return;
+        }
+        let [x, y] = origin.map(f32::from_f64);
+        self.on_drag_start(tool, Some(ImagePoint::new(x, y)));
+        self.pointer.display_drag = Some(capture);
+    }
+
     /// Begin the gesture `tool` performs from `pos`.
     ///
     /// A gesture started while a multi-click measurement is pending suspends
@@ -167,7 +181,7 @@ impl SnapApp {
     /// State that no drag owns, such as a waiting measurement anchor, stays.
     fn finish_gesture(&mut self) {
         self.pointer.owner = None;
-        self.pointer.navigation_drag_viewport = None;
+        self.pointer.display_drag = None;
         if self.tool_state.is_drag_gesture() {
             self.tool_state = self
                 .pointer
@@ -188,7 +202,7 @@ impl SnapApp {
             self.finish_gesture();
         } else {
             self.pointer.owner = None;
-            self.pointer.navigation_drag_viewport = None;
+            self.pointer.display_drag = None;
             self.pointer.suspended_measurement = None;
         }
     }

@@ -22,6 +22,7 @@ pub(crate) struct ViewerViewport {
     zoom: f64,
     pan: [f64; 2],
     polygon_handles: bool,
+    pub(crate) display_units: [f64; 2],
 }
 
 impl ViewerViewport {
@@ -100,6 +101,7 @@ impl ViewerViewport {
             zoom: f64::from(zoom),
             pan: [f64::from(pan.x()), f64::from(pan.y())],
             polygon_handles: false,
+            display_units: [1.0; 2],
         })
     }
 
@@ -145,12 +147,6 @@ impl ViewerViewport {
             return None;
         }
         Some(image)
-    }
-
-    /// Map a display gesture beyond the image bounds in its captured basis.
-    pub(crate) fn map_unbounded(self, point: ViewportPoint) -> Option<ImagePoint> {
-        let output = self.output_coordinates(self.geometry.map_edge_unbounded(point)?);
-        self.image_point(output)
     }
 
     fn output_coordinates(self, output: [f64; 2]) -> [f64; 2] {

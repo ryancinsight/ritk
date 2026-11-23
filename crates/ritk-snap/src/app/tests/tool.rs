@@ -9,8 +9,8 @@ fn zoom_tool_drag_updates_zoom_from_pointer_delta() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Zoom;
     app.zoom = 1.0;
-    app.on_drag_start(app.active_tool, Some(ImagePoint::new(100.0, 100.0)));
-    app.on_drag(Some(ImagePoint::new(100.0, 80.0)));
+    app.begin_display_drag(app.active_tool, [100.0, 100.0], [1.0; 2]);
+    app.update_display_drag([100.0, 80.0]);
     assert!(app.zoom > 1.0, "expected drag-up zoom-in, got {}", app.zoom);
     assert!(app.status_message.starts_with("Zoom:"));
 }
@@ -20,8 +20,8 @@ fn pan_tool_drag_updates_offset_via_ssot() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Pan;
     app.pan_offset = ViewportOffset::new(0.0, 0.0);
-    app.on_drag_start(app.active_tool, Some(ImagePoint::new(100.0, 100.0)));
-    app.on_drag(Some(ImagePoint::new(130.0, 80.0)));
+    app.begin_display_drag(app.active_tool, [100.0, 100.0], [1.0; 2]);
+    app.update_display_drag([130.0, 80.0]);
     // delta = (30.0, -20.0)
     // new_offset = (0, 0) + (30, -20) = (30, -20)
     assert_eq!(app.pan_offset.x(), 30.0);
@@ -33,8 +33,8 @@ fn pan_tool_drag_with_nonzero_starting_offset() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Pan;
     app.pan_offset = ViewportOffset::new(50.0, 75.0);
-    app.on_drag_start(app.active_tool, Some(ImagePoint::new(200.0, 150.0)));
-    app.on_drag(Some(ImagePoint::new(220.0, 130.0)));
+    app.begin_display_drag(app.active_tool, [200.0, 150.0], [1.0; 2]);
+    app.update_display_drag([220.0, 130.0]);
     // delta = (20.0, -20.0)
     // new_offset = (50, 75) + (20, -20) = (70, 55)
     assert_eq!(app.pan_offset.x(), 70.0);
@@ -46,8 +46,8 @@ fn pan_tool_drag_zero_delta_preserves_offset() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Pan;
     app.pan_offset = ViewportOffset::new(100.0, 100.0);
-    app.on_drag_start(app.active_tool, Some(ImagePoint::new(200.0, 150.0)));
-    app.on_drag(Some(ImagePoint::new(200.0, 150.0)));
+    app.begin_display_drag(app.active_tool, [200.0, 150.0], [1.0; 2]);
+    app.update_display_drag([200.0, 150.0]);
     // delta = (0.0, 0.0)
     // new_offset = (100, 100) + (0, 0) = (100, 100)
     assert_eq!(app.pan_offset.x(), 100.0);
@@ -61,9 +61,13 @@ fn pan_pointer_subtraction_overflow_allows_a_valid_update_and_release() {
     let original = ViewportOffset::new(12.0, -7.0);
     let start = ImagePoint::new(f32::MAX, 10.0);
     app.pan_offset = original;
-    app.on_drag_start(app.active_tool, Some(start));
+    app.begin_display_drag(
+        app.active_tool,
+        [f64::from(start.x()), f64::from(start.y())],
+        [1.0; 2],
+    );
 
-    app.on_drag(Some(ImagePoint::new(-f32::MAX, 14.0)));
+    app.update_display_drag([-f64::from(f32::MAX), 14.0]);
     assert_eq!(app.pan_offset, original);
     assert_eq!(
         app.status_message,
@@ -78,7 +82,7 @@ fn pan_pointer_subtraction_overflow_allows_a_valid_update_and_release() {
     );
 
     let recovered = ImagePoint::new(f32::MAX, 14.0);
-    app.on_drag(Some(recovered));
+    app.update_display_drag([f64::from(recovered.x()), f64::from(recovered.y())]);
     assert_eq!(app.pan_offset, ViewportOffset::new(12.0, -3.0));
     app.on_drag_end(Some(recovered));
     assert_eq!(app.tool_state, ToolState::Idle);
@@ -92,9 +96,13 @@ fn pan_result_overflow_preserves_both_axes_through_immediate_release() {
     let start = ImagePoint::new(0.0, 0.0);
     let rejected = ImagePoint::new(f32::MAX, 5.0);
     app.pan_offset = original;
-    app.on_drag_start(app.active_tool, Some(start));
+    app.begin_display_drag(
+        app.active_tool,
+        [f64::from(start.x()), f64::from(start.y())],
+        [1.0; 2],
+    );
 
-    app.on_drag(Some(rejected));
+    app.update_display_drag([f64::from(rejected.x()), f64::from(rejected.y())]);
     assert_eq!(app.pan_offset, original);
     assert_eq!(
         app.status_message,
@@ -148,17 +156,12 @@ fn label_shortcut_undo_redo_updates_map_and_status() {
 /// new_center = 40 − (−5)*4 = 60
 #[test]
 fn window_level_drag_updates_center_and_width_via_ssot() {
-    use crate::tools::interaction::ToolState;
     let mut app = SnapApp::default();
     app.viewer_state.window_center = Some(40.0);
     app.viewer_state.window_width = Some(400.0);
     let revision = app.visual_revision;
-    app.tool_state = ToolState::WindowLevelDrag {
-        start: ImagePoint::new(100.0, 100.0),
-        original_center: 40.0,
-        original_width: 400.0,
-    };
-    app.on_drag(Some(ImagePoint::new(110.0, 95.0)));
+    app.begin_display_drag(ToolKind::WindowLevel, [100.0, 100.0], [1.0; 2]);
+    app.update_display_drag([110.0, 95.0]);
 
     let new_center = app.viewer_state.window_center.expect("center set");
     let new_width = app.viewer_state.window_width.expect("width set");

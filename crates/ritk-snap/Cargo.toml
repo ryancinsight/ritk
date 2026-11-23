@@ -54,6 +54,7 @@ gaia = { workspace = true }
 walkdir = { workspace = true }
 eunomia = { workspace = true }
 moirai = { workspace = true }
+metis-core.workspace = true
 metis-platform = { workspace = true }
 metis-ui-lang = { workspace = true }
 metis-web = { workspace = true }

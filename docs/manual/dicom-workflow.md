@@ -50,9 +50,9 @@ color maps. Number keys apply available presets; **I** inverts and **Shift+C**
 cycles the color map. Custom presets currently last for the running
 application.
 
-Pan distance and zoom/window drag sensitivity currently depend on image fit
-and orientation. The [navigation correction](../../backlog/RITK-SNAP-NAVIGATION-UNITS-001.md)
-tracks this known limitation; menu presets and slice rails remain available.
+Pan follows the pointer in display pixels at any fit or rotation. Dragging zoom
+down by 24 pixels multiplies the initial zoom by 0.76 within the zoom limits.
+Window/level uses the same display axes. Measurements stay anchored to the image.
 
 Press **H** or **V** to flip the image horizontally or vertically.
 **R** rotates clockwise by 90 degrees and **Shift+R** rotates the other way.

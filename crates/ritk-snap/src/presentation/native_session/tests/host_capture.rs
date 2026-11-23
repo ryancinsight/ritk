@@ -137,7 +137,7 @@ impl NativeApplication for HostCaptureApplication {
                 assert!(self.session.captured_buttons.is_empty());
                 assert_eq!(self.session.active_view, None);
                 assert_eq!(self.session.app.pointer.owner, None);
-                assert_eq!(self.session.app.pointer.navigation_drag_viewport, None);
+                assert_eq!(self.session.app.pointer.display_drag, None);
                 assert!(self.session.app.tool_state.is_idle());
                 self.stage.set(HostStage::Complete);
                 Ok(NativeFlow::Exit)

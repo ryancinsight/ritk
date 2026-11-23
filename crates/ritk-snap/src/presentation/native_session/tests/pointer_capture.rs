@@ -3,7 +3,7 @@
 use super::super::layout::{PanelGrid, WorkspaceLayout};
 use super::super::window_controls::WindowAction;
 use super::*;
-use crate::presentation::{PointerButton, ViewportPoint};
+use crate::presentation::PointerButton;
 use crate::tools::interaction::ViewportOffset;
 use crate::tools::kind::ToolKind;
 use crate::ui::{pan_from_drag_delta, zoom_from_drag_delta};
@@ -103,7 +103,7 @@ fn a_release_after_focus_loss_is_ordinary_input() {
 
     assert_eq!(session.active_view, None);
     assert_eq!(session.app.pointer.owner, None);
-    assert_eq!(session.app.pointer.navigation_drag_viewport, None);
+    assert_eq!(session.app.pointer.display_drag, None);
     session
         .handle_events(&[down(x, y, MouseButton::Right)])
         .expect("the button starts a new gesture");
@@ -245,11 +245,23 @@ fn pan_and_render_displacement(
 }
 
 #[test]
-fn native_identity_pan_matches_physical_pixel_displacement() {
-    let (mut session, _root) = navigation_session_at_display_scale(1.0);
-    let (pan, rendered) = pan_and_render_displacement(&mut session, [24, -12]);
-    assert_eq!(pan, ViewportOffset::new(24.0, -12.0));
-    assert_eq!(rendered, [24.0, -12.0]);
+fn native_pan_matches_display_displacement_at_each_fit_and_rotation() {
+    for scale in [0.5, 1.0, 2.0] {
+        let (mut session, _root) = navigation_session_at_display_scale(scale);
+        for _ in 0..4 {
+            let origin = session.app.pan_offset;
+            let (pan, rendered) = pan_and_render_displacement(&mut session, [24, -12]);
+            assert_eq!(
+                pan,
+                ViewportOffset::new(origin.x() + 24.0, origin.y() - 12.0)
+            );
+            assert_eq!(rendered, [24.0, -12.0]);
+            session
+                .apply_window_action(WindowAction::RotateCw)
+                .expect("rotate");
+            session.refresh_frame().expect("present rotation");
+        }
+    }
 }
 
 fn apply_drag_moves(
@@ -286,7 +298,7 @@ fn drag_pan_in_batches(
         .handle_events(&[up(x + step * 3, y, MouseButton::X1)])
         .expect("finish panning");
     assert_eq!(session.app.pointer.owner, None);
-    assert_eq!(session.app.pointer.navigation_drag_viewport, None);
+    assert_eq!(session.app.pointer.display_drag, None);
     assert_eq!(session.active_view, None);
     session.app.pan_offset
 }
@@ -304,7 +316,7 @@ fn drag_zoom_in_batches(separate_moves: bool, step: i32) -> f32 {
         .handle_events(&[up(x, y - step * 3, MouseButton::Right)])
         .expect("finish zooming");
     assert_eq!(session.app.pointer.owner, None);
-    assert_eq!(session.app.pointer.navigation_drag_viewport, None);
+    assert_eq!(session.app.pointer.display_drag, None);
     assert_eq!(session.active_view, None);
     session.app.zoom
 }
@@ -312,23 +324,9 @@ fn drag_zoom_in_batches(separate_moves: bool, step: i32) -> f32 {
 #[test]
 fn display_drags_use_full_displacement_independent_of_event_batches() {
     let (session, _root) = navigation_session();
-    let mapping = session.viewports[0].mapping();
-    let (x, y) = session.viewports[0].center();
-    let start = mapping
-        .map(ViewportPoint::new(f64::from(x), f64::from(y)))
-        .expect("viewport center maps to the source image");
-    let pan_end = mapping
-        .map(ViewportPoint::new(f64::from(x + 3), f64::from(y)))
-        .expect("pan endpoint maps to the source image");
-    let zoom_end = mapping
-        .map(ViewportPoint::new(f64::from(x), f64::from(y - 3)))
-        .expect("zoom endpoint maps to the source image");
-    let expected_pan = pan_from_drag_delta(
-        session.app.pan_offset,
-        ViewportOffset::new(pan_end.x() - start.x(), pan_end.y() - start.y()),
-    )
-    .expect("finite mapped pan displacement");
-    let expected_zoom = zoom_from_drag_delta(session.app.zoom, zoom_end.y() - start.y());
+    let expected_pan =
+        pan_from_drag_delta(session.app.pan_offset, ViewportOffset::new(3.0, 0.0)).unwrap();
+    let expected_zoom = zoom_from_drag_delta(session.app.zoom, -3.0);
 
     let combined_pan = drag_pan_in_batches(false, 1);
     let separated_pan = drag_pan_in_batches(true, 1);
@@ -346,23 +344,9 @@ fn display_drags_use_full_displacement_independent_of_event_batches() {
 #[test]
 fn captured_display_drags_continue_beyond_the_press_image_bounds() {
     let (session, _root) = navigation_session();
-    let mapping = session.viewports[0].mapping();
-    let (x, y) = session.viewports[0].center();
-    let start = mapping
-        .map(ViewportPoint::new(f64::from(x), f64::from(y)))
-        .expect("viewport center maps to the source image");
-    let pan_end = mapping
-        .map_unbounded(ViewportPoint::new(f64::from(x + 24), f64::from(y)))
-        .expect("captured pan maps beyond the press image bounds");
-    let zoom_end = mapping
-        .map_unbounded(ViewportPoint::new(f64::from(x), f64::from(y - 24)))
-        .expect("captured zoom maps beyond the press image bounds");
-    let expected_pan = pan_from_drag_delta(
-        session.app.pan_offset,
-        ViewportOffset::new(pan_end.x() - start.x(), pan_end.y() - start.y()),
-    )
-    .expect("finite mapped pan displacement");
-    let expected_zoom = zoom_from_drag_delta(session.app.zoom, zoom_end.y() - start.y());
+    let expected_pan =
+        pan_from_drag_delta(session.app.pan_offset, ViewportOffset::new(24.0, 0.0)).unwrap();
+    let expected_zoom = zoom_from_drag_delta(session.app.zoom, -24.0);
 
     assert_eq!(drag_pan_in_batches(false, 8), expected_pan);
     assert_eq!(drag_pan_in_batches(true, 8), expected_pan);

@@ -81,6 +81,13 @@ pub(super) fn viewport_for_display_with_zoom_pan(
         zoom,
         pan,
     )
+    .map(|mut viewport| {
+        viewport.display_units = [
+            f64::from(frame_width) / display_size[0],
+            f64::from(frame_height) / display_size[1],
+        ];
+        viewport
+    })
     .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error.to_string()))
 }
 

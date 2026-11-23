@@ -73,6 +73,8 @@
 
 ### Fixed
 
+- [patch] Pan, zoom and window/level follow the press-relative display displacement at every image fit and rotation on the web and native workstations.
+
 - [patch] In a multi-series workstation, Home and End preserve the current slice when the active panel already shows the requested series.
 
 - [patch] The web app and existing gallery links open the same AsterSlice reading workspace.
