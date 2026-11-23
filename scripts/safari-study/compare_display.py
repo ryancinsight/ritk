@@ -41,7 +41,8 @@ def read_display(client, origin, files, width, height):
 def compare(attachments, study, output, origin, driver):
     manifest = json.loads((attachments / "manifest.json").read_text())
     filename, = [item["exportedFileName"] for test in manifest for item in test["attachments"]
-                 if item["suggestedHumanReadableName"].split(".")[0] == "Displayed MRI planes"]
+                 if item["suggestedHumanReadableName"] == "Displayed MRI planes.json"
+                 or item["suggestedHumanReadableName"].startswith("Displayed MRI planes_")]
     safari = json.loads((attachments / filename).read_text())
     files = sorted(study.resolve().glob("*.dcm"))
     if len(files) != 94 or sum(path.stat().st_size for path in files) != 49_807_236:
