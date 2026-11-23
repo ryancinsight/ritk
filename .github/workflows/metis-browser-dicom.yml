@@ -29,7 +29,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/safari-study/prepare.py workstation /Users/Shared/RITKPublicStudy
-          python3 scripts/safari-study/serve.py workstation &
+          export RITK_HTTP_RUNTIME="$RUNNER_TEMP" RITK_WEB_BUNDLE="$PWD/workstation"
+          /usr/sbin/httpd -X -f "$PWD/scripts/safari-study/httpd.conf" &
           cd scripts/safari-study
           command -v xcodegen || brew install xcodegen
           xcodegen generate
