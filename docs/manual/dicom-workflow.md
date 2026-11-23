@@ -134,6 +134,11 @@ toggles the overlay independently of slice synchronization.
    **ANON001** and **Date N/A** in the Strict copy. Compare the slice count and
    scroll the axial, coronal and sagittal views to review the images.
 
+For a multi-series study, select the matching acquisition in the series list
+before comparing images. The browser orders series by their UIDs, which both
+export profiles replace. The first series shown can change. Check the image
+count, orientation and spacing to confirm which acquisition you are reviewing.
+
 ![Strict MRI export reopened in the web viewer. The series list shows ANONYMOUS and 94 images alongside the three anatomical planes.](images/dicom-strict-mri-reopened.webp)
 
 AsterSlice rendering of the downloaded MRI-DIR T2 porcine phantom after Strict

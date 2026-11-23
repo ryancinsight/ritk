@@ -22,7 +22,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_open) or test(native_tags) or test(native_export) or test(native_session_round_trip) or test(native_pacs) or test(native_archive)'`
 - exit: `cargo nextest run -p ritk-snap -E 'test(=presentation::native_session::tests::anonymize::native_anonymize_basic_replaces_identifiers_and_instance_uids)'` (export a de-identified study copy)
 - exit: `cargo nextest run -p ritk-snap -E 'test(=presentation::native_session::tests::repair::native_repair_writes_a_corrected_copy_and_leaves_the_source)'` (write a repaired study copy)
-- [minor] Open a verified export from the Anonymize menu. The [qualification checklist](backlog/ritk-stable-qualification.md) covers the downloaded MRI and the remaining multi-series reference check.
+- [minor] Open a verified export from the Anonymize menu. The [qualification checklist](backlog/ritk-stable-qualification.md) covers the downloaded MRI, five-series CT and the remaining default-series selection work.
 - needs: M-viewer-compare
 - non-goals: cloud storage
 <a id="M-viewer-advanced"></a>
