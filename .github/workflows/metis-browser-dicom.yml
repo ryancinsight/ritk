@@ -201,7 +201,7 @@ jobs:
             lifecycle_cycles: "4"
             projection: ""
           - engine: webkit
-            runner: macos-26
+            runner: macos-15-intel
             driver_url: http://127.0.0.1:4444
             device_scale: "1"
             mode: raster
@@ -349,8 +349,10 @@ jobs:
           cd scripts/safari-study
           command -v xcodegen || brew install xcodegen
           xcodegen generate
+          sw_vers
+          /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' /Applications/Safari.app/Contents/Info.plist
           mkdir -p "$bundle/results/webkit"
-          xcodebuild test -project SafariStudy.xcodeproj -scheme SafariStudy -destination 'platform=macOS,arch=arm64' -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/Safari.xcresult"
+          xcodebuild test -project SafariStudy.xcodeproj -scheme SafariStudy -destination "platform=macOS,arch=$(uname -m)" -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/Safari.xcresult"
         # The XCTest report includes the real Safari window capture and assertions.
       - name: Retain the native Safari test report
         if: always() && matrix.engine == 'webkit'

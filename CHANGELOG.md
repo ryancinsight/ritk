@@ -156,7 +156,7 @@
 
 ### Fixed
 
-- [patch] Run the saved-study WebGPU scenario on a hosted Mac, sample the presented canvas, and select window presets by their displayed labels. The Metis rejection check compares frames immediately before and after the rejected selection.
+- [patch] Qualify the packaged workstation using native Safari’s macOS Open panel and hosted Chromium WebGPU. Four consecutive MRI loads in one page verify the three displayed planes and WebAssembly capacity. All three browser engines check real rejected file batches and listener cleanup.
 
 - [patch] Refresh the native chooser and dataset progress dependencies and update the yanked async-executor lock. The all-feature audit removes four maintenance findings.
 

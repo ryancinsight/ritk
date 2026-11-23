@@ -6,6 +6,6 @@
 - scope: RITK browser presentation, Metis file boundary, and cross-engine replay
 - basis: 54140426be0173d8aa8f937bc49c6255647231b4
 - [x] [patch] The [macOS Open panel](https://github.com/ryancinsight/ritk/actions/runs/45102078038/job/137454983653) delivered all 94 files (49,807,236 bytes) to the workstation. Safari decoded 94 × 512 × 512 voxels at indices 47, 256 and 256. The [independent picker replay](https://github.com/ryancinsight/ritk/actions/runs/45098982271) matched every file checksum.
-- [ ] [patch] Confirm the three displayed planes, rejected file batches and listener cleanup in the native Safari workstation. The [hosted canvas read](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583318) returned InvalidStateError at getImageData on the 1024 × 622 framebuffer.
-- next: Qualify the rendering surface on the supported macOS Safari runner, then replay the eight scenarios together.
+- [x] [patch] [Native Safari on Intel macOS](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583614) passed the three full-plane reference digests, visible samples, three real rejected batches, reading tools, independent CT/MR comparison and listener cleanup. The [ARM macOS 26 runner](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583318) decoded the MRI but failed framebuffer readback.
+- next: Run the Intel Safari job with the other seven scenarios on the integrated candidate and on main.
 - needs: none
