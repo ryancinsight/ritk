@@ -121,7 +121,15 @@ The locked all-feature audit of the 2026-11-22 candidate clears the URL and RSA 
 | RITK native viewer text, ab_glyph and owned_ttf_parser | ttf-parser 0.25.1 | Qualify a font stack using skrifa. Preserve text layout, glyph selection and exact input interactions across supported hosts. |
 | RITK native rendering and image codecs | paste 1.0.15 | Coordinate all three paths through Windows AccessKit, wgpu’s Metal backend and the EXR codec’s pulp dependency. Retest accessible windows, Metal rendering and EXR decoding before retiring the final edge. |
 
-The [browser qualification checklist](backlog/ritk-stable-qualification.md) tracks the independent saved-study scenarios.
+## Saved-study browser qualification [patch]
+
+The decoder merged in [#1108](https://github.com/ryancinsight/ritk/pull/1108) at `db308af40`. Its packaged workstation passed a local Chromium replay with four consecutive 94-file selections on one page. Loads three and four used 654,639,104 WebAssembly bytes before selection, after decode and after navigation. All three planes matched the independent MRI values on every load. The [native macOS picker test](https://github.com/ryancinsight/ritk/actions/runs/45098982271) read all 94 files and matched each SHA-256. The full eight-scenario run on the integrated branch and the main replay are separate exits. The [integrated seven hosted passes](https://github.com/ryancinsight/ritk/actions/runs/45102420200) include Chromium WebGPU and Firefox. [Native Safari on Intel macOS](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583614) passed the real MRI and CT comparison, rejected transfers and listener teardown. The ARM macOS 26 Safari runner still returns InvalidStateError when reading the presented raster. Chromium WebGPU stays on ARM macOS 26.
+
+[Run 45079835823](https://github.com/ryancinsight/ritk/actions/runs/45079835823) exercised all eight scenarios on RITK `54140426b` with Metis `94b698dcd`. Seven passed. Hosted Chromium WebGPU read the 94-file study, presented all three anatomical planes, passed the native cine-rate trace validator, removed its observer and closed the session. Both responsive scenarios, Chromium raster, the Chromium window and projection scenarios, and Firefox raster passed.
+
+Safari 27.2 recorded a trusted selection of 49,807,236 bytes across all 94 files. macOS denied WebContent access to the first file before decoding. Byte-for-byte verification and filesystem permissions are recorded in the [Safari job](https://github.com/ryancinsight/ritk/actions/runs/45079835823/job/137389340300). The [qualification checklist](backlog/ritk-stable-qualification.md) keeps Safari and the post-merge replay open.
+
+The [replay at `a9bd623aa`](https://github.com/ryancinsight/ritk/actions/runs/45087220365) passed six scenarios, including hosted WebGPU. Safari again denied the first file read. Chromium raster completed four loads and cleaned up its listeners and file handles, but its WebAssembly memory grew from 403,832,832 to 502,464,512 bytes on the fourth load. The [existing decoder change in PR #1108](https://github.com/ryancinsight/ritk/commit/f701208ea2873d01fd89eb8b02789fe5700831b6) transfers ownership of the reconstructed pixels and records a passing four-load replay. Repeat the original capacity check on the integrated browser candidate.
 
 ## Classic PET SUV timing
 

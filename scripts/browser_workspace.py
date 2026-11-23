@@ -3,16 +3,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import tempfile
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urljoin
 from browser_local_box_provenance import copy_bundle
 from pathlib import Path
+from workstation_admission import invalid_studies
 
 from browser_protocol import BrowserRuntimeError, StaticServer, WebDriverClient
 
 
 def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Path | None = None,
-           query: str = "", output: Path | None = None, embed: str | None = None) -> None:
+           query: str = "", output: Path | None = None, embed: str, cycles: int = 1) -> None:
     def require(expression: str, description: str) -> None:
         if client.execute("return " + expression) is not True:
             raise BrowserRuntimeError(description)
@@ -43,47 +45,87 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
     state = "window.asterSlice.state()"
     require(state + ".panes[0][0] === 276", "native study rail width")
     require(state + ".panes[0][1] === 78", "native menu and toolbar height")
+    options = parse_qs(query)
+    if options.get("renderer") == ["webgpu"]:
+        require('document.querySelector("#workstation").getContext("webgpu") instanceof GPUCanvasContext',
+                "workstation did not present through WebGPU")
+    if options.get("projection") == ["mip"]:
+        require(state + ".projection", "requested projection is absent from the primary workstation")
     files = sorted(study.resolve().glob("*.dcm"))
-    if not files:
-        raise BrowserRuntimeError("study contains no DICOM instances")
-    client.send_file_paths(client.find("#file-input"), files)
-    wait(state + ".loaded")
-    require(state + f".counts[0] === {len(files)}", "decoded axial slice count")
-    require(state + f".indices[0] === {len(files) // 2}", "native initial slice")
-    if output:
-        output.mkdir(exist_ok=True, parents=True)
-        (output / "workstation.png").write_bytes(client.screenshot())
-    # Collect the displayed samples away from overlay text and center crosshairs.
-    samples = client.execute_async("""
-        const done = arguments[arguments.length-1], c = document.querySelector('#workstation');
-        c.toBlob(async blob => {
-          const image = await createImageBitmap(blob);
-          const capture = document.createElement('canvas'); capture.width=c.width; capture.height=c.height;
-          const ctx=capture.getContext('2d');ctx.drawImage(image,0,0);
-          const state=window.asterSlice.state();
-          done(state.images.map(([left,top,width,height],axis) => {
-            const [x,y,w,h]=state.panes[axis];
-            const [sw,sh]=[[512,512],[512,94],[512,94]][axis], pixels=[];
-            for(const fx of [.32,.38,.62,.69]) for(const fy of [.31,.36,.61,.68]){
-              const px=Math.floor(left+width*fx),py=Math.floor(top+height*fy);
-              if(px<x || px>=x+w || py<y || py>=y+h) continue;
-              pixels.push([Math.floor((px+.5-left)/(width/sw)), Math.floor((py+.5-top)/(height/sh)),
-                Array.from(ctx.getImageData(px,py,1,1).data)]);
-            }
-            return pixels;
-          }));
-          image.close();
-        }, "image/png");
+    if len(files) != 94:
+        raise BrowserRuntimeError(f"expected all 94 public MRI instances, got {len(files)}")
+    expected_bytes = sum(file.stat().st_size for file in files)
+    module = urljoin(embed, "workstation_pixels.js")
+
+    def probe(method: str, *arguments):
+        return client.execute_async("""
+            const [url, method, args, done] = arguments;
+            import(url).then(m => m[method](...args)).then(done, e => done({error:String(e)}));
+        """, [module, method, list(arguments)])
+
+    client.execute("""
+        const script = document.createElement("script");
+        script.type = "module";
+        script.src = arguments[0];
+        document.head.append(script);
+    """, [urljoin(embed, "workstation_memory.js")])
+    wait("Number.isSafeInteger(window.studyWasmBytes) && window.studyWasmBytes > 0")
+
+    def capacity():
+        return client.execute("return window.studyWasmBytes")
+
+    client.execute("""
+        window.studySelection = {generation:0};
+        document.addEventListener('change', event => {
+          if (!event.isTrusted || event.target.id !== 'file-input') return;
+          const files = Array.from(event.target.files);
+          window.studySelection = {generation:window.studySelection.generation+1,
+            count:files.length, bytes:files.reduce((n,f)=>n+f.size,0)};
+        }, true);
     """)
-    if len(samples) != 3 or any(not plane for plane in samples):
-        raise BrowserRuntimeError("missing visible orthogonal image samples")
-    client.execute("window.initialSlice = " + state + ".indices[0]")
     x, y, w, h = client.execute("return " + state + ".panes[0]")
     cw, ch = client.execute("return [innerWidth,innerHeight]")
     center = (x + w // 2 - cw // 2, y + h // 2 - ch // 2)
     canvas = client.find("#workstation")
-    client.wheel(canvas, center, (0, 120))
-    wait("Math.abs(" + state + ".indices[0] - window.initialSlice) === 1")
+    history, observations = [], []
+    for cycle in range(1, cycles + 1):
+        initial_bytes = capacity()
+        client.send_file_paths(client.find("#file-input"), files)
+        wait(f"window.studySelection.generation === {cycle} && {state}.loaded && {state}.indices[0] === 47")
+        selection = client.execute("return window.studySelection")
+        if selection != {"generation": cycle, "count": 94, "bytes": expected_bytes}:
+            raise BrowserRuntimeError(f"invalid trusted MRI selection: {selection}")
+        require(state + ".counts.join(',') === '94,512,512'", "decoded MRI dimensions")
+        sampled = probe("screenSamples")
+        if not isinstance(sampled, list) or len(sampled) != 3 or any(not plane for plane in sampled):
+            raise BrowserRuntimeError(f"missing visible orthogonal image samples: {sampled}")
+        observations.append(sampled)
+        loaded_bytes = capacity()
+        if output and cycle == 1:
+            output.mkdir(exist_ok=True, parents=True)
+            (output / "workstation.png").write_bytes(client.screenshot())
+        client.wheel(canvas, center, (0, 120))
+        wait("Math.abs(" + state + ".indices[0] - 47) === 1")
+        history.append({"selection":selection, "before":initial_bytes, "decoded":loaded_bytes,
+                        "navigated":capacity(), "slice":client.execute("return "+state+".indices[0]")})
+    if history[0]["decoded"] <= history[0]["before"]:
+        raise BrowserRuntimeError(f"the decoded MRI did not grow the active workstation memory: {history[0]}")
+    if cycles >= 4:
+        if output:
+            (output / "consecutive-loads.json").write_text(json.dumps(history, indent=2)+"\n")
+        if any(history[-1][key] != history[-2][key] for key in ("before","decoded","navigated")):
+            raise BrowserRuntimeError(f"WebAssembly capacity changed after warmup: {history}")
+
+    before_rejection = probe("screenSamples")
+    if not isinstance(before_rejection, list) or len(before_rejection) != 3:
+        raise BrowserRuntimeError(f"missing pre-rejection frame: {before_rejection}")
+    with tempfile.TemporaryDirectory() as rejected:
+        for name, invalid in invalid_studies(Path(rejected)):
+            client.send_file_paths(client.find("#file-input"), invalid)
+            wait(f"window.studySelection.count === {len(invalid)} && " +
+                 "!!document.querySelector('#drop-zone[data-drop-state=rejected][data-byte-state=failed]')")
+            if probe("screenSamples") != before_rejection:
+                raise BrowserRuntimeError(f"{name} rejection changed a displayed plane")
     click_at(555, 53)
     wait(state + ".tool === 'Length'")
     client.pointer_drag(canvas, (center[0]-20, center[1]), (center[0]+20, center[1]))
@@ -104,6 +146,14 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
     wait(state + ".indices[0] !== window.cineSlice")
     client.send_keys(canvas, " ")
     wait("!" + state + ".cine")
+    if options.get("layout") == ["responsive"]:
+        # The responsive compositor exposes the three orthogonal viewports at desktop
+        # width and a single axial viewport below the 640-pixel dual-pane threshold.
+        require(state + ".panes.length === 3", "desktop responsive orthogonal pane count")
+        client.set_window_rect(500, 820)
+        wait(state + ".width === innerWidth && " + state + ".panes.length === 1")
+        client.set_window_rect(1440, 900)
+        wait(state + ".width === innerWidth && " + state + ".panes.length === 3")
     if comparison:
         members = sorted(comparison.resolve().glob("*.dcm"))
         if len(members) < 2:
@@ -131,8 +181,6 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
     require("document.documentElement.scrollWidth === innerWidth", "narrow page overflows")
     client.navigate(origin + "gallery.html?projection=mip")
     wait("window.asterSlice?.state().projection === true")
-    if embed is None:
-        return
     # Independently render the original planes via the published embedding API.
     client.navigate(embed)
     wait("document.getElementById('ready')?.textContent === 'Ready.'")
@@ -141,16 +189,14 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
     oracle = Path(__file__).resolve().parents[1] / "docs/manual/images/dicom-metis-real-browser-mri-edge.json"
     views = json.loads(oracle.read_text())["views"]
     for axis, name in enumerate(("axial", "coronal", "sagittal")):
-        result = client.execute_async("""
-            const [name, samples, done] = arguments;
-            const c=document.getElementById('ritk-snap-'+name),ctx=c.getContext('2d');
-            const image=ctx.getImageData(0,0,c.width,c.height).data;
-            const equal=samples.every(([x,y,rgba]) => rgba.every((v,i)=>v===image[(y*c.width+x)*4+i]));
-            crypto.subtle.digest('SHA-256',image).then(bytes=>
-              done([equal, Array.from(new Uint8Array(bytes),v=>v.toString(16).padStart(2,'0')).join('')]));
-        """, [name, samples[axis]])
+        samples = [pixel for cycle in observations for pixel in cycle[axis]]
+        result = probe("comparePlane", name, samples)
         if result != [True, views[name]["rgba_sha256"]]:
             raise BrowserRuntimeError(f"{name} screen samples or reference plane differ: {result}")
+
+    cleanup = client.execute("return window.stopStudyReference()")
+    if not (isinstance(cleanup, list) and len(cleanup) == 2 and cleanup[0] > 0 and cleanup[1] == 0):
+        raise BrowserRuntimeError(f"embedded viewer listeners remained after stop: {cleanup}")
 
 
 
@@ -162,7 +208,7 @@ if __name__ == "__main__":
     parser.add_argument("--comparison", type=Path, required=True)
     parser.add_argument("--engine", choices=("chromium","firefox","webkit"), default="chromium")
     parser.add_argument("--scale", type=int, default=1)
-    parser.add_argument("--cycles", type=int, default=1)
+    parser.add_argument("--cycles", type=int, choices=range(1, 5), default=1)
     parser.add_argument("--renderer", default="raster")
     parser.add_argument("--projection", default="")
     parser.add_argument("--layout", default="")
@@ -178,9 +224,12 @@ if __name__ == "__main__":
         with tempfile.TemporaryDirectory(dir=bundle) as temporary:
             fixture = Path(temporary) / "embedded"
             copy_bundle(bundle, fixture)
+            for script in ("workstation_pixels.js", "workstation_memory.js"):
+                shutil.copy(Path(__file__).with_name(script), fixture)
             with StaticServer(bundle) as origin:
+                embedded_url = origin + fixture.relative_to(bundle).as_posix() + "/embed.html"
                 for cycle in range(args.cycles):
                     verify(client, origin, args.study, comparison=args.comparison, query=query,
-                           output=args.output, embed=origin + fixture.relative_to(bundle).as_posix() + "/embed.html")
+                           output=args.output, cycles=args.cycles if cycle == 0 else 1, embed=embedded_url)
     finally:
         client.close()
