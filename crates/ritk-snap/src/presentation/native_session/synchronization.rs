@@ -59,7 +59,7 @@ impl NativeViewerSession {
             return;
         }
         let mode = self.position_sync;
-        self.for_each_comparison(source, |source, target| {
+        self.for_each_comparison(source, |_, source, target| {
             let index = source.axis_slice_info(0).0;
             if let Some(next) = source
                 .patient_stack
@@ -79,7 +79,7 @@ impl NativeViewerSession {
     pub(super) fn for_each_comparison(
         &mut self,
         source: usize,
-        mut visit: impl FnMut(&SnapApp, &mut SnapApp),
+        mut visit: impl FnMut(usize, &SnapApp, &mut SnapApp),
     ) {
         let Some(grid) = self.workspace_layout.grid() else {
             return;
@@ -88,6 +88,7 @@ impl NativeViewerSession {
         let mut apps = std::iter::once(&mut self.app)
             .chain(self.compare_panels.iter_mut().map(|p| &mut p.app))
             .take(count)
+            .enumerate()
             .collect::<arrayvec::ArrayVec<_, { super::layout::MAX_GRID_PANELS }>>();
         let Some((source, before, after)) = apps
             .split_at_mut_checked(source)
@@ -95,8 +96,8 @@ impl NativeViewerSession {
         else {
             return;
         };
-        for target in before.iter_mut().chain(after) {
-            visit(source, target);
+        for (index, target) in before.iter_mut().chain(after) {
+            visit(*index, source.1, target);
         }
     }
 }

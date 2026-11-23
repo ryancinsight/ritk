@@ -5,10 +5,10 @@ use super::{NativeViewerError, NativeViewerSession};
 use crate::tools::interaction::{ToolState, ViewportOffset};
 
 impl NativeViewerSession {
-    /// Zoom multiplier that undoes the active panel's fit scale (1:1 pixels).
-    fn one_to_one_zoom(&self) -> Option<f32> {
+    /// Zoom multiplier that undoes the panel's fit scale (1:1 pixels).
+    pub(super) fn one_to_one_zoom(&self, panel: usize) -> Option<f32> {
         let index = if self.workspace_layout.is_grid() {
-            self.active_panel
+            panel
         } else {
             self.viewports
                 .iter()
@@ -405,7 +405,7 @@ impl NativeViewerSession {
                     }
                 }
             }
-            WindowAction::ZoomOneToOne => match self.one_to_one_zoom() {
+            WindowAction::ZoomOneToOne => match self.one_to_one_zoom(self.active_panel) {
                 Some(zoom) => {
                     let app = self.active_app_mut();
                     app.zoom = zoom;

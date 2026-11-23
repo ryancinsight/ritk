@@ -32,7 +32,20 @@ impl NativeViewerSession {
         if mode == PositionSync::Off || !(navigation || window) || before == after {
             return;
         }
-        self.for_each_comparison(source, |source, target| {
+        let Some(grid) = self.workspace_layout.grid() else {
+            return;
+        };
+        let link_zoom = navigation && before.zoom != after.zoom;
+        // Read each pane's own rotated, spacing-aware fit before borrowing its
+        // app mutably. The fixed-capacity list follows visible grid order.
+        let pixel_zooms: arrayvec::ArrayVec<_, { super::layout::MAX_GRID_PANELS }> = if link_zoom {
+            (0..grid.panel_count())
+                .map(|panel| self.one_to_one_zoom(panel))
+                .collect()
+        } else {
+            Default::default()
+        };
+        self.for_each_comparison(source, |index, source, target| {
             let Some((s, t)) = source
                 .patient_stack
                 .as_ref()
@@ -59,20 +72,13 @@ impl NativeViewerSession {
                     target.pan_offset = pan;
                 }
             }
-            if navigation && before.zoom != after.zoom {
-                let zoom = if target.zoom == before.zoom {
-                    after.zoom
-                } else {
-                    target.zoom * (after.zoom / before.zoom)
-                };
-                if zoom.is_finite() && zoom > 0.0 {
-                    // Explicit 1:1 may lie beyond the normal interactive range.
-                    // Retain such values when synchronizing equal starting fits.
-                    target.zoom = zoom.clamp(
-                        crate::ui::zoom::MIN_ZOOM.min(after.zoom),
-                        crate::ui::zoom::MAX_ZOOM.max(after.zoom),
-                    );
-                }
+            if link_zoom {
+                target.zoom = crate::ui::zoom::linked_zoom(
+                    target.zoom,
+                    before.zoom,
+                    after.zoom,
+                    pixel_zooms[index],
+                );
             }
             if window
                 && before.window != after.window

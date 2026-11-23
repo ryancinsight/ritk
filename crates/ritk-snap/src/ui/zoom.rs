@@ -104,6 +104,27 @@ pub fn one_to_one_zoom(panel: [u32; 2], frame: [u32; 2], display_spacing: [f64; 
     Some(f32::from_f64(zoom))
 }
 
+/// Transfer the source magnification ratio to a comparison pane. Project the
+/// result onto the interactive range extended to include each explicit 1:1
+/// endpoint and the target's current scale (which may predate a resize).
+/// Since the interval contains `current`, saturation preserves direction.
+#[cfg(any(windows, target_arch = "wasm32", test))]
+pub(crate) fn linked_zoom(current: f32, before: f32, after: f32, pixel_zoom: Option<f32>) -> f32 {
+    let next = if current == before {
+        after
+    } else {
+        current * (after / before)
+    };
+    if !next.is_finite() || next <= 0.0 {
+        return current;
+    }
+    let unit = pixel_zoom.unwrap_or(current);
+    next.clamp(
+        MIN_ZOOM.min(unit).min(current).min(after),
+        MAX_ZOOM.max(unit).max(current).max(after),
+    )
+}
+
 /// Compute zoom multiplier from a vertical drag delta in screen pixels.
 ///
 /// Upward drag (`drag_delta_y < 0`) zooms in. Downward drag zooms out.
@@ -190,6 +211,36 @@ mod tests {
             [1.0, f64::NEG_INFINITY],
         ] {
             assert_eq!(one_to_one_zoom([200, 100], [100, 50], spacing), None);
+        }
+    }
+
+    #[test]
+    fn linked_zoom_respects_pixel_scale_on_both_sides_of_drag_range() {
+        let _trace = tracing::subscriber::set_default(
+            tracing_subscriber::fmt()
+                .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+                .with_test_writer()
+                .finish(),
+        );
+        // These reciprocal fits are exactly representable powers of two.
+        for (frame, panel, outward) in [(2, 128, 0.5), (8192, 128, 2.0)] {
+            let unit = tracing::info_span!("arrange").in_scope(|| {
+                one_to_one_zoom([panel; 2], [frame; 2], [1.0; 2]).expect("valid 1:1 scale")
+            });
+            let (limited, inward, reversed) = tracing::info_span!("act").in_scope(|| {
+                let limited = linked_zoom(unit, 1.0, outward, Some(unit));
+                let inward = linked_zoom(limited, outward, 1.0, Some(unit));
+                (
+                    limited,
+                    inward,
+                    linked_zoom(inward, 1.0, outward, Some(unit)),
+                )
+            });
+            tracing::info_span!("assert").in_scope(|| {
+                assert_eq!(limited, unit);
+                assert_eq!(inward, unit / outward);
+                assert_eq!(reversed, unit);
+            });
         }
     }
 

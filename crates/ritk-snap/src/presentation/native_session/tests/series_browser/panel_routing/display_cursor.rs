@@ -103,6 +103,59 @@ fn native_linked_display_preserves_offsets_and_optional_window() {
 }
 
 #[test]
+fn native_linked_display_respects_rotated_one_to_one_scale() {
+    use crate::presentation::native_session::WindowAction;
+    let _trace = trace();
+    let (mut viewer, _root) = session();
+    let study = tempfile::tempdir().expect("comparison study");
+    let unit = tracing::info_span!("arrange").in_scope(|| {
+        for uid in [fixtures::SERIES_UID, SECOND_SERIES_UID] {
+            source(study.path(), uid);
+        }
+        show_two_panels(&mut viewer, study.path());
+        viewer.active_panel = 1;
+        for action in [WindowAction::ToggleNavigationLink, WindowAction::RotateCw] {
+            viewer.apply_window_action(action).expect("prepare peer");
+        }
+        viewer.refresh_frame().expect("place the rotated frame");
+        viewer
+            .apply_window_action(WindowAction::ZoomOneToOne)
+            .expect("1:1");
+        let unit = viewer.compare_panels[0].app.zoom;
+        assert!(unit > 0.0 && 2.0 * unit < crate::ui::zoom::MIN_ZOOM);
+        viewer.active_panel = 0;
+        viewer
+            .apply_window_action(WindowAction::ToggleNavigationLink)
+            .expect("relink");
+        unit
+    });
+    let (x, y) = viewer.viewports[0].center();
+    let mut drag = |dy| {
+        viewer
+            .handle_events(&[
+                key(0x5a),
+                WindowEvent::PointerDown {
+                    x,
+                    y,
+                    button: MouseButton::Left,
+                },
+                WindowEvent::PointerMove { x, y: y + dy },
+                WindowEvent::PointerUp {
+                    x,
+                    y: y + dy,
+                    button: MouseButton::Left,
+                },
+            ])
+            .expect("drag primary zoom");
+        (viewer.app.zoom, viewer.compare_panels[0].app.zoom)
+    };
+    let observed = tracing::info_span!("act").in_scope(|| [drag(50), drag(-100), drag(50)]);
+    tracing::info_span!("assert").in_scope(|| {
+        assert_eq!(observed, [(0.5, unit), (1.0, 2.0 * unit), (0.5, unit)]);
+    });
+}
+
+#[test]
 fn native_grid_cursor_tracks_perpendicular_stack_until_release() {
     let _trace = trace();
     let (mut viewer, _initial) = tracing::info_span!("arrange").in_scope(session);

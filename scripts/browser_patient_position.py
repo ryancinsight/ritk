@@ -7,7 +7,8 @@ from browser_comparison_display import verify_display
 from browser_navigation import chord, verify_navigation
 
 
-def write_stack(directory, series, locations, *, mixed_frame=False, study=1, frame_uid=3, sagittal=False):
+def write_stack(directory, series, locations, *, mixed_frame=False, study=1, frame_uid=3, sagittal=False,
+                shape=(2, 2), spacing=None):
     def element(group, tag, vr, value):
         if isinstance(value, str):
             value = value.encode("ascii")
@@ -20,6 +21,9 @@ def write_stack(directory, series, locations, *, mixed_frame=False, study=1, fra
 
     root = "2.25.20261123"
     ct = "1.2.840.10008.5.1.4.1.1.2"
+    rows, columns = shape
+    samples = rows * columns
+    pixel_spacing = spacing or ("8\\1" if sagittal else "1\\1")
     files = []
     for index, (z, stored) in enumerate(locations):
         sop = f"{root}.{series}.{index + 1}"
@@ -33,11 +37,11 @@ def write_stack(directory, series, locations, *, mixed_frame=False, study=1, fra
                    (32, 19, "IS", str(index + 1)), (32, 50, "DS", (f"{z}\\0\\0" if sagittal else f"0\\0\\{z}")),
                    (32, 55, "DS", "0\\1\\0\\0\\0\\1" if sagittal else "1\\0\\0\\0\\1\\0"), (32, 82, "UI", f"{root}.{frame}"),
                    (40, 2, "US", struct.pack("<H", 1)), (40, 4, "CS", "MONOCHROME2"),
-                   (40, 16, "US", struct.pack("<H", 2)), (40, 17, "US", struct.pack("<H", 2)),
-                   (40, 48, "DS", "8\\1" if sagittal else "1\\1")]
+                   (40, 16, "US", struct.pack("<H", rows)), (40, 17, "US", struct.pack("<H", columns)),
+                   (40, 48, "DS", pixel_spacing)]
         dataset += [(40, tag, "US", struct.pack("<H", value))
                     for tag, value in [(256, 16), (257, 16), (258, 15), (259, 0)]]
-        dataset.append((0x7fe0, 16, "OW", struct.pack("<4H", *(stored + i for i in range(4)))))
+        dataset.append((0x7fe0, 16, "OW", struct.pack(f"<{samples}H", *(stored + i for i in range(samples)))))
         path = directory / f"series-{series}-slice-{index + 1}.dcm"
         path.write_bytes(bytes(128) + b"DICM" + element(2, 0, "UL", struct.pack("<I", len(meta)))
                          + meta + b"".join(element(*entry) for entry in dataset))
@@ -51,7 +55,8 @@ def verify_patient_position(client, canvas, state, wait):
         # The second stack is delivered in reverse spatial order. Its middle
         # slice and the first stack's middle slice are both at z=4 mm.
         first = write_stack(directory, 11, [(2*i, 200+i) for i in range(5)])
-        second = write_stack(directory, 12, [(i, 100+i) for i in reversed(range(9))])
+        second = write_stack(directory, 12, [(i, 100+i) for i in reversed(range(9))],
+                             shape=(2, 8), spacing="2\\1")
         for incompatible in (False, True):
             if incompatible:
                 second = write_stack(directory, 12, [(i, 100+i) for i in reversed(range(9))],
