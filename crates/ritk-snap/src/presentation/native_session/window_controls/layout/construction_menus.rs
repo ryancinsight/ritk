@@ -88,7 +88,7 @@ pub(super) fn menu_item_count(
         #[cfg(windows)]
         Menu::Anonymize => ANONYMIZE_ITEMS.len(),
         Menu::View => {
-            let base = if workspace_layout.is_grid() { 4 } else { 6 };
+            let base = 6;
             base + 2 * usize::from(has_enhanced_pet_volumes(app))
         }
         Menu::Tools => {
@@ -167,7 +167,17 @@ pub(super) fn menu_item(
                 WindowAction::TogglePositionSync,
                 false,
             )),
-            _ => pet_view_item(index - 4, app),
+            4 => Ok((
+                "Align current slices  Shift+F5",
+                WindowAction::AlignCurrentSlices,
+                false,
+            )),
+            5 => Ok((
+                "Cross-reference lines  Ctrl+F12",
+                WindowAction::ToggleReferenceLines,
+                false,
+            )),
+            _ => pet_view_item(index - 6, app),
         },
         Menu::View => match index {
             0 => Ok((

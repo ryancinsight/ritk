@@ -6,13 +6,17 @@ use ritk_spatial::Vector3;
 /// Automatic linking uses the inclusive five-degree limit of RadiAnt's
 /// automatic synchronization mode. Opposite normal directions describe
 /// the same plane orientation.
-const MAX_ANGLE: f64 = 5.0_f64.to_radians();
+const AUTOMATIC_ANGLE: f64 = 5.0_f64.to_radians();
 
 #[derive(Debug)]
 pub(crate) struct PatientStack {
     study: Box<str>,
     frame: Box<str>,
     normal: Vector3,
+    column: Vector3,
+    row: Vector3,
+    pixel_spacing: Vec<[f64; 2]>,
+    pub(crate) anchor: Option<usize>,
     centers: Vec<Vector3>,
     distances: Vec<f64>,
 }
@@ -22,7 +26,7 @@ impl PatientStack {
         let meta = volume.metadata.as_ref()?;
         let (study, frame) = meta.common_spatial_reference()?;
         let [depth, rows, cols] = volume.shape;
-        if depth < 2
+        if depth == 0
             || depth != meta.slices.len()
             || rows == 0
             || cols == 0
@@ -43,6 +47,7 @@ impl PatientStack {
         let mut normal = col.cross(&row).normalized()?;
         let half_rows = f64::from(u32::try_from(rows - 1).ok()?) / 2.0;
         let half_cols = f64::from(u32::try_from(cols - 1).ok()?) / 2.0;
+        let mut pixel_spacing = Vec::with_capacity(depth);
         let mut centers = Vec::with_capacity(depth);
         for slice in &meta.slices {
             if slice.image_orientation_patient? != orientation
@@ -61,9 +66,13 @@ impl PatientStack {
                 return None;
             }
             centers.push(center);
+            pixel_spacing.push([dy, dx]);
         }
         // Orient the search coordinate along displayed indices, including reversed stacks.
-        if (centers[1] - centers[0]).dot(&normal) < 0.0 {
+        if centers
+            .get(1)
+            .is_some_and(|c| (*c - centers[0]).dot(&normal) < 0.0)
+        {
             normal = -normal;
         }
         let distances: Vec<_> = centers
@@ -80,25 +89,55 @@ impl PatientStack {
             study: study.into(),
             frame: frame.into(),
             normal,
+            column: col,
+            row,
+            pixel_spacing,
+            anchor: None,
             centers,
             distances,
         })
     }
 
     pub(crate) fn corresponding_slice(&self, index: usize, target: &Self) -> Option<usize> {
-        if self.study != target.study || self.frame != target.frame {
+        if self.distances.len() < 2
+            || target.distances.len() < 2
+            || self.study != target.study
+            || self.frame != target.frame
+        {
             return None;
         }
-        let angle = self
-            .normal
-            .cross(&target.normal)
-            .norm()
-            .atan2(self.normal.dot(&target.normal).abs());
-        if angle > MAX_ANGLE {
+        if !self.within_angle(target, AUTOMATIC_ANGLE) {
             return None;
         }
         let position = (*self.centers.get(index)? - target.centers[0]).dot(&target.normal);
         target.nearest(position)
+    }
+
+    fn within_angle(&self, target: &Self, radians: f64) -> bool {
+        self.normal
+            .cross(&target.normal)
+            .norm()
+            .atan2(self.normal.dot(&target.normal).abs())
+            <= radians
+    }
+
+    pub(crate) fn can_anchor(&self, target: &Self) -> bool {
+        self.distances.len() > 1
+            && target.distances.len() > 1
+            && self.within_angle(target, 30.0_f64.to_radians())
+    }
+
+    /// Reader-chosen slices establish corresponding origins. Transfer signed
+    /// travel along the stack normals in millimetres. The sign accounts for
+    /// reversed acquisitions. This rule works in either direction and requires
+    /// no common patient-space origin or inferred inter-study registration.
+    pub(crate) fn anchored_slice(&self, index: usize, target: &Self) -> Option<usize> {
+        if !self.can_anchor(target) {
+            return None;
+        }
+        let travel = self.distances.get(index)? - self.distances.get(self.anchor?)?;
+        let direction = self.normal.dot(&target.normal).signum();
+        target.nearest(target.distances.get(target.anchor?)? + direction * travel)
     }
 
     /// Each slice owns the interval between adjacent midplanes. At equal
@@ -126,6 +165,9 @@ impl PatientStack {
         }
     }
 }
+
+mod reference;
+pub(crate) use reference::PlaneTrace;
 
 #[cfg(test)]
 mod tests;

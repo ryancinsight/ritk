@@ -28,6 +28,7 @@ mod frame;
 mod layout;
 mod pressed_buttons;
 mod projection;
+mod reference_lines;
 #[cfg(windows)]
 mod repair;
 mod routing;

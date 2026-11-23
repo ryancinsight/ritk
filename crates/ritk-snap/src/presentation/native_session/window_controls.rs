@@ -86,6 +86,8 @@ pub(super) enum WindowAction {
     SetLayout(WorkspaceLayout),
     ToggleCrosshair,
     TogglePositionSync,
+    AlignCurrentSlices,
+    ToggleReferenceLines,
     ToggleOverlay,
     ToggleAnonymizedOverlay,
     ToggleCine,

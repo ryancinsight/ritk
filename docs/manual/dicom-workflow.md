@@ -96,7 +96,24 @@ behavior off and back on. Cine playback remains independent.
 AsterSlice compares the patient coordinates of the source image center with the
 target planes. At equal distances it chooses the lower displayed image index.
 Beyond the outer half-slice interval, the other pane keeps its reading position.
-Manual alignment and cross-reference lines remain on the [comparison checklist](../../backlog/RITK-SNAP-NATIVE-LINK-001.md).
+
+**To align two series manually**, turn off automatic synchronization with **F5**
+if needed. Scroll each pane to the same anatomical landmark. Choose **View →
+Align current slices** or press **Shift+F5**. Both images stay at their chosen
+slices. Scrolling either series transfers the distance travelled in millimetres
+to the other. Each series needs consistent DICOM geometry and identifiers.
+The studies and Frames of Reference can differ, and the planes can be up to
+30° apart. Repeat **Shift+F5** to capture new landmarks after positioning the
+panes independently. Replacing a series clears its anchor. **F5** turns manual
+linking off. Pressing **F5** again restores automatic linking.
+
+**Cross-reference lines** are on by default. A yellow line in an inactive pane
+shows where the active image plane intersects its visible image. Select another
+pane to change the source. Scroll or rotate a view to update the line. This
+requires a shared, verified Frame of Reference and intersecting planes.
+Manually aligned series in different frames can scroll together but have no
+shared plane intersection. **View → Cross-reference lines** or **Ctrl+F12**
+toggles the overlay independently of slice synchronization.
 
 ## Export and verify a Strict DICOM copy
 

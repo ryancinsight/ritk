@@ -3,10 +3,10 @@ import struct
 import tempfile
 from pathlib import Path
 
-from browser_navigation import verify_navigation
+from browser_navigation import chord, verify_navigation
 
 
-def write_stack(directory, series, locations, *, mixed_frame=False):
+def write_stack(directory, series, locations, *, mixed_frame=False, study=1, frame_uid=3, sagittal=False):
     def element(group, tag, vr, value):
         if isinstance(value, str):
             value = value.encode("ascii")
@@ -25,15 +25,15 @@ def write_stack(directory, series, locations, *, mixed_frame=False):
         meta = b"".join(element(2, tag, vr, value) for tag, vr, value in [
             (1, "OB", b"\0\1"), (2, "UI", ct), (3, "UI", sop),
             (16, "UI", "1.2.840.10008.1.2.1"), (18, "UI", root)])
-        frame = 4 if mixed_frame and index == 0 else 3
+        frame = 4 if mixed_frame and index == 0 else frame_uid
         dataset = [(8, 22, "UI", ct), (8, 24, "UI", sop), (8, 96, "CS", "CT"),
-                   (16, 32, "LO", "GEOMETRY"), (32, 13, "UI", root + ".1"),
+                   (16, 32, "LO", "GEOMETRY"), (32, 13, "UI", f"{root}.{study}"),
                    (32, 14, "UI", f"{root}.{series}"), (32, 17, "IS", str(series)),
-                   (32, 19, "IS", str(index + 1)), (32, 50, "DS", f"0\\0\\{z}"),
-                   (32, 55, "DS", "1\\0\\0\\0\\1\\0"), (32, 82, "UI", f"{root}.{frame}"),
+                   (32, 19, "IS", str(index + 1)), (32, 50, "DS", (f"{z}\\0\\0" if sagittal else f"0\\0\\{z}")),
+                   (32, 55, "DS", "0\\1\\0\\0\\0\\1" if sagittal else "1\\0\\0\\0\\1\\0"), (32, 82, "UI", f"{root}.{frame}"),
                    (40, 2, "US", struct.pack("<H", 1)), (40, 4, "CS", "MONOCHROME2"),
                    (40, 16, "US", struct.pack("<H", 2)), (40, 17, "US", struct.pack("<H", 2)),
-                   (40, 48, "DS", "1\\1")]
+                   (40, 48, "DS", "8\\1" if sagittal else "1\\1")]
         dataset += [(40, tag, "US", struct.pack("<H", value))
                     for tag, value in [(256, 16), (257, 16), (258, 15), (259, 0)]]
         dataset.append((0x7fe0, 16, "OW", struct.pack("<4H", *(stored + i for i in range(4)))))
@@ -55,18 +55,7 @@ def verify_patient_position(client, canvas, state, wait):
             if incompatible:
                 second = write_stack(directory, 12, [(i, 100+i) for i in reversed(range(9))],
                                      mixed_frame=True)
-            client.send_file_paths(client.find("#file-input"), first + second)
-            wait(state + ".series === 2 && " + state + ".panels.length === 1")
-            if not incompatible:
-                verify_navigation(client, canvas, state, wait)
-            client.send_keys(canvas, chr(0xe034))
-            client.send_keys(canvas, " " + chr(0xe015) + " " + chr(0xe007))
-            wait(state + ".panels.length === 2")
-            panels = client.execute("return " + state + ".panels")
-            source = next(i for i, (_, count) in enumerate(panels) if count == 5)
-            if client.execute("return " + state + ".panel") != source:
-                client.send_keys(canvas, chr(0xe004))
-            target = 1 - source
+            source, target = open_pair(client, canvas, state, wait, first + second, navigate=not incompatible)
             client.send_keys(canvas, chr(0xe015))  # 4 -> 6 mm
             wait(f"{state}.panels[{source}][0] === 3")
             expected = 4 if incompatible else 6
@@ -80,3 +69,62 @@ def verify_patient_position(client, canvas, state, wait):
                 if client.execute(f"return {state}.panels[{target}][0]") != 6:
                     raise AssertionError("disabled synchronization changed the target")
                 client.send_keys(canvas, chr(0xe035))
+
+        # The two series have unrelated origins and distinct frame identifiers.
+        shifted = write_stack(directory, 13, [(100+i, i) for i in range(9)], study=5, frame_uid=7)
+        source, target = open_pair(client, canvas, state, wait, first + shifted)
+        client.send_keys(canvas, chr(0xe015))
+        wait(f"{state}.panels[{source}][0] === 3 && {state}.panels[{target}][0] === 4")
+        chord(client, chr(0xe008), chr(0xe035))  # Shift+F5 anchors 6 mm to 104 mm.
+        client.send_keys(canvas, chr(0xe013))
+        wait(f"{state}.panels[{source}][0] === 2 && {state}.panels[{target}][0] === 2")
+        client.send_keys(canvas, chr(0xe004) + chr(0xe015) + chr(0xe015))
+        wait(f"{state}.panels[{target}][0] === 4 && {state}.panels[{source}][0] === 3")
+
+        sagittal = write_stack(directory, 14, [(i, i) for i in range(3)], sagittal=True)
+        source, target = open_pair(client, canvas, state, wait, first + sagittal)
+        # Source z=4 intersects the target halfway through its 16-mm field of view.
+        verify_reference_pixel(client, target, [.4, .5], True)
+        client.send_keys(canvas, chr(0xe015))
+        verify_reference_pixel(client, target, [.4, .625], True)
+        verify_reference_pixel(client, target, [.4, .5], False)
+        chord(client, chr(0xe009), chr(0xe03c))  # Ctrl+F12
+        verify_reference_pixel(client, target, [.4, .625], False)
+        chord(client, chr(0xe009), chr(0xe03c))
+        client.send_keys(canvas, chr(0xe004))
+        verify_reference_pixel(client, source, [.75, .4], True)
+        verify_reference_pixel(client, target, [.4, .625], False)
+        client.send_keys(canvas, "r" + chr(0xe004))
+        verify_reference_pixel(client, target, [.375, .4], True)
+
+
+
+def verify_reference_pixel(client, panel, fraction, expected):
+    # Read the actually presented framebuffer, including WebGPU canvas presentation.
+    value = client.execute_async(f"""
+        const done=arguments[arguments.length-1], c=document.querySelector('#workstation');
+        const [x,y,w,h]=window.asterSlice.state().images[{panel}];
+        requestAnimationFrame(() => requestAnimationFrame(() => c.toBlob(async blob => {{
+            const image=await createImageBitmap(blob);
+            const capture=document.createElement('canvas'); capture.width=c.width;capture.height=c.height;
+            const ctx=capture.getContext('2d');ctx.drawImage(image,0,0);image.close();
+            done(Array.from(ctx.getImageData(Math.round(x+w*{fraction[0]}),Math.round(y+h*{fraction[1]}),1,1).data));
+        }})));
+    """)
+    if (value == [255,255,0,255]) != expected:
+        raise AssertionError(f"reference line at {fraction} in panel {panel}: expected yellow={expected}, got {value}")
+
+
+def open_pair(client, canvas, state, wait, files, *, navigate=False):
+    client.send_file_paths(client.find("#file-input"), files)
+    wait(state + ".series === 2 && " + state + ".panels.length === 1")
+    if navigate:
+        verify_navigation(client, canvas, state, wait)
+    client.send_keys(canvas, chr(0xe034))
+    client.send_keys(canvas, " " + chr(0xe015) + " " + chr(0xe007))
+    wait(state + ".panels.length === 2")
+    panels = client.execute("return " + state + ".panels")
+    source = next(i for i, (_, count) in enumerate(panels) if count == 5)
+    if client.execute("return " + state + ".panel") != source:
+        client.send_keys(canvas, chr(0xe004))
+    return source, 1 - source

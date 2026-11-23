@@ -83,6 +83,8 @@
 
 ### Added
 
+- [minor] AsterSlice supports reader-selected anatomical slice anchors across studies with Shift+F5. Inactive comparison panes show the intersecting active plane in yellow when both images share a Frame of Reference. Ctrl+F12 toggles these lines.
+
 - [minor] Scrolling comparison panels follows the nearest patient plane in eligible classic DICOM stacks. F5 toggles automatic position matching on Windows and the web.
 
 - [minor] The web app runs the Windows workstation renderer, menus, diagnostic tools and multi-series comparison in WebAssembly. The separate gallery interface has been removed.

@@ -8,7 +8,9 @@ mod overlay;
 mod overlay_clinical;
 pub(crate) mod overlay_display;
 mod overlay_measurements;
+mod reference;
 mod responsive;
+pub(super) use reference::reference_segment;
 pub(super) mod text;
 
 pub(super) use compare::{

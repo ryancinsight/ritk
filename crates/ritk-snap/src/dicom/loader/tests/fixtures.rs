@@ -343,6 +343,35 @@ pub(crate) fn write_positioned_study(
     positions: [i32; 3],
     frame: Option<&str>,
 ) -> Result<Vec<(String, Vec<u8>)>> {
+    write_oriented_study(
+        root,
+        modality,
+        series_uid,
+        samples,
+        geometry,
+        PositionedSlices {
+            origins: positions.map(|x| [x, 20, 30]),
+            orientation: "0\\1\\0\\0\\0\\1",
+            frame,
+        },
+    )
+}
+
+/// Patient-space geometry for three independently encoded single-frame objects.
+pub(crate) struct PositionedSlices<'a> {
+    pub origins: [[i32; 3]; 3],
+    pub orientation: &'a str,
+    pub frame: Option<&'a str>,
+}
+
+pub(crate) fn write_oriented_study(
+    root: &Path,
+    modality: &str,
+    series_uid: &str,
+    samples: &[u8],
+    geometry: (Option<[f64; 2]>, bool),
+    planes: PositionedSlices<'_>,
+) -> Result<Vec<(String, Vec<u8>)>> {
     let (pixel_spacing, include_positions) = geometry;
     std::fs::create_dir_all(root).context("create synthetic study directory")?;
     assert!(
@@ -355,7 +384,8 @@ pub(crate) fn write_positioned_study(
     for (depth, filename, instance) in [(2_u16, "a.dcm", 1), (1, "b.dcm", 2), (0, "c.dcm", 3)] {
         let mut model = DicomObjectModel::new();
         let sop_uid = format!("{series_uid}.{instance}");
-        let position = format!("{}\\20\\30", positions[usize::from(depth)]);
+        let [x, y, z] = planes.origins[usize::from(depth)];
+        let position = format!("{x}\\{y}\\{z}");
         for (group, element, vr, value) in [
             (0x0008, 0x0016, "UI", "1.2.840.10008.5.1.4.1.1.7"),
             (0x0008, 0x0018, "UI", sop_uid.as_str()),
@@ -366,7 +396,7 @@ pub(crate) fn write_positioned_study(
             (0x0020, 0x000E, "UI", series_uid),
             (0x0010, 0x0020, "LO", "RITK-TEST-001"),
             (0x0010, 0x0010, "PN", "FIXTURE^PATIENT"),
-            (0x0020, 0x0037, "DS", "0\\1\\0\\0\\0\\1"),
+            (0x0020, 0x0037, "DS", planes.orientation),
             (0x0028, 0x0004, "CS", "MONOCHROME2"),
             (0x0018, 0x0050, "DS", "2"),
             (0x0028, 0x1052, "DS", intercept.as_str()),
@@ -378,7 +408,7 @@ pub(crate) fn write_positioned_study(
                 value,
             ));
         }
-        if let Some(frame) = frame {
+        if let Some(frame) = planes.frame {
             model.insert(DicomObjectNode::text(
                 DicomTag::new(0x0020, 0x0052),
                 "UI",

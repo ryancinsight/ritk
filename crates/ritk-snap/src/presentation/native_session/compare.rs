@@ -149,6 +149,9 @@ impl NativeViewerSession {
     }
 
     pub(super) fn reset_comparison(&mut self) {
+        if self.position_sync == super::synchronization::PositionSync::Manual {
+            self.position_sync = super::synchronization::PositionSync::Automatic;
+        }
         self.compare_panels.clear();
         self.maximized_panel = None;
         self.workspace_layout = WorkspaceLayout::Orthogonal;

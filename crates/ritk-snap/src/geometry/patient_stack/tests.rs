@@ -80,3 +80,89 @@ fn synchronization_qualifies_frame_and_unoriented_dihedral_angle() {
     tilted.frame = "2.25.260".into();
     assert_eq!(source.corresponding_slice(1, &tilted), None);
 }
+
+#[test]
+fn anchored_travel_crosses_frames_and_respects_angle_and_extent() {
+    let _trace = traced();
+    let (mut source, mut target) = tracing::info_span!("arrange").in_scope(|| {
+        let qualify = |positions, frame| {
+            PatientStack::from_volume(&read(positions, Some(frame))).expect("positioned stack")
+        };
+        (
+            qualify([10, 12, 14], "2.25.259"),
+            qualify([100, 101, 103], "2.25.260"),
+        )
+    });
+    assert_eq!(source.anchored_slice(0, &target), None);
+    source.anchor = Some(1);
+    target.anchor = Some(1);
+    for (degrees, index, expected) in [
+        (30.0_f64, 2, Some(2)),
+        (30.001, 2, None),
+        (0.0, 0, None),
+        (180., 0, Some(2)),
+    ] {
+        let next = tracing::info_span!("act", degrees).in_scope(|| {
+            let (sin, cos) = degrees.to_radians().sin_cos();
+            target.normal = Vector3::new([cos, sin, 0.0]);
+            source.anchored_slice(index, &target)
+        });
+        tracing::info_span!("assert").in_scope(|| assert_eq!(next, expected));
+    }
+}
+
+#[test]
+fn plane_trace_clips_oblique_edge_corner_and_disjoint_cases() {
+    let _trace = traced();
+    let corners =
+        tracing::info_span!("arrange").in_scope(|| [[0., 0.], [8., 0.], [8., 4.], [0., 4.]]);
+    for (distances, expected) in [
+        ([-6., 2., 6., -2.], Some([[6., 0.], [2., 4.]])), // x+y=6
+        ([0., 8., 4., -4.], Some([[0., 0.], [4., 4.]])),  // x-y=0
+        ([0., 0., 4., 4.], Some([[0., 0.], [8., 0.]])),
+        ([0., 8., 12., 4.], None), // only one corner touches
+        ([1., 9., 13., 5.], None),
+        ([0.; 4], None),
+    ] {
+        let actual = tracing::info_span!("act").in_scope(|| PlaneTrace::clip(corners, distances));
+        tracing::info_span!("assert").in_scope(|| assert_eq!(actual, expected));
+    }
+}
+
+#[test]
+fn single_slice_localizer_shares_a_frame_but_cannot_supply_scroll_travel() {
+    let _trace = traced();
+    let root = tempfile::tempdir().expect("localizer directory");
+    let files = fixtures::write_oriented_study(
+        root.path(),
+        "CT",
+        fixtures::SERIES_UID,
+        &fixtures::SAMPLES,
+        (Some([1.5, 2.0]), true),
+        fixtures::PositionedSlices {
+            origins: [[10, 20, 29], [10, 20, 30], [10, 20, 31]],
+            orientation: "1\\0\\0\\0\\1\\0",
+            frame: Some("2.25.259"),
+        },
+    )
+    .expect("encode axial images");
+    let single = crate::dicom::loader::load_dicom_series_from_named_bytes(&[(
+        files[1].0.clone(),
+        &files[1].1,
+    )])
+    .expect("decode a single image");
+    let target = PatientStack::from_volume(&single).expect("localizer plane");
+    let source =
+        PatientStack::from_volume(&read([10, 12, 14], Some("2.25.259"))).expect("sagittal source");
+    let trace = tracing::info_span!("act")
+        .in_scope(|| source.trace_on(1, &target, 0).expect("same patient space"));
+    let _check = tracing::info_span!("assert").entered();
+    // Target center x=13, increasing by 2 mm per column. Sagittal source x=12.
+    assert_eq!(trace.distance([-0.5, 0.]), 0.);
+    assert_eq!(trace.distance([0., 0.]), 1.);
+    assert!(source.trace_on(1, &source, 2).is_none());
+    assert!(!source.can_anchor(&target));
+    let unrelated =
+        PatientStack::from_volume(&read([10, 12, 14], Some("2.25.999"))).expect("other frame");
+    assert!(unrelated.trace_on(1, &target, 0).is_none());
+}

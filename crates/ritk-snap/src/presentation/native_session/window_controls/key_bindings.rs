@@ -72,6 +72,8 @@ pub(super) fn global_key_action(
             Some(WindowAction::SelectTool(ToolKind::Pencil))
         }
         (0x47, false, false) => Some(WindowAction::SelectTool(ToolKind::RoiClosedPolygon)),
+        (0x7b, true, false) if !alt => Some(WindowAction::ToggleReferenceLines),
+        (0x74, false, true) if !alt => Some(WindowAction::AlignCurrentSlices),
         (0x74, false, false) if !alt => Some(WindowAction::TogglePositionSync),
         (0x73, false, false) => Some(WindowAction::OpenSeriesPicker),
         (0x73, true, false) => Some(WindowAction::CloseActivePanel),

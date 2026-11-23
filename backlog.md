@@ -12,7 +12,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="M-viewer-compare"></a>
 ## M-viewer-compare — 0.3.0 — compare series by patient position
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_scroll_matches_physical) or test(patient_stack) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
-- [minor] Automatic slice linking uses verified same-study patient coordinates. The [comparison checklist](backlog/RITK-SNAP-NATIVE-LINK-001.md) records Windows and browser results and tracks manual anchors and reference lines.
+- [minor] Automatic slice linking uses verified same-study patient coordinates. The [comparison checklist](backlog/RITK-SNAP-NATIVE-LINK-001.md) records manual slice alignment and intersecting-plane overlays. Linked display settings and the grid cursor are the next comparison items.
 - needs: M-viewer-reading
 - non-goals: fusion
 <a id="M-viewer-access"></a>

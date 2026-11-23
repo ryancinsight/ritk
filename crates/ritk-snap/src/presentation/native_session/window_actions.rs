@@ -221,13 +221,21 @@ impl NativeViewerSession {
                 Ok(true)
             }
             WindowAction::TogglePositionSync => {
-                self.sync_position = !self.sync_position;
-                self.active_app_mut().status_message = if self.sync_position {
-                    "Automatic patient-position synchronization enabled"
+                self.toggle_position_sync();
+                Ok(true)
+            }
+            WindowAction::ToggleReferenceLines => {
+                self.reference_lines = !self.reference_lines;
+                self.active_app_mut().status_message = if self.reference_lines {
+                    "Cross-reference lines enabled"
                 } else {
-                    "Patient-position synchronization disabled"
+                    "Cross-reference lines disabled"
                 }
                 .into();
+                Ok(true)
+            }
+            WindowAction::AlignCurrentSlices => {
+                self.align_current_slices();
                 Ok(true)
             }
             WindowAction::ToggleCrosshair => {

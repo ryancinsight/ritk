@@ -90,7 +90,7 @@ async function start() {
       // every key to the workstation so F4, Tab and their modifiers stay native.
       if (["Tab", " ", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown",
            "ArrowRight", "ArrowLeft", "Backspace", "F4", "F5"].includes(e.key) ||
-          ((e.ctrlKey || e.metaKey) && ["KeyO", "KeyM", "Digit0"].includes(e.code))) {
+          ((e.ctrlKey || e.metaKey) && ["KeyO", "KeyM", "Digit0", "F12"].includes(e.code))) {
         e.preventDefault();
       }
       viewer.key(phase === "keydown", e.keyCode, e.repeat, modifiers(e), now());

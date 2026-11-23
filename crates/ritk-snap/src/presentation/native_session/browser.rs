@@ -285,7 +285,7 @@ impl AsterSliceWorkspace {
             "zoom":app.zoom(),"cine":app.cine_enabled(),"annotations":app.annotation_count(),"panes":panes,
             "measurement":app.last_annotation().map(|a|a.primary_value()),
             "series":s.series_browser.as_ref().map_or(0,SeriesBrowser::len),"activeSeries":s.primary_series_index,
-            "positionSync": s.sync_position, "projection":s.projection.is_some(), "orientationIdentity":app.view_transform().is_identity(),
+            "positionSync": s.position_sync != super::synchronization::PositionSync::Off, "projection":s.projection.is_some(), "orientationIdentity":app.view_transform().is_identity(),
             "window":[app.window_level().center, app.window_level().width], "crosshair":app.crosshair_visible(),
             "images":s.viewports.iter().map(|v|[v.image.x,v.image.y,v.image.width,v.image.height]).collect::<Vec<_>>(),
             "panels":std::iter::once(&s.app).chain(s.compare_panels.iter().map(|p| &p.app))
