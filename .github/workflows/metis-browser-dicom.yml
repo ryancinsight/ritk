@@ -11,7 +11,11 @@ permissions:
   actions: read
 jobs:
   native:
-    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-26, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -34,11 +38,16 @@ jobs:
           cd scripts/safari-study
           command -v xcodegen || brew install xcodegen
           xcodegen generate
-          xcodebuild test -project SafariStudy.xcodeproj -scheme SafariStudy -destination 'platform=macOS,arch=arm64' -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/Safari.xcresult"
+          xcodebuild test -project SafariStudy.xcodeproj -scheme SafariStudy -destination "platform=macOS,arch=$(uname -m)" -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/Safari.xcresult"
+      - name: Record WebKit rendering diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          /usr/bin/log show --last 4m --style compact --predicate '(process CONTAINS "WebKit" OR process == "Safari") AND (eventMessage CONTAINS[c] "canvas" OR eventMessage CONTAINS[c] "graphics" OR eventMessage CONTAINS[c] "metal" OR eventMessage CONTAINS[c] "surface")' | tail -100
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: failure()
         with:
-          name: safari-report
+          name: safari-report-${{ matrix.runner }}
           path: ${{ runner.temp }}/Safari.xcresult
           retention-days: 2
   firefox:
