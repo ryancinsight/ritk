@@ -1,404 +1,44 @@
-name: AsterSlice Métis browser DICOM
-
-on:
-  schedule:
-    - cron: "17 4 * * 6"
-  workflow_dispatch:
-    inputs:
-      metis_revision:
-        description: Optional exact Métis commit (must match Cargo.lock)
-        required: false
-        type: string
-
+name: AsterSlice native Safari file chooser probe
+on: workflow_dispatch
 permissions:
   contents: read
-
-env:
-  CARGO_INCREMENTAL: 0
-  RUST_BACKTRACE: 1
-
-concurrency:
-  group: ritk-snap-metis-browser-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
-  build-browser:
-    name: Build RITK and Métis browser bundle
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    outputs:
-      metis-revision: ${{ steps.metis-revision.outputs.revision }}
+  chooser:
+    runs-on: macos-26
+    timeout-minutes: 12
     steps:
-      - name: Check out RITK
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          path: ritk
           persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
-        with:
-          python-version: "3.13"
-
-      - name: Read lock-pinned Métis revision
-        id: metis-revision
+      - name: Verify public fixture and serve chooser
         shell: bash
-        env:
-          METIS_REVISION_OVERRIDE: ${{ inputs.metis_revision }}
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import os
-          import re
-          import sys
+          mkdir /Users/Shared/RITKPublicStudy
+          cp test_data/2_head_mri_t2/DICOM/*.dcm /Users/Shared/RITKPublicStudy/
+          mkdir "$RUNNER_TEMP/picker"
+          python3 - "$RUNNER_TEMP/picker" <<'PY'
+          import hashlib,json,sys
           from pathlib import Path
-
-          if sys.version_info >= (3, 11):
-              import tomllib
-          else:
-              import tomli as tomllib
-
-          provider = r"git\+https://github\.com/ryancinsight/metis(?:\.git)?"
-          lock = tomllib.loads(Path("ritk/Cargo.lock").read_text(encoding="utf-8"))
-          revisions = set()
-          for package in lock.get("package", []):
-              source = package.get("source", "")
-              if not re.match(provider + r"(?:[?#]|$)", source):
-                  continue
-              match = re.fullmatch(provider + r"(?:\?[^#]*)?#([0-9a-f]{40})", source)
-              if match is None:
-                  raise SystemExit("Cargo.lock has a nonimmutable Métis source")
-              revisions.add(match.group(1))
-          if len(revisions) != 1:
-              raise SystemExit("Cargo.lock must resolve one Métis revision")
-          revision = revisions.pop()
-          override = os.environ["METIS_REVISION_OVERRIDE"]
-          if override and override != revision:
-              raise SystemExit("Métis revision override must match Cargo.lock")
-          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
-              output.write(f"revision={revision}\n")
+          paths=sorted(Path("test_data/2_head_mri_t2/DICOM").glob("*.dcm"))
+          assert len(paths)==94
+          target=Path(sys.argv[1])
+          (target/"manifest.json").write_text(json.dumps({p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}))
+          (target/"index.html").write_text("""<!doctype html><title>RITK native file selection</title><button onclick="study.click()">Choose study files</button><input id="study" type="file" multiple hidden><p id="result">Waiting for files</p><script>
+          study.onchange=async e=>{try{
+            if (!e.isTrusted||study.files.length!==94) throw Error('Unexpected selection: '+study.files.length);
+            const manifest=await (await fetch('manifest.json')).json();
+            for(const f of study.files){const h=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await f.arrayBuffer())),b=>b.toString(16).padStart(2,'0')).join('');
+            if(h!==manifest[f.name]) throw Error('Digest differs: '+f.name);}
+            result.textContent='All 94 file digests match';
+          }catch(e){result.textContent=String(e)}}</script>""")
           PY
-
-      - name: Check out the lock-pinned Métis revision
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          repository: ryancinsight/metis
-          ref: ${{ steps.metis-revision.outputs.revision }}
-          path: metis
-          persist-credentials: false
-
-      - name: Install the pinned Rust toolchain
-        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
-        with:
-          toolchain: 1.97.0
-          targets: wasm32-unknown-unknown
-
-      - name: Read the locked wasm-bindgen version
-        id: wasm-bindgen
-        working-directory: ritk
+          python3 -m http.server 17823 --bind 127.0.0.1 --directory "$RUNNER_TEMP/picker" > "$RUNNER_TEMP/picker-server.log" 2>&1 &
+      - name: Read the selected MRI through Safari on macOS
+        working-directory: scripts/safari-study
         shell: bash
         run: |
           set -euo pipefail
-          version="$(awk '$0 == "name = \"wasm-bindgen\"" { getline; gsub(/version = |"/, ""); print; exit }' Cargo.lock)"
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
-
-      - name: Install wasm-bindgen
-        uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
-        with:
-          tool: wasm-bindgen@${{ steps.wasm-bindgen.outputs.version }}
-          checksum: true
-
-      - name: Confirm the framework revision is locked
-        shell: bash
-        env:
-          METIS_REVISION: ${{ steps.metis-revision.outputs.revision }}
-        run: |
-          set -euo pipefail
-          revision="${METIS_REVISION}"
-          [[ "$revision" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$(git -C metis rev-parse HEAD)" == "$revision" ]]
-
-      - name: Build the RITK WebAssembly consumer
-        working-directory: ritk
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo build --locked --manifest-path Cargo.toml \
-            -p ritk-snap --lib --target wasm32-unknown-unknown --release
-          wasm-bindgen \
-            target/wasm32-unknown-unknown/release/ritk_snap.wasm \
-            --target web --no-typescript --out-dir target/wasm-bindgen/ritk-snap
-
-      - name: Package the AsterSlice application
-        shell: bash
-        run: |
-          set -euo pipefail
-          python ritk/scripts/package_browser.py --metis-root metis \
-            ritk/target/wasm-bindgen/ritk-snap ritk/target/asterslice-web
-
-      - name: Check out Atlas process runtime
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          repository: ryancinsight/atlas
-          ref: 42f451bf117af8d1549460c8a04cbc28bba065db
-          path: atlas
-          persist-credentials: false
-
-      - name: Install RITK script test tooling
-        working-directory: ritk
-        run: python -m pip install -r scripts/requirements-test.txt
-
-      - name: Validate RITK browser tooling
-        working-directory: ritk
-        shell: bash
-        env:
-          PYTHONPATH: ${{ github.workspace }}/metis/scripts
-          RITK_MANUAL_ATLAS_ROOT: ${{ github.workspace }}/atlas
-        run: |
-          set -euo pipefail
-          python -m unittest discover -s scripts/tests
-
-      - name: Save the standalone AsterSlice web app
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: asterslice-web
-          path: ritk/target/asterslice-web
-          if-no-files-found: error
-          retention-days: 7
-
-  browser-dicom:
-    name: Saved MRI study (${{ matrix.result }})
-    needs: build-browser
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - engine: chromium
-            runner: ubuntu-24.04
-            driver_url: http://127.0.0.1:9515
-            device_scale: "2"
-            mode: raster
-            result: chromium
-            lifecycle_cycles: "4"
-            projection: ""
-          - engine: chromium
-            runner: ubuntu-24.04
-            driver_url: http://127.0.0.1:9515
-            device_scale: "2"
-            mode: raster
-            result: chromium-window
-            lifecycle_cycles: "1"
-            projection: ""
-          - engine: firefox
-            runner: ubuntu-24.04
-            driver_url: http://127.0.0.1:4444
-            device_scale: "2"
-            mode: raster
-            result: firefox
-            lifecycle_cycles: "4"
-            projection: ""
-          - engine: webkit
-            runner: macos-latest
-            driver_url: http://127.0.0.1:4444
-            device_scale: "1"
-            mode: raster
-            result: webkit
-            lifecycle_cycles: "1"
-            projection: ""
-          - engine: chromium
-            runner: ubuntu-24.04
-            driver_url: http://127.0.0.1:9515
-            device_scale: "2"
-            mode: webgpu
-            result: chromium-webgpu
-            lifecycle_cycles: "1"
-            projection: ""
-          - engine: chromium
-            runner: ubuntu-24.04
-            driver_url: http://127.0.0.1:9515
-            device_scale: "2"
-            mode: raster
-            result: chromium-projection-mip
-            lifecycle_cycles: "1"
-            projection: mip
-          - engine: chromium
-            runner: ubuntu-24.04
-            driver_url: http://127.0.0.1:9515
-            device_scale: "2"
-            mode: raster
-            result: chromium-responsive
-            lifecycle_cycles: "1"
-            projection: mip
-            layout: responsive
-          - engine: firefox
-            runner: ubuntu-24.04
-            driver_url: http://127.0.0.1:4444
-            device_scale: "2"
-            mode: raster
-            result: firefox-responsive
-            lifecycle_cycles: "1"
-            projection: mip
-            layout: responsive
-    steps:
-      - name: Check out RITK
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          path: ritk
-          persist-credentials: false
-
-      - name: Check out the lock-pinned Métis revision
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          repository: ryancinsight/metis
-          ref: ${{ needs.build-browser.outputs.metis-revision }}
-          path: metis
-          persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
-        with:
-          python-version: "3.13"
-
-      - name: Download the AsterSlice workstation
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: asterslice-web
-          path: metis/output/browser
-
-      - name: Start virtual display
-        if: matrix.engine != 'webkit'
-        shell: bash
-        run: |
-          set -euo pipefail
-          command -v Xvfb
-          Xvfb :99 -screen 0 1280x800x24 -nolisten tcp > "$RUNNER_TEMP/xvfb.log" 2>&1 &
-          echo "DISPLAY=:99" >> "$GITHUB_ENV"
-
-      - name: Start Chromium WebDriver
-        if: matrix.engine == 'chromium'
-        shell: bash
-        run: |
-          set -euo pipefail
-          "$CHROMEWEBDRIVER/chromedriver" --port=9515 > "$RUNNER_TEMP/chromedriver.log" 2>&1 &
-
-      - name: Start Firefox WebDriver
-        if: matrix.engine == 'firefox'
-        shell: bash
-        run: |
-          set -euo pipefail
-          "$GECKOWEBDRIVER/geckodriver" --port=4444 --host 127.0.0.1 > "$RUNNER_TEMP/geckodriver.log" 2>&1 &
-
-      - name: Enable Safari WebDriver
-        if: matrix.engine == 'webkit'
-        shell: bash
-        run: sudo -n /usr/bin/safaridriver --enable
-
-      - name: Start Safari WebDriver
-        if: matrix.engine == 'webkit'
-        shell: bash
-        run: |
-          set -euo pipefail
-          /usr/bin/safaridriver --diagnose -p 4444 > "$RUNNER_TEMP/safaridriver.log" 2>&1 &
-
-      - name: Record selected-file filesystem access
-        if: matrix.engine == 'webkit'
-        timeout-minutes: 1
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import hashlib
-          import json
-          import os
-          from pathlib import Path
-          import stat
-
-          study = Path(os.environ["GITHUB_WORKSPACE"]) / "ritk/test_data/2_head_mri_t2/DICOM"
-          selected = sorted(study.glob("*.dcm"))[0].resolve(strict=True)
-          paths = [selected, *selected.parents]
-          records = []
-          for index, path in enumerate(paths):
-              info = path.stat()
-              records.append({"ancestor": index, "mode": oct(stat.S_IMODE(info.st_mode)),
-                              "uid": info.st_uid, "gid": info.st_gid})
-          with selected.open("rb") as stream:
-              digest = hashlib.file_digest(stream, "sha256").hexdigest()
-          result = {"reader_uid": os.geteuid(), "bytes": selected.stat().st_size,
-                    "sha256": digest, "permissions": records}
-          output = Path(os.environ["RUNNER_TEMP"]) / "file-access.log"
-          output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-          PY
-
-      - name: Wait for WebDriver
-        shell: bash
-        env:
-          DRIVER_URL: ${{ matrix.driver_url }}
-        run: |
-          set -euo pipefail
-          python - "$DRIVER_URL" <<'PY'
-          import json
-          import sys
-          import time
-          import urllib.error
-          import urllib.request
-
-          endpoint = sys.argv[1].rstrip("/") + "/status"
-          deadline = time.monotonic() + 20.0
-          last_error = "no response"
-          while time.monotonic() < deadline:
-              try:
-                  with urllib.request.urlopen(endpoint, timeout=1.0) as response:
-                      document = json.load(response)
-                  value = document.get("value") if isinstance(document, dict) else None
-                  if isinstance(value, dict) and value.get("ready") is not False:
-                      raise SystemExit(0)
-                  last_error = "driver status is not ready"
-              except (OSError, urllib.error.URLError, json.JSONDecodeError) as error:
-                  last_error = str(error)
-              time.sleep(0.1)
-          raise SystemExit(f"WebDriver did not become ready within 20 seconds: {last_error}")
-          PY
-
-      - name: Read and compare saved studies in the workstation
-        working-directory: ritk
-        env:
-          PYTHONPATH: ${{ github.workspace }}/metis/scripts
-        run: >-
-          python scripts/browser_workspace.py ../metis/output/browser test_data/2_head_mri_t2/DICOM
-          --comparison test_data/3_head_ct_mridir/DICOM --driver-url "${{ matrix.driver_url }}"
-          --engine "${{ matrix.engine }}" --scale "${{ matrix.device_scale }}" --cycles "${{ matrix.lifecycle_cycles }}"
-          --renderer "${{ matrix.mode }}" --projection "${{ matrix.projection }}" --layout "${{ matrix.layout }}"
-          --output "../metis/output/browser/results/${{ matrix.result }}"
-
-      - name: Capture WebKit sandbox diagnostics
-        if: always() && matrix.engine == 'webkit'
-        timeout-minutes: 1
-        shell: bash
-        run: |
-          set -euo pipefail
-          /usr/bin/log show --last 5m --style ndjson \
-            --predicate 'eventMessage CONTAINS "Sandbox:" AND eventMessage CONTAINS "WebKit"' \
-            > "$RUNNER_TEMP/webkit-sandbox.log"
-
-      - name: Upload SafariDriver diagnostics
-        if: always() && matrix.engine == 'webkit'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: ritk-safaridriver-diagnostics-${{ github.run_id }}
-          path: ~/Library/Logs/com.apple.WebDriver/
-          if-no-files-found: ignore
-          retention-days: 14
-
-      - name: Upload saved-study evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: ritk-metis-browser-dicom-${{ matrix.result }}-${{ github.run_id }}
-          path: |
-            metis/output/browser/results/${{ matrix.result }}/**
-            ${{ runner.temp }}/*.log
-          if-no-files-found: ignore
-          retention-days: 14
+          command -v xcodegen || brew install xcodegen
+          xcodegen generate
+          xcodebuild test -project SafariStudy.xcodeproj -scheme SafariStudy -destination 'platform=macOS,arch=arm64' -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/picker.xcresult"
