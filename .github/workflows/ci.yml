@@ -234,13 +234,54 @@ jobs:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           BASE_REVISION: ${{ github.event.pull_request.base.sha || github.event.before }}
           CANDIDATE_REVISION: ${{ github.sha }}
+          # Exact main candidate qualified by the pinned Atlas documentation phase:
+          # https://github.com/ryancinsight/ritk/actions/runs/45106770715/job/137469821787
+          # Advance only in a reviewed change with successful candidate-bound
+          # documentation evidence under the same policy covering the prior checkpoint range.
+          MAIN_DOCUMENTATION_CHECKPOINT: 3bbb48d6c951f8ff9392507c948078c308c91be8
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/* && "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]]; then
-            BASE_REVISION="$(git merge-base "$CANDIDATE_REVISION" "refs/remotes/origin/$DEFAULT_BRANCH")"
-          elif [[ -z "$BASE_REVISION" || "$BASE_REVISION" =~ ^0+$ ]]; then
-            BASE_REVISION="$(git rev-list --max-parents=0 "$CANDIDATE_REVISION")"
+          reject_range() {
+            printf 'documentation range: %s\n' "$1" >&2
+            exit 1
+          }
+
+          [[ "$(git rev-parse --is-shallow-repository)" == false ]] ||
+            reject_range "requires a complete history"
+          [[ "$CANDIDATE_REVISION" =~ ^[0-9a-f]{40}$ &&
+             "$(git rev-parse --verify HEAD)" == "$CANDIDATE_REVISION" ]] ||
+            reject_range "checkout does not match the exact candidate"
+          checkpoint=false
+          main_ref="refs/heads/$DEFAULT_BRANCH"
+          [[ "$GITHUB_EVENT_NAME" != schedule || "$GITHUB_REF" == "$main_ref" ]] ||
+            reject_range "scheduled documentation must target the default branch"
+          if [[ "$GITHUB_EVENT_NAME" == schedule ||
+                ( "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == "$main_ref" ) ]]; then
+            checkpoint=true
+            BASE_REVISION="$MAIN_DOCUMENTATION_CHECKPOINT"
+          elif [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            [[ "$GITHUB_REF" == refs/heads/* ]] ||
+              reject_range "manual documentation must target a branch"
+            BASE_REVISION="$(git merge-base --all "$CANDIDATE_REVISION" "refs/remotes/origin/$DEFAULT_BRANCH")" ||
+              reject_range "topic branch has no unique main merge base"
+            [[ "$BASE_REVISION" != *$'\n'* ]] ||
+              reject_range "topic branch has no unique main merge base"
           fi
+          [[ "$BASE_REVISION" =~ ^[0-9a-f]{40}$ ]] ||
+            reject_range "baseline is not a full commit SHA"
+          [[ "$(git cat-file -t "$BASE_REVISION" 2>/dev/null)" == commit ]] ||
+            reject_range "baseline is not a local commit"
+          [[ "$BASE_REVISION" != "$CANDIDATE_REVISION" ]] ||
+            reject_range "baseline must differ from candidate"
+          if [[ "$checkpoint" == true ]]; then
+            # Read the entire pipeline under pipefail, even when the pin matches.
+            git rev-list --first-parent "$CANDIDATE_REVISION" | grep -Fx "$BASE_REVISION" >/dev/null ||
+              reject_range "checkpoint is not a strict first-parent predecessor"
+          else
+            git merge-base --is-ancestor "$BASE_REVISION" "$CANDIDATE_REVISION" ||
+              reject_range "baseline is not an ancestor of candidate"
+          fi
+          printf 'documentation range (%s): %s..%s\n' "$GITHUB_EVENT_NAME" "$BASE_REVISION" "$CANDIDATE_REVISION"
           python3 -I ../../scripts/pre_push_gate.py \
             direct documentation .githooks/pre-push \
             documentation "$CANDIDATE_REVISION" "$BASE_REVISION"

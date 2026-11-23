@@ -69,54 +69,131 @@ class DocumentationPhaseWorkflowTests(unittest.TestCase):
             "python3 -I ../../scripts/pre_push_gate.py",
             "direct documentation .githooks/pre-push",
             'documentation "$CANDIDATE_REVISION" "$BASE_REVISION"',
-            'git rev-list --max-parents=0 "$CANDIDATE_REVISION"',
         ):
             with self.subTest(required=required):
                 self.assertEqual(self.rustdoc.count(required), 1)
         self.assertEqual(self.rustdoc.count("cargo doc"), 0)
+        self.assertNotIn("rev-list --max-parents=0", self.rustdoc)
+        self.assertRegex(
+            self.rustdoc, r"(?m)^ {10}MAIN_DOCUMENTATION_CHECKPOINT: [0-9a-f]{40}$"
+        )
 
-    def test_documentation_range_on_diverged_branch(self) -> None:
-        # Execute the exact shell used by the hosted job. Both branch tips
-        # advance past their common commit, which itself follows the root.
+    def test_documentation_ranges(self) -> None:
+        # Run the workflow's real resolver on a Git history with skipped and
+        # failed main changes, a diverged branch, and an actual PR merge commit.
         step = self.rustdoc.split("id: documentation", 1)[1]
         script = textwrap.dedent(
             step.split("        run: |\n", 1)[1].split("          python3 -I", 1)[0]
-        )
+        ) + 'printf "%s\u005cn" "$BASE_REVISION"'
         with tempfile.TemporaryDirectory() as directory:
-            def git(*args: str) -> str:
+            root = pathlib.Path(directory)
+            repo = root / "repo"
+            repo.mkdir()
+
+            def git(*args: str, cwd: pathlib.Path = repo) -> str:
                 return subprocess.check_output(
                     ["git", "-c", "user.name=CI", "-c", "user.email=ci@example.org", *args],
-                    cwd=directory, text=True,
+                    cwd=cwd, text=True,
                 ).strip()
 
-            def commit(message: str) -> str:
+            def commit(message: str, path: str | None = None) -> str:
+                if path is not None:
+                    file = repo / path
+                    file.parent.mkdir(parents=True, exist_ok=True)
+                    file.write_text(message + "\n", encoding="utf-8")
+                    git("add", path)
                 git("commit", "-q", "--allow-empty", "-m", message)
                 return git("rev-parse", "HEAD")
 
+            def resolve(event: str, ref: str, base: str, candidate: str,
+                        checkpoint: str, cwd: pathlib.Path = repo) -> subprocess.CompletedProcess:
+                return subprocess.run(
+                    ["bash", "-c", script], cwd=cwd, text=True, capture_output=True,
+                    env=dict(os.environ, GITHUB_EVENT_NAME=event, GITHUB_REF=ref,
+                             DEFAULT_BRANCH="main", BASE_REVISION=base,
+                             CANDIDATE_REVISION=candidate, MAIN_DOCUMENTATION_CHECKPOINT=checkpoint),
+                )
+
             git("init", "-q", "-b", "main")
-            root = commit("root")
-            common = commit("common")
+            commit("root")
+            checkpoint = commit("qualified")
             git("branch", "feature")
-            main = commit("main")
+            commit("docs-only skipped", "docs/intervening.md")
+            failed = commit("failed", "failed.rs")
+            main = commit("main", "main.rs")
             git("update-ref", "refs/remotes/origin/main", main)
             git("switch", "-q", "feature")
-            tip = commit("feature")
-            cases = (
-                ("workflow_dispatch", "refs/heads/feature", "", tip, common),
-                ("workflow_dispatch", "refs/heads/main", "", main, root),
-                ("pull_request", "refs/pull/7/merge", main, tip, main),
-                ("push", "refs/heads/main", common, main, common),
-            )
-            for event, ref, base, candidate, expected in cases:
+            tip = commit("topic", "feature.rs")
+            git("switch", "-q", "main")
+            git("merge", "-q", "--no-ff", "feature", "-m", "synthetic PR merge")
+            pr = git("rev-parse", "HEAD")
+
+            for event, ref, given, candidate, expected in (
+                ("schedule", "refs/heads/main", "", main, checkpoint),
+                ("workflow_dispatch", "refs/heads/main", "", main, checkpoint),
+                ("workflow_dispatch", "refs/heads/feature", "", tip, checkpoint),
+                ("pull_request", "refs/pull/7/merge", main, pr, main),
+                ("push", "refs/heads/main", failed, main, failed),
+            ):
                 with self.subTest(event=event, ref=ref):
-                    env = dict(os.environ, GITHUB_EVENT_NAME=event, GITHUB_REF=ref,
-                               DEFAULT_BRANCH="main", BASE_REVISION=base,
-                               CANDIDATE_REVISION=candidate)
-                    actual = subprocess.check_output(
-                        ["bash", "-c", script + 'echo "$BASE_REVISION"'],
-                        cwd=directory, env=env, text=True,
-                    ).strip()
-                    self.assertEqual(actual, expected)
+                    git("switch", "-q", "--detach", candidate)
+                    result = resolve(event, ref, given, candidate, checkpoint)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout.strip().splitlines()[-1], expected)
+                    if event == "schedule" or (event == "workflow_dispatch" and candidate == main):
+                        self.assertEqual(
+                            git("diff", "--name-only", expected, candidate).splitlines(),
+                            ["docs/intervening.md", "failed.rs", "main.rs"],
+                        )
+
+            git("switch", "-q", "--detach", pr)
+            for pin, diagnostic in (
+                ("", "not a full commit SHA"),
+                ("0" * 40, "not a local commit"),
+                ("1" * 40, "not a local commit"),
+                ("HEAD", "not a full commit SHA"),
+                (pr, "must differ"),
+                (tip, "strict first-parent"),
+            ):
+                with self.subTest(checkpoint=pin):
+                    result = resolve("schedule", "refs/heads/main", "", pr, pin)
+                    self.assertEqual(result.returncode, 1, result.stdout)
+                    self.assertIn(diagnostic, result.stderr)
+
+            for event, ref, base, candidate, diagnostic in (
+                ("schedule", "refs/heads/feature", "", pr, "must target"),
+                ("schedule", "refs/heads/main", "", main, "checkout does not match"),
+                ("workflow_dispatch", "refs/tags/version", "", pr, "must target a branch"),
+                ("push", "refs/heads/main", "", pr, "not a full commit SHA"),
+                ("pull_request", "refs/pull/7/merge", pr, pr, "must differ"),
+            ):
+                with self.subTest(event=event, ref=ref, base=base):
+                    result = resolve(event, ref, base, candidate, checkpoint)
+                    self.assertEqual(result.returncode, 1, result.stdout)
+                    self.assertIn(diagnostic, result.stderr)
+
+            git("switch", "-q", "--detach", main)
+            unrelated = git("commit-tree", git("rev-parse", "HEAD^{tree}"), "-m", "unrelated")
+            result = resolve("push", "refs/heads/main", unrelated, main, checkpoint)
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn("not an ancestor", result.stderr)
+
+            # Two equally good merge bases: neither can stand in for the other.
+            tree = git("rev-parse", "HEAD^{tree}")
+            left = git("commit-tree", tree, "-p", tip, "-p", main, "-m", "left")
+            right = git("commit-tree", tree, "-p", main, "-p", tip, "-m", "right")
+            git("switch", "-q", "--detach", left)
+            git("update-ref", "refs/remotes/origin/main", right)
+            result = resolve("workflow_dispatch", "refs/heads/feature", "", left, checkpoint)
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn("no unique main merge base", result.stderr)
+
+            shallow = root / "shallow"
+            git("clone", "-q", "--depth", "1", "--branch", "main",
+                repo.as_uri(), str(shallow), cwd=root)
+            result = resolve("schedule", "refs/heads/main", "", pr, checkpoint, cwd=shallow)
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn("requires a complete history", result.stderr)
 
     def test_aggregate_binds_success_to_candidate(self) -> None:
         binding = (
