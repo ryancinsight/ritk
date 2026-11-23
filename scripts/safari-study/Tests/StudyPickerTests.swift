@@ -101,6 +101,25 @@ final class StudyPickerTests: XCTestCase {
         for _ in 0..<2 { safari.typeKey(.downArrow, modifierFlags: []) }
         wait("scroll back from the other study", positions(3, 4))
 
+        let aligned = wait("manually aligned source pane") { $0["panel"] as? Int == 1-source }
+        let images = try XCTUnwrap(aligned["images"] as? [[Double]])
+        let pan = try XCTUnwrap(aligned["panes"] as? [[Int]])[1-source]
+        let x = pan[0]+pan[2]/2, y = pan[1]+pan[3]/2
+        safari.typeKey("m", modifierFlags: [])
+        point(x,y).press(forDuration: 0.1, thenDragTo: point(x+24,y-12))
+        wait("manual link transfers the pan displacement") {
+            guard let moved = $0["images"] as? [[Double]] else {return false}
+            let dx = moved[1-source][0]-images[1-source][0]
+            let dy = moved[1-source][1]-images[1-source][1]
+            return dx > 0 && dy < 0 && dx == moved[source][0]-images[source][0]
+                && dy == moved[source][1]-images[source][1]
+        }
+        safari.typeKey(.F6, modifierFlags: .shift)
+        safari.typeKey("2", modifierFlags: [])
+        let preset = wait("source window preset") { $0["window"] as? [Double] != aligned["window"] as? [Double] }
+        safari.typeKey(.tab, modifierFlags: [])
+        wait("target window follows manual link") { $0["panel"] as? Int == source && $0["window"] as? [Double] == preset["window"] as? [Double] }
+
         let axial = try openPositionPair("Intersection", targetCount: 3)
         func mark(_ panel: Int, _ sample: Int, _ visible: Bool) -> (State) -> Bool {
             { state in
@@ -108,7 +127,16 @@ final class StudyPickerTests: XCTestCase {
                 return m[panel][sample] == visible
             }
         }
-        wait("yellow reference at four millimetres", mark(1-axial, 0, true))
+        let initial = wait("yellow reference at four millimetres", mark(1-axial, 0, true))
+        let image = try XCTUnwrap(initial["images"] as? [[Double]])[axial]
+        safari.typeKey("q", modifierFlags: [])
+        point(Int((image[0]+0.25*image[2]).rounded()),Int((image[1]+0.75*image[3]).rounded())).press(forDuration: 1.0)
+        wait("held cursor selected a sagittal plane and release restored the reference") {
+            $0["heldCursorSeen"] as? Bool == true && ($0["panels"] as? [[Int]])?[1-axial][0] == 0 && mark(1-axial,0,true)($0)
+        }
+        safari.typeKey(.tab, modifierFlags: [])
+        safari.typeKey(.downArrow, modifierFlags: [])
+        safari.typeKey(.tab, modifierFlags: [])
         safari.typeKey(.downArrow, modifierFlags: [])
         wait("yellow reference at six millimetres", mark(1-axial, 1, true))
         safari.typeKey(.F12, modifierFlags: .control)

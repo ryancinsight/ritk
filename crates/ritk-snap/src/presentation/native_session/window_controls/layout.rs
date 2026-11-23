@@ -51,6 +51,16 @@ pub(super) struct ChromeLayout {
 }
 
 impl ChromeLayout {
+    pub(super) fn mark_display_links(&mut self, navigation: bool, window: bool) {
+        for control in &mut self.controls {
+            match control.action {
+                WindowAction::ToggleNavigationLink => control.active = navigation,
+                WindowAction::ToggleWindowLink => control.active = window,
+                _ => {}
+            }
+        }
+    }
+
     pub(super) fn render(
         &self,
         framebuffer: &mut Framebuffer,

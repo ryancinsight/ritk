@@ -88,14 +88,11 @@ pub(super) fn menu_item_count(
         #[cfg(windows)]
         Menu::Anonymize => ANONYMIZE_ITEMS.len(),
         Menu::View => {
-            let base = 6;
+            let base = if workspace_layout.is_grid() { 8 } else { 6 };
             base + 2 * usize::from(has_enhanced_pet_volumes(app))
         }
         Menu::Tools => {
-            ToolKind::all()
-                .iter()
-                .filter(|tool| !(workspace_layout.is_grid() && **tool == ToolKind::Crosshair))
-                .count()
+            ToolKind::all().len()
                 + POINTER_BUTTON_ROWS.len()
                 + usize::from(app.has_length_calibration() || app.can_calibrate_length())
         }
@@ -177,7 +174,17 @@ pub(super) fn menu_item(
                 WindowAction::ToggleReferenceLines,
                 false,
             )),
-            _ => pet_view_item(index - 6, app),
+            6 => Ok((
+                "Link pan and zoom  F6",
+                WindowAction::ToggleNavigationLink,
+                false,
+            )),
+            7 => Ok((
+                "Link window settings  Shift+F6",
+                WindowAction::ToggleWindowLink,
+                false,
+            )),
+            _ => pet_view_item(index - 8, app),
         },
         Menu::View => match index {
             0 => Ok((
@@ -211,20 +218,19 @@ pub(super) fn menu_item(
             _ => pet_view_item(index - 6, app),
         },
         Menu::Tools => {
-            let tool_rows = ToolKind::all()
-                .iter()
-                .copied()
-                .filter(|tool| !(workspace_layout.is_grid() && *tool == ToolKind::Crosshair))
-                .count();
+            let tool_rows = ToolKind::all().len();
             if index < tool_rows {
                 let tool = ToolKind::all()
                     .iter()
                     .copied()
-                    .filter(|tool| !(workspace_layout.is_grid() && *tool == ToolKind::Crosshair))
                     .nth(index)
                     .ok_or_else(|| anyhow!("native Tools menu row is outside its items"))?;
                 return Ok((
-                    tool.label(),
+                    if workspace_layout.is_grid() && tool == ToolKind::Crosshair {
+                        "3D cursor  Q"
+                    } else {
+                        tool.label()
+                    },
                     WindowAction::SelectTool(tool),
                     app.active_tool == tool,
                 ));

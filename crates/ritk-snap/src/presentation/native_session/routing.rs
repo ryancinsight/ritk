@@ -49,85 +49,8 @@ impl RoutedBatch {
     }
 }
 
-/// The pane receiving pointer input and the buttons holding it there.
-///
-/// The first press takes the capture. Further presses join it, and it ends
-/// only when the last held button is released, so every press and release of a
-/// multi-button sequence reaches the same pane.
-#[derive(Debug, Clone, Copy, Default)]
-pub(super) struct PointerCapture {
-    view: Option<usize>,
-    pressed: PressedButtons,
-}
-
-impl PointerCapture {
-    /// A second press of a held button proves its release never arrived, so
-    /// that button stops holding the capture. Another held button keeps the
-    /// pane, and the press joins it; otherwise the press hit-tests afresh.
-    fn forget_lost_release(&mut self, event: &PresentationEvent) {
-        if let PresentationEvent::PointerDown { button, .. } = event
-            && self.pressed.contains(*button)
-        {
-            self.pressed.remove(*button);
-            if self.pressed.is_empty() {
-                self.view = None;
-            }
-        }
-    }
-
-    /// The pane still holding a gesture that this press has moved elsewhere.
-    fn lost_to(&self, event: &PresentationEvent, route: EventRoute) -> Option<usize> {
-        match event {
-            PresentationEvent::PointerDown { button, .. }
-                if self.pressed.contains(*button) && route.view() != self.view =>
-            {
-                self.view
-            }
-            _ => None,
-        }
-    }
-
-    fn discards(&self, event: &PresentationEvent, viewports: &[NativeViewport]) -> bool {
-        match event {
-            PresentationEvent::PointerDown { x, y, .. } => {
-                self.view.is_none() && view_at(viewports, *x, *y).is_none()
-            }
-            PresentationEvent::PointerUp { button, .. }
-            | PresentationEvent::PointerCancel { button, .. } => !self.pressed.contains(*button),
-            _ => false,
-        }
-    }
-
-    fn update(&mut self, event: &PresentationEvent, viewports: &[NativeViewport]) {
-        self.forget_lost_release(event);
-        match event {
-            PresentationEvent::PointerDown { x, y, button, .. } => {
-                if self.view.is_none() {
-                    self.pressed = PressedButtons::EMPTY;
-                    self.view = view_at(viewports, *x, *y);
-                }
-                if self.view.is_some() {
-                    self.pressed.insert(*button);
-                }
-            }
-            PresentationEvent::PointerUp { button, .. }
-            | PresentationEvent::PointerCancel { button, .. } => {
-                self.pressed.remove(*button);
-                if self.pressed.is_empty() {
-                    self.view = None;
-                }
-            }
-            PresentationEvent::FocusLost
-            | PresentationEvent::PointerCaptureLost
-            | PresentationEvent::CloseRequested
-            | PresentationEvent::Destroyed => {
-                self.view = None;
-                self.pressed = PressedButtons::EMPTY;
-            }
-            _ => {}
-        }
-    }
-}
+mod capture;
+pub(super) use capture::PointerCapture;
 
 /// Tracks pointer capture and keyboard fallback within one host event batch.
 pub(super) struct PanelEventRouter {
@@ -370,7 +293,7 @@ impl NativeViewerSession {
             let view_index =
                 self.event_view_mapping(&events[start], route, panel_index, grid.is_some());
             let mut end = start + 1;
-            while end < events.len() {
+            while grid.is_none() && end < events.len() {
                 let Some(next_panel) = self
                     .panel_for_event(&events[end], routes[end], panel_routes, grid.is_some())
                     .filter(|index| {
@@ -404,6 +327,14 @@ impl NativeViewerSession {
                     .and_then(|index| view_mappings.get(index))
                     .copied()
             };
+            if grid.is_some() && self.route_grid_cursor(&events[start], panel_index, viewport)? {
+                capture.update(&events[start], &self.viewports);
+                repaint = true;
+                start = end;
+                continue;
+            }
+            let before =
+                super::display_link::DisplayState::read(self.app_for_panel_mut(panel_index)?);
             let (result, previous_axis, previous_slice) = {
                 let app = self.app_for_panel_mut(panel_index)?;
                 let previous_axis = app.axis;
@@ -429,8 +360,12 @@ impl NativeViewerSession {
                 }
             };
             if self.app_for_panel_mut(panel_index)?.axis_slice_info(0).0 != previous_slice {
+                self.grid_cursor = Default::default();
                 self.synchronize_position(panel_index);
             }
+            let after =
+                super::display_link::DisplayState::read(self.app_for_panel_mut(panel_index)?);
+            self.link_display(panel_index, before, after);
             match disposition {
                 ViewerActionDisposition::Continue {
                     repaint: event_repaint,

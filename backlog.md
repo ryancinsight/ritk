@@ -10,9 +10,9 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 - needs: none
 - non-goals: PACS, archive, 3D rendering
 <a id="M-viewer-compare"></a>
-## M-viewer-compare — 0.3.0 — compare series by patient position
-- exit: `cargo nextest run -p ritk-snap -E 'test(native_manual_alignment) or test(native_cross_reference) or test(native_scroll_matches_physical) or test(patient_stack) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
-- [minor] Automatic slice linking uses verified same-study patient coordinates. The [comparison checklist](backlog/RITK-SNAP-NATIVE-LINK-001.md) records manual slice alignment and intersecting-plane overlays. Linked display settings and the grid cursor are the next comparison items.
+## M-viewer-compare — 0.4.0 — compare series by patient position
+- exit: `cargo nextest run -p ritk-snap -E 'test(native_linked_display) or test(native_grid_cursor) or test(native_manual_alignment) or test(native_cross_reference) or test(native_scroll_matches_physical) or test(patient_stack) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
+- [minor] Automatic slice linking uses verified same-study patient coordinates. The [comparison checklist](backlog/RITK-SNAP-NATIVE-LINK-001.md) records manual slice alignment and intersecting-plane overlays. Linked display settings and the patient-space grid cursor share the desktop and browser implementation.
 <a id="RITK-BROWSER-READ-001"></a><a id="RITK-BROWSER-WEBGPU-001"></a>
 - [minor] The scalar reader transfers its pixel allocation to the viewer. All nine [saved-study browser scenarios](gap_audit.md#saved-study-browser-qualification-patch) passed on main, including four consecutive Chromium loads and hosted WebGPU. The [viewer checklist](backlog/ritk-stable-qualification.md) records exact three-plane readback on native Apple-silicon and Intel Safari.
 - needs: M-viewer-reading

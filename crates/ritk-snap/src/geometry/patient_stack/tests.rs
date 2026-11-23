@@ -166,3 +166,50 @@ fn single_slice_localizer_shares_a_frame_but_cannot_supply_scroll_travel() {
         PatientStack::from_volume(&read([10, 12, 14], Some("2.25.999"))).expect("other frame");
     assert!(unrelated.trace_on(1, &target, 0).is_none());
 }
+
+#[test]
+fn cursor_uses_pixel_centers_measured_slabs_and_shared_frames() {
+    let _trace = traced();
+    let source = tracing::info_span!("arrange").in_scope(|| {
+        PatientStack::from_volume(&read([10, 12, 16], Some("2.25.259"))).expect("source stack")
+    });
+    let mut target =
+        PatientStack::from_volume(&read([10, 12, 16], Some("2.25.259"))).expect("target stack");
+    let point = tracing::info_span!("act")
+        .in_scope(|| source.patient_point(1, [0.5, 1.5]).expect("selected texel"));
+    let _check = tracing::info_span!("assert").entered();
+    assert_eq!(point.as_slice(), &[12., 20., 31.5]);
+    let continuous = source
+        .patient_point(1, [1.25, 0.75])
+        .expect("fractional point");
+    assert_eq!(
+        source
+            .project_cursor(continuous, &target)
+            .expect("round trip")
+            .pixel,
+        [1.25, 0.75]
+    );
+    target.half_thickness.fill(Some(0.5));
+    for (x, index, distant) in [
+        (9.0, 0, true),
+        (10.5, 0, false),
+        (10.5_f64.next_up(), 0, true),
+        (11.0, 0, true),
+        (11.0_f64.next_up(), 1, true),
+        (12.0, 1, false),
+        (19.0, 2, true),
+    ] {
+        let projected = source
+            .project_cursor(Vector3::new([x, 20., 31.5]), &target)
+            .expect("in field of view");
+        assert_eq!(
+            (projected.index, projected.pixel, projected.distant),
+            (index, [0.5, 1.5], distant)
+        );
+    }
+    assert!(source
+        .project_cursor(Vector3::new([12., 100., 31.5]), &target)
+        .is_none());
+    target.frame = "2.25.260".into();
+    assert!(source.project_cursor(point, &target).is_none());
+}

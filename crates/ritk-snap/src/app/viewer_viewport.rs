@@ -118,9 +118,13 @@ impl ViewerViewport {
 
     /// Project a stored [row, column] vertex into host pixels.
     pub(crate) fn project(self, [row, column]: [f32; 2]) -> [f64; 2] {
+        self.project_coordinates([f64::from(column), f64::from(row)])
+    }
+
+    pub(crate) fn project_coordinates(self, pixel: [f64; 2]) -> [f64; 2] {
         let output = self
             .transform
-            .source_to_output_coordinates([f64::from(column), f64::from(row)], self.source_size);
+            .source_to_output_coordinates(pixel, self.source_size);
         let center = self
             .geometry
             .dimensions()

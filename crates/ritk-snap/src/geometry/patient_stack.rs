@@ -15,6 +15,8 @@ pub(crate) struct PatientStack {
     normal: Vector3,
     column: Vector3,
     row: Vector3,
+    half_extent: [f64; 2],
+    half_thickness: Vec<Option<f64>>,
     pixel_spacing: Vec<[f64; 2]>,
     pub(crate) anchor: Option<usize>,
     centers: Vec<Vector3>,
@@ -91,6 +93,16 @@ impl PatientStack {
             normal,
             column: col,
             row,
+            half_extent: [half_cols + 0.5, half_rows + 0.5],
+            half_thickness: meta
+                .slices
+                .iter()
+                .map(|s| {
+                    s.slice_thickness
+                        .map(|v| v.in_unit::<aequitas::systems::si::units::Millimeter>() / 2.0)
+                        .filter(|v| v.is_finite() && *v > 0.0)
+                })
+                .collect(),
             pixel_spacing,
             anchor: None,
             centers,
@@ -99,18 +111,19 @@ impl PatientStack {
     }
 
     pub(crate) fn corresponding_slice(&self, index: usize, target: &Self) -> Option<usize> {
-        if self.distances.len() < 2
-            || target.distances.len() < 2
-            || self.study != target.study
-            || self.frame != target.frame
-        {
-            return None;
-        }
-        if !self.within_angle(target, AUTOMATIC_ANGLE) {
+        if !self.can_link(target) {
             return None;
         }
         let position = (*self.centers.get(index)? - target.centers[0]).dot(&target.normal);
         target.nearest(position)
+    }
+
+    pub(crate) fn can_link(&self, target: &Self) -> bool {
+        self.distances.len() > 1
+            && target.distances.len() > 1
+            && self.study == target.study
+            && self.frame == target.frame
+            && self.within_angle(target, AUTOMATIC_ANGLE)
     }
 
     fn within_angle(&self, target: &Self, radians: f64) -> bool {
@@ -152,20 +165,27 @@ impl PatientStack {
         {
             return None;
         }
+        Some(self.closest(position))
+    }
+
+    fn closest(&self, position: f64) -> usize {
+        let distances = &self.distances;
         let upper = distances.partition_point(|&d| d < position);
         if upper == 0 {
-            return Some(0);
+            return 0;
         }
         if upper == distances.len()
             || position - distances[upper - 1] <= distances[upper] - position
         {
-            Some(upper - 1)
+            upper - 1
         } else {
-            Some(upper)
+            upper
         }
     }
 }
 
+mod cursor;
+pub(crate) use cursor::CursorProjection;
 mod reference;
 pub(crate) use reference::PlaneTrace;
 

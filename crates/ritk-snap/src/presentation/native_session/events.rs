@@ -44,6 +44,7 @@ impl NativeViewerSession {
     /// End every held pane gesture because what its pane shows, or where
     /// pointer input goes, has changed.
     pub(super) fn end_held_gestures(&mut self) {
+        self.grid_cursor = Default::default();
         self.window_chrome.cancel_pointer_capture();
         if self.captured_buttons.is_empty() {
             return;
@@ -88,9 +89,12 @@ impl NativeApplication for NativeViewerSession {
         &mut self,
         events: &[WindowEvent],
     ) -> std::result::Result<NativeFlow, NativeViewerError> {
-        let translated = translate_native_events(events).map_err(|error| {
+        let mut translated = translate_native_events(events).map_err(|error| {
             NativeViewerError::new(format!("translate Métis native events: {error}"))
         })?;
+        if self.workspace_layout.is_grid() {
+            self.window_chrome.attach_cursor_chord(&mut translated);
+        }
         let now = self.elapsed_seconds();
         Ok(match self.reduce_events(translated, now)? {
             Some(repaint) => NativeFlow::Continue { repaint },

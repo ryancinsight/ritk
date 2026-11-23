@@ -3,12 +3,15 @@
 use super::window_controls::{PanelCloseKind, WindowAction};
 use super::{NativeViewerError, NativeViewerSession};
 use crate::tools::interaction::{ToolState, ViewportOffset};
-use crate::tools::kind::ToolKind;
 
 impl NativeViewerSession {
     /// Zoom multiplier that undoes the active panel's fit scale (1:1 pixels).
     fn one_to_one_zoom(&self) -> Option<f32> {
-        let view = self.views.get(self.active_panel)?;
+        let view = if self.workspace_layout.is_grid() && self.active_panel > 0 {
+            self.compare_panels.get(self.active_panel - 1)?.axial_view()
+        } else {
+            self.views.get(self.active_panel)?
+        };
         let viewport = self.viewports.get(self.active_panel)?;
         crate::ui::zoom::one_to_one_zoom(
             [viewport.panel_width, viewport.panel_height],
@@ -18,6 +21,31 @@ impl NativeViewerSession {
     }
 
     pub(super) fn apply_window_action(
+        &mut self,
+        action: WindowAction,
+    ) -> std::result::Result<bool, NativeViewerError> {
+        let display_action = matches!(
+            action,
+            WindowAction::ZoomFit
+                | WindowAction::ZoomOneToOne
+                | WindowAction::ResetView
+                | WindowAction::ApplyCustomPreset { .. }
+                | WindowAction::ApplyWindowPreset { .. }
+        );
+        let before =
+            display_action.then(|| super::display_link::DisplayState::read(self.active_app()));
+        let result = self.execute_window_action(action)?;
+        if let Some(before) = before {
+            self.link_display(
+                self.active_panel,
+                before,
+                super::display_link::DisplayState::read(self.active_app()),
+            );
+        }
+        Ok(result)
+    }
+
+    fn execute_window_action(
         &mut self,
         action: WindowAction,
     ) -> std::result::Result<bool, NativeViewerError> {
@@ -96,6 +124,7 @@ impl NativeViewerSession {
                 let slice_changed = previous != app.axis_slice_info(axis).0;
                 self.active_panel = panel_index;
                 if slice_changed && axis == 0 {
+                    self.grid_cursor = Default::default();
                     self.synchronize_position(panel_index);
                 }
                 Ok(active_changed || axis_changed || slice_changed)
@@ -185,9 +214,6 @@ impl NativeViewerSession {
                 .map_err(NativeViewerError::from),
             WindowAction::Exit => Ok(true),
             WindowAction::SelectTool(tool) => {
-                if self.workspace_layout.is_grid() && tool == ToolKind::Crosshair {
-                    return Ok(false);
-                }
                 self.active_app_mut().select_tool(tool);
                 Ok(true)
             }
@@ -218,6 +244,23 @@ impl NativeViewerSession {
                     }
                     (true, None) => "Length calibration reset to image spacing".to_owned(),
                 };
+                Ok(true)
+            }
+            WindowAction::ToggleNavigationLink | WindowAction::ToggleWindowLink => {
+                let (flag, name) = if action == WindowAction::ToggleNavigationLink {
+                    (
+                        &mut self.window_chrome.link_navigation,
+                        "Linked pan and zoom",
+                    )
+                } else {
+                    (
+                        &mut self.window_chrome.link_window,
+                        "Linked window settings",
+                    )
+                };
+                *flag = !*flag;
+                let status = if *flag { "enabled" } else { "disabled" };
+                self.active_app_mut().status_message = format!("{name} {status}");
                 Ok(true)
             }
             WindowAction::TogglePositionSync => {

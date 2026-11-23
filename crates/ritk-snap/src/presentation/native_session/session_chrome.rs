@@ -114,7 +114,11 @@ impl NativeViewerSession {
 
     pub(super) fn render_crosshair_overlay(&mut self) -> Result<()> {
         if self.workspace_layout.is_grid() {
-            return self.render_reference_lines();
+            return if self.grid_cursor.visible() {
+                self.render_grid_cursor()
+            } else {
+                self.render_reference_lines()
+            };
         }
         let shape = self.app.loaded.as_ref().map(|volume| volume.shape);
         let cursor = self.app.linked_cursor.map(|cursor| cursor.voxel());

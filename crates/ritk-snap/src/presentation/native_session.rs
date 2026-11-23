@@ -23,8 +23,10 @@ mod compare;
 mod composition;
 #[cfg(windows)]
 mod deidentify;
+mod display_link;
 mod events;
 mod frame;
+mod grid_cursor;
 mod layout;
 mod pressed_buttons;
 mod projection;

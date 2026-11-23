@@ -3,6 +3,7 @@ import struct
 import tempfile
 from pathlib import Path
 
+from browser_comparison_display import verify_display
 from browser_navigation import chord, verify_navigation
 
 
@@ -56,6 +57,8 @@ def verify_patient_position(client, canvas, state, wait):
                 second = write_stack(directory, 12, [(i, 100+i) for i in reversed(range(9))],
                                      mixed_frame=True)
             source, target = open_pair(client, canvas, state, wait, first + second, navigate=not incompatible)
+            if not incompatible:
+                verify_display(client, canvas, state, wait, source, target)
             client.send_keys(canvas, chr(0xe015))  # 4 -> 6 mm
             wait(f"{state}.panels[{source}][0] === 3")
             expected = 4 if incompatible else 6
@@ -83,6 +86,7 @@ def verify_patient_position(client, canvas, state, wait):
 
         sagittal = write_stack(directory, 14, [(i, i) for i in range(3)], sagittal=True)
         source, target = open_pair(client, canvas, state, wait, first + sagittal)
+        verify_cursor(client, canvas, state, wait, source, target)
         # Source z=4 intersects the target halfway through its 16-mm field of view.
         verify_reference_pixel(client, target, [.4, .5], True)
         client.send_keys(canvas, chr(0xe015))
@@ -99,7 +103,40 @@ def verify_patient_position(client, canvas, state, wait):
 
 
 
+def verify_cursor(client, canvas, state, wait, source, target):
+    client.send_keys(canvas, "q")
+    wait(state + ".tool === 'Crosshair'")
+    def move(fraction):
+        x,y = client.execute(f"const [x,y,w,h]={state}.images[{source}]; return [Math.round(x+w*{fraction}), Math.round(y+h*.75)]")
+        return {"type":"pointerMove","x":x,"y":y,"origin":"viewport"}
+    def pointer(*actions):
+        client.perform_actions([{"type":"pointer","id":"cursor","parameters":{"pointerType":"mouse"},"actions":list(actions)}])
+    pointer(move(.25), {"type":"pointerDown","button":0})
+    wait(f"{state}.panels[{target}][0] === 0")
+    verify_pixel(client, target, [.4,.5], [0,229,255,255], True)
+    pointer(move(.75))
+    wait(f"{state}.panels[{target}][0] === 1")
+    pointer({"type":"pointerUp","button":0})
+    client.send_keys(canvas, "m")
+    modifiers = {"type":"key","id":"cursor-chord","actions":[
+        {"type":"keyDown","value":chr(0xe009)}, {"type":"keyDown","value":chr(0xe008)}]}
+    client.perform_actions([modifiers])
+    pointer(move(.25), {"type":"pointerDown","button":0})
+    wait(f"{state}.panels[{target}][0] === 0")
+    verify_pixel(client, target, [.4,.5], [0,229,255,255], True)
+    pointer({"type":"pointerUp","button":0})
+    modifiers["actions"] = [{"type":"keyUp","value":k} for k in [chr(0xe008),chr(0xe009)]]
+    client.perform_actions([modifiers])
+    wait(state + ".tool === 'Pan'")
+    client.send_keys(canvas, chr(0xe004) + chr(0xe015) + chr(0xe004))
+    verify_pixel(client, target, [.4,.5], [0,229,255,255], False)
+
+
 def verify_reference_pixel(client, panel, fraction, expected):
+    verify_pixel(client, panel, fraction, [255,255,0,255], expected)
+
+
+def verify_pixel(client, panel, fraction, color, expected):
     # Read the actually presented framebuffer, including WebGPU canvas presentation.
     value = client.execute_async(f"""
         const done=arguments[arguments.length-1], c=document.querySelector('#workstation');
@@ -111,8 +148,8 @@ def verify_reference_pixel(client, panel, fraction, expected):
             done(Array.from(ctx.getImageData(Math.round(x+w*{fraction[0]}),Math.round(y+h*{fraction[1]}),1,1).data));
         }})));
     """)
-    if (value == [255,255,0,255]) != expected:
-        raise AssertionError(f"reference line at {fraction} in panel {panel}: expected yellow={expected}, got {value}")
+    if (value == color) != expected:
+        raise AssertionError(f"reference line at {fraction} in panel {panel}: expected {color} present={expected}, got {value}")
 
 
 def open_pair(client, canvas, state, wait, files, *, navigate=False):

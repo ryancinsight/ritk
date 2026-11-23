@@ -315,3 +315,9 @@ processing-only capabilities, missing controls, and required tests against
 RadiAnt 2021.2. Use it when checking a capability before relying on the
 viewer for a particular workflow. Capture and test commands are in the
 [developer reference](development.md#run-the-reference-checks).
+
+### Compare a patient location across series
+
+In a comparison grid, pan and zoom follow the active pane when automatic or manual synchronization links the series. Pan moves by the same screen displacement. Zoom applies the same magnification ratio, preserving each pane’s starting fit. Use **View → Link pan and zoom** (F6) to adjust the panes independently. **View → Link window settings** (Shift+F6) copies the next window center and width adjustment or preset. Window linking starts off. Changing either option preserves the current displays.
+
+Select **Tools → 3D cursor** (Q), then press and drag in the image. Holding Ctrl+Shift while pressing the left button also works with another tool selected. Panes with the same DICOM Frame of Reference show the nearest slice and mark the projected point in cyan. Red indicates that the nearest plane is beyond its recorded half-thickness, or beyond the sampled stack when thickness is unavailable. Points outside a target image leave that pane alone. The cursor is unavailable during cine in the source pane. Releasing restores the yellow cross-reference lines. [RadiAnt 3D Cursor](https://www.radiantviewer.com/dicom-viewer-manual/3d-cursor.html)

@@ -1,6 +1,7 @@
 use super::*;
 
 mod atomicity;
+mod display_cursor;
 mod held_gestures;
 mod keyboard_sequence;
 mod layout;

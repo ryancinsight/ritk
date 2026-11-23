@@ -86,6 +86,8 @@ pub(super) enum WindowAction {
     SetLayout(WorkspaceLayout),
     ToggleCrosshair,
     TogglePositionSync,
+    ToggleNavigationLink,
+    ToggleWindowLink,
     AlignCurrentSlices,
     ToggleReferenceLines,
     ToggleOverlay,
@@ -160,6 +162,8 @@ pub(super) struct WindowChrome {
     open_menu: Option<Menu>,
     multi_series_dialog: Option<MultiSeriesDialog>,
     calibration: Option<calibration::CalibrationDialog>,
+    pub(super) link_navigation: bool,
+    pub(super) link_window: bool,
     show_series_preview: bool,
     modifiers: PresentationModifiers,
     pointer_owner: PointerOwner,
@@ -168,7 +172,28 @@ pub(super) struct WindowChrome {
 
 impl WindowChrome {
     fn observe_modifiers(&mut self, event: &PresentationEvent) {
-        self.modifiers = match event {
+        self.modifiers = Self::updated_modifiers(self.modifiers, event);
+    }
+
+    #[cfg(windows)]
+    pub(super) fn attach_cursor_chord(&self, events: &mut [PresentationEvent]) {
+        let mut keys = self.modifiers;
+        for event in events {
+            keys = Self::updated_modifiers(keys, event);
+            if keys.ctrl()
+                && keys.shift()
+                && let PresentationEvent::PointerDown { modifiers, .. } = event
+            {
+                *modifiers = keys;
+            }
+        }
+    }
+
+    fn updated_modifiers(
+        previous: PresentationModifiers,
+        event: &PresentationEvent,
+    ) -> PresentationModifiers {
+        match event {
             PresentationEvent::KeyDown {
                 virtual_key,
                 modifiers,
@@ -191,8 +216,8 @@ impl WindowChrome {
             PresentationEvent::KeyDown { modifiers, .. }
             | PresentationEvent::KeyUp { modifiers, .. } => *modifiers,
             PresentationEvent::FocusLost => PresentationModifiers::NONE,
-            _ => return,
-        };
+            _ => previous,
+        }
     }
 
     pub(super) const fn new(visible: bool) -> Self {
@@ -201,6 +226,8 @@ impl WindowChrome {
             open_menu: None,
             multi_series_dialog: None,
             calibration: None,
+            link_navigation: true,
+            link_window: false,
             show_series_preview: true,
             modifiers: PresentationModifiers::NONE,
             pointer_owner: PointerOwner::None,
@@ -286,7 +313,7 @@ impl WindowChrome {
         if !self.visible {
             return Ok(());
         }
-        let layout = ChromeLayout::new(
+        let mut layout = ChromeLayout::new(
             framebuffer.width(),
             framebuffer.height(),
             self.open_menu,
@@ -294,6 +321,7 @@ impl WindowChrome {
             self.show_series_preview,
             workspace_layout,
         )?;
+        layout.mark_display_links(self.link_navigation, self.link_window);
         if let Some(series_browser) = browser.as_deref_mut() {
             series::prepare_thumbnails(
                 series_browser,

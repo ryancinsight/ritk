@@ -91,6 +91,7 @@ pub(super) struct NativeViewerSession {
     pub(super) capture_after_idle: bool,
     pub(super) capture_application: bool,
     pub(super) anonymize_overlay: bool,
+    pub(super) grid_cursor: super::grid_cursor::GridCursor,
     pub(super) reference_lines: bool,
     pub(super) position_sync: super::synchronization::PositionSync,
     pub(super) observation: Arc<NativeViewerObservation>,
@@ -200,6 +201,7 @@ impl NativeViewerSession {
             capture_application,
             anonymize_overlay: false,
             position_sync: super::synchronization::PositionSync::Automatic,
+            grid_cursor: Default::default(),
             reference_lines: true,
             observation,
             #[cfg(windows)]

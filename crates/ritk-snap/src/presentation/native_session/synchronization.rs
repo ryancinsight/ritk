@@ -58,6 +58,29 @@ impl NativeViewerSession {
         if self.position_sync == PositionSync::Off {
             return;
         }
+        let mode = self.position_sync;
+        self.for_each_comparison(source, |source, target| {
+            let index = source.axis_slice_info(0).0;
+            if let Some(next) = source
+                .patient_stack
+                .as_ref()
+                .zip(target.patient_stack.as_ref())
+                .and_then(|(s, t)| match mode {
+                    PositionSync::Automatic => s.corresponding_slice(index, t),
+                    PositionSync::Manual => s.anchored_slice(index, t),
+                    PositionSync::Off => None,
+                })
+            {
+                target.set_slice_for_axis(0, next);
+            }
+        });
+    }
+
+    pub(super) fn for_each_comparison(
+        &mut self,
+        source: usize,
+        mut visit: impl FnMut(&SnapApp, &mut SnapApp),
+    ) {
         let Some(grid) = self.workspace_layout.grid() else {
             return;
         };
@@ -72,24 +95,8 @@ impl NativeViewerSession {
         else {
             return;
         };
-        let source: &SnapApp = source;
-        let Some(stack) = source.patient_stack.as_ref() else {
-            return;
-        };
-        let index = source.axis_slice_info(0).0;
         for target in before.iter_mut().chain(after) {
-            if let Some(next) =
-                target
-                    .patient_stack
-                    .as_ref()
-                    .and_then(|t| match self.position_sync {
-                        PositionSync::Automatic => stack.corresponding_slice(index, t),
-                        PositionSync::Manual => stack.anchored_slice(index, t),
-                        PositionSync::Off => None,
-                    })
-            {
-                target.set_slice_for_axis(0, next);
-            }
+            visit(source, target);
         }
     }
 }
