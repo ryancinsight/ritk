@@ -1,8 +1,14 @@
 # RITK Gap Audit
 
+## Incremental release baseline
+
+Reviewed [ritk-snap 0.3.1](crates/ritk-snap/Cargo.toml) at [85280aa0b7ff](https://github.com/ryancinsight/ritk/tree/85280aa0b7ffb3b5376780ebf1cb2bae296fe83b). The viewer manifest disables Cargo publication. Verify the installed application separately from the format libraries.
+
+The next [patch] checkpoint uses [comparison startup](crates/ritk-snap/src/presentation/native_session/tests/series_browser/comparison_startup.rs). [Target version and acceptance criteria](backlog/ritk-stable-qualification.md#ritk-stable-qualification).
+
 ## 1.0 candidate verification
 
-The [release backlog](backlog.md#milestones) records the remaining milestone criteria and their owners.
+The [release backlog](backlog.md#milestones) records the remaining milestone criteria and their owners. Completed reading-milestone records include [RITK-METAIMAGE-CONVERSION-INVENTORY-001](docs/verification/RITK-METAIMAGE-CONVERSION-INVENTORY-001.md), [RITK-MGH-CONVERSION-INVENTORY-001](docs/verification/RITK-MGH-CONVERSION-INVENTORY-001.md), [RITK-PYTHON-VTK-DIRECTION-001](docs/verification/RITK-PYTHON-VTK-DIRECTION-001.md).
 
 - [patch] MGH 0.6.1 and AsterSlice 0.2.1 use FreeSurfer's voxel center and open both gzip suffixes. Three regressions fail on the baseline. All 629 MGH and viewer library tests pass on macOS. NiBabel independently confirms all 12 samples and the full affine through MGZ → NIfTI → MGH → compressed MGH → MGZ.
 - [minor] CLI 0.3.0 preserves all decompressed bytes when repacking a supported NIfTI document. The boundary tests cover a calibrated two-volume NIfTI-2 integer file and truncated input with an existing destination.
