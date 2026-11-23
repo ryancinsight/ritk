@@ -1,5 +1,7 @@
 //! Browser canvas adapter for RITK's format-neutral presentation frame.
 
+mod raster;
+
 use super::{
     browser_coordinates::content_fraction,
     browser_policy::{browser_event_disposition, BrowserEventDisposition, BrowserEventTrust},
@@ -29,6 +31,7 @@ impl WebCanvasPresenter {
     /// Returns a typed I/O error when the browser document, canvas element, or
     /// two-dimensional rendering context is unavailable.
     pub fn from_canvas_id(id: &str) -> io::Result<Self> {
+        raster::prepare(id)?;
         Ok(Self {
             surface: CanvasSurface::from_current_document(id)?,
         })
@@ -54,6 +57,7 @@ impl WebCanvasPresenter {
     /// Returns a typed I/O error when the browser document, canvas element,
     /// rendering context, or one of the listener registrations is unavailable.
     pub fn from_canvas_id_with_input(id: &str) -> io::Result<Self> {
+        raster::prepare(id)?;
         Ok(Self {
             surface: CanvasSurface::from_current_document_with_input(id)?,
         })

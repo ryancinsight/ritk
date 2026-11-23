@@ -288,7 +288,7 @@ jobs:
           echo "DISPLAY=:99" >> "$GITHUB_ENV"
 
       - name: Start Chromium WebDriver
-        if: matrix.engine == 'chromium'
+        if: matrix.engine == 'chromium' || matrix.engine == 'webkit'
         shell: bash
         run: |
           set -euo pipefail
@@ -364,6 +364,15 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' /Applications/Safari.app/Contents/Info.plist
           xcodebuild test -project SafariStudy.xcodeproj -scheme SafariStudy -destination "platform=macOS,arch=$(uname -m)" -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/Safari.xcresult"
         # The XCTest report includes the real Safari window capture and assertions.
+      - name: Compare every displayed Safari MRI plane pixel with Chromium
+        if: matrix.engine == 'webkit'
+        working-directory: ritk
+        env:
+          PYTHONPATH: ${{ github.workspace }}/metis/scripts
+        run: |
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/Safari.xcresult" --output-path "$RUNNER_TEMP/attachments"
+          python scripts/safari-study/compare_display.py "$RUNNER_TEMP/attachments" /Users/Shared/RITKPublicStudy/MRI \
+            "../metis/output/browser/results/${{ matrix.result }}/displayed-planes.json"
       - name: Retain the native Safari test report
         if: always() && matrix.engine == 'webkit'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
