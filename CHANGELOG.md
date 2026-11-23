@@ -8,6 +8,14 @@
 
 # CHANGELOG
 
+## AsterSlice 0.3.1 (private viewer)
+
+### Fixed
+
+- [patch] Request a readable Canvas2D backing store when the workstation or an
+  embedded raster plane first opens its canvas. This supports exact RGBA
+  readback on Apple-silicon Safari while retaining explicit WebGPU selection.
+
 ## RITK Python 0.13.0 (unreleased)
 
 ### Fixed

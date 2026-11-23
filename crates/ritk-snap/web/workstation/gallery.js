@@ -22,7 +22,8 @@ async function presenter(renderer) {
     return bytes => device.queue.writeTexture({texture: context.getCurrentTexture()}, bytes,
       {bytesPerRow: canvas.width * 4}, [canvas.width, canvas.height]);
   }
-  const context = canvas.getContext("2d", {alpha: false});
+  // The CPU compositor uploads RGBA and readers must be able to retrieve the presented pixels.
+  const context = canvas.getContext("2d", {alpha: false, willReadFrequently: true});
   if (!context) throw new Error("Canvas2D could not start.");
   return bytes => context.putImageData(new ImageData(
     new Uint8ClampedArray(bytes.buffer, bytes.byteOffset, bytes.byteLength), canvas.width, canvas.height), 0, 0);
