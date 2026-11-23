@@ -11,8 +11,10 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 - non-goals: PACS, archive, 3D rendering
 <a id="M-viewer-compare"></a>
 ## M-viewer-compare — 0.3.0 — compare series by patient position
-- exit: `cargo nextest run -p ritk-snap -E 'test(native_scroll_matches_physical) or test(patient_stack) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
+- exit: `cargo nextest run -p ritk-snap -E 'test(native_manual_alignment) or test(native_cross_reference) or test(native_scroll_matches_physical) or test(patient_stack) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
 - [minor] Automatic slice linking uses verified same-study patient coordinates. The [comparison checklist](backlog/RITK-SNAP-NATIVE-LINK-001.md) records manual slice alignment and intersecting-plane overlays. Linked display settings and the grid cursor are the next comparison items.
+<a id="RITK-BROWSER-READ-001"></a><a id="RITK-BROWSER-WEBGPU-001"></a>
+- [minor] The scalar reader transfers its pixel allocation to the viewer. All eight [saved-study browser scenarios](gap_audit.md#saved-study-browser-qualification-patch) passed on main, including four consecutive Chromium loads, native Safari and hosted WebGPU.
 - needs: M-viewer-reading
 - non-goals: fusion
 <a id="M-viewer-access"></a>
@@ -34,6 +36,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 
 # Items
 
+<a id="RITK-DICOM-LJIF-001"></a>- [RITK-DICOM-LJIF-001](gap_audit.md#ritk-dicom-ljif-001) — Verify skull CT JPEG Lossless import [patch] — release qualification
 <a id="ritk-stable-qualification"></a>- [RITK-STABLE-QUALIFICATION](backlog/ritk-stable-qualification.md) — ritk stable-release qualification [patch] — todo
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — blocked
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
@@ -60,8 +63,6 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-DICOM-CONVERSION-001"></a>- [RITK-DICOM-CONVERSION-001](backlog/RITK-DICOM-CONVERSION-001.md) — Convert DICOM series through RITK — blocked
 <a id="RITK-FORMAT-CONVERSION-001"></a>- [RITK-FORMAT-CONVERSION-001](backlog/RITK-FORMAT-CONVERSION-001.md) — Convert supported formats through RITK — blocked
 <a id="RITK-SNAP-OBLIQUE-NATIVE-001"></a>- [RITK-SNAP-OBLIQUE-NATIVE-001](backlog/RITK-SNAP-OBLIQUE-NATIVE-001.md) — Native oblique MPR — blocked
-<a id="RITK-BROWSER-READ-001"></a>- [RITK-BROWSER-READ-001](backlog/RITK-BROWSER-READ-001.md) — Resolve WebKit study-file reads — blocked
-<a id="RITK-BROWSER-WEBGPU-001"></a>- [RITK-BROWSER-WEBGPU-001](backlog/RITK-BROWSER-WEBGPU-001.md) — Demonstrate browser WebGPU presentation — blocked
 <a id="RITK-GAP-2026-08-20-04"></a>- [RITK-GAP-2026-08-20-04](backlog/RITK-GAP-2026-08-20-04.md) — Reconcile tracked imaging payload provenance — todo
 <a id="RITK-GAP-2026-08-20-06"></a>- [RITK-GAP-2026-08-20-06](backlog/RITK-GAP-2026-08-20-06.md) — Raise lint and documentation floors — todo
 <a id="RITK-GAP-2026-08-20-08"></a>- [RITK-GAP-2026-08-20-08](backlog/RITK-GAP-2026-08-20-08.md) — Complete registration and dispatch chapters — todo

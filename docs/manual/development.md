@@ -2490,12 +2490,13 @@ with the reviewed manual image.
 See [Open a multi-frame object](#open-a-multi-frame-object) for the frame
 ordering and [Present signed grayscale data](#present-signed-grayscale-data)
 for the DICOM LINEAR/VOI checks. These workflows retain the eframe compatibility baseline while the native
-Métis path remains the default Windows shell. The browser handoff has a compiled
-RITK adapter, manual workflow, and a local synthetic runtime visual smoke.
-Browser WebGPU, physical browser input, a real GPU visual run, and full
-browser-window capture remain separate acceptance items in
-[RITK-BROWSER-WEBGPU-001](../../backlog.md#RITK-BROWSER-WEBGPU-001) and
-[RITK-BROWSER-TOOL-TRACE-001](../../backlog.md#RITK-BROWSER-TOOL-TRACE-001).
+Métis path remains the default Windows shell. The saved-study browser workflow
+opens the public 94-file MRI, compares the three displayed anatomical planes
+with an independent rendering, and checks listener cleanup. Hosted Chromium
+also exercises WebGPU, and native Safari opens the study through the macOS
+file chooser. The [qualification checklist](../../backlog/ritk-stable-qualification.md)
+links the eight scenarios and their results. The browser ROI trace remains
+tracked in [RITK-BROWSER-TOOL-TRACE-001](../../backlog.md#RITK-BROWSER-TOOL-TRACE-001).
 
 The browser presentation seam is now explicit as well. `metis_web::CanvasFrame`
 is implemented by RITK's `PresentationFrame`, and

@@ -129,7 +129,21 @@ The locked all-feature audit of the 2026-11-22 candidate clears the URL and RSA 
 | RITK native viewer text, ab_glyph and owned_ttf_parser | ttf-parser 0.25.1 | Qualify a font stack using skrifa. Preserve text layout, glyph selection and exact input interactions across supported hosts. |
 | RITK native rendering and image codecs | paste 1.0.15 | Coordinate all three paths through Windows AccessKit, wgpu’s Metal backend and the EXR codec’s pulp dependency. Retest accessible windows, Metal rendering and EXR decoding before retiring the final edge. |
 
-The [browser qualification checklist](backlog/ritk-stable-qualification.md) tracks the independent saved-study scenarios.
+## Saved-study browser qualification [patch]
+
+All eight scenarios passed on the [integrated candidate](https://github.com/ryancinsight/ritk/actions/runs/45110321950) and on [merged main `8550491eb`](https://github.com/ryancinsight/ritk/actions/runs/45111738624). Safari used the macOS Open panel for the workstation and its independent three-plane reference. Chromium completed four 94-file MRI loads on one page. The [release checklist](backlog/ritk-stable-qualification.md) records CI and the nine outstanding dependency maintenance findings.
+
+The [native Safari job](https://github.com/ryancinsight/ritk/actions/runs/45111738624/job/137486577976) opened the full 49,807,236-byte MRI through the macOS file chooser in both viewers. It compared three independent plane digests and visible samples, rejected all three out-of-bounds selections, exercised the reading tools and CT/MR comparison, and removed the registered listeners. The [file verification](https://github.com/ryancinsight/ritk/actions/runs/45098982271) matched all 94 checksums. The accepted Safari host used Intel macOS. A separate [ARM macOS 26 Safari run](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583318) decoded the MRI and failed framebuffer readback.
+
+[Hosted Chromium WebGPU](https://github.com/ryancinsight/ritk/actions/runs/45111738624/job/137486577964) presented the study on an actual adapter and matched the three reference planes. In [Chromium raster](https://github.com/ryancinsight/ritk/actions/runs/45111738624/job/137486577958), WebAssembly capacity stayed at 654,770,176 bytes before selection, after decoding and after navigation on loads three and four.
+
+The decoder merged in [#1108](https://github.com/ryancinsight/ritk/pull/1108) at `db308af40`. Its packaged workstation passed a local Chromium replay with four consecutive 94-file selections on one page. Loads three and four used 654,639,104 WebAssembly bytes before selection, after decode and after navigation. All three planes matched the independent MRI values on every load. The [native macOS picker test](https://github.com/ryancinsight/ritk/actions/runs/45098982271) read all 94 files and matched each SHA-256. The full eight-scenario run on the integrated branch and the main replay are separate exits. The [integrated seven hosted passes](https://github.com/ryancinsight/ritk/actions/runs/45102420200) include Chromium WebGPU and Firefox. [Native Safari on Intel macOS](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583614) passed the real MRI and CT comparison, rejected transfers and listener teardown. The ARM macOS 26 Safari runner still returns InvalidStateError when reading the presented raster. Chromium WebGPU stays on ARM macOS 26.
+
+[Run 45079835823](https://github.com/ryancinsight/ritk/actions/runs/45079835823) exercised all eight scenarios on RITK `54140426b` with Metis `94b698dcd`. Seven passed. Hosted Chromium WebGPU read the 94-file study, presented all three anatomical planes, passed the native cine-rate trace validator, removed its observer and closed the session. Both responsive scenarios, Chromium raster, the Chromium window and projection scenarios, and Firefox raster passed.
+
+Safari 27.2 recorded a trusted selection of 49,807,236 bytes across all 94 files. macOS denied WebContent access to the first file before decoding. Byte-for-byte verification and filesystem permissions are recorded in the [Safari job](https://github.com/ryancinsight/ritk/actions/runs/45079835823/job/137389340300). The [qualification checklist](backlog/ritk-stable-qualification.md) keeps Safari and the post-merge replay open.
+
+The [replay at `a9bd623aa`](https://github.com/ryancinsight/ritk/actions/runs/45087220365) passed six scenarios, including hosted WebGPU. Safari again denied the first file read. Chromium raster completed four loads and cleaned up its listeners and file handles, but its WebAssembly memory grew from 403,832,832 to 502,464,512 bytes on the fourth load. The [existing decoder change in PR #1108](https://github.com/ryancinsight/ritk/commit/f701208ea2873d01fd89eb8b02789fe5700831b6) transfers ownership of the reconstructed pixels and records a passing four-load replay. Repeat the original capacity check on the integrated browser candidate.
 
 ## Classic PET SUV timing
 
@@ -251,6 +265,24 @@ and reject an unrepresentable positive spacing before output.
 - verification: the macOS arm64 wheel passes both profiles for the 94-instance MRI and 303-instance CT fixtures and rejects the CT DICOMDIR. All 564 `ritk-io` library tests pass on the integrated source.
 - target: `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
 - integration: PRs #1104 and #1105 merged after their required checks passed. The crates.io release cohort tracks the `ritk-io` 0.8.0 manifest.
+
+## RITK-DICOM-LJIF-001
+
+- [patch] Compare each UID-selected original, basic and enhanced skull CT
+  volume to independently decompressed source instances. The test compares
+  every reconstructed voxel plus shape, origin, spacing and direction.
+- The published Raster 0.5.0 dependency rejects the frame's LJIF APP0 marker
+  after series selection. The crates.io 0.5.1 archive matches Consus source
+  `aeea084445b8` and the registry checksum. A fresh registry consumer
+  reconstructs the expected 16-bit sample.
+- The wheel switches the NumPy bridge and matching PyO3 series to crates.io.
+  Its build dependencies resolve from the registry or the RITK workspace.
+- A locally packaged Raster 0.5.1 build passes all 15 wheel cases on
+  macOS arm64. Five real export cases and the explicit UID selection
+  smoke test also pass. The wheel built with Raster 0.5.0 fails all 15
+  compressed reads.
+- The regression uses existing RITK reconstruction for its controls.
+  Orthogonal orientations in three series remain a separate geometry issue.
 
 <a id="RITK-DICOM-ANONYMIZE-NESTED-META-001"></a>
 ## RITK-DICOM-ANONYMIZE-NESTED-META-001: group 0002 elements inside sequence items survive de-identification
