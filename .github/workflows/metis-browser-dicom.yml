@@ -201,7 +201,7 @@ jobs:
             lifecycle_cycles: "4"
             projection: ""
           - engine: webkit
-            runner: macos-latest
+            runner: macos-26
             driver_url: http://127.0.0.1:4444
             device_scale: "1"
             mode: raster
@@ -293,66 +293,8 @@ jobs:
           set -euo pipefail
           "$GECKOWEBDRIVER/geckodriver" --port=4444 --host 127.0.0.1 > "$RUNNER_TEMP/geckodriver.log" 2>&1 &
 
-      - name: Enable Safari WebDriver
-        if: matrix.engine == 'webkit'
-        shell: bash
-        run: sudo -n /usr/bin/safaridriver --enable
-
-      - name: Start Safari WebDriver
-        if: matrix.engine == 'webkit'
-        shell: bash
-        run: |
-          set -euo pipefail
-          /usr/bin/safaridriver --diagnose -p 4444 > "$RUNNER_TEMP/safaridriver.log" 2>&1 &
-
-      # SafariDriver requires publicly readable uploads. The runner checkout
-      # is below a private home directory. Only stage the public MRI phantom.
-      - name: Stage the public study for the Safari file chooser
-        if: matrix.engine == 'webkit'
-        shell: bash
-        run: |
-          set -euo pipefail
-          source="$GITHUB_WORKSPACE/ritk/test_data/2_head_mri_t2/DICOM"
-          study="$(mktemp -d /Users/Shared/ritk-public-mri.XXXXXXXX)"
-          echo "SAFARI_STUDY=$study" >> "$GITHUB_ENV"
-          chmod 755 "$study"
-          files=("$source"/*.dcm)
-          test "${#files[@]}" -eq 94
-          for file in "${files[@]}"; do
-            install -m 644 "$file" "$study/"
-            cmp "$file" "$study/${file##*/}"
-          done
-
-      - name: Record selected-file filesystem access
-        if: matrix.engine == 'webkit'
-        timeout-minutes: 1
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import hashlib
-          import json
-          import os
-          from pathlib import Path
-          import stat
-
-          study = Path(os.environ["SAFARI_STUDY"])
-          selected = sorted(study.glob("*.dcm"))[0].resolve(strict=True)
-          paths = [selected, *selected.parents]
-          records = []
-          for index, path in enumerate(paths):
-              info = path.stat()
-              records.append({"ancestor": index, "mode": oct(stat.S_IMODE(info.st_mode)),
-                              "uid": info.st_uid, "gid": info.st_gid})
-          with selected.open("rb") as stream:
-              digest = hashlib.file_digest(stream, "sha256").hexdigest()
-          result = {"reader_uid": os.geteuid(), "bytes": selected.stat().st_size,
-                    "sha256": digest, "permissions": records}
-          output = Path(os.environ["RUNNER_TEMP"]) / "file-access.log"
-          output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-          PY
-
       - name: Wait for WebDriver
+        if: matrix.engine != 'webkit'
         shell: bash
         env:
           DRIVER_URL: ${{ matrix.driver_url }}
@@ -383,6 +325,7 @@ jobs:
           PY
 
       - name: Read and compare saved studies in the workstation
+        if: matrix.engine != 'webkit'
         working-directory: ritk
         env:
           PYTHONPATH: ${{ github.workspace }}/metis/scripts
@@ -393,32 +336,28 @@ jobs:
           --renderer "${{ matrix.mode }}" --projection "${{ matrix.projection }}" --layout "${{ matrix.layout }}"
           --output "../metis/output/browser/results/${{ matrix.result }}"
 
-      - name: Remove staged public MRI files
-        if: always() && matrix.engine == 'webkit' && env.SAFARI_STUDY != ''
+      - name: Read and compare studies through the native Safari Open panel
+        if: matrix.engine == 'webkit'
+        working-directory: ritk
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$SAFARI_STUDY" == /Users/Shared/ritk-public-mri.* ]]
-          rm -f "$SAFARI_STUDY"/*.dcm
-          rmdir "$SAFARI_STUDY"
-
-      - name: Capture WebKit sandbox diagnostics
-        if: always() && matrix.engine == 'webkit'
-        timeout-minutes: 1
-        shell: bash
-        run: |
-          set -euo pipefail
-          /usr/bin/log show --last 5m --style ndjson \
-            --predicate 'eventMessage CONTAINS "Sandbox:" AND eventMessage CONTAINS "WebKit"' \
-            > "$RUNNER_TEMP/webkit-sandbox.log"
-
-      - name: Upload SafariDriver diagnostics
+          bundle="$GITHUB_WORKSPACE/metis/output/browser"
+          python scripts/safari-study/prepare.py "$bundle" /Users/Shared/RITKPublicStudy
+          python -m http.server 17823 --bind 127.0.0.1 --directory "$bundle" > "$RUNNER_TEMP/safari-http.log" 2>&1 &
+          cd scripts/safari-study
+          command -v xcodegen || brew install xcodegen
+          xcodegen generate
+          mkdir -p "$bundle/results/webkit"
+          xcodebuild test -project SafariStudy.xcodeproj -scheme SafariStudy -destination 'platform=macOS,arch=arm64' -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/Safari.xcresult"
+        # The XCTest report includes the real Safari window capture and assertions.
+      - name: Retain the native Safari test report
         if: always() && matrix.engine == 'webkit'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ritk-safaridriver-diagnostics-${{ github.run_id }}
-          path: ~/Library/Logs/com.apple.WebDriver/
-          if-no-files-found: ignore
+          name: safari-workstation-report-${{ github.run_id }}
+          path: ${{ runner.temp }}/Safari.xcresult
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Upload saved-study evidence
