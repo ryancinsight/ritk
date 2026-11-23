@@ -31,7 +31,7 @@ final class StudyPickerTests: XCTestCase {
 
     func choose(_ directory: String, embedded: Bool = false) {
         if embedded { safari.buttons["Open reference study"].click() }
-        else { safari.typeKey("o", modifierFlags: .control) }
+        else { point(62,53).click() }  // Open Study in the workstation toolbar.
         let panel = safari.sheets["open-panel"]
         let upload = panel.buttons["Upload"].firstMatch
         XCTAssertTrue(upload.waitForExistence(timeout: 10), safari.debugDescription)
