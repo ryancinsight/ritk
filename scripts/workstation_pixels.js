@@ -1,14 +1,19 @@
 // Read the presented bitmap before workstation overlays or navigation can change it.
 export async function screenSamples() {
   const canvas = document.querySelector("#workstation");
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
-  const image = await createImageBitmap(blob);
-  const capture = document.createElement("canvas");
-  capture.width = canvas.width;
-  capture.height = canvas.height;
-  const context = capture.getContext("2d");
-  context.drawImage(image, 0, 0);
-  image.close();
+  // Raster exposes its displayed pixels directly. WebGPU requires a snapshot of
+  // the presented bitmap because a canvas cannot switch context types.
+  let context = canvas.getContext("2d");
+  if (!context) {
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+    const image = await createImageBitmap(blob);
+    const capture = document.createElement("canvas");
+    capture.width = canvas.width;
+    capture.height = canvas.height;
+    context = capture.getContext("2d");
+    context.drawImage(image, 0, 0);
+    image.close();
+  }
   const state = window.asterSlice.state();
   return state.images.map(([left, top, width, height], axis) => {
     const [x, y, w, h] = state.panes[axis];
