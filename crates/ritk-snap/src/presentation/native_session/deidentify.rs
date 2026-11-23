@@ -59,13 +59,19 @@ fn first_issue(error: &StudyAnonymizeError) -> Option<&(PathBuf, VerifyIssue)> {
     }
 }
 
-/// The status line for a failed export: the error, followed by the first
-/// verification issue and its file when the error holds one.
+/// Report the first verification issue without displaying a detected identifier.
 pub(super) fn failure_status(error: &anyhow::Error) -> String {
     let first = error
         .downcast_ref::<StudyAnonymizeError>()
         .and_then(first_issue);
     match first {
+        // Either the offending value or the source filename can identify the patient.
+        // Preserve the verification and cleanup counts without echoing those strings.
+        Some((_, VerifyIssue::PatientLeak { .. } | VerifyIssue::ResidualIdentifier { .. })) => {
+            format!(
+                "De-identified export failed: {error}; identifying metadata remains in the copy."
+            )
+        }
         Some((path, issue)) => format!(
             "De-identified export failed: {error:#}; first: {issue} in {}",
             path.display()
@@ -112,6 +118,7 @@ impl NativeViewerSession {
         scope: AnonymizationScope,
         level: Deidentification,
     ) -> Result<()> {
+        self.exported_copy = None;
         let (path, browser, choice) = self
             .anonymization_selection()
             .context("no cataloged DICOM series is active")?;
@@ -134,6 +141,7 @@ impl NativeViewerSession {
         let options = AnonymizeOptions::with_fresh_salt(level.profile())
             .context("draw a UID salt from the operating system")?;
         let report = anonymize_dicom_selection(source, &instances, output, &options)?;
+        self.exported_copy = Some(output.to_owned());
         self.active_app_mut().status_message = format!(
             "{label} ({}): {} DICOM instance(s) exported. Burned-in text remains. Destination {}",
             level.label(),

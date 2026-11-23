@@ -77,6 +77,19 @@ impl NativeViewerSession {
                 }
             },
             #[cfg(windows)]
+            WindowAction::OpenExportedCopy => {
+                let Some(path) = self.exported_copy.clone() else {
+                    self.active_app_mut().status_message =
+                        "Export a DICOM copy from this study first.".into();
+                    return Ok(true);
+                };
+                if let Err(error) = self.open_study_path(&path) {
+                    self.active_app_mut().status_message =
+                        format!("Could not open the exported copy: {error:#}");
+                }
+                Ok(true)
+            }
+            #[cfg(windows)]
             WindowAction::RepairStudy => match self.repair_study_from_dialog() {
                 Ok(changed) => Ok(changed),
                 Err(error) => {

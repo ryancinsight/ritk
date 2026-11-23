@@ -14,6 +14,11 @@
 
 - [minor] Link screen pan and relative zoom across synchronized comparison panes. F6 toggles navigation linking. Shift+F6 independently links subsequent window and level changes.
 - [minor] Locate a patient point across comparison planes using Q or Ctrl+Shift with a held left press. Releasing the pointer restores cross-reference lines.
+- [minor] Open the most recent verified DICOM export directly from the Windows Anonymize menu.
+
+### Fixed
+
+- [patch] Omit the matched identifier and filename from the Windows status message when export verification detects residual identifying metadata.
 
 ## RITK I/O 0.9.1 and RITK Python 0.13.1
 

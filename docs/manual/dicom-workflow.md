@@ -126,20 +126,32 @@ toggles the overlay independently of slice synchronization.
 3. Check the destination and exported instance count in the status bar. The
    complete phantom series has 94 DICOM instances. If export reports an error,
    do not treat the destination as a verified copy.
-4. Choose **File → Open Study...** (**Ctrl+O**) and open the destination.
-   Select the exported series, compare its slice count with the original,
-   and scroll through it to check that the images still display.
-5. To check the files, compare input and output metadata in a local DICOM
-   header inspector. The patient name and ID should be replaced, study,
-   series and instance UIDs should be remapped, and the study, series,
-   acquisition and content dates and times and the study and series
-   descriptions should be cleared or absent in the Strict copy.
+4. Choose **Anonymize → Open exported copy**. The Windows viewer opens the
+   verified destination. Opening another study or starting a new export clears
+   that shortcut. You can open an earlier destination with **File → Open Study...**.
+5. In the web viewer, choose **File → Open Study...** and select all 94
+   numbered DICOM files from the exported folder. Look for **ANONYMOUS**,
+   **ANON001** and **Date N/A** in the Strict copy. Compare the slice count and
+   scroll the axial, coronal and sagittal views to review the images.
 
-**Strict changes DICOM metadata, not pixels.** Burned-in text and identifying
-anatomy remain. Reopening checks readability; it does not verify every
-header field or prove pixel equality. The profile and the checks above do not
-establish that a study is safe to share. See the [developer reference](development.md#export-a-de-identified-study-or-series)
-and [DICOM's Attribute Confidentiality Profiles](https://dicom.nema.org/medical/dicom/current/output/chtml/part15/chapter_E.html).
+![Strict MRI export reopened in the web viewer. The series list shows ANONYMOUS and 94 images alongside the three anatomical planes.](images/dicom-strict-mri-reopened.webp)
+
+AsterSlice rendering of the downloaded MRI-DIR T2 porcine phantom after Strict
+export. [Ger et al., The Cancer Imaging Archive](https://doi.org/10.7937/K9/TCIA.2018.3f08iejt) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+| What to check | Basic copy | Strict copy |
+| --- | --- | --- |
+| Patient name and ID | Replaced | Replaced |
+| Study, series and instance UIDs | Remapped for this export | Remapped for this export |
+| Study, series, acquisition and content dates and times | Retained | Cleared |
+| Study and series descriptions | Retained | Removed |
+| Stored pixels | Preserved | Preserved |
+
+**Review the pixels before sharing.** Both profiles retain burned-in text and
+recognizable anatomy. Hiding viewer overlays only changes what appears on screen.
+Use a local DICOM header inspector to check which fields a copy contains.
+The developer reference explains how to repeat the pixel and metadata comparison
+for this phantom. [Export verification](development.md#export-a-de-identified-study-or-series) · [DICOM Clean Pixel Data Option](https://dicom.nema.org/medical/dicom/current/output/chtml/part15/sect_E.3.html).
 
 ## Try the Windows slice and annotation tools
 

@@ -41,6 +41,8 @@ pub(super) enum WindowAction {
     #[cfg(windows)]
     Anonymize(AnonymizationScope, Deidentification),
     #[cfg(windows)]
+    OpenExportedCopy,
+    #[cfg(windows)]
     RepairStudy,
     OpenSeriesPicker,
     LoadSelectedSeries,
@@ -136,6 +138,17 @@ pub(super) struct WindowChromeEvent {
     pub(super) consumed: bool,
     pub(super) repaint: bool,
     pub(super) action: Option<WindowAction>,
+}
+
+impl WindowAction {
+    /// Defer catalog replacement until all input routed against the old frame has run.
+    pub(super) fn opens_study(self) -> bool {
+        #[cfg(windows)]
+        if self == Self::OpenExportedCopy {
+            return true;
+        }
+        self == Self::OpenStudy
+    }
 }
 
 impl WindowChromeEvent {

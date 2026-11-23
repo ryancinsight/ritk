@@ -52,6 +52,7 @@ impl NativeViewerSession {
     pub(super) fn open_study_path(&mut self, path: &Path) -> Result<()> {
         self.load_study_path(path)?;
         self.study_root = Some(path.to_path_buf());
+        self.exported_copy = None;
         Ok(())
     }
 

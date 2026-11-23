@@ -1,10 +1,13 @@
 <a id="ritk-stable-qualification"></a>
 ## RITK-STABLE-QUALIFICATION — ritk stable-release qualification [patch] — todo
 - priority: verification; milestone: M-viewer-access; basis: `3a2bcc77b`.
+- Active viewer target: 0.4.0.
 - Outcome: Qualify the DICOM export boundary in the real viewer for 1.0.0 from `ritk-snap 0.3.1`. Follow the [release scope](../docs/adr/0059-release-scope-1-0.md) and [milestone exits](../backlog.md).
 - [x] [patch] Resolve URL 2.5.9 and the [Metis provider update](https://github.com/ryancinsight/metis/pull/589) in the viewer lock. The all-feature audit clears RUSTSEC-2026-0592 and RUSTSEC-2023-0071.
 - [x] [patch] Triage all 13 unmaintained package versions and the yanked executor. Remove four maintenance findings, update the executor, and record the [owner and migration for every remaining dependency](../gap_audit.md#viewer-dependency-audit-patch).
 - [ ] [patch] Retire the nine remaining unmaintained versions across the independent DICOM test peer, native accessibility and font stack, Metal backend and EXR codec. Replay the unwaived all-feature audit after each migration.
+- [x] [patch] Compare Basic and Strict copies of the complete downloaded MRI-DIR T2 series. Check all 94 files, nested SOP references, metadata, stored pixels and the three displayed planes after browser import. [Repeat the comparison](../docs/manual/development.md#export-a-de-identified-study-or-series).
+- [minor] Windows menu acceptance opens the verified Strict copy, compares all voxels and three rendered planes, and checks stale-destination rejection. [Tests](../crates/ritk-snap/src/presentation/native_session/tests/anonymize/exported_copy.rs).
 - [ ] [patch] Verify the viewer-delivered directory export after the [numbered export](https://github.com/ryancinsight/ritk/pull/1104) and [DICOM conformance follow-up](https://github.com/ryancinsight/ritk/pull/1105) merged. Export a study with identifying source filenames and references, reopen the result and check path names, UID relationships and unchanged source files.
 - [ ] [patch] Run the native reading, comparison and access exits with a real study. Assert completed tool results and patient-position alignment in the rendered session.
 - [x] [minor] Published ritk-analyze 0.5.1, ritk-filter 0.6.1, ritk-io 0.9.0, ritk-metaimage 0.4.1, ritk-mgh 0.7.0 and ritk-nifti 0.5.1 from `db308af40`. All six archive checksums, version tags and fresh registry resolution passed after the [compatibility and release workflow](https://github.com/ryancinsight/ritk/actions/runs/45099368440). [Main CI](https://github.com/ryancinsight/ritk/actions/runs/45099368058) and [Python CI](https://github.com/ryancinsight/ritk/actions/runs/45099367500) passed.

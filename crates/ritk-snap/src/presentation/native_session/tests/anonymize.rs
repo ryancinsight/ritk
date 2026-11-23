@@ -296,3 +296,24 @@ fn native_anonymize_failure_names_the_first_issue_and_its_file() {
         "De-identified export failed: no DICOM instance found under \"study\""
     );
 }
+
+#[test]
+fn native_anonymize_status_omits_the_identifying_value_and_its_source_filename() {
+    for issue in [
+        VerifyIssue::PatientLeak {
+            value: "fixture-identity".into(),
+        },
+        VerifyIssue::ResidualIdentifier {
+            tag: "PatientID".into(),
+            value: "fixture-identity".into(),
+        },
+    ] {
+        let error = anyhow::Error::from(StudyAnonymizeError::Verification(vec![(
+            PathBuf::from("fixture-identity.dcm"),
+            issue,
+        )]));
+        assert_eq!(failure_status(&error), "De-identified export failed: 1 verification issue(s) in the export; identifying metadata remains in the copy.");
+    }
+}
+
+mod exported_copy;

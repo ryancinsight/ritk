@@ -466,6 +466,22 @@ the DOM provider because the native path contract is unsupported on WebAssembly.
 4. Pick an empty destination folder outside the source folder. The status bar
    reports how many DICOM instances the viewer wrote to the copy.
 
+5. Choose **Anonymize → Open exported copy** to inspect the verified result.
+
+To repeat the MRI-DIR comparison, export the full T2 series once with each
+profile into separate empty folders. From the repository root, run the following
+with pydicom and NumPy installed:
+
+```sh
+python scripts/verify_anonymized_mri.py /path/to/basic /path/to/strict
+```
+
+This checks all 94 numbered files against the downloaded series, including
+nested SOP references, geometry, file metadata, stored pixel bytes and every
+decoded sample. To also compare the three visible image regions in Chromium,
+supply `--bundle` pointing to the packaged raster workstation under the Métis
+browser output directory and `--driver-url` pointing to a local ChromeDriver.
+Set `PYTHONPATH` to the Métis scripts directory for its browser driver helper.
 Both profiles retain the original pixel data, including burned-in text.
 
 ## Select a saved DICOM series from Python

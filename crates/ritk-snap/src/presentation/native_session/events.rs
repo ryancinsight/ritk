@@ -177,7 +177,6 @@ impl NativeViewerSession {
         } else {
             false
         };
-        let mut study_reopened = false;
         let mut chrome_repaint = false;
         let mut chrome_actions = Vec::new();
         chrome_actions
@@ -325,7 +324,7 @@ impl NativeViewerSession {
         // reduced, so translate those original panel slots through this map.
         let mut panel_routes = PanelRouteMap::new(routed.layout);
 
-        let mut open_study_requested = !terminal
+        let mut open_study_requested = (!terminal
             && viewer_events.iter().any(|event| {
                 matches!(
                     event,
@@ -335,7 +334,8 @@ impl NativeViewerSession {
                         modifiers,
                     } if modifiers.ctrl()
                 )
-            });
+            }))
+        .then_some(WindowAction::OpenStudy);
         let mut chrome_exit = false;
         let mut viewer_exit = false;
         let mut viewer_repaint = false;
@@ -377,8 +377,8 @@ impl NativeViewerSession {
             let Some(action) = action else {
                 continue;
             };
-            if action == WindowAction::OpenStudy {
-                open_study_requested = true;
+            if action.opens_study() {
+                open_study_requested = Some(action);
             } else {
                 let maximized_before = self.maximized_panel.map(|panel| panel.panel_index);
                 let active_before = self.active_panel;
@@ -417,16 +417,10 @@ impl NativeViewerSession {
                 ViewerActionDisposition::Exit => viewer_exit = true,
             }
         }
-        if !chrome_exit && !viewer_exit && open_study_requested {
-            match self.open_study_from_dialog() {
-                Ok(reopened) => study_reopened |= reopened,
-                Err(error) => {
-                    self.active_app_mut().status_message =
-                        format!("DICOM reopen failed; current study remains displayed: {error:#}");
-                    study_reopened = true;
-                }
-            }
-        }
+        let study_reopened = match open_study_requested {
+            Some(action) if !chrome_exit && !viewer_exit => self.apply_window_action(action)?,
+            _ => false,
+        };
         if self.workspace_layout != routed.layout {
             self.end_held_gestures();
         }

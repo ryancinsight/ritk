@@ -20,6 +20,11 @@ The [release backlog](backlog.md#milestones) records the remaining milestone cri
 - [patch] Verify the OpenNeuro ds000102 source, license and checksum and run the registration consumer from the shared fixture cache.
 - [major] Record the four 1.0 compatibility surfaces in [ADR 0059](docs/adr/0059-release-scope-1-0.md). Compatibility qualification remains pending.
 
+## Reopening de-identified DICOM exports
+
+- [minor] The Windows Anonymize menu previously required the reader to locate the destination again. It now opens the last successful export from the current study. A failed export clears that destination. Verification errors for residual identifying metadata previously displayed the matching value and filename.
+- [patch] The downloaded MRI-DIR porcine phantom produced 94 numbered DICOM instances under each profile. The independent reader compares all 24,641,536 decoded samples per copy, the encoded pixel data, geometry and SOP references. The packaged Chromium viewer reopened source, Basic and Strict and returned matching image-region hashes on all three planes. The [user manual](docs/manual/dicom-workflow.md#export-and-verify-a-strict-dicom-copy) includes the Strict screenshot. Multi-series references across a selected study remain a separate qualification item.
+
 ## Linked display settings and comparison cursor
 
 - [minor] At `72a36fa76`, a 24-pixel pan moved the target zero pixels; Q did not select a grid cursor. The packaged Chromium regression now checks both screen rectangles, the target window after toggling, perpendicular slice selection, the rendered cursor color and its disappearance on release.

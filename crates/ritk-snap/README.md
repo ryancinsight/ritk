@@ -226,7 +226,9 @@ which uses the referenced instances when it opens a DICOMDIR. After writing, RIT
 every exported file and scans it for each source patient name and ID that
 differs from its replacement; if that check or any earlier step fails, RITK removes the files it wrote and the status line shows the error.
 Folders it created may remain, and a file it could not remove stays and is
-counted in that error.
+counted in that error. After a successful export, choose **Anonymize → Open
+exported copy** to inspect the result on Windows. The [reader manual](../../docs/manual/dicom-workflow.md#export-and-verify-a-strict-dicom-copy)
+shows the same Strict MRI copy reopened in the web viewer.
 
 ### Repaired copy
 

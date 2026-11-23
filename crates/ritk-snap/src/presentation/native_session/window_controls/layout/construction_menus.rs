@@ -56,14 +56,27 @@ pub(super) const MENU_TABS: &[(Menu, &str, u32)] = &[
 ];
 
 #[cfg(windows)]
-pub(super) const ANONYMIZE_ITEMS: [(&str, AnonymizationScope, Deidentification); 4] = {
+pub(super) const ANONYMIZE_ITEMS: [(&str, WindowAction); 5] = {
     use AnonymizationScope::{Series, Study};
     use Deidentification::{Basic, Strict};
     [
-        ("Active study (Basic)...", Study, Basic),
-        ("Active study (Strict)...", Study, Strict),
-        ("Active series (Basic)...", Series, Basic),
-        ("Active series (Strict)...", Series, Strict),
+        (
+            "Active study (Basic)...",
+            WindowAction::Anonymize(Study, Basic),
+        ),
+        (
+            "Active study (Strict)...",
+            WindowAction::Anonymize(Study, Strict),
+        ),
+        (
+            "Active series (Basic)...",
+            WindowAction::Anonymize(Series, Basic),
+        ),
+        (
+            "Active series (Strict)...",
+            WindowAction::Anonymize(Series, Strict),
+        ),
+        ("Open exported copy", WindowAction::OpenExportedCopy),
     ]
 };
 
@@ -142,10 +155,10 @@ pub(super) fn menu_item(
             .ok_or_else(|| anyhow!("native File menu row is outside its items")),
         #[cfg(windows)]
         Menu::Anonymize => {
-            let &(label, scope, level) = ANONYMIZE_ITEMS
+            let &(label, action) = ANONYMIZE_ITEMS
                 .get(index)
                 .ok_or_else(|| anyhow!("native Anonymize menu row is outside its items"))?;
-            Ok((label, WindowAction::Anonymize(scope, level), false))
+            Ok((label, action, false))
         }
         Menu::View if workspace_layout.is_grid() => match index {
             0 => Ok((
