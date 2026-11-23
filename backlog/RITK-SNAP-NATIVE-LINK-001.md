@@ -8,7 +8,7 @@
 - [ ] [minor] Support linked pan/zoom and independently selectable window settings. Verify that disabled settings preserve each panel’s display.
 - [x] [minor] Cross-reference lines. Verify patient-to-screen projection for intersecting planes, clipped endpoints and parallel planes. Draw only in inactive panes sharing the source frame.
 - [ ] [minor] Project a selected patient point into all eligible comparison panes.
-- next: Implement linked pan/zoom and optional window settings. Automatic matching and the disabled mode passed on Windows, Firefox and Chromium. [Windows tests](https://github.com/ryancinsight/ritk/actions/runs/45105768737/job/137467394703) · [browser matrix](https://github.com/ryancinsight/ritk/actions/runs/45105771232). Reference behaviors and sources are in the [manual comparison](../docs/manual/features.md#reading-workstation-parity).
+- next: Implement linked pan/zoom and optional window settings. At `247bc001b`, Windows and all eight hosted browser scenarios qualified the current comparison work. [Windows tests](https://github.com/ryancinsight/ritk/actions/runs/45123805890/job/137523992803) · [browser matrix](https://github.com/ryancinsight/ritk/actions/runs/45123808988). The [manual comparison](../docs/manual/features.md#reading-workstation-parity) records the reference behavior.
 - basis: 30b8ba098
 - needs: none
 - priority: feature; milestone: M-viewer-compare

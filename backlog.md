@@ -6,7 +6,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="M-viewer-reading"></a>
 ## M-viewer-reading — 0.2.0 — read a single study on the native shell
 - exit: `cargo nextest run -p ritk-snap -E 'test(pointer_bindings) or test(modifier_gesture) or test(native_annotation) or test(native_display) or test(native_view_transform) or test(native_overlay_text) or test(measure_set)'`
-- [patch] One workstation serves Windows and the web. Chromium verifies real MR and CT comparison, measurements and the three MRI planes. The [reading checklist](backlog/RITK-SNAP-RADIANT-UI-001.md) orders host verification and display-coordinate navigation against the [manual comparison](docs/manual/features.md#reading-workstation-parity).
+- [patch] One workstation serves Windows and the web. Chromium verifies real MR and CT comparison, measurements and the three MRI planes. The [reading checklist](backlog/RITK-SNAP-RADIANT-UI-001.md) records host verification and display-coordinate navigation against the [manual comparison](docs/manual/features.md#reading-workstation-parity).
 - needs: none
 - non-goals: PACS, archive, 3D rendering
 <a id="M-viewer-compare"></a>
@@ -77,7 +77,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-GAP-2026-08-20-05"></a>- [RITK-GAP-2026-08-20-05](backlog/RITK-GAP-2026-08-20-05.md) — Derive test budgets and remove dead filters — todo
 <a id="RITK-GAP-2026-08-20-07"></a>- [RITK-GAP-2026-08-20-07](backlog/RITK-GAP-2026-08-20-07.md) — Restore the changelog version axis — todo
 <a id="RITK-SNAP-OBLIQUE-APP-ADAPTER-001"></a>- [RITK-SNAP-OBLIQUE-APP-ADAPTER-001](backlog/RITK-SNAP-OBLIQUE-APP-ADAPTER-001.md) — Route oblique viewer actions — todo
-<a id="RITK-SNAP-RADIANT-UI-001"></a>- [RITK-SNAP-RADIANT-UI-001](backlog/RITK-SNAP-RADIANT-UI-001.md) — Organize a multi-series DICOM viewer workspace — todo
+<a id="RITK-SNAP-RADIANT-UI-001"></a>- [RITK-SNAP-RADIANT-UI-001](backlog/RITK-SNAP-RADIANT-UI-001.md) — Organize a multi-series DICOM viewer workspace — done [minor]
 <a id="RITK-SNAP-OBLIQUE-ROUTING-001"></a>- [RITK-SNAP-OBLIQUE-ROUTING-001](backlog/RITK-SNAP-OBLIQUE-ROUTING-001.md) — Route native oblique input — blocked
 <a id="RITK-BROWSER-TOOL-TRACE-001"></a>- [RITK-BROWSER-TOOL-TRACE-001](backlog/RITK-BROWSER-TOOL-TRACE-001.md) — Publish ROI results in the browser journey — todo
 <a id="RITK-SNAP-EFRAME-REMOVAL-001"></a>- [RITK-SNAP-EFRAME-REMOVAL-001](backlog/RITK-SNAP-EFRAME-REMOVAL-001.md) — Remove the eframe shell — blocked
