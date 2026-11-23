@@ -59,8 +59,6 @@ final class StudyPickerTests: XCTestCase {
         continueAfterFailure = false
         let url = try XCTUnwrap(URL(string: "http://127.0.0.1:17823/index.html"))
         safari.open(url)
-        let window = safari.windows.matching(NSPredicate(format: "title == %@", "AsterSlice")).firstMatch
-        XCTAssertTrue(window.waitForExistence(timeout: 20), safari.debugDescription)
         let ready = wait("workstation layout") { $0["width"] as? Int ?? 0 > 0 }
         let panes = try XCTUnwrap(ready["panes"] as? [[Int]])
         XCTAssertEqual(Array(panes[0].prefix(2)), [276, 78])

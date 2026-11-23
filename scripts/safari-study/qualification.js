@@ -9,6 +9,7 @@ function report(value) {
 }
 
 async function workstation() {
+  if (document.title !== "AsterSlice") { report({error: "unexpected workstation title"}); return; }
   // Use normal same-tab navigation to retain only this test's reference samples.
   const link = document.createElement("a");
   const gallery = location.pathname.endsWith("gallery.html");
