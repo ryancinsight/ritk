@@ -32,7 +32,18 @@ def verify_display(client, canvas, state, wait, source, target):
     client.set_window_rect(1439, 900)
     wait(f"{state}.width === innerWidth && {state}.panes[0][2] === {state}.panes[1][2] + 1")
     tab, link = chr(0xe004), chr(0xe036)
+    # Firefox uses F6 to focus browser chrome. The viewer must claim the key
+    # on keydown before dispatching subsequent Tab and R to the image pane.
+    client.execute("""
+        window.addEventListener("keydown", function probe(event) {
+            if (event.key !== "F6") return;
+            window.viewerHandledF6 = event.defaultPrevented;
+            window.removeEventListener("keydown", probe);
+        });
+    """)
     client.send_keys(canvas, link + tab + "r")
+    if client.execute("return window.viewerHandledF6") is not True:
+        raise AssertionError("F6 left the browser's focus-navigation shortcut active")
     wait(f"{state}.panel === {target} && !{state}.orientationIdentity")
     select_ct_one_to_one(client)
     wait(f"{state}.zoom > 0 && {state}.zoom < 0.05")

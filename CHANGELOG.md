@@ -24,6 +24,7 @@
 - [patch] Open a whole DICOM folder from the web workstation toolbar, menu or keyboard shortcut. Shift-click opens the individual file picker.
 
 - [patch] Omit the matched identifier and filename from the Windows status message when export verification detects residual identifying metadata.
+- [patch] Keep keyboard focus in the web viewer when F6 toggles linked navigation.
 - [patch] Respect the receiving comparison pane’s 1:1 scale during linked zoom, including rotated images with unequal row and column spacing.
 
 ## RITK I/O 0.10.0 (unreleased)
