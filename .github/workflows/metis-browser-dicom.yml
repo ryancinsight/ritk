@@ -20,8 +20,14 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.candidate }}
           persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.sha }}
+          path: picker-diagnostic
+          persist-credentials: false
+          sparse-checkout: scripts/safari-study/Tests
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           run-id: 45103975453
@@ -32,6 +38,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cp picker-diagnostic/scripts/safari-study/Tests/StudyPickerTests.swift scripts/safari-study/Tests/
           python3 scripts/safari-study/prepare.py workstation /Users/Shared/RITKPublicStudy
           export RITK_HTTP_RUNTIME="$RUNNER_TEMP" RITK_WEB_BUNDLE="$PWD/workstation"
           /usr/sbin/httpd -X -f "$PWD/scripts/safari-study/httpd.conf" &
