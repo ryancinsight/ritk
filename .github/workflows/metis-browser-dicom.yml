@@ -1,44 +1,36 @@
-name: AsterSlice native Safari file chooser probe
-on: workflow_dispatch
+name: Native Safari workstation diagnostics
+on:
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: Exact browser qualification commit
+        type: string
+        required: true
 permissions:
   contents: read
+  actions: read
 jobs:
-  chooser:
+  native:
     runs-on: macos-26
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
+          ref: ${{ inputs.candidate }}
           persist-credentials: false
-      - name: Verify public fixture and serve chooser
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          run-id: 45097686376
+          github-token: ${{ github.token }}
+          name: asterslice-web
+          path: workstation
+      - name: Verify native workstation
         shell: bash
         run: |
           set -euo pipefail
-          mkdir /Users/Shared/RITKPublicStudy
-          cp test_data/2_head_mri_t2/DICOM/*.dcm /Users/Shared/RITKPublicStudy/
-          mkdir "$RUNNER_TEMP/picker"
-          python3 - "$RUNNER_TEMP/picker" <<'PY'
-          import hashlib,json,sys
-          from pathlib import Path
-          paths=sorted(Path("test_data/2_head_mri_t2/DICOM").glob("*.dcm"))
-          assert len(paths)==94
-          target=Path(sys.argv[1])
-          (target/"manifest.json").write_text(json.dumps({p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}))
-          (target/"index.html").write_text("""<!doctype html><title>RITK native file selection</title><button onclick="study.click()">Choose study files</button><input id="study" type="file" multiple hidden><p id="result">Waiting for files</p><script>
-          study.onchange=async e=>{try{
-            if (!e.isTrusted||study.files.length!==94) throw Error('Unexpected selection: '+study.files.length);
-            const manifest=await (await fetch('manifest.json')).json();
-            for(const f of study.files){const h=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await f.arrayBuffer())),b=>b.toString(16).padStart(2,'0')).join('');
-            if(h!==manifest[f.name]) throw Error('Digest differs: '+f.name);}
-            result.textContent='All 94 file digests match';
-          }catch(e){result.textContent=String(e)}}</script>""")
-          PY
-          python3 -m http.server 17823 --bind 127.0.0.1 --directory "$RUNNER_TEMP/picker" > "$RUNNER_TEMP/picker-server.log" 2>&1 &
-      - name: Read the selected MRI through Safari on macOS
-        working-directory: scripts/safari-study
-        shell: bash
-        run: |
-          set -euo pipefail
+          python3 scripts/safari-study/prepare.py workstation /Users/Shared/RITKPublicStudy
+          python3 -m http.server 17823 --bind 127.0.0.1 --directory workstation &
+          cd scripts/safari-study
           command -v xcodegen || brew install xcodegen
           xcodegen generate
-          xcodebuild test -project SafariStudy.xcodeproj -scheme SafariStudy -destination 'platform=macOS,arch=arm64' -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/picker.xcresult"
+          xcodebuild test -project SafariStudy.xcodeproj -scheme SafariStudy -destination 'platform=macOS,arch=arm64' -parallel-testing-enabled NO
