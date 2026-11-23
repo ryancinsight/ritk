@@ -45,7 +45,7 @@ final class StudyPickerTests: XCTestCase {
             .matching(NSPredicate(format: "label == %@ OR value == %@ OR title == %@",
                                   "00000001.dcm", "00000001.dcm", "00000001.dcm")).firstMatch
         XCTAssertTrue(first.waitForExistence(timeout: 12), panel.debugDescription)
-        first.click()
+        // Go to Folder already selects the exact file and focuses the native file list.
         safari.typeKey("a", modifierFlags: .command)
         upload.click()
     }
