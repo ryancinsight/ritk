@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## DICOM volume geometry (unreleased)
+
+### Fixed
+
+- [patch] Reject mixed in-plane orientations at scalar and stored DICOM volume
+  import. Select a coherent set of instances when a series UID spans
+  separate image orientations. Python includes the geometry error in
+  its read exception.
+
 ## RITK Python 0.13.0 (unreleased)
 
 ### Fixed

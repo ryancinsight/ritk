@@ -1,5 +1,31 @@
 //! Geometric utility functions for DICOM slice orientation and spacing analysis.
 
+use super::types::DicomSliceMetadata;
+
+/// Maximum component-wise deviation from a common in-plane basis.
+const IOP_CONSISTENCY_THRESHOLD: f64 = 1e-4;
+
+/// Locate a known orientation that differs from the first known orientation.
+///
+/// A single affine volume has one pair of in-plane axes. Comparing both axes
+/// also detects in-plane rotations that leave the cross-product normal equal.
+pub(super) fn first_orientation_mismatch(slices: &[DicomSliceMetadata]) -> Option<(usize, f64)> {
+    let mut orientations = slices.iter().enumerate().filter_map(|(index, slice)| {
+        slice
+            .image_orientation_patient
+            .map(|orientation| (index, orientation))
+    });
+    let (_, reference) = orientations.next()?;
+    orientations.find_map(|(index, orientation)| {
+        let max_deviation = reference
+            .iter()
+            .zip(orientation)
+            .map(|(expected, actual)| (expected - actual).abs())
+            .fold(0.0_f64, f64::max);
+        (max_deviation > IOP_CONSISTENCY_THRESHOLD).then_some((index, max_deviation))
+    })
+}
+
 /// Compute the cross product of two 3-vectors.
 #[inline]
 pub(super) fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
