@@ -113,7 +113,6 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-SNAP-FORMAT-VIEWER-001"></a>- [RITK-SNAP-FORMAT-VIEWER-001](backlog/RITK-SNAP-FORMAT-VIEWER-001.md) — Exercise encoded studies in the viewer — todo
 <a id="RITK-SNAP-CUSTOM-WINDOW-001"></a>- [RITK-SNAP-CUSTOM-WINDOW-001](backlog/RITK-SNAP-CUSTOM-WINDOW-001.md) — Retain precise custom window settings — todo
 <a id="RITK-SNAP-LARGE-STUDY-001"></a>- [RITK-SNAP-LARGE-STUDY-001](backlog/RITK-SNAP-LARGE-STUDY-001.md) — Measure native study resource bounds — todo
-<a id="RITK-SNAP-NATIVE-DISPLAY-001"></a>- [RITK-SNAP-NATIVE-DISPLAY-001](backlog/RITK-SNAP-NATIVE-DISPLAY-001.md) — Route display controls in the native shell — done [minor]
 <a id="RITK-SNAP-NAVIGATION-UNITS-001"></a>- [RITK-SNAP-NAVIGATION-UNITS-001](backlog/RITK-SNAP-NAVIGATION-UNITS-001.md) — Keep navigation in display coordinates — todo
 <a id="RITK-SNAP-IMAGE-FIT-001"></a>- [RITK-SNAP-IMAGE-FIT-001](backlog/RITK-SNAP-IMAGE-FIT-001.md) — Share continuous sample-aspect fitting — todo
 <a id="RITK-SNAP-EFRAME-NAVIGATION-001"></a>- [RITK-SNAP-EFRAME-NAVIGATION-001](backlog/RITK-SNAP-EFRAME-NAVIGATION-001.md) — Paint pan and retain the press origin — todo
