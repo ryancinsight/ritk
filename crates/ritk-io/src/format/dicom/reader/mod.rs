@@ -39,11 +39,11 @@ pub use loader::{
     read_dicom_series_with_metadata_with_budget,
 };
 pub use reconstruction::{decode_dicom_series, DecodedDicomSeries};
+pub use scan::catalog::scan_dicom_part10_catalog;
 pub use scan::{
     scan_dicom_directory_with_budget, scan_dicom_files, scan_dicom_files_with_budget,
     scan_dicom_instances, scan_dicom_instances_with_budget, scan_dicom_part10_bytes,
-    scan_dicom_part10_bytes_with_budget, scan_dicom_part10_catalog, scan_dicom_path,
-    scan_dicom_path_with_budget,
+    scan_dicom_part10_bytes_with_budget, scan_dicom_path, scan_dicom_path_with_budget,
 };
 pub use stored::{
     load_dicom_series_stored, read_dicom_series_stored, DicomStoredImportError, DicomStoredSeries,

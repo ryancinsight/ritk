@@ -20,6 +20,7 @@ use crate::format::dicom::identity::{image_series_uid, optional_uid, CONCATENATI
 use crate::format::dicom::networking::scp::StoredInstance;
 use crate::format::dicom::object_model::{DicomObjectModel, DicomObjectNode};
 
+pub(super) mod catalog;
 mod finalize;
 mod geometry;
 mod metadata;
@@ -309,42 +310,6 @@ pub fn scan_dicom_part10_bytes_with_budget(
         )?;
     }
     accumulator.finish(PathBuf::from("dropped://series"))
-}
-
-/// Discover all image series in a bounded in-memory selection, ordered by UID.
-/// Each returned scan retains exactly its own admitted Part 10 instances.
-pub fn scan_dicom_part10_catalog(files: &[(&str, &[u8])]) -> Result<Vec<DicomSeriesInfo>> {
-    let budget = DicomReadBudget::DEFAULT;
-    budget.checked_instances(files.len())?;
-    let mut series = std::collections::BTreeMap::<_, SeriesScan>::new();
-    let mut retained = 0usize;
-    for &(name, bytes) in files {
-        if is_dicomdir(Path::new(name)) {
-            continue; // The selected files themselves establish membership.
-        }
-        retained = retained
-            .checked_add(bytes.len())
-            .context("study size overflow")?;
-        budget.checked_retained_bytes(retained)?;
-        let object = parse_bytes_with_budget::<NativeBackend>(bytes, &budget.parser())
-            .context("failed to parse DICOM byte payload")?;
-        if let Some(uid) = image_series_uid(&object)? {
-            series.entry(uid).or_default().push(
-                &object,
-                PathBuf::from(name),
-                bytes.to_vec(),
-                None,
-                &budget,
-            )?;
-        }
-    }
-    if series.is_empty() {
-        bail!("select the DICOM image instances for this study");
-    }
-    series
-        .into_values()
-        .map(|scan| scan.finish(PathBuf::from("dropped://series")))
-        .collect()
 }
 
 #[derive(Default)]
