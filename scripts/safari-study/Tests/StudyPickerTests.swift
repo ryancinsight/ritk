@@ -38,14 +38,17 @@ final class StudyPickerTests: XCTestCase {
             add(screen)
             XCTFail("Open Study panel is unavailable: " + safari.debugDescription)
         }
+        safari.typeKey("2", modifierFlags: .command)  // Standard macOS list view.
+        let filename = directory + "-00000001.dcm"
         safari.typeKey("g", modifierFlags: [.command, .shift])
-        safari.typeText("/Users/Shared/RITKPublicStudy/" + directory + "/00000001.dcm")
+        safari.typeText("/Users/Shared/RITKPublicStudy/" + directory + "/" + filename)
         safari.typeKey(.return, modifierFlags: [])
-        let first = panel.descendants(matching: .any)
+        let first = panel.staticTexts
             .matching(NSPredicate(format: "label == %@ OR value == %@ OR title == %@",
-                                  "00000001.dcm", "00000001.dcm", "00000001.dcm")).firstMatch
+                                  filename, filename, filename)).firstMatch
         XCTAssertTrue(first.waitForExistence(timeout: 12), panel.debugDescription)
-        // Go to Folder already selects the exact file and focuses the native file list.
+        // Focus the visible filename in the file list after the location editor closes.
+        first.click()
         safari.typeKey("a", modifierFlags: .command)
         upload.click()
     }

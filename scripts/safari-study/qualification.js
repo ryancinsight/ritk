@@ -63,12 +63,22 @@ async function embedded() {
   document.body.prepend(picker);
   const samples = JSON.parse(sessionStorage.getItem("screenSamples"));
   const oracle = await (await fetch("oracle.json")).json();
+  let selected;
+  document.addEventListener("change", event => {
+    if (event.isTrusted && event.target.id === "file-input") {
+      const files = Array.from(event.target.files);
+      selected = [files.length, files.reduce((total, file) => total + file.size, 0)];
+    }
+  }, true);
   let compared = false;
   const tick = setInterval(async () => {
-    if (compared || document.querySelectorAll("canvas[data-ritk-load-state=ready]").length !== 3) return;
+    if (!selected || compared || document.querySelectorAll("canvas[data-ritk-load-state=ready]").length !== 3) return;
     compared = true;
     clearInterval(tick);
     try {
+      if (selected[0] !== 94 || selected[1] !== 49807236) {
+        throw Error("independent reference selection: " + JSON.stringify(selected));
+      }
       for (const [index,name] of ["axial","coronal","sagittal"].entries()) {
         const [matches, hash] = await comparePlane(name, samples[index]);
         if (!matches || hash !== oracle[name]) throw Error(name + " reference mismatch: " + hash);

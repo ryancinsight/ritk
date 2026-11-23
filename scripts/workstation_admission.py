@@ -9,7 +9,7 @@ def invalid_studies(root: Path):
         directory.mkdir()
         files = []
         for index in range(1, count + 1):
-            file = directory / f"{index:08}.dcm"
+            file = directory / f"{name}-{index:08}.dcm"
             with file.open("wb") as stream:
                 stream.truncate(size)
             files.append(file)
