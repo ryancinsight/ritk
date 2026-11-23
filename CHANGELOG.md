@@ -10,6 +10,11 @@
 
 ## Verification fixtures (unreleased)
 
+### Added
+
+- [patch] Add an opt-in installed-wheel regression for the five retained
+  skull CT series across original, basic and enhanced DICOM directories.
+
 ### Removed
 
 - [patch] Checkouts omit the skull CT and paired MRI/CT collections. The owner retains a verified local copy of all 2,642 files.

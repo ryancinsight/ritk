@@ -244,6 +244,21 @@ and reject an unrepresentable positive spacing before output.
 - target: `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
 - integration: PRs #1104 and #1105 merged after their required checks passed. The crates.io release cohort tracks the `ritk-io` 0.8.0 manifest.
 
+## RITK-DICOM-LJIF-001
+
+- [patch] Compare each UID-selected original, basic and enhanced skull CT
+  volume to independently decompressed source instances. The test compares
+  every reconstructed voxel plus shape, origin, spacing and direction.
+- The published Raster 0.5.0 dependency rejects the frame's LJIF APP0 marker
+  after series selection. Registry adoption requires a published Raster
+  0.5.1 archive and a fresh registry-only RITK resolution.
+- A locally packaged Raster 0.5.1 build passes all 15 wheel cases on
+  macOS arm64. Five real export cases and the explicit UID selection
+  smoke test also pass. The wheel built with Raster 0.5.0 fails all 15
+  compressed reads.
+- The regression uses existing RITK reconstruction for its controls.
+  Orthogonal orientations in three series remain a separate geometry issue.
+
 <a id="RITK-DICOM-ANONYMIZE-NESTED-META-001"></a>
 ## RITK-DICOM-ANONYMIZE-NESTED-META-001: group 0002 elements inside sequence items survive de-identification
 - risk: `file_meta::remove_origin` removes top-level data set elements of group 0002 only; one nested in a sequence item stays. A file whose group length ends before (0002,0012) is read with dicom-rs default implementation identifiers, and the misplaced real ones are then deleted.
