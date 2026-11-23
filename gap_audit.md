@@ -19,6 +19,8 @@ The locked all-feature audit of the 2026-11-22 candidate clears the URL and RSA 
 
 Safari 27.2 recorded a trusted selection of 49,807,236 bytes across all 94 files. macOS denied WebContent access to the first file before decoding. Byte-for-byte verification and filesystem permissions are recorded in the [Safari job](https://github.com/ryancinsight/ritk/actions/runs/45079835823/job/137389340300). The [qualification checklist](backlog/ritk-stable-qualification.md) keeps Safari and the post-merge replay open.
 
+The [replay at `a9bd623aa`](https://github.com/ryancinsight/ritk/actions/runs/45087220365) passed six scenarios, including hosted WebGPU. Safari again denied the first file read. Chromium raster completed four loads and cleaned up its listeners and file handles, but its WebAssembly memory grew from 403,832,832 to 502,464,512 bytes on the fourth load. The [existing decoder change in PR #1108](https://github.com/ryancinsight/ritk/commit/f701208ea2873d01fd89eb8b02789fe5700831b6) transfers ownership of the reconstructed pixels and records a passing four-load replay. Repeat the original capacity check on the integrated browser candidate.
+
 ## Classic PET SUV timing
 
 The classic PET reader admits a common activity reference across instances
