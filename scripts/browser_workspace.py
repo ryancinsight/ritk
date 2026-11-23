@@ -110,12 +110,14 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
             raise BrowserRuntimeError("two CT instances required")
         client.send_file_paths(client.find("#file-input"), [*files, *members[:2]])
         wait(state + ".series === 2")
-        click_at(200, 53)
+        client.send_keys(canvas, chr(0xe034))  # F4 opens the native series dialog.
         # Select both real series in the native series dialog.
         client.send_keys(canvas, " " + chr(0xe015) + " " + chr(0xe007))
         wait(state + ".panels.length === 2")
         require(state + ".panels.map(p=>p[1]).sort((a,b)=>a-b).join(',') === '2,94'",
                 "independent CT and MR volumes")
+        client.send_keys(canvas, chr(0xe004))  # Tab advances the active comparison panel.
+        wait(state + ".panel === 1")
         initial = client.execute("return " + state + ".panels")
         index = next(i for i, (_, count) in enumerate(initial) if count == len(files))
         px, py, pw, ph = client.execute("return " + state + f".panes[{index}]")

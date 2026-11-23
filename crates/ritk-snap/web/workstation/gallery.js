@@ -85,8 +85,14 @@ async function start() {
   }
   for (const phase of ["keydown", "keyup"]) {
     listen(window, phase, route(e => {
-      if (e.key === "Tab" || e.key.startsWith("F") && /^F\d+$/.test(e.key) || e.isComposing) return;
-      e.preventDefault();
+      if (e.isComposing || e.target !== canvas) return;
+      // Reserve navigation keys that have a competing browser default. Forward
+      // every key to the workstation so F4, Tab and their modifiers stay native.
+      if (["Tab", " ", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown",
+           "ArrowRight", "ArrowLeft", "Backspace", "F4"].includes(e.key) ||
+          ((e.ctrlKey || e.metaKey) && ["KeyO", "KeyM", "Digit0"].includes(e.code))) {
+        e.preventDefault();
+      }
       viewer.key(phase === "keydown", e.keyCode, e.repeat, modifiers(e), now());
       if (phase === "keydown" && [...e.key].length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey)
         viewer.text(e.key, now());
