@@ -1,15 +1,25 @@
 """Check workstation drags against screen pixels at different fits and rotations."""
 
 
+def chord(client, modifier, key):
+    client.perform_actions([{
+        "type": "key", "id": "workstation-shortcuts",
+        "actions": [{"type": phase, "value": value} for phase, value in [
+            ("keyDown", modifier), ("keyDown", key), ("keyUp", key), ("keyUp", modifier)
+        ]],
+    }])
+
+
 def verify_navigation(client, canvas, state, wait):
-    client.send_keys(canvas, chr(0xe008) + "o" + chr(0xe000))
+    client.send_keys(canvas, "m")
+    chord(client, chr(0xe008), "o")
     wait(state + ".orientationIdentity")
-    fit = chr(0xe009) + "0" + chr(0xe000)
     for width, height in [(1440, 900), (960, 720)]:
         client.set_window_rect(width, height)
         wait(state + ".width === innerWidth && " + state + ".height === innerHeight")
         for turn in range(4):
-            client.send_keys(canvas, fit + "m")
+            chord(client, chr(0xe009), "0")
+            client.send_keys(canvas, "m")
             wait(state + ".tool === 'Pan' && " + state + ".zoom === 1")
             image, pane, size = client.execute(
                 f"return [{state}.images[0], {state}.panes[0], [innerWidth, innerHeight]]"
@@ -23,6 +33,7 @@ def verify_navigation(client, canvas, state, wait):
             client.send_keys(canvas, "z")
             client.pointer_drag(canvas, (x, y), (x, y + 24))
             wait(f"Math.fround({state}.zoom) === Math.fround(0.76)")
-            client.send_keys(canvas, fit + "r")
+            chord(client, chr(0xe009), "0")
+            client.send_keys(canvas, "r")
     client.set_window_rect(1440, 900)
     wait(state + ".width === innerWidth && " + state + ".orientationIdentity")
