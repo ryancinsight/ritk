@@ -11,10 +11,7 @@ const TAB: u32 = 0x09;
 const END: u32 = 0x23;
 const HOME: u32 = 0x24;
 
-/// A two-panel session showing the first series in panel 0 and the last in
-/// panel 1. Home acts only on a panel not showing the first series, and End
-/// only on one not showing the last, so each key reaches the chrome only when
-/// the panel the batch holds active is the one it names.
+/// Open the first and last series in distinct panels to exercise key ownership.
 fn panels_showing_first_and_last_series(
     study: &std::path::Path,
 ) -> (NativeViewerSession, tempfile::TempDir) {
@@ -28,6 +25,28 @@ fn panels_showing_first_and_last_series(
     assert_eq!(viewer.primary_series_index, Some(0));
     assert_eq!(viewer.compare_panels[0].series_index, Some(3));
     (viewer, root)
+}
+
+#[test]
+fn repeated_series_endpoints_preserve_both_reading_positions() {
+    let study = four_series_study();
+    let (mut viewer, _root) = panels_showing_first_and_last_series(study.path());
+    let repeat = |virtual_key| WindowEvent::KeyDown {
+        virtual_key,
+        repeated: true,
+        modifiers: ModifierState::NONE,
+    };
+    let first = viewer.app.axis;
+    let last = viewer.compare_panels[0].app.axis;
+    viewer.app.set_slice_for_axis(first, 1);
+    viewer.compare_panels[0].app.set_slice_for_axis(last, 0);
+    viewer
+        .handle_events(&[key(HOME), repeat(HOME), key(TAB), key(END), repeat(END)])
+        .expect("route both endpoint presses and their repeats");
+    assert_eq!(viewer.app.axis_slice_info(first).0, 1);
+    assert_eq!(viewer.compare_panels[0].app.axis_slice_info(last).0, 0);
+    assert_eq!(viewer.primary_series_index, Some(0));
+    assert_eq!(viewer.compare_panels[0].series_index, Some(3));
 }
 
 #[test]

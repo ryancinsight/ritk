@@ -139,6 +139,21 @@ impl SeriesBrowser {
         self.choices.len()
     }
 
+    /// In a multi-series catalog, Home and End select a series even if it
+    /// is already displayed. With a single series the viewer owns these keys.
+    pub(super) fn keyboard_target(&self, key: u32, displayed: Option<usize>) -> Option<usize> {
+        use crate::app::action_adapter::{VIRTUAL_KEY_END, VIRTUAL_KEY_HOME};
+
+        let current = displayed.unwrap_or(self.active_index());
+        match key {
+            VIRTUAL_KEY_HOME if self.len() > 1 => Some(0),
+            VIRTUAL_KEY_END if self.len() > 1 => Some(self.len() - 1),
+            0x25 => current.checked_sub(1),
+            0x27 => current.checked_add(1).filter(|index| *index < self.len()),
+            _ => None,
+        }
+    }
+
     pub(crate) const fn study_count(&self) -> usize {
         self.study_count
     }

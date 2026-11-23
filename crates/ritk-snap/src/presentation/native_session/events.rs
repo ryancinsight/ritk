@@ -359,17 +359,14 @@ impl NativeViewerSession {
                 break;
             }
             let action = match (is_keyboard, action) {
-                (true, WindowAction::BrowseSeries { series_index, .. }) => {
-                    let panel_index = self.active_panel;
-                    Some(WindowAction::BrowseSeries {
-                        series_index: keyboard_key
-                            .and_then(|(virtual_key, modifiers)| {
-                                self.resolve_keyboard_series(virtual_key, modifiers, panel_index)
-                            })
-                            .unwrap_or(series_index),
-                        panel_index,
+                (true, WindowAction::BrowseSeries { .. }) => keyboard_key
+                    .and_then(|(key, modifiers)| {
+                        self.resolve_keyboard_series(key, modifiers, self.active_panel)
                     })
-                }
+                    .map(|series_index| WindowAction::BrowseSeries {
+                        series_index,
+                        panel_index: self.active_panel,
+                    }),
                 (false, action) => panel_routes.route_action(action),
                 (true, action) => Some(action),
             };

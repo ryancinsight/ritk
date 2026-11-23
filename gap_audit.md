@@ -22,6 +22,8 @@ The [release backlog](backlog.md#milestones) records the remaining milestone cri
 
 ## AsterSlice browser workspace
 
+At `6cc70fa41`, End on the already selected last series moved the public MRI from index 47 to 93. The shared workstation now resolves the series target from the catalog during event prediction and again against the active panel during dispatch. The Chromium CT/MR regression passed with software raster and WebGPU rendering. It checks that selecting an endpoint twice preserves both panel positions, switching endpoints changes only the active series, and single-series endpoints still reach images 0 and 93. The [manual comparison](docs/manual/features.md#reading-workstation-parity) and [tactical checklist](backlog/RITK-SNAP-RADIANT-UI-001.md) distinguish independent browsing from the planned physical synchronization.
+
 The previous browser page implemented an independent HTML toolbar, sidebar and pane
 layout. The standalone application now runs the Windows workstation compositor
 and event reducer. Chromium reads the 94-image public MRI, navigates slices,

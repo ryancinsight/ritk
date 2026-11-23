@@ -75,6 +75,11 @@ Choose **Window → Panel layout...** to arrange the panes. Click a pane to
 make it active. **Tab** and **Shift+Tab** move between panes; each pane's
 slice rail acts on that pane's series.
 
+With multiple series available, **Left/Right** select the previous or next
+series in the active pane. **Home/End** select the first or last series.
+If that series is already displayed, its current image stays in place.
+With just one series, **Home/End** take you to its first or last image.
+
 Use **Ctrl+M** to maximize or restore the active pane, **Ctrl+F4** to close
 it, or **Shift+F4** to close all panes. Choose **Window → Three-plane MPR**
 to return to the axial, coronal, and sagittal views.

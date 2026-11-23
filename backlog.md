@@ -6,7 +6,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="M-viewer-reading"></a>
 ## M-viewer-reading — 0.2.0 — read a single study on the native shell
 - exit: `cargo nextest run -p ritk-snap -E 'test(pointer_bindings) or test(modifier_gesture) or test(native_annotation) or test(native_display) or test(native_view_transform) or test(native_overlay_text) or test(measure_set)'`
-- [patch] One workstation serves Windows and the web. Chromium verifies real MR and CT comparison, measurements and the three MRI planes. See [the reading workspace checklist](backlog/RITK-SNAP-RADIANT-UI-001.md).
+- [patch] One workstation serves Windows and the web. Chromium verifies real MR and CT comparison, measurements and the three MRI planes. The [reading checklist](backlog/RITK-SNAP-RADIANT-UI-001.md) orders host verification and display-coordinate navigation against the [manual comparison](docs/manual/features.md#reading-workstation-parity).
 - needs: none
 - non-goals: PACS, archive, 3D rendering
 <a id="M-viewer-compare"></a>
@@ -113,7 +113,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-SNAP-FORMAT-VIEWER-001"></a>- [RITK-SNAP-FORMAT-VIEWER-001](backlog/RITK-SNAP-FORMAT-VIEWER-001.md) — Exercise encoded studies in the viewer — todo
 <a id="RITK-SNAP-CUSTOM-WINDOW-001"></a>- [RITK-SNAP-CUSTOM-WINDOW-001](backlog/RITK-SNAP-CUSTOM-WINDOW-001.md) — Retain precise custom window settings — todo
 <a id="RITK-SNAP-LARGE-STUDY-001"></a>- [RITK-SNAP-LARGE-STUDY-001](backlog/RITK-SNAP-LARGE-STUDY-001.md) — Measure native study resource bounds — todo
-<a id="RITK-SNAP-NATIVE-DISPLAY-001"></a>- [RITK-SNAP-NATIVE-DISPLAY-001](backlog/RITK-SNAP-NATIVE-DISPLAY-001.md) — Route display controls in the native shell — todo
+<a id="RITK-SNAP-NATIVE-DISPLAY-001"></a>- [RITK-SNAP-NATIVE-DISPLAY-001](backlog/RITK-SNAP-NATIVE-DISPLAY-001.md) — Route display controls in the native shell — done [minor]
 <a id="RITK-SNAP-NAVIGATION-UNITS-001"></a>- [RITK-SNAP-NAVIGATION-UNITS-001](backlog/RITK-SNAP-NAVIGATION-UNITS-001.md) — Keep navigation in display coordinates — todo
 <a id="RITK-SNAP-IMAGE-FIT-001"></a>- [RITK-SNAP-IMAGE-FIT-001](backlog/RITK-SNAP-IMAGE-FIT-001.md) — Share continuous sample-aspect fitting — todo
 <a id="RITK-SNAP-EFRAME-NAVIGATION-001"></a>- [RITK-SNAP-EFRAME-NAVIGATION-001](backlog/RITK-SNAP-EFRAME-NAVIGATION-001.md) — Paint pan and retain the press origin — todo
