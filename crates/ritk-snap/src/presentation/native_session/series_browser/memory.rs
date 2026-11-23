@@ -45,6 +45,23 @@ impl SeriesBrowser {
         load_volume_from_scanned_series(scan.clone())
     }
 
+    pub(in crate::presentation::native_session) fn export_files(
+        &self,
+        choice: &SeriesChoice,
+    ) -> Result<impl Iterator<Item = Result<(&std::path::Path, &[u8])>>> {
+        let scan = self
+            .sources
+            .get(choice.acquisition.series_instance_uid())
+            .ok_or_else(|| anyhow!("missing selected series"))?;
+        Ok(scan.metadata.slices.iter().map(|slice| {
+            let bytes = slice
+                .part10_bytes
+                .as_deref()
+                .ok_or_else(|| anyhow!("missing DICOM instance"))?;
+            Ok((slice.path.as_path(), bytes))
+        }))
+    }
+
     pub(super) fn preview_volume(&self, choice: &SeriesChoice) -> Result<crate::LoadedVolume> {
         let slice = self
             .sources

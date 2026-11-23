@@ -6,6 +6,7 @@ mod held_gestures;
 mod keyboard_sequence;
 mod layout;
 mod panel_ownership;
+mod plane_selection;
 mod position;
 mod queued_input;
 mod release_activation;

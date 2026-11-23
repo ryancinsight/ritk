@@ -8,12 +8,24 @@ use super::super::series_browser::SeriesBrowser;
 use super::layout::ChromeLayout;
 use super::multi_series::DialogAction;
 use super::slice_drag::SliceDrag;
-use super::{PanelCloseKind, PointerOwner, WindowAction, WindowChrome, WindowChromeEvent};
+use super::{Menu, PanelCloseKind, PointerOwner, WindowAction, WindowChrome, WindowChromeEvent};
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
 use anyhow::{anyhow, Result};
 
 impl WindowChrome {
+    fn toggle_menu(&mut self, menu: Menu) -> WindowChromeEvent {
+        self.open_menu = (self.open_menu != Some(menu)).then_some(menu);
+        WindowChromeEvent {
+            consumed: true,
+            repaint: true,
+            action: self
+                .open_menu
+                .filter(|m| matches!(m, Menu::View | Menu::Anonymize))
+                .map(WindowAction::OpenMenu),
+        }
+    }
+
     pub(in crate::presentation::native_session) fn handle_event(
         &mut self,
         event: &PresentationEvent,
@@ -214,8 +226,7 @@ impl WindowChrome {
                             return Ok(self.open_calibration(app, active_panel));
                         }
                         if let Some(WindowAction::OpenMenu(menu)) = action {
-                            self.open_menu = (self.open_menu != Some(menu)).then_some(menu);
-                            return Ok(WindowChromeEvent::consumed(true));
+                            return Ok(self.toggle_menu(menu));
                         }
                         if let Some(action) = action {
                             self.open_menu = None;
@@ -284,8 +295,7 @@ impl WindowChrome {
                     }
                     let action = layout.action_at(*x, *y, browser.as_ref());
                     if let Some(WindowAction::OpenMenu(menu)) = action {
-                        self.open_menu = (self.open_menu != Some(menu)).then_some(menu);
-                        return Ok(WindowChromeEvent::consumed(true));
+                        return Ok(self.toggle_menu(menu));
                     }
                     if let Some(action) = action {
                         self.open_menu = None;

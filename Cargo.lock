@@ -6538,7 +6538,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-io"
-version = "0.9.1"
+version = "0.10.0"
 dependencies = [
  "aequitas",
  "anyhow",
@@ -6895,6 +6895,7 @@ dependencies = [
  "web-sys",
  "wgpu",
  "windows 0.62.2",
+ "zip",
 ]
 
 [[package]]

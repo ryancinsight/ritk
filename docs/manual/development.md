@@ -512,6 +512,17 @@ copy**, and checks the selected acquisition and its voxels.
 cargo test --locked -p ritk-snap --lib retained_ct_windows_reopens -- --ignored
 ```
 
+To test the web export itself, serve the packaged workstation and start a
+loopback ChromeDriver. With the Métis `scripts` directory on `PYTHONPATH`
+and pydicom, NumPy and pylibjpeg-libjpeg installed, run these against the
+retained folder. The test inspects downloads in a temporary directory and
+removes them when it finishes.
+
+```sh
+python scripts/verify_web_ct_export.py /path/to/2_skull_ct --driver-url http://127.0.0.1:9515
+python scripts/verify_web_ct_planes.py /path/to/2_skull_ct --driver-url http://127.0.0.1:9515
+```
+
 ## Select a saved DICOM series from Python
 
 The Python binding uses the same RITK-owned scanner and native loader. Pass

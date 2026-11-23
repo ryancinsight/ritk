@@ -32,6 +32,8 @@ impl NativeViewerSession {
             .enumerate()
             .any(|(i, app)| {
                 i != self.active_panel
+                    && self.active_app().axis == 0
+                    && app.axis == 0
                     && source
                         .zip(app.patient_stack.as_ref())
                         .is_some_and(|(s, t)| s.can_anchor(t))
@@ -47,7 +49,7 @@ impl NativeViewerSession {
         {
             let index = app.axis_slice_info(0).0;
             if let Some(stack) = &mut app.patient_stack {
-                stack.anchor = (i < count).then_some(index);
+                stack.anchor = (i < count && app.axis == 0).then_some(index);
             }
         }
         self.position_sync = PositionSync::Manual;
@@ -60,6 +62,9 @@ impl NativeViewerSession {
         }
         let mode = self.position_sync;
         self.for_each_comparison(source, |_, source, target| {
+            if source.axis != 0 || target.axis != 0 {
+                return;
+            }
             let index = source.axis_slice_info(0).0;
             if let Some(next) = source
                 .patient_stack

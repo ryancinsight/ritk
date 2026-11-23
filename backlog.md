@@ -23,6 +23,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 - exit: `cargo nextest run -p ritk-snap -E 'test(=presentation::native_session::tests::anonymize::native_anonymize_basic_replaces_identifiers_and_instance_uids)'` (export a de-identified study copy)
 - exit: `cargo nextest run -p ritk-snap -E 'test(=presentation::native_session::tests::repair::native_repair_writes_a_corrected_copy_and_leaves_the_source)'` (write a repaired study copy)
 - [minor] Open a verified export from the Anonymize menu. The [qualification checklist](backlog/ritk-stable-qualification.md) covers folder opening in the browser, the downloaded MRI and stable initial selection on the five-series CT for both export profiles.
+- [minor] Web Basic and Strict ZIP export and immediate reopen pass the retained five-series CT check. Repeat download delivery on Safari with the shared phantom.
 - needs: M-viewer-compare
 - non-goals: cloud storage
 <a id="M-viewer-advanced"></a>

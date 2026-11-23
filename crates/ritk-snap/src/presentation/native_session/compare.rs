@@ -1,6 +1,6 @@
 //! Independent state for additional series in the native grid layout.
 
-use super::frame::{empty_axial_view, render_axial_view_into, RenderedView};
+use super::frame::{empty_axial_view, render_view_into, RenderedView};
 use super::layout::{PanelGrid, WorkspaceLayout};
 use super::session::NativeViewerSession;
 use crate::app::SnapApp;
@@ -37,7 +37,7 @@ impl ComparePanel {
         app.load_volume(volume, status);
         let mut view = empty_axial_view()?;
         let mut scratch = FrameRenderScratch::default();
-        render_axial_view_into(&app, &mut view, &mut scratch)?;
+        render_view_into(&app, app.axis, &mut view, &mut scratch)?;
         self.app = app;
         self.view = view;
         self.scratch = scratch;
@@ -47,7 +47,7 @@ impl ComparePanel {
 
     pub(super) fn refresh(&mut self) -> Result<()> {
         if self.app.loaded.is_some() {
-            render_axial_view_into(&self.app, &mut self.view, &mut self.scratch)?;
+            render_view_into(&self.app, self.app.axis, &mut self.view, &mut self.scratch)?;
         }
         Ok(())
     }
@@ -73,7 +73,7 @@ impl ComparePanel {
         std::mem::swap(&mut self.series_index, series_index);
     }
 
-    pub(super) const fn axial_view(&self) -> &RenderedView {
+    pub(super) const fn rendered_view(&self) -> &RenderedView {
         &self.view
     }
 }
@@ -152,6 +152,8 @@ impl NativeViewerSession {
         if self.position_sync == super::synchronization::PositionSync::Manual {
             self.position_sync = super::synchronization::PositionSync::Automatic;
         }
+        self.menu_pane = None;
+        self.mpr_axes = [0, 1, 2];
         self.compare_panels.clear();
         self.maximized_panel = None;
         self.workspace_layout = WorkspaceLayout::Orthogonal;

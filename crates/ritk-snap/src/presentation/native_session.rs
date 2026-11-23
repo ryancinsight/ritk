@@ -25,6 +25,7 @@ mod composition;
 mod deidentify;
 mod display_link;
 mod events;
+mod export_profile;
 mod frame;
 mod grid_cursor;
 mod layout;
@@ -41,6 +42,8 @@ mod series_loads;
 mod slice_scrollbar;
 #[cfg(windows)]
 mod startup;
+#[cfg(target_arch = "wasm32")]
+mod web_export;
 mod window_actions;
 mod window_controls;
 #[cfg(windows)]
@@ -52,6 +55,7 @@ use window_controls::{WindowAction, WindowChrome};
 
 mod observation;
 mod panels;
+mod planes;
 mod session;
 mod session_chrome;
 mod synchronization;

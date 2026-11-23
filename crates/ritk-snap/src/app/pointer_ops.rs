@@ -7,7 +7,7 @@ use super::state::SnapApp;
 use crate::render::NamedColorMap;
 use crate::tools::interaction::{Annotation, ImagePoint, PolygonKind, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+#[cfg(any(windows, target_arch = "wasm32", feature = "eframe-shell"))]
 use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
 use crate::ui::{image_point_to_voxel, intensity_at_voxel};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
@@ -436,14 +436,12 @@ impl SnapApp {
         Some(volume.pixel_at(z, y, x))
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    #[cfg(feature = "eframe-shell")]
+    #[cfg(any(windows, target_arch = "wasm32", feature = "eframe-shell"))]
     pub(crate) fn axis_for_plane(&self, plane: AnatomicalPlane) -> usize {
         axis_for_plane_in_volume(self.loaded.as_ref(), plane)
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    #[cfg(feature = "eframe-shell")]
+    #[cfg(any(windows, target_arch = "wasm32", feature = "eframe-shell"))]
     pub(crate) fn axis_label(&self, axis: usize) -> &'static str {
         anatomical_label_for_axis(self.loaded.as_ref(), axis)
     }

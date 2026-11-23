@@ -85,6 +85,10 @@ impl NativeViewerSession {
 
     pub(super) fn open_catalog(&mut self, mut browser: SeriesBrowser) -> Result<()> {
         let (volume, status) = browser.load_initial(None)?;
+        #[cfg(target_arch = "wasm32")]
+        {
+            self.web_export = None;
+        }
         self.app.load_volume(volume, status);
         self.primary_series_index = Some(browser.active_index());
         self.series_browser = Some(browser);

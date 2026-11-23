@@ -11,6 +11,8 @@
 - [x] [minor] Cross-reference lines. Verify patient-to-screen projection for intersecting planes, clipped endpoints and parallel planes. Draw only in inactive panes sharing the source frame.
 - [x] [minor] Project a held patient cursor into same-frame images, navigate to the nearest plane and restore reference lines on release. The raster and WebGPU checks sample the rendered crosshair. Safari holds the cursor through its native input driver.
 
+- [x] [minor] Change the anatomical plane through View. Compare distinct CT image pixels in a single pane, reverse an MPR swap and change both populated comparison panes independently. [Browser regression](../../scripts/verify_web_ct_planes.py).
+
 ## Verification
 
 The integrated implementation at `895f48fee` passed both new Windows interaction tests and all nine browser scenarios, including Intel and Apple-silicon Safari. The regression also starts the panes at different magnifications and checks their zoom ratio after relinking. The patient-geometry suite covers singleton images, rounded direction cosines, adjacent representable plane boundaries, out-of-field points and unrelated frames. At `db1880f4e`, switching from orthogonal views clears the persistent voxel crosshair. Resizing an existing comparison grid preserves the assigned patient cursor. [Windows results](https://github.com/ryancinsight/ritk/actions/runs/45214165566/job/137831240444) · [Browser matrix](https://github.com/ryancinsight/ritk/actions/runs/45214173132)

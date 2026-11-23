@@ -91,6 +91,23 @@ fn identifier(object: &DicomFile, tag: DicomTag) -> Option<String> {
     (!value.is_empty()).then(|| value.to_owned())
 }
 
+pub(super) fn source_identifiers(
+    object: &DicomFile,
+    options: &AnonymizeOptions,
+    prohibited: &mut BTreeSet<String>,
+) {
+    prohibited.extend(
+        [
+            (PATIENT_NAME, options.patient_name.as_str()),
+            (PATIENT_ID, options.patient_id.as_str()),
+        ]
+        .into_iter()
+        .filter_map(|(tag, replacement)| {
+            identifier(object, tag).filter(|value| value != replacement)
+        }),
+    );
+}
+
 fn failed(cause: StudyAnonymizeError, written: &[PathBuf]) -> StudyAnonymizeError {
     let paths = remove_written(written);
     if paths.is_empty() {
@@ -218,16 +235,7 @@ fn export(
                 continue;
             }
         };
-        prohibited.extend(
-            [
-                (PATIENT_NAME, options.patient_name.as_str()),
-                (PATIENT_ID, options.patient_id.as_str()),
-            ]
-            .into_iter()
-            .filter_map(|(tag, replacement)| {
-                identifier(&object, tag).filter(|value| value != replacement)
-            }),
-        );
+        source_identifiers(&object, options, &mut prohibited);
         // The target joins the removal list before the write so a truncated
         // file left by a failed write is removed with the rest.
         let target = numbered_instance_path(tree.destination(), written.len() + 1);

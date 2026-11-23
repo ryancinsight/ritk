@@ -1,9 +1,8 @@
 //! De-identified export of the open study from the native shell.
 
 use super::*;
-use crate::presentation::native_session::deidentify::{
-    failure_status, AnonymizationScope, Deidentification,
-};
+use crate::presentation::native_session::deidentify::failure_status;
+use crate::presentation::native_session::export_profile::{AnonymizationScope, Deidentification};
 use ritk_io::format::dicom::anonymize::verify::{
     verify_dicom_instances, VerifyIssue, VerifyOptions,
 };

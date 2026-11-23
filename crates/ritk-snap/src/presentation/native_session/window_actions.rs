@@ -16,7 +16,7 @@ impl NativeViewerSession {
         };
         let viewport = self.viewports.get(index)?;
         let view = if self.workspace_layout.is_grid() && index > 0 {
-            self.compare_panels.get(index - 1)?.axial_view()
+            self.compare_panels.get(index - 1)?.rendered_view()
         } else {
             self.views.iter().find(|v| v.axis == viewport.axis())?
         };
@@ -31,6 +31,7 @@ impl NativeViewerSession {
         &mut self,
         action: WindowAction,
     ) -> std::result::Result<bool, NativeViewerError> {
+        self.focus_menu_pane(action);
         let display_action = matches!(
             action,
             WindowAction::ZoomFit
@@ -86,6 +87,23 @@ impl NativeViewerSession {
                 if let Err(error) = self.open_study_path(&path) {
                     self.active_app_mut().status_message =
                         format!("Could not open the exported copy: {error:#}");
+                }
+                Ok(true)
+            }
+            #[cfg(target_arch = "wasm32")]
+            WindowAction::Anonymize(scope, level) => {
+                self.end_held_gestures();
+                if self.prepare_web_export(scope, level).is_err() {
+                    self.active_app_mut().status_message =
+                        "Could not export the selected DICOM data. No copy was prepared.".into();
+                }
+                Ok(true)
+            }
+            #[cfg(target_arch = "wasm32")]
+            WindowAction::OpenExportedCopy => {
+                if self.reopen_web_export().is_err() {
+                    self.active_app_mut().status_message =
+                        "Open a study and export a DICOM copy first.".into();
                 }
                 Ok(true)
             }
@@ -229,6 +247,7 @@ impl NativeViewerSession {
                 self.window_chrome.toggle_series_preview();
                 Ok(true)
             }
+            WindowAction::SetPlane(plane) => Ok(self.set_anatomical_plane(plane)),
             WindowAction::SetLayout(layout) => self
                 .set_workspace_layout(layout)
                 .map_err(NativeViewerError::from),

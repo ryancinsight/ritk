@@ -12,7 +12,7 @@ def select_ct_one_to_one(client):
     for y in [15, 30 + (first_control + 7) * row_height + row_height // 2]:
         client.perform_actions([{"type": "pointer", "id": "display-menu",
             "parameters": {"pointerType": "mouse"}, "actions": [
-                {"type": "pointerMove", "origin": "viewport", "x": 300, "y": y},
+                {"type": "pointerMove", "origin": "viewport", "x": 395, "y": y},
                 {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0}]}])
 
 

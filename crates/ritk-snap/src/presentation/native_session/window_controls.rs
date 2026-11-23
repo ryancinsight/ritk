@@ -9,8 +9,8 @@ mod series;
 mod slice_drag;
 use self::layout::{ChromeGeometry, ChromeLayout};
 use self::multi_series::MultiSeriesDialog;
-#[cfg(windows)]
-use super::deidentify::{AnonymizationScope, Deidentification};
+
+use super::export_profile::{AnonymizationScope, Deidentification};
 use super::layout::{ViewportArea, WorkspaceLayout};
 use super::pressed_buttons::PressedButtons;
 use super::series_browser::SeriesBrowser;
@@ -29,7 +29,7 @@ pub(super) enum Menu {
     Tools,
     Window,
     Display,
-    #[cfg(windows)]
+
     Anonymize,
     GridPicker,
 }
@@ -38,9 +38,9 @@ pub(super) enum Menu {
 pub(super) enum WindowAction {
     OpenMenu(Menu),
     OpenStudy,
-    #[cfg(windows)]
+
     Anonymize(AnonymizationScope, Deidentification),
-    #[cfg(windows)]
+
     OpenExportedCopy,
     #[cfg(windows)]
     RepairStudy,
@@ -86,6 +86,7 @@ pub(super) enum WindowAction {
     },
     ToggleSeriesPreview,
     SetLayout(WorkspaceLayout),
+    SetPlane(crate::ui::AnatomicalPlane),
     ToggleCrosshair,
     TogglePositionSync,
     ToggleNavigationLink,
@@ -143,7 +144,6 @@ pub(super) struct WindowChromeEvent {
 impl WindowAction {
     /// Defer catalog replacement until all input routed against the old frame has run.
     pub(super) fn opens_study(self) -> bool {
-        #[cfg(windows)]
         if self == Self::OpenExportedCopy {
             return true;
         }

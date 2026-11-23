@@ -12,6 +12,8 @@
 
 ### Added
 
+- [minor] Export a Basic or Strict DICOM study or series from the web viewer as a ZIP and reopen the verified copy. Choose the anatomical plane of a populated pane in the shared View menu.
+
 - [minor] Link screen pan and relative zoom across synchronized comparison panes. F6 toggles navigation linking. Shift+F6 independently links subsequent window and level changes.
 - [minor] Locate a patient point across comparison planes using Q or Ctrl+Shift with a held left press. Releasing the pointer restores cross-reference lines.
 - [minor] Open the most recent verified DICOM export directly from the Windows Anonymize menu.
@@ -23,6 +25,16 @@
 
 - [patch] Omit the matched identifier and filename from the Windows status message when export verification detects residual identifying metadata.
 - [patch] Respect the receiving comparison pane’s 1:1 scale during linked zoom, including rotated images with unequal row and column spacing.
+
+## RITK I/O 0.10.0 (unreleased)
+
+### Added
+
+- [minor] Verify and anonymize in-memory Part 10 selections with the same metadata and cross-instance checks as directory exports. Fresh per-export UID salts are available on WebAssembly.
+
+### Fixed
+
+- [patch] Clear application-specific Part 10 preambles during anonymization on both hosts.
 
 ## RITK I/O 0.9.1 and RITK Python 0.13.1
 

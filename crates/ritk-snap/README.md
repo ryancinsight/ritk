@@ -227,7 +227,7 @@ every exported file and scans it for each source patient name and ID that
 differs from its replacement; if that check or any earlier step fails, RITK removes the files it wrote and the status line shows the error.
 Folders it created may remain, and a file it could not remove stays and is
 counted in that error. After a successful export, choose **Anonymize → Open
-exported copy** to inspect the result on Windows. The [reader manual](../../docs/manual/dicom-workflow.md#export-and-verify-a-strict-dicom-copy)
+exported copy** to inspect the result on either host. The [reader manual](../../docs/manual/dicom-workflow.md#export-and-verify-a-strict-dicom-copy)
 shows the same Strict MRI copy reopened in the web viewer.
 
 ### Repaired copy
@@ -252,8 +252,10 @@ input controls in WebAssembly. **Open Study…** opens a local DICOM folder and 
 The native series rail shows real previews. Use **Open multiple series** to
 compare acquisitions, **Split screen** to select a layout, and **Display** to
 change presentation. Wheel navigation, measurements, keyboard shortcuts and
-cine use the same event handling as Windows. Study repair and de-identification
-exports require the Windows filesystem picker.
+cine use the same event handling as Windows. **Anonymize** downloads a verified Basic or Strict ZIP in the browser.
+Use **Open exported copy** to inspect it immediately or extract it and open its
+folder later. Use **View → Axial / Coronal / Sagittal** to change the selected
+image pane. Study repair uses the Windows filesystem picker.
 
 The directory index and historical `gallery.html` address open one workstation.
 Canvas2D is the default. Use `?renderer=webgpu` for WebGPU,

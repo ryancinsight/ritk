@@ -26,11 +26,12 @@
 //!   the object it would have described is never returned as a success.
 
 mod action;
+mod buffers;
+pub use buffers::anonymize_dicom_buffers;
 mod directory;
 pub(in crate::format::dicom) mod file_meta;
 mod pixel;
 mod profile;
-#[cfg(not(target_arch = "wasm32"))]
 mod salt;
 mod study;
 #[cfg(test)]
@@ -59,7 +60,6 @@ pub use directory::{
 };
 pub use pixel::PixelCleaningError;
 pub use profile::{AnonymizationProfile, TagAction};
-#[cfg(not(target_arch = "wasm32"))]
 pub use salt::SaltError;
 pub use study::{
     anonymize_dicom_selection, anonymize_dicom_study, StudyAnonymizeError, StudyAnonymizeReport,
@@ -362,7 +362,10 @@ pub fn anonymize_object(
     file_meta::align_media_storage_uid(&mut obj);
     file_meta::remove_origin(&mut obj);
     result.uid_map = uid_map;
-    Ok((obj, result))
+    // An application-specific Part 10 preamble can itself contain patient data.
+    // Rebuild the envelope with a neutral preamble, moving the sanitized dataset.
+    let dataset = std::mem::take(&mut *obj);
+    Ok((DicomFile::new(obj.meta().clone(), dataset), result))
 }
 
 /// Read a DICOM file from `input_path`, anonymize it, and write to `output_path`.

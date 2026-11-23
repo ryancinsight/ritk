@@ -33,17 +33,21 @@ pub(super) fn render_orthogonal_views(
     scratch: &mut [FrameRenderScratch; 3],
 ) -> Result<[RenderedView; 3]> {
     let mut views = empty_orthogonal_views()?;
-    render_orthogonal_views_into(app, &mut views, scratch)?;
+    render_orthogonal_views_into(app, [0, 1, 2], &mut views, scratch)?;
     Ok(views)
 }
 
 /// Re-render orthogonal views into retained frames and scratch storage.
 pub(super) fn render_orthogonal_views_into(
     app: &SnapApp,
+    axes: [usize; 3],
     views: &mut [RenderedView; 3],
     scratch: &mut [FrameRenderScratch; 3],
 ) -> Result<()> {
-    for (axis, (view, scratch)) in views.iter_mut().zip(scratch.iter_mut()).enumerate() {
+    for (axis, (view, scratch)) in axes
+        .into_iter()
+        .zip(views.iter_mut().zip(scratch.iter_mut()))
+    {
         render_view_into(app, axis, view, scratch)?;
     }
     Ok(())
@@ -84,7 +88,7 @@ fn empty_view(frame: PresentationFrame, axis: usize, plane_name: &'static str) -
     }
 }
 
-fn render_view_into(
+pub(super) fn render_view_into(
     app: &SnapApp,
     axis: usize,
     view: &mut RenderedView,
@@ -141,15 +145,6 @@ fn render_view_into(
     view.source_size = source_size;
     view.transform = transform;
     Ok(())
-}
-
-/// Render the axial image for one independently navigated comparison volume.
-pub(super) fn render_axial_view_into(
-    app: &SnapApp,
-    view: &mut RenderedView,
-    scratch: &mut FrameRenderScratch,
-) -> Result<()> {
-    render_view_into(app, 0, view, scratch)
 }
 
 pub(super) fn window_level_for_app(app: &SnapApp) -> WindowLevel {

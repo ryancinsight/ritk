@@ -51,7 +51,7 @@ impl NativeViewerSession {
                 if !(chord || bound) {
                     return Ok(false);
                 }
-                if app.cine.enabled || app.patient_stack.is_none() {
+                if app.axis != 0 || app.cine.enabled || app.patient_stack.is_none() {
                     return Ok(true);
                 }
                 if self.grid_cursor.owner.is_some() {
@@ -113,7 +113,7 @@ impl NativeViewerSession {
                 .take(count)
                 .enumerate()
             {
-                if i != panel && !target.cine.enabled {
+                if i != panel && target.axis == 0 && !target.cine.enabled {
                     marks[i] = target
                         .patient_stack
                         .as_ref()

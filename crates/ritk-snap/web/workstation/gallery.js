@@ -102,6 +102,17 @@ async function start() {
     if (!e.isTrusted) return;
     try {
       callback(e);
+      const download = viewer.take_export_download();
+      if (download) {
+        const [filename, bytes] = download;
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(new Blob([bytes], {type: "application/zip"}));
+        link.download = filename;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
+      }
       if (viewer.take_open_request()) {
         // Shift-click retains the explicit multi-file picker, including single NIfTI volumes.
         const picker = !e.shiftKey && "webkitdirectory" in folder ? folder : input;

@@ -83,6 +83,7 @@ impl NativeViewerSession {
             let volume = crate::dicom::loader::load_volume_from_bytes(name, bytes)?;
             self.reset_comparison();
             self.app.load_volume(volume, "Loaded NIfTI volume.".into());
+            self.web_export = None;
             self.series_browser = None;
             self.primary_series_index = None;
             return Ok(());
@@ -132,6 +133,16 @@ impl AsterSliceWorkspace {
     /// Consume an operating-system file picker request during the trusted event.
     pub fn take_open_request(&mut self) -> bool {
         std::mem::take(&mut self.session.open_requested)
+    }
+
+    /// Consume the ZIP prepared by a successful menu action exactly once.
+    pub fn take_export_download(&mut self) -> Option<js_sys::Array> {
+        let export = self.session.web_export.as_mut()?;
+        let zip = export.download.take()?;
+        let result = js_sys::Array::new();
+        result.push(&export.filename.into());
+        result.push(&js_sys::Uint8Array::from(zip.as_slice()));
+        Some(result)
     }
 
     /// Supply the full client rectangle in CSS pixels.
@@ -285,11 +296,15 @@ impl AsterSliceWorkspace {
             "zoom":app.zoom(),"cine":app.cine_enabled(),"annotations":app.annotation_count(),"panes":panes,
             "measurement":app.last_annotation().map(|a|a.primary_value()),
             "series":s.series_browser.as_ref().map_or(0,SeriesBrowser::len),"activeSeries":s.primary_series_index,
-            "positionSync": s.position_sync != super::synchronization::PositionSync::Off, "projection":s.projection.is_some(), "orientationIdentity":app.view_transform().is_identity(),
+            "exportAvailable":s.web_export.is_some(), "positionSync": s.position_sync != super::synchronization::PositionSync::Off, "projection":s.projection.is_some(), "orientationIdentity":app.view_transform().is_identity(),
             "window":[app.window_level().center, app.window_level().width], "crosshair":app.crosshair_visible(),
             "images":s.viewports.iter().map(|v|[v.image.x,v.image.y,v.image.width,v.image.height]).collect::<Vec<_>>(),
+            "planes":s.viewports.iter().enumerate().filter(|(_,v)|v.panel_width>0).map(|(i,v)|{
+                let app = if s.workspace_layout.is_grid() && i>0 { &s.compare_panels[i-1].app } else { &s.app };
+                app.loaded.as_ref().map(|_| app.axis_label(v.axis()))
+            }).collect::<Vec<_>>(),
             "panels":std::iter::once(&s.app).chain(s.compare_panels.iter().map(|p| &p.app))
-                .map(|a| a.axis_slice_info(0)).collect::<Vec<_>>(),
+                .map(|a| a.axis_slice_info(if s.workspace_layout.is_grid() {a.axis} else {0})).collect::<Vec<_>>(),
             "panel":s.active_panel,"width":s.framebuffer.width(),"height":s.framebuffer.height()}).to_string()
     }
 }

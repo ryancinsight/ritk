@@ -46,6 +46,9 @@ impl NativeViewerSession {
             Default::default()
         };
         self.for_each_comparison(source, |index, source, target| {
+            if source.axis != 0 || target.axis != 0 {
+                return;
+            }
             let Some((s, t)) = source
                 .patient_stack
                 .as_ref()

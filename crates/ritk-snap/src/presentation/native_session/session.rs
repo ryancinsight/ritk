@@ -74,6 +74,9 @@ pub(super) fn clinical_overlay(app: &SnapApp, anonymize: bool) -> Option<Clinica
 
 pub(super) struct NativeViewerSession {
     pub(super) app: SnapApp,
+    /// Last pane chosen deliberately, before the pointer crosses other panes on its way to a menu.
+    pub(super) menu_pane: Option<usize>,
+    pub(super) mpr_axes: [usize; 3],
     pub(super) views: [RenderedView; 3],
     pub(super) render_scratch: [FrameRenderScratch; 3],
     pub(super) projection: Option<RenderedProjection>,
@@ -100,6 +103,8 @@ pub(super) struct NativeViewerSession {
     /// Open the chooser before the current trusted input event returns.
     #[cfg(target_arch = "wasm32")]
     pub(super) open_requested: bool,
+    #[cfg(target_arch = "wasm32")]
+    pub(super) web_export: Option<super::web_export::WebExport>,
     /// Source of filesystem study exports.
     #[cfg(windows)]
     pub(super) study_root: Option<PathBuf>,
@@ -186,6 +191,8 @@ impl NativeViewerSession {
         let primary_series_index = series_browser.as_ref().map(SeriesBrowser::active_index);
         let mut session = Self {
             app,
+            menu_pane: None,
+            mpr_axes: [0, 1, 2],
             views,
             render_scratch,
             projection,
@@ -211,6 +218,8 @@ impl NativeViewerSession {
             series_browser,
             #[cfg(target_arch = "wasm32")]
             open_requested: false,
+            #[cfg(target_arch = "wasm32")]
+            web_export: None,
             #[cfg(windows)]
             study_root: None,
             #[cfg(windows)]
@@ -303,7 +312,17 @@ impl NativeViewerSession {
         #[cfg(windows)]
         self.pump_series_loads();
         if self.app.loaded.is_some() {
-            render_orthogonal_views_into(&self.app, &mut self.views, &mut self.render_scratch)?;
+            let axes = if self.workspace_layout.is_grid() {
+                [0, 1, 2]
+            } else {
+                self.mpr_axes
+            };
+            render_orthogonal_views_into(
+                &self.app,
+                axes,
+                &mut self.views,
+                &mut self.render_scratch,
+            )?;
             match self.presentation_mode.projection_kind() {
                 None => self.projection = None,
                 Some(kind) => {
@@ -352,7 +371,7 @@ impl NativeViewerSession {
             for index in 0..grid.panel_count() {
                 let (view, navigation) = if index == 0 {
                     (
-                        self.app.loaded.as_ref().map(|_| &self.views[0]),
+                        self.app.loaded.as_ref().map(|_| &self.views[self.app.axis]),
                         (self.app.zoom, viewport_offset(&self.app)),
                     )
                 } else {
@@ -361,7 +380,7 @@ impl NativeViewerSession {
                         .get(index - 1)
                         .ok_or_else(|| anyhow!("native series-grid panel state is missing"))?;
                     (
-                        panel.app.loaded.as_ref().map(|_| panel.axial_view()),
+                        panel.app.loaded.as_ref().map(|_| panel.rendered_view()),
                         (panel.app.zoom, viewport_offset(&panel.app)),
                     )
                 };

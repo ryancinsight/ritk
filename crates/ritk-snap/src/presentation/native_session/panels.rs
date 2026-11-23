@@ -348,10 +348,11 @@ impl NativeViewerSession {
             .get_mut(panel_index.saturating_sub(1))
             .filter(|_| panel_index > 0)
             .ok_or_else(|| anyhow!("series panel state is missing"))?;
+        let axis = self.app.axis;
         panel.swap_primary(
             &mut self.app,
-            &mut self.views[0],
-            &mut self.render_scratch[0],
+            &mut self.views[axis],
+            &mut self.render_scratch[axis],
             &mut self.primary_series_index,
         );
         Ok(())

@@ -11,43 +11,11 @@ use crate::dicom::input_path::classify_dicom_input_path;
 use anyhow::{anyhow, Context, Result};
 use metis_platform::native::{pick, DialogSelection};
 use ritk_io::format::dicom::anonymize::{
-    anonymize_dicom_selection, verify::VerifyIssue, AnonymizationProfile, AnonymizeOptions,
-    StudyAnonymizeError,
+    anonymize_dicom_selection, verify::VerifyIssue, AnonymizeOptions, StudyAnonymizeError,
 };
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum AnonymizationScope {
-    Study,
-    Series,
-}
-
-/// Which RITK anonymization profile a de-identified export applies.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::presentation::native_session) enum Deidentification {
-    /// [`AnonymizationProfile::BasicReplaceUids`]: study, series, acquisition
-    /// and content dates and times and the study and series descriptions stay.
-    Basic,
-    /// [`AnonymizationProfile::Enhanced`]: those dates and times are emptied
-    /// and the study and series descriptions are removed.
-    Strict,
-}
-
-impl Deidentification {
-    const fn profile(self) -> AnonymizationProfile {
-        match self {
-            Self::Basic => AnonymizationProfile::BasicReplaceUids,
-            Self::Strict => AnonymizationProfile::Enhanced,
-        }
-    }
-
-    const fn label(self) -> &'static str {
-        match self {
-            Self::Basic => "Basic",
-            Self::Strict => "Strict",
-        }
-    }
-}
+use super::export_profile::{AnonymizationScope, Deidentification};
 
 /// Access every verification issue even when cleanup adds a second error.
 fn verification_issues(error: &StudyAnonymizeError) -> &[(PathBuf, VerifyIssue)] {

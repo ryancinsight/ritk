@@ -10,6 +10,9 @@ impl NativeViewerSession {
             return Ok(());
         }
         let source = self.active_app();
+        if source.axis != 0 {
+            return Ok(());
+        }
         let Some(stack) = &source.patient_stack else {
             return Ok(());
         };
@@ -23,8 +26,11 @@ impl NativeViewerSession {
                 (&self.app, &self.views[0])
             } else {
                 let panel = &self.compare_panels[i - 1];
-                (&panel.app, panel.axial_view())
+                (&panel.app, panel.rendered_view())
             };
+            if app.axis != 0 {
+                continue;
+            }
             let Some(trace) = app
                 .patient_stack
                 .as_ref()

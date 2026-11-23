@@ -1,6 +1,6 @@
 # AsterSlice user manual
 
-Use AsterSlice to browse a study and measure or mark an image on Windows.
+Use AsterSlice to browse a study and measure or mark an image on Windows or in your browser.
 The executable is `asterslice`; its Cargo package is `ritk-snap`. The
 [feature comparison](features.md) covers the supplied RadiAnt 2021.2 manual,
 the current Windows controls, the tests, and the work needed for parity.
@@ -48,6 +48,16 @@ describes startup selection and capture options.
 - [Windows tool shortcuts](#windows-tool-shortcuts)
 
 ## Adjust the image display
+
+Click an image pane, then open **View** and choose **Axial**, **Coronal** or
+**Sagittal**. Scroll to move through slices in that plane. For a single large
+image choose **Split screen → 1 × 1**. In a comparison grid each populated
+pane keeps its own plane. In **Three-plane MPR**, choosing a plane exchanges
+its position with the selected pane so all three views remain visible.
+Plane names follow the volume’s orientation. Oblique acquisitions keep their
+native tilt. Patient-position linking, reference lines and the held 3D cursor
+in a comparison grid use acquired slice geometry and apply to panes displaying
+their acquisition plane.
 
 Use **W/L**, **Pan**, or **Zoom** on the toolbar to choose the left-button
 gesture. Drag within the image to apply it. On Windows, the active drag stays
@@ -124,27 +134,27 @@ toggles the overlay independently of slice synchronization.
 
 ## Export and verify a Strict DICOM copy
 
-1. In the Windows viewer, open the [public MRI phantom](../../test_data/README.md)
-   above for practice. Click the image panel or series card you want to export.
-2. Choose **Anonymize → Active series (Strict)...** for that series, or
-   **Active study (Strict)...** for all listed series in the same study. Pick
-   an empty destination folder outside the source folder. The original files
-   stay in place.
-3. Check the destination and exported instance count in the status bar. The
-   complete phantom series has 94 DICOM instances. If export reports an error,
-   do not treat the destination as a verified copy.
-4. Choose **Anonymize → Open exported copy**. The Windows viewer opens the
-   verified destination. Opening another study or starting a new export clears
-   that shortcut. You can open an earlier destination with **File → Open Study...**.
-5. In the web viewer, choose **File → Open Study...** and choose the exported
-   folder containing the 94 numbered DICOM files. Look for **ANONYMOUS**,
-   **ANON001** and **Date N/A** in the Strict copy. Compare the slice count and
-   scroll the axial, coronal and sagittal views to review the images.
+1. Click **Open Study** and choose **2_skull_ct**. The series list should
+   contain five acquisitions, with the 34-slice CT open. Click its image pane.
+2. Choose **Anonymize → Active study (Basic)...** or **Active study (Strict)...**.
+   Both include all five series. Choose **Active series** to export only the
+   acquisition in the selected pane. The table below lists what each profile keeps.
+3. In the browser, save **AsterSlice-Basic.zip** or **AsterSlice-Strict.zip**.
+   The ZIP contains 303 numbered DICOM files for the complete CT. In Windows,
+   choose an empty destination folder outside the source. Both viewers keep
+   the source files in place.
+4. Choose **Anonymize → Open exported copy** to inspect the copy immediately.
+   The browser opens the verified DICOM bytes from the download. Windows
+   reads the destination folder. The series list should show **ANONYMOUS** and
+   **ANON001**. A Strict export also clears the study date.
+5. To return to the saved browser copy later, extract the ZIP and choose its
+   folder with **Open Study**. To compare profiles, reopen the original
+   **2_skull_ct** folder before exporting the other profile.
 
 When you open a whole study, AsterSlice tries acquisitions in **DICOM Series
 Number** order, lowest first. A series with an empty or invalid number follows
 the numbered series. Ties use modality, then the larger number of instances,
-then the first filename in source path order. Windows numbers the exported
+then the first filename in source path order. Both viewers number the exported
 files in that same path order. Both viewers skip acquisitions they cannot
 display as a volume. On Windows, opening a specific instance or requesting a
 Series Instance UID at startup selects that acquisition explicitly.

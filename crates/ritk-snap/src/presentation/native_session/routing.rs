@@ -320,6 +320,20 @@ impl NativeViewerSession {
             {
                 self.active_panel = panel_index;
             }
+            for event in &events[start..end] {
+                match event {
+                    PresentationEvent::PointerDown { .. }
+                    | PresentationEvent::PointerWheel { .. } => {
+                        self.menu_pane = if grid.is_some() {
+                            Some(panel_index)
+                        } else {
+                            view_index
+                        };
+                    }
+                    PresentationEvent::KeyDown { .. } => self.menu_pane = None,
+                    _ => {}
+                }
+            }
             let viewport = if self.minimized {
                 None
             } else {
