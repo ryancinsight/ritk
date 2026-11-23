@@ -10,10 +10,10 @@ from pydicom import dcmread
 from pydicom.errors import InvalidDicomError
 
 from verify_anonymized_mri import wait
+from verify_study_folder import choose
 
 
-def ct_instances(folder):
-    members = []
+def verify_inventory(folder):
     counts = Counter()
     for path in sorted(folder.iterdir()):
         if path.is_file():
@@ -22,11 +22,9 @@ def ct_instances(folder):
             except InvalidDicomError:
                 continue
             if ds.get("Modality") == "CT":
-                members.append(path.resolve())
                 counts[int(ds.SeriesNumber)] += 1
     if counts != {1: 2, 2: 34, 3: 67, 601: 111, 602: 89}:
         raise ValueError("expected the complete five-series CT")
-    return members
 
 
 def verify(bundle, driver, folders):
@@ -40,10 +38,10 @@ def verify(bundle, driver, folders):
             url = origin + probe.relative_to(bundle).as_posix()
             reference = None
             for label, folder in zip(("Source", "Basic", "Strict"), folders, strict=True):
-                files = ct_instances(folder)
+                verify_inventory(folder)
                 client.navigate(origin)
                 wait(client, "!!window.asterSlice && !window.asterSlice.state().loaded")
-                client.send_file_paths(client.find("#file-input"), files)
+                choose(client, folder)
                 wait(client, "window.asterSlice.state().loaded && window.asterSlice.state().series === 5")
                 shape = client.execute("return window.asterSlice.state().counts")
                 if shape != [34, 512, 512]:

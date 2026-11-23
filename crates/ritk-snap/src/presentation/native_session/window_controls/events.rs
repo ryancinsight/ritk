@@ -170,8 +170,14 @@ impl WindowChrome {
                 x,
                 y,
                 button,
-                modifiers: PresentationModifiers::NONE,
-            } => {
+                modifiers,
+            } if *modifiers == PresentationModifiers::NONE
+                || (cfg!(target_arch = "wasm32")
+                    && *button == PointerButton::Left
+                    && *modifiers == PresentationModifiers::new(false, true, false, false)
+                    && layout.action_at(*x, *y, browser.as_ref())
+                        == Some(WindowAction::OpenStudy)) =>
+            {
                 self.forget_lost_release(*button);
                 if self.pointer_owner == PointerOwner::None && *button == PointerButton::Left {
                     let panel_action = (self.open_menu.is_none()
