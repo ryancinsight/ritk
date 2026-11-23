@@ -34,6 +34,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 
 # Items
 
+<a id="RITK-DICOM-LJIF-001"></a>- [RITK-DICOM-LJIF-001](gap_audit.md#ritk-dicom-ljif-001) — Verify skull CT JPEG Lossless import [patch] — release qualification
 <a id="ritk-stable-qualification"></a>- [RITK-STABLE-QUALIFICATION](backlog/ritk-stable-qualification.md) — ritk stable-release qualification [patch] — todo
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — blocked
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo

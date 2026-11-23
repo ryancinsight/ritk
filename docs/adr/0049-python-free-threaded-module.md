@@ -93,5 +93,11 @@ PR [#574](https://github.com/ryancinsight/ritk/pull/574), merged as
 `35664515797` and Python CI run `35664515333`. The CPython 3.15t contract
 installed the abi3t wheel, verified the interpreter remained free-threaded,
 and passed the concurrent `Image` value-semantic test. The rust-numpy Git
-revision and NumPy 2.5 floor remain quarantined until a crates.io release
-contains the same abi3t bridge and extraction fixes.
+revision and NumPy 2.5 floor remained in place pending a registry release.
+
+### Revision 2026-11-22 (registry NumPy bridge)
+
+The wheel resolves `numpy` 0.30.0 and `pyo3` 0.30.1 from crates.io. NumPy
+0.30.0 includes free-threaded stable ABI support and the array extraction
+fixes. The NumPy 2.5 floor still governs CPython 3.15, and the hosted
+free-threaded contract still gates the wheel.
