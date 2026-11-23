@@ -19,14 +19,11 @@ def file_digest(path: pathlib.Path) -> dict[str, Any]:
 def bundle_manifest(bundle: pathlib.Path) -> dict[str, dict[str, Any]]:
     names = (
         "index.html",
-        "workspace.js",
+        "embed.html",
+        "embed.js",
         "gallery.html",
         "gallery.css",
         "gallery.js",
-        "styles.css",
-        "bootstrap.js",
-        "metis_web.js",
-        "metis_web_bg.wasm",
     )
     paths = [bundle / name for name in names if (bundle / name).is_file()]
     consumer = bundle / "consumer"
@@ -44,20 +41,23 @@ def bundle_manifest(bundle: pathlib.Path) -> dict[str, dict[str, Any]]:
 
 def copy_bundle(source: pathlib.Path, destination: pathlib.Path) -> None:
     destination.mkdir()
-    for name in (
-        "index.html",
-        "workspace.js",
-        "gallery.html",
-        "gallery.css",
-        "gallery.js",
-        "styles.css",
-        "bootstrap.js",
-        "metis_web.js",
-        "metis_web_bg.wasm",
-    ):
-        shutil.copy2(source / name, destination / name)
     shutil.copytree(source / "assets", destination / "assets")
     shutil.copytree(source / "consumer", destination / "consumer")
+    # Inherit the shipped content policy when exercising the embeddable API in isolation.
+    head = (source / "index.html").read_text(encoding="utf-8").split("</head>")[0]
+    axes = ("axial", "coronal", "sagittal")
+    canvases = "".join(f'<figure><canvas id="ritk-snap-{axis}"></canvas></figure>' for axis in axes)
+    (destination / "embed.html").write_text(head + '</head><body><main id="metis-app" hidden></main>'
+        + '<output id="ready"></output><section class="gallery-views">' + canvases
+        + '</section><script type="module" src="embed.js"></script></body></html>', encoding="utf-8")
+    (destination / "gallery.css").write_text(
+        'body,figure{margin:0}.gallery-views{display:flex}.gallery-views canvas{width:1024px!important;height:1024px!important}',
+        encoding="utf-8")
+    (destination / "embed.js").write_text(
+        'import init,{start_web_orthogonal_canvases} from "./consumer/ritk_snap.js";'
+        'await init();start_web_orthogonal_canvases("ritk-snap-axial","ritk-snap-coronal","ritk-snap-sagittal");'
+        'document.querySelector("#ready").textContent="Ready.";', encoding="utf-8")
+
 
 
 def repository_state(path: pathlib.Path) -> dict[str, Any]:

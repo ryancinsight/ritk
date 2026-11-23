@@ -31,6 +31,7 @@ impl NativeViewerSession {
                     Ok(true)
                 }
             },
+            #[cfg(windows)]
             WindowAction::Anonymize(scope, level) => match self.anonymize_from_dialog(scope, level)
             {
                 Ok(changed) => Ok(changed),
@@ -40,6 +41,7 @@ impl NativeViewerSession {
                     Ok(true)
                 }
             },
+            #[cfg(windows)]
             WindowAction::RepairStudy => match self.repair_study_from_dialog() {
                 Ok(changed) => Ok(changed),
                 Err(error) => {
@@ -147,7 +149,10 @@ impl NativeViewerSession {
                     self.end_held_gestures();
                     Ok(true)
                 } else {
-                    Ok(self.cancel_series_loads())
+                    #[cfg(windows)]
+                    return Ok(self.cancel_series_loads());
+                    #[cfg(target_arch = "wasm32")]
+                    return Ok(false); // Browser series decode completes in the input turn.
                 }
             }
             WindowAction::ActivateNextPanel => {

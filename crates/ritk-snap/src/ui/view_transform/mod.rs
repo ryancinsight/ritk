@@ -31,7 +31,7 @@ mod transform;
 pub(crate) use image_ops::apply_to_image_into;
 #[cfg(all(test, feature = "eframe-shell"))]
 pub(crate) use image_ops::apply_to_rgba;
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_arch = "wasm32", test))]
 pub(crate) use image_ops::apply_to_rgba_into;
 #[cfg(feature = "eframe-shell")]
 pub use image_ops::{apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image};

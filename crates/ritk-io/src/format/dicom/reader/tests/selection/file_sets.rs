@@ -201,6 +201,22 @@ fn mixed_byte_batches_reject_both_ties_and_majorities() {
             ("other", other.as_slice()),
         ],
     ] {
+        let catalog = crate::scan_dicom_part10_catalog(&files).expect("discover both series");
+        assert_eq!(catalog.len(), 2);
+        for (uid, expected) in [(SERIES, files.len() - 1), (OTHER, 1)] {
+            let scan = catalog
+                .iter()
+                .find(|s| s.metadata.series_instance_uid.as_deref() == Some(uid))
+                .expect("group by UID");
+            assert_eq!(scan.metadata.slices.len(), expected);
+            for slice in &scan.metadata.slices {
+                let (_, bytes) = files
+                    .iter()
+                    .find(|(name, _)| slice.path == std::path::Path::new(name))
+                    .expect("selected instance name");
+                assert_eq!(slice.part10_bytes.as_deref(), Some(*bytes));
+            }
+        }
         let error = scan_dicom_part10_bytes(&files).expect_err("explicit identity required");
         assert!(error.to_string().contains("ambiguous"));
     }

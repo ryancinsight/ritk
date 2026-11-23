@@ -245,20 +245,19 @@ how many values were rewritten.
 
 ## Browser host
 
-The WASM entrypoint composes the generic Métis HTML5/CSS host with the RITK
-canvas workflow. The page must provide both a `#metis-app` element for the
-Métis host and the canvas element whose ID is passed to `start_web`. Métis owns
-the browser `File` handles and transfers one bounded named-byte batch; RITK
-then classifies, scans and decodes those bytes through its DICOM loader.
-The browser opens the AsterSlice reading workspace. **Open Study…** accepts
-the files of one DICOM study. The toolbar selects interaction tools, the series
-bar previews the loaded axial frame, and **Display** contains window presets
-and cine rate. **Split screen** and each pane's maximize button switch between
-the three orthogonal views and a focused view. The sidebar collapses on narrow
-screens and can be reopened with **Series bar**.
+The standalone AsterSlice application runs the Windows workstation renderer and
+input controls in WebAssembly. **Open Study…** accepts local DICOM files.
+The native series rail shows real previews. Use **Open multiple series** to
+compare acquisitions, **Split screen** to select a layout, and **Display** to
+change presentation. Wheel navigation, measurements, keyboard shortcuts and
+cine use the same event handling as Windows. Study repair and de-identification
+exports require the Windows filesystem picker.
 
-The directory index and existing `gallery.html` links serve the same page.
-Projection, responsive layout and WebGPU query parameters are preserved.
+The directory index and historical `gallery.html` address open one workstation.
+Canvas2D is the default. Use `?renderer=webgpu` for WebGPU,
+`?layout=responsive` for adaptive panes, or `?projection=mip|minip|average|vr`
+with one projection name.
+
 After generating the WASM module as described below, package and serve the
 application from the RITK checkout using the Métis revision in `Cargo.lock`:
 
@@ -269,6 +268,8 @@ python3 -m http.server --bind 127.0.0.1 --directory target/asterslice-web 8000
 
 Open [the local viewer](http://127.0.0.1:8000/). The browser CI build also
 produces the same standalone directory in the `asterslice-web` artifact.
+
+### Embedding individual image views
 
 ```javascript
 import init, { start_web } from "./ritk_snap.js";
@@ -323,12 +324,11 @@ start_web_orthogonal_canvases(
 // Call stop_web_canvas() when the page or route is torn down.
 ```
 
-The gallery can opt into the asynchronous WebGPU surface with
+An embedded viewer can opt into the asynchronous WebGPU surface with
 `start_web_orthogonal_canvases_gpu` (or the single-canvas
 `start_web_canvas_gpu`). These entrypoints wait for adapter/device setup and
 surface a typed JavaScript error when WebGPU is unavailable; they never switch
-to raster implicitly. The RITK gallery uses this mode only for
-`?renderer=webgpu`, so the default real-study capture remains reproducible.
+to raster implicitly. The standalone workstation presents its completed framebuffer through the selected browser surface.
 
 The three canvases receive RITK-owned axial, coronal and sagittal
 `PresentationFrame` values from one bounded drop batch. Métis remains the
@@ -364,12 +364,6 @@ window/level and colormap policy as the orthogonal planes; Métis receives only
 the resulting borrowed RGBA frame. The asynchronous
 `start_web_orthogonal_canvases_gpu_with_projection` entrypoint selects WebGPU
 explicitly and reports setup errors without raster fallback.
-The checked-in gallery accepts `?projection=mip`, `?projection=minip`, or
-`?projection=average`. Those names map to the typed statistic indices above;
-unknown values fail before the viewer mounts. The three existing slice controls
-remain attached to the interactive planes, while the projection canvas is
-display-only and carries no RITK input listener guards.
-
 For a consumer-owned adaptive page, mount the responsive raster workflow on a
 trusted container. The container's rendered CSS extent drives the same native
 thresholds. Hidden axes are reconstructed without Métis input listeners, and
@@ -406,8 +400,7 @@ Browser controls can call `select_web_slice(axis, index)` with zero-based axis
 RITK rejects invalid coordinates without changing the selection. A changed
 selection renders on the next animation frame; controls observe the canvas
 `data-ritk-slice-index` and `data-ritk-slice-count` attributes to synchronize their
-position with selection, wheel navigation and cine playback. The RITK consumer
-gallery provides one labeled range control per plane using this entrypoint.
+position with selection, wheel navigation and cine playback.
 
 To produce the browser module, build the library target and run
 `wasm-bindgen` at the version resolved in the [workspace lockfile](../../Cargo.lock) over

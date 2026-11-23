@@ -16,7 +16,7 @@ use tracing::info;
 
 use crate::LoadedVolume;
 
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 const SERIES_PREVIEW_DECODED_BYTE_BUDGET: usize = 64 * 1024 * 1024;
 
 /// Load a DICOM series from a pre-scanned series descriptor into a [`LoadedVolume`].
@@ -53,16 +53,26 @@ pub fn load_volume_from_scanned_series(
 
 #[cfg(windows)]
 pub(crate) fn load_volume_from_dicom_instance(path: &Path) -> Result<LoadedVolume> {
+    let paths = [path.to_path_buf()];
+    load_preview(|budget| scan_dicom_files_with_budget(&paths, budget))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn load_volume_from_preview_bytes(name: &str, bytes: &[u8]) -> Result<LoadedVolume> {
+    load_preview(|budget| ritk_io::scan_dicom_part10_bytes_with_budget(&[(name, bytes)], budget))
+}
+
+#[cfg(any(windows, target_arch = "wasm32"))]
+fn load_preview(
+    scan: impl FnOnce(&ritk_io::DicomReadBudget) -> Result<ritk_io::ScannedDicomSeries>,
+) -> Result<LoadedVolume> {
     let budget = ritk_io::DicomReadBudget::try_new(
         ritk_io::DicomReadBudget::DEFAULT.parser(),
         SERIES_PREVIEW_DECODED_BYTE_BUDGET,
         SERIES_PREVIEW_DECODED_BYTE_BUDGET,
     )?;
-    let paths = [path.to_path_buf()];
-    let series = scan_dicom_files_with_budget(&paths, &budget)
-        .with_context(|| format!("scan DICOM preview instance '{}'", path.display()))?;
-    let decoded = decode_dicom_series(series, &budget)
-        .with_context(|| format!("decode DICOM preview instance '{}'", path.display()))?;
+    let series = scan(&budget).context("scan DICOM preview instance")?;
+    let decoded = decode_dicom_series(series, &budget).context("decode DICOM preview instance")?;
     loaded_volume_from_decoded_series(decoded)
 }
 

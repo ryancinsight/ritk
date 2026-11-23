@@ -9,6 +9,7 @@ mod series;
 mod slice_drag;
 use self::layout::{ChromeGeometry, ChromeLayout};
 use self::multi_series::MultiSeriesDialog;
+#[cfg(windows)]
 use super::deidentify::{AnonymizationScope, Deidentification};
 use super::layout::{ViewportArea, WorkspaceLayout};
 use super::pressed_buttons::PressedButtons;
@@ -28,6 +29,7 @@ pub(super) enum Menu {
     Tools,
     Window,
     Display,
+    #[cfg(windows)]
     Anonymize,
     GridPicker,
 }
@@ -36,7 +38,9 @@ pub(super) enum Menu {
 pub(super) enum WindowAction {
     OpenMenu(Menu),
     OpenStudy,
+    #[cfg(windows)]
     Anonymize(AnonymizationScope, Deidentification),
+    #[cfg(windows)]
     RepairStudy,
     OpenSeriesPicker,
     LoadSelectedSeries,

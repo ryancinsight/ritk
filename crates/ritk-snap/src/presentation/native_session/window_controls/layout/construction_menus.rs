@@ -6,6 +6,7 @@
 use super::super::super::layout::WorkspaceLayout;
 use super::super::{Menu, WindowAction};
 use crate::app::SnapApp;
+#[cfg(windows)]
 use crate::presentation::native_session::deidentify::{AnonymizationScope, Deidentification};
 use crate::presentation::PointerButton;
 use crate::tools::kind::ToolKind;
@@ -20,6 +21,13 @@ pub(super) const POINTER_BUTTON_ROWS: [(&str, PointerButton); 4] = [
     ("Bind right button", PointerButton::Right),
     ("Bind back button", PointerButton::X1),
     ("Bind forward button", PointerButton::X2),
+];
+
+const FILE_ITEMS: &[(&str, WindowAction)] = &[
+    ("Open Study...", WindowAction::OpenStudy),
+    #[cfg(windows)]
+    ("Repair Study Copy...", WindowAction::RepairStudy),
+    ("Exit", WindowAction::Exit),
 ];
 
 const DISPLAY_CONTROLS: &[(&str, WindowAction)] = &[
@@ -37,15 +45,17 @@ const DISPLAY_CONTROLS: &[(&str, WindowAction)] = &[
     ),
 ];
 
-pub(super) const MENU_TABS: [(Menu, &str, u32); 6] = [
+pub(super) const MENU_TABS: &[(Menu, &str, u32)] = &[
     (Menu::File, "File", 54),
     (Menu::View, "View", 58),
     (Menu::Tools, "Tools", 66),
     (Menu::Window, "Window", 78),
+    #[cfg(windows)]
     (Menu::Anonymize, "Anonymize", 102),
     (Menu::Display, "Display", 76),
 ];
 
+#[cfg(windows)]
 pub(super) const ANONYMIZE_ITEMS: [(&str, AnonymizationScope, Deidentification); 4] = {
     use AnonymizationScope::{Series, Study};
     use Deidentification::{Basic, Strict};
@@ -59,7 +69,7 @@ pub(super) const ANONYMIZE_ITEMS: [(&str, AnonymizationScope, Deidentification);
 
 pub(super) fn menu_tab_geometry(menu: Menu) -> u32 {
     let mut x = 8_u32;
-    for (candidate, _, width) in MENU_TABS {
+    for (candidate, _, width) in MENU_TABS.iter().copied() {
         if candidate == menu {
             return x;
         }
@@ -74,7 +84,8 @@ pub(super) fn menu_item_count(
     workspace_layout: WorkspaceLayout,
 ) -> usize {
     match menu {
-        Menu::File => 3,
+        Menu::File => FILE_ITEMS.len(),
+        #[cfg(windows)]
         Menu::Anonymize => ANONYMIZE_ITEMS.len(),
         Menu::View => {
             let base = if workspace_layout.is_grid() { 3 } else { 6 };
@@ -128,12 +139,11 @@ pub(super) fn menu_item(
     workspace_layout: WorkspaceLayout,
 ) -> Result<(&'static str, WindowAction, bool)> {
     match menu {
-        Menu::File => match index {
-            0 => Ok(("Open Study...", WindowAction::OpenStudy, false)),
-            1 => Ok(("Repair Study Copy...", WindowAction::RepairStudy, false)),
-            2 => Ok(("Exit", WindowAction::Exit, false)),
-            _ => Err(anyhow!("native File menu row is outside its items")),
-        },
+        Menu::File => FILE_ITEMS
+            .get(index)
+            .map(|&(label, action)| (label, action, false))
+            .ok_or_else(|| anyhow!("native File menu row is outside its items")),
+        #[cfg(windows)]
         Menu::Anonymize => {
             let &(label, scope, level) = ANONYMIZE_ITEMS
                 .get(index)

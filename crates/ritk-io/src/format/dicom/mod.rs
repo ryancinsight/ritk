@@ -81,10 +81,10 @@ pub use reader::{
     read_dicom_series_with_metadata, read_dicom_series_with_metadata_with_budget,
     scan_dicom_directory_with_budget, scan_dicom_files, scan_dicom_files_with_budget,
     scan_dicom_instances, scan_dicom_instances_with_budget, scan_dicom_part10_bytes,
-    scan_dicom_part10_bytes_with_budget, scan_dicom_path, scan_dicom_path_with_budget,
-    DecodedDicomSeries, DicomReadBudget, DicomReadMetadata, DicomSliceMetadata,
-    DicomStoredImportError, DicomStoredSeries, PatientPosition, Radioactivity, ScannedDicomSeries,
-    DICOM_STORED_SOURCE,
+    scan_dicom_part10_bytes_with_budget, scan_dicom_part10_catalog, scan_dicom_path,
+    scan_dicom_path_with_budget, DecodedDicomSeries, DicomReadBudget, DicomReadMetadata,
+    DicomSliceMetadata, DicomStoredImportError, DicomStoredSeries, PatientPosition, Radioactivity,
+    ScannedDicomSeries, DICOM_STORED_SOURCE,
 };
 pub use rt_dose::{
     read_rt_dose, write_rt_dose, RtDoseGrid, RtDoseSummationType, RtDoseType, RT_DOSE_SOP_CLASS_UID,

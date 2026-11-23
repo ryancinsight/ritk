@@ -22,13 +22,16 @@ The [release backlog](backlog.md#milestones) records the remaining milestone cri
 
 ## AsterSlice browser workspace
 
-The previous bundle served the Métis workbench at its root. The saved MRI now
-opens in the same AsterSlice shell from both application URLs. The browser
-test measures the native 30-pixel menu, 48-pixel toolbar, 276-pixel series
-sidebar and 26-pixel status bar. It exercises pane focus, sidebar visibility,
-toolbar selection, the thumbnail, narrow-screen sizing and a projection link.
-The unchanged axial, coronal and sagittal frames match the three saved RGBA
-digests. In reflected and rotated content-box and border-box layouts, Chromium selects voxel (47, 340, 173) and one wheel step selects (46, 340, 173). Local Chromium passes the raster and WebGPU control journeys and the responsive four-pane MIP journey. Cross-series comparison remains a separate milestone.
+The previous browser page implemented an independent HTML toolbar, sidebar and pane
+layout. The standalone application now runs the Windows workstation compositor
+and event reducer. Chromium reads the 94-image public MRI, navigates slices,
+measures length, rotates the view and advances cine. The native series dialog
+opens MR and CT volumes in independent panels. Sixteen displayed samples per
+plane match the embedding renderer and each source plane matches the stored
+RGBA digest. Raster and WebGPU produce byte-identical desktop screenshots.
+The transformed embedding check selects voxel (47, 340, 173) and steps to
+(46, 340, 173). All 1,139 macOS viewer and I/O library tests pass. The original
+root failed the single-workstation acceptance test.
 
 ## Shared fixture inventory
 

@@ -37,6 +37,8 @@ pub(crate) mod tests;
 
 #[cfg(windows)]
 pub(crate) use dicom_load::load_volume_from_dicom_instance;
+#[cfg(target_arch = "wasm32")]
+pub(crate) use dicom_load::load_volume_from_preview_bytes;
 pub(crate) use dicom_load::load_volume_from_series_info;
 pub use dicom_load::{load_dicom_volume, load_volume_from_scanned_series};
 pub use nifti_load::load_nifti_volume;

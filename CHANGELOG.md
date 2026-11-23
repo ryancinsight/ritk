@@ -33,6 +33,8 @@
 
 ### Added
 
+- [minor] Discover multiple DICOM series from named in-memory Part 10 instances.
+
 - [minor] `decode_dicom_series` reconstructs owned calibrated pixels and the resolved patient grid independently of backend image loading. AsterSlice now transfers the pixel allocation directly into its scalar viewer.
 
 ## MGH 0.7.0 (unreleased)
@@ -75,7 +77,7 @@
 
 ### Added
 
-- [minor] The web workspace includes native-style pane focus, series preview, and diagnostic tool menus.
+- [minor] The web app runs the Windows workstation renderer, menus, diagnostic tools and multi-series comparison in WebAssembly. The separate gallery interface has been removed.
 
 - [minor] The native Display menu can rotate the active view by 180 degrees
   in one click while preserving its flips and zoom.

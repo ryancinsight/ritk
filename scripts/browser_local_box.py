@@ -1,6 +1,6 @@
 """Verify RITK canvas input through styled browser content boxes.
 
-The script reuses Metis's bounded WebDriver transport and generated gallery,
+The script exercises the published embedding API with Métis WebDriver transport,
 but owns every RITK-specific assertion.  It loads the same study in fresh
 unstyled and styled sessions, clicks the same backing-frame voxel centre, and
 compares the linked cursor reconstructed from the three orthogonal slice
@@ -210,8 +210,8 @@ def _case(
                 client._session_path("window/rect"),
                 {"width": 1800, "height": 1200},
             )
-            client.navigate(origin + "gallery.html")
-            modules["wait_text"](client, "gallery-status", "Ready.", timeout_ms=30_000, include=True)
+            client.navigate(origin + "embed.html")
+            modules["wait_text"](client, "ready", "Ready.", timeout_ms=30_000, include=True)
             client.send_file_paths(client.find("#file-input"), files)
             for canvas_id in CANVAS_IDS:
                 modules["wait_selector"](
@@ -254,7 +254,7 @@ def _case(
             if rounding_oracle["predicted_voxel"] != expected_click[1:]:
                 raise RuntimeError(
                     f"integer W3C rounding predicts {rounding_oracle['predicted_voxel']!r}; "
-                    f"nominal target is {expected_click[1:]!r}; layout={layout}"
+                    f"nominal target is {expected_click[1:]!r}; layout={layout}, geometry={geometry!r}"
                 )
             _dispatch_click(client, point, "ritk-local-box-click")
             generation = _wait_for_new_frame(client, generation)
@@ -398,9 +398,11 @@ def main() -> int:
     modules = _load_metis(args.metis_root)
     args.device_scale_milli = modules["parse_device_scale"](args.device_scale)
     files, _ = modules["study_files"](args.files.resolve(strict=True), args.pattern)
-    source_bundle = args.metis_root / "output" / "browser"
-    if not (source_bundle / "gallery.html").is_file():
-        raise RuntimeError(f"built Metis gallery was not found under {source_bundle}")
+    server_root = args.metis_root / "output" / "browser"
+    server_root.mkdir(parents=True, exist_ok=True)
+    source_bundle = ritk_root / "target" / "asterslice-web"
+    if not (source_bundle / "index.html").is_file():
+        raise RuntimeError(f"package AsterSlice under {source_bundle} before running this check")
     source_state = {
         "ritk": repository_state(ritk_root),
         "metis": repository_state(args.metis_root),
@@ -414,7 +416,7 @@ def main() -> int:
         raise RuntimeError(f"output must stay under {output_root}")
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory(prefix="ritk-local-box-", dir=source_bundle) as temporary:
+    with tempfile.TemporaryDirectory(prefix="ritk-local-box-", dir=server_root) as temporary:
         root = pathlib.Path(temporary)
         unstyled_bundle = root / "unstyled"
         styled_bundle = root / "content-box"

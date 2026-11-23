@@ -22,7 +22,6 @@ pub(crate) enum PaneLayout {
 }
 
 /// A bounded pane rectangle in host pixels.
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct PaneRect {
     /// Horizontal origin.
@@ -68,7 +67,6 @@ impl PaneLayout {
     }
 
     /// Return the number of visible panes.
-    #[cfg(not(target_arch = "wasm32"))]
     #[must_use]
     pub(crate) const fn pane_count(self) -> usize {
         match self {
@@ -101,7 +99,6 @@ impl PaneLayout {
     /// The returned slots follow [`Self::roles`]. Unused slots are `None` and
     /// therefore cannot accidentally receive input. The separator is applied
     /// only between neighboring rows or columns.
-    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn partition(
         self,
         surface_width: u32,
