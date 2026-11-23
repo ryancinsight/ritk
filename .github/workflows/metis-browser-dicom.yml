@@ -344,7 +344,8 @@ jobs:
           set -euo pipefail
           bundle="$GITHUB_WORKSPACE/metis/output/browser"
           python scripts/safari-study/prepare.py "$bundle" /Users/Shared/RITKPublicStudy
-          python scripts/safari-study/serve.py "$bundle" > "$RUNNER_TEMP/safari-http.log" 2>&1 &
+          export RITK_HTTP_RUNTIME="$RUNNER_TEMP" RITK_WEB_BUNDLE="$bundle"
+          /usr/sbin/httpd -X -f "$PWD/scripts/safari-study/httpd.conf" &
           cd scripts/safari-study
           command -v xcodegen || brew install xcodegen
           xcodegen generate
