@@ -23,13 +23,13 @@
 - [patch] Browser gallery verification reads native-resolution samples from the presented WebGPU bitmap for slice and window controls.
 - [patch] Manual documentation checks on development branches evaluate changes since their common commit with the default branch.
 
-## RITK Filter 0.6.1 (unreleased)
+## RITK Filter 0.6.1 — 2026-11-23
 
 ### Fixed
 
 - [patch] Match Apple ARM64 SimpleITK boundary sampling, spline weight precision, and squared-magnitude rounding. The denoising and magnitude filters retain their existing public signatures.
 
-## RITK I/O 0.9.0 (unreleased)
+## RITK I/O 0.9.0 — 2026-11-23
 
 ### Added
 
@@ -37,7 +37,7 @@
 
 - [minor] `decode_dicom_series` reconstructs owned calibrated pixels and the resolved patient grid independently of backend image loading. AsterSlice now transfers the pixel allocation directly into its scalar viewer.
 
-## MGH 0.7.0 (unreleased)
+## MGH 0.7.0 — 2026-11-23
 
 ### Added
 
@@ -50,7 +50,7 @@
 
 - [patch] Scalar and series MGZ readers decode samples spanning gzip members and validate the expanded footer and final checksum before returning the image.
 
-## NIfTI 0.5.1 (unreleased)
+## NIfTI 0.5.1 — 2026-11-23
 
 ### Fixed
 
@@ -61,7 +61,7 @@
   trailer before replacing an output. File reads apply the document size limit
   as they read the expanded stream.
 
-## MetaImage 0.4.1 (unreleased)
+## MetaImage 0.4.1 — 2026-11-23
 
 ### Fixed
 
@@ -82,7 +82,7 @@
 - [minor] The native Display menu can rotate the active view by 180 degrees
   in one click while preserving its flips and zoom.
 
-## Analyze 0.5.1 (unreleased)
+## Analyze 0.5.1 — 2026-11-23
 
 ### Fixed
 
