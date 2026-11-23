@@ -11,10 +11,10 @@ final class StudyPickerTests: XCTestCase {
         let choose = safari.buttons["Choose study files"]
         XCTAssertTrue(choose.waitForExistence(timeout: 20), safari.debugDescription)
         choose.click()
-        let open = safari.buttons["Open"].firstMatch
+        let open = safari.sheets["open-panel"].buttons["Upload"].firstMatch
         XCTAssertTrue(open.waitForExistence(timeout: 10), safari.debugDescription)
         safari.typeKey("g", modifierFlags: [.command, .shift])
-        safari.typeText("/Users/Shared/RITKPublicStudy/")
+        safari.typeText("/Users/Shared/RITKPublicStudy/00000001.dcm")
         safari.typeKey(.return, modifierFlags: [])
         let first = safari.descendants(matching: .any)
             .matching(NSPredicate(format: "label == %@ OR value == %@ OR title == %@",
