@@ -6,7 +6,9 @@
 
 mod convert;
 mod datatype;
+mod intensity;
 mod lane;
+mod parse;
 mod raw;
 mod types;
 mod validate;

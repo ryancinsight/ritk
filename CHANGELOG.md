@@ -8,6 +8,110 @@
 
 # CHANGELOG
 
+## Verification fixtures (unreleased)
+
+### Removed
+
+- [patch] Checkouts omit the skull CT and paired MRI/CT collections. The owner retains a verified local copy of all 2,642 files.
+
+### Changed
+
+- [patch] Registration tests can reuse the verified OpenNeuro MRI from `ATLAS_FIXTURE_CACHE`. The fixture documentation records the dataset’s PDDL declaration.
+
+### Fixed
+
+- [patch] Browser gallery verification reads native-resolution samples from the presented WebGPU bitmap for slice and window controls.
+- [patch] Manual documentation checks on development branches evaluate changes since their common commit with the default branch.
+
+## RITK Filter 0.6.1 (unreleased)
+
+### Fixed
+
+- [patch] Match Apple ARM64 SimpleITK boundary sampling, spline weight precision, and squared-magnitude rounding. The denoising and magnitude filters retain their existing public signatures.
+
+## RITK I/O 0.9.0 (unreleased)
+
+### Added
+
+- [minor] Discover multiple DICOM series from named in-memory Part 10 instances.
+
+- [minor] `decode_dicom_series` reconstructs owned calibrated pixels and the resolved patient grid independently of backend image loading. AsterSlice now transfers the pixel allocation directly into its scalar viewer.
+
+## MGH 0.7.0 (unreleased)
+
+### Added
+
+- [minor] `transcode_mgh_document` and the CLI preserve every expanded
+  byte while repacking MGH and MGZ. An incomplete volume or corrupt gzip
+  member leaves the existing destination intact, including during in-place
+  repacking.
+
+### Fixed
+
+- [patch] Scalar and series MGZ readers decode samples spanning gzip members and validate the expanded footer and final checksum before returning the image.
+
+## NIfTI 0.5.1 (unreleased)
+
+### Fixed
+
+- [patch] Apply global intensity calibration to scalar and series image reads before narrowing to binary32. A zero slope disables scaling. Repacking preserves stored sample and calibration bytes.
+
+- [patch] Readers decode samples across gzip member boundaries. The document
+  transport preserves the combined expanded stream and checks each member's
+  trailer before replacing an output. File reads apply the document size limit
+  as they read the expanded stream.
+
+## MetaImage 0.4.1 (unreleased)
+
+### Fixed
+
+- [patch] Reading the MetaIO `ElementByteOrderMSB` spelling now decodes
+  big-endian samples correctly in inline and detached volumes. When both
+  spellings appear, `BinaryDataByteOrderMSB` takes precedence.
+
+## AsterSlice 0.3.0 (unreleased)
+
+### Fixed
+
+- [patch] The web app and existing gallery links open the same AsterSlice reading workspace.
+
+### Added
+
+- [minor] The web app runs the Windows workstation renderer, menus, diagnostic tools and multi-series comparison in WebAssembly. The separate gallery interface has been removed.
+
+- [minor] The native Display menu can rotate the active view by 180 degrees
+  in one click while preserving its flips and zoom.
+
+## Analyze 0.5.1 (unreleased)
+
+### Fixed
+
+- [patch] The Analyze stored-series writer rejects rounding of voxel spacing,
+  physical origin, or intensity scale before it replaces the header or image.
+  Existing Analyze pairs with representable metadata still round-trip.
+
+## RITK CLI 0.3.0 (unreleased)
+
+### Added
+
+- [minor] `ritk convert` repacks single-file NIfTI documents between `.nii`
+  and `.nii.gz` while retaining the full decompressed byte stream, including
+  multi-volume data, header extensions and calibration. This path uses the
+  NIfTI document reader's 1 GiB expanded-document limit and reports document
+  preservation in its completion message.
+
+## MGH 0.6.1 and AsterSlice 0.2.1 (unreleased)
+
+### Fixed
+
+- [patch] MGH and MGZ read and write the FreeSurfer voxel-to-RAS center at half
+  the dimensions. Previous RITK writers encoded a center displaced by half
+  a voxel on each file axis. Regenerate affected outputs from the original
+  geometry when aligning them with other images. The header alone cannot
+  distinguish an older RITK output from a file authored by another tool.
+- [patch] AsterSlice opens compound `.mgh.gz` paths at startup and through
+  filesystem drop routing, including mixed-case extensions.
+
 ## Unreleased
 
 ### Breaking

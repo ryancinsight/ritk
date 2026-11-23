@@ -424,3 +424,40 @@ def test_image_origin_spacing_share_axis_order():
     rt = ritk.Image(arr, spacing=list(img.spacing), origin=list(img.origin))
     assert tuple(rt.spacing) == tuple(img.spacing)
     assert tuple(rt.origin) == tuple(img.origin)
+
+
+@pytest.mark.parametrize("extension", [".vtk", ".hdr"])
+def test_permuted_image_preserves_voxel_world_pairs(extension, tmp_path):
+    """Compare the exported ZYX samples with SimpleITK's physical-point oracle."""
+    values = np.arange(24, dtype=np.float32).reshape(2, 3, 4)
+    source = sitk.GetImageFromArray(values)
+    source.SetSpacing((0.5, 2.0, 4.0))
+    source.SetOrigin((8.0, -4.0, 16.0))
+    source.SetDirection((0, -1, 0, 0, 0, 1, 1, 0, 0))
+    source_path = str(tmp_path / "oriented.mha")
+    sitk.WriteImage(source, source_path)
+    image = ritk.io.read_image(source_path)
+    np.testing.assert_array_equal(image.to_numpy(), values)
+    np.testing.assert_array_equal(image.direction, source.GetDirection())
+
+    output = str(tmp_path / f"reoriented{extension}")
+    ritk.io.write_image(image, output)
+    loaded = ritk.io.read_image(output)
+    expected = {}
+    for z, y, x in np.ndindex(values.shape):
+        point = source.TransformIndexToPhysicalPoint((x, y, z))
+        expected[point] = values[z, y, x]
+
+    np.testing.assert_array_equal(np.reshape(loaded.direction, (3, 3)), np.eye(3))
+    actual = {}
+    samples = loaded.to_numpy()
+    for index in np.ndindex(samples.shape):
+        point = (np.array(loaded.origin) + np.array(loaded.spacing) * index)[::-1]
+        actual[tuple(point)] = samples[index]
+    assert actual == expected
+    if extension == ".vtk":
+        external = sitk.ReadImage(output)
+        np.testing.assert_array_equal(sitk.GetArrayFromImage(external), samples)
+        np.testing.assert_array_equal(external.GetDirection(), loaded.direction)
+        np.testing.assert_array_equal(external.GetOrigin(), loaded.origin[::-1])
+        np.testing.assert_array_equal(external.GetSpacing(), loaded.spacing[::-1])

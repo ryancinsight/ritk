@@ -12,8 +12,8 @@ use consus_core::ByteOrder as ConsusByteOrder;
 use ritk_codecs::{ByteOrder, SampleBuffer, SampleError, SampleType};
 use ritk_image::ImageMetadata;
 use ritk_image_io::{
-    CalibrationError, IntensityCalibration, LinearCalibration, SeriesAxis, StoredSeries,
-    StoredSeriesError, StoredVolume, VolumeError,
+    CalibrationError, IntensityCalibration, SeriesAxis, StoredSeries, StoredSeriesError,
+    StoredVolume, VolumeError,
 };
 use ritk_spatial::CoordinateMap;
 use std::collections::TryReserveError;
@@ -55,7 +55,10 @@ impl NiftiDocument {
         let spatial = metadata_from_nifti_ras_affine_precise(affine)
             .map_err(NiftiStoredReadError::Spatial)?;
         let metadata = ImageMetadata::new(spatial.origin, spatial.spacing, spatial.direction);
-        let calibration = calibration_from_scaling(header.scl_slope, header.scl_inter)?;
+        let calibration = header
+            .linear_calibration()
+            .map_err(NiftiStoredReadError::Calibration)?
+            .map_or(IntensityCalibration::Identity, IntensityCalibration::Linear);
 
         // NIfTI `dim[1..=3]` is `[nx, ny, nz]`; the stored volume is `[nz, ny, nx]`.
         let shape = [header.dim[3], header.dim[2], header.dim[1]];
@@ -127,23 +130,6 @@ fn reject_non_millimeter_units(xyzt_units: i32) -> Result<(), NiftiStoredReadErr
     } else {
         Err(NiftiStoredReadError::UnsupportedSpatialUnits { code: units })
     }
-}
-
-/// Turn NIfTI scaling fields into an intensity calibration.
-///
-/// NIfTI treats `scl_slope == 0` as "scaling disabled", so it maps to
-/// [`IntensityCalibration::Identity`]. A nonzero slope with a non-finite
-/// intercept, or a non-finite slope, is rejected rather than narrowed.
-fn calibration_from_scaling(
-    slope: f64,
-    intercept: f64,
-) -> Result<IntensityCalibration, NiftiStoredReadError> {
-    if slope == 0.0 {
-        return Ok(IntensityCalibration::Identity);
-    }
-    LinearCalibration::new(slope, intercept)
-        .map(IntensityCalibration::Linear)
-        .map_err(NiftiStoredReadError::Calibration)
 }
 
 /// Failure to decode a validated NIfTI document into stored image values.

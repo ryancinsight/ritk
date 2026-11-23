@@ -130,14 +130,12 @@ jobs:
             target/wasm32-unknown-unknown/release/ritk_snap.wasm \
             --target web --no-typescript --out-dir target/wasm-bindgen/ritk-snap
 
-      - name: Build the Métis gallery with the RITK consumer
-        working-directory: metis
+      - name: Package the AsterSlice application
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/browser.py build \
-            --consumer-package "$GITHUB_WORKSPACE/ritk/target/wasm-bindgen/ritk-snap" \
-            --consumer-gallery "$GITHUB_WORKSPACE/ritk/crates/ritk-snap/web/gallery"
+          python ritk/scripts/package_browser.py --metis-root metis \
+            ritk/target/wasm-bindgen/ritk-snap ritk/target/asterslice-web
 
       - name: Check out Atlas process runtime
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -151,7 +149,7 @@ jobs:
         working-directory: ritk
         run: python -m pip install -r scripts/requirements-test.txt
 
-      - name: Validate the RITK gallery harness
+      - name: Validate RITK browser tooling
         working-directory: ritk
         shell: bash
         env:
@@ -161,112 +159,11 @@ jobs:
           set -euo pipefail
           python -m unittest discover -s scripts/tests
 
-      - name: Derive the real-study canvas oracle
-        working-directory: metis
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          source_path = Path("../ritk/docs/manual/images/dicom-metis-real-browser-mri-edge.json")
-          source = json.loads(source_path.read_text(encoding="utf-8"))
-          if source.get("status") != "passed":
-              raise SystemExit("the committed MRI browser evidence is not passed")
-          oracle = {}
-          for name, view in source["views"].items():
-              required = ("width", "height", "non_black_pixels", "rgba_sha256")
-              if any(key not in view for key in required):
-                  raise SystemExit(f"MRI view {name!r} is missing an RGBA oracle")
-              canvas_id = f"ritk-snap-{name}"
-              oracle[canvas_id] = {key: view[key] for key in required}
-          attributes = {
-              "ritk-snap-axial": {"axis": "0", "slice_index": "47", "slice_count": "94", "frame_width": "512", "frame_height": "512"},
-              "ritk-snap-coronal": {"axis": "1", "slice_index": "256", "slice_count": "512", "frame_width": "512", "frame_height": "94"},
-              "ritk-snap-sagittal": {"axis": "2", "slice_index": "256", "slice_count": "512", "frame_width": "512", "frame_height": "94"},
-          }
-          for canvas_id, values in oracle.items():
-              oracle[canvas_id]["attributes"] = {
-                  "data-ritk-load-state": "ready",
-                  "data-ritk-frame-state": "presented",
-                  "data-ritk-axis": attributes[canvas_id]["axis"],
-                  "data-ritk-slice-index": attributes[canvas_id]["slice_index"],
-                  "data-ritk-slice-count": attributes[canvas_id]["slice_count"],
-                  "data-ritk-frame-width": attributes[canvas_id]["frame_width"],
-                  "data-ritk-frame-height": attributes[canvas_id]["frame_height"],
-                  "data-ritk-cine-fps": "12",
-              }
-          output = Path("output/browser/mri-oracle.json")
-          output.write_text(json.dumps(oracle) + "\n", encoding="utf-8")
-          PY
-
-      - name: Derive the WebGPU canvas oracle
-        working-directory: metis
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          source = json.loads(Path("output/browser/mri-oracle.json").read_text(encoding="utf-8"))
-          oracle = {}
-          for canvas_id, view in source.items():
-              for key in ("width", "height", "attributes"):
-                  if key not in view:
-                      raise SystemExit(f"WebGPU view {canvas_id!r} is missing {key}")
-              if not isinstance(view["attributes"], dict):
-                  raise SystemExit(f"WebGPU view {canvas_id!r} has invalid attributes")
-              oracle[canvas_id] = {
-                  "width": view["width"],
-                  "height": view["height"],
-                  "attributes": view["attributes"],
-              }
-          Path("output/browser/mri-webgpu-oracle.json").write_text(
-              json.dumps(oracle) + "\n", encoding="utf-8"
-          )
-
-      - name: Derive the scalar projection oracle
-        working-directory: metis
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          source = json.loads(Path("output/browser/mri-oracle.json").read_text(encoding="utf-8"))
-          oracle = {
-              canvas_id: {
-                  "width": view["width"],
-                  "height": view["height"],
-                  "attributes": view["attributes"],
-              }
-              for canvas_id, view in source.items()
-          }
-          oracle["ritk-snap-projection"] = {
-              "width": 512,
-              "height": 512,
-              "attributes": {
-                  "data-ritk-role": "projection",
-                  "data-ritk-load-state": "ready",
-                  "data-ritk-frame-state": "presented",
-                  "data-ritk-projection-statistic": "MIP",
-                  "data-ritk-frame-width": "512",
-                  "data-ritk-frame-height": "512",
-              },
-          }
-          Path("output/browser/mri-projection-oracle.json").write_text(
-              json.dumps(oracle) + "\n", encoding="utf-8"
-          )
-          PY
-
-      - name: Upload browser bundle and oracle
+      - name: Save the standalone AsterSlice web app
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ritk-metis-browser-assets-${{ github.run_id }}
-          path: metis/output/browser
+          name: asterslice-web
+          path: ritk/target/asterslice-web
           if-no-files-found: error
           retention-days: 7
 
@@ -286,9 +183,6 @@ jobs:
             mode: raster
             result: chromium
             lifecycle_cycles: "4"
-            canvas_capture: rgba
-            canvas_context: ""
-            oracle: mri-oracle.json
             projection: ""
           - engine: chromium
             runner: ubuntu-24.04
@@ -297,9 +191,6 @@ jobs:
             mode: raster
             result: chromium-window
             lifecycle_cycles: "1"
-            canvas_capture: rgba
-            canvas_context: ""
-            oracle: mri-oracle.json
             projection: ""
           - engine: firefox
             runner: ubuntu-24.04
@@ -308,9 +199,6 @@ jobs:
             mode: raster
             result: firefox
             lifecycle_cycles: "4"
-            canvas_capture: rgba
-            canvas_context: ""
-            oracle: mri-oracle.json
             projection: ""
           - engine: webkit
             runner: macos-latest
@@ -319,9 +207,6 @@ jobs:
             mode: raster
             result: webkit
             lifecycle_cycles: "1"
-            canvas_capture: rgba
-            canvas_context: ""
-            oracle: mri-oracle.json
             projection: ""
           - engine: chromium
             runner: ubuntu-24.04
@@ -330,9 +215,6 @@ jobs:
             mode: webgpu
             result: chromium-webgpu
             lifecycle_cycles: "1"
-            canvas_capture: screenshot
-            canvas_context: webgpu
-            oracle: mri-webgpu-oracle.json
             projection: ""
           - engine: chromium
             runner: ubuntu-24.04
@@ -341,9 +223,6 @@ jobs:
             mode: raster
             result: chromium-projection-mip
             lifecycle_cycles: "1"
-            canvas_capture: screenshot
-            canvas_context: 2d
-            oracle: mri-projection-oracle.json
             projection: mip
           - engine: chromium
             runner: ubuntu-24.04
@@ -352,9 +231,6 @@ jobs:
             mode: raster
             result: chromium-responsive
             lifecycle_cycles: "1"
-            canvas_capture: screenshot
-            canvas_context: 2d
-            oracle: mri-projection-oracle.json
             projection: mip
             layout: responsive
           - engine: firefox
@@ -364,9 +240,6 @@ jobs:
             mode: raster
             result: firefox-responsive
             lifecycle_cycles: "1"
-            canvas_capture: screenshot
-            canvas_context: 2d
-            oracle: mri-projection-oracle.json
             projection: mip
             layout: responsive
     steps:
@@ -389,10 +262,10 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Download the browser bundle and oracle
+      - name: Download the AsterSlice workstation
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: ritk-metis-browser-assets-${{ github.run_id }}
+          name: asterslice-web
           path: metis/output/browser
 
       - name: Start virtual display
@@ -489,102 +362,16 @@ jobs:
           raise SystemExit(f"WebDriver did not become ready within 20 seconds: {last_error}")
           PY
 
-      - name: Run the saved-study chooser workflow
-        working-directory: ritk
-        shell: bash
-        env:
-          DRIVER_URL: ${{ matrix.driver_url }}
-          ENGINE: ${{ matrix.engine }}
-          DEVICE_SCALE: ${{ matrix.device_scale }}
-          RITK_REVISION: ${{ github.sha }}
-          MODE: ${{ matrix.mode }}
-          CANVAS_CAPTURE: ${{ matrix.canvas_capture }}
-          CANVAS_CONTEXT: ${{ matrix.canvas_context }}
-          LIFECYCLE_CYCLES: ${{ matrix.lifecycle_cycles }}
-          RESULT: ${{ matrix.result }}
-          ORACLE: ${{ matrix.oracle }}
-          PROJECTION: ${{ matrix.projection }}
-          LAYOUT: ${{ matrix.layout }}
-        run: |
-          set -euo pipefail
-          gallery_args=(
-            --metis-root "$GITHUB_WORKSPACE/metis"
-            --engine "$ENGINE"
-            --driver-url "$DRIVER_URL"
-            --device-scale "$DEVICE_SCALE"
-            --input chooser
-            --lifecycle-cycles "$LIFECYCLE_CYCLES"
-            --files "$GITHUB_WORKSPACE/ritk/test_data/2_head_mri_t2/DICOM"
-            --pattern '*.dcm'
-            --oracle "$GITHUB_WORKSPACE/metis/output/browser/$ORACLE"
-            --consumer-revision "$RITK_REVISION"
-            --canvas-capture "$CANVAS_CAPTURE"
-          )
-          if [[ -n "$LAYOUT" ]]; then
-            gallery_args+=(--page-query "layout=$LAYOUT" --crosshair-controls)
-          else
-            gallery_args+=(
-              --window-presets
-              --cine-controls
-              --tool-controls
-              --crosshair-controls
-            )
-          fi
-          if [[ -n "$CANVAS_CONTEXT" ]]; then
-            gallery_args+=(--canvas-context "$CANVAS_CONTEXT")
-          fi
-          if [[ "$MODE" == "webgpu" ]]; then
-            gallery_args+=(--page-query renderer=webgpu)
-          fi
-          # Responsive layout includes a visible display-only projection. The
-          # generic canvas trace requires every selected canvas to emit input
-          # events, so responsive semantic/screenshot capture stays on the
-          # consumer path while the fixed interactive lanes retain the trace.
-          if [[ -n "$PROJECTION" ]]; then
-            gallery_args+=(--projection "$PROJECTION" --page-query "projection=$PROJECTION")
-          elif [[ -z "$LAYOUT" ]]; then
-            gallery_args+=(
-              --canvas-trace "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT/canvas-trace.json"
-              --keyboard-trace cine-rate
-            )
-          fi
-          gallery_args+=(
-            --canvas-attribute data-ritk-load-state
-            --canvas-attribute data-ritk-frame-state
-            --canvas-attribute data-ritk-axis
-            --canvas-attribute data-ritk-slice-index
-            --canvas-attribute data-ritk-slice-count
-            --canvas-attribute data-ritk-frame-width
-            --canvas-attribute data-ritk-frame-height
-            --canvas-attribute data-ritk-cine-enabled
-            --canvas-attribute data-ritk-cine-fps
-            --canvas-attribute data-ritk-window-center
-            --canvas-attribute data-ritk-window-width
-            --canvas-attribute data-ritk-window-preset-index
-            --canvas-attribute data-ritk-active-tool-index
-            --canvas-attribute data-ritk-active-tool
-            --canvas-attribute data-ritk-frame-generation
-            --canvas-attribute data-ritk-display-aspect
-            --output "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT"
-          )
-          python scripts/browser_gallery.py "${gallery_args[@]}"
-
-      - name: Validate RITK cine-rate trace
-        if: success() && matrix.projection == ''
+      - name: Read and compare saved studies in the workstation
         working-directory: ritk
         env:
-          RESULT: ${{ matrix.result }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          for trace in "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT"/canvas-trace*.json; do
-            cargo run --locked --manifest-path Cargo.toml -p ritk-snap -- \
-              --validate-browser-trace "$trace" \
-              --require-cine-rate \
-              --canvas-id ritk-snap-axial \
-              --canvas-id ritk-snap-coronal \
-              --canvas-id ritk-snap-sagittal
-          done
+          PYTHONPATH: ${{ github.workspace }}/metis/scripts
+        run: >-
+          python scripts/browser_workspace.py ../metis/output/browser test_data/2_head_mri_t2/DICOM
+          --comparison test_data/3_head_ct_mridir/DICOM --driver-url "${{ matrix.driver_url }}"
+          --engine "${{ matrix.engine }}" --scale "${{ matrix.device_scale }}" --cycles "${{ matrix.lifecycle_cycles }}"
+          --renderer "${{ matrix.mode }}" --projection "${{ matrix.projection }}" --layout "${{ matrix.layout }}"
+          --output "../metis/output/browser/results/${{ matrix.result }}"
 
       - name: Capture WebKit sandbox diagnostics
         if: always() && matrix.engine == 'webkit'

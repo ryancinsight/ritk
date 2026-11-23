@@ -5,6 +5,7 @@
 - acceptance: Both directions preserve exact samples, LPS millimeter geometry, calibration, and axis semantics; unknown fields or unsupported units yield typed loss before output changes.
 - scope: crates/ritk-io/, crates/ritk-nrrd/, crates/ritk-nifti/, pair tests, and manual
 - next: Use production adapters for both directions with one shared preflight path.
+- evidence: The CLI repacks single-format NIfTI documents. The cross-format conversion still requires loss reporting and exact stored samples in each direction.
 - basis: 4ebc650d6e25a7a6775910ba23bc35c8c7cb78e4
 - status: todo
 - needs: none

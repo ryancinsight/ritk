@@ -6268,7 +6268,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-analyze"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6306,7 +6306,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -6322,6 +6322,7 @@ dependencies = [
  "ritk-image",
  "ritk-interpolation",
  "ritk-io",
+ "ritk-mgh",
  "ritk-nifti",
  "ritk-parcellation",
  "ritk-registration",
@@ -6445,7 +6446,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-filter"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "apollo-fft",
@@ -6536,7 +6537,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-io"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "aequitas",
  "anyhow",
@@ -6604,7 +6605,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-metaimage"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -6620,7 +6621,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-mgh"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6699,7 +6700,7 @@ version = "0.2.1"
 
 [[package]]
 name = "ritk-nifti"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "anyhow",
  "coeus-core",
@@ -6848,7 +6849,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-snap"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "aequitas",
  "anyhow",

@@ -4,7 +4,6 @@ use super::frame::{empty_axial_view, render_axial_view_into, RenderedView};
 use super::layout::{PanelGrid, WorkspaceLayout};
 use super::session::NativeViewerSession;
 use crate::app::SnapApp;
-use crate::dicom::loader::load_volume_from_series_info;
 use crate::render::FrameRenderScratch;
 use crate::LoadedVolume;
 use anyhow::{anyhow, Context, Result};
@@ -98,7 +97,8 @@ impl NativeViewerSession {
             .ok_or_else(|| anyhow!("comparison series index is outside the study catalog"))?;
         let modality = choice.modality.to_string();
         let image_count = choice.image_count;
-        let volume = load_volume_from_series_info(&choice.acquisition)
+        let volume = browser
+            .load(index)
             .with_context(|| "open the comparison DICOM series")?;
         let mut panel = ComparePanel::empty()?;
         panel.replace(

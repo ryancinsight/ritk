@@ -10,8 +10,12 @@ use super::routing::{EventRoute, RoutedBatch};
 use super::WindowAction;
 use super::{record_state, NativeViewerError, NativeViewerSession, VIRTUAL_KEY_OPEN_STUDY};
 use crate::app::action_adapter::ViewerActionDisposition;
-use crate::presentation::{translate_native_events, PresentationEvent};
+#[cfg(windows)]
+use crate::presentation::translate_native_events;
+use crate::presentation::PresentationEvent;
+#[cfg(windows)]
 use metis_platform::native::{NativeApplication, NativeFlow, WindowEvent};
+#[cfg(windows)]
 use metis_platform::Framebuffer;
 use std::sync::atomic::Ordering;
 
@@ -69,6 +73,7 @@ impl NativeViewerSession {
     }
 }
 
+#[cfg(windows)]
 impl NativeApplication for NativeViewerSession {
     type Error = NativeViewerError;
 
@@ -86,6 +91,21 @@ impl NativeApplication for NativeViewerSession {
         let translated = translate_native_events(events).map_err(|error| {
             NativeViewerError::new(format!("translate Métis native events: {error}"))
         })?;
+        let now = self.elapsed_seconds();
+        Ok(match self.reduce_events(translated, now)? {
+            Some(repaint) => NativeFlow::Continue { repaint },
+            None => NativeFlow::Exit,
+        })
+    }
+}
+
+impl NativeViewerSession {
+    /// Reduce a translated host batch in order. None requests session closure.
+    pub(super) fn reduce_events(
+        &mut self,
+        translated: Box<[PresentationEvent]>,
+        now: f64,
+    ) -> Result<Option<bool>, NativeViewerError> {
         self.observation
             .event_batches
             .fetch_add(1, Ordering::Relaxed);
@@ -95,7 +115,7 @@ impl NativeApplication for NativeViewerSession {
         if translated.is_empty() && self.capture_after_idle {
             self.record_terminal_frame(false)
                 .map_err(NativeViewerError::from)?;
-            return Ok(NativeFlow::Exit);
+            return Ok(None);
         }
 
         let mut resize = None;
@@ -427,8 +447,7 @@ impl NativeApplication for NativeViewerSession {
             disposition,
             crate::app::action_adapter::ViewerActionDisposition::Continue { .. }
         ) {
-            let timestamp = self.elapsed_seconds();
-            self.tick_cine_at(timestamp)
+            self.tick_cine_at(now)
         } else {
             false
         };
@@ -453,7 +472,7 @@ impl NativeApplication for NativeViewerSession {
             }
             self.record_terminal_frame(destroyed)
                 .map_err(NativeViewerError::from)?;
-            return Ok(NativeFlow::Exit);
+            return Ok(None);
         }
 
         if !self.minimized && frame_changed {
@@ -467,8 +486,8 @@ impl NativeApplication for NativeViewerSession {
             )
             .map_err(NativeViewerError::from)?;
         }
-        Ok(NativeFlow::Continue {
-            repaint: !self.minimized && (geometry_refreshed || frame_changed),
-        })
+        Ok(Some(
+            !self.minimized && (geometry_refreshed || frame_changed),
+        ))
     }
 }

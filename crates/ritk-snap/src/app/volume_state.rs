@@ -100,7 +100,7 @@ impl SnapApp {
             self.sagittal_slice,
         ));
         self.annotations.clear();
-        #[cfg(windows)]
+        #[cfg(any(windows, target_arch = "wasm32"))]
         self.length_calibrations.clear();
         self.pointer.selected_annotation = None;
         self.label_editor = Some(LabelEditor::new(shape));
@@ -275,7 +275,7 @@ impl SnapApp {
         self.compare_axes = [0, 0];
         self.dual_axes = [0, 1];
         self.annotations.clear();
-        #[cfg(windows)]
+        #[cfg(any(windows, target_arch = "wasm32"))]
         self.length_calibrations.clear();
         self.pointer.selected_annotation = None;
         self.label_editor = None;

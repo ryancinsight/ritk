@@ -5,11 +5,11 @@
 //! individually; `apply_to_image_into` is the composed form that the render
 //! path uses, writing one output instead of an intermediate per step.
 
-#[cfg(any(windows, test, feature = "eframe-shell"))]
+#[cfg(any(windows, target_arch = "wasm32", test, feature = "eframe-shell"))]
 use super::{RotationSteps, ViewTransform};
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::render::buffer_pool::RenderBufferPool;
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_arch = "wasm32", test))]
 use anyhow::{anyhow, bail, Result};
 #[cfg(feature = "eframe-shell")]
 use egui::ColorImage;
@@ -145,7 +145,7 @@ pub(crate) fn apply_to_rgba(
 /// The input and output buffers are separate so a presentation frame can swap
 /// them after the transform. The output capacity is retained across calls;
 /// identity leaves it untouched and returns the source dimensions.
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_arch = "wasm32", test))]
 pub(crate) fn apply_to_rgba_into(
     size: [usize; 2],
     rgba: &[u8],
@@ -203,7 +203,7 @@ pub(crate) fn apply_to_rgba_into(
     Ok(output_size)
 }
 
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_arch = "wasm32", test))]
 fn validate_rgba_storage(size: [usize; 2], length: usize) -> Result<()> {
     let [width, height] = size;
     if width == 0 || height == 0 {

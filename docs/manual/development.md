@@ -787,33 +787,12 @@ two-pane mount (two guards) and a four-pane mount (three guards plus a
 display-only projection). The fixed three-canvas and four-canvas entrypoints
 remain available for existing pages and captures.
 
-The saved-study gallery also has a responsive consumer mode. It moves the
-same four canvas elements into its direct trusted container before mounting
-RITK, so the transfer, slice, projection, crosshair and listener oracles
-exercise the adaptive page with the public MRI study:
+For the current application, package and launch the [AsterSlice workstation](../../crates/ritk-snap/README.md#browser-host).
+Open `?layout=responsive` for native adaptive panes. The workstation regression
+runs `scripts/browser_workspace.py` against the packaged app, the public MR
+and CT fixtures, and a browser driver.
 
-```powershell
-python scripts/browser_gallery.py `
-  --metis-root ..\metis `
-  --engine chromium `
-  --driver-url http://127.0.0.1:9515 `
-  --device-scale 2 `
-  --input chooser `
-  --files test_data\2_head_mri_t2\DICOM `
-  --pattern '*.dcm' `
-  --oracle ..\metis\output\browser\mri-projection-oracle.json `
-  --consumer-revision (git rev-parse HEAD) `
-  --canvas-capture screenshot `
-  --canvas-context 2d `
-  --projection mip `
-  --crosshair-controls `
-  --page-query layout=responsive `
-  --page-query projection=mip `
-  --canvas-attribute data-ritk-pane-role `
-  --output ..\metis\output\browser\results\chromium-responsive
-```
-
-The committed browser workflow runs this mode against Chromium and Firefox and
+The earlier embedded-canvas workflow ran this mode against Chromium and Firefox and
 records the inspected canvas pixels beside the fixed-engine captures. Hosted
 run [35759891764](https://github.com/ryancinsight/ritk/actions/runs/35759891764)
 passed both responsive lanes against RITK `db17163baf2947e6e8d163e2750c4fec7f93b671`
@@ -1431,15 +1410,6 @@ diagnostic globals are removed. Stop now drops the RITK viewer and its decoded
 state synchronously before cancelling the animation task; the diagnostic
 runner removes its own four transfer listeners and retained file references.
 
-Use the RITK consumer wrapper with `--lifecycle-cycles 4`; it delegates the
-format-neutral file and canvas transport to the pinned Metis checkout.
-Repeated mode accepts 4–8 cycles and a maximum 300-second suite deadline,
-including a reserved cleanup interval. Each `canvas-trace-cycle-N.json` must
-pass RITK validation with `--validate-browser-trace <path> --require-cine-rate`.
-The Chromium drop variant uses `--input chromium`; Firefox uses `--input chooser`.
-The wrapper is `scripts/browser_gallery.py --metis-root <metis-checkout>` and
-keeps DICOM and viewer assertions in RITK.
-
 The [memory provenance](images/dicom-metis-real-browser-mri-memory.json)
 retains the older reload baseline and adds `same_instance_cycles`, with every
 phase's counters, input/oracle/source/asset hashes, engine versions and cine
@@ -1549,17 +1519,7 @@ frame is presented, so the control remains keyboard accessible throughout the
 load and stop lifecycle. The CI canvas trace records the three window
 attributes alongside the existing load, frame, slice and aspect semantics.
 
-Run the consumer-owned replay with `--window-presets --cine-controls` in
-addition to the standard chooser arguments:
-
-```powershell
-python scripts/browser_gallery.py --metis-root D:/atlas/repos/metis `
-  --engine chromium --browser-name MicrosoftEdge --driver-url http://127.0.0.1:9517 `
-  --headless --device-scale 1.25 --input chooser --window-presets --cine-controls `
-  --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
-  --oracle D:/atlas/repos/metis/output/browser/mri-oracle.json `
-  --consumer-revision (git rev-parse HEAD) --output D:/atlas/repos/metis/output/browser/window-level
-```
+The following evidence describes the retired gallery at its recorded revision.
 
 The accepted single-cycle raster capture is hosted in [run
 35269645902](https://github.com/ryancinsight/ritk/actions/runs/35269645902),
@@ -1616,18 +1576,6 @@ selected state is mirrored across the three canvases. The typed
 `select_web_tool` API rejects non-finite, fractional, negative and out-of-range
 indexes before changing viewer state.
 
-Run the consumer-owned diagnostic-tool trace with the same chooser arguments
-and add `--tool-controls`:
-
-```powershell
-python scripts/browser_gallery.py --metis-root D:/atlas/repos/metis `
-  --engine chromium --browser-name MicrosoftEdge --driver-url http://127.0.0.1:9517 `
-  --headless --device-scale 1.25 --input chooser --tool-controls `
-  --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
-  --oracle D:/atlas/repos/metis/output/browser/mri-oracle.json `
-  --consumer-revision (git rev-parse HEAD) --output D:/atlas/repos/metis/output/browser/tools
-```
-
 The bounded trace checks the typed label and index for every palette button,
 focuses the axial canvas and uses the `P` shortcut, then sends settled trusted
 input for each tool. Length receives two clicks. Angle receives three
@@ -1646,18 +1594,6 @@ trusted event metadata, per-canvas result transitions, viewport capture and
 palette capture are written to `tools/gallery-tools.json`,
 `tools/gallery-tools.png` and `tools/gallery-tools-controls.png`. The post-stop
 sample must report zero RITK canvas listeners and all palette buttons disabled.
-
-To capture the linked crosshair over the same saved MRI study, add
-`--crosshair-controls` to the consumer replay:
-
-```powershell
-python scripts/browser_gallery.py --metis-root D:/atlas/repos/metis `
-  --engine chromium --browser-name MicrosoftEdge --driver-url http://127.0.0.1:9517 `
-  --headless --device-scale 1.25 --input chooser --crosshair-controls `
-  --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
-  --oracle D:/atlas/repos/metis/output/browser/mri-oracle.json `
-  --consumer-revision (git rev-parse HEAD) --output D:/atlas/repos/metis/output/browser/crosshair
-```
 
 The workflow toggles the browser control on and off, checks that all three
 canvases publish one linked voxel and that both CSS lines are visible on every

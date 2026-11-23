@@ -1,5 +1,113 @@
 # RITK Gap Audit
 
+## 1.0 candidate verification
+
+The [release backlog](backlog.md#milestones) records the remaining milestone criteria and their owners.
+
+- [patch] MGH 0.6.1 and AsterSlice 0.2.1 use FreeSurfer's voxel center and open both gzip suffixes. Three regressions fail on the baseline. All 629 MGH and viewer library tests pass on macOS. NiBabel independently confirms all 12 samples and the full affine through MGZ → NIfTI → MGH → compressed MGH → MGZ.
+- [minor] CLI 0.3.0 preserves all decompressed bytes when repacking a supported NIfTI document. The boundary tests cover a calibrated two-volume NIfTI-2 integer file and truncated input with an existing destination.
+- [patch] Verify Python VTK and Analyze physical coordinates against SimpleITK and reject unrepresentable Analyze stored headers. All 306 Analyze/VTK library tests pass.
+- [patch] Preserve NIfTI gzip member boundaries on read by joining the expanded data and validating every document trailer. Two regressions failed on the baseline and all 106 NIfTI tests pass.
+- [patch] Inventory MetaImage conversion fields and correct big-endian reads using the alternate header key. All 25 library tests pass, including 16 packaging/key combinations.
+- [minor] Transfer decoded scalar DICOM pixels into the viewer with their resolved grid and release encoded inputs after decoding. Across seven affected packages, 1,666 Rust tests pass. All 196 applicable minor-release checks pass against the 0.8.0 source on main.
+- [patch] Qualify the optimized macOS ARM64 Python wheel against SimpleITK 2.5.8 for patch denoising and ternary magnitude on the original numeric bounds.
+- [minor] Verify the native Display menu half-turn and its inverse on Windows. The rectangular fixture compares every presented pixel. [Passing Windows job](https://github.com/ryancinsight/ritk/actions/runs/45063679762/job/137338722471)
+- [minor] MGH 0.7.0 and the CLI repack FreeSurfer documents with exact header, frame, and footer bytes. Multi-frame signed integers, gzip trailer validation and in-place replacement are covered.
+- [patch] Verify complete MGZ framing on scalar and multi-frame reads. All 2,853 affected Rust tests pass across eight packages.
+- [patch] Apply NIfTI calibration before binary32 narrowing. Compare all 42,991,616 voxels in the four shared OpenNeuro MRIs with NiBabel and SimpleITK.
+- [patch] Verify manual feature-branch documentation runs against the default-branch merge base, including when both branches have advanced.
+- [patch] Remove the skull CT and paired MRI/CT collections from the candidate tree after verifying all 2,642 retained files against their Git objects.
+- [patch] Verify the OpenNeuro ds000102 source, license and checksum and run the registration consumer from the shared fixture cache.
+- [major] Record the four 1.0 compatibility surfaces in [ADR 0059](docs/adr/0059-release-scope-1-0.md). Compatibility qualification remains pending.
+
+## AsterSlice browser workspace
+
+The previous browser page implemented an independent HTML toolbar, sidebar and pane
+layout. The standalone application now runs the Windows workstation compositor
+and event reducer. Chromium reads the 94-image public MRI, navigates slices,
+measures length, rotates the view and advances cine. The native series dialog
+opens MR and CT volumes in independent panels. Sixteen displayed samples per
+plane match the embedding renderer and each source plane matches the stored
+RGBA digest. Raster and WebGPU produce byte-identical desktop screenshots.
+The transformed embedding check selects voxel (47, 340, 173) and steps to
+(46, 340, 173). All 1,139 macOS viewer and I/O library tests pass. The original
+root failed the single-workstation acceptance test.
+
+## Shared fixture inventory
+
+The pre-retention RITK inventory records 3,191 tracked test-data files totaling 1,490,441,937 bytes. A local inventory records path, size, Git blob, available provenance, code references, and the names of selected populated DICOM fields. It parsed 1,980 DICOM headers. Identifying-field presence does not establish a subject’s identity or permission to redistribute.
+
+The independently downloaded OpenNeuro ds000102 T1 volume agrees with the tracked copy. Its source record declares PDDL. The shared catalog resolves it into a local checksum-verified cache, and the inter-subject registration test runs from that cache. License and source records for the skull CT and paired MRI/CT collections remain unknown.
+
+The owner authorized local retention and removal from new checkouts for the skull CT and paired MRI/CT collections. Before removing their index entries we verified 308 and 2,334 retained files respectively against their tracked objects, identical in the base tree at `71f94fc74`. Their total size is 1,134,385,072 bytes. The owner holds a private per-file SHA-256 inventory alongside the files. Prior Git history still contains the original objects.
+
+## Documentation check range
+
+A manually dispatched development-branch run supplied no event base. The job compared the candidate with the repository root and attributed historical images to the current branch. The job now uses the common commit with the default branch for this event. A diverged-branch regression reproduces the old failure and checks the default-branch, push, and PR comparisons.
+
+## Browser GPU pixel verification
+
+The gallery slice and window samplers requested a 2D context on a canvas already bound to WebGPU. On a real Chromium adapter this failed before sampling. Directly drawing the live GPU canvas into a second context also returned a cleared frame. Serializing its presented bitmap as lossless PNG yields the native-resolution RGBA samples. A six-pixel fixture with distinct color channels produced the same SHA-256 in both presentation modes and matched the independent input bytes.
+
+The saved 94-slice MRI passes 50 slider actions with the Métis rejection-order correction. Each anatomical plane returns to its starting pixel digest. Native RITK validation accepts the three-canvas trace. The earlier macOS Chromium window-preset action timed out with the previous selection. The workspace’s keyboard-selectable preset list now passes the raster and WebGPU journeys on that MRI. Hosted Chromium offered no WebGPU adapter, and hosted WebKit could not read the selected files. These acceptance checks remain open.
+
+## Scalar DICOM browser memory
+
+Loading the same 94-slice, 512 × 512 MRI four times on Chromium increased WebAssembly memory from 403,832,832 to 502,464,512 bytes on the fourth load. The scalar viewer previously transferred the entire reconstructed volume into a tensor and copied it back. It now takes ownership of the decoder’s pixel allocation. The native image loader and viewer use the same decoder and read budget.
+
+On the changed decoder, Chromium completed all four loads with 401,604,608 bytes after the first transfer. All three canvases passed native trace validation for each load. A separate attempt stopped when the coronal canvas reported an unexpected input type. Windows and hosted browser results remain qualification gates.
+
+## Python denoising parity
+
+Six failures in the macOS ARM64 optimized wheel traced to three numeric differences from SimpleITK 2.5.8. ITK converts floored Gaussian draws to unsigned coordinates before testing the boundary. Apple ARM64 saturates negative draws to zero. Apple libc++ selects float powers for spline weights, and Clang contracts two multiply-adds in the squared norm. Correcting these operations preserves the existing bounds. All 1,301 Python tests that ran as ordinary passing cases now pass, with eight skips and one unexpected pass. The eight affected Rust packages pass 2,851 tests. All 223 applicable patch compatibility checks pass against published RITK Filter 0.6.0.
+
+## MGZ compute reader
+
+The scalar and series readers previously stopped at the first gzip member. A member split inside a signed short returned a truncation error, and a footer extending past the declared read limit was accepted. Both regressions now pass. The compatibility check also verifies that the additional error variants preserve existing discriminants.
+
+## MetaImage sample byte order
+
+The reader decoded an `ElementByteOrderMSB = True` file containing −513 as −3.
+Both spellings now select the declared order, including for zlib and detached
+data. The [field inventory](docs/book/metaimage_format.md#conversion-inventory)
+records remaining sample, calibration, geometry, and packaging work.
+
+## Analyze stored header fidelity
+
+The former stored writer admitted a header that rounded the source spacing,
+origin or intensity scale. Its preflight now rejects that conversion before
+opening either destination file. The independent VTK and Analyze Python
+geometry checks exercise the representable signed-permutation case. The
+legacy Analyze compute writer retains its documented quantization behavior.
+
+## NIfTI compute intensities
+
+In OpenNeuro ds000208 the first background sample decoded as −32,768 while NiBabel and SimpleITK both returned zero. The compute reader discarded the slope and intercept. Two independent regressions exercise signed-zero identity, invalid coefficients and integer cancellation above 2²⁴. Corrected compute reads agree with both libraries at every one of the 42,991,616 voxels in the four cataloged MRIs.
+
+## NIfTI document conversion
+
+Two gzip regressions reproduced a split header failing to read and a damaged
+second member being accepted. The document reader now drains all members within
+the expanded limit and the compute reader can decode samples spanning members.
+
+The CLI previously sent same-format conversion through the single-volume
+binary32 compute reader. This rejected a two-volume NIfTI-2 input and could
+round wide integers in a single volume. The CLI now delegates this route
+to the document transcoder. The [cross-format item](backlog/RITK-NRRD-NIFTI-001.md)
+tracks the distinct requirements for NRRD interchange.
+
+## FreeSurfer document repacking
+
+The CLI rejected a two-frame MRI_INT input during a pure compression change.
+The document path checks the declared payload and copies every expanded byte
+through a temporary output. Coverage includes the four supported scalar types,
+nonzero DOF, an unset RAS flag, padding, acquisition footer, corrupt trailers,
+and the exact expanded-byte boundary.
+
+## FreeSurfer volume geometry
+
+The MGH 0.6.0 reader and writer use the same displaced center and therefore pass a mutual round trip. The independent viewer fixture, hand-built header and emitted-header regressions all fail on `533f2e077`. Version 0.6.1 corrects both transforms. The [inventory](docs/book/mgh_format.md#conversion-inventory) identifies the remaining stored-sample and metadata work.
+
 ## Viewer dependency audit [patch]
 
 The locked all-feature audit of the 2026-11-22 candidate clears the URL and RSA vulnerabilities. Updating the xtask progress bar to indicatif 0.18.6 removed number_prefix. The executor resolves to unyanked async-executor 1.14.1. The native chooser uses rfd 0.18.0, removing the three older portal findings on zbus_names 3.0.0, zvariant 4.2.0 and zvariant_derive 4.2.0. The chooser-enabled build passes on macOS.

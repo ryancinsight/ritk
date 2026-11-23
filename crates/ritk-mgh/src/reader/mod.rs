@@ -11,7 +11,6 @@ use crate::types::VoxelType;
 use crate::{is_gzip_path, MghError, GOOD_RAS_VALID, PADDING_LEN, VERSION};
 use coeus_core::ComputeBackend;
 use consus_core::{read_from, ByteOrder, EndianScalar};
-use flate2::read::GzDecoder;
 use ritk_image::Image;
 use std::io::{BufReader, Read};
 use std::path::Path;
@@ -19,6 +18,8 @@ use std::path::Path;
 /// Decompression cap for MGZ files (1 GiB).
 const MAX_MGZ_UNCOMPRESSED_BYTES: u64 = 1 << 30;
 
+pub(crate) mod document;
+mod gzip;
 #[cfg(test)]
 mod tests;
 mod voxel_decode;
@@ -43,6 +44,8 @@ mod voxel_decode;
 /// - [`MghError::MultiFrame`] when the file declares more than one frame; a multi-frame volume has no correct single-volume decoding, so it fails rather than yielding frame 0.
 /// - [`MghError::TruncatedPayload`] when the payload is shorter than the header declares, or an MGZ stream exceeds the decompression cap.
 /// - [`MghError::PayloadRead`] when the payload stream fails while being read.
+/// - [`MghError::GzipStream`] for a damaged gzip member following the payload.
+/// - [`MghError::ExpandedLimit`] when trailing data exceeds the expanded limit.
 /// - [`MghError::Allocation`] when decode storage cannot be reserved.
 /// - [`MghError::Image`] when the decoded voxels cannot be assembled into an image.
 pub fn read_mgh<B: ComputeBackend, P: AsRef<Path>>(
@@ -61,9 +64,7 @@ fn read_mgh_with_limit<B: ComputeBackend, P: AsRef<Path>>(
     let file = open_file(path)?;
 
     if is_gzip_path(path) {
-        let gz = GzDecoder::new(BufReader::new(file)).take(limit);
-        let mut reader = BufReader::new(gz);
-        read_mgh_from_reader(&mut reader, backend)
+        gzip::read(file, limit, |reader| read_mgh_from_reader(reader, backend))
     } else {
         let mut reader = BufReader::new(file);
         read_mgh_from_reader(&mut reader, backend)
@@ -94,6 +95,7 @@ struct MghHeader {
     direction: ritk_spatial::Direction<3>,
     voxel_type: VoxelType,
     voxels_per_frame: usize,
+    payload_bytes: usize,
     nframes: usize,
 }
 
@@ -142,6 +144,8 @@ fn read_mgh_from_reader<B: ComputeBackend, R: Read>(
 /// - [`MghError::DataSizeOverflow`] when the series payload size in bytes overflows `usize`.
 /// - [`MghError::TruncatedPayload`] when the payload is shorter than the header declares, or an MGZ stream exceeds the decompression cap.
 /// - [`MghError::PayloadRead`] when the payload stream fails while being read.
+/// - [`MghError::GzipStream`] for a damaged gzip member following the payload.
+/// - [`MghError::ExpandedLimit`] when trailing data exceeds the expanded limit.
 /// - [`MghError::Allocation`] when decode storage cannot be reserved.
 /// - [`MghError::Image`] when the decoded voxels cannot be assembled into an image.
 pub fn read_mgh_series<B: ComputeBackend, P: AsRef<Path>>(
@@ -160,9 +164,9 @@ fn read_mgh_series_with_limit<B: ComputeBackend, P: AsRef<Path>>(
     let file = open_file(path)?;
 
     if is_gzip_path(path) {
-        let gz = GzDecoder::new(BufReader::new(file)).take(limit);
-        let mut reader = BufReader::new(gz);
-        read_mgh_series_from_reader(&mut reader, backend)
+        gzip::read(file, limit, |reader| {
+            read_mgh_series_from_reader(reader, backend)
+        })
     } else {
         let mut reader = BufReader::new(file);
         read_mgh_series_from_reader(&mut reader, backend)
@@ -270,12 +274,13 @@ fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader, MghError> {
         })?;
     let voxel_type = VoxelType::try_from(mri_type)?;
     let bytes_per_voxel = voxel_type.bytes_per_voxel();
-    total_voxels
-        .checked_mul(bytes_per_voxel)
-        .ok_or(MghError::DataSizeOverflow {
-            voxels: total_voxels,
-            bytes_per_voxel,
-        })?;
+    let payload_bytes =
+        total_voxels
+            .checked_mul(bytes_per_voxel)
+            .ok_or(MghError::DataSizeOverflow {
+                voxels: total_voxels,
+                bytes_per_voxel,
+            })?;
 
     Ok(MghHeader {
         dims: [nz, ny, nx],
@@ -284,6 +289,7 @@ fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader, MghError> {
         direction,
         voxel_type,
         voxels_per_frame: n_voxels,
+        payload_bytes,
         nframes,
     })
 }
@@ -340,6 +346,8 @@ impl MghReader {
     /// - [`MghError::MultiFrame`] when the file declares more than one frame; a multi-frame volume has no correct single-volume decoding, so it fails rather than yielding frame 0.
     /// - [`MghError::TruncatedPayload`] when the payload is shorter than the header declares, or an MGZ stream exceeds the decompression cap.
     /// - [`MghError::PayloadRead`] when the payload stream fails while being read.
+    /// - [`MghError::GzipStream`] for a damaged gzip member following the payload.
+    /// - [`MghError::ExpandedLimit`] when trailing data exceeds the expanded limit.
     /// - [`MghError::Allocation`] when decode storage cannot be reserved.
     /// - [`MghError::Image`] when the decoded voxels cannot be assembled into an image.
     pub fn read<B: ComputeBackend, P: AsRef<Path>>(
@@ -365,6 +373,8 @@ impl MghReader {
     /// - [`MghError::DataSizeOverflow`] when the series payload size in bytes overflows `usize`.
     /// - [`MghError::TruncatedPayload`] when the payload is shorter than the header declares, or an MGZ stream exceeds the decompression cap.
     /// - [`MghError::PayloadRead`] when the payload stream fails while being read.
+    /// - [`MghError::GzipStream`] for a damaged gzip member following the payload.
+    /// - [`MghError::ExpandedLimit`] when trailing data exceeds the expanded limit.
     /// - [`MghError::Allocation`] when decode storage cannot be reserved.
     /// - [`MghError::Image`] when the decoded voxels cannot be assembled into an image.
     pub fn read_series<B: ComputeBackend, P: AsRef<Path>>(

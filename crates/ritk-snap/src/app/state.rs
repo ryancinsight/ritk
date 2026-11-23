@@ -16,13 +16,12 @@ pub(crate) const DEFAULT_FUSION_ALPHA: f32 = 0.35;
 
 /// Numbered custom window/level slots offered by the native Display menu.
 ///
-/// Windows-only: the slots live in native Display-menu state, which is
-/// compiled out on other platforms.
-#[cfg(windows)]
+/// The shared workstation exposes these slots in its Display menu.
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) const MAX_CUSTOM_PRESETS: usize = 4;
 
 /// Static Display-menu labels for the custom window/level slots.
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) const CUSTOM_PRESET_LABELS: [&str; MAX_CUSTOM_PRESETS] =
     ["Custom 1", "Custom 2", "Custom 3", "Custom 4"];
 
@@ -107,7 +106,7 @@ pub(crate) struct SnapApp {
     pub(crate) presentation_dispatcher: PresentationDispatcher,
     /// Completed measurement annotations.
     pub(crate) annotations: Vec<Annotation>,
-    #[cfg(windows)]
+    #[cfg(any(windows, target_arch = "wasm32"))]
     pub(super) length_calibrations: Vec<(crate::tools::interaction::AnnotationLocation, f64)>,
     #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     /// Last hovered or interacted axis for status/info display.
@@ -181,10 +180,10 @@ pub(crate) struct SnapApp {
     /// Viewport image orientation transform (flip/rotate).
     pub(crate) view_transform: ViewTransform,
     /// Negative display: presented RGB channels are inverted (`255 - c`).
-    #[cfg(windows)]
+    #[cfg(any(windows, target_arch = "wasm32"))]
     pub(crate) invert_display: bool,
     /// Numbered custom window/level slots, empty until the viewer saves one.
-    #[cfg(windows)]
+    #[cfg(any(windows, target_arch = "wasm32"))]
     pub(crate) custom_presets: [Option<(f32, f32)>; MAX_CUSTOM_PRESETS],
     #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     /// Whether to show the colorbar overlay in each viewport.
@@ -212,7 +211,11 @@ pub(crate) struct SnapApp {
     #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     /// Axis assignment for compare layout: [primary_axis, secondary_axis].
     pub(crate) compare_axes: [usize; 2],
-    #[cfg(any(windows, all(not(target_arch = "wasm32"), feature = "eframe-shell")))]
+    #[cfg(any(
+        windows,
+        target_arch = "wasm32",
+        all(not(target_arch = "wasm32"), feature = "eframe-shell")
+    ))]
     /// `true` when the DICOM 4-corner overlay is drawn on viewports.
     /// Both shells honor this flag.
     pub(crate) show_overlay: bool,

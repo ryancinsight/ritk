@@ -13,7 +13,7 @@ ATLAS_SOURCE = "42f451bf117af8d1549460c8a04cbc28bba065db"
 CHECKOUT_ACTION = "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803"
 SCRIPT_TEST_JOBS = (
     ("python_ci.yml", "build-and-smoke-test", "Run Python script tests"),
-    ("metis-browser-dicom.yml", "build-browser", "Validate the RITK gallery harness"),
+    ("metis-browser-dicom.yml", "build-browser", "Validate RITK browser tooling"),
 )
 
 

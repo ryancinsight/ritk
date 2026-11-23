@@ -4,7 +4,7 @@ use crate::header::{checked_spatial_pixdim, qfac_from_pixdim, HeaderVersion, Nif
 use crate::reader::GZIP_MAGIC;
 use crate::spatial::{sform_handedness, SpatialHandedness};
 use crate::writer::is_gzip_path;
-use flate2::read::GzDecoder;
+use flate2::read::MultiGzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::borrow::Cow;
@@ -132,11 +132,14 @@ pub struct NiftiDocument {
 impl NiftiDocument {
     /// Parse uncompressed `.nii` bytes or a complete `.nii.gz` stream.
     ///
-    /// Gzip input is drained through its trailer, so checksum failures are
+    /// Each gzip member is drained through its trailer, so checksum failures are
     /// reported instead of accepting only the declared sample prefix.
     pub fn from_bytes(encoded: &[u8]) -> Result<Self, NiftiDocumentError> {
         let bytes = if encoded.starts_with(&GZIP_MAGIC) {
-            decode_gzip(encoded)?
+            read_bounded(
+                MultiGzDecoder::new(encoded),
+                NiftiDocumentError::Compression,
+            )?
         } else {
             ensure_document_size(encoded.len())?;
             encoded.to_vec()
@@ -180,8 +183,25 @@ impl NiftiDocument {
 
     /// Read and validate one `.nii` or `.nii.gz` document.
     pub fn read(path: impl AsRef<Path>) -> Result<Self, NiftiDocumentError> {
-        let encoded = fs::read(path).map_err(NiftiDocumentError::Io)?;
-        Self::from_bytes(&encoded)
+        let mut file = fs::File::open(path).map_err(NiftiDocumentError::Io)?;
+        let mut prefix = Vec::with_capacity(GZIP_MAGIC.len());
+        Read::by_ref(&mut file)
+            .take(GZIP_MAGIC.len() as u64)
+            .read_to_end(&mut prefix)
+            .map_err(NiftiDocumentError::Io)?;
+        let bytes = if prefix == GZIP_MAGIC {
+            let encoded = prefix.as_slice().chain(file);
+            read_bounded(
+                MultiGzDecoder::new(encoded),
+                NiftiDocumentError::Compression,
+            )?
+        } else {
+            if file.metadata().map_err(NiftiDocumentError::Io)?.len() > MAX_DOCUMENT_BYTES {
+                return Err(NiftiDocumentError::DecodedSizeLimit(MAX_DOCUMENT_BYTES));
+            }
+            read_bounded(prefix.as_slice().chain(file), NiftiDocumentError::Io)?
+        };
+        Self::from_owned_bytes(bytes)
     }
 
     /// Return the parsed header view.
@@ -270,15 +290,16 @@ fn classify_forms(header: &NiftiHeader) -> Result<SpatialFormRelation, NiftiDocu
     }
 }
 
-fn decode_gzip(encoded: &[u8]) -> Result<Vec<u8>, NiftiDocumentError> {
+fn read_bounded(
+    reader: impl Read,
+    io_error: fn(io::Error) -> NiftiDocumentError,
+) -> Result<Vec<u8>, NiftiDocumentError> {
     let mut decoded = Vec::new();
-    GzDecoder::new(encoded)
+    reader
         .take(MAX_DOCUMENT_BYTES + 1)
         .read_to_end(&mut decoded)
-        .map_err(NiftiDocumentError::Compression)?;
-    if u64::try_from(decoded.len()).expect("invariant: usize fits u64") > MAX_DOCUMENT_BYTES {
-        return Err(NiftiDocumentError::DecodedSizeLimit(MAX_DOCUMENT_BYTES));
-    }
+        .map_err(io_error)?;
+    ensure_document_size(decoded.len())?;
     Ok(decoded)
 }
 
@@ -345,6 +366,56 @@ mod tests {
             let reread = NiftiDocument::read(path).expect("written document reads");
             assert_eq!(reread.uncompressed_bytes(), bytes);
         }
+    }
+
+    #[test]
+    fn gzip_member_boundaries_preserve_header_sample_and_trailing_bytes() {
+        let mut bytes = document_bytes(1.0);
+        let original_len = bytes.len();
+        bytes.extend_from_slice(b"retained trailer");
+        let directory = tempdir().expect("fixture directory");
+        let path = directory.path().join("members.nii.gz");
+        for split in [0, 17, 369, original_len, bytes.len()] {
+            let mut stream = encode_gzip(&bytes[..split]).expect("first member");
+            stream.extend(encode_gzip(&bytes[split..]).expect("second member"));
+            fs::write(&path, &stream).expect("write gzip fixture");
+            assert_eq!(
+                NiftiDocument::from_bytes(&stream)
+                    .expect("document")
+                    .uncompressed_bytes(),
+                bytes
+            );
+            assert_eq!(
+                NiftiDocument::read(&path)
+                    .expect("file")
+                    .uncompressed_bytes(),
+                bytes
+            );
+            let image = crate::read_nifti_from_bytes(&stream, &coeus_core::SequentialBackend)
+                .expect("compute image reads samples across gzip members");
+            let values = image.data_slice().expect("host pixels");
+            assert_eq!(values[0].to_bits(), 0x8000_0000);
+            assert!(values[1].is_nan());
+        }
+    }
+
+    #[test]
+    fn invalid_second_gzip_member_preserves_existing_destination() {
+        let bytes = document_bytes(1.0);
+        let mut stream = encode_gzip(&bytes).expect("valid first member");
+        let mut tail = encode_gzip(b"retained trailer").expect("second member");
+        *tail.last_mut().expect("member size trailer") ^= 1;
+        stream.extend(tail);
+        let directory = tempdir().expect("fixture directory");
+        let source = directory.path().join("broken.nii.gz");
+        let output = directory.path().join("existing.nii");
+        fs::write(&source, stream).expect("write source");
+        fs::write(&output, &bytes).expect("existing output");
+        assert!(matches!(
+            transcode_nifti_document(source, &output),
+            Err(NiftiDocumentError::Compression(_))
+        ));
+        assert_eq!(fs::read(output).expect("preserved output"), bytes);
     }
 
     #[test]

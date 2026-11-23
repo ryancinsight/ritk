@@ -1,14 +1,18 @@
 # RITK execution backlog
 
+Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the acceptance checklist. [Executed verification](gap_audit.md#10-candidate-verification) records completed checks.
+
 # Milestones
 <a id="M-viewer-reading"></a>
 ## M-viewer-reading — 0.2.0 — read a single study on the native shell
 - exit: `cargo nextest run -p ritk-snap -E 'test(pointer_bindings) or test(modifier_gesture) or test(native_annotation) or test(native_display) or test(native_view_transform) or test(native_overlay_text) or test(measure_set)'`
+- [patch] One workstation serves Windows and the web. Chromium verifies real MR and CT comparison, measurements and the three MRI planes. See [the reading workspace checklist](backlog/RITK-SNAP-RADIANT-UI-001.md).
 - needs: none
 - non-goals: PACS, archive, 3D rendering
 <a id="M-viewer-compare"></a>
 ## M-viewer-compare — 0.3.0 — compare series by patient position
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_link) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
+- [minor] The scalar reader transfers its pixel allocation to the viewer. Browser qualification includes four loads of the same 94-slice MRI.
 - needs: M-viewer-reading
 - non-goals: fusion
 <a id="M-viewer-access"></a>
@@ -22,24 +26,27 @@
 ## M-viewer-advanced — 1.0.0 — advanced reading tools
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_filter) or test(native_vr) or test(native_fusion) or test(native_dynamic) or test(native_documents) or test(native_movie) or test(native_shell)'`
 - exit: `cargo semver-checks` for `ritk-snap`; `cargo publish --dry-run` for the viewer's closure
-- exit: `cargo doc` with no new warnings; zero open correctness items (M-1.0 per ADR 0059, authority-gated: release authority sets the API-freeze contents, never forces `publish = true` without it)
+- exit: `cargo doc` with no new warnings; zero open correctness items and verified compatibility for AsterSlice controls, the CLI, Python and published Rust crate APIs ([ADR 0059](docs/adr/0059-release-scope-1-0.md))
+- [patch] The macOS ARM64 Python wheel passes the SimpleITK denoising and squared-magnitude comparisons. Cross-platform Python qualification remains open.
 - needs: M-viewer-access
 - non-goals: encrypted ZIP, optical disc burning, unlisted RadiAnt add-ons
+- [patch] Manual documentation qualification compares a development branch against its merge base with the default branch.
+
 # Items
 
 <a id="ritk-stable-qualification"></a>- [RITK-STABLE-QUALIFICATION](backlog/ritk-stable-qualification.md) — ritk stable-release qualification [patch] — todo
 <a id="RITK-FORMAT-RESCUE-RECONCILE-001"></a>- [RITK-FORMAT-RESCUE-RECONCILE-001](backlog/RITK-FORMAT-RESCUE-RECONCILE-001.md) — Rehome format work from stale rescue branches — blocked
 <a id="RITK-GAP-2026-08-20-02"></a>- [RITK-GAP-2026-08-20-02](backlog/RITK-GAP-2026-08-20-02.md) — Fuzz supported format parsers — todo
-<a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Write permuted images to VTK and Analyze — todo
-<a id="RITK-METAIMAGE-CONVERSION-INVENTORY-001"></a>- [RITK-METAIMAGE-CONVERSION-INVENTORY-001](backlog/RITK-METAIMAGE-CONVERSION-INVENTORY-001.md) — Map MetaImage volume semantics — todo
-<a id="RITK-MGH-CONVERSION-INVENTORY-001"></a>- [RITK-MGH-CONVERSION-INVENTORY-001](backlog/RITK-MGH-CONVERSION-INVENTORY-001.md) — Map MGH volume semantics — todo
+<a id="RITK-PYTHON-VTK-DIRECTION-001"></a>- [RITK-PYTHON-VTK-DIRECTION-001](backlog/RITK-PYTHON-VTK-DIRECTION-001.md) — Write permuted images to VTK and Analyze — done [patch]
+<a id="RITK-METAIMAGE-CONVERSION-INVENTORY-001"></a>- [RITK-METAIMAGE-CONVERSION-INVENTORY-001](backlog/RITK-METAIMAGE-CONVERSION-INVENTORY-001.md) — Map MetaImage volume semantics — done [patch]
+<a id="RITK-MGH-CONVERSION-INVENTORY-001"></a>- [RITK-MGH-CONVERSION-INVENTORY-001](backlog/RITK-MGH-CONVERSION-INVENTORY-001.md) — Map MGH volume semantics — done [patch]
 <a id="RITK-VTK-IMAGE-CONTRACT-001"></a>- [RITK-VTK-IMAGE-CONTRACT-001](backlog/RITK-VTK-IMAGE-CONTRACT-001.md) — Separate VTK image semantics — todo
 <a id="SEC-446-05"></a>- [SEC-446-05](backlog/SEC-446-05.md) — Bound parser header counts by ImageReadBudget — todo
 <a id="RITK-NRRD-NIFTI-001"></a>- [RITK-NRRD-NIFTI-001](backlog/RITK-NRRD-NIFTI-001.md) — Convert NRRD and NIfTI volumes — blocked
-<a id="RITK-METAIMAGE-CONVERSION-001"></a>- [RITK-METAIMAGE-CONVERSION-001](backlog/RITK-METAIMAGE-CONVERSION-001.md) — Preserve MetaImage volume semantics — blocked
+<a id="RITK-METAIMAGE-CONVERSION-001"></a>- [RITK-METAIMAGE-CONVERSION-001](backlog/RITK-METAIMAGE-CONVERSION-001.md) — Preserve MetaImage volume semantics — todo
 <a id="RITK-MINC-CONVERSION-001"></a>- [RITK-MINC-CONVERSION-001](backlog/RITK-MINC-CONVERSION-001.md) — Preserve MINC volume semantics — blocked
 <a id="RITK-MIF-CONVERSION-001"></a>- [RITK-MIF-CONVERSION-001](backlog/RITK-MIF-CONVERSION-001.md) — Preserve MRtrix image semantics — blocked
-<a id="RITK-MGH-CONVERSION-001"></a>- [RITK-MGH-CONVERSION-001](backlog/RITK-MGH-CONVERSION-001.md) — Preserve MGH and MGZ volume semantics — blocked
+<a id="RITK-MGH-CONVERSION-001"></a>- [RITK-MGH-CONVERSION-001](backlog/RITK-MGH-CONVERSION-001.md) — Preserve MGH and MGZ volume semantics — todo
 <a id="RITK-VTK-VOLUME-CONVERSION-001"></a>- [RITK-VTK-VOLUME-CONVERSION-001](backlog/RITK-VTK-VOLUME-CONVERSION-001.md) — Preserve VTK image-volume semantics — blocked
 <a id="RITK-SNAP-OBLIQUE-SESSION-WIRING-001"></a>- [RITK-SNAP-OBLIQUE-SESSION-WIRING-001](backlog/RITK-SNAP-OBLIQUE-SESSION-WIRING-001.md) — Wire the oblique session pane — blocked
 <a id="RITK-DICOM-CALIBRATION-UNITS-001"></a>- [RITK-DICOM-CALIBRATION-UNITS-001](backlog/RITK-DICOM-CALIBRATION-UNITS-001.md) — Preserve DICOM values and units — blocked
@@ -59,7 +66,7 @@
 <a id="RITK-GAP-2026-08-20-06"></a>- [RITK-GAP-2026-08-20-06](backlog/RITK-GAP-2026-08-20-06.md) — Raise lint and documentation floors — todo
 <a id="RITK-GAP-2026-08-20-08"></a>- [RITK-GAP-2026-08-20-08](backlog/RITK-GAP-2026-08-20-08.md) — Complete registration and dispatch chapters — todo
 <a id="RITK-SNAP-OBLIQUE-APP-TESTS-001"></a>- [RITK-SNAP-OBLIQUE-APP-TESTS-001](backlog/RITK-SNAP-OBLIQUE-APP-TESTS-001.md) — Verify oblique adapter boundaries — blocked
-<a id="RITK-FIXTURE-RETENTION-001"></a>- [RITK-FIXTURE-RETENTION-001](backlog/RITK-FIXTURE-RETENTION-001.md) — Decide imaging fixture retention — blocked
+<a id="RITK-FIXTURE-RETENTION-001"></a>- [RITK-FIXTURE-RETENTION-001](backlog/RITK-FIXTURE-RETENTION-001.md) — Decide imaging fixture retention — two collections retained locally, remaining records blocked [patch]
 <a id="RITK-TEST-DATASET-RELAY-001"></a>- [RITK-TEST-DATASET-RELAY-001](backlog/RITK-TEST-DATASET-RELAY-001.md) — Externalize large public test datasets — blocked
 <a id="RITK-SNAP-OBLIQUE-SESSION-TESTS-001"></a>- [RITK-SNAP-OBLIQUE-SESSION-TESTS-001](backlog/RITK-SNAP-OBLIQUE-SESSION-TESTS-001.md) — Verify oblique rendering and startup — blocked
 <a id="RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001"></a>- [RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001](backlog/RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001.md) — Verify complete native gestures — blocked

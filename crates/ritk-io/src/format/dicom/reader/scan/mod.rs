@@ -20,6 +20,7 @@ use crate::format::dicom::identity::{image_series_uid, optional_uid, CONCATENATI
 use crate::format::dicom::networking::scp::StoredInstance;
 use crate::format::dicom::object_model::{DicomObjectModel, DicomObjectNode};
 
+pub(super) mod catalog;
 mod finalize;
 mod geometry;
 mod metadata;

@@ -189,13 +189,13 @@ mod tests {
     #[test]
     fn test_viewer_args_path_round_trip() {
         let args = ViewerArgs {
-            path: PathBuf::from("test_data/2_skull_ct"),
+            path: PathBuf::from("test_data/3_head_ct_mridir"),
             series_instance_uid: None,
             geometry: true,
             slices: true,
             summary: false,
         };
-        assert_eq!(args.path, PathBuf::from("test_data/2_skull_ct"));
+        assert_eq!(args.path, PathBuf::from("test_data/3_head_ct_mridir"));
         assert_eq!(args.series_instance_uid, None);
         assert!(args.geometry);
         assert!(args.slices);

@@ -8,6 +8,7 @@ stack.
 
 - [DICOM viewer manual](docs/manual/dicom-workflow.md) for Windows controls,
   measurements, annotation editing, and current screenshots.
+- [AsterSlice web viewer](crates/ritk-snap/README.md#browser-host) for opening the browser workspace and building its standalone web bundle.
 - [Viewer developer reference](docs/manual/development.md) for generated fixtures,
   browser procedures, and historical capture records.
 - [RITK medical imaging book](https://ryancinsight.github.io/ritk/) — hosted
@@ -74,7 +75,7 @@ from the public [Iris](https://github.com/ryancinsight/iris) provider.
 ### AsterSlice viewer (`ritk-snap`)
 
 AsterSlice launches through `asterslice [PATH]` directly against a DICOM folder,
-a single DICOM file, a `DICOMDIR` file, or a supported medical image file. The viewer keeps DICOM
+a single DICOM file, a `DICOMDIR` file, or a NIfTI, MetaImage, NRRD, or FreeSurfer volume (including `.mgz` and `.mgh.gz`). The viewer keeps DICOM
 I/O in `ritk-io` and presentation logic in `ritk-snap`, with a vertical module
 split for input path normalization, hanging-protocol selection, series
 discovery, metadata row construction, session snapshot persistence, rendering,

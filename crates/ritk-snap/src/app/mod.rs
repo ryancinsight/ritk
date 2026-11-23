@@ -13,14 +13,14 @@
 //! | `false`        | Single viewport — current axis fills panel. |
 //! | `true`         | 2×2 grid: Axial / Coronal / Sagittal / 3D-MIP, with Info below.|
 
-#[cfg(any(windows, feature = "eframe-shell"))]
+#[cfg(any(windows, target_arch = "wasm32", feature = "eframe-shell"))]
 pub(crate) const PRODUCT_NAME: &str = "AsterSlice";
 
 pub(crate) mod action_adapter;
 mod annotation_edit;
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 mod calibration;
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) use calibration::{CalibrationInputError, CalibrationUnit, LengthCalibrationReference};
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_cine;
@@ -65,6 +65,7 @@ mod pacs_ops;
 mod panels;
 #[cfg(any(
     windows,
+    target_arch = "wasm32",
     test,
     all(not(target_arch = "wasm32"), feature = "eframe-shell")
 ))]
@@ -122,7 +123,7 @@ pub(crate) mod tests;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) use eframe::EguiApp;
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) use slice_ops::CineTick;
 pub(crate) use state::SnapApp;
 

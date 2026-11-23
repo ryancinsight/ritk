@@ -28,6 +28,8 @@ import pytest
 import ritk
 import SimpleITK as sitk
 
+from _fixture_cache import catalog_fixture
+
 # ---------------------------------------------------------------------------
 # Custom pytest markers
 # ---------------------------------------------------------------------------
@@ -66,11 +68,7 @@ _BRAIN_MOVING = _BRAIN_FIXED
 _MNI_FIXED = (
     _TEST_DATA / "ants_example" / "mni152.nii.gz" if _TEST_DATA else None
 )
-_MNI_MOVING = (
-    _TEST_DATA / "openneuro" / "sub-01_T1w.nii.gz"
-    if _TEST_DATA
-    else None
-)
+_MNI_MOVING = catalog_fixture("openneuro/sub-01_T1w.nii.gz")
 _RIRE_CT = (
     _TEST_DATA / "registration" / "rire" / "training_001_ct.mha" if _TEST_DATA else None
 )

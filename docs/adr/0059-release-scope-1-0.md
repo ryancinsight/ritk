@@ -21,6 +21,14 @@ warnings, and zero open correctness items — **under release authority**,
 which sets the API-freeze contents. This milestone never forces `publish =
 true` without that authority.
 
+On 2026-11-22 the release owner selected four public surfaces for the 1.0
+compatibility guarantee. AsterSlice's documented controls and gestures,
+the RITK command line, the public Python API, and the public APIs of
+published Rust crates enter the freeze at 1.0. Verify control behavior in
+the native viewer, invoke the installed CLI and Python package as consumers,
+and compare the Rust interfaces against published baselines. These checks
+supplement the milestone exits above.
+
 Every open item file carries exactly one `milestone:` tag: format
 conversions, inventories, parser fuzzing, and rescue reconciliation read
 studies in (`M-viewer-reading`); oblique, session, interaction, and browser
@@ -34,7 +42,7 @@ consumers) do not gate 1.0; their receipts live on their own boards.
 
 ### Veto points
 
-1. The 1.0 API-freeze contents (release authority sets them).
+1. Changes to the four approved compatibility surfaces require release-owner review.
 2. The encrypted-ZIP / optical-disc / unlisted-RadiAnt-add-on non-goals
    (recorded on `M-viewer-advanced`; only a chartered driver reopens them).
 
