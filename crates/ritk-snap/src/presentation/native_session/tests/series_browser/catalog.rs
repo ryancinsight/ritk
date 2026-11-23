@@ -281,3 +281,27 @@ fn horizontal_keys_and_wheel_switch_between_study_series() {
         .expect("select the first series with Home");
     assert_eq!(loaded_series_uid(&viewer.app), Some(fixtures::SERIES_UID));
 }
+
+#[test]
+fn native_startup_uses_first_readable_but_explicit_selection_still_fails() {
+    let root = tempfile::tempdir().expect("study directory");
+    fixtures::write_grayscale_presentation(root.path(), "MONOCHROME3", None)
+        .expect("unreadable series");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID, &fixtures::SAMPLES)
+        .expect("second acquisition");
+    let (mut viewer, _prior) = session();
+    let open = super::super::super::startup::prepare_initial_study;
+    let initial = open(&mut viewer.app, root.path(), None, false)
+        .expect("default open")
+        .expect("catalog");
+    assert_eq!(initial.active_index(), 1);
+    assert_eq!(loaded_series_uid(&viewer.app), Some(fixtures::SERIES_UID));
+    assert!(open(
+        &mut viewer.app,
+        root.path(),
+        Some("2.25.20260905005"),
+        false
+    )
+    .is_err());
+    assert_eq!(loaded_series_uid(&viewer.app), Some(fixtures::SERIES_UID));
+}

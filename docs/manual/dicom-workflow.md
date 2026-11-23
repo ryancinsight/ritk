@@ -134,10 +134,18 @@ toggles the overlay independently of slice synchronization.
    **ANON001** and **Date N/A** in the Strict copy. Compare the slice count and
    scroll the axial, coronal and sagittal views to review the images.
 
-For a multi-series study, select the matching acquisition in the series list
-before comparing images. The browser orders series by their UIDs, which both
-export profiles replace. The first series shown can change. Check the image
-count, orientation and spacing to confirm which acquisition you are reviewing.
+When you open a whole study, AsterSlice tries acquisitions in **DICOM Series
+Number** order, lowest first. A series with an empty or invalid number follows
+the numbered series. Ties use modality, then the larger number of instances,
+then the first filename in source path order. Windows numbers the exported
+files in that same path order. Both viewers skip acquisitions they cannot
+display as a volume. On Windows, opening a specific instance or requesting a
+Series Instance UID at startup selects that acquisition explicitly.
+
+For example, the five-series CT opens on **series 2, with 34 images**, in the
+source, Basic and Strict copies. Series 1 contains two differently oriented
+images. They cannot form one volume. You can still use the series list to
+choose another acquisition.
 
 ![Strict MRI export reopened in the web viewer. The series list shows ANONYMOUS and 94 images alongside the three anatomical planes.](images/dicom-strict-mri-reopened.webp)
 

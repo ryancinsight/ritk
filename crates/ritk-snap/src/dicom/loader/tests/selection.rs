@@ -1,40 +1,9 @@
 //! Series scanning, ordering, and explicit-file selection.
 
 use super::super::*;
-use crate::dicom::series_tree::{SeriesEntry, SeriesEntryView};
-use std::borrow::Cow;
 use tempfile::tempdir;
 
 use super::fixtures;
-
-#[test]
-fn sort_series_entries_is_deterministic() {
-    let mut entries: Vec<SeriesEntry> = [
-        ("UID-B", "z/path", "B", "P2", "MR", "S2", "20260102", "ST2"),
-        ("UID-A2", "b/path", "A", "P1", "CT", "S1", "20260101", "ST1"),
-        ("UID-A1", "a/path", "A", "P1", "CT", "S1", "20260101", "ST1"),
-    ]
-    .into_iter()
-    .map(
-        |(uid, folder, name, patient, modality, description, date, study)| SeriesEntry {
-            acquisition: std::sync::Arc::new(ritk_io::DicomSeriesInfo::new(
-                uid,
-                description.to_owned(),
-                modality,
-                patient.to_owned(),
-                vec![std::path::Path::new(folder).join("slice.dcm")],
-            )),
-            patient_name: Cow::Borrowed(name),
-            study_date: Some(Cow::Borrowed(date)),
-            study_uid: Some(Cow::Borrowed(study)),
-            series_time: None,
-        },
-    )
-    .collect();
-    scan::sort_series_entries_deterministically(&mut entries);
-    let ordered_uids: Vec<&str> = entries.iter().map(|e| e.series_uid()).collect();
-    assert_eq!(ordered_uids, vec!["UID-A1", "UID-A2", "UID-B"]);
-}
 
 #[test]
 fn test_scan_folder_for_series_empty_dir() {

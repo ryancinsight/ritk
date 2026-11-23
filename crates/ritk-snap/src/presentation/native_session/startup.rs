@@ -3,9 +3,7 @@
 use super::SeriesBrowser;
 use crate::app::SnapApp;
 use crate::dicom::input_path::{classify_dicom_input_path, DicomInputPath};
-use crate::dicom::loader::{
-    load_volume_from_path, load_volume_from_series_info, scan_folder_for_series,
-};
+use crate::dicom::loader::{load_volume_from_path, scan_folder_for_series};
 use anyhow::{anyhow, Context, Result};
 use std::path::Path;
 
@@ -60,18 +58,10 @@ pub(super) fn prepare_initial_study(
                 .context("selected DICOM instance is not in the study catalog")?;
             browser.set_active(index);
         }
-        let choice = browser
-            .choice(browser.active_index())
-            .expect("invariant: a non-empty study browser has an active series");
-        let volume = load_volume_from_series_info(&choice.acquisition)
-            .with_context(|| "open the selected DICOM series")?;
-        app.load_volume(
-            volume,
-            format!(
-                "Loaded {} series ({} images).",
-                choice.modality, choice.image_count
-            ),
-        );
+        let explicit =
+            (selected_uid.is_some() || single_instance).then_some(browser.active_index());
+        let (volume, status) = browser.load_initial(explicit)?;
+        app.load_volume(volume, status);
         Ok(Some(browser))
     } else {
         let volume = load_volume_from_path(path)

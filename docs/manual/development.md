@@ -484,6 +484,34 @@ browser output directory and `--driver-url` pointing to a local ChromeDriver.
 Set `PYTHONPATH` to the Métis scripts directory for its browser driver helper.
 Both profiles retain the original pixel data, including burned-in text.
 
+### Five-series CT initial selection
+
+Use the locally retained 303-instance CT. Export the **active study** once
+under each profile to sibling folders named `Basic` and `Strict`.
+Set `RITK_RETAINED_CT` to the source directory of image instances and
+`RITK_CT_EXPORTS` to the parent of the copies. Keep all three directories local.
+
+```sh
+cargo test --locked -p ritk-snap --lib retained_ct_native_initial -- --ignored
+python scripts/verify_ct_series_selection.py "$RITK_RETAINED_CT" \
+  "$RITK_CT_EXPORTS/Basic" "$RITK_CT_EXPORTS/Strict" \
+  --bundle /path/to/packaged/workstation --driver-url http://127.0.0.1:9515
+```
+
+Use the Chromium driver and Métis Python path described above. The checks open
+the complete study before comparing the middle axial, coronal and sagittal
+planes. The native reader verifies that the five acquisitions contain 2, 34,
+67, 111 and 89 instances in that order. It compares every voxel of the
+34-image acquisition. Chromium compares the on-screen image regions.
+
+On a Windows machine that holds the CT, the following test also exports both
+copies from the native session, opens them through **Anonymize → Open exported
+copy**, and checks the selected acquisition and its voxels.
+
+```powershell
+cargo test --locked -p ritk-snap --lib retained_ct_windows_reopens -- --ignored
+```
+
 ## Select a saved DICOM series from Python
 
 The Python binding uses the same RITK-owned scanner and native loader. Pass

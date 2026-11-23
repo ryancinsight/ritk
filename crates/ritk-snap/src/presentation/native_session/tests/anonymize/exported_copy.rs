@@ -152,3 +152,61 @@ fn native_anonymize_failed_export_or_new_study_clears_reopen_target() {
         .expect("new study has no export");
     assert_eq!(viewer.study_root.as_deref(), Some(output.as_path()));
 }
+
+fn check_study_copy_selection(
+    viewer: &mut NativeViewerSession,
+    source: &Path,
+    count: usize,
+    shape: [usize; 3],
+) {
+    let destinations = tempfile::tempdir().expect("private export destinations");
+    for profile in [Deidentification::Basic, Deidentification::Strict] {
+        viewer.open_study_path(source).expect("open source folder");
+        let catalog = viewer.series_browser.as_ref().expect("source catalog");
+        assert_eq!(catalog.len(), count);
+        let index = catalog.active_index();
+        let original = viewer.app.loaded.as_ref().expect("source volume");
+        assert_eq!(original.shape, shape);
+        let pixels = std::sync::Arc::clone(&original.data);
+        let output = destinations.path().join(format!("{profile:?}"));
+        viewer
+            .anonymize_to(&output, AnonymizationScope::Study, profile)
+            .expect("export whole study");
+        menu_click(viewer, None, WindowAction::OpenMenu(Menu::Anonymize));
+        menu_click(
+            viewer,
+            Some(Menu::Anonymize),
+            WindowAction::OpenExportedCopy,
+        );
+        assert_eq!(viewer.study_root.as_deref(), Some(output.as_path()));
+        let catalog = viewer.series_browser.as_ref().expect("reopened catalog");
+        assert_eq!(catalog.len(), count);
+        assert_eq!(catalog.active_index(), index);
+        let reopened = viewer.app.loaded.as_ref().expect("reopened volume");
+        assert_eq!(reopened.patient_id.as_deref(), Some("ANON001"));
+        assert_eq!(reopened.shape, shape);
+        assert!(
+            pixels.as_slice() == reopened.data.as_slice(),
+            "export opened different image data"
+        );
+    }
+}
+
+#[test]
+fn native_anonymize_opens_same_acquisition_for_both_profiles_with_missing_series_numbers() {
+    let (mut viewer, _) = session();
+    let source = tempfile::tempdir().expect("study directory");
+    let other = fixtures::SAMPLES.map(|v| v.wrapping_add(1));
+    fixtures::write_study(source.path(), "CT", "2.25.891", &fixtures::SAMPLES)
+        .expect("first series");
+    fixtures::write_study(source.path(), "CT", "2.25.892", &other).expect("second series");
+    check_study_copy_selection(&mut viewer, source.path(), 2, fixtures::SHAPE);
+}
+
+#[test]
+#[ignore = "requires the locally retained five-series CT on Windows"]
+fn retained_ct_windows_reopens_both_profiles_from_anonymize_menu() {
+    let source = PathBuf::from(std::env::var_os("RITK_RETAINED_CT").expect("RITK_RETAINED_CT"));
+    let (mut viewer, _prior) = session();
+    check_study_copy_selection(&mut viewer, &source, 5, [34, 512, 512]);
+}

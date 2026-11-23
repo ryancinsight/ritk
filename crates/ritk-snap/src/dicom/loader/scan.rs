@@ -1,6 +1,6 @@
 //! DICOM discovery preserves authoritative file-set indexes.
 use crate::dicom::input_path::classify_dicom_input_path;
-use crate::dicom::series_tree::{SeriesEntry, SeriesEntryView, SeriesTree};
+use crate::dicom::series_tree::{DiscoveredSeries, SeriesTree};
 use anyhow::{Context, Result};
 use ritk_io::{scan_dicom_files, DicomReadMetadata, DicomSeriesInfo, DicomStudyCatalog};
 use std::path::{Path, PathBuf};
@@ -16,7 +16,7 @@ use walkdir::WalkDir;
 /// missing DICOMDIR references; failed discovery never yields a partial tree.
 pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree<'static>> {
     let requested = folder.as_ref();
-    let mut entries: Vec<SeriesEntry> = Vec::new();
+    let mut entries = Vec::new();
     if is_index(requested) && !requested.is_dir() {
         entries.extend(entries_with_metadata(
             DicomStudyCatalog::scan(requested)?.into_series(),
@@ -49,16 +49,15 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree<'s
             }
         }
     }
-    sort_series_entries_deterministically(&mut entries);
-    Ok(SeriesTree::from_entries(entries))
+    Ok(SeriesTree::from_discovery(entries))
 }
 
-fn entries_with_metadata(series: Vec<DicomSeriesInfo>) -> Result<Vec<SeriesEntry<'static>>> {
+fn entries_with_metadata(series: Vec<DicomSeriesInfo>) -> Result<Vec<DiscoveredSeries>> {
     series
         .into_iter()
         .map(|info| {
             let metadata = first_instance_metadata(&info)?;
-            Ok(SeriesEntry::from_dicom_series_info(info, metadata))
+            Ok(DiscoveredSeries::new(info, &metadata))
         })
         .collect()
 }
@@ -77,32 +76,4 @@ fn is_index(path: &Path) -> bool {
     path.file_name()
         .and_then(|name| name.to_str())
         .is_some_and(|name| name.eq_ignore_ascii_case("DICOMDIR"))
-}
-
-/// Sort series entries by a deterministic multi-key order.
-///
-/// Key precedence: `patient_id` → `study_uid` → `study_date` → `modality`
-/// → `series_description` → `series_uid` → `folder` path string.
-pub(super) fn sort_series_entries_deterministically(entries: &mut [SeriesEntry]) {
-    entries.sort_by(|a, b| {
-        a.acquisition
-            .patient_id
-            .cmp(&b.acquisition.patient_id)
-            .then_with(|| {
-                a.study_uid
-                    .as_deref()
-                    .unwrap_or("")
-                    .cmp(b.study_uid.as_deref().unwrap_or(""))
-            })
-            .then_with(|| {
-                a.study_date
-                    .as_deref()
-                    .unwrap_or("")
-                    .cmp(b.study_date.as_deref().unwrap_or(""))
-            })
-            .then_with(|| a.modality().cmp(b.modality()))
-            .then_with(|| a.series_description().cmp(b.series_description()))
-            .then_with(|| a.series_uid().cmp(b.series_uid()))
-            .then_with(|| a.folder().cmp(b.folder()))
-    });
 }

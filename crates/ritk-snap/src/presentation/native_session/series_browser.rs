@@ -127,6 +127,34 @@ impl SeriesBrowser {
         })
     }
 
+    pub(super) fn load_initial(
+        &mut self,
+        selected: Option<usize>,
+    ) -> Result<(crate::LoadedVolume, String)> {
+        let (index, volume) = match selected {
+            Some(index) => (index, self.load(index)?),
+            None => {
+                crate::dicom::loader::initial::first_readable(self.len(), |index| self.load(index))?
+            }
+        };
+        let choice = self
+            .choice(index)
+            .ok_or_else(|| anyhow!("selected series is outside the study catalog"))?;
+        let status = if selected.is_none() && index > 0 {
+            format!(
+                "Loaded {} series ({} images); skipped {index} unreadable series.",
+                choice.modality, choice.image_count
+            )
+        } else {
+            format!(
+                "Loaded {} series ({} images).",
+                choice.modality, choice.image_count
+            )
+        };
+        self.set_active(index);
+        Ok((volume, status))
+    }
+
     #[cfg(windows)]
     pub(super) fn load(&self, index: usize) -> Result<crate::LoadedVolume> {
         let choice = self

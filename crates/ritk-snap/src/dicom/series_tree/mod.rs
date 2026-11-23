@@ -25,6 +25,9 @@
 //! - [`SeriesTree::find_by_uid`] returns `Some` for every Series Instance UID that
 //!   appears in any series stored in the tree.
 
+mod discovery;
+pub(crate) use discovery::DiscoveredSeries;
+
 use ritk_io::{DicomReadMetadata, DicomSeriesInfo};
 use std::borrow::Cow;
 use std::path::Path;
