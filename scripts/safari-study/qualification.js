@@ -32,8 +32,15 @@ async function workstation() {
     if (!sampled && state.loaded && state.indices[0] === 47) {
       sampled = true;
       try { sessionStorage.setItem("screenSamples", JSON.stringify(await screenSamples())); }
-      catch (error) { captureError = String(error); }
+      catch (error) {
+        const canvas = document.querySelector("#workstation");
+        const context = canvas.getContext("2d");
+        captureError = {message:String(error), call:String(error.stack).split("\n")[0],
+          extent:[canvas.width, canvas.height], lost:context?.isContextLost?.(),
+          notice:document.getElementById("notice").textContent};
+      }
     }
+    if (captureError) { report({error:captureError}); return; }
     const zone = document.querySelector("#drop-zone");
     if (zone?.dataset.dropState === "rejected" && zone.dataset.byteState === "failed" && !rejected) {
       const pixels = await screenSamples();
@@ -44,8 +51,7 @@ async function workstation() {
       orientationIdentity, cine, series, panel, panels, projection} = state;
     report({width, panes, counts, indices, tool, window: levels, annotations, measurement, zoom,
       orientationIdentity, cine, series, panel, panels, projection, selection, rejected,
-      captured: !!sessionStorage.getItem("screenSamples"), overflow: document.documentElement.scrollWidth > innerWidth,
-      ...(captureError ? {error:captureError.slice(0,60)} : {})});
+      captured: !!sessionStorage.getItem("screenSamples"), overflow: document.documentElement.scrollWidth > innerWidth});
   }, 175);
 }
 

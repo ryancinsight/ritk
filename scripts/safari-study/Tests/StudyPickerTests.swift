@@ -15,7 +15,10 @@ final class StudyPickerTests: XCTestCase {
                 last = view.label
                 if last.hasPrefix("RITK "),
                    let state = try? JSONSerialization.jsonObject(with: Data(last.dropFirst(5).utf8)) as? State,
-                   test(state) { return state }
+                   state["error"] != nil || test(state) {
+                    XCTAssertNil(state["error"], description + ": " + last, file: file, line: line)
+                    return state
+                }
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.15))
         } while Date() < deadline
