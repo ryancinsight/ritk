@@ -12,7 +12,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="M-viewer-compare"></a>
 ## M-viewer-compare — 0.3.0 — compare series by patient position
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_scroll_matches_physical) or test(patient_stack) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
-- [minor] Automatic slice linking uses verified same-study patient coordinates. The [comparison checklist](backlog/RITK-SNAP-NATIVE-LINK-001.md) tracks Windows qualification, manual anchors and reference lines.
+- [minor] Automatic slice linking uses verified same-study patient coordinates. The [comparison checklist](backlog/RITK-SNAP-NATIVE-LINK-001.md) records Windows and browser results and tracks manual anchors and reference lines.
 - needs: M-viewer-reading
 - non-goals: fusion
 <a id="M-viewer-access"></a>
@@ -113,7 +113,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-SNAP-FORMAT-VIEWER-001"></a>- [RITK-SNAP-FORMAT-VIEWER-001](backlog/RITK-SNAP-FORMAT-VIEWER-001.md) — Exercise encoded studies in the viewer — todo
 <a id="RITK-SNAP-CUSTOM-WINDOW-001"></a>- [RITK-SNAP-CUSTOM-WINDOW-001](backlog/RITK-SNAP-CUSTOM-WINDOW-001.md) — Retain precise custom window settings — todo
 <a id="RITK-SNAP-LARGE-STUDY-001"></a>- [RITK-SNAP-LARGE-STUDY-001](backlog/RITK-SNAP-LARGE-STUDY-001.md) — Measure native study resource bounds — todo
-<a id="RITK-SNAP-NAVIGATION-UNITS-001"></a>- [RITK-SNAP-NAVIGATION-UNITS-001](backlog/RITK-SNAP-NAVIGATION-UNITS-001.md) — Keep navigation in display coordinates — todo
+<a id="RITK-SNAP-NAVIGATION-UNITS-001"></a>- [RITK-SNAP-NAVIGATION-UNITS-001](backlog/RITK-SNAP-NAVIGATION-UNITS-001.md) — Keep navigation in display coordinates — done [patch]
 <a id="RITK-SNAP-IMAGE-FIT-001"></a>- [RITK-SNAP-IMAGE-FIT-001](backlog/RITK-SNAP-IMAGE-FIT-001.md) — Share continuous sample-aspect fitting — todo
 <a id="RITK-SNAP-EFRAME-NAVIGATION-001"></a>- [RITK-SNAP-EFRAME-NAVIGATION-001](backlog/RITK-SNAP-EFRAME-NAVIGATION-001.md) — Paint pan and retain the press origin — todo
 <a id="RITK-SNAP-ARROW-PROPERTIES-001"></a>- [RITK-SNAP-ARROW-PROPERTIES-001](backlog/RITK-SNAP-ARROW-PROPERTIES-001.md) — Edit arrow text and appearance — todo
