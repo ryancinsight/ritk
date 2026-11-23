@@ -29,6 +29,13 @@ fn panels_showing_first_and_last_series(
 
 #[test]
 fn repeated_series_endpoints_preserve_both_reading_positions() {
+    let _trace = tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+            .with_test_writer()
+            .finish(),
+    );
+    let arrange = tracing::info_span!("arrange").entered();
     let study = four_series_study();
     let (mut viewer, _root) = panels_showing_first_and_last_series(study.path());
     let repeat = |virtual_key| WindowEvent::KeyDown {
@@ -40,9 +47,13 @@ fn repeated_series_endpoints_preserve_both_reading_positions() {
     let last = viewer.compare_panels[0].app.axis;
     viewer.app.set_slice_for_axis(first, 1);
     viewer.compare_panels[0].app.set_slice_for_axis(last, 0);
-    viewer
-        .handle_events(&[key(HOME), repeat(HOME), key(TAB), key(END), repeat(END)])
-        .expect("route both endpoint presses and their repeats");
+    drop(arrange);
+    tracing::info_span!("act").in_scope(|| {
+        viewer
+            .handle_events(&[key(HOME), repeat(HOME), key(TAB), key(END), repeat(END)])
+            .expect("route both endpoint presses and their repeats");
+    });
+    let _assert = tracing::info_span!("assert").entered();
     assert_eq!(viewer.app.axis_slice_info(first).0, 1);
     assert_eq!(viewer.compare_panels[0].app.axis_slice_info(last).0, 0);
     assert_eq!(viewer.primary_series_index, Some(0));
