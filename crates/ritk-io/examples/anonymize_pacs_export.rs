@@ -3,9 +3,9 @@
 //! This example uses the `Enhanced` header profile to replace selected
 //! attributes and UIDs and remove private tags, then checks export structure.
 //! It opts into destructive zero-fill of native top-level Pixel Data. It does
-//! not detect or selectively redact identifying image content. A file whose
-//! Pixel Data cannot be cleared (for example, an encapsulated frame) is
-//! reported as a failure and no output is written for that instance.
+//! not detect or selectively redact identifying image content. Unsupported
+//! payloads (including encapsulated frames, Float Pixel Data, and Double
+//! Float Pixel Data) produce per-file failures without writing those instances.
 //!
 //! These checks do not establish de-identification for sharing with a PACS
 //! or conformance with PS 3.15 Annex E.
@@ -53,7 +53,8 @@ fn main() -> anyhow::Result<()> {
     // The Enhanced profile applies header rules, consistent UID remapping,
     // and private-tag removal. Explicit native zero-fill below destroys the
     // image samples; use Skip when the image must remain usable and assess
-    // visual privacy separately. Encapsulated Pixel Data is not cleared.
+    // visual privacy separately. Encapsulated and floating-point pixel
+    // payloads cannot be cleared by this path.
     let options = AnonymizeOptions {
         profile: AnonymizationProfile::Enhanced,
         patient_name: "ANONYMOUS".to_owned(),

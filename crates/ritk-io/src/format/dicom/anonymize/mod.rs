@@ -100,7 +100,9 @@ pub struct AnonymizeOptions {
     /// When `CleaningPolicy::Clean`, zero-fill readable native top-level
     /// Pixel Data (7FE0,0010), destroying its image samples. If present but
     /// encapsulated, empty or non-primitive, clearing fails before writing.
-    /// An absent element needs no clearing. This is not burned-in detection.
+    /// Float and Double Float Pixel Data are unsupported and also fail
+    /// before writing. An object without these pixel elements needs no
+    /// clearing. This is not burned-in detection.
     /// Defaults to `CleaningPolicy::Skip`.
     pub clean_pixel_data: CleaningPolicy,
     /// When `CleaningPolicy::Clean`, remove all private DICOM elements (those
@@ -319,8 +321,9 @@ fn anonymize_dataset(
 ///
 /// When `options.clean_pixel_data` is `CleaningPolicy::Clean`, the
 /// top-level Pixel Data `(7FE0,0010)` is overwritten with an equal-length
-/// zero buffer if present and readable as nonempty native bytes. An object
-/// without the element is unchanged by this step.
+/// zero buffer if present and readable as nonempty native bytes. Objects
+/// with Float or Double Float Pixel Data are rejected, and objects without
+/// any of these elements are unchanged by this step.
 ///
 /// # Errors
 ///

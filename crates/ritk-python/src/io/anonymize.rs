@@ -50,8 +50,9 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyCleaningPolicy {
 /// Metadata handling follows the selected profile. By default, pixel data is
 /// preserved. Explicit pixel cleaning destroys readable native top-level
 /// Pixel Data (7FE0,0010) by zero-filling it. Encapsulated or otherwise
-/// unreadable present Pixel Data produces a per-file error without writing
-/// that instance. The export does not detect burned-in identifiers or verify
+/// unreadable Pixel Data, Float Pixel Data, and Double Float Pixel Data
+/// produce per-file errors without writing those instances.
+/// The export does not detect burned-in identifiers or verify
 /// PS 3.15 Annex E conformance.
 ///
 /// Args:

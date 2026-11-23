@@ -11,6 +11,7 @@ from pydicom.uid import (
     BasicTextSRStorage,
     CTImageStorage,
     ExplicitVRLittleEndian,
+    ParametricMapStorage,
     RLELossless,
     UID,
 )
@@ -365,3 +366,75 @@ def test_explicit_pixel_cleaning_preserves_non_image_object_without_pixels(tmp_p
     assert exported.SOPClassUID == BasicTextSRStorage
     assert exported.PatientName == "ANONYMOUS"
     assert "PixelData" not in exported
+
+
+@pytest.fixture(
+    params=[
+        ("FloatPixelData", "<f4", "7FE0,0008"),
+        ("DoubleFloatPixelData", "<f8", "7FE0,0009"),
+    ],
+    ids=["float", "double-float"],
+)
+def floating_pixel_source(request, tmp_path):
+    keyword, dtype, tag = request.param
+    source = tmp_path / "source"
+    source.mkdir()
+    path = source / "synthetic.dcm"
+    meta = FileMetaDataset()
+    meta.MediaStorageSOPClassUID = ParametricMapStorage
+    meta.MediaStorageSOPInstanceUID = SOP_UIDS[0]
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    ds = FileDataset(path, {}, file_meta=meta, preamble=bytes(128))
+    ds.SOPClassUID = ParametricMapStorage
+    ds.SOPInstanceUID = SOP_UIDS[0]
+    ds.StudyInstanceUID = STUDY_UID
+    ds.SeriesInstanceUID = SERIES_UID
+    ds.PatientName = PATIENT_NAME
+    ds.Rows = ds.Columns = 2
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.NumberOfFrames = 1
+    expected = np.asarray([[1.25, -2.5], [0, 3.75]], dtype=dtype)
+    ds.BitsAllocated = 8 * expected.dtype.itemsize
+    setattr(ds, keyword, expected.tobytes())
+    dcmwrite(path, ds, enforce_file_format=True)
+    original = dcmread(path)
+    assert "PixelData" not in original
+    np.testing.assert_array_equal(original.pixel_array, expected)
+    return path, keyword, tag, original, expected
+
+
+@pytest.mark.parametrize("cleaning", ["pixel", "all"])
+def test_explicit_pixel_cleaning_rejects_floating_point_data(
+    cleaning, floating_pixel_source, tmp_path
+):
+    path, _, tag, _, _ = floating_pixel_source
+    input_before = path.read_bytes()
+    output = tmp_path / "output"
+    output.mkdir()
+    existing = output / "000001.dcm"
+    existing.write_bytes(b"existing destination bytes")
+
+    stats = _export(path.parent, output, cleaning=cleaning)
+
+    assert stats["file_count"] == stats["error_count"] == 1
+    assert stats["success_count"] == 0
+    [(error_path, detail)] = stats["errors"]
+    assert error_path == str(path)
+    assert f"cannot clear floating-point Pixel Data ({tag})" in detail
+    assert list(output.iterdir()) == [existing]
+    assert existing.read_bytes() == b"existing destination bytes"
+    assert path.read_bytes() == input_before
+
+
+def test_default_anonymization_preserves_floating_point_data(floating_pixel_source, tmp_path):
+    path, keyword, _, original, expected = floating_pixel_source
+    output = tmp_path / "output"
+
+    assert _export(path.parent, output) == _success_count(1)
+
+    exported = dcmread(output / "000001.dcm")
+    assert exported.PatientName == "ANONYMOUS"
+    assert exported.file_meta.TransferSyntaxUID == ExplicitVRLittleEndian
+    assert getattr(exported, keyword) == getattr(original, keyword)
+    np.testing.assert_array_equal(exported.pixel_array, expected)
