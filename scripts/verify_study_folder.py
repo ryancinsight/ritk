@@ -51,6 +51,13 @@ def verify(url, folder, series, slices, driver, individual_file=None):
         if individual_file is not None:
             choose(client, individual_file, individual=True)
             wait(client, "window.asterSlice.state().counts[0] === 1")
+        versions = client.execute("""
+            const urls = performance.getEntriesByType("resource").map(entry => new URL(entry.name));
+            return ["gallery.css", "gallery.js", "ritk_snap.js", "ritk_snap_bg.wasm"].map(name =>
+                urls.find(url => url.pathname.endsWith("/" + name))?.searchParams.get("v"));
+        """)
+        if not all(versions) or len(set(versions)) != 1:
+            raise AssertionError("the workstation fetched assets from different or unversioned builds")
         print(f"Open Study folder verified: {series} series, {slices} initial slices")
     finally:
         client.close()

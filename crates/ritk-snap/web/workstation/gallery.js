@@ -1,4 +1,8 @@
-import init, { AsterSliceWorkspace } from "./consumer/ritk_snap.js";
+function assetUrl(path) {
+  const url = new URL(path, import.meta.url);
+  url.search = new URL(import.meta.url).search;
+  return url;
+}
 
 const canvas = document.querySelector("#workstation");
 const notice = document.querySelector("#notice");
@@ -46,7 +50,8 @@ async function presenter(renderer) {
 }
 
 async function start() {
-  await init();
+  const {default: init, AsterSliceWorkspace} = await import(assetUrl("./consumer/ritk_snap.js"));
+  await init({module_or_path: assetUrl("./consumer/ritk_snap_bg.wasm")});
   const query = new URLSearchParams(location.search);
   const draw = await presenter(query.get("renderer"));
   const viewer = new AsterSliceWorkspace(query.get("layout") === "responsive" ? "responsive" : query.get("projection") ?? "");

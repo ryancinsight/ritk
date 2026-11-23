@@ -1,5 +1,6 @@
 """Build the AsterSlice web app using the pinned Métis consumer validation."""
 import argparse
+import hashlib
 import pathlib
 import shutil
 import sys
@@ -18,7 +19,18 @@ def package(metis: pathlib.Path, modules: pathlib.Path, output: pathlib.Path) ->
     assets.mkdir(exist_ok=True)
     for name in ("metis-mark.svg", "metis-mark.png"):
         shutil.copyfile(metis / "examples/browser/assets" / name, assets / name)
-    shutil.copyfile(output / "gallery.html", output / "index.html")
+    # A cached entry script must not bind an older picker or WASM module to a new page.
+    digest = hashlib.sha256()
+    for asset in ("gallery.js", "gallery.css", "consumer/ritk_snap.js", "consumer/ritk_snap_bg.wasm"):
+        with (output / asset).open("rb") as stream:
+            digest.update(hashlib.file_digest(stream, "sha256").digest())
+    version = digest.hexdigest()
+    page = output / "gallery.html"
+    html = page.read_text(encoding="utf-8")
+    for asset in ("gallery.js", "gallery.css"):
+        html = html.replace(f'"./{asset}"', f'"./{asset}?v={version}"')
+    page.write_text(html, encoding="utf-8")
+    shutil.copyfile(page, output / "index.html")
     # Also retire the previous app's asset when rebuilding an existing output.
     (output / "workspace.js").unlink(missing_ok=True)
 
