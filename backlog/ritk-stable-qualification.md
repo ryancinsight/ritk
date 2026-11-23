@@ -1,7 +1,7 @@
 <a id="ritk-stable-qualification"></a>
 ## RITK-STABLE-QUALIFICATION — ritk stable-release qualification [patch] — todo
-- M-viewer-access verification, basis `3a2bcc77b`. Target 1.0.0 from `ritk-snap 0.2.0`.
-- Outcome: Qualify the DICOM export boundary in the real viewer. Follow the [release scope](../docs/adr/0059-release-scope-1-0.md) and [milestone exits](../backlog.md).
+- priority: verification; milestone: M-viewer-access; basis: `3a2bcc77b`.
+- Outcome: Qualify the DICOM export boundary in the real viewer for 1.0.0 from `ritk-snap 0.2.0`. Follow the [release scope](../docs/adr/0059-release-scope-1-0.md) and [milestone exits](../backlog.md).
 - [x] [patch] Resolve URL 2.5.9 and the [Metis provider update](https://github.com/ryancinsight/metis/pull/589) in the viewer lock. The all-feature audit clears RUSTSEC-2026-0592 and RUSTSEC-2023-0071.
 - [x] [patch] Triage all 13 unmaintained package versions and the yanked executor. Remove four maintenance findings, update the executor, and record the [owner and migration for every remaining dependency](../gap_audit.md#viewer-dependency-audit-patch).
 - [ ] [patch] Retire the nine remaining unmaintained versions across the independent DICOM test peer, native accessibility and font stack, Metal backend and EXR codec. Replay the unwaived all-feature audit after each migration.
