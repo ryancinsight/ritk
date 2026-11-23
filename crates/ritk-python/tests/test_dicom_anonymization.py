@@ -3,10 +3,17 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
+import numpy as np
 import pytest
 from pydicom import dcmread, dcmwrite
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
-from pydicom.uid import CTImageStorage, ExplicitVRLittleEndian, UID
+from pydicom.uid import (
+    BasicTextSRStorage,
+    CTImageStorage,
+    ExplicitVRLittleEndian,
+    RLELossless,
+    UID,
+)
 
 from ritk.io import anonymize_dicom_dir
 
@@ -270,3 +277,91 @@ def test_flat_export_rejects_dicomdir_by_class_and_continues(source_study, tmp_p
     assert "DICOMDIR" in message
     assert [entry.name for entry in sorted(output.iterdir())] == ["000001.dcm", "000002.dcm"]
     assert all(dcmread(path).SOPClassUID == CTImageStorage for path in output.iterdir())
+
+
+def _write_rle_instance(path):
+    _write_instance(path, 1, SOP_UIDS[0])
+    ds = dcmread(path)
+    ds.compress(RLELossless, encoding_plugin="pydicom", generate_instance_uid=False)
+    dcmwrite(path, ds, enforce_file_format=True)
+    compressed = dcmread(path)
+    assert compressed.file_meta.TransferSyntaxUID == RLELossless
+    assert compressed["PixelData"].is_undefined_length
+    np.testing.assert_array_equal(compressed.pixel_array, [[3, 7], [18, 41]])
+    return compressed
+
+
+@pytest.mark.parametrize("cleaning", ["pixel", "all"])
+def test_pixel_cleaning_rejects_encapsulated_input_without_publishing(cleaning, tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    encapsulated = source / "1-encapsulated.dcm"
+    _write_rle_instance(encapsulated)
+    _write_instance(source / "2-native.dcm", 2, SOP_UIDS[1])
+    input_before = _contents(source)
+    output = tmp_path / "output"
+    output.mkdir()
+    existing = output / "000001.dcm"
+    existing.write_bytes(b"existing destination bytes")
+
+    stats = _export(source, output, cleaning=cleaning)
+
+    assert stats["file_count"] == 2 and stats["success_count"] == 1
+    assert stats["error_count"] == 1
+    [(path, detail)] = stats["errors"]
+    assert path == str(encapsulated)
+    assert "cannot clear encapsulated Pixel Data (7FE0,0010)" in detail
+    assert sorted(path.name for path in output.iterdir()) == ["000001.dcm", "000002.dcm"]
+    assert existing.read_bytes() == b"existing destination bytes"
+    cleared = dcmread(output / "000002.dcm")
+    assert cleared.SOPInstanceUID == SOP_UIDS[1]
+    assert cleared.file_meta.TransferSyntaxUID == ExplicitVRLittleEndian
+    assert cleared.PatientName == "ANONYMOUS"
+    np.testing.assert_array_equal(cleared.pixel_array, [[0, 0], [0, 0]])
+    assert _contents(source) == input_before
+
+
+@pytest.mark.parametrize("profile", ["basic", "enhanced"])
+def test_header_only_anonymization_preserves_encapsulated_pixels(profile, tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    original = _write_rle_instance(source / "synthetic.dcm")
+    output = tmp_path / "output"
+
+    assert _export(source, output, profile=profile) == _success_count(1)
+
+    exported = dcmread(output / "000001.dcm")
+    assert exported.PatientName == "ANONYMOUS"
+    assert exported.file_meta.TransferSyntaxUID == RLELossless
+    assert exported.PixelData == original.PixelData
+    np.testing.assert_array_equal(exported.pixel_array, [[3, 7], [18, 41]])
+
+
+def test_explicit_pixel_cleaning_preserves_non_image_object_without_pixels(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    report = source / "report.dcm"
+    meta = FileMetaDataset()
+    meta.MediaStorageSOPClassUID = BasicTextSRStorage
+    meta.MediaStorageSOPInstanceUID = SOP_UIDS[0]
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    ds = FileDataset(report, {}, file_meta=meta, preamble=bytes(128))
+    ds.SOPClassUID = BasicTextSRStorage
+    ds.SOPInstanceUID = SOP_UIDS[0]
+    ds.StudyInstanceUID = STUDY_UID
+    ds.SeriesInstanceUID = SERIES_UID
+    ds.Modality = "SR"
+    ds.PatientName = PATIENT_NAME
+    ds.ValueType = "CONTAINER"
+    ds.ContinuityOfContent = "SEPARATE"
+    ds.CompletionFlag = "COMPLETE"
+    ds.VerificationFlag = "UNVERIFIED"
+    dcmwrite(report, ds, enforce_file_format=True)
+    output = tmp_path / "output"
+
+    assert _export(source, output, cleaning="all") == _success_count(1)
+
+    exported = dcmread(output / "000001.dcm")
+    assert exported.SOPClassUID == BasicTextSRStorage
+    assert exported.PatientName == "ANONYMOUS"
+    assert "PixelData" not in exported

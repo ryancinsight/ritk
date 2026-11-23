@@ -1,19 +1,22 @@
-//! PACS-safe DICOM anonymization with export verification.
+//! DICOM header de-identification and structural export checks.
 //!
-//! This example demonstrates the recommended export pipeline for
-//! de-identified studies bound for a PACS: anonymize every DICOM file in an
-//! input directory with the `Enhanced` profile (full PS 3.15 Annex E
-//! confidentiality, deterministic UID replacement, private-tag removal), then
-//! run the export gate so corrupted or leaking metadata fails closed instead
-//! of shipping.
+//! This example uses the `Enhanced` header profile to replace selected
+//! attributes and UIDs and remove private tags, then checks export structure.
+//! It opts into destructive zero-fill of native top-level Pixel Data. It does
+//! not detect or selectively redact identifying image content. A file whose
+//! Pixel Data cannot be cleared (for example, an encapsulated frame) is
+//! reported as a failure and no output is written for that instance.
+//!
+//! These checks do not establish de-identification for sharing with a PACS
+//! or conformance with PS 3.15 Annex E.
 //!
 //! The export gate checks, per file:
-//! - the file re-parses as a conformant Part 10 DICOM object;
-//! - Study/Series/SOPInstance/FrameOfReference UIDs are present and conformant;
-//! - an object holding pixel data carries Rows/Columns/BitsAllocated, and
-//!   native PixelData holds at least one frame of that size;
-//! - none of the `prohibited_values` (the raw identifiers that were scrubbed)
-//!   appear anywhere in the object.
+//! - the file can be reopened by the Part 10 parser;
+//! - Study, Series, and SOP Instance UIDs are present and properly formatted,
+//!   and a Frame of Reference UID is checked when present;
+//! - an object holding pixel data carries Rows, Columns, and Bits Allocated,
+//!   and native Pixel Data holds at least one frame of that size;
+//! - the configured `prohibited_values` are not found in metadata.
 //!
 //! And across the directory:
 //! - exactly one StudyInstanceUID and one SeriesInstanceUID for the set;
@@ -47,10 +50,10 @@ fn main() -> anyhow::Result<()> {
     let output_dir = &args[2];
 
     // ── 1. Anonymize ───────────────────────────────────────────────────────
-    // The Enhanced profile removes/replaces every PS 3.15 Annex E attribute,
-    // deterministically remaps all UIDs (referentially consistent within the
-    // batch), clears date/time/description fields, and removes private tags.
-    // Pixel data is cleaned too so visual PHI does not survive.
+    // The Enhanced profile applies header rules, consistent UID remapping,
+    // and private-tag removal. Explicit native zero-fill below destroys the
+    // image samples; use Skip when the image must remain usable and assess
+    // visual privacy separately. Encapsulated Pixel Data is not cleared.
     let options = AnonymizeOptions {
         profile: AnonymizationProfile::Enhanced,
         patient_name: "ANONYMOUS".to_owned(),
@@ -72,14 +75,14 @@ fn main() -> anyhow::Result<()> {
         eprintln!("  error {path:?}: {message}");
     }
     if error_count > 0 {
-        anyhow::bail!("{error_count} file(s) failed to anonymize; export aborted");
+        anyhow::bail!(
+            "{error_count} file(s) failed; do not use this batch. Successful files may remain"
+        );
     }
 
     // ── 2. Verify the export ────────────────────────────────────────────────
-    // The standard PACS anonymization failure is silent metadata corruption:
-    // a divergent Study/Series UID breaks reassembly at the destination, a
-    // leftover identifier re-identifies the patient, and a geometry mismatch
-    // corrupts quantitative analysis. The gate catches all of these.
+    // Check the UID set, known prohibited values, and pixel geometry.
+    // This is not a privacy review or a test of identifying image content.
     let verify_options = VerifyOptions {
         require_uids: true,
         validate_uid_format: true,
@@ -110,6 +113,6 @@ fn main() -> anyhow::Result<()> {
         );
     }
 
-    println!("Export verified clean: {success_count} instances ready for PACS ingest.");
+    println!("Structural checks passed for {success_count} instances.");
     Ok(())
 }

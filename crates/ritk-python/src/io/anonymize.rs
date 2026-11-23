@@ -14,7 +14,7 @@ pub enum PyCleaningPolicy {
     /// No cleaning (default).
     #[default]
     None,
-    /// Zero-pad PixelData elements.
+    /// Zero-fill native top-level Pixel Data.
     CleanPixelData,
     /// Remove all private DICOM tags.
     CleanPrivateTags,
@@ -48,8 +48,11 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyCleaningPolicy {
 /// keeps the exported batch separate from existing files.
 ///
 /// Metadata handling follows the selected profile. By default, pixel data is
-/// preserved. Pixel cleaning zero-fills readable flat pixel data. The export
-/// does not detect burned-in identifiers or verify PS 3.15 Annex E conformance.
+/// preserved. Explicit pixel cleaning destroys readable native top-level
+/// Pixel Data (7FE0,0010) by zero-filling it. Encapsulated or otherwise
+/// unreadable present Pixel Data produces a per-file error without writing
+/// that instance. The export does not detect burned-in identifiers or verify
+/// PS 3.15 Annex E conformance.
 ///
 /// Args:
 /// input_dir: Source directory containing DICOM files (str).
