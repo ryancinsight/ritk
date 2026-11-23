@@ -1,6 +1,6 @@
 [package]
 name = "ritk-io"
-version = "0.9.0"
+version = "0.9.1"
 description = "Unified medical image I/O for RITK"
 keywords.workspace = true
 categories.workspace = true

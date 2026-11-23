@@ -275,6 +275,8 @@ and reject an unrepresentable positive spacing before output.
   all 630 Rust tests in `ritk-io` and `ritk-python`, and all 26 geometry
   cases and 22 export and smoke controls on the locally rebuilt macOS
   ARM64 wheel.
+- Release targets are `ritk-io` 0.9.1 and `ritk-python` 0.13.1. The
+  post-merge skull CT matrix is the publication gate.
 
 ## RITK-DICOM-LJIF-001
 

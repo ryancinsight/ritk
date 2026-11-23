@@ -35,7 +35,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 
 # Items
 
-<a id="RITK-DICOM-MIXED-IOP-001"></a>- [RITK-DICOM-MIXED-IOP-001](gap_audit.md#ritk-dicom-mixed-iop-001) — Reject mixed orientations at DICOM volume import [patch] — local verification complete
+<a id="RITK-DICOM-MIXED-IOP-001"></a>- [RITK-DICOM-MIXED-IOP-001](gap_audit.md#ritk-dicom-mixed-iop-001) — Reject mixed orientations at DICOM volume import [patch] — RITK I/O 0.9.1 and RITK Python 0.13.1 candidate verified locally
 
 <a id="RITK-DICOM-LJIF-001"></a>- [RITK-DICOM-LJIF-001](gap_audit.md#ritk-dicom-ljif-001) — Verify skull CT JPEG Lossless import [patch] — release qualification
 <a id="ritk-stable-qualification"></a>- [RITK-STABLE-QUALIFICATION](backlog/ritk-stable-qualification.md) — ritk stable-release qualification [patch] — todo

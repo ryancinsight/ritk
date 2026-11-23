@@ -6538,7 +6538,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-io"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "aequitas",
  "anyhow",
@@ -6762,7 +6762,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-python"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "anyhow",
  "coeus-core",

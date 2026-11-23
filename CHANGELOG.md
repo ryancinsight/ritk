@@ -8,7 +8,7 @@
 
 # CHANGELOG
 
-## DICOM volume geometry (unreleased)
+## RITK I/O 0.9.1 and RITK Python 0.13.1
 
 ### Fixed
 
@@ -17,7 +17,7 @@
   separate image orientations. Python includes the geometry error in
   its read exception.
 
-## RITK Python 0.13.0 (unreleased)
+## RITK Python 0.13.0 — 2026-11-23
 
 ### Fixed
 
