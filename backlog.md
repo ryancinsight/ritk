@@ -61,8 +61,8 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-DICOM-CONVERSION-001"></a>- [RITK-DICOM-CONVERSION-001](backlog/RITK-DICOM-CONVERSION-001.md) — Convert DICOM series through RITK — blocked
 <a id="RITK-FORMAT-CONVERSION-001"></a>- [RITK-FORMAT-CONVERSION-001](backlog/RITK-FORMAT-CONVERSION-001.md) — Convert supported formats through RITK — blocked
 <a id="RITK-SNAP-OBLIQUE-NATIVE-001"></a>- [RITK-SNAP-OBLIQUE-NATIVE-001](backlog/RITK-SNAP-OBLIQUE-NATIVE-001.md) — Native oblique MPR — blocked
-<a id="RITK-BROWSER-READ-001"></a>- [RITK-BROWSER-READ-001](backlog/RITK-BROWSER-READ-001.md) — Resolve WebKit study-file reads [patch] — in progress
-<a id="RITK-BROWSER-WEBGPU-001"></a>- [RITK-BROWSER-WEBGPU-001](backlog/RITK-BROWSER-WEBGPU-001.md) — Verify browser WebGPU presentation on main — todo
+<a id="RITK-BROWSER-READ-001"></a>- [RITK-BROWSER-READ-001](backlog/RITK-BROWSER-READ-001.md) — Resolve WebKit study-file reads [patch] — done
+<a id="RITK-BROWSER-WEBGPU-001"></a>- [RITK-BROWSER-WEBGPU-001](backlog/RITK-BROWSER-WEBGPU-001.md) — Verify browser WebGPU presentation on main [patch] — done
 <a id="RITK-GAP-2026-08-20-04"></a>- [RITK-GAP-2026-08-20-04](backlog/RITK-GAP-2026-08-20-04.md) — Reconcile tracked imaging payload provenance — todo
 <a id="RITK-GAP-2026-08-20-06"></a>- [RITK-GAP-2026-08-20-06](backlog/RITK-GAP-2026-08-20-06.md) — Raise lint and documentation floors — todo
 <a id="RITK-GAP-2026-08-20-08"></a>- [RITK-GAP-2026-08-20-08](backlog/RITK-GAP-2026-08-20-08.md) — Complete registration and dispatch chapters — todo

@@ -1,5 +1,5 @@
 <a id="RITK-BROWSER-READ-001"></a>
-## RITK-BROWSER-READ-001 — Resolve WebKit study-file reads [patch] — in progress
+## RITK-BROWSER-READ-001 — Resolve WebKit study-file reads [patch] — done
 - priority: verification; milestone: M-viewer-compare
 - outcome: Read the public MRI-DIR study through the supported browser file chooser.
 - acceptance: A 94-file replay checks decoded pixels, bounded malformed-file rejection, and listener cleanup on Chromium, Firefox, and WebKit.
@@ -8,5 +8,5 @@
 - [x] [patch] The [macOS Open panel](https://github.com/ryancinsight/ritk/actions/runs/45102078038/job/137454983653) delivered all 94 files (49,807,236 bytes) to the workstation. Safari decoded 94 × 512 × 512 voxels at indices 47, 256 and 256. The [independent picker replay](https://github.com/ryancinsight/ritk/actions/runs/45098982271) matched every file checksum.
 - [x] [patch] [Native Safari on Intel macOS](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583614) passed the three full-plane reference digests, visible samples, three real rejected batches, reading tools, independent CT/MR comparison and listener cleanup. The [ARM macOS 26 runner](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583318) decoded the MRI but failed framebuffer readback.
 - [x] [patch] [Safari opened both workstation and independent reference selections](https://github.com/ryancinsight/ritk/actions/runs/45109559105) after confirming multiple files were selected in the native list and checking the independent reference received all 94 files. The test verified all three reference images and listener teardown.
-- next: Run the Intel Safari job with the other seven scenarios on the integrated candidate and on main.
+- [x] [patch] [Native Safari on merged main `8550491eb`](https://github.com/ryancinsight/ritk/actions/runs/45111738624/job/137486577976) passed the same saved-study checks in the eight-scenario matrix.
 - needs: none
