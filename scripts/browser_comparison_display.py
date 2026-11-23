@@ -26,9 +26,18 @@ def verify_display(client, canvas, state, wait, source, target):
             raise AssertionError(f"linked zoom in pane {i}: {after[i]} -> {scaled[i]}")
     client.send_keys(canvas, chr(0xe036))  # F6 toggles linked navigation.
     drag("m", -15, 6)
-    if images()[target] != scaled[target]:
+    drag("z", 0, 20)
+    independent = images()
+    if independent[target] != scaled[target]:
         raise AssertionError("disabled navigation changed the comparison image")
     client.send_keys(canvas, chr(0xe036))
+    if images() != independent:
+        raise AssertionError("enabling navigation changed the existing alignment")
+    drag("z", 0, -20)
+    relinked = images()
+    for i in [source, target]:
+        if abs(relinked[i][2] - 1.2 * independent[i][2]) > 1:
+            raise AssertionError(f"pane {i} lost its independent fit when linking resumed")
     chord(client, chr(0xe009), "0")
     tab = chr(0xe004)
     client.send_keys(canvas, tab)

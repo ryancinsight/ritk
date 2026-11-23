@@ -63,6 +63,7 @@ fn native_linked_display_preserves_offsets_and_optional_window() {
         .handle_events(&[key(0x75)])
         .expect("disable linked navigation");
     drag(&mut viewer, 0x4d, 8, -4);
+    drag(&mut viewer, 0x5a, 0, -20);
     viewer
         .handle_events(&[key(0x75)])
         .expect("enable without moving either pane");
@@ -70,6 +71,7 @@ fn native_linked_display_preserves_offsets_and_optional_window() {
     drag(&mut viewer, 0x5a, 0, -25);
     let _check = tracing::info_span!("assert").entered();
     assert_eq!(viewer.app.pan_offset.x(), 24.);
+    assert_eq!(viewer.app.zoom, 1.5);
     let target = &viewer.compare_panels[0].app;
     assert_eq!(
         (target.pan_offset.x(), target.pan_offset.y(), target.zoom),

@@ -24,8 +24,7 @@ use crate::app::SnapApp;
 use crate::geometry::affine::AffineTransform;
 use crate::launch::NativePresentationSelection;
 use crate::render::FrameRenderScratch;
-use crate::tools::interaction::{ToolState, ViewportOffset};
-use crate::tools::kind::ToolKind;
+use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, Result};
 use arrayvec::{ArrayString, ArrayVec};
 use frame::{render_orthogonal_views, render_orthogonal_views_into, RenderedView};
@@ -267,15 +266,6 @@ impl NativeViewerSession {
         }
         let was_grid = self.workspace_layout.is_grid();
         if let Some(grid) = layout.grid() {
-            for app in std::iter::once(&mut self.app)
-                .chain(self.compare_panels.iter_mut().map(|panel| &mut panel.app))
-            {
-                app.show_crosshair = false;
-                if app.active_tool == ToolKind::Crosshair {
-                    app.active_tool = ToolKind::Pan;
-                    app.tool_state = ToolState::Idle;
-                }
-            }
             let needed = grid.panel_count().saturating_sub(1);
             while self.compare_panels.len() < needed {
                 self.compare_panels
@@ -290,6 +280,7 @@ impl NativeViewerSession {
         } else {
             self.active_panel = 0;
         }
+        self.grid_cursor = Default::default();
         self.workspace_layout = layout;
         self.active_view = None;
         Ok(true)

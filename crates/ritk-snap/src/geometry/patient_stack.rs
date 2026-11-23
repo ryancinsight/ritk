@@ -184,8 +184,7 @@ impl PatientStack {
     }
 }
 
-mod cursor;
-pub(crate) use cursor::CursorProjection;
+pub(crate) mod cursor;
 mod reference;
 pub(crate) use reference::PlaneTrace;
 

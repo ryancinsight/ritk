@@ -7,12 +7,19 @@ use crate::tools::interaction::{ToolState, ViewportOffset};
 impl NativeViewerSession {
     /// Zoom multiplier that undoes the active panel's fit scale (1:1 pixels).
     fn one_to_one_zoom(&self) -> Option<f32> {
-        let view = if self.workspace_layout.is_grid() && self.active_panel > 0 {
-            self.compare_panels.get(self.active_panel - 1)?.axial_view()
+        let index = if self.workspace_layout.is_grid() {
+            self.active_panel
         } else {
-            self.views.get(self.active_panel)?
+            self.viewports
+                .iter()
+                .position(|v| v.axis() == self.app.axis)?
         };
-        let viewport = self.viewports.get(self.active_panel)?;
+        let viewport = self.viewports.get(index)?;
+        let view = if self.workspace_layout.is_grid() && index > 0 {
+            self.compare_panels.get(index - 1)?.axial_view()
+        } else {
+            self.views.iter().find(|v| v.axis == viewport.axis())?
+        };
         crate::ui::zoom::one_to_one_zoom(
             [viewport.panel_width, viewport.panel_height],
             [view.frame.width(), view.frame.height()],

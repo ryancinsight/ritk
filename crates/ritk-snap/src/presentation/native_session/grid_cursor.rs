@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{
     app::viewer_viewport::ViewerViewport,
-    geometry::patient_stack::CursorProjection,
+    geometry::patient_stack::cursor::CursorProjection,
     presentation::{PointerButton, PresentationEvent as Event, ViewportPoint},
     tools::kind::ToolKind,
 };
@@ -113,7 +113,7 @@ impl NativeViewerSession {
                 .take(count)
                 .enumerate()
             {
-                if i != panel {
+                if i != panel && !target.cine.enabled {
                     marks[i] = target
                         .patient_stack
                         .as_ref()

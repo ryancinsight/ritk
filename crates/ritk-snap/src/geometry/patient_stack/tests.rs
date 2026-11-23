@@ -213,3 +213,33 @@ fn cursor_uses_pixel_centers_measured_slabs_and_shared_frames() {
     target.frame = "2.25.260".into();
     assert!(source.project_cursor(point, &target).is_none());
 }
+
+#[test]
+fn cursor_projects_rounded_directions_and_a_single_plane() {
+    let _trace = traced();
+    let v = tracing::info_span!("arrange").in_scope(|| read([10, 12, 16], Some("2.25.259")));
+    let mut stack = PatientStack::from_volume(&v).expect("qualify basis");
+    // Decimal direction cosines with a nonzero Gram off-diagonal. At one
+    // half-texel from center the direct-dot inverse would miss by > 1e-4.
+    stack.row = Vector3::new([0.0, 0.0005, 1.0]);
+    stack.centers.truncate(1);
+    stack.distances.truncate(1);
+    stack.half_thickness = vec![None];
+    let point = tracing::info_span!("act").in_scope(|| {
+        stack
+            .patient_point(0, [1.5, 1.5])
+            .expect("fractional patient point")
+    });
+    let _check = tracing::info_span!("assert").entered();
+    for (dx, distant) in [(0.0, false), (1.0, true)] {
+        let projected = stack
+            .project_cursor(point + Vector3::new([dx, 0., 0.]), &stack)
+            .expect("project onto the singleton");
+        assert_eq!((projected.index, projected.distant), (0, distant));
+        // Subtracting patient coordinates near 30 mm and dividing by the
+        // 0.5-mm column pitch bounds the round-trip error in pixel units.
+        for coord in projected.pixel {
+            assert!((coord - 1.5).abs() < 64.0 * f64::EPSILON);
+        }
+    }
+}
