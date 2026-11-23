@@ -187,15 +187,8 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
         if result != [True, views[name]["rgba_sha256"]]:
             raise BrowserRuntimeError(f"{name} screen samples or reference plane differ: {result}")
 
-    cleanup = client.execute_async("""
-        const done = arguments[arguments.length - 1];
-        import('./consumer/ritk_snap.js').then(m => {
-          const before = m.web_canvas_listener_count();
-          m.stop_web_canvas();
-          done([before, m.web_canvas_listener_count()]);
-        });
-    """)
-    if not (cleanup[0] > 0 and cleanup[1] == 0):
+    cleanup = probe("stopEmbeddedViewer")
+    if not (isinstance(cleanup, list) and len(cleanup) == 2 and cleanup[0] > 0 and cleanup[1] == 0):
         raise BrowserRuntimeError(f"embedded viewer listeners remained after stop: {cleanup}")
 
 

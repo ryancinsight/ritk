@@ -32,3 +32,11 @@ export async function comparePlane(name, samples) {
   const hash = new Uint8Array(await crypto.subtle.digest("SHA-256",image));
   return [equal, Array.from(hash, v => v.toString(16).padStart(2,"0")).join("")];
 }
+
+// Resolve against the embedded fixture's module URL in every engine.
+export async function stopEmbeddedViewer() {
+  const viewer = await import("./consumer/ritk_snap.js");
+  const before = viewer.web_canvas_listener_count();
+  viewer.stop_web_canvas();
+  return [before, viewer.web_canvas_listener_count()];
+}

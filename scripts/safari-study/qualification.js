@@ -1,6 +1,6 @@
 // Publish bounded observations through the standard Safari accessibility tree.
 // All workstation input, including file access, comes from the native UI.
-import {screenSamples, comparePlane} from "./workstation_pixels.js";
+import {screenSamples, comparePlane, stopEmbeddedViewer} from "./workstation_pixels.js";
 
 const surface = document.querySelector("#workstation, #ritk-snap-axial");
 function report(value) {
@@ -45,7 +45,6 @@ async function embedded() {
   document.body.prepend(picker);
   const samples = JSON.parse(sessionStorage.getItem("screenSamples"));
   const oracle = await (await fetch("oracle.json")).json();
-  const wasm = await import("./consumer/ritk_snap.js");
   let compared = false;
   const tick = setInterval(async () => {
     if (compared || document.querySelectorAll("canvas[data-ritk-load-state=ready]").length !== 3) return;
@@ -56,9 +55,7 @@ async function embedded() {
         const [matches, hash] = await comparePlane(name, samples[index]);
         if (!matches || hash !== oracle[name]) throw Error(name + " reference mismatch: " + hash);
       }
-      const before = wasm.web_canvas_listener_count();
-      wasm.stop_web_canvas();
-      const after = wasm.web_canvas_listener_count();
+      const [before, after] = await stopEmbeddedViewer();
       report({planes: 3, before, after});
     } catch (error) { report({error:String(error)}); }
   }, 100);
