@@ -110,7 +110,18 @@ The MGH 0.6.0 reader and writer use the same displaced center and therefore pass
 
 ## Viewer dependency audit [patch]
 
-The locked viewer path through Metis now resolves Moirai Crypto 0.12.1 and RSA 0.10.0. URL resolves to 2.5.9. The all-feature audit no longer reports either vulnerability. It still fails on 13 unmaintained package-version findings and reports one yanked async-executor. The [stable qualification checklist](backlog/ritk-stable-qualification.md) tracks their disposition. The [viewer qualification run](https://github.com/ryancinsight/ritk/actions/runs/45070084596) built the bundle and passed six of eight saved-study scenarios. All 573 native viewer library tests passed. WebKit rejected the same 94-file read observed with the [previous provider](https://github.com/ryancinsight/ritk/actions/runs/45068110842/job/137350386939). Chromium reported no WebGPU adapter on the hosted runner. [Viewer work](https://github.com/ryancinsight/ritk/pull/1108) tracks both platform exits.
+The locked all-feature audit of the 2026-11-22 candidate clears the URL and RSA vulnerabilities. Updating the xtask progress bar to indicatif 0.18.6 removed number_prefix. The executor resolves to unyanked async-executor 1.14.1. The native chooser uses rfd 0.18.0, removing the three older portal findings on zbus_names 3.0.0, zvariant 4.2.0 and zvariant_derive 4.2.0. The chooser-enabled build passes on macOS.
+
+`cargo deny --locked --all-features check advisories` still reports nine unmaintained package versions. Each remaining path has an owner and a verification requirement.
+
+| Owner and entry point | Affected packages | Replacement and acceptance |
+| --- | --- | --- |
+| RITK I/O networking tests, independent dicom-ul 0.10.1 peer | chrono 0.4.45, encoding 0.2.33 | Move to a peer using maintained time and character-set implementations. Preserve real loopback C-ECHO, C-FIND and C-MOVE exchanges with an independent peer. |
+| RITK native viewer, eframe accessibility through AccessKit and AT-SPI | derivative 2.2.0, instant 0.1.13, zbus_names 2.6.1, zvariant 3.15.2, zvariant_derive 3.15.2 | Qualify a maintained accessibility stack. zbus 6 owns the names, wire and derive APIs. Exercise Linux assistive technology and retain Windows accessibility. An eframe 0.37 resolution still includes the three standalone D-Bus crates. |
+| RITK native viewer text, ab_glyph and owned_ttf_parser | ttf-parser 0.25.1 | Qualify a font stack using skrifa. Preserve text layout, glyph selection and exact input interactions across supported hosts. |
+| RITK native rendering and image codecs | paste 1.0.15 | Coordinate all three paths through Windows AccessKit, wgpu’s Metal backend and the EXR codec’s pulp dependency. Retest accessible windows, Metal rendering and EXR decoding before retiring the final edge. |
+
+The [browser qualification checklist](backlog/ritk-stable-qualification.md) tracks the independent saved-study scenarios.
 
 ## Classic PET SUV timing
 
