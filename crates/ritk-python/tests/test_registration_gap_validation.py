@@ -35,6 +35,7 @@ import pytest
 sitk = pytest.importorskip("SimpleITK")
 
 import ritk  # noqa: E402
+from _fixture_cache import catalog_fixture  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -43,6 +44,7 @@ TEST_DATA = (
     Path(__file__).resolve().parent.parent.parent.parent / "test_data" / "registration"
 )
 DATA_ROOT = TEST_DATA.parent
+_OPENNEURO_REGISTRATION = catalog_fixture("registration/ixi")
 DATA_DIR = Path(__file__).resolve().parent.parent.parent.parent / "data"
 
 SIZE = 64  # synthetic volume side length
@@ -576,8 +578,8 @@ class TestColin27VsMNI:
 # ===========================================================================
 
 _skip_openneuro = pytest.mark.skipif(
-    not (TEST_DATA / "ixi" / "openneuro_ds000208_sub01_T1w.nii.gz").exists()
-    or not (TEST_DATA / "ixi" / "openneuro_ds000208_sub02_T1w.nii.gz").exists(),
+    not (_OPENNEURO_REGISTRATION / "openneuro_ds000208_sub01_T1w.nii.gz").exists()
+    or not (_OPENNEURO_REGISTRATION / "openneuro_ds000208_sub02_T1w.nii.gz").exists(),
     reason="OpenNeuro ds000208 T1w pair absent",
 )
 
@@ -602,8 +604,8 @@ class TestOpenNeuroT1Pair:
             self.fixed_arr,
             self.moving_arr,
         ) = _load_pair(
-            TEST_DATA / "ixi" / "openneuro_ds000208_sub01_T1w.nii.gz",
-            TEST_DATA / "ixi" / "openneuro_ds000208_sub02_T1w.nii.gz",
+            _OPENNEURO_REGISTRATION / "openneuro_ds000208_sub01_T1w.nii.gz",
+            _OPENNEURO_REGISTRATION / "openneuro_ds000208_sub02_T1w.nii.gz",
             max_size=128,
         )
         self.fixed_norm = _minmax(self.fixed_arr)

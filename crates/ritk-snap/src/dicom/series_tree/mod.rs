@@ -172,9 +172,13 @@ impl SeriesEntryView for SeriesEntry<'_> {
 
 impl SeriesEntry<'_> {
     /// Retain a discovered acquisition and its validated display metadata.
-    pub fn from_dicom_series_info(mut info: DicomSeriesInfo, metadata: DicomReadMetadata) -> Self {
+    pub fn from_dicom_series_info(info: DicomSeriesInfo, metadata: DicomReadMetadata) -> Self {
+        Self::with_metadata(info, &metadata)
+    }
+
+    pub(crate) fn with_metadata(mut info: DicomSeriesInfo, metadata: &DicomReadMetadata) -> Self {
         info.file_paths.sort();
-        let patient_name = Cow::Owned(metadata.patient_name.unwrap_or_default());
+        let patient_name = Cow::Owned(metadata.patient_name.clone().unwrap_or_default());
         let study_date = metadata
             .study_date
             .map(|date| Cow::Owned(date.as_str().to_owned()));

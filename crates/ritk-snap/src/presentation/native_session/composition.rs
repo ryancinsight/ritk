@@ -9,8 +9,11 @@ use super::projection::RenderedProjection;
 use crate::launch::{NativePresentationMode, NativePresentationSelection};
 use crate::presentation::PaneLayout;
 use crate::tools::interaction::ViewportOffset;
-use anyhow::{anyhow, Context, Result};
+#[cfg(windows)]
+use anyhow::Context;
+use anyhow::{anyhow, Result};
 use metis_platform::Framebuffer;
+#[cfg(windows)]
 use std::path::Path;
 
 use super::layout::ClinicalOverlay;
@@ -102,6 +105,7 @@ pub(super) fn compose_frames(
     }
 }
 
+#[cfg(windows)]
 pub(super) fn save_capture(framebuffer: &Framebuffer, output: &Path) -> Result<()> {
     let pixel_count =
         usize::try_from(u64::from(framebuffer.width()) * u64::from(framebuffer.height()))

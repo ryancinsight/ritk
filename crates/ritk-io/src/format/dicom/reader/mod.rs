@@ -25,6 +25,7 @@ mod parse;
 mod pet_calibration;
 pub(super) mod pixel;
 mod preservation;
+mod reconstruction;
 pub(super) mod scan;
 pub(super) mod stored;
 pub(crate) mod types;
@@ -37,6 +38,8 @@ pub use loader::{
     load_dicom_series_with_metadata_with_budget, read_dicom_series_with_metadata,
     read_dicom_series_with_metadata_with_budget,
 };
+pub use reconstruction::{decode_dicom_series, DecodedDicomSeries};
+pub use scan::catalog::scan_dicom_part10_catalog;
 pub use scan::{
     scan_dicom_directory_with_budget, scan_dicom_files, scan_dicom_files_with_budget,
     scan_dicom_instances, scan_dicom_instances_with_budget, scan_dicom_part10_bytes,

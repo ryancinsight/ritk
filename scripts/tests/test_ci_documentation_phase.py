@@ -5,6 +5,9 @@ from __future__ import annotations
 import os
 import pathlib
 import posixpath
+import subprocess
+import tempfile
+import textwrap
 import tomllib
 import unittest
 
@@ -71,6 +74,49 @@ class DocumentationPhaseWorkflowTests(unittest.TestCase):
             with self.subTest(required=required):
                 self.assertEqual(self.rustdoc.count(required), 1)
         self.assertEqual(self.rustdoc.count("cargo doc"), 0)
+
+    def test_documentation_range_on_diverged_branch(self) -> None:
+        # Execute the exact shell used by the hosted job. Both branch tips
+        # advance past their common commit, which itself follows the root.
+        step = self.rustdoc.split("id: documentation", 1)[1]
+        script = textwrap.dedent(
+            step.split("        run: |\n", 1)[1].split("          python3 -I", 1)[0]
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            def git(*args: str) -> str:
+                return subprocess.check_output(
+                    ["git", "-c", "user.name=CI", "-c", "user.email=ci@example.org", *args],
+                    cwd=directory, text=True,
+                ).strip()
+
+            def commit(message: str) -> str:
+                git("commit", "-q", "--allow-empty", "-m", message)
+                return git("rev-parse", "HEAD")
+
+            git("init", "-q", "-b", "main")
+            root = commit("root")
+            common = commit("common")
+            git("branch", "feature")
+            main = commit("main")
+            git("update-ref", "refs/remotes/origin/main", main)
+            git("switch", "-q", "feature")
+            tip = commit("feature")
+            cases = (
+                ("workflow_dispatch", "refs/heads/feature", "", tip, common),
+                ("workflow_dispatch", "refs/heads/main", "", main, root),
+                ("pull_request", "refs/pull/7/merge", main, tip, main),
+                ("push", "refs/heads/main", common, main, common),
+            )
+            for event, ref, base, candidate, expected in cases:
+                with self.subTest(event=event, ref=ref):
+                    env = dict(os.environ, GITHUB_EVENT_NAME=event, GITHUB_REF=ref,
+                               DEFAULT_BRANCH="main", BASE_REVISION=base,
+                               CANDIDATE_REVISION=candidate)
+                    actual = subprocess.check_output(
+                        ["bash", "-c", script + 'echo "$BASE_REVISION"'],
+                        cwd=directory, env=env, text=True,
+                    ).strip()
+                    self.assertEqual(actual, expected)
 
     def test_aggregate_binds_success_to_candidate(self) -> None:
         binding = (

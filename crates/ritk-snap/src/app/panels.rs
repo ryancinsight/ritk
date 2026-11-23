@@ -99,7 +99,7 @@ impl SnapApp {
         self.zoom = snapshot.zoom.clamp(MIN_ZOOM, MAX_ZOOM);
         self.cine.restore(snapshot.cine_enabled, snapshot.cine_fps);
         self.annotations = snapshot.annotations;
-        #[cfg(windows)]
+        #[cfg(any(windows, target_arch = "wasm32"))]
         self.length_calibrations.clear();
         self.pointer.selected_annotation = None;
         self.tool_state = ToolState::Idle;

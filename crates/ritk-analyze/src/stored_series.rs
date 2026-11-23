@@ -104,6 +104,22 @@ impl ConversionAdapter for AnalyzeStoredSeriesTarget<'_> {
             description: self.description,
         })
         .map_err(AnalyzeStoredSeriesRejection::HeaderEncoding)?;
+        // The compute writer permits header rounding. A stored conversion
+        // succeeds only if the serialized fields reconstruct the source.
+        // The comparison is exact: an i16 originator times a binary32 spacing
+        // needs at most 40 significant bits and is representable in binary64.
+        let decoded =
+            header::decode(&header).map_err(AnalyzeStoredSeriesRejection::HeaderEncoding)?;
+        for (field, matches) in [
+            ("spacing", &decoded.spacing == volume.metadata().spacing()),
+            ("origin", &decoded.origin == volume.metadata().origin()),
+        ] {
+            if !matches {
+                return Err(AnalyzeStoredSeriesRejection::HeaderEncoding(
+                    anyhow::anyhow!("stored {field} changes in the Analyze header"),
+                ));
+            }
+        }
         Ok(AnalyzeStoredSeriesPlan { header })
     }
 }
@@ -312,7 +328,18 @@ fn calibration_scale(
             if linear.slope() == 0.0 {
                 return Err(AnalyzeStoredSeriesRejection::ZeroSlopeCalibration { volume_index });
             }
-            Ok(linear.slope() as f32)
+            // The on-disk scale is IEEE binary32. Widening the encoded slope
+            // is exact, so equality decides representability without a tolerance.
+            let scale = linear.slope() as f32;
+            if f64::from(scale) != linear.slope() {
+                return Err(AnalyzeStoredSeriesRejection::HeaderEncoding(
+                    anyhow::anyhow!(
+                        "stored calibration scale {} cannot be encoded exactly",
+                        linear.slope()
+                    ),
+                ));
+            }
+            Ok(scale)
         }
         IntensityCalibration::PerFrameLinear(_) => {
             Err(AnalyzeStoredSeriesRejection::UnsupportedCalibration {

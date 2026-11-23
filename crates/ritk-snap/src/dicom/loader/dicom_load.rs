@@ -4,20 +4,19 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use coeus_core::SequentialBackend;
+#[cfg(windows)]
+use ritk_io::scan_dicom_files_with_budget;
 use ritk_io::{
-    load_color_multiframe_flat, load_color_multiframe_flat_from_bytes, load_color_volume_flat,
-    load_dicom_from_series, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
+    decode_dicom_series, load_color_multiframe_flat, load_color_multiframe_flat_from_bytes,
+    load_color_volume_flat, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
     load_enhanced_pet_volumes_from_instances, read_multiframe_info,
     read_multiframe_info_from_bytes, EnhancedPetSelection,
 };
-#[cfg(windows)]
-use ritk_io::{load_dicom_from_series_with_budget, scan_dicom_files_with_budget};
 use tracing::info;
 
 use crate::LoadedVolume;
 
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 const SERIES_PREVIEW_DECODED_BYTE_BUDGET: usize = 64 * 1024 * 1024;
 
 /// Load a DICOM series from a pre-scanned series descriptor into a [`LoadedVolume`].
@@ -54,18 +53,27 @@ pub fn load_volume_from_scanned_series(
 
 #[cfg(windows)]
 pub(crate) fn load_volume_from_dicom_instance(path: &Path) -> Result<LoadedVolume> {
+    let paths = [path.to_path_buf()];
+    load_preview(|budget| scan_dicom_files_with_budget(&paths, budget))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn load_volume_from_preview_bytes(name: &str, bytes: &[u8]) -> Result<LoadedVolume> {
+    load_preview(|budget| ritk_io::scan_dicom_part10_bytes_with_budget(&[(name, bytes)], budget))
+}
+
+#[cfg(any(windows, target_arch = "wasm32"))]
+fn load_preview(
+    scan: impl FnOnce(&ritk_io::DicomReadBudget) -> Result<ritk_io::ScannedDicomSeries>,
+) -> Result<LoadedVolume> {
     let budget = ritk_io::DicomReadBudget::try_new(
         ritk_io::DicomReadBudget::DEFAULT.parser(),
         SERIES_PREVIEW_DECODED_BYTE_BUDGET,
         SERIES_PREVIEW_DECODED_BYTE_BUDGET,
     )?;
-    let paths = [path.to_path_buf()];
-    let series = scan_dicom_files_with_budget(&paths, &budget)
-        .with_context(|| format!("scan DICOM preview instance '{}'", path.display()))?;
-    let backend = SequentialBackend;
-    let (image, metadata) = load_dicom_from_series_with_budget(series, &backend, &budget)
-        .with_context(|| format!("decode DICOM preview instance '{}'", path.display()))?;
-    loaded_volume_from_scalar_image(image, metadata, None, &backend)
+    let series = scan(&budget).context("scan DICOM preview instance")?;
+    let decoded = decode_dicom_series(series, &budget).context("decode DICOM preview instance")?;
+    loaded_volume_from_decoded_series(decoded)
 }
 
 /// Return the frame count carried by a scanned member, using its retained
@@ -114,34 +122,17 @@ fn multiframe_count_for_series(series: &ritk_io::ScannedDicomSeries) -> Result<O
     Ok(count)
 }
 
-/// Convert a scalar `(Image, DicomReadMetadata)` pair into a [`LoadedVolume`].
-///
-/// This deduplicates the image-to-LoadedVolume conversion logic shared by
-/// [`load_dicom_volume`] and [`load_volume_from_scanned_series`].
-///
-/// # Parameters
-/// - `image` — the reconstructed 3-D scalar image.
-/// - `meta` — per-series DICOM metadata.
-/// - `source` — optional filesystem source path (absent for SCP-received instances).
-fn loaded_volume_from_scalar_image(
-    image: ritk_image::Image<f32, SequentialBackend, 3>,
-    meta: ritk_io::DicomReadMetadata,
-    source: Option<std::path::PathBuf>,
-    backend: &SequentialBackend,
-) -> Result<LoadedVolume> {
-    let shape = image.shape();
-    let spacing = image.spacing().to_array();
-    let origin = image.origin().to_array();
-    let direction = image.direction().to_row_major();
-    let pixels = image.data_cow_on(backend)?.into_owned();
+/// Transfer the reconstructed CPU pixels into the viewer without duplicating
+/// the volume. The shape and physical coordinates come from the same decode.
+fn loaded_volume_from_decoded_series(decoded: ritk_io::DecodedDicomSeries) -> Result<LoadedVolume> {
     loaded_volume_from_scalar_data(
-        Arc::new(pixels),
-        shape,
-        spacing,
-        origin,
-        direction,
-        meta,
-        source,
+        Arc::new(decoded.volume),
+        decoded.shape,
+        decoded.spacing.to_array(),
+        decoded.origin.to_array(),
+        decoded.direction.to_row_major(),
+        decoded.metadata,
+        None,
     )
 }
 
@@ -321,10 +312,9 @@ fn load_dicom_multiframe_volume_from_scanned_series(
 fn load_dicom_scalar_volume_from_scanned_series(
     series: ritk_io::ScannedDicomSeries,
 ) -> Result<LoadedVolume> {
-    let backend = SequentialBackend;
-    let (image, meta) = load_dicom_from_series(series, &backend)
+    let decoded = decode_dicom_series(series, &ritk_io::DicomReadBudget::DEFAULT)
         .with_context(|| "failed to load DICOM series from scanned instances")?;
-    loaded_volume_from_scalar_image(image, meta, None, &backend)
+    loaded_volume_from_decoded_series(decoded)
 }
 
 /// Build a colour [`LoadedVolume`] from the substrate-free flat RGB core.

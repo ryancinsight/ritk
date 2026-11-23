@@ -185,6 +185,15 @@ transposition would pass it. `analyze_writer_emits_pixdim_in_file_axis_order`
 therefore reads the raw header bytes at offsets 80, 84, and 88 and pins
 `pixdim[1..3] = [3.75, 2.5, 1.25]` for core spacing `[1.25, 2.5, 3.75]`.
 
+### Stored conversion preflight
+
+The stored-series writer checks that decoding the prepared header recovers the
+source spacing and origin exactly. Each origin coordinate must be an integer
+multiple of the corresponding encoded spacing within the signed 16-bit index
+range. Spacings and the intensity scale must be exactly representable as
+binary32. A rejected header leaves both destination files intact.
+[Header precision tests](../../crates/ritk-analyze/src/stored_series/tests/precision.rs)
+
 ## Next
 
 The [Analyze round-trip example](examples/analyze_roundtrip.md) uses a shared

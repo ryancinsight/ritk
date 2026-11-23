@@ -1,6 +1,6 @@
 [package]
 name = "ritk-filter"
-version = "0.6.0"
+version = "0.6.1"
 description = "Medical image filtering algorithms for RITK"
 keywords.workspace = true
 categories.workspace = true

@@ -249,7 +249,7 @@ fn newly_mapped_sample_types_reject_image_and_label_conversion() {
             let sample = vec![0x5a; datatype.byte_width()];
 
             let image_error = parsed
-                .read_f32_voxel(&sample)
+                .decode_intensities(&sample, None)
                 .expect_err("unsupported stored type must not be converted to f32")
                 .to_string();
             assert_eq!(

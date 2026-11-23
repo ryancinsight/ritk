@@ -3,10 +3,10 @@
 use crate::render::{FrameRenderScratch, NamedColorMap, SliceRenderer, WindowLevel};
 #[cfg(target_arch = "wasm32")]
 use crate::tools::interaction::ViewportOffset;
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 use crate::ui::{apply_to_rgba_into, ViewTransform};
 use crate::LoadedVolume;
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 use anyhow::Context;
 use anyhow::{anyhow, bail, Result};
 use metis_platform::framebuffer::MAX_PIXELS;
@@ -42,7 +42,7 @@ impl PresentationSpacing {
         [self.row, self.column]
     }
 
-    #[cfg(windows)]
+    #[cfg(any(windows, target_arch = "wasm32"))]
     pub(crate) const fn swapped(self) -> Self {
         Self {
             row: self.column,
@@ -215,7 +215,7 @@ impl PresentationFrame {
 
     /// Applies the native display orientation using reusable caller-owned
     /// storage and updates the frame's display geometry in place.
-    #[cfg(windows)]
+    #[cfg(any(windows, target_arch = "wasm32"))]
     pub(crate) fn apply_view_transform(
         &mut self,
         transform: ViewTransform,
