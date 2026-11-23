@@ -316,4 +316,29 @@ fn native_anonymize_status_omits_the_identifying_value_and_its_source_filename()
     }
 }
 
+#[test]
+fn native_anonymize_hides_identity_when_an_earlier_issue_is_structural() {
+    let path = PathBuf::from("fixture-identity.dcm");
+    let issues = vec![
+        (
+            path.clone(),
+            VerifyIssue::MissingUid {
+                tag: "SeriesInstanceUID".into(),
+            },
+        ),
+        (
+            path.clone(),
+            VerifyIssue::PatientLeak {
+                value: "fixture-identity".into(),
+            },
+        ),
+    ];
+    let error = anyhow::Error::from(StudyAnonymizeError::Retained {
+        cause: Box::new(StudyAnonymizeError::Verification(issues)),
+        paths: vec![path],
+    });
+    assert_eq!(failure_status(&error),
+        "De-identified export failed: 2 verification issue(s) in the export; 1 written file(s) could not be removed; identifying metadata remains in the copy.");
+}
+
 mod exported_copy;

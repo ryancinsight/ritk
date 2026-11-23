@@ -1,0 +1,6 @@
+# AsterSlice 0.4.0 — DICOM export qualification
+
+- [x] [patch] Export Basic and Strict copies of the downloaded MRI-DIR T2 phantom. All 94 source files match their original Git objects. Both copies preserve stored bytes, all 24,641,536 decoded samples and nested SOP relationships. [Reproduction](../docs/manual/development.md#export-a-de-identified-study-or-series).
+- [x] [patch] Open the source and both exported sets of 94 files in Chromium. Compare all three displayed image regions and inspect the Strict screenshot. [User manual](../docs/manual/dicom-workflow.md#export-and-verify-a-strict-dicom-copy).
+- [minor] The Windows acceptance test reopens the verified Strict copy from the menu, compares the volume and presented image pixels, and rejects stale destinations. [Native tests](../crates/ritk-snap/src/presentation/native_session/tests/anonymize/exported_copy.rs).
+- [ ] [patch] Export a real multi-series study with identifying filenames and references between included instances. Verify numbered filenames, preserved source files, and that each internal SOP reference resolves to the corresponding exported instance. [Numbered export](https://github.com/ryancinsight/ritk/pull/1104) · [DICOM conformance](https://github.com/ryancinsight/ritk/pull/1105).

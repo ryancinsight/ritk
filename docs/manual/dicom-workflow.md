@@ -137,7 +137,7 @@ toggles the overlay independently of slice synchronization.
 ![Strict MRI export reopened in the web viewer. The series list shows ANONYMOUS and 94 images alongside the three anatomical planes.](images/dicom-strict-mri-reopened.webp)
 
 AsterSlice rendering of the downloaded MRI-DIR T2 porcine phantom after Strict
-export. [Ger et al., The Cancer Imaging Archive](https://doi.org/10.7937/K9/TCIA.2018.3f08iejt) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+export. [MRI-DIR, The Cancer Imaging Archive](https://doi.org/10.7937/K9/TCIA.2018.3f08iejt) · [Ger et al., Medical Physics (2018)](https://doi.org/10.1002/mp.13090) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 | What to check | Basic copy | Strict copy |
 | --- | --- | --- |

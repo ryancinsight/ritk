@@ -22,6 +22,35 @@ fn menu_click(viewer: &mut NativeViewerSession, menu: Option<Menu>, action: Wind
         .expect("use the visible menu row");
 }
 
+/// Capture the presented region of each image. Fractional fit scales assign a
+/// screen pixel to the half-open image rectangle by its center (x + ½, y + ½).
+fn displayed_images(viewer: &NativeViewerSession) -> Vec<Vec<u32>> {
+    let stride = usize::try_from(viewer.framebuffer.width()).expect("framebuffer width");
+    let rows = viewer.framebuffer.pixels().chunks_exact(stride);
+    assert_eq!(viewer.viewports.len(), 3);
+    viewer
+        .viewports
+        .iter()
+        .map(|pane| {
+            let mut image = Vec::new();
+            for (y, row) in rows.clone().enumerate() {
+                let cy = f64::from(u32::try_from(y).expect("surface row")) + 0.5;
+                for (x, &pixel) in row.iter().enumerate() {
+                    let cx = f64::from(u32::try_from(x).expect("surface column")) + 0.5;
+                    if pane.contains(cx, cy) && pane.image.contains(cx, cy) {
+                        image.push(pixel);
+                    }
+                }
+            }
+            assert!(
+                image.windows(2).any(|pair| pair[0] != pair[1]),
+                "expected visible MRI detail"
+            );
+            image
+        })
+        .collect()
+}
+
 #[test]
 fn native_anonymize_reopens_real_mri_with_identical_voxels_and_three_rendered_planes() {
     let _trace = tracing::subscriber::set_default(
@@ -35,7 +64,12 @@ fn native_anonymize_reopens_real_mri_with_identical_voxels_and_three_rendered_pl
     viewer
         .open_study_path(&source)
         .expect("open the downloaded 94-instance phantom");
+    viewer
+        .apply_window_action(WindowAction::ToggleOverlay)
+        .expect("hide labels for the image comparison");
+    assert!(!viewer.app.show_overlay);
     viewer.refresh_frame().expect("display source planes");
+    let displayed = displayed_images(&viewer);
     let volume = viewer.app.loaded.as_ref().expect("read source");
     let values = std::sync::Arc::clone(&volume.data);
     assert_eq!(volume.shape, [94, 512, 512]);
@@ -69,6 +103,10 @@ fn native_anonymize_reopens_real_mri_with_identical_voxels_and_three_rendered_pl
         .zip(reopened.data.iter())
         .all(|(a, b)| a.to_bits() == b.to_bits()));
     assert_eq!(values.len(), reopened.data.len());
+    assert!(
+        displayed_images(&viewer) == displayed,
+        "reopened MRI changed the presented image pixels"
+    );
     for (view, expected) in viewer.views.iter().zip(planes) {
         assert!(
             view.frame.rgba() == expected,

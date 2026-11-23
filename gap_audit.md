@@ -22,7 +22,7 @@ The [release backlog](backlog.md#milestones) records the remaining milestone cri
 
 ## Reopening de-identified DICOM exports
 
-- [minor] The Windows Anonymize menu previously required the reader to locate the destination again. It now opens the last successful export from the current study. A failed export clears that destination. Verification errors for residual identifying metadata previously displayed the matching value and filename.
+- [minor] The Windows Anonymize menu previously required the reader to locate the destination again. It now opens the last successful export from the current study. A failed export clears that destination. Verification errors for residual identifying metadata previously displayed the matching value and filename. A regression also covers a structural issue listed before the identifying field when cleanup is incomplete.
 - [patch] The downloaded MRI-DIR porcine phantom produced 94 numbered DICOM instances under each profile. The independent reader compares all 24,641,536 decoded samples per copy, the encoded pixel data, geometry and SOP references. The packaged Chromium viewer reopened source, Basic and Strict and returned matching image-region hashes on all three planes. The [user manual](docs/manual/dicom-workflow.md#export-and-verify-a-strict-dicom-copy) includes the Strict screenshot. Multi-series references across a selected study remain a separate qualification item.
 
 ## Linked display settings and comparison cursor

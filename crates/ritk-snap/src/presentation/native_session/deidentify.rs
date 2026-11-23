@@ -49,29 +49,33 @@ impl Deidentification {
     }
 }
 
-/// The first issue of a verification failure, also when a failed cleanup
-/// wraps that failure.
-fn first_issue(error: &StudyAnonymizeError) -> Option<&(PathBuf, VerifyIssue)> {
+/// Access every verification issue even when cleanup adds a second error.
+fn verification_issues(error: &StudyAnonymizeError) -> &[(PathBuf, VerifyIssue)] {
     match error {
-        StudyAnonymizeError::Verification(issues) => issues.first(),
-        StudyAnonymizeError::Retained { cause, .. } => first_issue(cause),
-        _ => None,
+        StudyAnonymizeError::Verification(issues) => issues,
+        StudyAnonymizeError::Retained { cause, .. } => verification_issues(cause),
+        _ => &[],
     }
 }
 
-/// Report the first verification issue without displaying a detected identifier.
+/// Report structural diagnostics unless any issue identifies the source patient.
+/// The path attached to a structural issue can contain the same identifying text.
 pub(super) fn failure_status(error: &anyhow::Error) -> String {
-    let first = error
+    let issues = error
         .downcast_ref::<StudyAnonymizeError>()
-        .and_then(first_issue);
-    match first {
-        // Either the offending value or the source filename can identify the patient.
-        // Preserve the verification and cleanup counts without echoing those strings.
-        Some((_, VerifyIssue::PatientLeak { .. } | VerifyIssue::ResidualIdentifier { .. })) => {
-            format!(
-                "De-identified export failed: {error}; identifying metadata remains in the copy."
-            )
-        }
+        .map(verification_issues)
+        .unwrap_or_default();
+    if issues.iter().any(|(_, issue)| {
+        matches!(
+            issue,
+            VerifyIssue::PatientLeak { .. } | VerifyIssue::ResidualIdentifier { .. }
+        )
+    }) {
+        return format!(
+            "De-identified export failed: {error}; identifying metadata remains in the copy."
+        );
+    }
+    match issues.first() {
         Some((path, issue)) => format!(
             "De-identified export failed: {error:#}; first: {issue} in {}",
             path.display()
