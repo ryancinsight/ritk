@@ -160,3 +160,28 @@ fn native_grid_cursor_tracks_perpendicular_stack_until_release() {
         .expect("release");
     assert_ne!(viewer.framebuffer.get_pixel(cx, cy), CROSSHAIR_COLOR);
 }
+
+#[test]
+fn native_grid_cursor_tool_survives_a_grid_resize() {
+    use crate::tools::kind::ToolKind;
+    let _trace = trace();
+    let (mut viewer, _root) = tracing::info_span!("arrange").in_scope(session);
+    viewer
+        .set_workspace_layout(WorkspaceLayout::Panels(
+            PanelGrid::new(2, 1).expect("split"),
+        ))
+        .expect("enter comparison");
+    viewer.active_panel = 0;
+    viewer
+        .handle_events(&[key(0x51)])
+        .expect("assign grid cursor to the primary pane");
+    tracing::info_span!("act").in_scope(|| {
+        viewer
+            .set_workspace_layout(WorkspaceLayout::Panels(
+                PanelGrid::new(2, 2).expect("four panes"),
+            ))
+            .expect("resize the grid")
+    });
+    tracing::info_span!("assert")
+        .in_scope(|| assert_eq!(viewer.app.active_tool, ToolKind::Crosshair));
+}

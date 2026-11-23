@@ -266,6 +266,14 @@ impl NativeViewerSession {
         }
         let was_grid = self.workspace_layout.is_grid();
         if let Some(grid) = layout.grid() {
+            if !was_grid {
+                // The persistent MPR voxel crosshair ends when leaving its
+                // layout. A cursor explicitly selected in a grid survives resizing.
+                self.app.show_crosshair = false;
+                if self.app.active_tool == crate::tools::kind::ToolKind::Crosshair {
+                    self.app.select_tool(crate::tools::kind::ToolKind::Pan);
+                }
+            }
             let needed = grid.panel_count().saturating_sub(1);
             while self.compare_panels.len() < needed {
                 self.compare_panels
