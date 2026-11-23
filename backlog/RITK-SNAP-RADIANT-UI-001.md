@@ -7,7 +7,7 @@
 - [x] [patch] Separate series selection from image selection at both catalog boundaries. Preserve single-series Home/End and the inactive pane. The packaged CT/MR journey exercises both cases.
 - [x] [patch] Requalify the workstation on Windows and in all eight hosted browser scenarios, including the native Safari file chooser and WebGPU presentation. [Windows tests](https://github.com/ryancinsight/ritk/actions/runs/45123805890/job/137523992803) · [browser matrix](https://github.com/ryancinsight/ritk/actions/runs/45123808988)
 - [x] [patch] Correct [display-coordinate navigation](RITK-SNAP-NAVIGATION-UNITS-001.md) and verify equivalent drags at different fits and rotations.
-- [x] [minor] Implement [automatic patient-position linking](RITK-SNAP-NATIVE-LINK-001.md) and verify unequal-spacing and incompatible-frame cases in Chromium. The [manual comparison](../docs/manual/features.md#reading-workstation-parity) records the reference for each workflow.
+- [x] [minor] Implement [automatic patient-position linking](../docs/manual/comparison-checklist.md) and verify unequal-spacing and incompatible-frame cases in Chromium. The [manual comparison](../docs/manual/features.md#reading-workstation-parity) records the reference for each workflow.
 - basis: b2fe302b3659ec1dc69bba01849fab7f0e453d1c
 - needs: none
 - priority: feature; milestone: M-viewer-reading
