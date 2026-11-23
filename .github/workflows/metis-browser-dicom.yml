@@ -29,8 +29,14 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/safari-study/prepare.py workstation /Users/Shared/RITKPublicStudy
-          python3 -m http.server 17823 --bind 127.0.0.1 --directory workstation &
+          python3 scripts/safari-study/serve.py workstation &
           cd scripts/safari-study
           command -v xcodegen || brew install xcodegen
           xcodegen generate
-          xcodebuild test -project SafariStudy.xcodeproj -scheme SafariStudy -destination 'platform=macOS,arch=arm64' -parallel-testing-enabled NO
+          xcodebuild test -project SafariStudy.xcodeproj -scheme SafariStudy -destination 'platform=macOS,arch=arm64' -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/Safari.xcresult"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: safari-report
+          path: ${{ runner.temp }}/Safari.xcresult
+          retention-days: 2
