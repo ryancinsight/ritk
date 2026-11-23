@@ -95,6 +95,9 @@ impl NativeViewerSession {
                 }
                 let slice_changed = previous != app.axis_slice_info(axis).0;
                 self.active_panel = panel_index;
+                if slice_changed && axis == 0 {
+                    self.synchronize_position(panel_index);
+                }
                 Ok(active_changed || axis_changed || slice_changed)
             }
             WindowAction::BrowseSeries {
@@ -215,6 +218,16 @@ impl NativeViewerSession {
                     }
                     (true, None) => "Length calibration reset to image spacing".to_owned(),
                 };
+                Ok(true)
+            }
+            WindowAction::TogglePositionSync => {
+                self.sync_position = !self.sync_position;
+                self.active_app_mut().status_message = if self.sync_position {
+                    "Automatic patient-position synchronization enabled"
+                } else {
+                    "Patient-position synchronization disabled"
+                }
+                .into();
                 Ok(true)
             }
             WindowAction::ToggleCrosshair => {

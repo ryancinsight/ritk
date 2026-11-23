@@ -18,6 +18,8 @@ impl Default for SnapApp {
     fn default() -> Self {
         Self {
             loaded: None,
+            #[cfg(any(windows, target_arch = "wasm32"))]
+            patient_stack: None,
             measurement_pixel_spacing: MeasurementSpacingState::Uninitialized,
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             loaded_secondary: None,

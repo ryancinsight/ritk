@@ -91,6 +91,7 @@ pub(super) struct NativeViewerSession {
     pub(super) capture_after_idle: bool,
     pub(super) capture_application: bool,
     pub(super) anonymize_overlay: bool,
+    pub(super) sync_position: bool,
     pub(super) observation: Arc<NativeViewerObservation>,
     #[cfg(windows)]
     pub(super) clock_start: Instant,
@@ -197,6 +198,7 @@ impl NativeViewerSession {
             capture_after_idle,
             capture_application,
             anonymize_overlay: false,
+            sync_position: true,
             observation,
             #[cfg(windows)]
             clock_start: Instant::now(),

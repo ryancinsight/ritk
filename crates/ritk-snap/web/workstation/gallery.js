@@ -89,7 +89,7 @@ async function start() {
       // Reserve navigation keys that have a competing browser default. Forward
       // every key to the workstation so F4, Tab and their modifiers stay native.
       if (["Tab", " ", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown",
-           "ArrowRight", "ArrowLeft", "Backspace", "F4"].includes(e.key) ||
+           "ArrowRight", "ArrowLeft", "Backspace", "F4", "F5"].includes(e.key) ||
           ((e.ctrlKey || e.metaKey) && ["KeyO", "KeyM", "Digit0"].includes(e.code))) {
         e.preventDefault();
       }

@@ -51,6 +51,7 @@ mod observation;
 mod panels;
 mod session;
 mod session_chrome;
+mod synchronization;
 use observation::{record_state, NativeViewerError, NativeViewerObservation};
 use session::NativeViewerSession;
 

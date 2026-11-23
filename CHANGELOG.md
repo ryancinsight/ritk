@@ -33,6 +33,8 @@
 
 ### Added
 
+- [minor] DICOM reader metadata exposes the common Study and Frame of Reference UIDs after verifying every instance.
+
 - [minor] Discover multiple DICOM series from named in-memory Part 10 instances.
 
 - [minor] `decode_dicom_series` reconstructs owned calibrated pixels and the resolved patient grid independently of backend image loading. AsterSlice now transfers the pixel allocation directly into its scalar viewer.
@@ -80,6 +82,8 @@
 - [patch] The web app and existing gallery links open the same AsterSlice reading workspace.
 
 ### Added
+
+- [minor] Scrolling comparison panels follows the nearest patient plane in eligible classic DICOM stacks. F5 toggles automatic position matching on Windows and the web.
 
 - [minor] The web app runs the Windows workstation renderer, menus, diagnostic tools and multi-series comparison in WebAssembly. The separate gallery interface has been removed.
 

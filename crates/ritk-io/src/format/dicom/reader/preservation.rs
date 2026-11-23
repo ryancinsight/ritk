@@ -35,6 +35,7 @@ pub(super) fn tag_key(group: u16, element: u16) -> u32 {
 /// 30 000+ per-element insertions.
 pub(super) fn known_handled_tags() -> &'static HashSet<u32> {
     static KNOWN: LazyLock<HashSet<u32>> = LazyLock::new(|| {
+        // Retain study and frame UIDs per instance for patient-coordinate comparison.
         let mut s = HashSet::with_capacity(32);
         // Per-slice
         s.insert(tag_key(0x0008, 0x0018)); // SOP Instance UID
@@ -50,7 +51,6 @@ pub(super) fn known_handled_tags() -> &'static HashSet<u32> {
         s.insert(tag_key(0x0028, 0x0010)); // Rows
         s.insert(tag_key(0x0028, 0x0011)); // Columns
         s.insert(tag_key(0x0020, 0x000E)); // SeriesInstanceUID
-        s.insert(tag_key(0x0020, 0x000D)); // StudyInstanceUID
         s.insert(tag_key(0x0008, 0x103E)); // SeriesDescription
         s.insert(tag_key(0x0008, 0x0060)); // Modality
         s.insert(tag_key(0x0010, 0x0020)); // PatientID
@@ -58,7 +58,6 @@ pub(super) fn known_handled_tags() -> &'static HashSet<u32> {
         s.insert(tag_key(0x0008, 0x0020)); // StudyDate
         s.insert(tag_key(0x0008, 0x0021)); // SeriesDate
         s.insert(tag_key(0x0008, 0x0031)); // SeriesTime
-        s.insert(tag_key(0x0020, 0x0052)); // FrameOfReferenceUID
         s.insert(tag_key(0x0028, 0x0100)); // BitsAllocated
         s.insert(tag_key(0x0028, 0x0101)); // BitsStored
         s.insert(tag_key(0x0028, 0x0102)); // HighBit

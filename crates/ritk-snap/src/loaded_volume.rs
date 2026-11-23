@@ -2,7 +2,7 @@ use aequitas::systems::si::{quantities::Length, units::Millimeter};
 use arrayvec::ArrayString;
 use ritk_spatial::Vector;
 
-const READER_ORIENTATION_DIRECTION_TOLERANCE: f64 = 1e-3;
+pub(crate) const READER_ORIENTATION_DIRECTION_TOLERANCE: f64 = 1e-3;
 const READER_NONUNIFORM_SPACING_THRESHOLD: f64 = 0.01;
 
 /// Type-erased loaded volume for viewer use (avoids propagating `<B: Backend>` through UI).

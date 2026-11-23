@@ -322,6 +322,27 @@ pub(crate) fn write_study_with_geometry(
     samples: &[u8],
     geometry: (Option<[f64; 2]>, bool),
 ) -> Result<Vec<(String, Vec<u8>)>> {
+    write_positioned_study(
+        root,
+        modality,
+        series_uid,
+        samples,
+        geometry,
+        [10, 12, 14],
+        None,
+    )
+}
+
+/// Provide independently known patient coordinates and optional Frame of Reference for each instance.
+pub(crate) fn write_positioned_study(
+    root: &Path,
+    modality: &str,
+    series_uid: &str,
+    samples: &[u8],
+    geometry: (Option<[f64; 2]>, bool),
+    positions: [i32; 3],
+    frame: Option<&str>,
+) -> Result<Vec<(String, Vec<u8>)>> {
     let (pixel_spacing, include_positions) = geometry;
     std::fs::create_dir_all(root).context("create synthetic study directory")?;
     assert!(
@@ -334,7 +355,7 @@ pub(crate) fn write_study_with_geometry(
     for (depth, filename, instance) in [(2_u16, "a.dcm", 1), (1, "b.dcm", 2), (0, "c.dcm", 3)] {
         let mut model = DicomObjectModel::new();
         let sop_uid = format!("{series_uid}.{instance}");
-        let position = format!("{}\\20\\30", 10 + 2 * depth);
+        let position = format!("{}\\20\\30", positions[usize::from(depth)]);
         for (group, element, vr, value) in [
             (0x0008, 0x0016, "UI", "1.2.840.10008.5.1.4.1.1.7"),
             (0x0008, 0x0018, "UI", sop_uid.as_str()),
@@ -355,6 +376,13 @@ pub(crate) fn write_study_with_geometry(
                 DicomTag::new(group, element),
                 vr,
                 value,
+            ));
+        }
+        if let Some(frame) = frame {
+            model.insert(DicomObjectNode::text(
+                DicomTag::new(0x0020, 0x0052),
+                "UI",
+                frame,
             ));
         }
         if include_positions {

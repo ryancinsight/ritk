@@ -7,7 +7,7 @@
 - [x] [patch] Separate series selection from image selection at both catalog boundaries. Preserve single-series Home/End and the inactive pane. The packaged CT/MR journey exercises both cases.
 - [ ] [patch] Qualify the queued Windows key test and each browser journey on the same revision. The [baseline host run](https://github.com/ryancinsight/ritk/actions/runs/45097686376) passed six raster configurations. SafariDriver reached file selection and WebKit denied reads on the MRI files. Compare a real Safari picker with the automated selection on the same phantom. Hosted Chromium WebGPU stopped before workstation initialization. Verify adapter acquisition on that runner and retain the local GPU pixel check.
 - [x] [patch] Correct [display-coordinate navigation](RITK-SNAP-NAVIGATION-UNITS-001.md) and verify equivalent drags at different fits and rotations.
-- [ ] [minor] Deliver [automatic patient-position linking](RITK-SNAP-NATIVE-LINK-001.md) after the reading milestone. The [manual comparison](../docs/manual/features.md#reading-workstation-parity) records the reference for each workflow.
+- [x] [minor] Implement [automatic patient-position linking](RITK-SNAP-NATIVE-LINK-001.md) and verify unequal-spacing and incompatible-frame cases in Chromium. The [manual comparison](../docs/manual/features.md#reading-workstation-parity) records the reference for each workflow.
 - basis: b2fe302b3659ec1dc69bba01849fab7f0e453d1c
 - needs: none
 - priority: feature; milestone: M-viewer-reading

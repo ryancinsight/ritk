@@ -7,6 +7,7 @@ import tempfile
 from urllib.parse import urlencode
 from browser_local_box_provenance import copy_bundle
 from browser_navigation import verify_navigation
+from browser_patient_position import verify_patient_position
 from pathlib import Path
 
 from browser_protocol import BrowserRuntimeError, StaticServer, WebDriverClient
@@ -151,6 +152,7 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
         require(f"{state}.panels[{1-index}][0] === {initial[1-index][0]}", "wheel changed the other series")
         if output:
             (output / "comparison.png").write_bytes(client.screenshot())
+    verify_patient_position(client, canvas, state, wait)
     client.set_window_rect(500, 820)
     wait(state + ".width === innerWidth && " + state + ".panes[0][0] === 0")
     require("document.documentElement.scrollWidth === innerWidth", "narrow page overflows")

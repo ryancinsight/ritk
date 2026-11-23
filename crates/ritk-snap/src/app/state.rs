@@ -65,6 +65,8 @@ pub(crate) struct SnapApp {
     // ── Volume ────────────────────────────────────────────────────────────────
     /// Currently loaded volume, if any.
     pub(crate) loaded: Option<LoadedVolume>,
+    #[cfg(any(windows, target_arch = "wasm32"))]
+    pub(crate) patient_stack: Option<crate::geometry::patient_stack::PatientStack>,
     /// Source-qualified in-plane spacing for the currently displayed grid.
     ///
     /// This app-owned value is cleared when a filter changes the voxel grid;

@@ -88,7 +88,7 @@ pub(super) fn menu_item_count(
         #[cfg(windows)]
         Menu::Anonymize => ANONYMIZE_ITEMS.len(),
         Menu::View => {
-            let base = if workspace_layout.is_grid() { 3 } else { 6 };
+            let base = if workspace_layout.is_grid() { 4 } else { 6 };
             base + 2 * usize::from(has_enhanced_pet_volumes(app))
         }
         Menu::Tools => {
@@ -162,7 +162,12 @@ pub(super) fn menu_item(
                 app.cine.enabled,
             )),
             2 => Ok(("Reset view", WindowAction::ResetView, false)),
-            _ => pet_view_item(index - 3, app),
+            3 => Ok((
+                "Toggle position sync  F5",
+                WindowAction::TogglePositionSync,
+                false,
+            )),
+            _ => pet_view_item(index - 4, app),
         },
         Menu::View => match index {
             0 => Ok((

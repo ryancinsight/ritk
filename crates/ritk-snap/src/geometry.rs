@@ -1,5 +1,7 @@
 pub mod affine;
 mod patient_point;
+#[cfg(any(windows, target_arch = "wasm32", test))]
+pub(crate) mod patient_stack;
 
 pub use patient_point::{PatientPointError, PatientPointMm};
 

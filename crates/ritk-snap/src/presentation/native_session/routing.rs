@@ -404,15 +404,17 @@ impl NativeViewerSession {
                     .and_then(|index| view_mappings.get(index))
                     .copied()
             };
-            let (result, previous_axis) = {
+            let (result, previous_axis, previous_slice) = {
                 let app = self.app_for_panel_mut(panel_index)?;
                 let previous_axis = app.axis;
                 if let Some(viewport) = viewport {
                     app.axis = viewport.axis();
                 }
+                let previous_slice = app.axis_slice_info(0).0;
                 (
                     app.apply_presentation_events(&events[start..end], viewport.as_ref()),
                     previous_axis,
+                    previous_slice,
                 )
             };
             let disposition = match result {
@@ -426,6 +428,9 @@ impl NativeViewerSession {
                     )));
                 }
             };
+            if self.app_for_panel_mut(panel_index)?.axis_slice_info(0).0 != previous_slice {
+                self.synchronize_position(panel_index);
+            }
             match disposition {
                 ViewerActionDisposition::Continue {
                     repaint: event_repaint,

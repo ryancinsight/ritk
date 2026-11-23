@@ -87,8 +87,16 @@ to return to the axial, coronal, and sagittal views.
 Choose **Tools → Crosshair**, then click an image to place a visible linked
 cursor in all three MPR panes. Choose **Pan** to move without hiding the cursor.
 
-Patient-position synchronization and cross-reference lines between different
-series remain [linking work](features.md#reading-and-annotations).
+When you scroll a comparison pane or move its slice rail, AsterSlice shows the
+nearest slice in other visible classic DICOM stacks from the same study and
+Frame of Reference. Each stack needs consistent geometry and the planes must
+be within 5° of parallel. **View → Toggle position sync** or **F5** turns this
+behavior off and back on. Cine playback remains independent.
+
+AsterSlice compares the patient coordinates of the source image center with the
+target planes. At equal distances it chooses the lower displayed image index.
+Beyond the outer half-slice interval, the other pane keeps its reading position.
+Manual alignment and cross-reference lines remain on the [comparison checklist](../../backlog/RITK-SNAP-NATIVE-LINK-001.md).
 
 ## Export and verify a Strict DICOM copy
 

@@ -213,9 +213,10 @@ fn set_display_scale(session: &mut NativeViewerSession, display_pixels_per_image
 }
 
 fn navigation_session_at_display_scale(
+    shape: [usize; 3],
     display_pixels_per_image_pixel: f64,
 ) -> (NativeViewerSession, tempfile::TempDir) {
-    let (mut session, root) = session_with_volume(crate::app::tests::test_volume([1, 100, 100]));
+    let (mut session, root) = session_with_volume(crate::app::tests::test_volume(shape));
     set_display_scale(&mut session, display_pixels_per_image_pixel);
     (session, root)
 }
@@ -245,21 +246,34 @@ fn pan_and_render_displacement(
 }
 
 #[test]
-fn native_pan_matches_display_displacement_at_each_fit_and_rotation() {
-    for scale in [0.5, 1.0, 2.0] {
-        let (mut session, _root) = navigation_session_at_display_scale(scale);
-        for _ in 0..4 {
-            let origin = session.app.pan_offset;
-            let (pan, rendered) = pan_and_render_displacement(&mut session, [24, -12]);
-            assert_eq!(
-                pan,
-                ViewportOffset::new(origin.x() + 24.0, origin.y() - 12.0)
-            );
-            assert_eq!(rendered, [24.0, -12.0]);
-            session
-                .apply_window_action(WindowAction::RotateCw)
-                .expect("rotate");
-            session.refresh_frame().expect("present rotation");
+fn native_pan_and_zoom_match_display_displacement_at_each_fit_and_rotation() {
+    for shape in [[1, 100, 100], [1, 80, 120]] {
+        for scale in [0.5, 1.0, 2.0] {
+            let (mut session, _root) = navigation_session_at_display_scale(shape, scale);
+            for _ in 0..4 {
+                let initial_zoom = session.app.zoom;
+                let origin = session.app.pan_offset;
+                let (pan, rendered) = pan_and_render_displacement(&mut session, [24, -12]);
+                assert_eq!(
+                    pan,
+                    ViewportOffset::new(origin.x() + 24.0, origin.y() - 12.0)
+                );
+                assert_eq!(rendered, [24.0, -12.0]);
+                let (x, y) = session.viewports[0].center();
+                session
+                    .handle_events(&[
+                        down(x, y, MouseButton::Right),
+                        up(x, y + 24, MouseButton::Right),
+                    ])
+                    .expect("zoom by the press-to-release displacement");
+                assert_eq!(session.app.zoom, zoom_from_drag_delta(initial_zoom, 24.0));
+                session.app.pan_offset = origin;
+                session.app.zoom = initial_zoom;
+                session
+                    .apply_window_action(WindowAction::RotateCw)
+                    .expect("rotate");
+                session.refresh_frame().expect("present rotation");
+            }
         }
     }
 }
