@@ -188,6 +188,22 @@ class DocumentationPhaseWorkflowTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stdout)
             self.assertIn("no unique main merge base", result.stderr)
 
+            # Both topics have a valid parent, so falling back to candidate^
+            # on a merge-base lookup failure would silently accept these ranges.
+            unrelated_tip = git("commit-tree", tree, "-p", unrelated, "-m", "unrelated topic")
+            git("update-ref", "refs/remotes/origin/main", main)
+            for scenario, candidate, has_origin_main in (
+                ("unrelated topic history", unrelated_tip, True),
+                ("missing origin/main", tip, False),
+            ):
+                with self.subTest(topic_dispatch=scenario):
+                    if not has_origin_main:
+                        git("update-ref", "-d", "refs/remotes/origin/main")
+                    git("switch", "-q", "--detach", candidate)
+                    result = resolve("workflow_dispatch", "refs/heads/feature", "", candidate, checkpoint)
+                    self.assertEqual(result.returncode, 1, result.stdout)
+                    self.assertIn("no unique main merge base", result.stderr)
+
             shallow = root / "shallow"
             git("clone", "-q", "--depth", "1", "--branch", "main",
                 repo.as_uri(), str(shallow), cwd=root)
