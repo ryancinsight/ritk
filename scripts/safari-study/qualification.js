@@ -23,7 +23,7 @@ async function workstation() {
   let selection = [];
   let rejected = false;
   document.addEventListener("change", event => {
-    if (event.isTrusted && event.target.id === "file-input") {
+    if (event.isTrusted && ["study-folder", "file-input"].includes(event.target.id)) {
       rejected = false;
       selection = [event.target.files.length, Array.from(event.target.files).reduce((n,f)=>n+f.size,0)];
     }

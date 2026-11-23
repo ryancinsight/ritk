@@ -20,6 +20,13 @@ In an open viewer, choose **File → Open Study...** or **Ctrl+O** to replace
 the current study. Pick a folder containing the DICOM files. Use the series
 browser to select an acquisition from a study containing several series.
 
+In the web viewer, click **Open Study** and choose the study folder itself.
+For the RITK test data, select **2_skull_ct** or **2_head_mri_t2**. The viewer
+reads DICOM images from its subfolders, including files without an extension.
+If the browser asks to upload the folder, confirm the selection. AsterSlice
+reads the files locally in the browser. To choose individual files instead,
+hold **Shift** while clicking **Open Study**.
+
 For a known example, use the public MRI phantom included in the repository.
 
 ```powershell
@@ -129,8 +136,8 @@ toggles the overlay independently of slice synchronization.
 4. Choose **Anonymize → Open exported copy**. The Windows viewer opens the
    verified destination. Opening another study or starting a new export clears
    that shortcut. You can open an earlier destination with **File → Open Study...**.
-5. In the web viewer, choose **File → Open Study...** and select all 94
-   numbered DICOM files from the exported folder. Look for **ANONYMOUS**,
+5. In the web viewer, choose **File → Open Study...** and choose the exported
+   folder containing the 94 numbered DICOM files. Look for **ANONYMOUS**,
    **ANON001** and **Date N/A** in the Strict copy. Compare the slice count and
    scroll the axial, coronal and sagittal views to review the images.
 

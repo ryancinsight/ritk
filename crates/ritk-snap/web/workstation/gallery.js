@@ -11,6 +11,22 @@ function report(error) {
   notice.hidden = false;
 }
 
+// Preserve the relative path for equal filenames in different series folders.
+// Hand the original Blob bytes to the same bounded reader as an explicit file selection.
+async function dicomFolderFiles(files, current) {
+  const selection = new DataTransfer();
+  for (const file of files) {
+    if (!current()) return null;
+    if (file.name.toUpperCase() === "DICOMDIR") continue;
+    // Match the native discovery rule, including Part 10 files with arbitrary extensions.
+    if (!/\.(dcm|dicom|ima)$/i.test(file.name) &&
+        await file.slice(128, 132).text() !== "DICM") continue;
+    selection.items.add(new File([file], file.webkitRelativePath || file.name, {type: file.type}));
+  }
+  if (!selection.files.length) throw new Error("No DICOM images found in this folder.");
+  return selection.files;
+}
+
 async function presenter(renderer) {
   if (renderer === "webgpu") {
     const adapter = await navigator.gpu?.requestAdapter();
@@ -35,12 +51,31 @@ async function start() {
   const draw = await presenter(query.get("renderer"));
   const viewer = new AsterSliceWorkspace(query.get("layout") === "responsive" ? "responsive" : query.get("projection") ?? "");
   const input = document.querySelector("#file-input");
+  const folder = document.querySelector("#study-folder");
   const zone = document.querySelector("#drop-zone");
-  if (!input || !zone) throw new Error("The study picker could not start.");
+  if (!input || !folder || !zone) throw new Error("The study picker could not start.");
   const listeners = new AbortController();
   const listen = (el, name, handler, options = {}) => el.addEventListener(name, handler,
     {...options, signal: listeners.signal});
-  listen(input, "change", () => { input.value = ""; });
+  let selectionId = 0;
+  const supersedeSelection = () => { selectionId++; };
+  listen(zone, "drop", supersedeSelection, {capture: true});
+  listen(input, "change", () => { supersedeSelection(); input.value = ""; });
+  listen(folder, "change", async () => {
+    const files = Array.from(folder.files);
+    folder.value = "";
+    if (!files.length) return;
+    const id = ++selectionId;
+    const current = () => id === selectionId && !listeners.signal.aborted;
+    try {
+      const selected = await dicomFolderFiles(files, current);
+      if (!current()) return;
+      input.files = selected;
+      input.dispatchEvent(new Event("change", {bubbles: true}));
+    } catch (error) {
+      if (current()) report(error);
+    }
+  });
   let frame;
   let sized = false;
   const resize = () => {
@@ -62,7 +97,12 @@ async function start() {
     if (!e.isTrusted) return;
     try {
       callback(e);
-      if (viewer.take_open_request()) { input.value = ""; input.click(); }
+      if (viewer.take_open_request()) {
+        // Shift-click retains the explicit multi-file picker, including single NIfTI volumes.
+        const picker = !e.shiftKey && "webkitdirectory" in folder ? folder : input;
+        picker.value = "";
+        picker.click();
+      }
     } catch (error) { report(error); }
   };
   for (const phase of ["pointerdown", "pointerup", "pointermove", "pointercancel"]) {

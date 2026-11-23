@@ -8,7 +8,6 @@ from pathlib import Path
 import shutil
 import tempfile
 
-from pydicom import dcmread
 
 
 SOURCE = Path(__file__).resolve().parents[1] / "test_data/2_head_mri_t2/DICOM"
@@ -27,6 +26,8 @@ def ordered(folder):
 
 
 def verify_copy(source, folder, strict):
+    from pydicom import dcmread
+
     files = ordered(folder)
     if [p.name for p in files] != [f"{n:06}.dcm" for n in range(1, 95)]:
         raise ValueError("numbered export filenames differ")

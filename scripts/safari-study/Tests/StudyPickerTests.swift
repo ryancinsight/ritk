@@ -26,9 +26,10 @@ final class StudyPickerTests: XCTestCase {
         return [:]
     }
 
-    func choose(_ directory: String, embedded: Bool = false) {
+    func choose(_ directory: String, embedded: Bool = false, wholeFolder: Bool = false) {
         if embedded { safari.buttons["Open reference study"].click() }
-        else { point(62,53).click() }  // Open Study in the workstation toolbar.
+        else if wholeFolder { point(62,53).click() }
+        else { XCUIElement.perform(withKeyModifiers: .shift) { self.point(62,53).click() } }
         let panel = safari.sheets["open-panel"]
         let upload = panel.buttons["Upload"].firstMatch
         if !upload.waitForExistence(timeout: 10) {
@@ -39,6 +40,15 @@ final class StudyPickerTests: XCTestCase {
             XCTFail("Open Study panel is unavailable: " + safari.debugDescription)
         }
         safari.typeKey("2", modifierFlags: .command)  // Standard macOS list view.
+        if wholeFolder {
+            safari.typeKey("g", modifierFlags: [.command, .shift])
+            safari.typeText("/Users/Shared/RITKPublicStudy/" + directory + "/")
+            safari.typeKey(.return, modifierFlags: [])
+            upload.click()
+            let confirmation = safari.sheets.buttons["Upload"].firstMatch
+            if !panel.exists && confirmation.waitForExistence(timeout: 2) { confirmation.click() }
+            return
+        }
         let filename = directory + "-00000001.dcm"
         safari.typeKey("g", modifierFlags: [.command, .shift])
         safari.typeText("/Users/Shared/RITKPublicStudy/" + directory + "/" + filename)
@@ -158,7 +168,7 @@ final class StudyPickerTests: XCTestCase {
         XCTAssertEqual(Array(panes[0].prefix(2)), [276, 78])
         let x = panes[0][0] + panes[0][2]/2, y = panes[0][1] + panes[0][3]/2
         point(x, y).click()
-        choose("MRI")
+        choose("MRI", wholeFolder: true)
         let initial = wait("94 decoded MR slices and three sampled planes") {
             $0["captured"] as? Bool == true && $0["counts"] as? [Int] == [94,512,512] &&
             ($0["indices"] as? [Int])?.first == 47 && $0["selection"] as? [Int] == [94,49807236]

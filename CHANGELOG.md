@@ -19,6 +19,8 @@
 
 ### Fixed
 
+- [patch] Open a whole DICOM folder from the web workstation toolbar, menu or keyboard shortcut. Shift-click opens the individual file picker.
+
 - [patch] Omit the matched identifier and filename from the Windows status message when export verification detects residual identifying metadata.
 
 ## RITK I/O 0.9.1 and RITK Python 0.13.1

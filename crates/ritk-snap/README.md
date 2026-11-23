@@ -248,7 +248,7 @@ how many values were rewritten.
 ## Browser host
 
 The standalone AsterSlice application runs the Windows workstation renderer and
-input controls in WebAssembly. **Open Study…** accepts local DICOM files.
+input controls in WebAssembly. **Open Study…** opens a local DICOM folder and its subfolders. Shift-click **Open Study…** to pick individual files.
 The native series rail shows real previews. Use **Open multiple series** to
 compare acquisitions, **Split screen** to select a layout, and **Display** to
 change presentation. Wheel navigation, measurements, keyboard shortcuts and
