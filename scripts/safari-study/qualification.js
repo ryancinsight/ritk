@@ -1,6 +1,6 @@
 // Publish bounded observations through the standard Safari accessibility tree.
 // All workstation input, including file access, comes from the native UI.
-import {screenSamples, comparePlane} from "./workstation_pixels.js";
+import {displayedPlanes, referenceDigest} from "./workstation_pixels.js";
 
 const surface = document.querySelector("#workstation, #ritk-snap-axial");
 function report(value) {
@@ -32,7 +32,7 @@ async function workstation() {
     if (!state) return;
     if (!sampled && state.loaded && state.indices[0] === 47) {
       sampled = true;
-      try { sessionStorage.setItem("screenSamples", JSON.stringify(await screenSamples())); }
+      try { sessionStorage.setItem("displayedPlanes", JSON.stringify(await displayedPlanes())); }
       catch (error) {
         const canvas = document.querySelector("#workstation");
         const context = canvas.getContext("2d");
@@ -44,8 +44,8 @@ async function workstation() {
     if (captureError) { report({error:captureError}); return; }
     const zone = document.querySelector("#drop-zone");
     if (zone?.dataset.dropState === "rejected" && zone.dataset.byteState === "failed" && !rejected) {
-      const pixels = await screenSamples();
-      rejected = JSON.stringify(pixels) === sessionStorage.getItem("screenSamples");
+      const pixels = await displayedPlanes();
+      rejected = JSON.stringify(pixels) === sessionStorage.getItem("displayedPlanes");
     }
     // Safari bounds accessibility labels. Expose only the values XCTest asserts.
     const {width, panes, counts, indices, tool, window: levels, annotations, measurement, zoom,
@@ -61,7 +61,7 @@ async function workstation() {
     }
     report({width, panes, counts, indices, tool, window: levels, annotations, measurement, zoom, marks,
       orientationIdentity, cine, series, panel, panels, projection, selection, rejected,
-      captured: !!sessionStorage.getItem("screenSamples"), overflow: document.documentElement.scrollWidth > innerWidth});
+      captured: !!sessionStorage.getItem("displayedPlanes"), overflow: document.documentElement.scrollWidth > innerWidth});
   }, 175);
 }
 
@@ -70,7 +70,7 @@ async function embedded() {
   picker.textContent = "Open reference study";
   picker.onclick = () => document.querySelector("#file-input").click();
   document.body.prepend(picker);
-  const samples = JSON.parse(sessionStorage.getItem("screenSamples"));
+  const displayed = JSON.parse(sessionStorage.getItem("displayedPlanes"));
   const oracle = await (await fetch("oracle.json")).json();
   let selected;
   document.addEventListener("change", event => {
@@ -88,12 +88,12 @@ async function embedded() {
       if (selected[0] !== 94 || selected[1] !== 49807236) {
         throw Error("independent reference selection: " + JSON.stringify(selected));
       }
-      for (const [index,name] of ["axial","coronal","sagittal"].entries()) {
-        const [matches, hash] = await comparePlane(name, samples[index]);
-        if (!matches || hash !== oracle[name]) throw Error(name + " reference mismatch: " + hash);
+      for (const name of ["axial","coronal","sagittal"]) {
+        const hash = await referenceDigest(name);
+        if (hash !== oracle[name]) throw Error(name + " reference mismatch: " + hash);
       }
       const [before, after] = window.stopStudyReference();
-      report({planes: 3, before, after});
+      report({planes: 3, before, after, displayed});
     } catch (error) { report({error:String(error)}); }
   }, 100);
 }

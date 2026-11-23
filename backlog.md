@@ -14,7 +14,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_manual_alignment) or test(native_cross_reference) or test(native_scroll_matches_physical) or test(patient_stack) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
 - [minor] Automatic slice linking uses verified same-study patient coordinates. The [comparison checklist](backlog/RITK-SNAP-NATIVE-LINK-001.md) records manual slice alignment and intersecting-plane overlays. Linked display settings and the grid cursor are the next comparison items.
 <a id="RITK-BROWSER-READ-001"></a><a id="RITK-BROWSER-WEBGPU-001"></a>
-- [minor] The scalar reader transfers its pixel allocation to the viewer. All eight [saved-study browser scenarios](gap_audit.md#saved-study-browser-qualification-patch) passed on main, including four consecutive Chromium loads, native Safari and hosted WebGPU.
+- [minor] The scalar reader transfers its pixel allocation to the viewer. All nine [saved-study browser scenarios](gap_audit.md#saved-study-browser-qualification-patch) passed on main, including four consecutive Chromium loads and hosted WebGPU. The [viewer checklist](backlog/ritk-stable-qualification.md) records exact three-plane readback on native Apple-silicon and Intel Safari.
 - needs: M-viewer-reading
 - non-goals: fusion
 <a id="M-viewer-access"></a>
@@ -35,6 +35,8 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 - [patch] Manual documentation qualification compares a development branch against its merge base with the default branch.
 
 # Items
+
+<a id="RITK-DICOM-MIXED-IOP-001"></a>- [RITK-DICOM-MIXED-IOP-001](gap_audit.md#ritk-dicom-mixed-iop-001) — Reject mixed orientations at DICOM volume import [patch] — RITK I/O 0.9.1 and RITK Python 0.13.1 candidate verified locally
 
 <a id="RITK-DICOM-LJIF-001"></a>- [RITK-DICOM-LJIF-001](gap_audit.md#ritk-dicom-ljif-001) — Verify skull CT JPEG Lossless import [patch] — release qualification
 <a id="ritk-stable-qualification"></a>- [RITK-STABLE-QUALIFICATION](backlog/ritk-stable-qualification.md) — ritk stable-release qualification [patch] — todo

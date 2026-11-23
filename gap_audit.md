@@ -131,6 +131,17 @@ The locked all-feature audit of the 2026-11-22 candidate clears the URL and RSA 
 
 ## Saved-study browser qualification [patch]
 
+Apple-silicon Safari decoded all 94 files but its default raster store raised
+`InvalidStateError` on pixel readback. The workstation and embedded raster
+presenters now request frequent reads when acquiring the first 2D context.
+At a 1024 × 622 viewport the calibrated window legend can cover an anatomical
+sample. The dual-Mac qualification compares the complete visible image rectangles,
+including clinical overlays, against Chromium rendering the same saved study at
+the measured dimensions. Separately it checks all three unannotated RGBA plane
+hashes against the reviewed MRI oracle.
+
+The [unchanged ARM baseline](https://github.com/ryancinsight/ritk/actions/runs/45122519167/job/137520557186) failed at the first workstation pixel read. After [#1116](https://github.com/ryancinsight/ritk/pull/1116), all nine scenarios passed on [main `407de02a7`](https://github.com/ryancinsight/ritk/actions/runs/45125986365). [Apple-silicon Safari](https://github.com/ryancinsight/ritk/actions/runs/45125986365/job/137531685370) and [Intel Safari](https://github.com/ryancinsight/ritk/actions/runs/45125986365/job/137531685361) each matched the full axial, coronal and sagittal reference digests and every visible image pixel at their native test viewport. Each job retains both browsers’ per-plane rectangles and RGBA digests in `displayed-planes.json`.
+
 All eight scenarios passed on the [integrated candidate](https://github.com/ryancinsight/ritk/actions/runs/45110321950) and on [merged main `8550491eb`](https://github.com/ryancinsight/ritk/actions/runs/45111738624). Safari used the macOS Open panel for the workstation and its independent three-plane reference. Chromium completed four 94-file MRI loads on one page. The [release checklist](backlog/ritk-stable-qualification.md) records CI and the nine outstanding dependency maintenance findings.
 
 The [native Safari job](https://github.com/ryancinsight/ritk/actions/runs/45111738624/job/137486577976) opened the full 49,807,236-byte MRI through the macOS file chooser in both viewers. It compared three independent plane digests and visible samples, rejected all three out-of-bounds selections, exercised the reading tools and CT/MR comparison, and removed the registered listeners. The [file verification](https://github.com/ryancinsight/ritk/actions/runs/45098982271) matched all 94 checksums. The accepted Safari host used Intel macOS. A separate [ARM macOS 26 Safari run](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583318) decoded the MRI and failed framebuffer readback.
@@ -265,6 +276,26 @@ and reject an unrepresentable positive spacing before output.
 - verification: the macOS arm64 wheel passes both profiles for the 94-instance MRI and 303-instance CT fixtures and rejects the CT DICOMDIR. All 564 `ritk-io` library tests pass on the integrated source.
 - target: `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
 - integration: PRs #1104 and #1105 merged after their required checks passed. The crates.io release cohort tracks the `ritk-io` 0.8.0 manifest.
+
+## RITK-DICOM-MIXED-IOP-001
+
+- The retained skull CT contains mixed orientations under the 2-, 89- and
+  111-instance series UIDs. The 89-instance series mixes one coronal
+  reformat with 88 sagittal planes. Projection onto the sagittal normal
+  gives an apparent 207.360 mm span on a 2 mm grid, which previously
+  produced 105 planes.
+- A volume has one in-plane basis. The scalar and stored readers both
+  check the two orientation vectors against the first known orientation
+  at the existing component tolerance before reading pixel data.
+- The regression checks rejection of the mixed file sets and exact
+  calibrated pixels and geometry of the separately selected 88- and
+  110-plane stacks.
+- The stored-volume regression fails at the baseline. The candidate passes
+  all 630 Rust tests in `ritk-io` and `ritk-python`, and all 26 geometry
+  cases and 22 export and smoke controls on the locally rebuilt macOS
+  ARM64 wheel.
+- Release targets are `ritk-io` 0.9.1 and `ritk-python` 0.13.1. The
+  post-merge skull CT matrix is the publication gate.
 
 ## RITK-DICOM-LJIF-001
 

@@ -1,6 +1,6 @@
 [package]
 name = "ritk-snap"
-version = "0.3.0"
+version = "0.3.1"
 authors.workspace = true
 repository.workspace = true
 publish = false
@@ -71,6 +71,7 @@ wgpu = { workspace = true, features = ["metal"] }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 js-sys = { workspace = true }
+web-sys = { workspace = true, features = ["Window", "Document", "HtmlCanvasElement"] }
 getrandom = { workspace = true, features = ["wasm_js"] }
 getrandom_02 = { workspace = true, features = ["js"] }
 moirai-pal = { workspace = true }

@@ -190,8 +190,14 @@ final class StudyPickerTests: XCTestCase {
         safari.links["Open independent reference"].click()
         XCTAssertTrue(safari.buttons["Open reference study"].waitForExistence(timeout: 20))
         choose("MRI", embedded: true)
-        wait("all three full-plane digests, screen samples and listener cleanup") {
+        let result = wait("three complete reference plane digests and listener cleanup") {
             $0["planes"] as? Int == 3 && ($0["before"] as? Int ?? 0) > 0 && $0["after"] as? Int == 0
         }
+        let displayed = try XCTUnwrap(result["displayed"] as? State)
+        let evidence = XCTAttachment(data: try JSONSerialization.data(withJSONObject: displayed),
+                                     uniformTypeIdentifier: "public.json")
+        evidence.name = "Displayed MRI planes"
+        evidence.lifetime = .keepAlways
+        add(evidence)
     }
 }

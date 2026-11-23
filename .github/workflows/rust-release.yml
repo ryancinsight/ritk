@@ -74,6 +74,8 @@ jobs:
     with:
       rust-toolchain: "1.97.0"
       semver-baseline-source: locked-registry
+      # ritk-io 0.9.1 is released explicitly after the merged wheel passes the
+      # retained skull CT matrix. Re-enroll ritk-io for a later automatic release.
       cohort-json: >-
         {
           "ritk-analyze": "0.5.1",
@@ -87,7 +89,6 @@ jobs:
           "ritk-image": "0.6.0",
           "ritk-image-io": "0.2.0",
           "ritk-interpolation": "0.7.0",
-          "ritk-io": "0.9.0",
           "ritk-jpeg": "0.5.0",
           "ritk-metaimage": "0.4.1",
           "ritk-mgh": "0.7.0",
