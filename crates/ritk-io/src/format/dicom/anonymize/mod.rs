@@ -22,12 +22,13 @@
 //! - Every count in [`AnonymizeResult`] is taken from the mutation that produced
 //!   it, never from a prior survey of candidates, so the report can only
 //!   under-state what happened, never over-state it.
-//! - A step that cannot complete aborts the run with [`AnonymizeError`]; the
-//!   object it would have described is never returned as a success.
+//! - An incomplete header or requested pixel-clearing step returns an error;
+//!   the object it would have described is never returned as a success.
 
 mod action;
 mod directory;
 pub(in crate::format::dicom) mod file_meta;
+mod pixel;
 mod profile;
 #[cfg(not(target_arch = "wasm32"))]
 mod salt;
@@ -56,6 +57,7 @@ pub mod verify;
 pub use directory::{
     anonymize_dicom_directory, anonymize_dicom_directory_verified, AnonymizeStats,
 };
+pub use pixel::PixelCleaningError;
 pub use profile::{AnonymizationProfile, TagAction};
 #[cfg(not(target_arch = "wasm32"))]
 pub use salt::SaltError;
@@ -77,9 +79,7 @@ use self::action::apply_action;
 #[cfg(test)]
 use self::uid::generate_uid_from_hash;
 use anyhow::{Context, Result};
-use ritk_dicom::dataset::Value;
-use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
-use ritk_dicom::dataset::{Dataset, DicomFile};
+use ritk_dicom::dataset::{Dataset, DicomFile, DicomTag, Value};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -97,9 +97,13 @@ pub struct AnonymizeOptions {
     /// Salt for deterministic UID remapping (SHA-256).
     /// Default: `"ritk-anon-salt"`.
     pub uid_salt: String,
-    /// When `CleaningPolicy::Clean`, replace the pixel data element with an
-    /// equal-length zero buffer, suppressing visual content without altering
-    /// file structure. Defaults to `CleaningPolicy::Skip`.
+    /// When `CleaningPolicy::Clean`, zero-fill readable native top-level
+    /// Pixel Data (7FE0,0010), destroying its image samples. If present but
+    /// encapsulated, empty or non-primitive, clearing fails before writing.
+    /// Float and Double Float Pixel Data are unsupported and also fail
+    /// before writing. An object without these pixel elements needs no
+    /// clearing. This is not burned-in detection.
+    /// Defaults to `CleaningPolicy::Skip`.
     pub clean_pixel_data: CleaningPolicy,
     /// When `CleaningPolicy::Clean`, remove all private DICOM elements (those
     /// with an odd group number, excluding the file meta-header group 0x0002).
@@ -316,8 +320,10 @@ fn anonymize_dataset(
 /// cross-reference map.
 ///
 /// When `options.clean_pixel_data` is `CleaningPolicy::Clean`, the
-/// `PixelData` element `(7FE0,0010)` is overwritten with an equal-length
-/// zero buffer if present and readable as a flat byte sequence.
+/// top-level Pixel Data `(7FE0,0010)` is overwritten with an equal-length
+/// zero buffer if present and readable as nonempty native bytes. Objects
+/// with Float or Double Float Pixel Data are rejected, and objects without
+/// any of these elements are unchanged by this step.
 ///
 /// # Errors
 ///
@@ -325,8 +331,9 @@ fn anonymize_dataset(
 /// `downcast_ref`) when a step would leave identifying data in the object — a
 /// private element surviving removal, an untraversable sequence, or nesting
 /// past the configured maximum sequence depth. The object is not returned in
-/// that case, so partially de-identified data cannot be mistaken for a clean
-/// result.
+/// that case, so partially processed data cannot be mistaken for a clean
+/// result. Also returns [`PixelCleaningError`] through the same error channel
+/// when present Pixel Data cannot be cleared as requested.
 pub fn anonymize_object(
     mut obj: DicomFile,
     options: &AnonymizeOptions,
@@ -349,19 +356,7 @@ pub fn anonymize_object(
     )?;
 
     if options.clean_pixel_data == CleaningPolicy::Clean {
-        let pixel_tag = DicomTag::new(0x7FE0, 0x0010);
-        // Extract VR before the second element() call; VR is Copy.
-        let vr = obj.element(pixel_tag).map(|e| e.vr()).unwrap_or(VR::OW);
-        // Obtain byte count without retaining a borrow of obj.
-        let len: usize = obj
-            .element(pixel_tag)
-            .ok()
-            .and_then(|e| e.to_bytes().ok().map(|b| b.len()))
-            .unwrap_or(0);
-        if len > 0 {
-            let zeros = PrimitiveValue::from(vec![0u8; len]);
-            obj.put(DataElement::new(pixel_tag, vr, zeros));
-        }
+        pixel::clear_top_level_pixel_data(&mut obj)?;
     }
 
     file_meta::align_media_storage_uid(&mut obj);
@@ -377,10 +372,10 @@ pub fn anonymize_object(
 /// # Errors
 ///
 /// Fails if `input_path` cannot be parsed as a DICOM Part 10 file, if
-/// anonymization cannot complete ([`AnonymizeError`]), or if the output cannot
-/// be written. Propagates the underlying I/O and DICOM errors with context. An
-/// incomplete anonymization aborts before the write, so `output_path` is never
-/// left holding a data set the report would have called de-identified.
+/// anonymization cannot complete ([`AnonymizeError`] or [`PixelCleaningError`]),
+/// or if the output cannot be written. Propagates I/O and DICOM errors with
+/// context. An incomplete anonymization aborts before opening `output_path`
+/// for writing, leaving any existing destination unchanged.
 pub fn anonymize_dicom_file(
     input_path: impl AsRef<Path>,
     output_path: impl AsRef<Path>,
