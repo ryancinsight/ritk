@@ -250,8 +250,11 @@ and reject an unrepresentable positive spacing before output.
   volume to independently decompressed source instances. The test compares
   every reconstructed voxel plus shape, origin, spacing and direction.
 - The published Raster 0.5.0 dependency rejects the frame's LJIF APP0 marker
-  after series selection. Registry adoption requires a published Raster
-  0.5.1 archive and a fresh registry-only RITK resolution.
+  after series selection. The crates.io 0.5.1 archive matches Consus source
+  `aeea084445b8` and the registry checksum. A fresh registry consumer
+  reconstructs the expected 16-bit sample.
+- The wheel switches the NumPy bridge and matching PyO3 series to crates.io.
+  Its build dependencies resolve from the registry or the RITK workspace.
 - A locally packaged Raster 0.5.1 build passes all 15 wheel cases on
   macOS arm64. Five real export cases and the explicit UID selection
   smoke test also pass. The wheel built with Raster 0.5.0 fails all 15

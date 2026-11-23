@@ -8,6 +8,19 @@
 
 # CHANGELOG
 
+## RITK Python 0.13.0 (unreleased)
+
+### Fixed
+
+- [patch] Read the retained grayscale JPEG Lossless skull CT series with
+  Raster 0.5.1, including volumes reopened after anonymization.
+
+### Changed
+
+- [patch] Build the Python wheel with the crates.io NumPy 0.30.0 bridge
+  and PyO3 0.30.1. The bridge includes the free-threaded stable ABI
+  support and array extraction fixes previously taken from Git.
+
 ## Verification fixtures (unreleased)
 
 ### Added
