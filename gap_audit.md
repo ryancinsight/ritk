@@ -8,6 +8,8 @@ The next [patch] checkpoint uses [comparison startup](crates/ritk-snap/src/prese
 
 ## 1.0 candidate verification
 
+- [patch] Firefox used F6 to move keyboard focus while linked navigation was toggled. The workstation now consumes that shortcut. The zoom regression compares the exact doubled image extent inside the browser, preserving binary64 precision across the WebDriver boundary.
+
 - [minor] At baseline `b14e41148`, the web menu produced no DICOM download and selecting Coronal left the axial image displayed. Local Chromium now checks both actual CT downloads, both reopen paths and orientation in single, MPR and two-series layouts. The 303-instance retained CT stays local. [Export regression](scripts/verify_web_ct_export.py) · [Plane regression](scripts/verify_web_ct_planes.py).
 
 - [patch] At PR #1112 revision `954e232ec`, a linked zoom-out enlarged a rotated 2 × 4 screen-pixel image to 15.625 × 31.25. The [browser regression](scripts/browser_comparison_display.py) exercises the receiving pane’s own 1:1 limit and checks zoom reversal and independent window linking.

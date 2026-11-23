@@ -47,7 +47,14 @@ def verify_display(client, canvas, state, wait, source, target):
     wait(f"{state}.panel === {target} && !{state}.orientationIdentity")
     select_ct_one_to_one(client)
     wait(f"{state}.zoom > 0 && {state}.zoom < 0.05")
-    unit = images()[target][2:]
+    # Store the actual binary64 values in the browser. Some WebDriver JSON
+    # encoders round decimal extents in transit, before Python can double them.
+    unit = client.execute(f"return window.unitExtent = {state}.images[{target}].slice(2)")
+
+    def exact_extent(multiplier):
+        return client.execute(f"""return {state}.images[{target}].slice(2).every(
+            (value, index) => value === window.unitExtent[index] * arguments[0])""", [multiplier])
+
     # 1:1 is the reciprocal fit rounded once to binary32. These intervals
     # allow one binary32 epsilon for that rounding and binary64 placement.
     for actual, expected in zip(unit, [2, 4]):
@@ -55,14 +62,14 @@ def verify_display(client, canvas, state, wait, source, target):
             raise AssertionError(f"rotated CT 1:1 dimensions: {unit}")
     client.send_keys(canvas, tab + link)
     drag("z", 0, 50)  # source 1 -> 0.5; target is already below drag minimum
-    if images()[target][2:] != unit:
+    if not exact_extent(1):
         raise AssertionError(f"linked zoom-out enlarged 1:1 pane: {unit} -> {images()[target][2:]}")
     chord(client, chr(0xe009), "0")  # source 0.5 -> 1; target must double
-    if images()[target][2:] != [2 * size for size in unit]:
+    if not exact_extent(2):
         raise AssertionError("linked zoom-in lost the receiving pane's 1:1 scale")
 
     drag("z", 0, 50)
-    if images()[target][2:] != unit:
+    if not exact_extent(1):
         raise AssertionError("reversing linked zoom did not recover the rotated 1:1 extent")
     client.send_keys(canvas, link)
     chord(client, chr(0xe009), "0")
