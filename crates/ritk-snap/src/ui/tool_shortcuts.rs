@@ -86,6 +86,10 @@ pub const KEY_LABEL_PAINT: Key = Key::B;
 #[cfg(feature = "eframe-shell")]
 pub const KEY_ROI_OPEN_POLYGON: Key = Key::O;
 
+/// Single-key shortcut for the Atlas Overlay registration tool.
+#[cfg(feature = "eframe-shell")]
+pub const KEY_ATLAS_OVERLAY: Key = Key::G;
+
 /// Host virtual-key value for the Measure Length shortcut.
 pub const VIRTUAL_KEY_MEASURE_LENGTH: u32 = 0x4c;
 
@@ -125,6 +129,9 @@ pub const VIRTUAL_KEY_LABEL_PAINT: u32 = 0x42;
 /// Host virtual-key value for the Open Polygon shortcut.
 pub const VIRTUAL_KEY_ROI_OPEN_POLYGON: u32 = 0x4f;
 
+/// Host virtual-key value for the Atlas Overlay registration tool.
+pub const VIRTUAL_KEY_ATLAS_OVERLAY: u32 = 0x47;
+
 // ── SSOT function ────────────────────────────────────────────────────────────
 
 /// Map a host virtual-key value to an optional tool kind.
@@ -151,6 +158,7 @@ pub fn tool_kind_for_virtual_key(virtual_key: u32) -> Option<ToolKind> {
         VIRTUAL_KEY_WINDOW_LEVEL => Some(ToolKind::WindowLevel),
         VIRTUAL_KEY_LABEL_PAINT => Some(ToolKind::LabelPaint),
         VIRTUAL_KEY_ROI_OPEN_POLYGON => Some(ToolKind::RoiOpenPolygon),
+        VIRTUAL_KEY_ATLAS_OVERLAY => Some(ToolKind::AtlasOverlay),
         _ => None,
     }
 }
@@ -195,6 +203,7 @@ pub fn tool_kind_for_key(key: Key) -> Option<ToolKind> {
         KEY_WINDOW_LEVEL => tool_kind_for_virtual_key(VIRTUAL_KEY_WINDOW_LEVEL),
         KEY_LABEL_PAINT => tool_kind_for_virtual_key(VIRTUAL_KEY_LABEL_PAINT),
         KEY_ROI_OPEN_POLYGON => tool_kind_for_virtual_key(VIRTUAL_KEY_ROI_OPEN_POLYGON),
+        KEY_ATLAS_OVERLAY => tool_kind_for_virtual_key(VIRTUAL_KEY_ATLAS_OVERLAY),
         _ => None,
     }
 }

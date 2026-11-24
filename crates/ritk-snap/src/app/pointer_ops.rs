@@ -5,6 +5,8 @@ mod pencil;
 
 use super::state::SnapApp;
 use crate::render::NamedColorMap;
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+use crate::tools::atlas_overlay::register_secondary_to_primary;
 use crate::tools::interaction::{Annotation, ImagePoint, PolygonKind, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
@@ -290,6 +292,35 @@ impl SnapApp {
                 }
             }
             ToolKind::LabelPaint | ToolKind::LabelErase => {}
+            #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+            ToolKind::AtlasOverlay => {
+                match (&self.loaded, &self.loaded_secondary) {
+                    (Some(primary), Some(secondary)) => {
+                        // Coarse-grid budget keeps the click responsive; the
+                        // same routine backs the atlas_overlay example.
+                        match register_secondary_to_primary(primary, secondary, 8) {
+                            Ok(outcome) => {
+                                self.loaded_secondary = Some(outcome.resampled);
+                                self.compare_fused_overlay = true;
+                                self.status_message = format!(
+                                    "Atlas overlay registered: MI {:.4} -> {:.4} ({} iterations). Compare slot replaced; reload the file to restore it.",
+                                    outcome.mi_before,
+                                    outcome.mi_after,
+                                    outcome.iterations
+                                );
+                            }
+                            Err(error) => {
+                                self.status_message =
+                                    format!("Atlas overlay failed: {error:#}");
+                            }
+                        }
+                    }
+                    _ => {
+                        self.status_message = "Atlas overlay needs a primary volume and a loaded compare volume.".to_owned();
+                    }
+                }
+                self.tool_state = ToolState::Idle;
+            }
             _ => {}
         }
         self.pointer.pending_measurement_location =

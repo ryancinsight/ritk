@@ -7270,6 +7270,7 @@ dependencies = [
  "arrayvec",
  "clap",
  "coeus-core",
+ "criterion",
  "eframe",
  "egui",
  "eunomia",

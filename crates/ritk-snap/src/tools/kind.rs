@@ -50,6 +50,9 @@ pub enum ToolKind {
     Pencil,
     /// Drag two directed segments to measure their acute Cobb angle.
     MeasureCobb,
+    /// Register the compare (secondary) volume onto the primary grid with
+    /// affine MI and replace the compare slot with the registered result.
+    AtlasOverlay,
 }
 
 impl ToolKind {
@@ -73,6 +76,7 @@ impl ToolKind {
             ToolKind::Arrow => "Arrow",
             ToolKind::Pencil => "Pencil",
             ToolKind::MeasureCobb => "Cobb Angle",
+            ToolKind::AtlasOverlay => "Atlas Overlay",
         }
     }
 
@@ -131,6 +135,7 @@ impl ToolKind {
             ToolKind::Arrow => "Arrow: drag from the tail to the head to annotate the image.",
             ToolKind::Pencil => "Pencil: draw a freehand mark on the active image.",
             ToolKind::MeasureCobb => "Cobb angle: drag two directed segments on one slice.",
+            ToolKind::AtlasOverlay => "Atlas overlay: click with primary and compare volumes loaded to register the compare volume onto the primary grid with affine MI. The compare slot is replaced by the registered result (reload the file to restore it) and the fused overlay view is enabled.",
         }
     }
 
@@ -154,6 +159,7 @@ impl ToolKind {
             ToolKind::Arrow => "➜",
             ToolKind::Pencil => "✎",
             ToolKind::MeasureCobb => "∠",
+            ToolKind::AtlasOverlay => "◈",
         }
     }
 
@@ -181,6 +187,7 @@ impl ToolKind {
             ToolKind::Arrow,
             ToolKind::Pencil,
             ToolKind::MeasureCobb,
+            ToolKind::AtlasOverlay,
         ]
     }
 }

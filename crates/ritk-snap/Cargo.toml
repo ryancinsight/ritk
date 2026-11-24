@@ -29,6 +29,10 @@ required-features = ["eframe-shell"]
 name = "atlas_overlay"
 required-features = ["eframe-shell"]
 
+[[bench]]
+name = "atlas_resample"
+harness = false
+
 [dependencies]
 aequitas.workspace = true
 iris = { workspace = true, features = ["serde"] }
@@ -40,7 +44,9 @@ ritk-core = { workspace = true }
 ritk-annotation = { workspace = true }
 ritk-image = { path = "../ritk-image", version = "0.6.0" }
 ritk-spatial = { workspace = true }
+leto = { workspace = true }
 ritk-filter = { workspace = true }
+ritk-registration = { workspace = true }
 ritk-segmentation = { workspace = true }
 ritk-io = { workspace = true }
 ritk-vtk = { workspace = true }
@@ -80,8 +86,7 @@ getrandom_02 = { workspace = true, features = ["js"] }
 moirai-pal = { workspace = true }
 
 [dev-dependencies]
-leto = { workspace = true }
-ritk-registration = { workspace = true }
+criterion = { workspace = true }
 tempfile = { workspace = true }
 ritk-core = { workspace = true, features = ["test-helpers"] }
 # The DICOMDIR reader validates the full record tree, so tests build indices

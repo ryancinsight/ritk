@@ -66,6 +66,12 @@ fn b_key_selects_label_paint() {
     assert_eq!(tool_kind_for_key(Key::B), Some(ToolKind::LabelPaint));
 }
 
+/// G key maps to AtlasOverlay.
+#[test]
+fn g_key_selects_atlas_overlay() {
+    assert_eq!(tool_kind_for_key(Key::G), Some(ToolKind::AtlasOverlay));
+}
+
 /// Unmapped keys return None.
 #[test]
 fn unmapped_key_returns_none() {
@@ -91,6 +97,7 @@ fn virtual_key_shortcuts_match_egui_shortcuts() {
         (VIRTUAL_KEY_WINDOW_LEVEL, Key::W),
         (VIRTUAL_KEY_LABEL_PAINT, Key::B),
         (VIRTUAL_KEY_ROI_OPEN_POLYGON, Key::O),
+        (VIRTUAL_KEY_ATLAS_OVERLAY, Key::G),
     ];
     for (virtual_key, key) in pairs {
         assert_eq!(
@@ -118,6 +125,7 @@ fn all_shortcuts_distinct() {
         Key::W,
         Key::B,
         Key::O,
+        Key::G,
     ];
     let mut mapped = vec![];
     for k in &keys {
@@ -126,5 +134,5 @@ fn all_shortcuts_distinct() {
         }
     }
     // If there were duplicates, this would fail (we'd see fewer unique tools than keys).
-    assert_eq!(mapped.len(), 12);
+    assert_eq!(mapped.len(), 13);
 }

@@ -5,6 +5,7 @@
 //! - [`interaction`] — per-viewport tool state machine and completed
 //!   [`Annotation`] types with their computation functions.
 
+pub mod atlas_overlay;
 pub mod interaction;
 pub mod kind;
 
