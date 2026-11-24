@@ -165,3 +165,41 @@ fn a_frame_size_past_64_bits_is_a_mismatch() {
         );
     }
 }
+
+#[test]
+fn a_zero_or_unreadable_samples_per_pixel_is_a_mismatch() {
+    // The fixture holds a 2 x 2 frame of 16 bits and 8 bytes of Pixel Data.
+    let cases = [
+        (
+            DataElement::new(
+                DicomTag::new(0x0028, 0x0002),
+                VR::US,
+                PrimitiveValue::from(0_u16),
+            ),
+            "non-positive geometry rows=2 cols=2 samples=0 bits=16",
+        ),
+        (
+            DataElement::new(
+                DicomTag::new(0x0028, 0x0002),
+                VR::LO,
+                PrimitiveValue::from("three"),
+            ),
+            "SamplesPerPixel is present and is not a number",
+        ),
+    ];
+    for (samples, detail) in cases {
+        let mut object = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
+        object.put(samples);
+        let report = verify_dicom_file(
+            write_to_temp(&object, "samples.dcm"),
+            &VerifyOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            report.issues,
+            [VerifyIssue::GeometryMismatch {
+                detail: detail.to_owned(),
+            }]
+        );
+    }
+}
