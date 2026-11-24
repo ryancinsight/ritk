@@ -63,8 +63,14 @@ pub(crate) fn numbered_instance_path(output: &Path, ordinal: usize) -> PathBuf {
     output.join(format!("{ordinal:06}.dcm"))
 }
 
-/// Remove the files a failed export wrote and return those whose removal
-/// failed. A file that is already absent is not returned.
+/// Remove the targets of a failed export and return those whose removal
+/// failed with an error other than "not found".
+///
+/// A failed removal does not show whether the file exists: a target whose
+/// write failed before its file was created is returned when its removal
+/// fails for another reason, such as a folder that cannot be searched. The
+/// result can therefore name a path that is absent, and never omits one that
+/// was written and is still present unless the removal reported "not found".
 pub(crate) fn remove_written(written: &[PathBuf]) -> Vec<PathBuf> {
     written
         .iter()
@@ -131,7 +137,7 @@ mod tests {
         if privileged {
             assert_eq!(left, Vec::<PathBuf>::new());
         } else {
-            assert_eq!(left, [written.clone()]);
+            assert_eq!(left, std::slice::from_ref(&written));
             assert!(written.try_exists()?);
         }
         Ok(())
