@@ -1,7 +1,7 @@
 //! Reading the source files of a study export and undoing a failed one.
 
 use ritk_dicom::dataset::DicomFile;
-use std::io::Read;
+use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
 
 /// Length of the preamble that opens a Part 10 file (PS3.10 section 7.1).
@@ -63,11 +63,83 @@ pub(crate) fn numbered_instance_path(output: &Path, ordinal: usize) -> PathBuf {
     output.join(format!("{ordinal:06}.dcm"))
 }
 
-/// Remove the files a failed export wrote; returns those still on disk.
+/// Remove the targets of a failed export and return those whose removal
+/// failed with an error other than "not found".
+///
+/// A failed removal does not show whether the file exists: a target whose
+/// write failed before its file was created is returned when its removal
+/// fails for another reason, such as a folder that cannot be searched. The
+/// result can therefore name a path that is absent, and never omits one that
+/// was written and is still present unless the removal reported "not found".
 pub(crate) fn remove_written(written: &[PathBuf]) -> Vec<PathBuf> {
     written
         .iter()
-        .filter(|path| path.exists() && std::fs::remove_file(path).is_err())
+        .filter(|path| {
+            std::fs::remove_file(path).is_err_and(|error| error.kind() != ErrorKind::NotFound)
+        })
         .cloned()
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::remove_written;
+    use std::path::PathBuf;
+
+    #[test]
+    fn a_written_file_is_removed_and_an_absent_one_is_not_returned() -> std::io::Result<()> {
+        let folder = tempfile::tempdir()?;
+        let present = folder.path().join("000001.dcm");
+        let absent = folder.path().join("000002.dcm");
+        std::fs::write(&present, b"instance")?;
+
+        let left = remove_written(&[present.clone(), absent]);
+
+        assert_eq!(left, Vec::<PathBuf>::new());
+        assert!(!present.try_exists()?);
+        Ok(())
+    }
+
+    #[test]
+    fn a_path_that_resists_removal_is_returned() -> std::io::Result<()> {
+        let folder = tempfile::tempdir()?;
+        // `remove_file` refuses a directory.
+        let resisting = folder.path().join("000001.dcm");
+        std::fs::create_dir(&resisting)?;
+        let removable = folder.path().join("000002.dcm");
+        std::fs::write(&removable, b"instance")?;
+
+        let left = remove_written(&[resisting.clone(), removable.clone()]);
+
+        assert_eq!(left, [resisting]);
+        assert!(!removable.try_exists()?);
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_file_whose_metadata_cannot_be_read_is_returned() -> std::io::Result<()> {
+        use std::fs::Permissions;
+        use std::os::unix::fs::PermissionsExt;
+
+        let folder = tempfile::tempdir()?;
+        let closed = folder.path().join("export");
+        std::fs::create_dir(&closed)?;
+        let written = closed.join("000001.dcm");
+        std::fs::write(&written, b"instance")?;
+        std::fs::set_permissions(&closed, Permissions::from_mode(0o000))?;
+        // A privileged user reads through the mode, and the removal succeeds.
+        let privileged = std::fs::metadata(&written).is_ok();
+
+        let left = remove_written(std::slice::from_ref(&written));
+
+        std::fs::set_permissions(&closed, Permissions::from_mode(0o700))?;
+        if privileged {
+            assert_eq!(left, Vec::<PathBuf>::new());
+        } else {
+            assert_eq!(left, std::slice::from_ref(&written));
+            assert!(written.try_exists()?);
+        }
+        Ok(())
+    }
 }

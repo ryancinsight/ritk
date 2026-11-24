@@ -3,9 +3,10 @@
 //! # Invariants
 //! - The source is never modified: [`ExportTree`] refuses an output folder
 //!   that overlaps the source or holds entries.
-//! - The run is all-or-nothing: an instance that cannot be de-identified, or
-//!   an exported instance that fails verification, removes every file the run
-//!   wrote before the error is returned.
+//! - A run that fails after its first write removes its export targets before
+//!   the error is returned; [`StudyAnonymizeError::Retained`] names those whose
+//!   removal failed, each of which may remain on disk. An output folder the run
+//!   created stays.
 //! - No source folder or file name is copied: exported instances are named
 //!   `000001.dcm`, `000002.dcm`, ... in the order their sources sort by path,
 //!   directly in the output folder.
@@ -95,7 +96,9 @@ pub enum StudyAnonymizeError {
     Retained {
         /// The failure that ended the run.
         cause: Box<Self>,
-        /// Written files still on disk.
+        /// Export targets whose removal failed; each may remain on disk. A
+        /// target whose write failed before its file was created can be
+        /// among them.
         paths: Vec<PathBuf>,
     },
 }
@@ -162,7 +165,9 @@ fn export_instance(
 /// holds no instance, when a source file cannot be read at all or carries the
 /// `DICM` prefix and does not open,
 /// when an instance cannot be de-identified or written, or
-/// when verification finds an issue.
+/// when verification finds an issue. The run's export targets are removed
+/// first; those whose removal failed, each of which may remain on disk, are
+/// named by [`StudyAnonymizeError::Retained`].
 pub fn anonymize_dicom_study(
     input: impl AsRef<Path>,
     output: impl AsRef<Path>,
