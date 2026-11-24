@@ -13,8 +13,9 @@
 //!   value for the verification of every exported instance.
 //! - A DICOMDIR is not exported: its records name the source files and repeat
 //!   patient attributes, so the copy would describe another file set.
-//! - A source file that carries the Part 10 prefix and does not open ends
-//!   the run. A file without the prefix is counted and left out of a study
+//! - A source file that cannot be read at all, or that carries the `DICM`
+//!   prefix (at byte 0 or 128) and does not open, ends the run. A file that
+//!   is read and carries no prefix is counted and left out of a study
 //!   export, and ends a selection export that names it.
 //! - Text burned into the pixel data is not detected.
 
@@ -37,7 +38,8 @@ const PATIENT_ID: DicomTag = DicomTag::new(0x0010, 0x0020);
 pub struct StudyAnonymizeReport {
     /// Instances de-identified, written and verified.
     pub instances_written: usize,
-    /// Source files without the Part 10 prefix, which were not copied.
+    /// Source files read and found without the `DICM` prefix, which were
+    /// not copied.
     pub non_dicom_skipped: usize,
     /// DICOMDIR indexes left out of the export.
     pub indexes_omitted: usize,
@@ -58,11 +60,12 @@ pub enum StudyAnonymizeError {
     /// The output folder cannot receive the export.
     #[error(transparent)]
     Tree(#[from] ExportTreeError),
-    /// A selected file is a DICOMDIR or carries no Part 10 prefix.
+    /// A selected file is a DICOMDIR, or was read and carries no `DICM`
+    /// prefix.
     #[error("selected file {0:?} is not a readable DICOM instance")]
     SelectedInstance(PathBuf),
-    /// A source file carries the Part 10 prefix, or cannot be read at all,
-    /// and does not open as a DICOM instance.
+    /// A source file cannot be read at all, or carries the `DICM` prefix
+    /// (at byte 0 or 128) and does not open as a DICOM instance.
     #[error("DICOM file {path:?} could not be read")]
     Unreadable {
         /// The source file.
@@ -156,7 +159,8 @@ fn export_instance(
 /// # Errors
 /// Returns [`StudyAnonymizeError`] when a path cannot be resolved or listed,
 /// when the output folder overlaps the source or is not empty, when the source
-/// holds no instance, when a file carrying the Part 10 prefix does not open,
+/// holds no instance, when a source file cannot be read at all or carries the
+/// `DICM` prefix and does not open,
 /// when an instance cannot be de-identified or written, or
 /// when verification finds an issue.
 pub fn anonymize_dicom_study(

@@ -21,10 +21,10 @@ pub(crate) enum Source {
     Instance(Box<DicomFile>),
     /// A DICOMDIR, whose records name the source files.
     Index,
-    /// A file that carries the Part 10 prefix, or cannot be read at all, and
-    /// does not open as a DICOM Part 10 file.
+    /// A file that cannot be read at all, or that carries the `DICM` prefix
+    /// (at byte 0 or 128) and does not open as a DICOM Part 10 file.
     Unreadable(anyhow::Error),
-    /// A file without the Part 10 prefix.
+    /// A file read and found without the prefix.
     NotDicom,
 }
 
