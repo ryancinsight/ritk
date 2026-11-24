@@ -284,3 +284,39 @@ fn a_missing_source_and_an_output_inside_the_study_are_refused() -> TestResult {
     assert!(!input.join("copy").exists());
     Ok(())
 }
+
+#[test]
+fn a_truncated_instance_ends_the_repair_export_and_is_named() -> TestResult {
+    let root = tempfile::tempdir()?;
+    let input = root.path().join("study");
+    let output = root.path().join("copy");
+    for (name, sop) in [("a.dcm", "1.2.3.1"), ("b.dcm", "1.2.3.2")] {
+        write(
+            &input.join(name),
+            (CT_IMAGE_STORAGE, sop),
+            &[
+                (SOP_CLASS_UID, VR::UI, CT_IMAGE_STORAGE),
+                (SOP_INSTANCE_UID, VR::UI, sop),
+                (STUDY_DATE, VR::DA, "19940721"),
+            ],
+        )?;
+    }
+    let truncated = input.join("b.dcm");
+    let bytes = std::fs::read(&truncated)?;
+    assert_eq!(&bytes[128..132], b"DICM");
+    std::fs::write(&truncated, &bytes[..bytes.len() / 2])?;
+    let truncated = truncated.canonicalize()?;
+
+    let error =
+        repair_dicom_study(&input, &output).expect_err("a truncated instance must end the export");
+
+    assert_eq!(
+        error.to_string(),
+        format!("DICOM file {truncated:?} could not be read")
+    );
+    assert!(matches!(error, StudyRepairError::Unreadable { path, .. } if path == truncated));
+    // a.dcm was written before b.dcm was read.
+    let left: Vec<_> = std::fs::read_dir(&output)?.collect::<Result<_, _>>()?;
+    assert_eq!(left.len(), 0, "{left:?}");
+    Ok(())
+}

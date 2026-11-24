@@ -24,7 +24,7 @@ pub struct StudyRepairReport {
     /// Instances whose file meta group named another SOP class or SOP
     /// instance than the data set and was set to the data set's.
     pub file_meta_uids_aligned: usize,
-    /// Source files that do not open as DICOM and were not copied.
+    /// Source files without the Part 10 prefix, which were not copied.
     pub non_dicom_skipped: usize,
     /// DICOMDIR indexes left out of the export.
     pub indexes_omitted: usize,
@@ -38,6 +38,16 @@ pub enum StudyRepairError {
     /// cannot receive the export.
     #[error(transparent)]
     Tree(#[from] ExportTreeError),
+    /// A source file carries the Part 10 prefix, or cannot be read at all,
+    /// and does not open as a DICOM instance.
+    #[error("DICOM file {path:?} could not be read")]
+    Unreadable {
+        /// The source file.
+        path: PathBuf,
+        /// The underlying failure.
+        #[source]
+        source: anyhow::Error,
+    },
     /// The source holds no DICOM instance.
     #[error("no DICOM instance found under {0:?}")]
     NoInstances(PathBuf),
@@ -110,15 +120,16 @@ fn align_media_storage_class(object: &mut DicomFile) -> bool {
 /// modified. Each instance gets the value rewrites of [`repair_values`];
 /// then its file meta Media Storage SOP Class UID and SOP Instance UID are set
 /// to the data set's SOPClassUID and SOPInstanceUID (PS3.10 Table 7.1-1), each
-/// only when the data set value is a single conformant UID. Files that do not
-/// open as DICOM Part 10, a data set stored without the Part 10 header among
-/// them, are counted and not copied; a DICOMDIR is counted and left out,
-/// because its records name the source files.
+/// only when the data set value is a single conformant UID. Files without the
+/// Part 10 prefix, a data set stored without the Part 10 header among them,
+/// are counted and not copied; a DICOMDIR is counted and left out, because its
+/// records name the source files.
 ///
 /// # Errors
 /// Returns [`StudyRepairError`] when the source cannot be resolved or listed,
 /// when the output folder overlaps the source or is not empty, when the source
-/// holds no instance, or when an instance cannot be repaired or written. Every
+/// holds no instance, when a file carrying the Part 10 prefix does not open,
+/// or when an instance cannot be repaired or written. Every
 /// file the run wrote is removed first; files that resist removal are named by
 /// [`StudyRepairError::Retained`].
 pub fn repair_dicom_study(
@@ -131,6 +142,13 @@ pub fn repair_dicom_study(
     for entry in tree.entries() {
         let mut object = match read_source(&entry.source) {
             Source::Instance(object) => *object,
+            Source::Unreadable(source) => {
+                let path = entry.source.clone();
+                return Err(failed(
+                    StudyRepairError::Unreadable { path, source },
+                    &written,
+                ));
+            }
             Source::Index => {
                 report.indexes_omitted += 1;
                 continue;
