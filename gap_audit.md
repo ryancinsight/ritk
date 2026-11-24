@@ -249,25 +249,28 @@ and reject an unrepresentable positive spacing before output.
 - reopen: at the next change under `crates/ritk-codecs/src/jpeg_2000/`, or when the backlog has room, file the item: measure one admitted frame's peak allocation with dhat, then make the tile buffers reserve with `try_reserve_exact`.
 
 <a id="RITK-DICOM-ANONYMIZE-STUDY-002"></a>
-## RITK-DICOM-ANONYMIZE-STUDY-002: study export failures lose their cause, and filed judge findings are open
-- risk: an unreadable DICOM file counts as non-DICOM without its path; a `create_dir_all` failure returns `Tree`; `exists()` hides metadata errors; `Retained` has no `#[source]`; `Instance` boxes `dyn Error`; emptied folders stay after a failed run; the verifier module doc claims a profile-completeness check no code performs; `examples/anonymize_pacs_export.rs` line 12 says FrameOfReferenceUID must be present and its geometry line omits SamplesPerPixel.
-- evidence: filed findings of the judges of ritk#914, #917, #919, #920 and #921, in each PR's verdict comment.
-- reopen: at the next change under `crates/ritk-io/src/format/dicom/anonymize/` or `export_tree.rs`, or when the backlog has room (998 of 1,000 lines at d247fada9).
+## RITK-DICOM-ANONYMIZE-STUDY-002: filed judge findings on the study export are open
+- risk: a `create_dir_all` failure returns `Tree`; the anonymize `Retained` has no `#[source]`; `Instance` boxes `dyn Error`; emptied folders stay after a failed run; no export test reaches `Retained`; the I/O-error arm of `read_source` and the `source` of `Unreadable` are untested; a text file that begins with `DICM` is reported as unreadable; `reader/detection.rs`, `reader/dicomdir_bytes.rs` and `export_source.rs` each test for the `DICM` prefix.
+- evidence: filed findings of the judges of ritk#914, #917, #919, #920, #921, #1131 and #1132, in each PR's verdict comments.
+- reopen: at the next change under `crates/ritk-io/src/format/dicom/anonymize/`, `export_tree.rs` or `export_source.rs`.
 
-<a id="RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001"></a>
-## RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001 — Number directory exports [major]
-- risk: Rust directory export and its Python binding copied patient names and source UIDs embedded in filenames. Concurrent calls could overwrite an earlier export while reporting success.
-- evidence: the installed-wheel fixture reproduces both failures on `762f0e92`. The proposed correction shares the study export's numbering and publishes each encoded copy without replacing an occupied name. The Python fixture checks source bytes, collisions, per-file statistics, and remapped UID relationships after reopening. The Rust directory verification test reopens the numbered export through the existing gate.
-- status: [ADR 0068](docs/adr/0068-number-dicom-directory-exports.md) accepted. The fix is committed on the implementation branch. Hosted integration and release verification are pending.
+<a id="RITK-DICOM-ANONYMIZE-META-004"></a>
+## RITK-DICOM-ANONYMIZE-META-004: filed judge findings on group 0002 removal and frame sizing are open
+- risk: a file with a short file meta group length exports with this library's implementation identifiers while other files keep the source's, and no record states the difference; group 0002 elements inside a defined-length UN value are never visited; the group 0002 tests use only the default profile, and one asserts a value that is `None` before anonymization; the `anonymize_dataset` Rustdoc omits the removal; the bytes-per-sample overflow of the frame-size check is untested; an object holding only Float Pixel Data can receive the frame-size report.
+- evidence: filed findings in the judge verdict comments on ritk#1124 and #1129.
+- reopen: at the next change to `anonymize/mod.rs`, `anonymize/file_meta.rs` or `anonymize/verify/geometry.rs`.
 
-<a id="RITK-DICOM-ANONYMIZE-REAL-001"></a>
-## RITK-DICOM-ANONYMIZE-REAL-001 — Preserve real DICOM export structure [major]
-- risk: the profile added absent attributes to sequence items, retained CT creation and contribution metadata and irradiation-event identifiers, encoded UUIDs outside their 128-bit range, and published a DICOMDIR whose paths did not resolve.
-- evidence: the installed wheel at `84de2d4ae` preserves all 94 MRI and 303 CT images, but exposes these regressions. The real CT file-set index contains 304 references, one of which is already missing in the source fixture.
-- status: [ADR 0069](docs/adr/0069-preserve-dicom-export-structure.md) records the selected contract. The opt-in Python suite covers both fixtures and the file-set root. RITK Python volume reopening of the source compressed CT is a separate gap. The independent decoder verifies all CT slices.
-- verification: the macOS arm64 wheel passes both profiles for the 94-instance MRI and 303-instance CT fixtures and rejects the CT DICOMDIR. All 564 `ritk-io` library tests pass on the integrated source.
-- target: `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
-- integration: PRs #1104 and #1105 merged after their required checks passed. The crates.io release cohort tracks the `ritk-io` 0.8.0 manifest.
+<a id="RITK-DICOM-VERIFY-GATE-005"></a>
+## RITK-DICOM-VERIFY-GATE-005: filed judge findings on the export gate and its reports are open
+- risk: `VerifyIssue::ResidualIdentifier` is public and nothing produces it; the `UidMismatch` doc names a Frame of Reference expectation no code checks; the `verify_dicom_file` `# Errors` section says it fails on a file that does not open, but it records `ParseFailure`; the prohibited-value scan does not read AS or TM elements and the field doc does not say so; an unreadable SamplesPerPixel is reported ahead of a zero Rows, and as "not a number" when it is a number outside `u32`; no test pins that an absent SamplesPerPixel counts as 1; the `files` field doc names a `report_all` option that does not exist; a file with a Study or Series mismatch does not register its SOPInstanceUID, so a later duplicate of it is not reported; the `Retained` messages say "written file(s)" for a target that may never have been written, and std maps two dropped-share errors to `NotFound`; `anonymize_dicom_directory` drops directory entries that fail to read; `_ritk/io.pyi` omits the unreadable-file error; no viewer test checks the status text for an unreadable file.
+- evidence: filed findings in the judge verdict comments on ritk#1133, #1134, #1135, #1136 and #1138.
+- reopen: at the next change to `anonymize/verify.rs`, `anonymize/verify/`, `anonymize/directory.rs` or `export_source.rs`.
+
+<a id="RITK-PUSH-GATE-HOST-001"></a>
+## RITK-PUSH-GATE-HOST-001: the pre-push gate does not finish on the Windows host
+- risk: the 600-second pre-push deadline ends the `ritk-snap` and `ritk-python` package gates, and the `ritk-io` gate while other builds hold the shared target; a retired run leaves its per-ref push lock; hosted CI does not compile the Windows-only `ritk-snap` tests.
+- evidence: the heads of ritk#1131 through #1136 and #1138 went up as rescue pushes after the gate was retired at its deadline, as the PR bodies of ritk#1133 through #1138 and the verdict comments on ritk#1131 and #1132 record.
+- reopen: at the next change to the stack push gate, or at the next `ritk-snap` push.
 
 ## RITK-DICOM-MIXED-IOP-001
 
@@ -315,7 +318,7 @@ and reject an unrepresentable positive spacing before output.
 
 <a id="RITK-DICOM-REPAIR-STUDY-002"></a>
 ## RITK-DICOM-REPAIR-STUDY-002: filed judge findings on the repair export and viewer tools are open
-- risk: `anonymize/file_meta.rs` says the dicom-rs reader refuses a file meta (0002,0003) that is not a UID, but it accepts `1..2` and `01.2`; `repair/study.rs` `failed` duplicates the anonymize helper and its `!=` against the default summary has a surviving `==` mutant; no test reaches `Instance`, `Write` or `Retained`; the viewer ends held gestures before a dialog the reader may cancel, and repeats the left-out sentence in two modules.
+- risk: `repair/study.rs` `failed` duplicates the anonymize helper and its `!=` against the default summary has a surviving `==` mutant; no test reaches `Instance`, `Write` or `Retained`; the viewer ends held gestures before a dialog the reader may cancel, and repeats the left-out sentence in two modules.
 - evidence: filed findings in the judge verdict comments on ritk#926, #927, #928 and #929.
 - reopen: at the next change under `crates/ritk-io/src/format/dicom/repair/`, `anonymize/file_meta.rs` or `crates/ritk-snap/src/presentation/native_session/{repair,deidentify}.rs`, or when the backlog has room (1,000 of 1,000 lines once ritk#928 lands).
 
