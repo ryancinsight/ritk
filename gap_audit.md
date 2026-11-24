@@ -309,7 +309,7 @@ and reject an unrepresentable positive spacing before output.
 
 <a id="RITK-DICOM-ANONYMIZE-EXPORT-003"></a>
 ## RITK-DICOM-ANONYMIZE-EXPORT-003: filed judge findings on the numbered export and the gate are open
-- risk: `anonymize/study.rs` keeps a `map_or(target, ..)` fallback no input reaches; export names past 999,999 stop sorting numerically; the source-path mapping is tested for `PatientLeak` only; the non-image study test does not assert the report's StudyInstanceUID and SOPInstanceUID were replaced; the root README says a failed run removes everything it wrote, but a created output folder stays; `tests_verify.rs` line 6 still lists geometry drift, moved to `tests_verify_geometry.rs`; the misplaced-element fixture uses Implicit VR and does not assert the stray values.
+- risk: `anonymize/study.rs` keeps a `map_or(target, ..)` fallback no input reaches; export names past 999,999 stop sorting numerically; the source-path mapping is tested for `PatientLeak` only; the non-image study test does not assert the report's StudyInstanceUID and SOPInstanceUID were replaced; the misplaced-element fixture uses Implicit VR and does not assert the stray values.
 - evidence: filed findings in the judge verdict comments on ritk#931, #932, #933 and #934.
 - reopen: at the next change under `crates/ritk-io/src/format/dicom/anonymize/`.
 

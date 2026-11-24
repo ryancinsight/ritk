@@ -2,8 +2,8 @@
 //!
 //! These tests exercise `verify::*` against in-memory objects written to
 //! temporary files, covering the standard PACS anonymization export failure
-//! modes: corrupt writes, diverged series UIDs, leaked identifiers, and
-//! geometry/pixel drift.
+//! modes: corrupt writes, diverged series UIDs and leaked identifiers.
+//! Geometry and pixel drift is covered in `tests_verify_geometry.rs`.
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::super::anonymize::verify::{
