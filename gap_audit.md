@@ -148,7 +148,7 @@ The [native Safari job](https://github.com/ryancinsight/ritk/actions/runs/451117
 
 The decoder merged in [#1108](https://github.com/ryancinsight/ritk/pull/1108) at `db308af40`. Its packaged workstation passed a local Chromium replay with four consecutive 94-file selections on one page. Loads three and four used 654,639,104 WebAssembly bytes before selection, after decode and after navigation. All three planes matched the independent MRI values on every load. The [native macOS picker test](https://github.com/ryancinsight/ritk/actions/runs/45098982271) read all 94 files and matched each SHA-256. The full eight-scenario run on the integrated branch and the main replay are separate exits. The [integrated seven hosted passes](https://github.com/ryancinsight/ritk/actions/runs/45102420200) include Chromium WebGPU and Firefox. [Native Safari on Intel macOS](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583614) passed the real MRI and CT comparison, rejected transfers and listener teardown. The ARM macOS 26 Safari runner still returns InvalidStateError when reading the presented raster. Chromium WebGPU stays on ARM macOS 26.
 
-[Run 45079835823](https://github.com/ryancinsight/ritk/actions/runs/45079835823) exercised all eight scenarios on RITK `54140426b` with Metis `94b698dcd`. Seven passed. Hosted Chromium WebGPU read the 94-file study, presented all three anatomical planes, passed the native cine-rate trace validator, removed its observer and closed the session. Both responsive scenarios, Chromium raster, the Chromium window and projection scenarios, and Firefox raster passed.
+[Run 45079835823](https://github.com/ryancinsight/ritk/actions/runs/45079835823) exercised all eight scenarios on RITK `54140426b` with the head of ryancinsight/metis#588. Seven passed. Hosted Chromium WebGPU read the 94-file study, presented all three anatomical planes, passed the native cine-rate trace validator, removed its observer and closed the session. Both responsive scenarios, Chromium raster, the Chromium window and projection scenarios, and Firefox raster passed.
 
 Safari 27.2 recorded a trusted selection of 49,807,236 bytes across all 94 files. macOS denied WebContent access to the first file before decoding. Byte-for-byte verification and filesystem permissions are recorded in the [Safari job](https://github.com/ryancinsight/ritk/actions/runs/45079835823/job/137389340300). The [qualification checklist](backlog/ritk-stable-qualification.md) keeps Safari and the post-merge replay open.
 
@@ -301,8 +301,8 @@ and reject an unrepresentable positive spacing before output.
   volume to independently decompressed source instances. The test compares
   every reconstructed voxel plus shape, origin, spacing and direction.
 - The published Raster 0.5.0 dependency rejects the frame's LJIF APP0 marker
-  after series selection. The crates.io 0.5.1 archive matches Consus source
-  `aeea084445b8` and the registry checksum. A fresh registry consumer
+  after series selection. The crates.io 0.5.1 archive matches the Consus branch
+  `fix/consus-raster-ljif` and the registry checksum. A fresh registry consumer
   reconstructs the expected 16-bit sample.
 - The wheel switches the NumPy bridge and matching PyO3 series to crates.io.
   Its build dependencies resolve from the registry or the RITK workspace.
