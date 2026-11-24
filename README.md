@@ -293,8 +293,8 @@ metadata from silently shipping to a destination PACS:
   into a separate empty folder as `000001.dcm`, `000002.dcm`, ..., copying
   no source folder or file name, then runs the export
   gate over the whole set with the source patient names and IDs prohibited;
-  any failure removes every file the run wrote and leaves an output folder
-  it created in place.
+  any failure removes the files the run wrote, returns as `Retained` any it
+  could not remove, and leaves an output folder it created in place.
 
 Filename protection and metadata rules address different sources of identifying
 information. Pixel bytes are preserved by default. The optional pixel cleaning
