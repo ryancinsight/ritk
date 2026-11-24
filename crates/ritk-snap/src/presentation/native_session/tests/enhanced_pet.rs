@@ -67,9 +67,9 @@ fn native_enhanced_pet_concatenation_captures_and_selects_another_gate() {
         volume
             .suv_bw
             .as_ref()
-            .unwrap()
+            .expect("the gate carries SUVbw samples")
             .at(1)
-            .unwrap()
+            .expect("the gate holds two samples")
             .in_unit::<GramPerCubicCentimeter>(),
         7.0
     );

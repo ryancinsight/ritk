@@ -42,9 +42,11 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyCleaningPolicy {
 /// Anonymize DICOM files directly in `input_dir` and write copies to `output_dir`.
 ///
 /// Writes numbered names such as `000001.dcm` in source-path order, skipping
-/// occupied destination names. Files that cannot be opened as DICOM and files
-/// in subdirectories are skipped. DICOMDIR objects are reported as per-file
-/// errors. Pass the directory containing the images. A fresh destination
+/// occupied destination names. Files read and found without the `DICM`
+/// prefix (at byte 0 or 128) and files in subdirectories are skipped. A file
+/// that carries the prefix and does not open, a file that cannot be read at
+/// all, and a DICOMDIR object are reported as per-file errors.
+/// Pass the directory containing the images. A fresh destination
 /// keeps the exported batch separate from existing files.
 ///
 /// Metadata handling follows the selected profile. By default, pixel data is
@@ -69,7 +71,8 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyCleaningPolicy {
 ///
 /// Returns:
 /// dict with keys:
-/// - `"file_count"` (int): files opened as DICOM, including per-file failures.
+/// - `"file_count"` (int): files that opened as DICOM, carry the `DICM`
+///   prefix, or could not be read at all, including per-file failures.
 /// - `"success_count"` (int): files successfully anonymized.
 /// - `"error_count"` (int): files that failed.
 /// - `"errors"` (list[list[str]]): `[[path, error_msg], ...]` for failures.
