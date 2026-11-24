@@ -150,8 +150,12 @@ fn metadata_preflight_rejects_invalid_pixel_descriptions_before_output_changes()
     }
     let mut metadata = make_test_metadata();
     // The fixture's slice normal is +Z, so both terms must grow on Z.
-    metadata.origin[2] = f64::MAX;
-    metadata.spacing[0] = f64::MAX;
+    metadata.origin[2] = aequitas::systems::si::quantities::Length::from_unit::<
+        aequitas::systems::si::units::Millimeter,
+    >(f64::MAX);
+    metadata.spacing[0] = aequitas::systems::si::quantities::Length::from_unit::<
+        aequitas::systems::si::units::Millimeter,
+    >(f64::MAX);
     let image = make_image(2, 1, 1, 2.0);
     let error = write_dicom_series_with_metadata(&directory, &image, Some(&metadata))
         .expect_err("later derived position overflows");

@@ -126,11 +126,15 @@ fn print_geometry(meta: &DicomReadMetadata) {
     );
     println!(
         "  spacing: [{:.6}, {:.6}, {:.6}]",
-        meta.spacing[0], meta.spacing[1], meta.spacing[2]
+        meta.spacing_mm()[0],
+        meta.spacing_mm()[1],
+        meta.spacing_mm()[2]
     );
     println!(
         "  origin: [{:.6}, {:.6}, {:.6}]",
-        meta.origin[0], meta.origin[1], meta.origin[2]
+        meta.origin_mm()[0],
+        meta.origin_mm()[1],
+        meta.origin_mm()[2]
     );
     println!(
         "  direction:\n    [{:.6}, {:.6}, {:.6}]\n    [{:.6}, {:.6}, {:.6}]\n    [{:.6}, {:.6}, {:.6}]",
@@ -185,13 +189,13 @@ mod tests {
     #[test]
     fn test_viewer_args_path_round_trip() {
         let args = ViewerArgs {
-            path: PathBuf::from("test_data/2_skull_ct"),
+            path: PathBuf::from("test_data/3_head_ct_mridir"),
             series_instance_uid: None,
             geometry: true,
             slices: true,
             summary: false,
         };
-        assert_eq!(args.path, PathBuf::from("test_data/2_skull_ct"));
+        assert_eq!(args.path, PathBuf::from("test_data/3_head_ct_mridir"));
         assert_eq!(args.series_instance_uid, None);
         assert!(args.geometry);
         assert!(args.slices);

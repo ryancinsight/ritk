@@ -55,7 +55,6 @@ impl NativePresentationMode {
 }
 
 /// Internal native presentation selection used by the host entrypoints.
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum NativePresentationSelection {
     /// Use one of the stable public fixed presentation modes.
@@ -64,7 +63,7 @@ pub(crate) enum NativePresentationSelection {
     Responsive,
 }
 
-#[cfg(all(not(target_arch = "wasm32"), windows))]
+#[cfg(any(windows, target_arch = "wasm32"))]
 impl NativePresentationSelection {
     pub(crate) const fn projection_kind(self) -> Option<ProjectionKind> {
         match self {

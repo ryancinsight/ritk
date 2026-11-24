@@ -43,6 +43,13 @@ impl DicomInputPath {
     }
 }
 
+/// The scalar volume formats supported by the viewer's filesystem loader.
+pub(crate) fn scalar_volume_format(path: &Path) -> Option<ritk_io::ImageFormat> {
+    use ritk_io::ImageFormat::{MetaImage, Mgh, NIfTI, Nrrd};
+    ritk_io::ImageFormat::from_path(path)
+        .filter(|format| matches!(format, NIfTI | MetaImage | Nrrd | Mgh))
+}
+
 /// Classify a path for DICOM viewer import.
 pub fn classify_dicom_input_path(path: impl AsRef<Path>) -> DicomInputPath {
     let path = path.as_ref();

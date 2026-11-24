@@ -1,16 +1,14 @@
 //! Anonymization profiles and per-tag actions (DICOM PS 3.15 Annex E).
 //!
 //! # Specification
-//! The Basic profile is the PS 3.15 Annex E "Basic Application Level
-//! Confidentiality Profile" which mandates removal/replacement of all
-//! patient-identifying attributes listed in Table E.1-1.
+//! RITK implements selected attribute rules from PS3.15 Annex E Table E.1-1.
+//! Its Basic profile retains entity UIDs.
 //!
-//! BasicReplaceUids extends Basic by deterministically replacing all
-//! instance, series, study, and frame-of-reference UIDs (Annex E Option:
-//! Retain UIDs).
+//! BasicReplaceUids extends Basic by deterministically replacing instance,
+//! series, study, frame-of-reference, and irradiation-event UIDs.
 //!
-//! Aggressive extends BasicReplaceUids by additionally zeroing all
-//! date/time fields and removing descriptive text attributes.
+//! Aggressive extends BasicReplaceUids by additionally emptying selected date
+//! and time fields and removing descriptive text attributes.
 //!
 //! Enhanced extends Aggressive with additional removal of procedure-step
 //! attributes, content annotations, and all private tags.
@@ -38,15 +36,13 @@ pub enum TagAction {
 /// Profiles are additive: each level extends the previous.
 #[derive(Debug, Clone)]
 pub enum AnonymizationProfile {
-    /// PS 3.15 Annex E Basic Application Level Confidentiality Profile.
-    ///
-    /// Removes or replaces all patient-identifying attributes listed in
-    /// Annex E Table E.1-1 (minimal subset).
+    /// Removes or replaces selected identifying attributes from Annex E
+    /// Table E.1-1 and retains entity UIDs.
     Basic,
-    /// Extends `Basic` by replacing all instance, series, study, and
-    /// frame-of-reference UIDs with deterministically hashed equivalents.
+    /// Extends `Basic` by replacing study, series, instance, frame-of-reference,
+    /// and irradiation-event UIDs and remaps referenced SOP instance UIDs.
     BasicReplaceUids,
-    /// Extends `BasicReplaceUids` by additionally emptying date/time fields
+    /// Extends `BasicReplaceUids` by emptying selected date and time fields
     /// and removing descriptive text attributes.
     Aggressive,
     /// Extends `Aggressive` with additional removal of procedure-step
@@ -89,9 +85,8 @@ impl AnonymizationProfile {
 
 // ─── Basic profile (PS 3.15 Annex E Table E.1-1) ─────────────────────────────
 //
-// Invariant: every tag listed in Annex E Table E.1-1 for the Basic
-// Application Level Confidentiality Profile is covered. Tags are grouped
-// by DICOM action type (D=Remove, Z=Empty, Z/D=Empty, X/Z/D=Remove).
+// Actions here operate on existing attributes. Annex E distinguishes X
+// (remove), Z (empty or replace) and D (replace with a non-empty value).
 
 fn basic_actions() -> Vec<(DicomTag, TagAction)> {
     vec![
@@ -133,6 +128,11 @@ fn basic_actions() -> Vec<(DicomTag, TagAction)> {
         (DicomTag::new(0x0008, 0x009C), TagAction::Empty), // ConsultingPhysicianName
         (DicomTag::new(0x0008, 0x1048), TagAction::Empty), // PhysicianApprovingInterpretation
         (DicomTag::new(0x0010, 0x0021), TagAction::Empty), // IssuerOfPatientID
+        // SOP Common and Contributing Equipment optional source provenance.
+        (DicomTag::new(0x0008, 0x0012), TagAction::Remove), // InstanceCreationDate
+        (DicomTag::new(0x0008, 0x0013), TagAction::Remove), // InstanceCreationTime
+        (DicomTag::new(0x0018, 0xA002), TagAction::Remove), // ContributionDateTime
+        (DicomTag::new(0x0018, 0xA003), TagAction::Remove), // ContributionDescription
         // ── D (Delete / Remove) — device & protocol ─────────────────────
         (DicomTag::new(0x0018, 0x1000), TagAction::Remove), // DeviceSerialNumber
         (DicomTag::new(0x0018, 0x1002), TagAction::Remove), // DeviceUID
@@ -191,8 +191,7 @@ fn basic_actions() -> Vec<(DicomTag, TagAction)> {
 
 /// UID replacement actions added by `BasicReplaceUids`.
 ///
-/// Covers all instance-level UIDs required for intra-study consistency by
-/// PS 3.15 Annex E Option: Retain UIDs.
+/// Apply the same mapping to entity UIDs and corresponding references.
 fn uid_actions() -> Vec<(DicomTag, TagAction)> {
     vec![
         (DicomTag::new(0x0020, 0x000D), TagAction::ReplaceUid), // StudyInstanceUID
@@ -200,13 +199,14 @@ fn uid_actions() -> Vec<(DicomTag, TagAction)> {
         (DicomTag::new(0x0008, 0x0018), TagAction::ReplaceUid), // SOPInstanceUID
         (DicomTag::new(0x0020, 0x0052), TagAction::ReplaceUid), // FrameOfReferenceUID
         (DicomTag::new(0x0008, 0x1155), TagAction::ReplaceUid), // ReferencedSOPInstanceUID
-        (DicomTag::new(0x0008, 0x0019), TagAction::ReplaceUid), // SourceImageSequence (contains UIDs)
+        (DicomTag::new(0x0008, 0x3010), TagAction::ReplaceUid), // IrradiationEventUID
+        (DicomTag::new(0x0008, 0x0019), TagAction::ReplaceUid), // PyramidUID
     ]
 }
 
 /// Additional `Aggressive` actions: temporal metadata and descriptive text.
 ///
-/// Removes all acquisition date/time fields and study/series/protocol
+/// Empties selected acquisition dates and times and removes study/series/protocol
 /// description strings that could contribute to re-identification.
 fn aggressive_actions() -> Vec<(DicomTag, TagAction)> {
     vec![

@@ -23,7 +23,7 @@ mod web;
 
 #[cfg(windows)]
 mod native;
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 mod native_session;
 
 pub use actions::{

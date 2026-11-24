@@ -370,7 +370,7 @@ impl SnapApp {
             return;
         };
         self.pointer_intensity = intensity_at_voxel(volume, voxel);
-        self.pointer_suv = Self::compute_suv_from_volume(volume, self.pointer_intensity as f64);
+        self.pointer_suv = Self::suv_at_voxel(volume, voxel, f64::from(self.pointer_intensity));
     }
 
     /// Select the default colormap for a modality string.
@@ -384,26 +384,21 @@ impl SnapApp {
         }
     }
 
-    /// Compute SUVbw for a PET voxel value [Bq/mL].
-    ///
-    /// Returns `None` when `PetAcquisitionParams::from_loaded_volume` fails,
-    /// `pixel_bqml` is non-finite, or the result is non-finite.
-    pub(crate) fn compute_suv_from_volume(
-        vol: &crate::LoadedVolume,
-        pixel_bqml: f64,
-    ) -> Option<f32> {
-        use crate::dicom::pet::PetAcquisitionParams;
-        if !pixel_bqml.is_finite() {
-            return None;
+    /// Return available classic PET SUVbw within the pointer readout range.
+    pub(crate) fn compute_suv_from_volume(vol: &crate::LoadedVolume, pixel: f64) -> Option<f32> {
+        let suv = crate::dicom::pet::ClassicPetDisplay::for_volume(vol)?.suvbw(pixel)? as f32;
+        suv.is_finite().then_some(suv)
+    }
+
+    fn suv_at_voxel(volume: &crate::LoadedVolume, voxel: [usize; 3], raw: f64) -> Option<f32> {
+        if volume
+            .metadata
+            .as_ref()
+            .is_some_and(|meta| meta.enhanced_pet_suv.is_some())
+        {
+            return volume.enhanced_pet_suv_at(voxel).map(|value| value as f32);
         }
-        let pet = PetAcquisitionParams::from_loaded_volume(vol)?;
-        let delta_t = PetAcquisitionParams::delta_t_s_from_vol(vol);
-        let suv = pet.pixel_to_suvbw(pixel_bqml, delta_t);
-        if suv.is_finite() {
-            Some(suv as f32)
-        } else {
-            None
-        }
+        Self::compute_suv_from_volume(volume, raw)
     }
 
     /// Compute SUVbw at the linked-cursor voxel position, if available.
@@ -416,7 +411,7 @@ impl SnapApp {
         let cursor = self.linked_cursor?;
         let [z, y, x] = cursor.voxel();
         let pixel = volume.pixel_at(z, y, x) as f64;
-        Self::compute_suv_from_volume(volume, pixel)
+        Self::suv_at_voxel(volume, [z, y, x], pixel)
     }
 
     #[cfg(not(target_arch = "wasm32"))]

@@ -13,15 +13,15 @@
 //! | `false`        | Single viewport — current axis fills panel. |
 //! | `true`         | 2×2 grid: Axial / Coronal / Sagittal / 3D-MIP, with Info below.|
 
-#[cfg(any(windows, feature = "eframe-shell"))]
+#[cfg(any(windows, target_arch = "wasm32", feature = "eframe-shell"))]
 pub(crate) const PRODUCT_NAME: &str = "AsterSlice";
 
 pub(crate) mod action_adapter;
 mod annotation_edit;
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 mod calibration;
-#[cfg(windows)]
-pub(crate) use calibration::LengthCalibrationReference;
+#[cfg(any(windows, target_arch = "wasm32"))]
+pub(crate) use calibration::{CalibrationInputError, CalibrationUnit, LengthCalibrationReference};
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_cine;
 #[cfg(any(target_arch = "wasm32", test))]
@@ -63,6 +63,13 @@ mod oblique_viewport;
 mod pacs_ops;
 #[cfg(feature = "eframe-shell")]
 mod panels;
+#[cfg(any(
+    windows,
+    target_arch = "wasm32",
+    test,
+    all(not(target_arch = "wasm32"), feature = "eframe-shell")
+))]
+mod pet_volume;
 pub(crate) mod pointer_bindings;
 mod pointer_ops;
 #[cfg(any(target_arch = "wasm32", windows, test))]
@@ -116,7 +123,7 @@ pub(crate) mod tests;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) use eframe::EguiApp;
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) use slice_ops::CineTick;
 pub(crate) use state::SnapApp;
 

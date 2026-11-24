@@ -4,7 +4,10 @@ Status: Accepted
 
 Date: 2026-09-09
 
-Driver: [RITK-SNAP-FUSION-001](../../backlog.md#RITK-SNAP-FUSION-001).
+Revision: 2026-11-20 — replace the retired backlog driver with its merged
+delivery; the accepted decision and evidence contract remain unchanged.
+
+Driver: [RITK-SNAP-FUSION-001](https://github.com/ryancinsight/ritk/pull/254).
 
 ## Context
 

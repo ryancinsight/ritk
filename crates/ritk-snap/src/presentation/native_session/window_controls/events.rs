@@ -44,7 +44,7 @@ impl WindowChrome {
         {
             return Ok(WindowChromeEvent::consumed(false));
         }
-        if let Some(event) = self.edit_calibration(event) {
+        if let Some(event) = self.edit_calibration(event, width, height)? {
             return Ok(event);
         }
         if workspace_layout.is_grid()

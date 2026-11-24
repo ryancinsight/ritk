@@ -145,3 +145,72 @@ fn mgz_decompression_cap_admits_exactly_the_decompressed_length() -> Result<()> 
     })?;
     Ok(())
 }
+
+fn gzip_member(bytes: &[u8]) -> Result<Vec<u8>> {
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::fast());
+    encoder.write_all(bytes)?;
+    Ok(encoder.finish()?)
+}
+
+#[test]
+fn mgz_compute_decodes_samples_spanning_gzip_members() -> Result<()> {
+    let temp = tempdir()?;
+    let path = temp.path().join("split.mgz");
+    let values = [13_i16, -513];
+    let data: Vec<_> = values.iter().flat_map(|v| v.to_be_bytes()).collect();
+    let raw = build_mgh_bytes(
+        VERSION,
+        [2, 1, 1],
+        SINGLE_FRAME,
+        MRI_SHORT,
+        [1.0; 3],
+        IDENTITY_DIR,
+        [0.0; 3],
+        &data,
+    );
+    let (a, b) = raw.split_at(HEADER_SIZE + 3);
+    std::fs::write(&path, [gzip_member(a)?, gzip_member(b)?].concat())?;
+    let backend = TestBackend::default();
+    let single = read_mgh(&path, &backend)?;
+    let series = read_mgh_series(&path, &backend)?;
+    assert_eq!(series.len(), 1);
+    for image in [&single, &series[0]] {
+        assert_eq!(image.data_slice()?, &[13.0, -513.0]);
+    }
+    Ok(())
+}
+
+#[test]
+fn mgz_compute_rejects_damaged_or_oversized_trailing_member() -> Result<()> {
+    let temp = tempdir()?;
+    let path = temp.path().join("footer.mgz");
+    let raw = build_mgh_bytes(
+        VERSION,
+        [1, 1, 1],
+        SINGLE_FRAME,
+        MRI_UCHAR,
+        [1.0; 3],
+        IDENTITY_DIR,
+        [0.0; 3],
+        &[17],
+    );
+    let header_and_samples = gzip_member(&raw)?;
+    let footer = gzip_member(&[19, 23])?;
+    std::fs::write(&path, [&header_and_samples[..], &footer[..]].concat())?;
+    let backend = TestBackend::default();
+    let full = u64::try_from(raw.len())? + 2;
+    assert_eq!(
+        read_mgh_with_limit(&path, &backend, full)?.data_slice()?,
+        &[17.0]
+    );
+    assert!(
+        matches!(read_mgh_with_limit(&path, &backend, full - 1), Err(MghError::ExpandedLimit { maximum }) if maximum == full - 1)
+    );
+    let mut corrupt = footer;
+    let crc = corrupt.len() - 8;
+    corrupt[crc] ^= 1;
+    std::fs::write(&path, [header_and_samples, corrupt].concat())?;
+    assert!(read_mgh(&path, &backend).is_err());
+    assert!(read_mgh_series(&path, &backend).is_err());
+    Ok(())
+}

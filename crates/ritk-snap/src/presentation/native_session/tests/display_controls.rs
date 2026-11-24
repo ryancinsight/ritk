@@ -375,18 +375,16 @@ fn flipped_mapping_resolves_the_same_source_voxel() {
     );
 }
 
-#[test]
-fn display_menu_transform_rows_change_presented_pixels() {
-    let (mut session, _root) = session();
+fn click_display_row(session: &mut NativeViewerSession, action: WindowAction) {
     let (tab_x, tab_y) = control_center(
-        &session,
+        session,
         None,
         WindowAction::OpenMenu(super::super::window_controls::Menu::Display),
     );
     let (row_x, row_y) = control_center(
-        &session,
+        session,
         Some(super::super::window_controls::Menu::Display),
-        WindowAction::RotateCw,
+        action,
     );
     session
         .handle_events(&[
@@ -412,6 +410,40 @@ fn display_menu_transform_rows_change_presented_pixels() {
             },
         ])
         .expect("rotate from the Display menu");
+}
+
+#[test]
+fn native_display_half_turn_reverses_pixels_and_restores_orientation() {
+    let (mut session, _root) = session();
+    session
+        .apply_window_action(WindowAction::FlipHorizontal)
+        .expect("flip fixture view");
+    session
+        .apply_window_action(WindowAction::RotateCcw)
+        .expect("rotate fixture view");
+    session.refresh_frame().expect("refresh initial view");
+    let initial = session.app.view_transform;
+    let frame = session.views[0].frame();
+    let (width, height) = (frame.width(), frame.height());
+    let original = frame.rgba().to_vec();
+    let reversed: Vec<_> = original.chunks_exact(4).rev().flatten().copied().collect();
+    assert_ne!(original, reversed);
+
+    click_display_row(&mut session, WindowAction::RotateHalfTurn);
+    let frame = session.views[0].frame();
+    assert_eq!((frame.width(), frame.height()), (width, height));
+    assert_eq!(frame.rgba(), reversed);
+    assert_eq!(session.app.view_transform, initial.rotate_cw().rotate_cw());
+
+    click_display_row(&mut session, WindowAction::RotateHalfTurn);
+    assert_eq!(session.app.view_transform, initial);
+    assert_eq!(session.views[0].frame().rgba(), original);
+}
+
+#[test]
+fn display_menu_transform_rows_change_presented_pixels() {
+    let (mut session, _root) = session();
+    click_display_row(&mut session, WindowAction::RotateCw);
     assert_eq!(session.app.view_transform.rotation, RotationSteps::Ninety);
     assert_eq!(
         (

@@ -11,6 +11,7 @@ fn view(axis: usize, color: [u8; 4]) -> RenderedView {
     RenderedView {
         axis,
         plane_name: ["Axial", "Coronal", "Sagittal"][axis],
+        slice_label: None,
         slice_index: 0,
         slice_count: 1,
         window_level: WindowLevel::new(0.0, 1.0),

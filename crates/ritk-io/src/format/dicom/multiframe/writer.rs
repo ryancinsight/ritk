@@ -1,8 +1,10 @@
 //! Multi-frame DICOM writer: serializes a 3-D image as a single DICOM Part 10 file.
 
+use super::geometry::millimetres;
 use crate::format::dicom::writer::decimal_string::{
     format_dicom_decimal, format_pair, format_six, format_triplet,
 };
+use aequitas::systems::si::units::Millimeter;
 
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
@@ -164,20 +166,19 @@ fn write_multiframe_flat(
     let dimensions = validate_image_shape(shape, all_data.len())?;
     let n_frames = dimensions.depth;
     let spatial_tags = if let Some(spatial) = &config.spatial {
+        let origin = millimetres(spatial.origin);
+        let pixel_spacing = millimetres(spatial.pixel_spacing);
+        let thickness = spatial.slice_thickness.in_unit::<Millimeter>();
         validate_spatial_metadata(
-            &[
-                spatial.slice_thickness,
-                spatial.pixel_spacing[0],
-                spatial.pixel_spacing[1],
-            ],
-            &spatial.origin,
+            &[thickness, pixel_spacing[0], pixel_spacing[1]],
+            &origin,
             &spatial.image_orientation,
         )?;
         Some((
-            format_triplet(spatial.origin)?,
+            format_triplet(origin)?,
             format_six(spatial.image_orientation)?,
-            format_pair(spatial.pixel_spacing)?,
-            format_dicom_decimal(spatial.slice_thickness)?,
+            format_pair(pixel_spacing)?,
+            format_dicom_decimal(thickness)?,
         ))
     } else {
         None

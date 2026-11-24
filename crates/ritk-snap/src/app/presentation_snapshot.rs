@@ -31,9 +31,9 @@ impl SnapApp {
             .expect("invariant: active tool belongs to ToolKind::all");
         let summary = |kind, value| Some(AnnotationSummary::new(kind, value));
         let last_annotation = self.annotations.last().and_then(|annotation| {
-            #[cfg(windows)]
+            #[cfg(any(windows, target_arch = "wasm32"))]
             let image_scale = ImageMeasurementScale::new(self.length_scale(annotation.location()));
-            #[cfg(not(windows))]
+            #[cfg(not(any(windows, target_arch = "wasm32")))]
             let image_scale = ImageMeasurementScale::new(1.0);
             match annotation {
                 Annotation::Length { length_mm, .. } => {

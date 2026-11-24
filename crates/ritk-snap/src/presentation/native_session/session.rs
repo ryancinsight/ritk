@@ -30,9 +30,11 @@ use anyhow::{anyhow, Result};
 use arrayvec::{ArrayString, ArrayVec};
 use frame::{render_orthogonal_views, render_orthogonal_views_into, RenderedView};
 use metis_platform::Framebuffer;
+#[cfg(windows)]
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+#[cfg(windows)]
 use std::time::Instant;
 
 fn viewport_offset(app: &SnapApp) -> ViewportOffset {
@@ -90,15 +92,21 @@ pub(super) struct NativeViewerSession {
     pub(super) capture_application: bool,
     pub(super) anonymize_overlay: bool,
     pub(super) observation: Arc<NativeViewerObservation>,
+    #[cfg(windows)]
     pub(super) clock_start: Instant,
     pub(super) series_browser: Option<SeriesBrowser>,
-    /// The folder or file the displayed study was read from; the source of
-    /// study-level exports.
+    /// Open the chooser before the current trusted input event returns.
+    #[cfg(target_arch = "wasm32")]
+    pub(super) open_requested: bool,
+    /// Source of filesystem study exports.
+    #[cfg(windows)]
     pub(super) study_root: Option<PathBuf>,
     pub(super) primary_series_index: Option<usize>,
     /// Expected panel count for an in-flight multi-series load; zero idle.
+    #[cfg(windows)]
     pub(super) series_load_total: usize,
     /// Last reported `(loaded, total)` progress; sentinel while unreported.
+    #[cfg(windows)]
     pub(super) series_load_reported: (usize, usize),
     pub(super) compare_panels: ArrayVec<ComparePanel, MAX_COMPARISON_PANELS>,
     pub(super) workspace_layout: WorkspaceLayout,
@@ -190,11 +198,17 @@ impl NativeViewerSession {
             capture_application,
             anonymize_overlay: false,
             observation,
+            #[cfg(windows)]
             clock_start: Instant::now(),
             series_browser,
+            #[cfg(target_arch = "wasm32")]
+            open_requested: false,
+            #[cfg(windows)]
             study_root: None,
             primary_series_index,
+            #[cfg(windows)]
             series_load_total: 0,
+            #[cfg(windows)]
             series_load_reported: (usize::MAX, usize::MAX),
             compare_panels: ArrayVec::new(),
             workspace_layout: WorkspaceLayout::Orthogonal,
@@ -215,6 +229,7 @@ impl NativeViewerSession {
         Ok(session)
     }
 
+    #[cfg(windows)]
     pub(super) fn elapsed_seconds(&self) -> f64 {
         self.clock_start.elapsed().as_secs_f64()
     }
@@ -275,6 +290,7 @@ impl NativeViewerSession {
     }
 
     pub(super) fn refresh_frame(&mut self) -> Result<()> {
+        #[cfg(windows)]
         self.pump_series_loads();
         if self.app.loaded.is_some() {
             render_orthogonal_views_into(&self.app, &mut self.views, &mut self.render_scratch)?;

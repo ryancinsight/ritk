@@ -1,8 +1,9 @@
 use super::*;
 use crate::render::SliceRenderer;
+use aequitas::systems::si::quantities::{Mass, Time};
 use egui::Color32;
 use iris::color::{ColorMap, Normalized};
-use ritk_io::{literal_arraystring, DicomReadMetadata};
+use ritk_io::{literal_arraystring, DicomReadMetadata, Radioactivity};
 
 fn rgb8(map: NamedColorMap, value: f32) -> [u8; 3] {
     let value = Normalized::new(value).expect("test value is normalized");
@@ -110,18 +111,22 @@ fn output_size_matches_primary_slice_geometry() {
 
 #[test]
 fn pet_secondary_is_windowed_in_suv_units() {
-    let primary = test_volume([1, 1, 1], 40.0);
-    let mut pet = test_volume([1, 1, 1], 0.0);
-    let injected_dose_bq = 370_000_000.0;
-    let patient_weight_kg = 70.0;
-    pet.data = std::sync::Arc::new(vec![
-        (injected_dose_bq / (patient_weight_kg * 1_000.0)) as f32,
-    ]);
+    use ritk_io::format::dicom::{DicomValueUnit, SuvNormalization};
+    use ritk_io::DicomSliceMetadata;
+
+    let primary = with_frame(test_volume([1, 1, 1], 40.0), "1.2.3");
+    let mut pet = with_frame(test_volume([1, 1, 1], 0.0), "1.2.3");
+    pet.data = std::sync::Arc::new(vec![1.0]);
+    let slice = DicomSliceMetadata {
+        value_unit: DicomValueUnit::StandardizedUptake(SuvNormalization::BodyWeight),
+        ..DicomSliceMetadata::default()
+    };
+    pet.metadata
+        .as_mut()
+        .expect("fixture frame metadata")
+        .slices
+        .push(slice);
     pet.modality = Some(literal_arraystring::<16>("PT"));
-    pet.patient_weight_kg = Some(patient_weight_kg);
-    pet.injected_dose_bq = Some(injected_dose_bq);
-    pet.radionuclide_half_life_s = Some(6_586.2);
-    pet.decay_correction = Some(literal_arraystring::<16>("START"));
 
     let fused = render_fused_slice(
         FusedSliceParams {
@@ -148,7 +153,7 @@ fn pet_secondary_is_windowed_in_suv_units() {
     assert_eq!(
         fused.pixels[0],
         Color32::from_rgb(r, g, b),
-        "PET fusion must apply SUVbw before the SUV window"
+        "PET fusion must preserve declared body-weight SUV"
     );
 }
 
@@ -161,9 +166,9 @@ fn non_pet_secondary_with_pet_fields_uses_raw_window_units() {
     let raw_bqml = (injected_dose_bq / (patient_weight_kg * 1_000.0)) as f32;
     secondary.data = std::sync::Arc::new(vec![raw_bqml]);
     secondary.modality = Some(literal_arraystring::<16>("CT"));
-    secondary.patient_weight_kg = Some(patient_weight_kg);
-    secondary.injected_dose_bq = Some(injected_dose_bq);
-    secondary.radionuclide_half_life_s = Some(6_586.2);
+    secondary.patient_weight_kg = Some(Mass::from_base(patient_weight_kg));
+    secondary.injected_dose_bq = Radioactivity::from_becquerels(injected_dose_bq);
+    secondary.radionuclide_half_life_s = Some(Time::from_base(6_586.2));
     secondary.decay_correction = Some(literal_arraystring::<16>("START"));
 
     let fused = render_fused_slice(

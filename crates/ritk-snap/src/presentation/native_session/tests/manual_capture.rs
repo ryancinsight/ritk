@@ -116,6 +116,12 @@ fn native_manual_annotation_frames() {
             .handle_events(&[WindowEvent::TextInput { character }])
             .expect("enter calibration length");
     }
+    // The field ends at y=408 and unit buttons at y=448; padding has no ink.
+    for x in 509..771 {
+        for y in [409, 450] {
+            assert_eq!(viewer.framebuffer.get_pixel(x, y), Color::rgb(35, 40, 47));
+        }
+    }
     if let Some(output) = &output {
         save_capture(
             &viewer.framebuffer,

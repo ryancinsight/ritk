@@ -2,7 +2,7 @@
 name = "ritk-connectome"
 version = "0.2.0"
 edition.workspace = true
-rust-version = "1.95"
+rust-version = "1.97"
 license.workspace = true
 description = "Connectome construction and graph analysis for diffusion-MRI tractography"
 repository.workspace = true

@@ -403,8 +403,7 @@ fn nesting_at_the_traversal_bound_is_fully_anonymized() {
     );
     assert_eq!(
         stats.tags_zeroed, 1,
-        "exactly the one pre-existing PatientName is suppressed; the placeholders \
-         written into the intervening levels replaced nothing"
+        "only the existing PatientName is replaced"
     );
 }
 

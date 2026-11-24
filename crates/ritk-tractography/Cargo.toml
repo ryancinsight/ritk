@@ -5,7 +5,7 @@ authors.workspace = true
 repository.workspace = true
 publish = false
 edition.workspace = true
-rust-version = "1.95"
+rust-version = "1.97"
 license.workspace = true
 description = "Streamline tractography using Gaia Polyline geometry"
 

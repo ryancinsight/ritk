@@ -5,7 +5,7 @@
 //! viewer transitions perform all domain work. No DICOM value or parser state
 //! is part of this contract.
 
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_arch = "wasm32", test))]
 use super::pointer_bindings::PointerBindingError;
 use super::pointer_bindings::{PointerGestureOwner, PolygonClick};
 use super::state::SnapApp;
@@ -32,28 +32,28 @@ pub(crate) const VIRTUAL_KEY_CROSSHAIR_TOGGLE: u32 = 0x58;
 pub(crate) const VIRTUAL_KEY_CINE_FPS_UP: u32 = 0xbb;
 pub(crate) const VIRTUAL_KEY_CINE_FPS_DOWN: u32 = 0xbd;
 /// Windows virtual-key code for `I`, toggling negative display.
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) const VIRTUAL_KEY_INVERT_DISPLAY: u32 = 0x49;
 /// Windows virtual-key code for `C`, cycling the intensity colormap.
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) const VIRTUAL_KEY_COLORMAP_CYCLE: u32 = 0x43;
 /// Windows virtual-key code for `H`, flipping horizontally.
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) const VIRTUAL_KEY_FLIP_HORIZONTAL: u32 = 0x48;
 /// Windows virtual-key code for `V`, flipping vertically.
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) const VIRTUAL_KEY_FLIP_VERTICAL: u32 = 0x56;
 /// Windows virtual-key code for `R`, rotating (`Shift` reverses).
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) const VIRTUAL_KEY_ROTATE: u32 = 0x52;
 /// Windows virtual-key code for `Shift+O`, resetting orientation.
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) const VIRTUAL_KEY_ORIENTATION_RESET: u32 = 0x4f;
 /// Windows virtual-key code for `0`, zooming to fit (with `Ctrl`).
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) const VIRTUAL_KEY_ZOOM_FIT: u32 = 0x30;
 /// Windows virtual-key codes for digits `1`–`9`, selecting modality presets.
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) const VIRTUAL_KEY_PRESET_KEYS: [u32; 9] =
     [0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39];
 
@@ -146,7 +146,7 @@ impl SnapApp {
     /// # Errors
     /// Returns [`PointerBindingError::LeftButton`] when `button` is
     /// [`PointerButton::Left`], which always runs the selected tool.
-    #[cfg(any(windows, test))]
+    #[cfg(any(windows, target_arch = "wasm32", test))]
     pub(crate) fn assign_pointer_tool(
         &mut self,
         button: PointerButton,
@@ -427,7 +427,7 @@ pub(crate) enum ViewerInputError {
     Action(#[from] ViewerActionError),
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) fn preflight_presentation_events(
     dispatcher: &mut PresentationDispatcher,
     events: &[PresentationEvent],

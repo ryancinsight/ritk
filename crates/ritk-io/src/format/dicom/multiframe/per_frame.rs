@@ -7,30 +7,35 @@ use ritk_dicom::dataset::Dataset;
 use ritk_dicom::dataset::DicomTag;
 use ritk_dicom::dataset::Value;
 
+use super::super::value_units::{declared_rescale_unit, DicomValueUnit};
+use super::geometry::{length_from_mm, parse_lengths_mm};
 use super::reader::parse_ds_backslash;
 use super::types::PerFrameInfo;
 use crate::format::dicom::tag_parse::read_nested_scalar;
 
-/// Navigate item → seq_tag → items()\[0\] → inner_tag and parse as `\[f64; N\]` DS array.
+/// Navigate item → seq_tag → items()\[0\] → inner_tag and parse a DS tuple.
 ///
 /// Returns None if either sequence is absent, has no items, or the DS value fails to
-/// parse with at least N components.
-fn read_nested_ds<const N: usize>(
+/// pass the supplied parser.
+fn read_nested_ds<Parsed>(
     item: &Dataset,
     seq_tag: DicomTag,
     inner_tag: DicomTag,
-) -> Option<[f64; N]> {
+    parse: impl FnOnce(&str) -> Option<Parsed>,
+) -> Option<Parsed> {
     let elem = item.element(seq_tag).ok()?;
     if let Value::Sequence(seq) = elem.value() {
         let inner_item = seq.items().first()?;
         let inner_elem = inner_item.element(inner_tag).ok()?;
-        inner_elem
-            .to_str()
-            .ok()
-            .and_then(|s| parse_ds_backslash::<N>(&s))
+        inner_elem.to_str().ok().and_then(|s| parse(&s))
     } else {
         None
     }
+}
+
+fn value_unit(item: &Dataset) -> Option<DicomValueUnit> {
+    let transform = item.element(DicomTag::new(0x0028, 0x9145)).ok()?;
+    declared_rescale_unit(transform.value().items()?.first()?)
 }
 
 /// Extract per-frame metadata from functional group sequences per DICOM PS3.3 C.7.6.16.
@@ -68,26 +73,31 @@ pub(crate) fn extract_functional_groups(obj: &Dataset, n_frames: usize) -> Vec<P
             if let Value::Sequence(seq) = sg_elem.value() {
                 if let Some(item) = seq.items().first() {
                     let tpl = PerFrameInfo {
-                        image_position: read_nested_ds::<3>(
+                        image_position: read_nested_ds(
                             item,
                             DicomTag::new(0x0020, 0x9113),
                             DicomTag::new(0x0020, 0x0032),
+                            parse_lengths_mm::<3>,
                         ),
-                        image_orientation: read_nested_ds::<6>(
+                        image_orientation: read_nested_ds(
                             item,
                             DicomTag::new(0x0020, 0x9116),
                             DicomTag::new(0x0020, 0x0037),
+                            parse_ds_backslash::<6>,
                         ),
-                        pixel_spacing: read_nested_ds::<2>(
+                        pixel_spacing: read_nested_ds(
                             item,
                             DicomTag::new(0x0028, 0x9110),
                             DicomTag::new(0x0028, 0x0030),
+                            parse_lengths_mm::<2>,
                         ),
                         slice_thickness: read_nested_scalar::<f64>(
                             item,
                             DicomTag::new(0x0028, 0x9110),
                             DicomTag::new(0x0018, 0x0050),
-                        ),
+                        )
+                        .and_then(length_from_mm),
+                        value_unit: value_unit(item),
                         rescale_slope: read_nested_scalar::<f64>(
                             item,
                             DicomTag::new(0x0028, 0x9145),
@@ -149,26 +159,29 @@ pub(crate) fn extract_functional_groups(obj: &Dataset, n_frames: usize) -> Vec<P
                 }
                 override_if_some!(
                     image_position,
-                    read_nested_ds::<3>(
+                    read_nested_ds(
                         item,
                         DicomTag::new(0x0020, 0x9113),
-                        DicomTag::new(0x0020, 0x0032)
+                        DicomTag::new(0x0020, 0x0032),
+                        parse_lengths_mm::<3>,
                     )
                 );
                 override_if_some!(
                     image_orientation,
-                    read_nested_ds::<6>(
+                    read_nested_ds(
                         item,
                         DicomTag::new(0x0020, 0x9116),
-                        DicomTag::new(0x0020, 0x0037)
+                        DicomTag::new(0x0020, 0x0037),
+                        parse_ds_backslash::<6>,
                     )
                 );
                 override_if_some!(
                     pixel_spacing,
-                    read_nested_ds::<2>(
+                    read_nested_ds(
                         item,
                         DicomTag::new(0x0028, 0x9110),
-                        DicomTag::new(0x0028, 0x0030)
+                        DicomTag::new(0x0028, 0x0030),
+                        parse_lengths_mm::<2>,
                     )
                 );
                 override_if_some!(
@@ -178,7 +191,9 @@ pub(crate) fn extract_functional_groups(obj: &Dataset, n_frames: usize) -> Vec<P
                         DicomTag::new(0x0028, 0x9110),
                         DicomTag::new(0x0018, 0x0050)
                     )
+                    .and_then(length_from_mm)
                 );
+                override_if_some!(value_unit, value_unit(item));
                 override_if_some!(
                     rescale_slope,
                     read_nested_scalar::<f64>(

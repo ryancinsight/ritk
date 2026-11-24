@@ -151,8 +151,8 @@ fn indexed_folder_loads_complete_known_series() {
     let backend = coeus_core::SequentialBackend;
     let (image, metadata) = load_dicom_from_series(series, &backend).expect("indexed decode");
     assert_eq!(image.shape(), [3, 2, 2]);
-    assert_eq!(metadata.origin, [10.0, 20.0, 2.0]);
-    assert_eq!(metadata.spacing, [2.0, 0.5, 0.5]);
+    assert_eq!(metadata.origin_mm(), [10.0, 20.0, 2.0]);
+    assert_eq!(metadata.spacing_mm(), [2.0, 0.5, 0.5]);
     assert_eq!(
         image
             .data_cow_on(&backend)

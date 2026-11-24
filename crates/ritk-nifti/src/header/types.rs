@@ -1,23 +1,20 @@
 use super::convert::checked_f64_to_f32;
 use super::convert::{f64_affine_to_f32, f64_to_f32};
-use super::raw::{
-    read_array, read_f32x4_as_f64, read_f64x4, read_field, write_f32x4, write_f64x4, write_field,
-};
+use super::raw::{write_f32x4, write_f64x4, write_field};
 use super::validate::{
     checked_lane, checked_spatial_pixdim, dims_for_version, qfac_from_pixdim,
-    qform_quaternion_scalar, validate_bitpix, validate_dims, validate_i64_vox_offset,
-    validate_vox_offset, volume_count,
+    qform_quaternion_scalar, volume_count,
 };
 use super::{NiftiDatatype, NiftiLane};
 use anyhow::{anyhow, bail, Context, Result};
 use consus_core::ByteOrder;
 
-const NIFTI1_HEADER_LEN: usize = 348;
+pub(super) const NIFTI1_HEADER_LEN: usize = 348;
 const NIFTI1_SINGLE_FILE_VOX_OFFSET: usize = 352;
-const NIFTI2_HEADER_LEN: usize = 540;
+pub(super) const NIFTI2_HEADER_LEN: usize = 540;
 const NIFTI2_SINGLE_FILE_VOX_OFFSET: usize = 544;
-const NIFTI1_MAGIC_SINGLE_FILE: [u8; 4] = *b"n+1\0";
-const NIFTI2_MAGIC_SINGLE_FILE: [u8; 8] = *b"n+2\0\r\n\x1a\n";
+pub(super) const NIFTI1_MAGIC_SINGLE_FILE: [u8; 4] = *b"n+1\0";
+pub(super) const NIFTI2_MAGIC_SINGLE_FILE: [u8; 8] = *b"n+2\0\r\n\x1a\n";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HeaderVersion {
@@ -61,7 +58,7 @@ pub(crate) struct NiftiHeader {
     pub(crate) scl_slope: f64,
     pub(crate) scl_inter: f64,
     pub(crate) xyzt_units: i32,
-    endian: ByteOrder,
+    pub(super) endian: ByteOrder,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -132,138 +129,6 @@ impl NiftiHeader {
             scl_inter: 0.0,
             xyzt_units: 2,
             endian: ByteOrder::LittleEndian,
-        })
-    }
-
-    pub(crate) fn parse(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() < 4 {
-            bail!(
-                "NIfTI header requires at least 4 bytes, got {}",
-                bytes.len()
-            );
-        }
-
-        let little = read_field::<i32>(bytes, 0, ByteOrder::LittleEndian)?;
-        let big = read_field::<i32>(bytes, 0, ByteOrder::BigEndian)?;
-        match (little, big) {
-            (348, _) => Self::parse_nifti1(bytes, ByteOrder::LittleEndian),
-            (_, 348) => Self::parse_nifti1(bytes, ByteOrder::BigEndian),
-            (540, _) => Self::parse_nifti2(bytes, ByteOrder::LittleEndian),
-            (_, 540) => Self::parse_nifti2(bytes, ByteOrder::BigEndian),
-            _ => bail!("Invalid NIfTI sizeof_hdr; expected 348 or 540"),
-        }
-    }
-
-    fn parse_nifti1(bytes: &[u8], endian: ByteOrder) -> Result<Self> {
-        if bytes.len() < NIFTI1_HEADER_LEN {
-            bail!(
-                "NIfTI-1 header requires {NIFTI1_HEADER_LEN} bytes, got {}",
-                bytes.len()
-            );
-        }
-
-        let magic = read_array::<4>(bytes, 344)?;
-        if magic != NIFTI1_MAGIC_SINGLE_FILE {
-            bail!("Unsupported NIfTI-1 magic; expected single-file n+1");
-        }
-
-        let mut dim = [0_usize; 8];
-        for (index, slot) in dim.iter_mut().enumerate() {
-            let raw = read_field::<i16>(bytes, 40 + index * 2, endian)?;
-            *slot = usize::try_from(raw)
-                .with_context(|| format!("NIfTI-1 dim[{index}] must be non-negative, got {raw}"))?;
-        }
-        validate_dims(dim)?;
-
-        let datatype = NiftiDatatype::from_code(read_field::<i16>(bytes, 70, endian)?)?;
-        validate_bitpix(datatype, read_field::<i16>(bytes, 72, endian)?)?;
-
-        let mut pixdim = [0.0_f64; 8];
-        for (index, slot) in pixdim.iter_mut().enumerate() {
-            *slot = f64::from(read_field::<f32>(bytes, 76 + index * 4, endian)?);
-        }
-
-        let vox_offset = f64::from(read_field::<f32>(bytes, 108, endian)?);
-        let vox_offset = validate_vox_offset(HeaderVersion::One, vox_offset)?;
-
-        Ok(Self {
-            version: HeaderVersion::One,
-            dim,
-            datatype,
-            pixdim,
-            vox_offset,
-            qform_code: i32::from(read_field::<i16>(bytes, 252, endian)?),
-            sform_code: i32::from(read_field::<i16>(bytes, 254, endian)?),
-            quatern_b: f64::from(read_field::<f32>(bytes, 256, endian)?),
-            quatern_c: f64::from(read_field::<f32>(bytes, 260, endian)?),
-            quatern_d: f64::from(read_field::<f32>(bytes, 264, endian)?),
-            quatern_x: f64::from(read_field::<f32>(bytes, 268, endian)?),
-            quatern_y: f64::from(read_field::<f32>(bytes, 272, endian)?),
-            quatern_z: f64::from(read_field::<f32>(bytes, 276, endian)?),
-            srow_x: read_f32x4_as_f64(bytes, 280, endian)?,
-            srow_y: read_f32x4_as_f64(bytes, 296, endian)?,
-            srow_z: read_f32x4_as_f64(bytes, 312, endian)?,
-            scl_slope: f64::from(read_field::<f32>(bytes, 112, endian)?),
-            scl_inter: f64::from(read_field::<f32>(bytes, 116, endian)?),
-            xyzt_units: i32::from(bytes[123]),
-            endian,
-        })
-    }
-
-    fn parse_nifti2(bytes: &[u8], endian: ByteOrder) -> Result<Self> {
-        if bytes.len() < NIFTI2_HEADER_LEN {
-            bail!(
-                "NIfTI-2 header requires {NIFTI2_HEADER_LEN} bytes, got {}",
-                bytes.len()
-            );
-        }
-
-        let magic = read_array::<8>(bytes, 4)?;
-        if magic != NIFTI2_MAGIC_SINGLE_FILE {
-            bail!("Unsupported NIfTI-2 magic; expected single-file n+2");
-        }
-
-        let mut dim = [0_usize; 8];
-        for (index, slot) in dim.iter_mut().enumerate() {
-            let raw = read_field::<i64>(bytes, 16 + index * 8, endian)?;
-            *slot = usize::try_from(raw).with_context(|| {
-                format!("NIfTI-2 dim[{index}] must be non-negative and fit usize, got {raw}")
-            })?;
-        }
-        validate_dims(dim)?;
-
-        let datatype = NiftiDatatype::from_code(read_field::<i16>(bytes, 12, endian)?)?;
-        validate_bitpix(datatype, read_field::<i16>(bytes, 14, endian)?)?;
-
-        let mut pixdim = [0.0_f64; 8];
-        for (index, slot) in pixdim.iter_mut().enumerate() {
-            *slot = read_field::<f64>(bytes, 104 + index * 8, endian)?;
-        }
-
-        let vox_offset =
-            validate_i64_vox_offset(HeaderVersion::Two, read_field::<i64>(bytes, 168, endian)?)?;
-
-        Ok(Self {
-            version: HeaderVersion::Two,
-            dim,
-            datatype,
-            pixdim,
-            vox_offset,
-            qform_code: read_field::<i32>(bytes, 344, endian)?,
-            sform_code: read_field::<i32>(bytes, 348, endian)?,
-            quatern_b: read_field::<f64>(bytes, 352, endian)?,
-            quatern_c: read_field::<f64>(bytes, 360, endian)?,
-            quatern_d: read_field::<f64>(bytes, 368, endian)?,
-            quatern_x: read_field::<f64>(bytes, 376, endian)?,
-            quatern_y: read_field::<f64>(bytes, 384, endian)?,
-            quatern_z: read_field::<f64>(bytes, 392, endian)?,
-            srow_x: read_f64x4(bytes, 400, endian)?,
-            srow_y: read_f64x4(bytes, 432, endian)?,
-            srow_z: read_f64x4(bytes, 464, endian)?,
-            scl_slope: read_field::<f64>(bytes, 176, endian)?,
-            scl_inter: read_field::<f64>(bytes, 184, endian)?,
-            xyzt_units: read_field::<i32>(bytes, 500, endian)?,
-            endian,
         })
     }
 
@@ -465,26 +330,6 @@ impl NiftiHeader {
             ByteOrder::LittleEndian => T::from_little_endian(raw),
             ByteOrder::BigEndian => T::from_big_endian(raw),
         }
-    }
-
-    pub(crate) fn read_f32_voxel(&self, raw: &[u8]) -> Result<f32> {
-        Ok(match self.datatype {
-            NiftiDatatype::Uint8 => f32::from(raw[0]),
-            NiftiDatatype::Int16 => f32::from(self.read_lane::<i16, 2>(checked_lane::<2>(raw)?)),
-            NiftiDatatype::Int32 => self.read_lane::<i32, 4>(checked_lane::<4>(raw)?) as f32,
-            NiftiDatatype::Float32 => self.read_lane::<f32, 4>(checked_lane::<4>(raw)?),
-            NiftiDatatype::Uint32 => self.read_lane::<u32, 4>(checked_lane::<4>(raw)?) as f32,
-            NiftiDatatype::Int8
-            | NiftiDatatype::Uint16
-            | NiftiDatatype::Uint64
-            | NiftiDatatype::Int64
-            | NiftiDatatype::Float64 => {
-                bail!(
-                    "NIfTI image convenience reader does not support stored datatype {:?}",
-                    self.datatype
-                )
-            }
-        })
     }
 
     pub(crate) fn read_label_voxel(&self, raw: &[u8]) -> Result<u32> {

@@ -184,13 +184,13 @@ fn push_series_rows<'a>(metadata: &'a DicomReadMetadata, rows: &mut Vec<Metadata
         "derived:spacing",
         "Spacing",
         "DS",
-        format_float_slice(metadata.spacing),
+        format_float_slice(metadata.spacing_mm()),
     ));
     rows.push(MetadataRow::series(
         "derived:origin",
         "Origin",
         "DS",
-        format_float_slice(metadata.origin),
+        format_float_slice(metadata.origin_mm()),
     ));
     rows.push(MetadataRow::series(
         "derived:direction",

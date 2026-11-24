@@ -35,7 +35,8 @@ pub use error::DicomStoredImportError;
 use crate::format::dicom::inventory::dicom_series_metadata_losses;
 
 use super::geometry::{
-    analyze_slice_spacing, dot, slice_normal_from_iop, SliceCoverage, SpacingUniformity,
+    analyze_slice_spacing, dot, first_orientation_mismatch, slice_normal_from_iop, SliceCoverage,
+    SpacingUniformity,
 };
 use super::pixel::ensure_scalar_samples_per_pixel;
 use super::scan::scan_dicom_path_with_budget;
@@ -164,8 +165,8 @@ pub fn load_dicom_series_stored(
         [depth, rows, cols],
         samples,
         ImageMetadata::new(
-            Point::new(metadata.origin),
-            Spacing::new(metadata.spacing),
+            Point::new(metadata.origin_mm()),
+            Spacing::new(metadata.spacing_mm()),
             Direction::from_column_major(metadata.direction),
         ),
         CoordinateMap::Cartesian,
@@ -203,6 +204,9 @@ fn validate_uniform_geometry(metadata: &DicomReadMetadata) -> Result<(), DicomSt
     if slices.len() < 2 {
         return Ok(());
     }
+    if let Some((slice_index, _)) = first_orientation_mismatch(slices) {
+        return Err(DicomStoredImportError::InconsistentOrientation { slice_index });
+    }
     let Some(normal) = slices
         .first()
         .and_then(|slice| slice.image_orientation_patient)
@@ -212,7 +216,7 @@ fn validate_uniform_geometry(metadata: &DicomReadMetadata) -> Result<(), DicomSt
     };
     let mut positions = Vec::with_capacity(slices.len());
     for slice in slices {
-        let Some(intercept) = slice.image_position_patient else {
+        let Some(intercept) = slice.image_position_mm() else {
             return Err(DicomStoredImportError::NonUniformGeometry);
         };
         positions.push(dot(intercept, normal));

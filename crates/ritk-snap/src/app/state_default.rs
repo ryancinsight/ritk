@@ -36,7 +36,7 @@ impl Default for SnapApp {
             pointer: Default::default(),
             presentation_dispatcher: PresentationDispatcher::new(),
             annotations: Vec::new(),
-            #[cfg(windows)]
+            #[cfg(any(windows, target_arch = "wasm32"))]
             length_calibrations: Vec::new(),
             label_editor: None,
             label_brush_radius: 1,
@@ -77,9 +77,9 @@ impl Default for SnapApp {
             pan_offset: ViewportOffset::new(0.0, 0.0),
             zoom: 1.0,
             view_transform: ViewTransform::default(),
-            #[cfg(windows)]
+            #[cfg(any(windows, target_arch = "wasm32"))]
             invert_display: false,
-            #[cfg(windows)]
+            #[cfg(any(windows, target_arch = "wasm32"))]
             custom_presets: [None; super::state::MAX_CUSTOM_PRESETS],
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             show_colorbar: false,
@@ -97,7 +97,11 @@ impl Default for SnapApp {
             dual_axes: [0, 1],
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             compare_axes: [0, 0],
-            #[cfg(any(windows, all(not(target_arch = "wasm32"), feature = "eframe-shell")))]
+            #[cfg(any(
+                windows,
+                target_arch = "wasm32",
+                all(not(target_arch = "wasm32"), feature = "eframe-shell")
+            ))]
             show_overlay: true,
             show_crosshair: false,
             linked_cursor: None,

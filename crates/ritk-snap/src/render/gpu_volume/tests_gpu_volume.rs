@@ -146,6 +146,11 @@ fn make_test_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
 fn gpu_mip_matches_cpu_mip_grayscale() {
     let renderer = GpuVolumeRenderer::try_create();
     let Some(mut renderer) = renderer else {
+        assert_ne!(
+            std::env::var("WGPU_BACKEND").as_deref(),
+            Ok("metal"),
+            "Metal was explicitly selected for the GPU gate"
+        );
         tracing::info!("No GPU available — skipping GPU MIP differential test");
         return;
     };

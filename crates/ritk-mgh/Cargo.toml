@@ -1,6 +1,6 @@
 [package]
 name = "ritk-mgh"
-version = "0.5.0"
+version = "0.7.0"
 description = "FreeSurfer MGH and MGZ image I/O for RITK"
 keywords.workspace = true
 categories.workspace = true
@@ -12,7 +12,8 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-ritk-image = { path = "../ritk-image", version = "0.5.0" }
+tempfile = { workspace = true }
+ritk-image = { path = "../ritk-image", version = "0.6.0" }
 ritk-spatial = { workspace = true }
 consus-core = { workspace = true }
 anyhow = { workspace = true }
@@ -28,7 +29,6 @@ base64 = { workspace = true }
 criterion = { workspace = true }
 image = { workspace = true }
 proptest = { workspace = true }
-tempfile = { workspace = true }
 
 [[example]]
 name = "book_mgh"

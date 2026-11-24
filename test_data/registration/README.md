@@ -120,7 +120,7 @@ Same-modality (T1↔T1) inter-subject registration pair from OpenNeuro ds000208.
 Registration pair: `openneuro_ds000208_sub01_T1w.nii.gz` ↔ `openneuro_ds000208_sub02_T1w.nii.gz`
 Baseline NCC ≈ 0.75 (genuine inter-subject variability)
 
-Source: OpenNeuro S3 bucket (s3.amazonaws.com/openneuro.org/ds000208/...)
+The three volumes match the upstream annex objects and their independently downloaded SHA-256 digests. Tests can use the `registration/ixi` directory in `ATLAS_FIXTURE_CACHE`. The source declares CC0. [OpenNeuro ds000208 record](https://github.com/OpenNeuroDatasets/ds000208/blob/f718509da3ac054fc9ab191c1bbdb984710a932e/dataset_description.json)
 
 ### ixi/ — IXI dataset from NITRC (deprecated)
 

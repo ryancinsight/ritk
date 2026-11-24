@@ -8,6 +8,7 @@ stack.
 
 - [DICOM viewer manual](docs/manual/dicom-workflow.md) for Windows controls,
   measurements, annotation editing, and current screenshots.
+- [AsterSlice web viewer](crates/ritk-snap/README.md#browser-host) for opening the browser workspace and building its standalone web bundle.
 - [Viewer developer reference](docs/manual/development.md) for generated fixtures,
   browser procedures, and historical capture records.
 - [RITK medical imaging book](https://ryancinsight.github.io/ritk/) — hosted
@@ -74,7 +75,7 @@ from the public [Iris](https://github.com/ryancinsight/iris) provider.
 ### AsterSlice viewer (`ritk-snap`)
 
 AsterSlice launches through `asterslice [PATH]` directly against a DICOM folder,
-a single DICOM file, a `DICOMDIR` file, or a supported medical image file. The viewer keeps DICOM
+a single DICOM file, a `DICOMDIR` file, or a NIfTI, MetaImage, NRRD, or FreeSurfer volume (including `.mgz` and `.mgh.gz`). The viewer keeps DICOM
 I/O in `ritk-io` and presentation logic in `ritk-snap`, with a vertical module
 split for input path normalization, hanging-protocol selection, series
 discovery, metadata row construction, session snapshot persistence, rendering,
@@ -258,12 +259,18 @@ export-time metadata integrity gate — the piece that stops corrupt or leaking
 metadata from silently shipping to a destination PACS:
 
 - `AnonymizationProfile` — `Basic`, `BasicReplaceUids`, `Aggressive`, and
-  `Enhanced` profiles covering every Annex E Table E.1-1 attribute, with
-  deterministic SHA-256 UID remapping (referentially consistent within a
-  batch, irreversible without the salt).
+  `Enhanced` profiles implementing selected Annex E Table E.1-1 rules, with
+  deterministic SHA-256–derived UUIDv8 UID remapping in the UID-replacing
+  profiles. Treat the salt as secret when protecting against linkage to known
+  source UIDs. Basic retains source entity UIDs.
 - `anonymize_dicom_file` / `anonymize_dicom_directory` — single-object and
   directory-batch de-identification with per-run statistics and optional
-  pixel-data / private-tag cleaning.
+  pixel-data / private-tag cleaning. Directory mode, also exposed as
+  `ritk.io.anonymize_dicom_dir`, scans immediate files and exports copies as
+  `000001.dcm`, `000002.dcm`, and so on. It skips occupied names and rejects
+  the input directory as a destination. A DICOMDIR counts as a per-file
+  error. Pass the folder containing the actual instances. Source paths in
+  error reports can contain patient identifiers.
 - `anonymize::verify` — the export gate:
   - re-parse check (the exported file must open as a conformant Part 10 object),
   - Study/Series/SOP Instance UID presence, DICOM-conformant format (Frame
@@ -279,13 +286,18 @@ metadata from silently shipping to a destination PACS:
   - `verify_dicom_instances` for an export spanning several series: unique
     SOPInstanceUIDs and one study per series.
 - `anonymize_dicom_file_verified` / `anonymize_dicom_directory_verified` —
-  run anonymization and the export gate as one operation, failing closed on
-  any defect.
+  run anonymization followed by the export gate. Directory verification scans
+  the destination, including any DICOM files already there.
 - `anonymize_dicom_study` — de-identifies every instance under a study folder
   into a separate empty folder as `000001.dcm`, `000002.dcm`, ..., copying
   no source folder or file name, then runs the export
   gate over the whole set with the source patient names and IDs prohibited;
   any failure removes everything the run wrote.
+
+Filename protection and metadata rules address different sources of identifying
+information. Pixel bytes are preserved by default. The optional pixel cleaning
+zero-fills readable flat pixel data. Burned-in identifier detection and full
+PS 3.15 Annex E conformance are outside these checks.
 
 See `crates/ritk-io/examples/anonymize_pacs_export.rs` for the complete
 PACS-bound export pipeline.
@@ -454,7 +466,7 @@ First-party Atlas stack providers:
 | `coeus-core` / `-tensor` / `-ops` / `-leto` / `-autograd` / `-nn` / `-optim` | Tensor, backend, and autodiff contracts |
 | `leto` / `leto-ops` | Array storage, linear algebra, and numerical operations |
 | `eunomia` | Scalar and numeric trait vocabulary |
-| `aequitas` | Statistical distributions and estimators |
+| `aequitas` | Physical dimensions, units, geometry, and PET activity |
 | `apollo-fft` / `apollo-sht` | FFT and spherical-harmonic transforms |
 | `moirai` | CPU parallelism and task execution |
 | `mnemosyne` | Workspace allocator |

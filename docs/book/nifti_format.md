@@ -4,6 +4,14 @@
 single-file NIfTI boundary. It reads NIfTI-1 and NIfTI-2 `.nii` files, detects
 gzip-wrapped `.nii.gz` input, and writes either header version explicitly.
 
+A gzip-framed document may contain multiple consecutive members. The document
+reader joins their expanded bytes and validates each trailer, including members
+after the last sample. The combined document has a 1 GiB limit.
+
+## Intensity calibration
+
+The scalar and series image readers apply the global header transform before rounding to the binary32 image value. For a nonzero slope, the intensity is `scl_slope * stored + scl_inter`. A zero slope disables both fields. The exact document and stored-series APIs retain the encoded samples. The shared dataset checks compare calibrated MRI intensities with NiBabel and SimpleITK. [NIfTI data scaling specification](https://github.com/NIFTI-Imaging/nifti_clib/blob/master/niftilib/nifti1.h)
+
 ## Ownership
 
 `ritk-nifti` owns the NIfTI file reader and writer. `ritk-io::format::nifti`

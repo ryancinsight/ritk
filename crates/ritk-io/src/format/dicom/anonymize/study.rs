@@ -17,7 +17,9 @@
 
 use super::verify::{verify_dicom_instances, VerifyIssue, VerifyOptions};
 use super::{anonymize_object, AnonymizeOptions};
-use crate::format::dicom::export_source::{read_source, remove_written, Source};
+use crate::format::dicom::export_source::{
+    numbered_instance_path, read_source, remove_written, Source,
+};
 use crate::format::dicom::export_tree::{io_error, ExportTree, ExportTreeError};
 use ritk_dicom::dataset::DicomFile;
 use ritk_dicom::dataset::DicomTag;
@@ -228,9 +230,7 @@ fn export(
         );
         // The target joins the removal list before the write so a truncated
         // file left by a failed write is removed with the rest.
-        let target = tree
-            .destination()
-            .join(format!("{:06}.dcm", written.len() + 1));
+        let target = numbered_instance_path(tree.destination(), written.len() + 1);
         written.push(target.clone());
         sources.insert(target.clone(), path);
         if let Err(cause) = export_instance(object, path, &target, options, &mut report) {

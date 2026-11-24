@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self' blob: http://127.0.0.1:8766 ws://127.0.0.1:8765; img-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'">
+  <title>AsterSlice</title>
+  <link rel="stylesheet" href="./gallery.css">
+</head>
+<body>
+  <canvas id="workstation" tabindex="0" aria-label="AsterSlice DICOM reading workstation. Control O opens a study."></canvas>
+  <main id="metis-app" aria-label="Study file selection"></main>
+  <output id="notice" role="status" hidden></output>
+  <script type="module" src="./gallery.js"></script>
+</body>
+</html>

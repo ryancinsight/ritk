@@ -109,3 +109,51 @@ fn dicom_byte_loader_rejects_malformed_and_truncated_instances() {
     let error = load_dicom_series_from_named_bytes(&[]).expect_err("empty byte batch must reject");
     assert_eq!(error.to_string(), "empty DICOM byte batch");
 }
+
+/// NiBabel's MGH writer encoded this rotated single-slice short image.
+/// RAS(x,y,z) = (11.125 - 0.75y, 19 + 0.5x, 28.75 + 1.25z).
+#[test]
+fn freesurfer_compressed_paths_preserve_samples_and_patient_coordinates() -> anyhow::Result<()> {
+    use crate::ui::{decide_dropped_input_action, DroppedInput, DroppedInputAction};
+    let dir = tempdir()?;
+    let bytes = include_bytes!("../../../../tests/fixtures/freesurfer-affine.mgz");
+    for filename in ["series.mgz", "series.mgh.gz", "series.MGH.GZ"] {
+        let path = dir.path().join(filename);
+        std::fs::write(&path, bytes)?;
+        let drop = DroppedInput::new(Some(path.clone()), filename.into(), String::new(), None);
+        assert_eq!(
+            decide_dropped_input_action(&[drop]),
+            DroppedInputAction::LoadVolume(path.clone())
+        );
+        let volume = load_volume_from_path(&path)?;
+        assert_eq!(volume.source.as_deref(), Some(path.as_path()));
+        assert_eq!(volume.channels, 1);
+        assert_eq!(volume.shape, [1, 3, 4]);
+        assert_eq!(volume.spacing, [1.25, 0.75, 0.5]);
+        assert_eq!(
+            volume.data.as_slice(),
+            [-7., -4., -1., 2., 5., 8., 11., 14., 17., 20., 23., 26.]
+        );
+        // Probe each voxel and the plane normal even though depth is one.
+        for depth in 0..=1 {
+            for row in 0..3 {
+                for col in 0..4 {
+                    assert_eq!(
+                        crate::ui::voxel_to_lps(
+                            [depth, row, col],
+                            volume.origin,
+                            volume.direction,
+                            volume.spacing
+                        ),
+                        [
+                            -11.125 + 0.75 * row as f64,
+                            -19.0 - 0.5 * col as f64,
+                            28.75 + 1.25 * depth as f64
+                        ]
+                    );
+                }
+            }
+        }
+    }
+    Ok(())
+}

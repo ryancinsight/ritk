@@ -1,5 +1,191 @@
 # RITK Gap Audit
 
+## Incremental release baseline
+
+Reviewed [ritk-snap 0.3.1](crates/ritk-snap/Cargo.toml) at [85280aa0b7ff](https://github.com/ryancinsight/ritk/tree/85280aa0b7ffb3b5376780ebf1cb2bae296fe83b). The viewer manifest disables Cargo publication. Verify the installed application separately from the format libraries.
+
+The next [patch] checkpoint uses [comparison startup](crates/ritk-snap/src/presentation/native_session/tests/series_browser/comparison_startup.rs). [Target version and acceptance criteria](backlog/ritk-stable-qualification.md#ritk-stable-qualification).
+
+## 1.0 candidate verification
+
+The [release backlog](backlog.md#milestones) records the remaining milestone criteria and their owners. Completed reading-milestone records include [RITK-METAIMAGE-CONVERSION-INVENTORY-001](docs/verification/RITK-METAIMAGE-CONVERSION-INVENTORY-001.md), [RITK-MGH-CONVERSION-INVENTORY-001](docs/verification/RITK-MGH-CONVERSION-INVENTORY-001.md), [RITK-PYTHON-VTK-DIRECTION-001](docs/verification/RITK-PYTHON-VTK-DIRECTION-001.md).
+
+- [patch] MGH 0.6.1 and AsterSlice 0.2.1 use FreeSurfer's voxel center and open both gzip suffixes. Three regressions fail on the baseline. All 629 MGH and viewer library tests pass on macOS. NiBabel independently confirms all 12 samples and the full affine through MGZ → NIfTI → MGH → compressed MGH → MGZ.
+- [minor] CLI 0.3.0 preserves all decompressed bytes when repacking a supported NIfTI document. The boundary tests cover a calibrated two-volume NIfTI-2 integer file and truncated input with an existing destination.
+- [patch] Verify Python VTK and Analyze physical coordinates against SimpleITK and reject unrepresentable Analyze stored headers. All 306 Analyze/VTK library tests pass.
+- [patch] Preserve NIfTI gzip member boundaries on read by joining the expanded data and validating every document trailer. Two regressions failed on the baseline and all 106 NIfTI tests pass.
+- [patch] Inventory MetaImage conversion fields and correct big-endian reads using the alternate header key. All 25 library tests pass, including 16 packaging/key combinations.
+- [minor] Transfer decoded scalar DICOM pixels into the viewer with their resolved grid and release encoded inputs after decoding. Across seven affected packages, 1,666 Rust tests pass. All 196 applicable minor-release checks pass against the 0.8.0 source on main.
+- [patch] Qualify the optimized macOS ARM64 Python wheel against SimpleITK 2.5.8 for patch denoising and ternary magnitude on the original numeric bounds.
+- [minor] Verify the native Display menu half-turn and its inverse on Windows. The rectangular fixture compares every presented pixel. [Passing Windows job](https://github.com/ryancinsight/ritk/actions/runs/45063679762/job/137338722471)
+- [minor] MGH 0.7.0 and the CLI repack FreeSurfer documents with exact header, frame, and footer bytes. Multi-frame signed integers, gzip trailer validation and in-place replacement are covered.
+- [patch] Verify complete MGZ framing on scalar and multi-frame reads. All 2,853 affected Rust tests pass across eight packages.
+- [patch] Apply NIfTI calibration before binary32 narrowing. Compare all 42,991,616 voxels in the four shared OpenNeuro MRIs with NiBabel and SimpleITK.
+- [patch] Verify manual feature-branch documentation runs against the default-branch merge base, including when both branches have advanced.
+- [patch] Remove the skull CT and paired MRI/CT collections from the candidate tree after verifying all 2,642 retained files against their Git objects.
+- [patch] Verify the OpenNeuro ds000102 source, license and checksum and run the registration consumer from the shared fixture cache.
+- [major] Record the four 1.0 compatibility surfaces in [ADR 0059](docs/adr/0059-release-scope-1-0.md). Compatibility qualification remains pending.
+
+## AsterSlice browser workspace
+
+The previous browser page implemented an independent HTML toolbar, sidebar and pane
+layout. The standalone application now runs the Windows workstation compositor
+and event reducer. Chromium reads the 94-image public MRI, navigates slices,
+measures length, rotates the view and advances cine. The native series dialog
+opens MR and CT volumes in independent panels. Sixteen displayed samples per
+plane match the embedding renderer and each source plane matches the stored
+RGBA digest. Raster and WebGPU produce byte-identical desktop screenshots.
+The transformed embedding check selects voxel (47, 340, 173) and steps to
+(46, 340, 173). All 1,139 macOS viewer and I/O library tests pass. The original
+root failed the single-workstation acceptance test.
+
+## Shared fixture inventory
+
+The pre-retention RITK inventory records 3,191 tracked test-data files totaling 1,490,441,937 bytes. A local inventory records path, size, Git blob, available provenance, code references, and the names of selected populated DICOM fields. It parsed 1,980 DICOM headers. Identifying-field presence does not establish a subject’s identity or permission to redistribute.
+
+The independently downloaded OpenNeuro ds000102 T1 volume agrees with the tracked copy. Its source record declares PDDL. The shared catalog resolves it into a local checksum-verified cache, and the inter-subject registration test runs from that cache. License and source records for the skull CT and paired MRI/CT collections remain unknown.
+
+The owner authorized local retention and removal from new checkouts for the skull CT and paired MRI/CT collections. Before removing their index entries we verified 308 and 2,334 retained files respectively against their tracked objects, identical in the base tree at `71f94fc74`. Their total size is 1,134,385,072 bytes. The owner holds a private per-file SHA-256 inventory alongside the files. Prior Git history still contains the original objects.
+
+## Documentation check range
+
+A manually dispatched development-branch run supplied no event base. The job compared the candidate with the repository root and attributed historical images to the current branch. The job now uses the common commit with the default branch for this event. A diverged-branch regression reproduces the old failure and checks the default-branch, push, and PR comparisons.
+
+## Browser GPU pixel verification
+
+The gallery slice and window samplers requested a 2D context on a canvas already bound to WebGPU. On a real Chromium adapter this failed before sampling. Directly drawing the live GPU canvas into a second context also returned a cleared frame. Serializing its presented bitmap as lossless PNG yields the native-resolution RGBA samples. A six-pixel fixture with distinct color channels produced the same SHA-256 in both presentation modes and matched the independent input bytes.
+
+The saved 94-slice MRI passes 50 slider actions with the Métis rejection-order correction. Each anatomical plane returns to its starting pixel digest. Native RITK validation accepts the three-canvas trace. The earlier macOS Chromium window-preset action timed out with the previous selection. The workspace’s keyboard-selectable preset list now passes the raster and WebGPU journeys on that MRI. Hosted Chromium offered no WebGPU adapter, and hosted WebKit could not read the selected files. These acceptance checks remain open.
+
+## Scalar DICOM browser memory
+
+Loading the same 94-slice, 512 × 512 MRI four times on Chromium increased WebAssembly memory from 403,832,832 to 502,464,512 bytes on the fourth load. The scalar viewer previously transferred the entire reconstructed volume into a tensor and copied it back. It now takes ownership of the decoder’s pixel allocation. The native image loader and viewer use the same decoder and read budget.
+
+On the changed decoder, Chromium completed all four loads with 401,604,608 bytes after the first transfer. All three canvases passed native trace validation for each load. A separate attempt stopped when the coronal canvas reported an unexpected input type. Windows and hosted browser results remain qualification gates.
+
+## Python denoising parity
+
+Six failures in the macOS ARM64 optimized wheel traced to three numeric differences from SimpleITK 2.5.8. ITK converts floored Gaussian draws to unsigned coordinates before testing the boundary. Apple ARM64 saturates negative draws to zero. Apple libc++ selects float powers for spline weights, and Clang contracts two multiply-adds in the squared norm. Correcting these operations preserves the existing bounds. All 1,301 Python tests that ran as ordinary passing cases now pass, with eight skips and one unexpected pass. The eight affected Rust packages pass 2,851 tests. All 223 applicable patch compatibility checks pass against published RITK Filter 0.6.0.
+
+## MGZ compute reader
+
+The scalar and series readers previously stopped at the first gzip member. A member split inside a signed short returned a truncation error, and a footer extending past the declared read limit was accepted. Both regressions now pass. The compatibility check also verifies that the additional error variants preserve existing discriminants.
+
+## MetaImage sample byte order
+
+The reader decoded an `ElementByteOrderMSB = True` file containing −513 as −3.
+Both spellings now select the declared order, including for zlib and detached
+data. The [field inventory](docs/book/metaimage_format.md#conversion-inventory)
+records remaining sample, calibration, geometry, and packaging work.
+
+## Analyze stored header fidelity
+
+The former stored writer admitted a header that rounded the source spacing,
+origin or intensity scale. Its preflight now rejects that conversion before
+opening either destination file. The independent VTK and Analyze Python
+geometry checks exercise the representable signed-permutation case. The
+legacy Analyze compute writer retains its documented quantization behavior.
+
+## NIfTI compute intensities
+
+In OpenNeuro ds000208 the first background sample decoded as −32,768 while NiBabel and SimpleITK both returned zero. The compute reader discarded the slope and intercept. Two independent regressions exercise signed-zero identity, invalid coefficients and integer cancellation above 2²⁴. Corrected compute reads agree with both libraries at every one of the 42,991,616 voxels in the four cataloged MRIs.
+
+## NIfTI document conversion
+
+Two gzip regressions reproduced a split header failing to read and a damaged
+second member being accepted. The document reader now drains all members within
+the expanded limit and the compute reader can decode samples spanning members.
+
+The CLI previously sent same-format conversion through the single-volume
+binary32 compute reader. This rejected a two-volume NIfTI-2 input and could
+round wide integers in a single volume. The CLI now delegates this route
+to the document transcoder. The [cross-format item](backlog/RITK-NRRD-NIFTI-001.md)
+tracks the distinct requirements for NRRD interchange.
+
+## FreeSurfer document repacking
+
+The CLI rejected a two-frame MRI_INT input during a pure compression change.
+The document path checks the declared payload and copies every expanded byte
+through a temporary output. Coverage includes the four supported scalar types,
+nonzero DOF, an unset RAS flag, padding, acquisition footer, corrupt trailers,
+and the exact expanded-byte boundary.
+
+## FreeSurfer volume geometry
+
+The MGH 0.6.0 reader and writer use the same displaced center and therefore pass a mutual round trip. The independent viewer fixture, hand-built header and emitted-header regressions all fail on `533f2e077`. Version 0.6.1 corrects both transforms. The [inventory](docs/book/mgh_format.md#conversion-inventory) identifies the remaining stored-sample and metadata work.
+
+## Viewer dependency audit [patch]
+
+The locked all-feature audit of the 2026-11-22 candidate clears the URL and RSA vulnerabilities. Updating the xtask progress bar to indicatif 0.18.6 removed number_prefix. The executor resolves to unyanked async-executor 1.14.1. The native chooser uses rfd 0.18.0, removing the three older portal findings on zbus_names 3.0.0, zvariant 4.2.0 and zvariant_derive 4.2.0. The chooser-enabled build passes on macOS.
+
+`cargo deny --locked --all-features check advisories` still reports nine unmaintained package versions. Each remaining path has an owner and a verification requirement.
+
+| Owner and entry point | Affected packages | Replacement and acceptance |
+| --- | --- | --- |
+| RITK I/O networking tests, independent dicom-ul 0.10.1 peer | chrono 0.4.45, encoding 0.2.33 | Move to a peer using maintained time and character-set implementations. Preserve real loopback C-ECHO, C-FIND and C-MOVE exchanges with an independent peer. |
+| RITK native viewer, eframe accessibility through AccessKit and AT-SPI | derivative 2.2.0, instant 0.1.13, zbus_names 2.6.1, zvariant 3.15.2, zvariant_derive 3.15.2 | Qualify a maintained accessibility stack. zbus 6 owns the names, wire and derive APIs. Exercise Linux assistive technology and retain Windows accessibility. An eframe 0.37 resolution still includes the three standalone D-Bus crates. |
+| RITK native viewer text, ab_glyph and owned_ttf_parser | ttf-parser 0.25.1 | Qualify a font stack using skrifa. Preserve text layout, glyph selection and exact input interactions across supported hosts. |
+| RITK native rendering and image codecs | paste 1.0.15 | Coordinate all three paths through Windows AccessKit, wgpu’s Metal backend and the EXR codec’s pulp dependency. Retest accessible windows, Metal rendering and EXR decoding before retiring the final edge. |
+
+## Saved-study browser qualification [patch]
+
+Apple-silicon Safari decoded all 94 files but its default raster store raised
+`InvalidStateError` on pixel readback. The workstation and embedded raster
+presenters now request frequent reads when acquiring the first 2D context.
+At a 1024 × 622 viewport the calibrated window legend can cover an anatomical
+sample. The dual-Mac qualification compares the complete visible image rectangles,
+including clinical overlays, against Chromium rendering the same saved study at
+the measured dimensions. Separately it checks all three unannotated RGBA plane
+hashes against the reviewed MRI oracle.
+
+The [unchanged ARM baseline](https://github.com/ryancinsight/ritk/actions/runs/45122519167/job/137520557186) failed at the first workstation pixel read. After [#1116](https://github.com/ryancinsight/ritk/pull/1116), all nine scenarios passed on [main `407de02a7`](https://github.com/ryancinsight/ritk/actions/runs/45125986365). [Apple-silicon Safari](https://github.com/ryancinsight/ritk/actions/runs/45125986365/job/137531685370) and [Intel Safari](https://github.com/ryancinsight/ritk/actions/runs/45125986365/job/137531685361) each matched the full axial, coronal and sagittal reference digests and every visible image pixel at their native test viewport. Each job retains both browsers’ per-plane rectangles and RGBA digests in `displayed-planes.json`.
+
+All eight scenarios passed on the [integrated candidate](https://github.com/ryancinsight/ritk/actions/runs/45110321950) and on [merged main `8550491eb`](https://github.com/ryancinsight/ritk/actions/runs/45111738624). Safari used the macOS Open panel for the workstation and its independent three-plane reference. Chromium completed four 94-file MRI loads on one page. The [release checklist](backlog/ritk-stable-qualification.md) records CI and the nine outstanding dependency maintenance findings.
+
+The [native Safari job](https://github.com/ryancinsight/ritk/actions/runs/45111738624/job/137486577976) opened the full 49,807,236-byte MRI through the macOS file chooser in both viewers. It compared three independent plane digests and visible samples, rejected all three out-of-bounds selections, exercised the reading tools and CT/MR comparison, and removed the registered listeners. The [file verification](https://github.com/ryancinsight/ritk/actions/runs/45098982271) matched all 94 checksums. The accepted Safari host used Intel macOS. A separate [ARM macOS 26 Safari run](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583318) decoded the MRI and failed framebuffer readback.
+
+[Hosted Chromium WebGPU](https://github.com/ryancinsight/ritk/actions/runs/45111738624/job/137486577964) presented the study on an actual adapter and matched the three reference planes. In [Chromium raster](https://github.com/ryancinsight/ritk/actions/runs/45111738624/job/137486577958), WebAssembly capacity stayed at 654,770,176 bytes before selection, after decoding and after navigation on loads three and four.
+
+The decoder merged in [#1108](https://github.com/ryancinsight/ritk/pull/1108) at `db308af40`. Its packaged workstation passed a local Chromium replay with four consecutive 94-file selections on one page. Loads three and four used 654,639,104 WebAssembly bytes before selection, after decode and after navigation. All three planes matched the independent MRI values on every load. The [native macOS picker test](https://github.com/ryancinsight/ritk/actions/runs/45098982271) read all 94 files and matched each SHA-256. The full eight-scenario run on the integrated branch and the main replay are separate exits. The [integrated seven hosted passes](https://github.com/ryancinsight/ritk/actions/runs/45102420200) include Chromium WebGPU and Firefox. [Native Safari on Intel macOS](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583614) passed the real MRI and CT comparison, rejected transfers and listener teardown. The ARM macOS 26 Safari runner still returns InvalidStateError when reading the presented raster. Chromium WebGPU stays on ARM macOS 26.
+
+[Run 45079835823](https://github.com/ryancinsight/ritk/actions/runs/45079835823) exercised all eight scenarios on RITK `54140426b` with the head of ryancinsight/metis#588. Seven passed. Hosted Chromium WebGPU read the 94-file study, presented all three anatomical planes, passed the native cine-rate trace validator, removed its observer and closed the session. Both responsive scenarios, Chromium raster, the Chromium window and projection scenarios, and Firefox raster passed.
+
+Safari 27.2 recorded a trusted selection of 49,807,236 bytes across all 94 files. macOS denied WebContent access to the first file before decoding. Byte-for-byte verification and filesystem permissions are recorded in the [Safari job](https://github.com/ryancinsight/ritk/actions/runs/45079835823/job/137389340300). The [qualification checklist](backlog/ritk-stable-qualification.md) keeps Safari and the post-merge replay open.
+
+The [replay at `a9bd623aa`](https://github.com/ryancinsight/ritk/actions/runs/45087220365) passed six scenarios, including hosted WebGPU. Safari again denied the first file read. Chromium raster completed four loads and cleaned up its listeners and file handles, but its WebAssembly memory grew from 403,832,832 to 502,464,512 bytes on the fourth load. The [existing decoder change in PR #1108](https://github.com/ryancinsight/ritk/commit/f701208ea2873d01fd89eb8b02789fe5700831b6) transfers ownership of the reconstructed pixels and records a passing four-load replay. Repeat the original capacity check on the integrated browser candidate.
+
+## Classic PET SUV timing
+
+The classic PET reader admits a common activity reference across instances
+before the shared pointer and compatibility fusion paths display SUVbw.
+The baseline disagrees with the decimal reference or reports SUV for
+unavailable timing in 31 of the initial 50 Part 10 cases. Seven further
+cases exercise single-valued Frame Reference Time and Decay Factor,
+valid padding in decay mode, UTC offset and frame duration, and the
+DICOM Integer String range. Coverage includes verified zero, one-hour
+and dated midnight intervals, offset-aware clocks, and conflicting
+frame timing.
+
+Classic series with distinct frame-scale factors retain activity display
+and need frame-specific normalization before interpolation to support
+quantitative SUV. Native Windows UI verification remains part of
+[RITK-SNAP-NATIVE-FUSION-001](backlog/RITK-SNAP-NATIVE-FUSION-001.md).
+
+## DICOM multiframe geometry
+
+Generic scalar and color headers and writer inputs carry typed lengths.
+The scalar loader takes the first decoded frame's position and uses
+the existing millimetre interpolation boundary. The oblique fixture
+checks a missing plane and prevents a malformed coordinate token from
+shifting later axes.
+
+## DICOM series writer geometry
+
+Native, Coeus, and metadata-preserving series writers share typed image
+plane geometry. Writer regressions inspect signed patient coordinates,
+anisotropic spacing, and depth progression in the emitted Part 10 tags
+and reject an unrepresentable positive spacing before output.
+
 <a id="ritk-native-dicom"></a>
 ## RITK-NATIVE-DICOM — Application cutover verified
 
@@ -75,10 +261,57 @@
 - reopen: at the next change under `crates/ritk-io/src/format/dicom/anonymize/` or `export_tree.rs`, or when the backlog has room (998 of 1,000 lines at d247fada9).
 
 <a id="RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001"></a>
-## RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001: directory-mode de-identification copies source file names
-- risk: `anonymize_dicom_directory` and its verified wrapper write each instance under its source file name, so a patient name or source UID in a file name reaches the output; the Python binding calls this mode. `anonymize_dicom_study` numbers its outputs since ritk#933.
-- evidence: read in `anonymize/mod.rs` (`output_dir.join(file_name)`) and `crates/ritk-python/src/io/anonymize.rs`; no fixture reproduces it.
-- reopen: before the Python de-identification API is called complete; file the correctness item with a failing test, then number the outputs or route directory mode through the study export.
+## RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001 — Number directory exports [major]
+- risk: Rust directory export and its Python binding copied patient names and source UIDs embedded in filenames. Concurrent calls could overwrite an earlier export while reporting success.
+- evidence: the installed-wheel fixture reproduces both failures on `762f0e92`. The proposed correction shares the study export's numbering and publishes each encoded copy without replacing an occupied name. The Python fixture checks source bytes, collisions, per-file statistics, and remapped UID relationships after reopening. The Rust directory verification test reopens the numbered export through the existing gate.
+- status: [ADR 0068](docs/adr/0068-number-dicom-directory-exports.md) accepted. The fix is committed on the implementation branch. Hosted integration and release verification are pending.
+
+<a id="RITK-DICOM-ANONYMIZE-REAL-001"></a>
+## RITK-DICOM-ANONYMIZE-REAL-001 — Preserve real DICOM export structure [major]
+- risk: the profile added absent attributes to sequence items, retained CT creation and contribution metadata and irradiation-event identifiers, encoded UUIDs outside their 128-bit range, and published a DICOMDIR whose paths did not resolve.
+- evidence: the installed wheel at `84de2d4ae` preserves all 94 MRI and 303 CT images, but exposes these regressions. The real CT file-set index contains 304 references, one of which is already missing in the source fixture.
+- status: [ADR 0069](docs/adr/0069-preserve-dicom-export-structure.md) records the selected contract. The opt-in Python suite covers both fixtures and the file-set root. RITK Python volume reopening of the source compressed CT is a separate gap. The independent decoder verifies all CT slices.
+- verification: the macOS arm64 wheel passes both profiles for the 94-instance MRI and 303-instance CT fixtures and rejects the CT DICOMDIR. All 564 `ritk-io` library tests pass on the integrated source.
+- target: `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
+- integration: PRs #1104 and #1105 merged after their required checks passed. The crates.io release cohort tracks the `ritk-io` 0.8.0 manifest.
+
+## RITK-DICOM-MIXED-IOP-001
+
+- The retained skull CT contains mixed orientations under the 2-, 89- and
+  111-instance series UIDs. The 89-instance series mixes one coronal
+  reformat with 88 sagittal planes. Projection onto the sagittal normal
+  gives an apparent 207.360 mm span on a 2 mm grid, which previously
+  produced 105 planes.
+- A volume has one in-plane basis. The scalar and stored readers both
+  check the two orientation vectors against the first known orientation
+  at the existing component tolerance before reading pixel data.
+- The regression checks rejection of the mixed file sets and exact
+  calibrated pixels and geometry of the separately selected 88- and
+  110-plane stacks.
+- The stored-volume regression fails at the baseline. The candidate passes
+  all 630 Rust tests in `ritk-io` and `ritk-python`, and all 26 geometry
+  cases and 22 export and smoke controls on the locally rebuilt macOS
+  ARM64 wheel.
+- Release targets are `ritk-io` 0.9.1 and `ritk-python` 0.13.1. The
+  post-merge skull CT matrix is the publication gate.
+
+## RITK-DICOM-LJIF-001
+
+- [patch] Compare each UID-selected original, basic and enhanced skull CT
+  volume to independently decompressed source instances. The test compares
+  every reconstructed voxel plus shape, origin, spacing and direction.
+- The published Raster 0.5.0 dependency rejects the frame's LJIF APP0 marker
+  after series selection. The crates.io 0.5.1 archive matches the Consus branch
+  `fix/consus-raster-ljif` and the registry checksum. A fresh registry consumer
+  reconstructs the expected 16-bit sample.
+- The wheel switches the NumPy bridge and matching PyO3 series to crates.io.
+  Its build dependencies resolve from the registry or the RITK workspace.
+- A locally packaged Raster 0.5.1 build passes all 15 wheel cases on
+  macOS arm64. Five real export cases and the explicit UID selection
+  smoke test also pass. The wheel built with Raster 0.5.0 fails all 15
+  compressed reads.
+- The regression uses existing RITK reconstruction for its controls.
+  Orthogonal orientations in three series remain a separate geometry issue.
 
 <a id="RITK-DICOM-ANONYMIZE-NESTED-META-001"></a>
 ## RITK-DICOM-ANONYMIZE-NESTED-META-001: group 0002 elements inside sequence items survive de-identification
@@ -97,3 +330,115 @@
 - risk: `anonymize/file_meta.rs` says the dicom-rs reader refuses a file meta (0002,0003) that is not a UID, but it accepts `1..2` and `01.2`; `repair/study.rs` `failed` duplicates the anonymize helper and its `!=` against the default summary has a surviving `==` mutant; no test reaches `Instance`, `Write` or `Retained`; the viewer ends held gestures before a dialog the reader may cancel, and repeats the left-out sentence in two modules.
 - evidence: filed findings in the judge verdict comments on ritk#926, #927, #928 and #929.
 - reopen: at the next change under `crates/ritk-io/src/format/dicom/repair/`, `anonymize/file_meta.rs` or `crates/ritk-snap/src/presentation/native_session/{repair,deidentify}.rs`, or when the backlog has room (1,000 of 1,000 lines once ritk#928 lands).
+
+## DICOM geometry and isotope quantities [major]
+
+Series and slice geometry and PET activity now have dimensional storage. The
+viewer gates SUV calculation on classic PET activity-concentration pixels.
+Compound time metadata outside spatial Enhanced PET quantification remains open.
+
+## Enhanced PET quantitative voxels [major]
+
+The spatial multi-frame reader applies frame-scoped real-world mappings,
+retains diagnostic values separately, and routes body-weight SUV to the
+pointer, linked cursor, and fusion. The native Metal suite exercises the
+viewer alongside the Part 10 quantification regression. The temporal and gated reader is recorded below.
+
+
+## Temporal and gated Enhanced PET [major]
+
+The volume-set reader groups explicit nonspatial DICOM indices and keeps
+the original frame identity for quantitative mapping. A Part 10 fixture
+interleaves time, separate cardiac and respiratory gates, and slice position. It verifies
+per-frame decay, lookup tables, patient origin, and the decoded-byte limit.
+The eframe selector and the Windows native View menu use the shared
+selection operation. Metal tests verify the reader and eframe viewer. The
+Windows cross-check requires SDK headers for ring. DICOM concatenations
+that span several SOP instances remain a separate loading contract.
+
+Locked all-target compilation passes on macOS with the eframe shell enabled.
+The combined I/O and viewer gate passes 1,482 cases on Metal.
+
+## Enhanced PET concatenations [minor]
+
+Select a concatenation by its UID when opening one of its files. The
+volume-set reader reconstructs time points and gates across members and
+preserves source-local calibration and patient geometry. A fixture compares
+a complete object with a shuffled two-member concatenation and verifies
+display samples and SUV. It also rejects frame overlap, a missing first
+member, and aggregate budget overruns. Retained bytes remain decodable after
+source files change. A missing final member is detectable when the DICOM
+objects declare the total.
+
+The macOS reader and viewer suite passes 1,483 cases, including eight
+separately rerun Metal projection cases. The Windows 2025 runner uses its
+installed SDK and builds the default Métis viewer. The first native
+capture reached the Windows client area at 1028 × 749. The request was
+1280 × 800. The test now compares the PNG with the actual client area.
+
+[Windows CI](https://github.com/ryancinsight/ritk/actions/runs/44623546473)
+builds candidate `a14251cd8123119ded76ff72bbacca65b19579fe` with Windows SDK
+10.0.26100.0 and executes four reader tests and two viewer tests. The native
+test opens the two-instance PET study, verifies the captured client size
+and overlay, then checks the selected gate's samples and body-weight SUV.
+The executable reports version 0.2.0.
+
+## Published providers and spatial PET slice gaps [patch]
+
+The RITK lock selects crates.io Aequitas 0.4.0 and Eunomia 0.12.0.
+The reader and viewer pass 1,484 tests, and the eight GPU projection
+cases pass a separate Metal rerun.
+
+A complete two-member concatenation can contain an unmeasured spatial plane.
+The reader reports irregular spacing through tracing and linearly
+interpolates display and calibrated SUV samples inside their observed
+spatial range. The regression uses measured planes at 4, 7, 13, and 16 mm
+with nominal 3 mm spacing. The plane at 10 mm carries the arithmetic mean
+of the adjacent display samples and the corresponding SUV.
+
+Missing SOP members or unavailable temporal gates remain input coverage
+errors when identified. The decoder records the source of each resampled
+plane in the same branch that writes the output values. The viewer
+labels interpolation and copied edges on the depth view, using the
+currently selected gate. The decoded-byte budget includes provenance.
+The separate GPU rerun exercises the Metal projection paths on macOS.
+[Windows run 44641586577](https://github.com/ryancinsight/ritk/actions/runs/44641586577)
+builds the native viewer with SDK 10.0.26100.0 and passes the exact
+provenance display-command test, five reader cases, and two viewer cases.
+The Windows candidate uses published Aequitas 0.5.0 and two bundled provider
+revisions pending public lock alignment. The same candidate passes
+21 PET and projection tests on macOS with Metal selected.
+
+The public compatibility candidate resolves one registry Aequitas 0.5.0
+and one each of Eunomia and Eunomia Derive 0.12.1. It uses GitHub revisions
+for the Atlas providers, including open Gaia, Metis, Apollo, and Coeus
+compatibility PRs. Replace the PR references with their integrated commits
+before promoting the lock to the stack.
+
+The reconciled AsterSlice source passes 27 PET, DICOM geometry, and Metal
+projection tests. [Windows run 44651506776](https://github.com/ryancinsight/ritk/actions/runs/44651506776)
+builds that source with Windows SDK 10.0.26100.0 and passes five reader tests,
+two viewer tests, and the exact native provenance overlay test. These runs
+use bundled compatibility revisions for Leto and Gaia.
+
+## Enhanced PET on native DICOM datasets [patch]
+
+The AsterSlice rollout preserves the upstream native dataset parser,
+source-qualified measurements, and frame codecs. PET dimension and
+concatenation validation now read the native dataset. Stored pixel
+calibration stays independent of display rescale. The decay path
+validates full civil timestamps and computes offsets before converting
+elapsed time into Aequitas time.
+
+The 0.5 lock uses public compatibility commits for Apollo, Coeus, and
+Hephaestus. Locked all-feature metadata resolves one registry Aequitas
+0.5.0. The 58 selected PET, geometry, measurement, and Metal projection
+tests pass. Registry package promotion requires the published provider
+archives, including a Gaia version that admits Aequitas 0.5.0.
+
+## 2026-11-21 · Series geometry quantities
+
+The directory and stored-instance readers share series finalization. Series
+spacing follows tensor-axis order and patient origin follows XYZ. The scan
+keeps lengths through assembly, and the tensor interface converts them to
+millimetres. The oblique Part 10 fixture exercises measured and fallback depth.

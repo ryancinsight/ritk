@@ -1,3 +1,7 @@
+mod units;
+
+pub(crate) use units::{CalibrationInputError, CalibrationUnit};
+
 use super::SnapApp;
 use crate::tools::interaction::{Annotation, AnnotationLocation};
 

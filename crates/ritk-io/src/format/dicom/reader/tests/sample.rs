@@ -141,5 +141,5 @@ fn test_scan_directory_rejects_ambiguous_series_regardless_of_population() {
         Some("2.25.71002")
     );
     assert_eq!(selected.num_slices, 1);
-    assert_eq!(selected.metadata.origin, [0.0, 0.0, 5.0]);
+    assert_eq!(selected.metadata.origin_mm(), [0.0, 0.0, 5.0]);
 }

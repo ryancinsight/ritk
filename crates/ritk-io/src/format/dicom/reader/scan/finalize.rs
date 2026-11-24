@@ -4,6 +4,7 @@
 //! metadata extraction:
 //! geometry assembly and `DicomSeriesInfo` construction.
 
+use aequitas::systems::si::{quantities::Length, units::Millimeter};
 use std::path::PathBuf;
 
 use super::super::types::{DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen, SeriesGeometry};
@@ -55,18 +56,16 @@ pub(super) fn finalize_scanned_series(
     let cols = first.cols.unwrap_or(0) as usize;
 
     let spacing_z = compute_spacing_z(&slices, maybe_normal, first.slice_thickness);
-    let in_plane_spacing = first.pixel_spacing.unwrap_or([1.0, 1.0]);
-    let spacing: [f64; 3] = [
-        spacing_z.abs().max(1e-6),
-        in_plane_spacing[0],
-        in_plane_spacing[1],
-    ];
+    let [row_spacing, col_spacing] = first
+        .pixel_spacing
+        .unwrap_or_else(|| [Length::from_unit::<Millimeter>(1.0); 2]);
+    let spacing = [spacing_z, row_spacing, col_spacing];
 
     let direction = assemble_direction(&slices);
     let origin = assemble_origin(&slices);
 
     let series_object = build_series_object(&series_path, &slices);
-    let metadata = super::super::types::assemble_metadata(
+    let metadata = super::metadata::assemble_metadata(
         first,
         slices,
         SeriesGeometry {

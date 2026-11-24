@@ -309,3 +309,104 @@ fn a_non_uniform_slice_spacing_is_rejected_rather_than_resampled() {
         "got {error:?}"
     );
 }
+
+#[test]
+fn classic_dicom_requires_compatible_calibrated_units_for_interpolation() {
+    use crate::format::dicom::reader::read_dicom_series_with_metadata;
+    let _trace = tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_test_writer()
+            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+            .finish(),
+    );
+    let fixture = tracing::info_span!("arrange").in_scope(|| {
+        let fixture = tempfile::tempdir().expect("fixture directory");
+        for (index, (z, unit)) in [(0., "HU"), (1., "HU"), (3., "MGML"), (4., "HU")]
+            .into_iter()
+            .enumerate()
+        {
+            let path = fixture.path().join(format!("slice-{index}.dcm"));
+            write_ct_slice(
+                &path,
+                "2.25.73007",
+                index as u32 + 1,
+                z,
+                "1.2.840.10008.1.2.1",
+                "MONOCHROME2",
+                1.0,
+                0.0,
+                &[1, 2, 3, 4],
+            );
+            let mut file = ritk_dicom::dataset::DicomFile::open(&path).expect("read fixture");
+            file.put_value(DicomTag::new(0x0028, 0x1054), VR::LO, unit);
+            file.write_to_file(&path).expect("write frame units");
+        }
+        fixture
+    });
+    let error = tracing::info_span!("act").in_scope(|| {
+        read_dicom_series_with_metadata(fixture.path(), &coeus_core::SequentialBackend)
+            .expect_err("different scales cannot form an interpolated volume")
+    });
+    tracing::info_span!("assert").in_scope(|| {
+        let message = format!("{error:#}");
+        assert!(
+            message.contains("interpolation")
+                && message.contains("Hounsfield")
+                && message.contains("MassConcentration"),
+            "{message}"
+        );
+    });
+}
+
+#[test]
+fn mixed_orientation_can_be_discovered_but_cannot_form_a_stored_volume() {
+    let _trace = tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_test_writer()
+            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+            .finish(),
+    );
+    let _test = tracing::info_span!("mixed_orientation_stored_volume").entered();
+    let fixture = tracing::info_span!("arrange").in_scope(|| {
+        let fixture = tempfile::tempdir().expect("fixture directory");
+        for (instance, z, samples) in [(1, 0.0, [1, 2, 3, 4]), (2, 2.0, [5, 6, 7, 8])] {
+            let path = fixture.path().join(format!("slice-{instance}.dcm"));
+            write_ct_slice(
+                &path,
+                "2.25.73008",
+                instance,
+                z,
+                "1.2.840.10008.1.2.1",
+                "MONOCHROME2",
+                1.0,
+                0.0,
+                &samples,
+            );
+        }
+        let path = fixture.path().join("slice-2.dcm");
+        let mut file = ritk_dicom::dataset::DicomFile::open(&path).expect("read fixture");
+        // A half-turn negates both in-plane axes and leaves their normal fixed.
+        // Increasing either in-plane index reverses physical direction.
+        file.put_value(DicomTag::new(0x0020, 0x0037), VR::DS, r"-1\0\0\0\-1\0");
+        file.write_to_file(&path).expect("write rotated frame");
+        fixture
+    });
+    let (inventory, volume) = tracing::info_span!("act").in_scope(|| {
+        (
+            super::super::scan_dicom_path(fixture.path()),
+            read_dicom_series_stored(fixture.path(), &DicomReadBudget::DEFAULT),
+        )
+    });
+    tracing::info_span!("assert").in_scope(|| {
+        assert_eq!(inventory.expect("discover both frames").num_slices, 2);
+        let error = volume.expect_err("a shared normal cannot establish a shared in-plane basis");
+        assert!(matches!(
+            error,
+            DicomStoredImportError::InconsistentOrientation { slice_index: 1 }
+        ));
+        assert_eq!(
+            error.to_string(),
+            "DICOM stored import found inconsistent ImageOrientationPatient at slice index 1"
+        );
+    });
+}

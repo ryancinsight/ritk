@@ -1,5 +1,6 @@
 use super::super::types::SeriesFirstSeen;
 use super::{extract_dicom_metadata, parse_ds_array, GeometryDecimalError};
+use aequitas::systems::si::{quantities::Length, units::Millimeter};
 use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
 use ritk_dicom::dataset::{Dataset, DicomFile};
 
@@ -67,9 +68,18 @@ fn exact_finite_geometry_preserves_values_and_later_spacing() {
     assert_eq!(first.pixel_spacing, None);
     let (accepted, _) = extract_dicom_metadata(&valid, "second.dcm".into(), &mut first)
         .expect("invariant: finite exact geometry is readable");
-    assert_eq!(accepted.pixel_spacing, Some([3.0, 5.0]));
-    assert_eq!(first.pixel_spacing, Some([3.0, 5.0]));
-    assert_eq!(accepted.image_position_patient, Some([10.0, -20.0, 30.0]));
+    assert_eq!(
+        accepted.pixel_spacing,
+        Some([3.0, 5.0].map(Length::from_unit::<Millimeter>))
+    );
+    assert_eq!(
+        first.pixel_spacing,
+        Some([3.0, 5.0].map(Length::from_unit::<Millimeter>))
+    );
+    assert_eq!(
+        accepted.image_position_patient,
+        Some([10.0, -20.0, 30.0].map(Length::from_unit::<Millimeter>))
+    );
     assert_eq!(
         accepted.image_orientation_patient,
         Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0])
@@ -101,8 +111,14 @@ fn string_and_sequence_representations_do_not_hide_bad_geometry() {
     let mut first = SeriesFirstSeen::default();
     let (slice, _) = extract_dicom_metadata(&input, "slice.dcm".into(), &mut first)
         .expect("invariant: delimited string geometry is readable");
-    assert_eq!(slice.pixel_spacing, Some([3.0, 5.0]));
-    assert_eq!(first.pixel_spacing, Some([3.0, 5.0]));
+    assert_eq!(
+        slice.pixel_spacing,
+        Some([3.0, 5.0].map(Length::from_unit::<Millimeter>))
+    );
+    assert_eq!(
+        first.pixel_spacing,
+        Some([3.0, 5.0].map(Length::from_unit::<Millimeter>))
+    );
 
     input.put(DataElement::new(
         spacing,
@@ -186,7 +202,77 @@ fn part10_scan_uses_the_first_valid_spacing_without_repairing_bad_values() {
         };
         assert_eq!(first.sop_instance_uid.as_deref(), Some("2.25.1"));
         assert_eq!(first.pixel_spacing, None, "{malformed}");
-        assert_eq!(second.pixel_spacing, Some([3.0, 5.0]));
-        assert_eq!(scanned.metadata.spacing, [1.0, 3.0, 5.0]);
+        assert_eq!(
+            second.pixel_spacing,
+            Some([3.0, 5.0].map(Length::from_unit::<Millimeter>))
+        );
+        assert_eq!(scanned.metadata.spacing_mm(), [1.0, 3.0, 5.0]);
     }
+}
+
+#[test]
+fn part10_oblique_series_preserves_axis_order_and_patient_origin() {
+    use super::super::scan::scan_dicom_files;
+    use super::super::tests::support::write_stub_dicom;
+    use tracing_subscriber::fmt::format::FmtSpan;
+
+    let _trace = tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_span_events(FmtSpan::FULL)
+            .with_test_writer()
+            .finish(),
+    );
+    let dir = tempfile::tempdir().expect("fixture directory");
+    let paths = tracing::info_span!("arrange").in_scope(|| {
+        // The column and row directions are +Y and +Z. The slice normal is +X,
+        // so equal Z coordinates contribute no depth separation.
+        [
+            ("last.dcm", "2.25.2", "21\\-23\\41"),
+            ("first.dcm", "2.25.1", "17\\-23\\41"),
+        ]
+        .map(|(file, uid, position)| {
+            let path = dir.path().join(file);
+            write_stub_dicom(&path, "1.2.840.10008.5.1.4.1.1.2", uid);
+            let mut input = DicomFile::open(&path).expect("open generated Part-10 fixture");
+            for (tag, value) in [
+                (DicomTag::new(0x0020, 0x0032), position),
+                (DicomTag::new(0x0020, 0x0037), "0\\1\\0\\0\\0\\1"),
+                (DicomTag::new(0x0028, 0x0030), "3\\5"),
+                (DicomTag::new(0x0018, 0x0050), "9"),
+            ] {
+                input.put(DataElement::new(tag, VR::DS, PrimitiveValue::from(value)));
+            }
+            for (tag, size) in [
+                (DicomTag::new(0x0028, 0x0010), 2_u16),
+                (DicomTag::new(0x0028, 0x0011), 3_u16),
+            ] {
+                input.put(DataElement::new(tag, VR::US, PrimitiveValue::from(size)));
+            }
+            input.write_to_file(&path).expect("write oblique fixture");
+            path
+        })
+    });
+    let [series, single] = tracing::info_span!("act").in_scope(|| {
+        [
+            scan_dicom_files(&paths).expect("scan out-of-order oblique series"),
+            scan_dicom_files(&paths[1..]).expect("scan one oblique slice"),
+        ]
+    });
+    let _assert = tracing::info_span!("assert").entered();
+    let origin = [17.0, -23.0, 41.0].map(Length::from_unit::<Millimeter>);
+    assert_eq!(series.metadata.origin, origin);
+    assert_eq!(
+        series.metadata.spacing,
+        [4.0, 3.0, 5.0].map(Length::from_unit::<Millimeter>)
+    );
+    assert_eq!(
+        series.metadata.direction,
+        [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0]
+    );
+    assert_eq!(
+        series.metadata.slices[0].image_position_patient,
+        Some(origin)
+    );
+    assert_eq!(single.metadata.origin, origin);
+    assert_eq!(single.metadata.spacing_mm(), [9.0, 3.0, 5.0]);
 }

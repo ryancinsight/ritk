@@ -2,7 +2,7 @@
 
 use super::super::state::MeasurementSpacingState;
 use super::SnapApp;
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 use crate::tools::interaction::ImageMeasurementScale;
 use crate::tools::interaction::{
     Annotation, AnnotationLocation, ImagePoint, MeasurementError, PolygonKind, ToolState,
@@ -115,7 +115,7 @@ impl SnapApp {
                     p2,
                     length_mm,
                 });
-                #[cfg(windows)]
+                #[cfg(any(windows, target_arch = "wasm32"))]
                 let length_mm =
                     ImageMeasurementScale::new(self.length_scale(Some(self.annotation_location())))
                         .length(length_mm);

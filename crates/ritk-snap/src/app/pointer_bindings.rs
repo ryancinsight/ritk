@@ -9,7 +9,7 @@ use crate::app::viewer_viewport::ViewerViewport;
 use crate::presentation::{PointerButton, ViewportPoint};
 use crate::tools::interaction::{Annotation, AnnotationLocation, ImagePoint, ToolState};
 use crate::tools::kind::ToolKind;
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_arch = "wasm32", test))]
 use thiserror::Error;
 
 /// Failure reassigning a pointer button to a viewer tool.
@@ -17,7 +17,7 @@ use thiserror::Error;
 /// The assignment surface exists where a host drives it (today the native
 /// shell) and in tests everywhere, mirroring the host-gated presentation
 /// modules that consume it.
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_arch = "wasm32", test))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub(crate) enum PointerBindingError {
     /// The left button always runs the selected tool.
@@ -66,7 +66,7 @@ impl PointerBindings {
     /// # Errors
     /// Returns [`PointerBindingError::LeftButton`] when `button` is
     /// [`PointerButton::Left`], which always runs the selected tool.
-    #[cfg(any(windows, test))]
+    #[cfg(any(windows, target_arch = "wasm32", test))]
     pub(crate) fn assign(
         &mut self,
         button: PointerButton,

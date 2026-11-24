@@ -30,8 +30,8 @@ impl GeometrySummary {
     pub fn from_dicom(metadata: &DicomReadMetadata) -> Self {
         Self {
             dimensions: metadata.dimensions,
-            spacing: metadata.spacing,
-            origin: metadata.origin,
+            spacing: metadata.spacing_mm(),
+            origin: metadata.origin_mm(),
             direction: metadata.direction,
         }
     }

@@ -1,13 +1,21 @@
 //! Metadata extraction after image SOP and series identity selection.
 
+use super::super::value_units::{resolve_value_unit, DicomValueUnit};
+use super::types::Radioactivity;
+use aequitas::systems::si::{
+    quantities::{Activity, Angle, Length, Mass, Time},
+    units::{Becquerel, Degree, Megabecquerel, Millimeter},
+};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use super::super::sop_class::{classify_sop_class, SopClassKind};
 use anyhow::Result;
 use ritk_dicom::dataset::DicomFile;
 use ritk_dicom::dataset::DicomTag;
 use ritk_dicom::PixelSignedness;
 
+use super::pet_calibration::ClassicPetCalibration;
 use super::preservation::preserve_unhandled_elements;
 use super::types::{
     cs_to_arraystring, da_to_arraystring, parse_patient_position, tm_to_arraystring,
@@ -25,13 +33,13 @@ use crate::format::dicom::object_model::DicomPreservationSet;
 /// of which parse as `f64` and reach the constructor. Treating them as absent
 /// keeps the documented fallback path and leaves the series readable.
 fn usable_pixel_spacing(spacing: [f64; 2]) -> Option<[f64; 2]> {
-    if spacing.iter().all(|v| v.is_finite() && *v > 0.0) {
+    if spacing.iter().all(|&v| positive_length_mm(v).is_some()) {
         Some(spacing)
     } else {
         tracing::warn!(
             row_spacing = spacing[0],
             column_spacing = spacing[1],
-            "DICOM PixelSpacing (0028,0030) is not positive and finite; treating it as absent"
+            "DICOM PixelSpacing (0028,0030) has no finite positive SI representation"
         );
         None
     }
@@ -117,6 +125,7 @@ pub(super) fn extract_dicom_metadata(
         pixel_representation: PixelSignedness::Unsigned,
         bits_allocated: 16,
         bits_stored: 16,
+        value_unit: DicomValueUnit::default(),
         window_center: None,
         window_width: None,
         gantry_tilt: None,
@@ -138,14 +147,25 @@ pub(super) fn extract_dicom_metadata(
         slice_meta.instance_number = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
     if let Ok(elem) = obj.element(DicomTag::new(0x0020, 0x1041)) {
-        slice_meta.slice_location = elem.to_str().ok().and_then(|s| s.parse().ok());
+        slice_meta.slice_location = elem
+            .to_str()
+            .ok()
+            .and_then(|s| finite_decimal(&s))
+            .map(Length::from_unit::<Millimeter>);
     }
-    slice_meta.image_position_patient = read_geometry_array(obj, DicomTag::new(0x0020, 0x0032));
+    slice_meta.image_position_patient =
+        read_geometry_array::<3>(obj, DicomTag::new(0x0020, 0x0032))
+            .map(|position| position.map(Length::from_unit::<Millimeter>));
     slice_meta.image_orientation_patient = read_geometry_array(obj, DicomTag::new(0x0020, 0x0037));
-    slice_meta.pixel_spacing =
-        read_geometry_array(obj, DicomTag::new(0x0028, 0x0030)).and_then(usable_pixel_spacing);
+    slice_meta.pixel_spacing = read_geometry_array(obj, DicomTag::new(0x0028, 0x0030))
+        .and_then(usable_pixel_spacing)
+        .map(|spacing| spacing.map(Length::from_unit::<Millimeter>));
     if let Ok(elem) = obj.element(DicomTag::new(0x0018, 0x0050)) {
-        slice_meta.slice_thickness = elem.to_str().ok().and_then(|s| s.parse().ok());
+        slice_meta.slice_thickness = elem
+            .to_str()
+            .ok()
+            .and_then(|s| finite_decimal(&s))
+            .and_then(positive_length_mm);
     }
     if let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x1053)) {
         slice_meta.rescale_slope = elem
@@ -188,26 +208,24 @@ pub(super) fn extract_dicom_metadata(
     }
     slice_meta.bits_stored =
         read_required_unsigned(obj, DicomTag::new(0x0028, 0x0101), "BitsStored")?;
-    // WindowCenter (0028,1050) — first value of potentially multi-valued DS.
-    if let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x1050)) {
-        slice_meta.window_center = elem.to_str().ok().and_then(|s| {
-            s.trim()
-                .split('\\')
-                .next()
-                .and_then(|v| v.trim().parse().ok())
-        });
-    }
-    // WindowWidth (0028,1051) — first value of potentially multi-valued DS.
-    if let Ok(elem) = obj.element(DicomTag::new(0x0028, 0x1051)) {
-        slice_meta.window_width = elem.to_str().ok().and_then(|s| {
-            s.trim()
-                .split('\\')
-                .next()
-                .and_then(|v| v.trim().parse().ok())
-        });
-    }
+    slice_meta.value_unit = resolve_value_unit(obj, slice_meta.sop_class_uid.as_deref());
+    let first_voi_value = |tag| {
+        obj.element(tag)
+            .ok()
+            .and_then(|element| element.to_str().ok())
+            .and_then(|value| value.split('\\').next().and_then(finite_decimal))
+    };
+    slice_meta.window_center = first_voi_value(DicomTag::new(0x0028, 0x1050))
+        .map(|value| slice_meta.value_unit.sample(value));
+    slice_meta.window_width = first_voi_value(DicomTag::new(0x0028, 0x1051))
+        .filter(|width| *width > 0.0)
+        .map(|value| slice_meta.value_unit.sample(value));
     if let Ok(elem) = obj.element(DicomTag::new(0x0018, 0x1120)) {
-        slice_meta.gantry_tilt = elem.to_str().ok().and_then(|s| s.trim().parse().ok());
+        slice_meta.gantry_tilt = elem
+            .to_str()
+            .ok()
+            .and_then(|s| finite_decimal(&s))
+            .map(Angle::from_unit::<Degree>);
     }
     if let Ok(elem) = obj.element(DicomTag::new(0x0018, 0x5100)) {
         slice_meta.patient_position = elem
@@ -237,14 +255,8 @@ pub(super) fn extract_dicom_metadata(
     if first.cols.is_none() {
         first.cols = this_cols;
     }
-    if first.pixel_spacing.is_none() {
-        first.pixel_spacing = slice_meta.pixel_spacing;
-    }
-    if first.slice_thickness.is_none()
-        && let Ok(elem) = obj.element(DicomTag::new(0x0018, 0x0050))
-    {
-        first.slice_thickness = elem.to_str().ok().and_then(|s| s.parse().ok());
-    }
+    first.pixel_spacing = first.pixel_spacing.or(slice_meta.pixel_spacing);
+    first.slice_thickness = first.slice_thickness.or(slice_meta.slice_thickness);
     if first.series_instance_uid.is_none()
         && let Ok(elem) = obj.element(DicomTag::new(0x0020, 0x000E))
     {
@@ -333,30 +345,51 @@ pub(super) fn extract_dicom_metadata(
     if first.patient_weight_kg.is_none()
         && let Ok(elem) = obj.element(DicomTag::new(0x0010, 0x1030))
     {
-        first.patient_weight_kg = elem.to_str().ok().and_then(|s| s.trim().parse().ok());
+        first.patient_weight_kg = elem
+            .to_str()
+            .ok()
+            .and_then(|s| positive_decimal(&s))
+            .map(Mass::from_base);
     }
     if first.decay_correction.is_none()
         && let Ok(elem) = obj.element(DicomTag::new(0x0054, 0x1102))
     {
         first.decay_correction = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
     }
-    // RadiopharmaceuticalInformationSequence (0054,0016) → first item sub-fields.
+    let has_pet_concentration = slice_meta.value_unit == DicomValueUnit::ActivityConcentration;
+    let calibration = (has_pet_concentration
+        && slice_meta.sop_class_uid.as_deref().map(classify_sop_class)
+            == Some(SopClassKind::PetImageStorage))
+    .then(|| ClassicPetCalibration::from_image(obj))
+    .flatten();
+    first.classic_pet_calibration.record(calibration);
+    first.pet_pixels_in_bq_per_ml =
+        Some(first.pet_pixels_in_bq_per_ml.unwrap_or(true) && has_pet_concentration);
+    // A series-level activity is unambiguous only for a single isotope item.
     if (first.radionuclide_total_dose_bq.is_none()
         || first.radionuclide_half_life_s.is_none()
         || first.radiopharmaceutical_start_time.is_none())
         && let Ok(seq_elem) = obj.element(DicomTag::new(0x0054, 0x0016))
         && let Some(items) = seq_elem.value().items()
-        && let Some(first_item) = items.first()
+        && let [first_item] = items
     {
         if first.radionuclide_total_dose_bq.is_none()
             && let Ok(e) = first_item.element(DicomTag::new(0x0018, 0x1074))
         {
-            first.radionuclide_total_dose_bq = e.to_str().ok().and_then(|s| s.trim().parse().ok());
+            first.radionuclide_total_dose_bq = slice_meta
+                .sop_class_uid
+                .as_deref()
+                .zip(e.to_str().ok())
+                .and_then(|(sop_class, dose)| radionuclide_activity(sop_class, &dose));
         }
         if first.radionuclide_half_life_s.is_none()
             && let Ok(e) = first_item.element(DicomTag::new(0x0018, 0x1075))
         {
-            first.radionuclide_half_life_s = e.to_str().ok().and_then(|s| s.trim().parse().ok());
+            first.radionuclide_half_life_s = e
+                .to_str()
+                .ok()
+                .and_then(|s| positive_decimal(&s))
+                .map(Time::from_base);
         }
         if first.radiopharmaceutical_start_time.is_none()
             && let Ok(e) = first_item.element(DicomTag::new(0x0018, 0x1072))
@@ -370,64 +403,36 @@ pub(super) fn extract_dicom_metadata(
     Ok((slice_meta, file_dim))
 }
 
+fn positive_length_mm(value: f64) -> Option<Length> {
+    let length = Length::from_unit::<Millimeter>(value);
+    (length.as_base().is_finite() && *length.as_base() > 0.0).then_some(length)
+}
+
+fn finite_decimal(value: &str) -> Option<f64> {
+    value.trim().parse::<f64>().ok().filter(|v| v.is_finite())
+}
+
+fn positive_decimal(value: &str) -> Option<f64> {
+    finite_decimal(value).filter(|v| *v > 0.0)
+}
+
+fn radionuclide_activity(sop_class: &str, value: &str) -> Option<Radioactivity> {
+    // PS3.3 C.8.9.2 uses Bq, and C.8.4.10 and C.8.22.4 use MBq.
+    let value = positive_decimal(value)?;
+    let activity = match classify_sop_class(sop_class) {
+        SopClassKind::PetImageStorage => Activity::from_unit::<Becquerel>(value),
+        SopClassKind::EnhancedPetImageStorage | SopClassKind::NuclearMedicineImageStorage => {
+            Activity::from_unit::<Megabecquerel>(value)
+        }
+        _ => return None,
+    };
+    Radioactivity::from_activity(activity)
+}
+
 #[cfg(test)]
 #[path = "parse/geometry_tests.rs"]
 mod geometry_tests;
 
 #[cfg(test)]
-mod tests_pixel_spacing {
-    use super::usable_pixel_spacing;
-
-    /// A conformant pair passes through byte-for-byte; the guard must not
-    /// perturb legitimate geometry.
-    #[test]
-    fn conformant_spacing_is_preserved_exactly() {
-        assert_eq!(usable_pixel_spacing([0.7, 0.65]), Some([0.7, 0.65]));
-    }
-
-    /// `PixelSpacing = "0\0"` occurs in derived and secondary-capture objects.
-    /// It parses as a valid pair of f64 and previously reached `Spacing::new`,
-    /// whose assert aborts the process.
-    #[test]
-    fn zero_spacing_is_rejected_rather_than_reaching_the_constructor() {
-        assert_eq!(usable_pixel_spacing([0.0, 0.0]), None);
-        assert_eq!(usable_pixel_spacing([0.0, 1.0]), None);
-        assert_eq!(usable_pixel_spacing([1.0, 0.0]), None);
-    }
-
-    #[test]
-    fn negative_spacing_is_rejected() {
-        assert_eq!(usable_pixel_spacing([-1.0, 1.0]), None);
-        assert_eq!(usable_pixel_spacing([1.0, -0.5]), None);
-    }
-
-    #[test]
-    fn non_finite_spacing_is_rejected() {
-        assert_eq!(usable_pixel_spacing([f64::NAN, 1.0]), None);
-        assert_eq!(usable_pixel_spacing([1.0, f64::INFINITY]), None);
-        assert_eq!(usable_pixel_spacing([f64::NEG_INFINITY, 1.0]), None);
-    }
-
-    /// Every value this guard admits must satisfy `Spacing::try_new`, which is
-    /// the invariant the panicking `Spacing::new` asserts. Without this the two
-    /// validity definitions could drift apart silently.
-    #[test]
-    fn admitted_values_satisfy_the_spacing_invariant() {
-        for candidate in [
-            [0.7, 0.65],
-            [1.0, 1.0],
-            [f64::MIN_POSITIVE, 1e6],
-            [0.0, 1.0],
-            [-1.0, 1.0],
-            [f64::NAN, 1.0],
-            [f64::INFINITY, 1.0],
-        ] {
-            if let Some(accepted) = usable_pixel_spacing(candidate) {
-                assert!(
-                    ritk_spatial::Spacing::<2>::try_new(accepted).is_ok(),
-                    "admitted {accepted:?} that Spacing rejects"
-                );
-            }
-        }
-    }
-}
+#[path = "parse/pixel_spacing_tests.rs"]
+mod tests_pixel_spacing;

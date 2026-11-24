@@ -8,6 +8,221 @@
 
 # CHANGELOG
 
+## RITK I/O 0.9.1 and RITK Python 0.13.1
+
+### Fixed
+
+- [patch] Reject mixed in-plane orientations at scalar and stored DICOM volume
+  import. Select a coherent set of instances when a series UID spans
+  separate image orientations. Python includes the geometry error in
+  its read exception.
+
+## AsterSlice 0.3.1 (private viewer)
+
+### Fixed
+
+- [patch] Request a readable Canvas2D backing store when the workstation or an
+  embedded raster plane first opens its canvas. This supports exact RGBA
+  readback on Apple-silicon Safari while retaining explicit WebGPU selection.
+
+## RITK Python 0.13.0 — 2026-11-23
+
+### Fixed
+
+- [patch] Read the retained grayscale JPEG Lossless skull CT series with
+  Raster 0.5.1, including volumes reopened after anonymization.
+
+### Changed
+
+- [patch] Build the Python wheel with the crates.io NumPy 0.30.0 bridge
+  and PyO3 0.30.1. The bridge includes the free-threaded stable ABI
+  support and array extraction fixes previously taken from Git.
+
+## Verification fixtures (unreleased)
+
+### Added
+
+- [patch] Add an opt-in installed-wheel regression for the five retained
+  skull CT series across original, basic and enhanced DICOM directories.
+
+### Removed
+
+- [patch] Checkouts omit the skull CT and paired MRI/CT collections. The owner retains a verified local copy of all 2,642 files.
+
+### Changed
+
+- [patch] Registration tests can reuse the verified OpenNeuro MRI from `ATLAS_FIXTURE_CACHE`. The fixture documentation records the dataset’s PDDL declaration.
+
+### Fixed
+
+- [patch] Browser gallery verification reads native-resolution samples from the presented WebGPU bitmap for slice and window controls.
+- [patch] Manual documentation checks on development branches evaluate changes since their common commit with the default branch.
+
+## RITK Filter 0.6.1 — 2026-11-23
+
+### Fixed
+
+- [patch] Match Apple ARM64 SimpleITK boundary sampling, spline weight precision, and squared-magnitude rounding. The denoising and magnitude filters retain their existing public signatures.
+
+## RITK I/O 0.9.0 — 2026-11-23
+
+### Added
+
+- [minor] Discover multiple DICOM series from named in-memory Part 10 instances.
+
+- [minor] `decode_dicom_series` reconstructs owned calibrated pixels and the resolved patient grid independently of backend image loading. AsterSlice now transfers the pixel allocation directly into its scalar viewer.
+
+## MGH 0.7.0 — 2026-11-23
+
+### Added
+
+- [minor] `transcode_mgh_document` and the CLI preserve every expanded
+  byte while repacking MGH and MGZ. An incomplete volume or corrupt gzip
+  member leaves the existing destination intact, including during in-place
+  repacking.
+
+### Fixed
+
+- [patch] Scalar and series MGZ readers decode samples spanning gzip members and validate the expanded footer and final checksum before returning the image.
+
+## NIfTI 0.5.1 — 2026-11-23
+
+### Fixed
+
+- [patch] Apply global intensity calibration to scalar and series image reads before narrowing to binary32. A zero slope disables scaling. Repacking preserves stored sample and calibration bytes.
+
+- [patch] Readers decode samples across gzip member boundaries. The document
+  transport preserves the combined expanded stream and checks each member's
+  trailer before replacing an output. File reads apply the document size limit
+  as they read the expanded stream.
+
+## MetaImage 0.4.1 — 2026-11-23
+
+### Fixed
+
+- [patch] Reading the MetaIO `ElementByteOrderMSB` spelling now decodes
+  big-endian samples correctly in inline and detached volumes. When both
+  spellings appear, `BinaryDataByteOrderMSB` takes precedence.
+
+## AsterSlice 0.3.0 (unreleased)
+
+### Fixed
+
+- [patch] The web app and existing gallery links open the same AsterSlice reading workspace.
+
+### Added
+
+- [minor] The web app runs the Windows workstation renderer, menus, diagnostic tools and multi-series comparison in WebAssembly. The separate gallery interface has been removed.
+
+- [minor] The native Display menu can rotate the active view by 180 degrees
+  in one click while preserving its flips and zoom.
+
+## Analyze 0.5.1 — 2026-11-23
+
+### Fixed
+
+- [patch] The Analyze stored-series writer rejects rounding of voxel spacing,
+  physical origin, or intensity scale before it replaces the header or image.
+  Existing Analyze pairs with representable metadata still round-trip.
+
+## RITK CLI 0.3.0 (unreleased)
+
+### Added
+
+- [minor] `ritk convert` repacks single-file NIfTI documents between `.nii`
+  and `.nii.gz` while retaining the full decompressed byte stream, including
+  multi-volume data, header extensions and calibration. This path uses the
+  NIfTI document reader's 1 GiB expanded-document limit and reports document
+  preservation in its completion message.
+
+## MGH 0.6.1 and AsterSlice 0.2.1 (unreleased)
+
+### Fixed
+
+- [patch] MGH and MGZ read and write the FreeSurfer voxel-to-RAS center at half
+  the dimensions. Previous RITK writers encoded a center displaced by half
+  a voxel on each file axis. Regenerate affected outputs from the original
+  geometry when aligning them with other images. The header alone cannot
+  distinguish an older RITK output from a file authored by another tool.
+- [patch] AsterSlice opens compound `.mgh.gz` paths at startup and through
+  filesystem drop routing, including mixed-case extensions.
+
+## Unreleased
+
+### Breaking
+
+- [major] UID-replacing DICOM profiles encode valid UUIDv8 values under
+  the DICOM `2.25.` arc. Re-export the complete related batch from the
+  originals to keep cross-instance references consistent. Flat directory
+  export reports DICOMDIR in `errors` and continues processing immediate
+  image files. Pass the DICOM image folder and inspect `error_count`.
+  These changes target `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
+
+- [major] Directory DICOM anonymization exports numbered files and skips
+  occupied destination names in `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
+  Pass a separate destination and discover exported filenames there. Use the
+  anonymized DICOM metadata to associate instances. The Python result still
+  reports `file_count`, `success_count`, `error_count`, and `errors`.
+
+- [major] Classic PET SUVbw requires a source-qualified activity reference
+  for `START` and `NONE`. Missing or inconsistent timing leaves the PET
+  activity concentration available for display and withholds numeric SUVbw.
+  Initialize `DicomReadMetadata::classic_pet_calibration` to `None` when
+  constructing metadata without a validated calibration. Use the reader's
+  calibration for measurements and supply verified time to explicit
+  `PetAcquisitionParams` calculations. The decay-mode parser returns an
+  option for unrecognized values.
+
+- [major] DICOM spatial resampling requires a common decoded value unit
+  across classic slices and enhanced frames. Resolve inconsistent source
+  metadata before requesting an interpolated volume. Vendor Rescale Type
+  labels retain their full text. Borrow or clone DICOM modality metadata
+  values where a caller previously copied them.
+
+- [major] DICOM window centers and widths carry their modality value unit.
+  Convert to the original DICOM numeric scale at renderer boundaries.
+  Classic PET SUV conversion takes activity concentration and returns
+  body-weight-normalized mass density.
+
+- [major] Use Aequitas lengths for multiframe positions, pixel spacing,
+  slice thickness, and writer geometry. Build the quantity fields in
+  millimetres at the DICOM boundary and convert to millimetres for
+  existing image carriers.
+
+### Fixed
+
+- [patch] Qualify the packaged workstation using native Safari’s macOS Open panel and hosted Chromium WebGPU. Four consecutive MRI loads in one page verify the three displayed planes and WebAssembly capacity. All three browser engines check real rejected file batches and listener cleanup.
+
+- [patch] Refresh the native chooser and dataset progress dependencies and update the yanked async-executor lock. The all-feature audit removes four maintenance findings.
+
+- [patch] Update the locked viewer dependencies to URL 2.5.9 and the Metis revision using Moirai Crypto 0.12.1 with RSA 0.10.0.
+
+- [patch] Apply DICOM header actions to existing attributes, use the
+  standard Patient Name and ID value representations, and remove source
+  creation and contribution metadata. UID-replacing profiles remap all
+  values of Irradiation Event UID.
+
+- [patch] Carry Aequitas lengths through native, Coeus, and metadata-preserving
+  DICOM series writers. Image-plane tags share one geometry calculation and
+  encode patient position, spacing, and slice thickness in millimetres.
+
+- [patch] Carry typed series spacing and patient origin from the native DICOM
+  scan to image metadata. Preserve the millimetre tensor boundary and avoid
+  round trips for source pixel spacing, origin, and fallback thickness.
+
+## Aequitas 0.5 provider cohort
+
+### Breaking
+
+- [major] RITK IO 0.7 carries Aequitas 0.5 lengths and activity through
+  the native DICOM reader. Convert at millimetre, degree, and isotope-activity
+  boundaries. Use the Enhanced PET volume-set API for temporal, gated, or
+  concatenated inputs. The selected volume carries aligned body-weight SUV
+  values and spatial plane provenance.
+- [major] Update the spatial, transform, and tensor packages together
+  with Leto 0.52, Apollo FFT 0.31, and Coeus 0.14. Crate versions advance
+  where the published package interface or its local provider types change.
+
 ## ritk-dicom 0.5.0 and ritk-io 0.6.0
 
 ### Breaking
@@ -87,6 +302,47 @@
   dyadic image fixture cover the regression.
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
+
+- Label interpolated Enhanced PET slices and planes copied to a different
+  position in the viewer. Each temporal and gated reconstruction carries
+  its own plane provenance.
+- Adopt Aequitas 0.5.0, Eunomia 0.12.1, and Eunomia Derive 0.12.1
+  from crates.io.
+
+### Fixed
+
+- Verify linear geometry-based resampling of an Enhanced PET slice gap
+  between complete concatenation members.
+
+### Added
+
+- Reconstruct Enhanced PET time points and gates across DICOM concatenation
+  members. The volume-set reader accepts scanned members and uses each
+  plane's original pixel encoding and quantitative mapping.
+
+### Breaking
+
+- Enhanced PET volume sets reconstruct each temporal position and gate
+  separately. Use the volume-set reader for dynamic or gated Part 10
+  objects. Viewers can select a reconstruction and its corresponding
+  geometry and SUV.
+
+
+- Enhanced PET multi-frame decode can return a typed SUVbw volume. The native
+  viewer uses calibrated voxels for the pointer, linked cursor, and fusion.
+  Diagnostic rescale and quantitative mapping use independent pixel paths.
+
+- [major] In ritk-io 0.6.0, DICOM series and slice geometry carry Aequitas
+  quantities. Use millimetre and degree accessors at DICOM and image boundaries.
+  PET metadata carries mass, radionuclide activity and half-life.
+- [major] In ritk-snap 0.2.0, loaded PET metadata and acquisition parameters
+  carry typed mass, activity, and time. Classic PET SUV conversion requires
+  a DICOM Bq/mL pixel declaration.
+
+### Dependencies
+
+- [minor] Require the Aequitas 0.4 radiation quantity surface.
+
 
 ### Changed
 

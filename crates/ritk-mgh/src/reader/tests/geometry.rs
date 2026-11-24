@@ -58,22 +58,10 @@ fn test_read_nondefault_spatial() -> Result<()> {
     assert!((direction[(1, 2)] - (-1.0)).abs() < 1e-6);
     assert!((direction[(2, 2)] - 0.0).abs() < 1e-6);
 
-    // The header's center is RAS `[10, 20, 30]`; the RAS-to-LPS flip negates
-    // its x and y, giving `[-10, -20, 30]`. Subtracting `Mdc · D · h` with
-    // `h = [1.5, 1.0, 0.5]` (dims `[4, 3, 2]`) gives the RAS corner
-    // `[10.75, 19.25, 29.375]`, whose LPS form is the stored origin.
-    let origin = image.origin();
-    assert!(
-        (origin[0] - (-10.75)).abs() < 1e-6,
-        "origin[0]={}",
-        origin[0]
-    );
-    assert!(
-        (origin[1] - (-19.25)).abs() < 1e-6,
-        "origin[1]={}",
-        origin[1]
-    );
-    assert!((origin[2] - 29.375).abs() < 1e-6, "origin[2]={}", origin[2]);
+    // FreeSurfer evaluates its header center at CRS = dims/2 = [2, 1.5, 1].
+    // Mdc*D*CRS = [-1.125, 1, 1.25] in RAS. Subtract from [10, 20, 30]
+    // and negate R and A to obtain the physical LPS point at voxel zero.
+    assert_eq!(image.origin().to_array(), [-11.125, -19.0, 28.75]);
     Ok(())
 }
 

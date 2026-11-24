@@ -332,16 +332,10 @@ fn generate_uid_hash_salt_differentiates_same_original() {
 }
 
 #[test]
-fn generate_uid_hash_uses_sha256_2_25_root() {
-    // Verify the UID uses the 2.25. ISO/IEC 9834-8 UUID arc root,
-    // not the legacy 2.999. private OID arc.
-    let uid = generate_uid_from_hash("1.2.3.4.5", "ritk-anon-salt");
-    assert!(
-        uid.starts_with("2.25."),
-        "UID must use 2.25. root (ISO 9834-8 UUID arc), got: {uid}"
-    );
-    assert!(
-        !uid.starts_with("2.999."),
-        "UID must not use deprecated 2.999. root, got: {uid}"
+fn generate_uid_hash_matches_the_uuid_arc_reference_vector() {
+    // uuid.UUID(version=8) applied to the first 16 bytes of the SHA-256 digest.
+    assert_eq!(
+        generate_uid_from_hash("1.2.3.4.5", "ritk-anon-salt"),
+        "2.25.111238463163309220427538469299114958461"
     );
 }

@@ -1,9 +1,11 @@
 """Browser-page fixtures for the RITK local content-box regression."""
 
+# Reflect across the actual reading area: x' = 0.96 * (width - x).
+# Individual scale is applied after the translation in the border-box case.
 STYLED_CSS = """
 .gallery-views {
   transform-origin: 0 0;
-  transform: translate(1580px, 9.5px) scale(-0.96, 1.04);
+  transform: translate(96%, 9.5px) scale(-0.96, 1.04);
 }
 .gallery-views figure:first-child {
   position: relative;
@@ -25,7 +27,7 @@ BORDER_BOX_CSS = """
   transform-origin: 0 0;
   scale: -0.96 1.04;
   rotate: 2deg;
-  transform: translate(-1645px, 9.5px);
+  transform: translate(-100%, 9.5px);
 }
 .gallery-views figure:first-child {
   position: relative;

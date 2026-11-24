@@ -15,12 +15,15 @@ mod arrow_overlay;
 mod calibration_layout;
 mod calibration_measurement;
 mod calibration_scope;
+mod calibration_units;
 mod cobb_overlay;
 mod crosshair_tool;
 mod display;
 mod display_controls;
 mod display_custom_presets;
 mod display_overlays;
+#[cfg(windows)]
+mod enhanced_pet;
 #[cfg(windows)]
 mod host_capture;
 mod interaction;

@@ -49,14 +49,23 @@ impl TernaryOp for TernaryAddOp {
 impl TernaryOp for TernaryMagnitudeOp {
     #[inline]
     fn apply(a: f32, b: f32, c: f32) -> f32 {
-        (a * a + b * b + c * c).sqrt()
+        TernaryMagnitudeSquaredOp::apply(a, b, c).sqrt()
     }
 }
 
 impl TernaryOp for TernaryMagnitudeSquaredOp {
     #[inline]
     fn apply(a: f32, b: f32, c: f32) -> f32 {
-        a * a + b * b + c * c
+        // ITK's expression contracts the first and last additions on Apple
+        // ARM64. Each fused operation rounds once in the input precision.
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        {
+            c.mul_add(c, a.mul_add(a, b * b))
+        }
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        {
+            a * a + b * b + c * c
+        }
     }
 }
 

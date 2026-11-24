@@ -22,9 +22,11 @@ mod dicomdir_bytes;
 pub(super) mod geometry;
 pub(super) mod loader;
 mod parse;
+mod pet_calibration;
 pub(super) mod pixel;
 mod pixel_aspect;
 mod preservation;
+mod reconstruction;
 pub(super) mod scan;
 pub(super) mod stored;
 pub(crate) mod types;
@@ -37,6 +39,8 @@ pub use loader::{
     load_dicom_series_with_metadata_with_budget, read_dicom_series_with_metadata,
     read_dicom_series_with_metadata_with_budget,
 };
+pub use reconstruction::{decode_dicom_series, DecodedDicomSeries};
+pub use scan::catalog::scan_dicom_part10_catalog;
 pub use scan::{
     scan_dicom_directory_with_budget, scan_dicom_files, scan_dicom_files_with_budget,
     scan_dicom_instances, scan_dicom_instances_with_budget, scan_dicom_part10_bytes,
@@ -49,13 +53,15 @@ pub use stored::{
 // scan::scan_dicom_directory is accessed directly via `reader::scan::scan_dicom_directory`
 // by sibling modules (color.rs). No re-export needed.
 pub use budget::DicomReadBudget;
+pub use pet_calibration::ClassicPetCalibration;
 pub use pixel_aspect::{DicomPixelAspect, DicomPixelAspectError, DicomPixelAspectSource};
 pub use types::literal_arraystring;
 pub use types::{
     DicomReadMetadata, DicomSeriesInfo as ScannedDicomSeries, DicomSliceMetadata, PatientPosition,
+    Radioactivity,
 };
 
 pub(super) use geometry::{
-    analyze_slice_spacing, dot, normalize, resample_frames_linear, resampled_frame_count,
+    analyze_slice_spacing, normalize, resample_frames_linear, resampled_frame_count,
     slice_normal_from_iop,
 };

@@ -96,7 +96,7 @@ impl ChromeLayout {
         let mut controls = ArrayVec::new();
         let mut separators = ArrayVec::new();
         let mut tab_x = 8_u32;
-        for (menu, label, requested_width) in MENU_TABS {
+        for (menu, label, requested_width) in MENU_TABS.iter().copied() {
             let tab_width = requested_width.min(width.saturating_sub(tab_x));
             if tab_width > 0 && geometry.menu_height > 0 {
                 push_control(

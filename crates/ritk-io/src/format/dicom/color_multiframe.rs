@@ -3,6 +3,8 @@
 //! This module preserves true-color multiframe pixel data in `RgbVolume<f32, B>`
 //! instead of passing multi-sample frames through scalar `Image<f32, B, 3>`.
 
+use super::multiframe::geometry::{millimetres, project_position, DEFAULT_SPACING};
+use aequitas::systems::si::{quantities::Length, units::Millimeter};
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
@@ -269,11 +271,13 @@ fn validate_rgb_multiframe(
 }
 
 fn origin_from_info(info: &MultiFrameInfo) -> [f64; 3] {
-    info.per_frame
-        .first()
-        .and_then(|frame| frame.image_position)
-        .or(info.image_position)
-        .unwrap_or([0.0, 0.0, 0.0])
+    millimetres(
+        info.per_frame
+            .first()
+            .and_then(|frame| frame.image_position)
+            .or(info.image_position)
+            .unwrap_or([Length::from_base(0.0); 3]),
+    )
 }
 
 fn spacing_from_info(info: &MultiFrameInfo) -> Result<Spacing<3>> {
@@ -283,11 +287,15 @@ fn spacing_from_info(info: &MultiFrameInfo) -> Result<Spacing<3>> {
         .first()
         .and_then(|frame| frame.pixel_spacing)
         .or(info.pixel_spacing)
-        .unwrap_or([1.0, 1.0]);
-    Ok(Spacing::new([spacing_z, row_spacing, col_spacing]))
+        .unwrap_or([DEFAULT_SPACING; 2]);
+    Ok(Spacing::new(millimetres([
+        spacing_z,
+        row_spacing,
+        col_spacing,
+    ])))
 }
 
-fn spacing_z_from_info(info: &MultiFrameInfo) -> Result<f64> {
+fn spacing_z_from_info(info: &MultiFrameInfo) -> Result<Length> {
     if !info.per_frame.is_empty() {
         if info.per_frame.len() != info.n_frames {
             bail!(
@@ -306,7 +314,11 @@ fn spacing_z_from_info(info: &MultiFrameInfo) -> Result<f64> {
                 let positions = info
                     .per_frame
                     .iter()
-                    .map(|frame| frame.image_position.map(|p| super::reader::dot(p, normal)))
+                    .map(|frame| {
+                        frame
+                            .image_position
+                            .map(|p| project_position(p, normal).in_unit::<Millimeter>())
+                    })
                     .collect::<Option<Vec<f64>>>();
                 if let Some(positions) = positions {
                     let report = super::reader::analyze_slice_spacing(&positions);
@@ -320,7 +332,7 @@ fn spacing_z_from_info(info: &MultiFrameInfo) -> Result<f64> {
                             report.missing_between.len()
                         );
                     }
-                    return Ok(report.nominal_spacing);
+                    return Ok(Length::from_unit::<Millimeter>(report.nominal_spacing));
                 }
             }
         }
@@ -332,7 +344,7 @@ fn spacing_z_from_info(info: &MultiFrameInfo) -> Result<f64> {
             return Ok(thickness);
         }
     }
-    Ok(info.frame_thickness.unwrap_or(1.0))
+    Ok(info.frame_thickness.unwrap_or(DEFAULT_SPACING))
 }
 
 fn direction_from_info(info: &MultiFrameInfo) -> Direction<3> {

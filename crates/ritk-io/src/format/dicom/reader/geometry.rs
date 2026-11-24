@@ -1,5 +1,31 @@
 //! Geometric utility functions for DICOM slice orientation and spacing analysis.
 
+use super::types::DicomSliceMetadata;
+
+/// Maximum component-wise deviation from a common in-plane basis.
+const IOP_CONSISTENCY_THRESHOLD: f64 = 1e-4;
+
+/// Locate a known orientation that differs from the first known orientation.
+///
+/// A single affine volume has one pair of in-plane axes. Comparing both axes
+/// also detects in-plane rotations that leave the cross-product normal equal.
+pub(super) fn first_orientation_mismatch(slices: &[DicomSliceMetadata]) -> Option<(usize, f64)> {
+    let mut orientations = slices.iter().enumerate().filter_map(|(index, slice)| {
+        slice
+            .image_orientation_patient
+            .map(|orientation| (index, orientation))
+    });
+    let (_, reference) = orientations.next()?;
+    orientations.find_map(|(index, orientation)| {
+        let max_deviation = reference
+            .iter()
+            .zip(orientation)
+            .map(|(expected, actual)| (expected - actual).abs())
+            .fold(0.0_f64, f64::max);
+        (max_deviation > IOP_CONSISTENCY_THRESHOLD).then_some((index, max_deviation))
+    })
+}
+
 /// Compute the cross product of two 3-vectors.
 #[inline]
 pub(super) fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
@@ -176,26 +202,51 @@ pub(in crate::format::dicom) fn resampled_frame_count(
     ((span / target_spacing).round() as usize).saturating_add(1)
 }
 
+/// Origin of one output plane in a spatial reconstruction.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SliceProvenance {
+    /// Samples come from an acquired frame at this position.
+    Acquired,
+    /// Samples are linearly interpolated between two acquired frames.
+    Interpolated,
+    /// Samples are copied from a nearby frame at a different position.
+    Copied,
+}
+
 pub(in crate::format::dicom) fn resample_frames_linear(
     decoded_frames: &[f32],
     frame_len: usize,
     src_positions: &[f64],
     target_spacing: f64,
 ) -> Vec<f32> {
+    resample_frames_with_provenance(
+        decoded_frames,
+        frame_len,
+        src_positions,
+        target_spacing,
+        |_| {},
+    )
+}
+
+pub(in crate::format::dicom) fn resample_frames_with_provenance(
+    decoded_frames: &[f32],
+    frame_len: usize,
+    src_positions: &[f64],
+    target_spacing: f64,
+    mut record: impl FnMut(SliceProvenance),
+) -> Vec<f32> {
     debug_assert_eq!(
         decoded_frames.len(),
         frame_len.saturating_mul(src_positions.len())
     );
-    if src_positions.is_empty() || target_spacing <= 0.0 || !target_spacing.is_finite() {
-        return decoded_frames.to_vec();
-    }
-    let Some(&first) = src_positions.first() else {
+    let Some((&first, &last)) = src_positions.first().zip(src_positions.last()) else {
         return decoded_frames.to_vec();
     };
-    let Some(&last) = src_positions.last() else {
-        return decoded_frames.to_vec();
-    };
-    if last - first <= 0.0 || !(last - first).is_finite() {
+    let span = last - first;
+    if target_spacing <= 0.0 || !target_spacing.is_finite() || span <= 0.0 || !span.is_finite() {
+        for _ in src_positions {
+            record(SliceProvenance::Acquired);
+        }
         return decoded_frames.to_vec();
     }
     let n_target = resampled_frame_count(src_positions, target_spacing);
@@ -211,15 +262,26 @@ pub(in crate::format::dicom) fn resample_frames_linear(
         let idx = src_positions.partition_point(|&p| p <= target_pos);
         if idx == 0 {
             dest.copy_from_slice(frame_at(0));
-        } else if idx >= src_positions.len() {
-            dest.copy_from_slice(frame_at(src_positions.len() - 1));
+            record(SliceProvenance::Copied);
+        } else if idx == src_positions.len() {
+            dest.copy_from_slice(frame_at(idx - 1));
+            record(if target_pos == last {
+                SliceProvenance::Acquired
+            } else {
+                SliceProvenance::Copied
+            });
         } else {
             let lo = idx - 1;
             let hi = idx;
             let gap = src_positions[hi] - src_positions[lo];
-            if gap < 1e-10 {
+            if target_pos == src_positions[lo] {
                 dest.copy_from_slice(frame_at(lo));
+                record(SliceProvenance::Acquired);
+            } else if gap < 1e-10 {
+                dest.copy_from_slice(frame_at(lo));
+                record(SliceProvenance::Copied);
             } else {
+                record(SliceProvenance::Interpolated);
                 let t = ((target_pos - src_positions[lo]) / gap) as f32;
                 let one_minus_t = 1.0_f32 - t;
                 for ((d, &a), &b) in dest.iter_mut().zip(frame_at(lo)).zip(frame_at(hi)) {

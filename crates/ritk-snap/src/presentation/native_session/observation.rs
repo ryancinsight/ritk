@@ -47,6 +47,7 @@ pub(super) struct NativeViewerObservation {
     pub(super) surface_height: AtomicU32,
     pub(super) initial_frame_width: AtomicU32,
     pub(super) initial_frame_height: AtomicU32,
+    #[cfg(windows)]
     pub(super) presented_frames: AtomicUsize,
     pub(super) event_batches: AtomicUsize,
     pub(super) translated_events: AtomicUsize,

@@ -7,7 +7,7 @@ use crate::ui::window_presets::WindowPreset;
 ///
 /// Windows-only: custom presets live in native Display-menu state, which is
 /// compiled out on other platforms.
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum CustomPresetError {
     /// The requested slot is outside the numbered custom table.
@@ -36,7 +36,7 @@ impl SnapApp {
     }
 
     /// Applies one saved custom window preset and reports whether pixels changed.
-    #[cfg(windows)]
+    #[cfg(any(windows, target_arch = "wasm32"))]
     pub(crate) fn apply_custom_preset(&mut self, index: usize) -> Result<bool, CustomPresetError> {
         let slot = self
             .custom_presets
@@ -57,7 +57,7 @@ impl SnapApp {
     /// Saves the current window into one custom slot and returns that slot.
     ///
     /// `None` fills the first empty slot; `Some(index)` overwrites that slot.
-    #[cfg(windows)]
+    #[cfg(any(windows, target_arch = "wasm32"))]
     pub(crate) fn save_custom_preset(
         &mut self,
         index: Option<usize>,
@@ -86,7 +86,7 @@ impl SnapApp {
     }
 
     /// Returns the custom slot matching the current window, if any.
-    #[cfg(windows)]
+    #[cfg(any(windows, target_arch = "wasm32"))]
     pub(crate) fn custom_preset_index(&self) -> Option<usize> {
         let current = self.browser_window_level_values();
         self.custom_presets

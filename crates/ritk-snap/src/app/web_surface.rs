@@ -131,10 +131,8 @@ impl BrowserSurface {
                         .map_err(|error| std::io::Error::other(error.to_string()))?;
                     *dirty = false;
                 }
-                if let Some(frame) = frame.as_ref() {
-                    if rendered {
-                        canvas.present_rendered_frame(frame)?;
-                    }
+                if rendered && let Some(frame) = frame.as_ref() {
+                    canvas.present_rendered_frame(frame)?;
                 }
             }
             Self::Orthogonal {

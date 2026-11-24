@@ -12,6 +12,7 @@ use anyhow::{anyhow, bail, Context, Result};
 pub(super) struct RenderedView {
     pub(super) axis: usize,
     pub(super) plane_name: &'static str,
+    pub(super) slice_label: Option<&'static str>,
     pub(super) slice_index: usize,
     pub(super) slice_count: usize,
     pub(super) window_level: WindowLevel,
@@ -70,6 +71,7 @@ fn empty_view(frame: PresentationFrame, axis: usize, plane_name: &'static str) -
     RenderedView {
         axis,
         plane_name,
+        slice_label: None,
         slice_index: 0,
         slice_count: 1,
         window_level: WindowLevel::new(
@@ -132,6 +134,7 @@ fn render_view_into(
     }
     view.axis = axis;
     view.plane_name = crate::ui::anatomical_label_for_axis(Some(volume), axis);
+    view.slice_label = volume.enhanced_pet_slice_label(axis, index);
     view.slice_index = index;
     view.slice_count = app.axis_slice_info(axis).1;
     view.window_level = window_level;

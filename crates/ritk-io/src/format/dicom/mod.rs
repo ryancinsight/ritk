@@ -1,4 +1,6 @@
 pub mod anonymize;
+#[cfg(feature = "test-util")]
+pub mod classic_pet_fixture;
 mod codec;
 mod color;
 mod color_common;
@@ -16,6 +18,7 @@ pub mod inventory;
 mod multiframe;
 pub mod networking;
 mod object_model;
+mod pet_datetime;
 mod reader;
 pub mod repair;
 mod rt_dose;
@@ -28,6 +31,9 @@ mod tag_parse;
 mod transfer_syntax;
 mod writer;
 mod writer_object;
+
+mod value_units;
+pub use value_units::{DicomModalityValue, DicomValueUnit, SuvNormalization};
 
 pub use anonymize::{
     anonymize_dicom_directory, anonymize_dicom_directory_verified, anonymize_dicom_file,
@@ -42,6 +48,7 @@ pub use color_multiframe::{
 };
 pub use export_tree::ExportTreeError;
 pub use inventory::dicom_metadata_losses;
+pub use multiframe::BodyWeightSuvVolume;
 pub use multiframe::{
     load_dicom_multiframe, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
     load_dicom_multiframe_flat_from_bytes_with_budget, load_dicom_multiframe_native,
@@ -65,16 +72,19 @@ pub use object_model::{
     is_private_tag, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
     DicomRetentionLoss, DicomRetentionReason, DicomSequenceItem, DicomTag, DicomValue,
 };
+pub use reader::geometry::SliceProvenance;
+pub use reader::ClassicPetCalibration;
 pub use reader::{
-    literal_arraystring, load_dicom_from_series, load_dicom_from_series_with_budget,
-    load_dicom_series_stored, load_dicom_series_with_metadata,
+    decode_dicom_series, literal_arraystring, load_dicom_from_series,
+    load_dicom_from_series_with_budget, load_dicom_series_stored, load_dicom_series_with_metadata,
     load_dicom_series_with_metadata_with_budget, read_dicom_series_stored,
     read_dicom_series_with_metadata, read_dicom_series_with_metadata_with_budget,
     scan_dicom_directory_with_budget, scan_dicom_files, scan_dicom_files_with_budget,
     scan_dicom_instances, scan_dicom_instances_with_budget, scan_dicom_part10_bytes,
-    scan_dicom_part10_bytes_with_budget, scan_dicom_path, scan_dicom_path_with_budget,
-    DicomReadBudget, DicomReadMetadata, DicomSliceMetadata, DicomStoredImportError,
-    DicomStoredSeries, PatientPosition, ScannedDicomSeries, DICOM_STORED_SOURCE,
+    scan_dicom_part10_bytes_with_budget, scan_dicom_part10_catalog, scan_dicom_path,
+    scan_dicom_path_with_budget, DecodedDicomSeries, DicomReadBudget, DicomReadMetadata,
+    DicomSliceMetadata, DicomStoredImportError, DicomStoredSeries, PatientPosition, Radioactivity,
+    ScannedDicomSeries, DICOM_STORED_SOURCE,
 };
 pub use reader::{DicomPixelAspect, DicomPixelAspectError, DicomPixelAspectSource};
 pub use rt_dose::{
@@ -135,3 +145,12 @@ pub mod native {
         }
     }
 }
+
+pub use multiframe::{
+    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes,
+    load_enhanced_pet_volumes_from_instances, EnhancedPetCoordinate, EnhancedPetDimension,
+    EnhancedPetSelection, EnhancedPetVolume,
+};
+
+#[cfg(feature = "test-util")]
+pub use multiframe::test_fixture::write_dynamic_gated_pet_concatenation;

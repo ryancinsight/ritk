@@ -31,6 +31,7 @@ impl NativeViewerSession {
                     Ok(true)
                 }
             },
+            #[cfg(windows)]
             WindowAction::Anonymize(scope, level) => match self.anonymize_from_dialog(scope, level)
             {
                 Ok(changed) => Ok(changed),
@@ -40,6 +41,7 @@ impl NativeViewerSession {
                     Ok(true)
                 }
             },
+            #[cfg(windows)]
             WindowAction::RepairStudy => match self.repair_study_from_dialog() {
                 Ok(changed) => Ok(changed),
                 Err(error) => {
@@ -147,7 +149,10 @@ impl NativeViewerSession {
                     self.end_held_gestures();
                     Ok(true)
                 } else {
-                    Ok(self.cancel_series_loads())
+                    #[cfg(windows)]
+                    return Ok(self.cancel_series_loads());
+                    #[cfg(target_arch = "wasm32")]
+                    return Ok(false); // Browser series decode completes in the input turn.
                 }
             }
             WindowAction::ActivateNextPanel => {
@@ -260,6 +265,12 @@ impl NativeViewerSession {
                 app.bump_visual_revision();
                 Ok(true)
             }
+            WindowAction::RotateHalfTurn => {
+                let app = self.active_app_mut();
+                app.view_transform = app.view_transform.rotate_cw().rotate_cw();
+                app.bump_visual_revision();
+                Ok(true)
+            }
             WindowAction::FlipHorizontal => {
                 let app = self.active_app_mut();
                 app.view_transform = app.view_transform.toggle_flip_h();
@@ -333,6 +344,13 @@ impl NativeViewerSession {
                         Ok(true)
                     }
                 }
+            }
+            WindowAction::StepEnhancedPetVolume(delta) => {
+                let app = self.active_app_mut();
+                let next = app
+                    .enhanced_pet_selection()
+                    .and_then(|selection| selection.selected_index().checked_add_signed(delta));
+                Ok(next.is_some_and(|index| app.select_enhanced_pet_phase(index)))
             }
             WindowAction::ResetView => {
                 let app = self.active_app_mut();

@@ -4,19 +4,19 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use coeus_core::SequentialBackend;
-use ritk_io::{
-    load_color_multiframe_flat, load_color_multiframe_flat_from_bytes, load_color_volume_flat,
-    load_dicom_from_series, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
-    read_multiframe_info, read_multiframe_info_from_bytes,
-};
 #[cfg(windows)]
-use ritk_io::{load_dicom_from_series_with_budget, scan_dicom_files_with_budget};
+use ritk_io::scan_dicom_files_with_budget;
+use ritk_io::{
+    decode_dicom_series, load_color_multiframe_flat, load_color_multiframe_flat_from_bytes,
+    load_color_volume_flat, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
+    load_enhanced_pet_volumes_from_instances, read_multiframe_info,
+    read_multiframe_info_from_bytes, EnhancedPetSelection,
+};
 use tracing::info;
 
 use crate::LoadedVolume;
 
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 const SERIES_PREVIEW_DECODED_BYTE_BUDGET: usize = 64 * 1024 * 1024;
 
 /// Load a DICOM series from a pre-scanned series descriptor into a [`LoadedVolume`].
@@ -32,6 +32,9 @@ const SERIES_PREVIEW_DECODED_BYTE_BUDGET: usize = 64 * 1024 * 1024;
 pub fn load_volume_from_scanned_series(
     series: ritk_io::ScannedDicomSeries,
 ) -> Result<LoadedVolume> {
+    if is_enhanced_pet(&series) {
+        return load_enhanced_pet_from_scanned_series(series);
+    }
     if multiframe_count_for_series(&series)?.is_some() {
         return load_dicom_multiframe_volume_from_scanned_series(series);
     }
@@ -50,24 +53,42 @@ pub fn load_volume_from_scanned_series(
 
 #[cfg(windows)]
 pub(crate) fn load_volume_from_dicom_instance(path: &Path) -> Result<LoadedVolume> {
+    let paths = [path.to_path_buf()];
+    load_preview(|budget| scan_dicom_files_with_budget(&paths, budget))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn load_volume_from_preview_bytes(name: &str, bytes: &[u8]) -> Result<LoadedVolume> {
+    load_preview(|budget| ritk_io::scan_dicom_part10_bytes_with_budget(&[(name, bytes)], budget))
+}
+
+#[cfg(any(windows, target_arch = "wasm32"))]
+fn load_preview(
+    scan: impl FnOnce(&ritk_io::DicomReadBudget) -> Result<ritk_io::ScannedDicomSeries>,
+) -> Result<LoadedVolume> {
     let budget = ritk_io::DicomReadBudget::try_new(
         ritk_io::DicomReadBudget::DEFAULT.parser(),
         SERIES_PREVIEW_DECODED_BYTE_BUDGET,
         SERIES_PREVIEW_DECODED_BYTE_BUDGET,
     )?;
-    let paths = [path.to_path_buf()];
-    let series = scan_dicom_files_with_budget(&paths, &budget)
-        .with_context(|| format!("scan DICOM preview instance '{}'", path.display()))?;
-    let backend = SequentialBackend;
-    let (image, metadata) = load_dicom_from_series_with_budget(series, &backend, &budget)
-        .with_context(|| format!("decode DICOM preview instance '{}'", path.display()))?;
-    loaded_volume_from_scalar_image(image, metadata, None, &backend)
+    let series = scan(&budget).context("scan DICOM preview instance")?;
+    let decoded = decode_dicom_series(series, &budget).context("decode DICOM preview instance")?;
+    loaded_volume_from_decoded_series(decoded)
 }
 
 /// Return the frame count carried by a scanned member, using its retained
 /// Part-10 bytes whenever available. The scanner's retained payload is the
 /// same object whose metadata was validated, so frame admission cannot drift
 /// from the subsequent decode.
+fn is_enhanced_pet(series: &ritk_io::ScannedDicomSeries) -> bool {
+    series
+        .metadata
+        .slices
+        .first()
+        .and_then(|slice| slice.sop_class_uid.as_deref())
+        == Some("1.2.840.10008.5.1.4.1.1.130")
+}
+
 fn multiframe_count(slice: &ritk_io::DicomSliceMetadata) -> Result<usize> {
     let info = match slice.part10_bytes.as_deref() {
         Some(bytes) => read_multiframe_info_from_bytes(&slice.path, bytes),
@@ -101,34 +122,25 @@ fn multiframe_count_for_series(series: &ritk_io::ScannedDicomSeries) -> Result<O
     Ok(count)
 }
 
-/// Convert a scalar `(Image, DicomReadMetadata)` pair into a [`LoadedVolume`].
-///
-/// This deduplicates the image-to-LoadedVolume conversion logic shared by
-/// [`load_dicom_volume`] and [`load_volume_from_scanned_series`].
-///
-/// # Parameters
-/// - `image` — the reconstructed 3-D scalar image.
-/// - `meta` — per-series DICOM metadata.
-/// - `source` — optional filesystem source path (absent for SCP-received instances).
-fn loaded_volume_from_scalar_image(
-    image: ritk_image::Image<f32, SequentialBackend, 3>,
-    meta: ritk_io::DicomReadMetadata,
-    source: Option<std::path::PathBuf>,
-    backend: &SequentialBackend,
-) -> Result<LoadedVolume> {
-    let shape = image.shape();
-    let spacing = image.spacing().to_array();
-    let origin = image.origin().to_array();
-    let direction = image.direction().to_row_major();
-    let pixels = image.data_cow_on(backend)?.into_owned();
-    loaded_volume_from_scalar_data(pixels, shape, spacing, origin, direction, meta, source)
+/// Transfer the reconstructed CPU pixels into the viewer without duplicating
+/// the volume. The shape and physical coordinates come from the same decode.
+fn loaded_volume_from_decoded_series(decoded: ritk_io::DecodedDicomSeries) -> Result<LoadedVolume> {
+    loaded_volume_from_scalar_data(
+        Arc::new(decoded.volume),
+        decoded.shape,
+        decoded.spacing.to_array(),
+        decoded.origin.to_array(),
+        decoded.direction.to_row_major(),
+        decoded.metadata,
+        None,
+    )
 }
 
 /// Convert a substrate-free scalar buffer and resolved DICOM metadata into a
 /// viewer volume. This is shared by the conventional series reader and the
 /// single-object multi-frame reader.
 fn loaded_volume_from_scalar_data(
-    pixels: Vec<f32>,
+    pixels: Arc<Vec<f32>>,
     shape: [usize; 3],
     spacing: [f64; 3],
     origin: [f64; 3],
@@ -141,8 +153,14 @@ fn loaded_volume_from_scalar_data(
     let patient_id = meta.patient_id.clone();
     let study_date = meta.study_date;
     let series_description = meta.series_description.clone();
+    let series_time = meta.series_time;
+    let patient_weight_kg = meta.patient_weight_kg;
+    let injected_dose_bq = meta.radionuclide_total_dose_bq;
+    let radionuclide_half_life_s = meta.radionuclide_half_life_s;
+    let radiopharmaceutical_start_time = meta.radiopharmaceutical_start_time;
+    let decay_correction = meta.decay_correction;
     let volume = LoadedVolume {
-        data: Arc::new(pixels),
+        data: pixels,
         shape,
         channels: 1,
         spacing,
@@ -155,16 +173,41 @@ fn loaded_volume_from_scalar_data(
         patient_id,
         study_date,
         series_description,
-        series_time: None,
-        patient_weight_kg: None,
-        injected_dose_bq: None,
-        radionuclide_half_life_s: None,
-        radiopharmaceutical_start_time: None,
-        decay_correction: None,
+        series_time,
+        patient_weight_kg,
+        injected_dose_bq,
+        radionuclide_half_life_s,
+        radiopharmaceutical_start_time,
+        decay_correction,
     };
     crate::render::GrayscalePresentation::for_volume(&volume)
         .map_err(|error| anyhow::anyhow!("invalid DICOM grayscale presentation: {error}"))?;
     Ok(volume)
+}
+
+fn load_enhanced_pet_from_scanned_series(
+    series: ritk_io::ScannedDicomSeries,
+) -> Result<LoadedVolume> {
+    let volumes = load_enhanced_pet_volumes_from_instances(
+        &series.metadata.slices,
+        &ritk_io::DicomReadBudget::DEFAULT,
+    )?;
+    let mut meta = series.metadata;
+    let selection =
+        EnhancedPetSelection::new(volumes).context("Enhanced PET has no spatial volume")?;
+    let first = &selection.volumes()[0];
+    let data = Arc::clone(&first.data);
+    let shape = first.shape;
+    let spacing = first.spacing.to_array();
+    let origin = first.origin.to_array();
+    let direction = first.direction.to_row_major();
+    meta.enhanced_pet_selection = Some(selection);
+    let mut loaded =
+        loaded_volume_from_scalar_data(data, shape, spacing, origin, direction, meta, None)?;
+    loaded
+        .select_enhanced_pet_volume(0)
+        .context("Enhanced PET initial volume is unavailable")?;
+    Ok(loaded)
 }
 
 /// Load one scalar multi-frame object through the RITK multi-frame reader.
@@ -207,8 +250,16 @@ fn load_dicom_multiframe_volume_from_scanned_series(
         })?;
         let mut metadata = series.metadata;
         metadata.dimensions = [color.shape[1], color.shape[2], color.shape[0]];
-        metadata.spacing = color.spacing.to_array();
-        metadata.origin = color.origin.to_array();
+        metadata.spacing = color.spacing.to_array().map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        );
+        metadata.origin = color.origin.to_array().map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        );
         metadata.direction = color.direction.to_column_major();
         return Ok(loaded_volume_from_color_flat(
             color.data,
@@ -232,16 +283,25 @@ fn load_dicom_multiframe_volume_from_scanned_series(
     .with_context(|| format!("failed to load DICOM multi-frame object {:?}", slice.path))?;
 
     let mut metadata = series.metadata;
+    metadata.enhanced_pet_suv = flat.suv_bw;
     metadata.dimensions = [flat.shape[1], flat.shape[2], flat.shape[0]];
-    metadata.spacing = flat.spacing.to_array();
-    metadata.origin = flat.origin.to_array();
+    metadata.spacing = flat.spacing.to_array().map(
+        aequitas::systems::si::quantities::Length::from_unit::<
+            aequitas::systems::si::units::Millimeter,
+        >,
+    );
+    metadata.origin = flat.origin.to_array().map(
+        aequitas::systems::si::quantities::Length::from_unit::<
+            aequitas::systems::si::units::Millimeter,
+        >,
+    );
     let direction = flat.direction.to_row_major();
     metadata.direction = flat.direction.to_column_major();
     loaded_volume_from_scalar_data(
-        flat.data,
+        Arc::new(flat.data),
         flat.shape,
-        metadata.spacing,
-        metadata.origin,
+        metadata.spacing_mm(),
+        metadata.origin_mm(),
         direction,
         metadata,
         None,
@@ -252,10 +312,9 @@ fn load_dicom_multiframe_volume_from_scanned_series(
 fn load_dicom_scalar_volume_from_scanned_series(
     series: ritk_io::ScannedDicomSeries,
 ) -> Result<LoadedVolume> {
-    let backend = SequentialBackend;
-    let (image, meta) = load_dicom_from_series(series, &backend)
+    let decoded = decode_dicom_series(series, &ritk_io::DicomReadBudget::DEFAULT)
         .with_context(|| "failed to load DICOM series from scanned instances")?;
-    loaded_volume_from_scalar_image(image, meta, None, &backend)
+    loaded_volume_from_decoded_series(decoded)
 }
 
 /// Build a colour [`LoadedVolume`] from the substrate-free flat RGB core.
@@ -273,8 +332,8 @@ fn loaded_volume_from_color_flat(
 ) -> LoadedVolume {
     let [depth, rows, cols, _channels] = dims;
     let shape = [depth, rows, cols];
-    let spacing = meta.spacing;
-    let origin = meta.origin;
+    let spacing = meta.spacing_mm();
+    let origin = meta.origin_mm();
     // `meta.direction` is column-major; the scalar path and the former
     // `RgbVolume` carrier both surface direction cosines in row-major order,
     // i.e. the transpose of the stored column-major array.
@@ -285,6 +344,12 @@ fn loaded_volume_from_color_flat(
     let patient_id = meta.patient_id.clone();
     let study_date = meta.study_date;
     let series_description = meta.series_description.clone();
+    let series_time = meta.series_time;
+    let patient_weight_kg = meta.patient_weight_kg;
+    let injected_dose_bq = meta.radionuclide_total_dose_bq;
+    let radionuclide_half_life_s = meta.radionuclide_half_life_s;
+    let radiopharmaceutical_start_time = meta.radiopharmaceutical_start_time;
+    let decay_correction = meta.decay_correction;
     LoadedVolume {
         data: Arc::new(flat),
         shape,
@@ -299,12 +364,12 @@ fn loaded_volume_from_color_flat(
         patient_id,
         study_date,
         series_description,
-        series_time: None,
-        patient_weight_kg: None,
-        injected_dose_bq: None,
-        radionuclide_half_life_s: None,
-        radiopharmaceutical_start_time: None,
-        decay_correction: None,
+        series_time,
+        patient_weight_kg,
+        injected_dose_bq,
+        radionuclide_half_life_s,
+        radiopharmaceutical_start_time,
+        decay_correction,
     }
 }
 

@@ -164,7 +164,7 @@ fn test_gantry_tilt_synthesizes_oblique_orientation() {
 
     // gantry_tilt field must be populated
     let tilt_read = slice
-        .gantry_tilt
+        .gantry_tilt_degrees()
         .expect("gantry_tilt must be Some after reading tag");
     assert!(
         (tilt_read - tilt_deg).abs() < 1e-5,

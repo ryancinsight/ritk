@@ -135,4 +135,16 @@ pub enum MghError {
         /// Image construction failure.
         source: anyhow::Error,
     },
+    /// The compressed stream failed validation after decoding its samples.
+    #[error("invalid MGZ stream after the voxel payload: {source}")]
+    GzipStream {
+        /// Decompression, integrity or input failure.
+        source: io::Error,
+    },
+    /// Expanded data following the samples exceeds the MGZ admission bound.
+    #[error("MGZ document exceeds the {maximum}-byte expanded limit")]
+    ExpandedLimit {
+        /// Maximum expanded length, including metadata.
+        maximum: u64,
+    },
 }

@@ -2,9 +2,12 @@
 
 - Status: Accepted
 - Date: 2026-07-29
-- Board items:
-  [SAFE-680-01](../../backlog.md#safe-680-01-major---make-jpeg-2000-encoding-fallible-and-document-the-native-codec),
-  [FEAT-692-01](../../backlog.md#feat-692-01-major---control-native-jpeg-2000-lossy-quantization)
+- Revision 2026-11-20: replace expired board anchors with merged delivery
+  provenance and current source/reference evidence in
+  [RITK PR #1089](https://github.com/ryancinsight/ritk/pull/1089), without
+  adding codec or runtime certification.
+- Deliveries: [RITK PR #74](https://github.com/ryancinsight/ritk/pull/74),
+  [RITK PR #100](https://github.com/ryancinsight/ritk/pull/100)
 
 ## Context
 

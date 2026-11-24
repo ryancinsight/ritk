@@ -1,0 +1,7 @@
+html, body { margin: 0; height: 100%; overflow: hidden; background: #101214; color: white; }
+#workstation { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+#metis-app { display: none; }
+body.dragging #metis-app, body.dragging #drop-zone { display: block; }
+body.dragging #metis-app { position: fixed; inset: 0; overflow: hidden; }
+body.dragging #drop-zone { position: fixed; inset: 0; display: grid; place-content: center; background: #0b111be8; border: 2px dashed #82b5df; font: 18px system-ui; }
+#notice { position: fixed; bottom: 26px; left: 1rem; padding: .6rem; max-width: 90%; color: white; background: #382321; font: 14px system-ui; }

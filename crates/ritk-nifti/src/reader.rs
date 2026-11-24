@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, Context, Result};
 use coeus_core::ComputeBackend;
-use flate2::read::GzDecoder;
+use flate2::read::MultiGzDecoder;
 use ritk_image::Image;
 use std::fs;
 use std::io::Read;
@@ -176,23 +176,12 @@ fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
 
     // NIfTI stores x fastest, then y, z, and finally the acquisition axis, so
     // each volume is one contiguous block of `voxel_count` voxels.
-    let volumes = (0..header.volume_count())
-        .map(|volume| {
-            let base = volume * voxel_count * lane_width;
-            let mut data_vec = vec![0.0_f32; voxel_count];
-            for z in 0..nz {
-                for y in 0..ny {
-                    for x in 0..nx {
-                        let file_index = x + nx * (y + ny * z);
-                        let offset = base + file_index * lane_width;
-                        let value =
-                            header.read_f32_voxel(&data_bytes[offset..offset + lane_width])?;
-                        data_vec[z * ny * nx + y * nx + x] = value;
-                    }
-                }
-            }
-            Ok(data_vec)
-        })
+    let calibration = header
+        .linear_calibration()?
+        .filter(|scale| !scale.is_identity());
+    let volumes = data_bytes
+        .chunks_exact(voxel_count * lane_width)
+        .map(|volume| header.decode_intensities(volume, calibration))
         .collect::<Result<Vec<_>>>()?;
 
     Ok(DecodedNifti {
@@ -263,7 +252,7 @@ fn dims_xyz(header: &NiftiHeader) -> Result<[usize; 3]> {
 }
 
 fn decode_gzip(bytes: &[u8]) -> Result<Vec<u8>> {
-    let mut decoder = GzDecoder::new(bytes);
+    let mut decoder = MultiGzDecoder::new(bytes);
     let mut decoded = Vec::new();
     Read::by_ref(&mut decoder)
         .take(MAX_HEADER_PREFIX_BYTES)

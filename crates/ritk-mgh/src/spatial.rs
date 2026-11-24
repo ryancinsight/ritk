@@ -198,8 +198,7 @@ fn flip_ras_to_lps_components(components: [f64; 3]) -> [f64; 3] {
 /// Apply [`flip_ras_to_lps_components`] to every direction-cosine column.
 ///
 /// Negating two rows of an orthonormal matrix leaves it orthonormal, so the
-/// result is still a valid [`Direction`]; it reverses the handedness of the
-/// basis, which is exactly the RAS-to-LPS relation.
+/// result is still a valid [`Direction`]; the two sign changes preserve handedness.
 fn flip_ras_to_lps_columns(direction: Direction<3>) -> Direction<3> {
     Direction::from_columns(
         direction
@@ -217,17 +216,16 @@ fn header_columns(direction: Direction<3>) -> [[f32; 3]; 3] {
 
 /// Half-offset from voxel zero to the volume center, in header `[x, y, z]` order.
 ///
-/// `Mdc · D · h` with `h = [(nx−1)/2, (ny−1)/2, (nz−1)/2]ᵀ`.
+/// FreeSurfer defines the zero-based CRS of `c_ras` as `dims_xyz / 2`,
+/// including singleton axes. Header extents are positive signed 32-bit
+/// integers, so both the conversion to binary64 and the halving are exact.
+/// See [VGgetVoxelToRasXform](https://github.com/freesurfer/freesurfer/blob/dev/utils/transform.cpp).
 fn centered_half_offset(
     direction: Direction<3>,
     spacing: Spacing<3>,
     dims_xyz: [usize; 3],
 ) -> Vector<3> {
-    let half_dim = Vector::new([
-        (dims_xyz[0] as f64 - 1.0) / 2.0,
-        (dims_xyz[1] as f64 - 1.0) / 2.0,
-        (dims_xyz[2] as f64 - 1.0) / 2.0,
-    ]);
+    let half_dim = dims_xyz.map(|extent| extent as f64 / 2.0);
     let scaled_half = Vector::new([
         spacing[0] * half_dim[0],
         spacing[1] * half_dim[1],

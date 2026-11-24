@@ -76,7 +76,7 @@ pub fn read_image(
         };
         native
             .map(native_into_py_image)
-            .map_err(io_err("native image read error"))
+            .map_err(|error| RitkPyError::io(format!("native image read error: {error:#}")))
     })
 }
 

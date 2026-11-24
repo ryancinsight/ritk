@@ -3,13 +3,13 @@
 use super::layout::{PanelGrid, WorkspaceLayout, MAX_GRID_PANELS};
 use super::series_browser::SeriesBrowser;
 use super::session::NativeViewerSession;
-use crate::dicom::loader::{
-    load_volume_from_path, load_volume_from_series_info, scan_folder_for_series,
-};
+#[cfg(windows)]
+use crate::dicom::loader::{load_volume_from_path, scan_folder_for_series};
 use anyhow::{anyhow, Context, Result};
+#[cfg(windows)]
 use metis_platform::native::{pick, DialogSelection};
+#[cfg(windows)]
 use std::path::Path;
-use std::sync::Arc;
 
 impl NativeViewerSession {
     pub(super) fn assign_series_to_next_panel(&mut self, index: usize) -> Result<bool> {
@@ -48,12 +48,14 @@ impl NativeViewerSession {
 
     /// Replace the displayed study with the one at `path` and remember where
     /// it came from. A study that cannot be opened leaves both as they were.
+    #[cfg(windows)]
     pub(super) fn open_study_path(&mut self, path: &Path) -> Result<()> {
         self.load_study_path(path)?;
         self.study_root = Some(path.to_path_buf());
         Ok(())
     }
 
+    #[cfg(windows)]
     fn load_study_path(&mut self, path: &Path) -> Result<()> {
         self.end_held_gestures();
         if path.is_dir() {
@@ -68,63 +70,7 @@ impl NativeViewerSession {
                 return Ok(());
             }
 
-            let mut browser = SeriesBrowser::from_tree(&tree, None)?;
-            let mut opened = None;
-            let mut failed_series_count = 0_usize;
-            let mut first_error_chain_depth = None;
-            for index in 0..browser.len() {
-                let choice = browser
-                    .choice(index)
-                    .ok_or_else(|| anyhow!("study catalog lost a discovered series"))?;
-                match load_volume_from_series_info(&choice.acquisition) {
-                    Ok(volume) => {
-                        opened = Some((
-                            index,
-                            choice.modality.to_string(),
-                            choice.image_count,
-                            volume,
-                        ));
-                        break;
-                    }
-                    Err(error) => {
-                        failed_series_count = failed_series_count
-                            .checked_add(1)
-                            .ok_or_else(|| anyhow!("unreadable series count overflowed"))?;
-                        first_error_chain_depth.get_or_insert_with(|| error.chain().count());
-                    }
-                }
-            }
-            let Some((index, modality, image_count, volume)) = opened else {
-                tracing::warn!(
-                    series_count = browser.len(),
-                    failed_series_count,
-                    error_chain_depth = first_error_chain_depth.unwrap_or_default(),
-                    "no discovered series could be opened"
-                );
-                return Err(anyhow!("no series in the selected study could be opened"));
-            };
-            if failed_series_count > 0 {
-                tracing::warn!(
-                    selected_series_index = index,
-                    failed_series_count,
-                    error_chain_depth = first_error_chain_depth.unwrap_or_default(),
-                    "unreadable series skipped while opening study"
-                );
-            }
-            if !browser.set_active(index) {
-                return Err(anyhow!("selected series is outside the study catalog"));
-            }
-            let status = if failed_series_count == 0 {
-                format!("Loaded {modality} series ({image_count} images).")
-            } else {
-                format!(
-                    "Loaded {modality} series ({image_count} images); skipped {failed_series_count} unreadable series."
-                )
-            };
-            self.app.load_volume(volume, status);
-            self.primary_series_index = Some(index);
-            self.series_browser = Some(browser);
-            self.reset_comparison();
+            self.open_catalog(SeriesBrowser::from_tree(&tree, None)?)?;
         } else {
             let volume = load_volume_from_path(path).context("open selected RITK study")?;
             self.app
@@ -133,6 +79,66 @@ impl NativeViewerSession {
             self.primary_series_index = None;
             self.reset_comparison();
         }
+        Ok(())
+    }
+
+    pub(super) fn open_catalog(&mut self, mut browser: SeriesBrowser) -> Result<()> {
+        let mut opened = None;
+        let mut failed_series_count = 0_usize;
+        let mut first_error_chain_depth = None;
+        for index in 0..browser.len() {
+            let choice = browser
+                .choice(index)
+                .ok_or_else(|| anyhow!("study catalog lost a discovered series"))?;
+            match browser.load(index) {
+                Ok(volume) => {
+                    opened = Some((
+                        index,
+                        choice.modality.to_string(),
+                        choice.image_count,
+                        volume,
+                    ));
+                    break;
+                }
+                Err(error) => {
+                    failed_series_count = failed_series_count
+                        .checked_add(1)
+                        .ok_or_else(|| anyhow!("unreadable series count overflowed"))?;
+                    first_error_chain_depth.get_or_insert_with(|| error.chain().count());
+                }
+            }
+        }
+        let Some((index, modality, image_count, volume)) = opened else {
+            tracing::warn!(
+                series_count = browser.len(),
+                failed_series_count,
+                error_chain_depth = first_error_chain_depth.unwrap_or_default(),
+                "no discovered series could be opened"
+            );
+            return Err(anyhow!("no series in the selected study could be opened"));
+        };
+        if failed_series_count > 0 {
+            tracing::warn!(
+                selected_series_index = index,
+                failed_series_count,
+                error_chain_depth = first_error_chain_depth.unwrap_or_default(),
+                "unreadable series skipped while opening study"
+            );
+        }
+        if !browser.set_active(index) {
+            return Err(anyhow!("selected series is outside the study catalog"));
+        }
+        let status = if failed_series_count == 0 {
+            format!("Loaded {modality} series ({image_count} images).")
+        } else {
+            format!(
+                    "Loaded {modality} series ({image_count} images); skipped {failed_series_count} unreadable series."
+                )
+        };
+        self.app.load_volume(volume, status);
+        self.primary_series_index = Some(index);
+        self.series_browser = Some(browser);
+        self.reset_comparison();
         Ok(())
     }
 
@@ -289,7 +295,7 @@ impl NativeViewerSession {
     }
 
     fn replace_series_at(&mut self, index: usize, panel_index: usize) -> Result<()> {
-        let (acquisition, modality, image_count) = {
+        let (browser, modality, image_count) = {
             let browser = self
                 .series_browser
                 .as_ref()
@@ -297,11 +303,7 @@ impl NativeViewerSession {
             let choice = browser
                 .choice(index)
                 .ok_or_else(|| anyhow!("selected series row is outside the study"))?;
-            (
-                Arc::clone(&choice.acquisition),
-                choice.modality.to_string(),
-                choice.image_count,
-            )
+            (browser, choice.modality.to_string(), choice.image_count)
         };
         let volume = if self.primary_series_index == Some(index) {
             self.app
@@ -321,7 +323,8 @@ impl NativeViewerSession {
                 .ok_or_else(|| anyhow!("comparison series {index} has no decoded volume"))?
                 .clone()
         } else {
-            load_volume_from_series_info(&acquisition)
+            browser
+                .load(index)
                 .with_context(|| "open the selected DICOM series")?
         };
         let status = format!("Loaded {modality} series ({image_count} images).");
@@ -337,6 +340,7 @@ impl NativeViewerSession {
         Ok(())
     }
 
+    #[cfg(windows)]
     pub(super) fn open_study_from_dialog(&mut self) -> Result<bool> {
         self.end_held_gestures();
         let selected = pick(DialogSelection::Folder).context("show native study picker")?;

@@ -1,0 +1,22 @@
+name: SafariStudy
+options:
+  deploymentTarget:
+    macOS: "14.0"
+targets:
+  SafariStudyTests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources: [Tests]
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: org.ritk.tests.SafariStudy
+      GENERATE_INFOPLIST_FILE: YES
+      CODE_SIGN_STYLE: Manual
+      CODE_SIGN_IDENTITY: "-"
+schemes:
+  SafariStudy:
+    build:
+      targets:
+        SafariStudyTests: [test]
+    test:
+      targets:
+        - SafariStudyTests

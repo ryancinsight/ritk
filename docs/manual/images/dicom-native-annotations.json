@@ -1,32 +1,52 @@
 {
-  "viewer_base_revision": "ca4041fceaa4f67af28210e06654e9d635a25687",
+  "viewer_base_revision": "fd95e1d34b75f63feb4a0b1cb9d9fc5689efd6d8",
   "viewer_source_overrides": {
-    "Cargo.lock": {
-      "base_sha256": "ce6fbcae5c6d37b012e2d091dba1c374d280d5017c0ba7968e935e1bd2e838e5",
-      "capture_sha256": "11f7273975ee948280649ad3084b9c542019832ae041cd1dbf46480e3d8b1e22"
+    "crates/ritk-snap/src/app/calibration.rs": {
+      "base_sha256": "8c6dc660ccc9cb1263dd8e4fd711fd10479bc4cd0944d0c743a2cf2d1f6e165d",
+      "capture_sha256": "5d5b3ad23677a3e3cddeed33465ff9242a228434e1cd6cd8ab4bd502d19422ee"
+    },
+    "crates/ritk-snap/src/app/calibration/units.rs": {
+      "base_sha256": null,
+      "capture_sha256": "8887b53725e58be2dd128e4f1b25697b0ae00690b33ce0b49ab2f77e5881f0c9"
+    },
+    "crates/ritk-snap/src/app/mod.rs": {
+      "base_sha256": "b362f761fd238ecfbb2e27a7622de2f95d96e6329e865bf075d14545aa95796c",
+      "capture_sha256": "ba96af79a7177bf10a54fd4e7b4db2c7853b221711fa0aabdd898a2d973db99c"
     },
     "crates/ritk-snap/src/presentation/native_session/tests.rs": {
-      "base_sha256": "61b49962957f97577694d86c7161da25c27f07543d46983005b468c44ac4248a",
-      "capture_sha256": "59517b898542f59668fd9f39b816ca434cdc47d59100a5216b00835c1c68fff9"
+      "base_sha256": "59517b898542f59668fd9f39b816ca434cdc47d59100a5216b00835c1c68fff9",
+      "capture_sha256": "ccbc6a8920e8921e30080a4862cc1697324b9c1989cd6906da8197ac31bbbbca"
     },
     "crates/ritk-snap/src/presentation/native_session/tests/calibration_layout.rs": {
-      "base_sha256": null,
-      "capture_sha256": "975f451650170bba820f1c0a7bb00a2a21c64164238b8bec248c3e50ec2b37ca"
+      "base_sha256": "975f451650170bba820f1c0a7bb00a2a21c64164238b8bec248c3e50ec2b37ca",
+      "capture_sha256": "d91ac6920d010411cebd0d6dd523607fbcb6ab3f808250e45c456723a240ad8f"
     },
     "crates/ritk-snap/src/presentation/native_session/tests/calibration_scope.rs": {
-      "base_sha256": "4d512033857ff93f642b2aefd8778adbe9ab13fbb58c32631b46cb40626bd627",
-      "capture_sha256": "71711c6ccfa2e511dc450fe0dac28c798f9eb9d0d4ddf427326289252db54a2e"
+      "base_sha256": "71711c6ccfa2e511dc450fe0dac28c798f9eb9d0d4ddf427326289252db54a2e",
+      "capture_sha256": "d0dfe7054622826fd7bb56ca29d7848d29f5b4cd21b806aba64c9ee03f5ead14"
+    },
+    "crates/ritk-snap/src/presentation/native_session/tests/calibration_units.rs": {
+      "base_sha256": null,
+      "capture_sha256": "5d8992472a34dae3c313f3743ec9daa5339c652b2f615e22dc61b3a208368dbb"
+    },
+    "crates/ritk-snap/src/presentation/native_session/tests/manual_capture.rs": {
+      "base_sha256": "0deb7d9b6dd8daa99a69985112fd6f09380b18f30794f220f706f5cf0325cb22",
+      "capture_sha256": "42f650eaff58f05a94129902f76f959e93e79c2f13f1d817eee46cbd4484e470"
     },
     "crates/ritk-snap/src/presentation/native_session/window_controls/calibration.rs": {
-      "base_sha256": "0492e56187acb34a0e68f80f8c40872166f311d4effe985c2bbf7ca95f99372a",
-      "capture_sha256": "222ac1466d68a96e3b3e8ec889e9ecaa8e0627ce8bf1fd9cc2b904e494ef1175"
+      "base_sha256": "222ac1466d68a96e3b3e8ec889e9ecaa8e0627ce8bf1fd9cc2b904e494ef1175",
+      "capture_sha256": "c3a2f758cde689f47a1f63070cc98057e208e1f60e1356258bf91abb286a55b3"
+    },
+    "crates/ritk-snap/src/presentation/native_session/window_controls/events.rs": {
+      "base_sha256": "7a5412825d4f939455939abf194df10479dda357747b18dc4b6d3be512395b1b",
+      "capture_sha256": "6bc15d0026e7bccc77b925c17499597ed5ece453479c254f2a0541133684ad66"
     }
   },
-  "capture_record_sha256": "109471680fdeac893999bffd169bcb6d386e5fec4b9e86813215a9c9a6e5500e",
+  "capture_record_sha256": "f660f5189c3c563f7a61e6d683581bbe07aa040692efe83efc099a8544357836",
   "capture_input_coverage": {
     "description": "All crates/**/*.rs, all Cargo.toml files, Cargo.lock, and rust-toolchain.toml used by the capture",
-    "file_count": 2433,
-    "source_map_sha256": "ac6bb9771d5aa835071396422dd719150001aa99fa7f621c8175d26aff44c526"
+    "file_count": 2435,
+    "source_map_sha256": "6b81c6e48d7c0d7aa1207e00ef65389e861a27973dd3dfa920e7d692c89b5d82"
   },
   "fixture": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -36,11 +56,11 @@
   "capture_command": [
     "cargo",
     "--config",
-    "C:\\Users\\RYANCL~1\\AppData\\Local\\Temp\\tmpo6bk5vd6\\config.toml",
+    "C:\\Users\\RYANCL~1\\AppData\\Local\\Temp\\tmpmfnh87t5\\config.toml",
     "nextest",
     "run",
     "--manifest-path",
-    "C:\\Users\\RyanClanton\\AppData\\Local\\Temp\\codex-01a1e69e-3076-72e1-9852-7a0d3886d2f0\\calibration-text-provider\\Cargo.toml",
+    "C:\\Users\\RyanClanton\\AppData\\Local\\Temp\\codex-01a1e69e-3076-72e1-9852-7a0d3886d2f0\\calibration-unit-integration\\Cargo.toml",
     "--locked",
     "-p",
     "ritk-snap",
@@ -85,10 +105,10 @@
     "dicom-native-calibration.webp": {
       "width_px": 1280,
       "height_px": 800,
-      "webp_bytes": 115472,
-      "webp_sha256": "0391249b4e4090eeac88e8f8f3f4de1ffe7635fbcbf775049036d600b1401df5",
-      "source_png_bytes": 399957,
-      "source_png_sha256": "5bcc624294302cf4235d1d01331b90ee43605489eb654f20c20ad8632ced72aa"
+      "webp_bytes": 112154,
+      "webp_sha256": "02fb07c119288fb2aeee761b8400faa955598860a946c9a3e5ea1878c95326aa",
+      "source_png_bytes": 387048,
+      "source_png_sha256": "43cd2b305ee44be26ef44919b8dddc293ac3664e5c6f93a1efe8a2d616d5be6c"
     },
     "dicom-native-annotations.webp": {
       "width_px": 1280,

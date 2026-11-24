@@ -21,7 +21,6 @@ pub mod gpu_volume;
 pub mod grayscale;
 pub mod histogram;
 pub mod mesh_render;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod mip_vr;
 pub mod projection_kind;
 pub mod reslice;
@@ -45,11 +44,11 @@ pub use iris::color::NamedColorMap;
 pub use mesh_render::{DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial};
 #[cfg(all(windows, not(target_arch = "wasm32"), test))]
 pub(crate) use mip_vr::render_mip_axial_rgba;
-#[cfg(all(windows, not(target_arch = "wasm32")))]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) use mip_vr::render_mip_axial_rgba_into;
 #[cfg(all(windows, not(target_arch = "wasm32"), test))]
 pub(crate) use mip_vr::render_vr_axial_rgba;
-#[cfg(all(windows, not(target_arch = "wasm32")))]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) use mip_vr::render_vr_axial_rgba_into;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub use mip_vr::{render_mip_axial, render_vr_axial};

@@ -55,6 +55,12 @@ pub enum DicomStoredImportError {
         /// RescaleIntercept (0028,1054).
         intercept: f32,
     },
+    /// Instances cannot share one in-plane basis.
+    #[error("DICOM stored import found inconsistent ImageOrientationPatient at slice index {slice_index}")]
+    InconsistentOrientation {
+        /// Index of the first instance whose orientation differs from the reference.
+        slice_index: usize,
+    },
     /// Slice positions would require resampling stored samples.
     #[error(
         "DICOM stored import requires uniformly spaced slices; the series would need resampling"

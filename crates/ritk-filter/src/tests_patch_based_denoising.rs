@@ -15,6 +15,19 @@ fn test_itk_mt19937_canonical() {
     assert_eq!(mt5489.next_u32(), 3_499_211_612, "seed 5489 first output");
 }
 
+/// For seed zero the first floored normal draws at variance 400 are
+/// -22, 17 and 17. Test the observable low-face sample and RNG advancement.
+#[test]
+fn gaussian_low_face_matches_host_integer_conversion() {
+    let mut mt = ItkMt::new(0);
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    let first = 0;
+    #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+    let first = 17;
+    assert_eq!(mt.gauss_int(0, 20, 0.0, 400.0), first);
+    assert_eq!(mt.gauss_int(0, 20, 0.0, 400.0), 17);
+}
+
 #[test]
 fn test_itk_patch_reduction_order() {
     assert_eq!(
@@ -37,12 +50,12 @@ fn test_itk_pixel_difference_rounds_before_widening() {
 fn test_zero_weight_elision_preserves_finite_patch_distance() {
     let weights = smooth_disc_weights_sq(2, 3);
     // ITK's unqualified spline numerator overload is host-toolchain dependent:
-    // MSVC keeps float arithmetic, while GNU/Clang promotes the operands to
+    // MSVC and Apple libc++ select float powers, while GNU libm promotes them to
     // double before the final float cast. These are independent ITK reference
     // outputs for the resulting weight on each target environment.
-    #[cfg(target_env = "msvc")]
+    #[cfg(any(target_env = "msvc", target_os = "macos"))]
     let itk_diagonal_weight = f32::from_bits(0x3f63_9b3b);
-    #[cfg(not(target_env = "msvc"))]
+    #[cfg(not(any(target_env = "msvc", target_os = "macos")))]
     let itk_diagonal_weight = f32::from_bits(0x3f63_9b3a);
     let differences: Vec<f64> = (0..weights.len())
         .map(|index| {

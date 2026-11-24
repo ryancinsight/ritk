@@ -5,6 +5,7 @@ use super::super::super::scan::{scan_dicom_files, scan_dicom_part10_bytes, scan_
 use super::fixtures::{instance, OTHER, SERIES};
 use crate::DicomStudyCatalog;
 use crate::{DicomSliceMetadata, DicomTag};
+use aequitas::systems::si::{quantities::Length, units::Millimeter};
 
 fn retained_geometry(slice: &DicomSliceMetadata, tag: DicomTag) -> Option<&str> {
     let node = slice.preservation.object.get(tag)?;
@@ -35,8 +36,8 @@ fn decoded_pixels_are_the_validated_bytes_after_file_replacement() {
         let (image, metadata) =
             load_dicom_from_series(snapshot, &backend).expect("snapshot decode");
         assert_eq!(metadata.series_instance_uid.as_deref(), Some(SERIES));
-        assert_eq!(metadata.origin, [10.0, 20.0, 2.0]);
-        assert_eq!(metadata.spacing, [2.0, 0.5, 0.5]);
+        assert_eq!(metadata.origin_mm(), [10.0, 20.0, 2.0]);
+        assert_eq!(metadata.spacing_mm(), [2.0, 0.5, 0.5]);
         let [slice] = metadata.slices.as_slice() else {
             panic!("invariant: the snapshot contains one image");
         };
@@ -96,8 +97,8 @@ fn selected_file_and_exact_members_preserve_minority_pixels_and_metadata() {
             scanned.metadata.series_description.as_deref(),
             Some("Acquisition 31")
         );
-        assert_eq!(scanned.metadata.origin, [10.0, 20.0, 2.0]);
-        assert_eq!(scanned.metadata.spacing, [2.0, 0.5, 0.5]);
+        assert_eq!(scanned.metadata.origin_mm(), [10.0, 20.0, 2.0]);
+        assert_eq!(scanned.metadata.spacing_mm(), [2.0, 0.5, 0.5]);
         let (image, metadata) =
             load_dicom_from_series(scanned, &backend).expect("decode selected series");
         let retained_positions: Vec<_> = metadata
@@ -200,6 +201,22 @@ fn mixed_byte_batches_reject_both_ties_and_majorities() {
             ("other", other.as_slice()),
         ],
     ] {
+        let catalog = crate::scan_dicom_part10_catalog(&files).expect("discover both series");
+        assert_eq!(catalog.len(), 2);
+        for (uid, expected) in [(SERIES, files.len() - 1), (OTHER, 1)] {
+            let scan = catalog
+                .iter()
+                .find(|s| s.metadata.series_instance_uid.as_deref() == Some(uid))
+                .expect("group by UID");
+            assert_eq!(scan.metadata.slices.len(), expected);
+            for slice in &scan.metadata.slices {
+                let (_, bytes) = files
+                    .iter()
+                    .find(|(name, _)| slice.path == std::path::Path::new(name))
+                    .expect("selected instance name");
+                assert_eq!(slice.part10_bytes.as_deref(), Some(*bytes));
+            }
+        }
         let error = scan_dicom_part10_bytes(&files).expect_err("explicit identity required");
         assert!(error.to_string().contains("ambiguous"));
     }
@@ -257,6 +274,46 @@ fn named_bytes_and_disk_preserve_identical_values_and_geometry() {
             .as_ref(),
         &[11.0, 11.0, 11.0, 11.0, 13.0, 13.0, 13.0, 13.0]
     );
+}
+
+#[test]
+fn owned_series_decodes_sorted_samples_and_patient_grid() {
+    let subscriber = tracing_subscriber::fmt()
+        .with_test_writer()
+        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+        .finish();
+    let _guard = tracing::subscriber::set_default(subscriber);
+    let series = tracing::info_span!("arrange").in_scope(|| {
+        let first = instance(Some(SERIES), 1, 11);
+        let second = instance(Some(SERIES), 2, 13);
+        scan_dicom_part10_bytes(&[("second", &second), ("first", &first)]).expect("scan instances")
+    });
+    let decoded = tracing::info_span!("act").in_scope(|| {
+        crate::decode_dicom_series(series, &crate::DicomReadBudget::DEFAULT).expect("decode series")
+    });
+    tracing::info_span!("assert").in_scope(|| {
+        assert_eq!(
+            decoded.volume,
+            [11.0, 11.0, 11.0, 11.0, 13.0, 13.0, 13.0, 13.0]
+        );
+        assert_eq!(decoded.shape, [2, 2, 2]);
+        assert_eq!(decoded.origin.to_array(), [10.0, 20.0, 2.0]);
+        assert_eq!(decoded.spacing.to_array(), [2.0, 0.5, 0.5]);
+        assert_eq!(
+            decoded.direction.to_row_major(),
+            [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
+        );
+        assert_eq!(
+            decoded.metadata.series_instance_uid.as_deref(),
+            Some(SERIES)
+        );
+        assert_eq!(decoded.metadata.slices.len(), 2);
+        assert!(decoded
+            .metadata
+            .slices
+            .iter()
+            .all(|slice| slice.part10_bytes.is_none()));
+    });
 }
 
 #[test]
@@ -371,8 +428,14 @@ fn regenerated_geometry_wins_over_preserved_source_values() {
     .and_then(|image| image.with_coordinate_map(map))
     .expect("invariant: rewritten image retains its coordinate map");
     // This writer takes effective output geometry from the supplied metadata.
-    metadata.origin = rewritten.origin().to_array();
-    metadata.spacing = rewritten.spacing().to_array();
+    metadata.origin = rewritten
+        .origin()
+        .to_array()
+        .map(Length::from_unit::<Millimeter>);
+    metadata.spacing = rewritten
+        .spacing()
+        .to_array()
+        .map(Length::from_unit::<Millimeter>);
     metadata.direction = rewritten.direction().to_column_major();
     for tag in [
         DicomTag::new(0x0020, 0x0032),

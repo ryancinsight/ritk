@@ -112,7 +112,7 @@ class BrowserWorkflowRevisionTests(unittest.TestCase):
     def test_script_dependency_setup_precedes_script_tests(self):
         cases = [
             ("python_ci.yml", "Install Python script test tooling", "Run Python script tests"),
-            ("metis-browser-dicom.yml", "Install RITK script test tooling", "Validate the RITK gallery harness"),
+            ("metis-browser-dicom.yml", "Install RITK script test tooling", "Validate RITK browser tooling"),
         ]
         for path, setup_name, test_name in cases:
             with self.subTest(workflow=path):

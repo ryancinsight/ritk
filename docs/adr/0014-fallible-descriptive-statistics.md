@@ -2,7 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-07-30
-- Board item: [SAFE-682-01](../../backlog.md#safe-682-01-major---make-descriptive-statistics-and-histograms-fallible-finite-and-teachable)
+- Revision 2026-11-20: replace the expired board anchor with merged delivery
+  provenance and current source/reference evidence in
+  [RITK PR #1089](https://github.com/ryancinsight/ritk/pull/1089), without
+  adding numerical, runtime, or clinical certification.
+- Delivery: [RITK PR #76](https://github.com/ryancinsight/ritk/pull/76)
 
 ## Context
 

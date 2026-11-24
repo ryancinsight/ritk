@@ -3,11 +3,15 @@
 use anyhow::{anyhow, Result};
 use arrayvec::ArrayVec;
 use ritk_io::DicomSeriesInfo;
+#[cfg(windows)]
 use std::path::Path;
 use std::sync::Arc;
 
 use crate::app::SnapApp;
+#[cfg(windows)]
 use crate::dicom::loader::load_volume_from_dicom_instance;
+#[cfg(target_arch = "wasm32")]
+mod memory;
 use crate::dicom::series_tree::SeriesTree;
 use crate::presentation::{PresentationFrame, PresentationSpacing};
 
@@ -28,6 +32,7 @@ pub(crate) struct SeriesChoice {
     pub(crate) image_count: usize,
     pub(crate) patient_name: Box<str>,
     pub(crate) study_date: Option<Box<str>>,
+    #[cfg(windows)]
     pub(super) study_uid: Option<Arc<str>>,
     pub(crate) series_time: Option<Box<str>>,
     pub(crate) patient_number: usize,
@@ -38,6 +43,8 @@ pub(crate) struct SeriesChoice {
 
 /// Discovered series retained while the user switches the active acquisition.
 pub(crate) struct SeriesBrowser {
+    #[cfg(target_arch = "wasm32")]
+    sources: std::collections::BTreeMap<String, ritk_io::ScannedDicomSeries>,
     choices: Box<[SeriesChoice]>,
     active_index: usize,
     first_visible: usize,
@@ -63,6 +70,7 @@ impl SeriesBrowser {
                 .ok_or_else(|| anyhow!("study count overflows usize"))?;
             for (study_index, study) in patient.studies.iter().enumerate() {
                 let study_series_count = study.series.len();
+                #[cfg(windows)]
                 let study_uid = study.study_uid.as_deref().map(Arc::from);
                 for (series_index, series) in study.series.iter().enumerate() {
                     let acquisition = Arc::clone(&series.acquisition);
@@ -82,6 +90,7 @@ impl SeriesBrowser {
                         description: description.into_boxed_str(),
                         patient_name: patient.patient_name.as_ref().into(),
                         study_date: study.study_date.as_deref().map(|value| value.into()),
+                        #[cfg(windows)]
                         study_uid: study_uid.clone(),
                         series_time: study.series_time.as_deref().map(|value| value.into()),
                         patient_number: patient_index.saturating_add(1),
@@ -108,12 +117,22 @@ impl SeriesBrowser {
         };
         let first_visible = active_index;
         Ok(Self {
+            #[cfg(target_arch = "wasm32")]
+            sources: Default::default(),
             choices: choices.into_boxed_slice(),
             active_index,
             first_visible,
             study_count,
             thumbnails: ArrayVec::new(),
         })
+    }
+
+    #[cfg(windows)]
+    pub(super) fn load(&self, index: usize) -> Result<crate::LoadedVolume> {
+        let choice = self
+            .choice(index)
+            .ok_or_else(|| anyhow!("series outside catalog"))?;
+        crate::dicom::loader::load_volume_from_series_info(&choice.acquisition)
     }
 
     pub(crate) const fn len(&self) -> usize {
@@ -142,6 +161,7 @@ impl SeriesBrowser {
     }
 
     /// Match the DICOM study even when its series appear in separate patient rows.
+    #[cfg(windows)]
     pub(super) fn study_choices<'a>(
         &'a self,
         uid: &'a str,
@@ -171,7 +191,7 @@ impl SeriesBrowser {
                 if self.thumbnails.is_full() {
                     self.thumbnails.remove(0);
                 }
-                match render_thumbnail(choice) {
+                match self.preview_volume(choice).and_then(render_thumbnail) {
                     Ok(frame) => SeriesThumbnail {
                         index,
                         frame: Some(frame),
@@ -205,6 +225,7 @@ impl SeriesBrowser {
     }
 
     /// Locate a resolved instance by file-set membership, including DICOMDIR.
+    #[cfg(windows)]
     pub(super) fn index_for_instance(&self, instance: &Path) -> Option<usize> {
         self.choices.iter().position(|choice| {
             choice.acquisition.file_paths.iter().any(|member| {
@@ -250,13 +271,19 @@ impl SeriesBrowser {
     }
 }
 
-fn render_thumbnail(choice: &SeriesChoice) -> Result<PresentationFrame> {
-    let path = choice
-        .acquisition
-        .file_paths
-        .first()
-        .ok_or_else(|| anyhow!("series preview requires an instance"))?;
-    let volume = load_volume_from_dicom_instance(path)?;
+#[cfg(windows)]
+impl SeriesBrowser {
+    fn preview_volume(&self, choice: &SeriesChoice) -> Result<crate::LoadedVolume> {
+        let path = choice
+            .acquisition
+            .file_paths
+            .first()
+            .ok_or_else(|| anyhow!("series preview requires an instance"))?;
+        load_volume_from_dicom_instance(path)
+    }
+}
+
+fn render_thumbnail(volume: crate::LoadedVolume) -> Result<PresentationFrame> {
     let mut app = SnapApp::default();
     app.load_volume(volume, "Loaded series preview.".into());
     let volume = app

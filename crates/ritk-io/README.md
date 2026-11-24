@@ -60,6 +60,11 @@ Native directory callers that already have the acquisition UID use
 UID, and only then decodes the selected series. Omitting an explicit selection
 continues to require one unambiguous image series.
 
+One series UID can contain separate image orientations. The scalar and stored
+volume readers require a common in-plane basis and reject incompatible
+`ImageOrientationPatient` values before reading pixels. Discovery retains the
+instances. To construct a volume, supply a file set for one orientation stack.
+
 Multi-series workflows use `DicomStudyCatalog::scan`. Its `series()` slice
 reports each `SeriesInstanceUID`, `instance_count()`, description, modality,
 patient identifier, and member paths. `load(uid, backend)` validates only the

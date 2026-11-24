@@ -80,10 +80,10 @@ jobs:
             base="${{ github.event.pull_request.base.sha }}"
             git fetch --no-tags --depth=1 origin "$base"
             changed="$(git diff --name-only "$base" HEAD)"
-            if ! printf '%s\n' "$changed" | grep -qE '^(crates/ritk-python/|Cargo\.lock$|Cargo\.toml$|\.github/workflows/python_ci\.yml$)'; then
+            if ! grep -qE '^(crates/ritk-python/|Cargo\.lock$|Cargo\.toml$|\.github/workflows/python_ci\.yml$)' <<< "$changed"; then
               python=false
             fi
-            if ! printf '%s\n' "$changed" | grep -qE '^(scripts/|Cargo\.lock$|\.github/workflows/python_ci\.yml$|docs/manual/images/dicom-metis-real-mri(\.png|\.json|-resource\.json)$|docs/manual/images/dicom-native-(slices|calibration|annotations)\.(webp|json)$)'; then
+            if ! grep -qE '^(scripts/|Cargo\.lock$|\.github/workflows/python_ci\.yml$|docs/manual/images/dicom-metis-real-mri(\.png|\.json|-resource\.json)$|docs/manual/images/dicom-native-(slices|calibration|annotations)\.(webp|json)$)' <<< "$changed"; then
               scripts_tests=false
             fi
           fi
@@ -243,6 +243,7 @@ jobs:
         if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
         run: >-
           pytest
+          crates/ritk-python/tests/test_dicom_anonymization.py
           crates/ritk-python/tests/test_diffusion.py
           crates/ritk-python/tests/test_python_api_parity.py
           crates/ritk-python/tests/test_segmentation_bindings.py

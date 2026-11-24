@@ -1,6 +1,6 @@
 [package]
 name = "ritk-dicom"
-version = "0.5.0"
+version = "0.6.0"
 description = "DICOM image I/O and DIMSE networking for RITK"
 keywords.workspace = true
 categories.workspace = true

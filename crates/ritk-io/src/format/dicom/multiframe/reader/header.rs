@@ -11,12 +11,14 @@ use ritk_dicom::{parse_file_with_budget, NativeBackend, PixelSignedness};
 
 use std::path::Path;
 
+use super::super::geometry::{length_from_mm, parse_lengths_mm};
 use super::super::per_frame::extract_functional_groups;
 use super::super::temporal::reject_temporal_organization;
 use super::super::types::MultiFrameInfo;
 use crate::format::dicom::color_common::read_required_unsigned;
 use crate::format::dicom::reader::types::{cs_to_arraystring, uid_to_arraystring};
 use crate::format::dicom::reader::DicomReadBudget;
+use crate::format::dicom::value_units::resolve_value_unit;
 
 /// Parse a `\`-separated DICOM Decimal String (DS) field into a fixed-size array.
 ///
@@ -98,13 +100,15 @@ pub(crate) fn extract_multiframe_header(path: &Path, obj: &Dataset) -> Result<Mu
     let pixel_spacing = obj
         .element(DicomTag::new(0x0028, 0x0030))
         .ok()
-        .and_then(|e| e.to_str().ok().and_then(|s| parse_ds_backslash::<2>(&s)));
+        .and_then(|e| e.to_str().ok().and_then(|s| parse_lengths_mm::<2>(&s)));
 
     let frame_thickness = obj
         .element(DicomTag::new(0x0018, 0x0050))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse::<f64>().ok());
+
+    let frame_thickness = frame_thickness.and_then(length_from_mm);
 
     let modality = obj
         .element(DicomTag::new(0x0008, 0x0060))
@@ -118,10 +122,12 @@ pub(crate) fn extract_multiframe_header(path: &Path, obj: &Dataset) -> Result<Mu
         .and_then(|e| e.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s)))
         .filter(|s| !s.is_empty());
 
+    let value_unit = resolve_value_unit(obj, sop_class_uid.as_deref());
+
     let image_position = obj
         .element(DicomTag::new(0x0020, 0x0032))
         .ok()
-        .and_then(|e| e.to_str().ok().and_then(|s| parse_ds_backslash::<3>(&s)));
+        .and_then(|e| e.to_str().ok().and_then(|s| parse_lengths_mm::<3>(&s)));
 
     let image_orientation = obj
         .element(DicomTag::new(0x0020, 0x0037))
@@ -157,6 +163,7 @@ pub(crate) fn extract_multiframe_header(path: &Path, obj: &Dataset) -> Result<Mu
         sop_class_uid,
         image_position,
         image_orientation,
+        value_unit,
         rescale_slope,
         rescale_intercept,
         per_frame: Vec::new(),
@@ -167,8 +174,14 @@ pub(crate) fn read_multiframe_info_from_object(
     path: &Path,
     obj: &Dataset,
 ) -> Result<MultiFrameInfo> {
-    reject_temporal_organization(path, obj)?;
     let mut info = extract_multiframe_header(path, obj)?;
+    if !info
+        .sop_class_uid
+        .as_deref()
+        .is_some_and(super::super::pet_dimensions::is_enhanced_pet)
+    {
+        reject_temporal_organization(path, obj)?;
+    }
     info.per_frame = extract_functional_groups(obj, info.n_frames);
     Ok(info)
 }

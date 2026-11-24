@@ -180,6 +180,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage, MetaIma
     let byte_order = ByteOrder::from_metaimage_msb(
         headers
             .get("BinaryDataByteOrderMSB")
+            .or_else(|| headers.get("ElementByteOrderMSB"))
             .map(|s| s.as_str())
             .unwrap_or("FALSE"),
     );

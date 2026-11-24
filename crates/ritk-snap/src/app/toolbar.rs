@@ -60,6 +60,9 @@ impl SnapApp {
                         }
                     });
 
+                    #[cfg(not(target_arch = "wasm32"))]
+                    self.show_enhanced_pet_selector(ui);
+
                     ui.menu_button("Layout", |ui| {
                         let single_active =
                             !self.multi_planar && !self.dual_plane && !self.compare_side_by_side;

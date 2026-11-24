@@ -7,11 +7,10 @@
 use crate::render::RgbaImage;
 use crate::render::{map_scalar_value, GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
-#[cfg(any(feature = "eframe-shell", windows, test))]
+#[cfg(any(feature = "eframe-shell", windows, target_arch = "wasm32", test))]
 use iris::color::{ColorMap, Normalized};
 
 /// Per-voxel opacity scale for volume rendering. Canonical value per GPU VR spec.
-#[cfg(not(target_arch = "wasm32"))]
 pub(crate) const DEFAULT_VR_ALPHA: f32 = 0.06;
 
 /// Render a scalar axial maximum-intensity projection into owned RGBA storage.
@@ -49,7 +48,7 @@ pub(crate) fn render_mip_axial_rgba_with_scratch(
 ///
 /// This native presentation seam keeps the completed image in the caller's
 /// frame/scratch swap instead of materializing an intermediate [`RgbaImage`].
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) fn render_mip_axial_rgba_into(
     scratch: &mut Vec<u8>,
     volume: &LoadedVolume,
@@ -137,7 +136,7 @@ pub(crate) fn render_vr_axial_rgba_with_scratch(
 ///
 /// This native presentation seam keeps the completed image in the caller's
 /// frame/scratch swap instead of materializing an intermediate [`RgbaImage`].
-#[cfg(windows)]
+#[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) fn render_vr_axial_rgba_into(
     scratch: &mut Vec<u8>,
     volume: &LoadedVolume,
@@ -169,7 +168,7 @@ pub(crate) fn render_vr_axial_rgba_into(
 }
 
 /// Composite one front-to-back axial volume projection into caller storage.
-#[cfg(any(feature = "eframe-shell", windows, test))]
+#[cfg(any(feature = "eframe-shell", windows, target_arch = "wasm32", test))]
 fn render_vr_pixels(
     volume: &LoadedVolume,
     presentation: GrayscalePresentation,
@@ -216,7 +215,7 @@ fn valid_presentation(volume: &LoadedVolume) -> Option<GrayscalePresentation> {
     }
 }
 
-#[cfg(any(feature = "eframe-shell", windows, test))]
+#[cfg(any(feature = "eframe-shell", windows, target_arch = "wasm32", test))]
 fn channel_to_byte(value: f32) -> u8 {
     #[expect(
         clippy::cast_possible_truncation,

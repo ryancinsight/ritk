@@ -8,13 +8,10 @@ pub use domain::{
     VtkStructuredGrid, VtkUnstructuredGrid,
 };
 pub use format::analyze::{read_analyze, write_analyze, AnalyzeReader, AnalyzeWriter};
-/// Conformant Part 10 file-set index construction for consumers' tests.
-#[cfg(feature = "test-util")]
-pub use format::dicom::file_set_index_fixture;
 pub use format::dicom::{
     anonymize_dicom_directory, anonymize_dicom_directory_verified, anonymize_dicom_file,
-    anonymize_dicom_file_verified, anonymize_object, dicom_echo, dicom_find, dicom_retrieve,
-    dicom_retrieve_series, dicom_seg_to_label_map, dicom_store, is_private_tag,
+    anonymize_dicom_file_verified, anonymize_object, decode_dicom_series, dicom_echo, dicom_find,
+    dicom_retrieve, dicom_retrieve_series, dicom_seg_to_label_map, dicom_store, is_private_tag,
     is_rgb_dicom_series, label_map_to_dicom_seg, label_map_to_rt_struct, literal_arraystring,
     load_atlas_color_multiframe, load_color_multiframe_flat, load_color_multiframe_flat_from_bytes,
     load_color_multiframe_flat_from_bytes_with_budget, load_color_volume_flat,
@@ -31,14 +28,15 @@ pub use format::dicom::{
     read_rt_struct, rt_roi_to_polydata, scan_dicom_directory, scan_dicom_directory_with_budget,
     scan_dicom_files, scan_dicom_files_with_budget, scan_dicom_instances,
     scan_dicom_instances_with_budget, scan_dicom_part10_bytes, scan_dicom_part10_bytes_with_budget,
-    scan_dicom_path, scan_dicom_path_with_budget, write_dicom_multiframe,
-    write_dicom_multiframe_native, write_dicom_multiframe_native_with_config,
-    write_dicom_multiframe_native_with_options, write_dicom_multiframe_with_config,
-    write_dicom_multiframe_with_options, write_dicom_object, write_dicom_seg, write_dicom_series,
-    write_dicom_series_native, write_dicom_series_with_metadata, write_rt_dose, write_rt_plan,
-    write_rt_struct, AeTitle, AnonymizationProfile, AnonymizeError, AnonymizeOptions,
-    AnonymizeResult, AnonymizeStats, AssociationConfig, CleaningPolicy, ColorMultiFrameVolume,
-    ContourGeometricType, DicomAddress, DicomObjectModel, DicomObjectNode, DicomPreservationSet,
+    scan_dicom_part10_catalog, scan_dicom_path, scan_dicom_path_with_budget,
+    write_dicom_multiframe, write_dicom_multiframe_native,
+    write_dicom_multiframe_native_with_config, write_dicom_multiframe_native_with_options,
+    write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, write_dicom_object,
+    write_dicom_seg, write_dicom_series, write_dicom_series_native,
+    write_dicom_series_with_metadata, write_rt_dose, write_rt_plan, write_rt_struct, AeTitle,
+    AnonymizationProfile, AnonymizeError, AnonymizeOptions, AnonymizeResult, AnonymizeStats,
+    AssociationConfig, CleaningPolicy, ColorMultiFrameVolume, ContourGeometricType,
+    DecodedDicomSeries, DicomAddress, DicomObjectModel, DicomObjectNode, DicomPreservationSet,
     DicomPreservedElement, DicomReadBudget, DicomReadMetadata, DicomSegmentInfo, DicomSegmentation,
     DicomSequenceItem, DicomSeriesInfo, DicomSliceMetadata, DicomStudyCatalog, DicomTag,
     DicomValue, DicomWriteError, DicomWriter, EchoResponse, FindLevel, FindQuery, FindResult,
@@ -50,6 +48,10 @@ pub use format::dicom::{
     StoredInstance, TagAction, TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
 };
 pub use format::dicom::{DicomPixelAspect, DicomPixelAspectError, DicomPixelAspectSource};
+/// Conformant Part 10 file-set index construction for consumers' tests.
+#[cfg(feature = "test-util")]
+pub use format::dicom::{file_set_index_fixture, write_dynamic_gated_pet_concatenation};
+pub use format::dicom::{BodyWeightSuvVolume, Radioactivity};
 #[cfg(not(target_arch = "wasm32"))]
 pub use format::dicomweb::{DicomWebClient, QidoSearchParams, StowFailure, StowResponse};
 pub use format::jpeg::{read_jpeg_color_to_volume, JpegColorReader};
@@ -84,4 +86,10 @@ pub use dispatch::{
     is_native_read_capable, is_native_write_capable, read_image_native, read_image_series_native,
     write_image_native, write_image_series_native, ImageFormat, NativeBackend, NativeImage,
     NativeSeries,
+};
+
+pub use format::dicom::{
+    load_enhanced_pet_volumes, load_enhanced_pet_volumes_from_bytes,
+    load_enhanced_pet_volumes_from_instances, EnhancedPetCoordinate, EnhancedPetDimension,
+    EnhancedPetSelection, EnhancedPetVolume, SliceProvenance,
 };

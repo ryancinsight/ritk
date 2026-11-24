@@ -338,9 +338,17 @@ fn native_color_from_series_preserves_values_and_metadata() {
         ),
         instance_number: Some(1),
         slice_location: None,
-        image_position_patient: Some([0.0, 0.0, 0.0]),
+        image_position_patient: Some([0.0, 0.0, 0.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        )),
         image_orientation_patient: Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
-        pixel_spacing: Some([0.5, 0.25]),
+        pixel_spacing: Some([0.5, 0.25].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        )),
         slice_thickness: None,
         rescale_slope: 1.0,
         rescale_intercept: 0.0,
@@ -354,6 +362,7 @@ fn native_color_from_series_preserves_values_and_metadata() {
         pixel_representation: PixelSignedness::Unsigned,
         bits_allocated: 8,
         bits_stored: 8,
+        value_unit: Default::default(),
         window_center: None,
         window_width: None,
         gantry_tilt: None,
@@ -377,8 +386,16 @@ fn native_color_from_series_preserves_values_and_metadata() {
         series_date: None,
         series_time: None,
         dimensions: [1, 2, 1],
-        spacing: [2.0, 0.5, 0.25],
-        origin: [0.0, 0.0, 0.0],
+        spacing: [2.0, 0.5, 0.25].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
+        origin: [0.0, 0.0, 0.0].map(
+            aequitas::systems::si::quantities::Length::from_unit::<
+                aequitas::systems::si::units::Millimeter,
+            >,
+        ),
         direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
         bits_allocated: Some(8),
         bits_stored: Some(8),
@@ -390,6 +407,10 @@ fn native_color_from_series_preserves_values_and_metadata() {
         private_tags: Default::default(),
         preservation: Default::default(),
         patient_weight_kg: None,
+        enhanced_pet_suv: None,
+        enhanced_pet_selection: None,
+        classic_pet_calibration: None,
+        pet_pixels_in_bq_per_ml: false,
         decay_correction: None,
         radionuclide_total_dose_bq: None,
         radiopharmaceutical_start_time: None,

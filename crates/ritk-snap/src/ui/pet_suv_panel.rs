@@ -11,7 +11,9 @@
 //! [`crate::dicom::pet::PetAcquisitionParams`]. This panel performs no
 //! independent SUV computation — it is a read-only display surface.
 
+use aequitas::systems::si::quantities::{Mass, Time};
 use egui::Ui;
+use ritk_io::Radioactivity;
 
 /// Result of a PET SUV panel interaction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,9 +42,9 @@ pub fn draw_pet_suv_panel(
     modality: Option<&str>,
     pointer_suv: Option<f32>,
     cursor_suv: Option<f32>,
-    patient_weight_kg: Option<f64>,
-    injected_dose_bq: Option<f64>,
-    half_life_s: Option<f64>,
+    patient_weight_kg: Option<Mass>,
+    injected_dose_bq: Option<Radioactivity>,
+    half_life_s: Option<Time>,
     decay_correction: Option<&str>,
 ) -> PetSuvPanelAction {
     // Only render for PET modality.
@@ -84,8 +86,8 @@ pub fn draw_pet_suv_panel(
 
         // ── Acquisition parameters ──────────────────────────────
         ui.label("Acquisition Parameters");
-        match patient_weight_kg {
-            Some(w) if w > 0.0 => {
+        match patient_weight_kg.map(aequitas::Quantity::into_base) {
+            Some(w) if w.is_finite() && w > 0.0 => {
                 ui.label(format!("Weight: {:.1} kg", w));
             }
             _ => {
@@ -93,16 +95,16 @@ pub fn draw_pet_suv_panel(
             }
         }
         match injected_dose_bq {
-            Some(d) if d > 0.0 => {
-                let d_mbq = d / 1_000_000.0;
+            Some(d) => {
+                let d_mbq = d.becquerels() / 1_000_000.0;
                 ui.label(format!("Dose: {:.1} MBq", d_mbq));
             }
             _ => {
                 ui.label("Dose: —");
             }
         }
-        match half_life_s {
-            Some(h) if h > 0.0 => {
+        match half_life_s.map(aequitas::Quantity::into_base) {
+            Some(h) if h.is_finite() && h > 0.0 => {
                 let h_min = h / 60.0;
                 ui.label(format!("T½: {:.2} min", h_min));
             }
@@ -154,9 +156,9 @@ mod tests {
                 Some("PT"),
                 Some(3.5),
                 Some(2.1),
-                Some(70.0),
-                Some(370_000_000.0),
-                Some(6584.04),
+                Some(Mass::from_base(70.0)),
+                Radioactivity::from_becquerels(370_000_000.0),
+                Some(Time::from_base(6584.04)),
                 Some("START"),
             );
             assert_eq!(action, PetSuvPanelAction::None);
@@ -181,9 +183,9 @@ mod tests {
                 Some("PT"),
                 Some(f32::NAN),
                 Some(f32::INFINITY),
-                Some(70.0),
-                Some(370_000_000.0),
-                Some(6584.04),
+                Some(Mass::from_base(70.0)),
+                Radioactivity::from_becquerels(370_000_000.0),
+                Some(Time::from_base(6584.04)),
                 Some("START"),
             );
             assert_eq!(action, PetSuvPanelAction::None);

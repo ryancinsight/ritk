@@ -35,7 +35,6 @@ impl ViewerViewport {
     /// # Errors
     /// Returns an error when the axis, image dimensions or screen geometry is
     /// outside the finite positive range required by the inverse mapping.
-    #[cfg(any(not(target_arch = "wasm32"), test))]
     pub(crate) fn new(
         axis: usize,
         origin: [f64; 2],
@@ -105,7 +104,7 @@ impl ViewerViewport {
     }
 
     /// Enable picking when this host displays the selected polygon's handles.
-    #[cfg(any(windows, test))]
+    #[cfg(any(windows, target_arch = "wasm32", test))]
     pub(crate) const fn with_polygon_handles(mut self) -> Self {
         self.polygon_handles = true;
         self

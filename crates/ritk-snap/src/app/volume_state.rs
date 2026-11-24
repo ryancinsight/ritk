@@ -28,8 +28,8 @@ use crate::ViewerState;
 /// only the initial value when the DICOM object provides one.
 pub(crate) fn metadata_window_level(volume: &LoadedVolume) -> Option<(f32, f32)> {
     let slice = volume.metadata.as_deref()?.slices.first()?;
-    let center = slice.window_center?;
-    let width = slice.window_width?;
+    let center = slice.window_center.as_ref()?.dicom_value();
+    let width = slice.window_width.as_ref()?.dicom_value();
     if !center.is_finite() || !width.is_finite() || width < 1.0 {
         return None;
     }
@@ -100,7 +100,7 @@ impl SnapApp {
             self.sagittal_slice,
         ));
         self.annotations.clear();
-        #[cfg(windows)]
+        #[cfg(any(windows, target_arch = "wasm32"))]
         self.length_calibrations.clear();
         self.pointer.selected_annotation = None;
         self.label_editor = Some(LabelEditor::new(shape));
@@ -275,7 +275,7 @@ impl SnapApp {
         self.compare_axes = [0, 0];
         self.dual_axes = [0, 1];
         self.annotations.clear();
-        #[cfg(windows)]
+        #[cfg(any(windows, target_arch = "wasm32"))]
         self.length_calibrations.clear();
         self.pointer.selected_annotation = None;
         self.label_editor = None;
