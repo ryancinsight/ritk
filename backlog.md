@@ -151,3 +151,4 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-SNAP-ROI-LABEL-STATISTICS-001"></a>- [RITK-SNAP-ROI-LABEL-STATISTICS-001](backlog/RITK-SNAP-ROI-LABEL-STATISTICS-001.md) — Show complete ROI label statistics — todo
 <a id="RITK-FIXTURE-RETENTION-001"></a>- [RITK-FIXTURE-RETENTION-001](backlog/RITK-FIXTURE-RETENTION-001.md) — Decide imaging fixture retention — blocked
 <a id="RITK-SNAP-NATIVE-FUSION-001"></a>- [RITK-SNAP-NATIVE-FUSION-001](backlog/RITK-SNAP-NATIVE-FUSION-001.md) — Fuse series and read SUV natively — blocked
+<a id="RITK-SNAP-TEXT-COMMAND-ARC-001"></a>- [RITK-SNAP-TEXT-COMMAND-ARC-001](backlog/RITK-SNAP-TEXT-COMMAND-ARC-001.md) — Build display text without a second copy — todo
