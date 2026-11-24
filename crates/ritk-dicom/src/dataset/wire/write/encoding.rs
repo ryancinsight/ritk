@@ -120,11 +120,11 @@ fn measure(
             Value::Primitive(_) => {
                 let length = rounded(primitive(element, encoding, &charset)?.len())?;
                 let max = if header == 8 && !encoding.implicit_vr {
-                    u16::MAX as usize
+                    u32::from(u16::MAX)
                 } else {
-                    (UNDEFINED - 1) as usize
+                    UNDEFINED - 1
                 };
-                if length > max {
+                if !u32::try_from(length).is_ok_and(|length| length <= max) {
                     bail!(
                         "DICOM element {} VR {vr} value length {length} exceeds {max}",
                         element.tag()
