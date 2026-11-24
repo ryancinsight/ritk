@@ -149,3 +149,5 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-FIXTURE-RETENTION-001"></a>- [RITK-FIXTURE-RETENTION-001](backlog/RITK-FIXTURE-RETENTION-001.md) — Decide imaging fixture retention — blocked
 <a id="RITK-SNAP-NATIVE-FUSION-001"></a>- [RITK-SNAP-NATIVE-FUSION-001](backlog/RITK-SNAP-NATIVE-FUSION-001.md) — Fuse series and read SUV natively — blocked
 <a id="RITK-SNAP-TEXT-COMMAND-ARC-001"></a>- [RITK-SNAP-TEXT-COMMAND-ARC-001](backlog/RITK-SNAP-TEXT-COMMAND-ARC-001.md) — Build display text without a second copy — todo
+<a id="RITK-DICOM-PIXEL-ASPECT-RESOLUTION-001"></a>- [RITK-DICOM-PIXEL-ASPECT-RESOLUTION-001](backlog/RITK-DICOM-PIXEL-ASPECT-RESOLUTION-001.md) — Resolve and retain pixel aspect on DICOM metadata — todo
+<a id="RITK-DICOM-PIXEL-ASPECT-PINS-001"></a>- [RITK-DICOM-PIXEL-ASPECT-PINS-001](backlog/RITK-DICOM-PIXEL-ASPECT-PINS-001.md) — Pin pixel aspect parser edge cases and its zero-spacing error — todo
