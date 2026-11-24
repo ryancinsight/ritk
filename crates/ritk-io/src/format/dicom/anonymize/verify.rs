@@ -388,23 +388,17 @@ pub fn verify_dicom_directory(
     let mut sop_seen: HashSet<String> = HashSet::new();
 
     for entry in entries {
-        let file_report = verify_dicom_file(&entry, options)?;
+        let mut file_report = verify_dicom_file(&entry, options)?;
         report.file_count += 1;
 
         // Cross-file UID consistency. A diverged Study/Series UID or a
-        // duplicated SOPInstanceUID is recorded on a per-file report and the
-        // per-file loop stops at the first defect so the directory report does
-        // not duplicate the same mismatch for every UID in one file.
-        for (name, value) in &file_report.uids {
-            let defect =
-                check_cross_file_uid(name, value, &mut series_uid, &mut study_uid, &mut sop_seen);
-            if let Some(issue) = defect {
-                let mut report_for_file = file_report.clone();
-                report_for_file.issues.push(issue);
-                report.files.push(report_for_file);
-                break;
-            }
-        }
+        // duplicated SOPInstanceUID joins the file's own issues, so the file
+        // counts as failing. The search stops at the file's first defect: one
+        // file reports one cross-file issue.
+        let defect = file_report.uids.iter().find_map(|(name, value)| {
+            check_cross_file_uid(name, value, &mut series_uid, &mut study_uid, &mut sop_seen)
+        });
+        file_report.issues.extend(defect);
 
         report.series_uids.extend(
             file_report
