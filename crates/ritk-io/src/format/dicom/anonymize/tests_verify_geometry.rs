@@ -128,3 +128,40 @@ fn a_frame_is_sized_in_packed_bits_only_when_one_bit_is_allocated() {
         );
     }
 }
+
+#[test]
+fn a_frame_size_past_64_bits_is_a_mismatch() {
+    // Rows, Columns and SamplesPerPixel are US in the standard; a writer that
+    // stores them as UL can declare 2^32 - 1 of each.
+    let cases = [(1_u16, u32::MAX), (16, u32::MAX)];
+    for (bits, samples) in cases {
+        let mut object = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
+        for (element, value) in [(0x0010, u32::MAX), (0x0011, u32::MAX), (0x0002, samples)] {
+            object.put(DataElement::new(
+                DicomTag::new(0x0028, element),
+                VR::UL,
+                PrimitiveValue::from(value),
+            ));
+        }
+        object.put(DataElement::new(
+            DicomTag::new(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(bits),
+        ));
+        let report = verify_dicom_file(
+            write_to_temp(&object, "oversized-frame.dcm"),
+            &VerifyOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            report.issues,
+            [VerifyIssue::GeometryMismatch {
+                detail: format!(
+                    "frame size exceeds 64 bits \
+                     (rows=4294967295 cols=4294967295 samples=4294967295 bits={bits})"
+                ),
+            }],
+            "bits={bits}"
+        );
+    }
+}

@@ -40,7 +40,8 @@
 //!    Pixel Data must hold at least one frame: `Rows * Columns *
 //!    SamplesPerPixel` bits rounded up to a byte when BitsAllocated is 1
 //!    (PS3.5 sections 8.1.1 and 8.2), and otherwise `Rows * Columns *
-//!    SamplesPerPixel * ceil(BitsAllocated / 8)` bytes, catching
+//!    SamplesPerPixel * ceil(BitsAllocated / 8)` bytes; a frame size that
+//!    does not fit 64 bits is reported as a mismatch. This catches
 //!    metadata/pixel drift that PACS viewers tolerate silently but that
 //!    corrupts quantitative analysis. The length of float, double float and
 //!    encapsulated pixel data is not checked. An object holding none of the
