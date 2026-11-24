@@ -238,7 +238,7 @@ are in the [native MRI projection resource provenance record](images/dicom-metis
 Build from a standalone RITK checkout, then run the bounded demonstration:
 
 ```console
-cargo build --locked -p ritk-snap --features eframe-shell --example dicom_workflow
+cargo build --locked -p ritk-snap --example dicom_workflow
 python scripts/viewer.py target/debug/examples/dicom_workflow
 ```
 
@@ -585,36 +585,7 @@ byte-identical (`4fac3ea73e58325755c780de51c1b1504c0fc391da5c48ed2f578810ff46ddc
 The repeat count, executable digest, sample summaries and dataset identity are
 recorded in [the resource provenance record](images/dicom-metis-real-ct-resource.json).
 
-## Capture the eframe application
-
-Build the synthetic workflow example with the compatibility feature and run:
-
-```console
-cargo build --locked -p ritk-snap --features eframe-shell --bin asterslice --example dicom_workflow
-python scripts/viewer.py target/debug/examples/dicom_workflow --native-binary target/debug/asterslice
-```
-
-Use `.exe` suffixes on Windows and the shared Atlas target paths when applicable.
-The optional eframe workflow launches the real viewer with the generated study,
-saves its rendered root viewport to `scratch/viewer/window.png`, and exits. It
-then launches with a missing study and requires an explicit failure without a
-screenshot. Each of the three processes has a 60-second limit; the complete
-native workflow therefore has a maximum 180-second subprocess budget.
-
-Capture uses the normal viewer update and egui/eframe screenshot response. The
-capture wrapper keeps requesting bounded repaints while RITK's background load
-publishes, then takes the screenshot; a failed or over-deadline load returns an
-error instead of saving an empty frame. For your own local study, run the
-source-level compatibility shell:
-
-```console
-cargo run --locked -p ritk-snap --features eframe-shell -- \
-  path/to/study --eframe --capture window.png
-```
-
-The supplied study must load and the PNG must save before success is reported.
-Native window images depend on the host renderer and fonts; the exact pixel
-goldens above remain the deterministic software-rendering check.
+## Capture the Windows Métis application
 
 ### Capture native study content
 

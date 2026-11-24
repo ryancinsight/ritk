@@ -5,11 +5,9 @@
 //! individually; `apply_to_image_into` is the composed form that the render
 //! path uses, writing one output instead of an intermediate per step.
 
-#[cfg(any(windows, target_arch = "wasm32", test, feature = "eframe-shell"))]
 use super::{RotationSteps, ViewTransform};
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::render::buffer_pool::RenderBufferPool;
-#[cfg(any(windows, target_arch = "wasm32", test))]
 use anyhow::{anyhow, bail, Result};
 #[cfg(feature = "eframe-shell")]
 use egui::ColorImage;
@@ -140,12 +138,32 @@ pub(crate) fn apply_to_rgba(
     Ok((output_size, output.into_boxed_slice()))
 }
 
+/// Apply a view transform to straight-alpha RGBA bytes.
+///
+/// The returned bytes use row-major storage and are independent of any GUI
+/// image carrier. Transforms follow the canonical flip-horizontal,
+/// flip-vertical, then clockwise-rotation order.
+///
+/// # Errors
+/// Returns an error for invalid dimensions or RGBA storage.
+pub fn apply_to_rgba_bytes(
+    size: [usize; 2],
+    rgba: &[u8],
+    transform: ViewTransform,
+) -> Result<([usize; 2], Vec<u8>)> {
+    let mut output = Vec::new();
+    let output_size = apply_to_rgba_into(size, rgba, transform, &mut output)?;
+    if transform.is_identity() {
+        output.extend_from_slice(rgba);
+    }
+    Ok((output_size, output))
+}
+
 /// Apply a view transform into caller-owned RGBA storage.
 ///
 /// The input and output buffers are separate so a presentation frame can swap
 /// them after the transform. The output capacity is retained across calls;
 /// identity leaves it untouched and returns the source dimensions.
-#[cfg(any(windows, target_arch = "wasm32", test))]
 pub(crate) fn apply_to_rgba_into(
     size: [usize; 2],
     rgba: &[u8],
@@ -203,7 +221,6 @@ pub(crate) fn apply_to_rgba_into(
     Ok(output_size)
 }
 
-#[cfg(any(windows, target_arch = "wasm32", test))]
 fn validate_rgba_storage(size: [usize; 2], length: usize) -> Result<()> {
     let [width, height] = size;
     if width == 0 || height == 0 {

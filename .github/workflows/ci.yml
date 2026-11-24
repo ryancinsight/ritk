@@ -168,7 +168,9 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: |
+          cargo clippy --locked --workspace --exclude ritk-snap --all-targets --all-features -- -D warnings
+          cargo clippy --locked -p ritk-snap --all-targets -- -D warnings
         timeout-minutes: 10
 
   rustdoc:
@@ -399,15 +401,7 @@ jobs:
         env:
           EXAMPLE_SUFFIX: ${{ runner.os == 'Windows' && '.exe' || '' }}
         run: |
-          # T1 (RITK-SNAP-RETURN-001): ritk-snap is excluded from the workspace
-          # until the metis advance lands; skip the viewer capture meanwhile.
-          # T2 restores the unconditional build below.
-          workspace_metadata="$(cargo metadata --locked --no-deps --format-version 1)"
-          if ! grep -q '"name":"ritk-snap"' <<< "$workspace_metadata"; then
-            echo "ritk-snap is not a workspace member (Track 1); skipping viewer capture."
-            exit 0
-          fi
-          cargo build --locked -p ritk-snap --features eframe-shell --example dicom_workflow
+          cargo build --locked -p ritk-snap --example dicom_workflow
           python scripts/viewer.py "target/debug/examples/dicom_workflow${EXAMPLE_SUFFIX}"
 
   python-wheel:

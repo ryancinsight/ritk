@@ -126,6 +126,7 @@ pub use tool_shortcuts::tool_kind_for_virtual_key;
 pub use toolbar::{ToolbarPanel, ToolbarState};
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) use view_transform::apply_to_image_into;
+pub use view_transform::apply_to_rgba_bytes;
 #[cfg(any(windows, target_arch = "wasm32"))]
 pub(crate) use view_transform::apply_to_rgba_into;
 #[cfg(feature = "eframe-shell")]

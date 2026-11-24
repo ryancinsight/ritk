@@ -26,7 +26,7 @@ class CaptureManualImagesTests(unittest.TestCase):
         command = capture_manual_images.capture_command(config, Path("source"))
         self.assertEqual(command[:4], ["cargo", "--config", str(config), "nextest"])
         self.assertEqual(command.count("--locked"), 1)
-        self.assertEqual(command[command.index("--features") + 1], "eframe-shell")
+        self.assertNotIn("--features", command)
         self.assertEqual(
             command[command.index("-E") + 1], "test(native_manual_annotation_frames)"
         )

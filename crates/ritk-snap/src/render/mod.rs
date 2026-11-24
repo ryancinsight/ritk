@@ -12,7 +12,6 @@
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub mod buffer_pool;
-#[cfg(feature = "eframe-shell")]
 pub mod fusion;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub mod gpu_mesh;
@@ -32,7 +31,8 @@ pub(crate) use buffer_pool::RenderBufferPool;
 /// Maximum value of a u8 pixel component as f32, used for normalizing to [0, 1].
 pub(crate) const U8_MAX_F32: f32 = 255.0;
 #[cfg(feature = "eframe-shell")]
-pub use fusion::{render_fused_slice, secondary_slice_for_primary, FusedSliceParams, FusionError};
+pub use fusion::render_fused_slice;
+pub use fusion::{render_fused_rgba, secondary_slice_for_primary, FusedSliceParams, FusionError};
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub use gpu_mesh::{GpuMeshRenderer, MeshRenderConfig, SsaoConfig};
 pub(crate) use grayscale::map_scalar_value;

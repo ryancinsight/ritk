@@ -6,15 +6,40 @@ use ritk_snap::dicom::loader::{
     load_dicom_series_from_named_bytes, load_volume_from_bytes, load_volume_from_path,
 };
 use ritk_snap::geometry::affine::AffineTransform;
+use ritk_snap::presentation::PresentationFrame;
 use ritk_snap::render::{
-    render_fused_slice, FusedSliceParams, GrayscalePresentation, NamedColorMap, SliceRenderer,
-    VoiLutFunction, WindowLevel,
+    render_fused_rgba, FusedSliceParams, GrayscalePresentation, NamedColorMap, VoiLutFunction,
+    WindowLevel,
 };
-use ritk_snap::ui::{apply_to_image, voxel_to_lps, RotationSteps, ViewTransform};
+use ritk_snap::ui::{apply_to_rgba_bytes, voxel_to_lps, RotationSteps, ViewTransform};
 use std::path::PathBuf;
 
 #[path = "../src/dicom/loader/tests/fixtures.rs"]
 mod fixtures;
+
+fn save_frame(
+    output: &std::path::Path,
+    name: &str,
+    frame: &PresentationFrame,
+) -> Result<[usize; 2]> {
+    let size = [
+        usize::try_from(frame.width())?,
+        usize::try_from(frame.height())?,
+    ];
+    let width = u32::try_from(size[0])?;
+    let height = u32::try_from(size[1])?;
+    let pixels = image::RgbaImage::from_raw(width, height, frame.rgba().to_vec())
+        .context("rendered RGBA dimensions")?;
+    pixels.save(output.join(format!("{name}.png")))?;
+    image::imageops::resize(
+        &pixels,
+        width * 64,
+        height * 64,
+        image::imageops::FilterType::Nearest,
+    )
+    .save(output.join(format!("{name}-grid.png")))?;
+    Ok(size)
+}
 
 fn main() -> Result<()> {
     let output = PathBuf::from(
@@ -76,33 +101,15 @@ fn main() -> Result<()> {
     // These parameters cancel the fixture's modality rescale under explicit
     // LINEAR_EXACT metadata, preserving the stored sample values.
     for (axis, index, name) in [(0, 1, "depth"), (1, 1, "row"), (2, 2, "column")] {
-        let rendered = SliceRenderer::render(
+        let rendered = PresentationFrame::from_slice(
             &volume,
             axis,
             index,
             WindowLevel::new(235.0, 510.0),
             NamedColorMap::Grayscale,
-        );
-        let rgba: Vec<_> = rendered
-            .pixels
-            .iter()
-            .flat_map(|pixel| pixel.to_array())
-            .collect();
-        let width = u32::try_from(rendered.size[0])?;
-        let height = u32::try_from(rendered.size[1])?;
-        let pixels =
-            image::RgbaImage::from_raw(width, height, rgba).context("rendered RGBA dimensions")?;
-        pixels.save(output.join(format!("{name}.png")))?;
-        // Integer nearest-neighbour enlargement exposes the actual pixel grid;
-        // it is explicitly not a physical-aspect-ratio viewport screenshot.
-        image::imageops::resize(
-            &pixels,
-            width * 64,
-            height * 64,
-            image::imageops::FilterType::Nearest,
-        )
-        .save(output.join(format!("{name}-grid.png")))?;
-        captures.push(serde_json::json!({"axis": axis, "index": index, "image": format!("{name}.png"), "size": rendered.size}));
+        )?;
+        let size = save_frame(&output, name, &rendered)?;
+        captures.push(serde_json::json!({"axis": axis, "index": index, "image": format!("{name}.png"), "size": size}));
     }
 
     let color_study = output.join("color-study");
@@ -122,35 +129,19 @@ fn main() -> Result<()> {
         "RGB DICOM path and byte-batch channel oracle"
     );
     for (axis, name) in [(0, "color-depth"), (1, "color-row"), (2, "color-column")] {
-        let rendered = SliceRenderer::render(
+        let rendered = PresentationFrame::from_slice(
             &color_volume,
             axis,
             0,
             WindowLevel::new(-10_000.0, 1.0),
             NamedColorMap::Hot,
-        );
-        let rgba: Vec<_> = rendered
-            .pixels
-            .iter()
-            .flat_map(|pixel| pixel.to_array())
-            .collect();
-        let width = u32::try_from(rendered.size[0])?;
-        let height = u32::try_from(rendered.size[1])?;
-        let pixels = image::RgbaImage::from_raw(width, height, rgba)
-            .context("rendered RGB RGBA dimensions")?;
-        pixels.save(output.join(format!("{name}.png")))?;
-        image::imageops::resize(
-            &pixels,
-            width * 64,
-            height * 64,
-            image::imageops::FilterType::Nearest,
-        )
-        .save(output.join(format!("{name}-grid.png")))?;
+        )?;
+        let size = save_frame(&output, name, &rendered)?;
         captures.push(serde_json::json!({
             "axis": axis,
             "index": 0,
             "image": format!("{name}.png"),
-            "size": rendered.size,
+            "size": size,
             "display": "decoded RGB channels bypass scalar windowing"
         }));
     }
@@ -175,64 +166,46 @@ fn main() -> Result<()> {
             && grayscale_presentation.invert,
         "MONOCHROME1 and VOI LUT Function metadata oracle"
     );
-    let grayscale_rendered = SliceRenderer::render(
+    let grayscale_rendered = PresentationFrame::from_slice(
         &grayscale_volume,
         0,
         0,
         WindowLevel::new(0.0, 40.0),
         NamedColorMap::Grayscale,
-    );
-    let grayscale_rgba: Vec<_> = grayscale_rendered
-        .pixels
-        .iter()
-        .flat_map(|pixel| pixel.to_array())
-        .collect();
-    let grayscale_width = u32::try_from(grayscale_rendered.size[0])?;
-    let grayscale_height = u32::try_from(grayscale_rendered.size[1])?;
-    let grayscale_pixels =
-        image::RgbaImage::from_raw(grayscale_width, grayscale_height, grayscale_rgba)
-            .context("rendered grayscale RGBA dimensions")?;
-    grayscale_pixels.save(output.join("grayscale.png"))?;
-    image::imageops::resize(
-        &grayscale_pixels,
-        grayscale_width * 64,
-        grayscale_height * 64,
-        image::imageops::FilterType::Nearest,
-    )
-    .save(output.join("grayscale-grid.png"))?;
+    )?;
+    let grayscale_size = save_frame(&output, "grayscale", &grayscale_rendered)?;
     captures.push(serde_json::json!({
         "axis": 0,
         "index": 0,
         "image": "grayscale.png",
-        "size": grayscale_rendered.size,
+        "size": grayscale_size,
         "photometric": "MONOCHROME1",
         "voi_function": "LINEAR_EXACT",
         "decoded_values": grayscale_volume.data.as_ref(),
         "display_values": [255, 191, 64, 0]
     }));
 
-    let transformed = SliceRenderer::render(
+    let transformed = PresentationFrame::from_slice(
         &volume,
         0,
         1,
         WindowLevel::new(235.0, 510.0),
         NamedColorMap::Grayscale,
-    );
-    let transformed = apply_to_image(
-        &transformed,
+    )?;
+    let (transformed_size, transformed_rgba) = apply_to_rgba_bytes(
+        [
+            usize::try_from(transformed.width())?,
+            usize::try_from(transformed.height())?,
+        ],
+        transformed.rgba(),
         ViewTransform {
             flip_h: true,
             flip_v: false,
             rotation: RotationSteps::Ninety,
         },
-    );
-    let transformed_rgba: Vec<_> = transformed
-        .pixels
-        .iter()
-        .flat_map(|pixel| pixel.to_array())
-        .collect();
-    let transformed_width = u32::try_from(transformed.size[0])?;
-    let transformed_height = u32::try_from(transformed.size[1])?;
+    )?;
+    let transformed_width = u32::try_from(transformed_size[0])?;
+    let transformed_height = u32::try_from(transformed_size[1])?;
     let transformed_pixels =
         image::RgbaImage::from_raw(transformed_width, transformed_height, transformed_rgba)
             .context("transformed RGBA dimensions")?;
@@ -248,7 +221,7 @@ fn main() -> Result<()> {
         "axis": 0,
         "index": 1,
         "image": "orientation.png",
-        "size": transformed.size,
+        "size": transformed_size,
         "transform": "flip_h then rotate clockwise 90 degrees"
     }));
 
@@ -276,7 +249,7 @@ fn main() -> Result<()> {
     let secondary_slice =
         ritk_snap::render::secondary_slice_for_primary(&fusion_primary, 0, 1, &fusion_secondary, 0)
             .map_err(|error| anyhow::anyhow!("derive fused slice: {error}"))?;
-    let fused = render_fused_slice(
+    let (fused_size, fused_rgba) = render_fused_rgba(
         FusedSliceParams {
             volume: &fusion_primary,
             axis: 0,
@@ -294,13 +267,8 @@ fn main() -> Result<()> {
         0.5,
     )
     .map_err(|error| anyhow::anyhow!("render fused slice: {error}"))?;
-    let fused_rgba: Vec<_> = fused
-        .pixels
-        .iter()
-        .flat_map(|pixel| pixel.to_array())
-        .collect();
-    let fused_width = u32::try_from(fused.size[0])?;
-    let fused_height = u32::try_from(fused.size[1])?;
+    let fused_width = u32::try_from(fused_size[0])?;
+    let fused_height = u32::try_from(fused_size[1])?;
     let fused_pixels = image::RgbaImage::from_raw(fused_width, fused_height, fused_rgba)
         .context("fused RGBA dimensions")?;
     fused_pixels.save(output.join("fusion.png"))?;
@@ -342,7 +310,7 @@ fn main() -> Result<()> {
         "index": 1,
         "secondary_index": secondary_slice,
         "image": "fusion.png",
-        "size": fused.size,
+        "size": fused_size,
         "coordinate_labels": fusion_landmarks,
     }));
     let report = serde_json::json!({

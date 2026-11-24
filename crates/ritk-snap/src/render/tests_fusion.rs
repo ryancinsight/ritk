@@ -1,7 +1,6 @@
 use super::*;
-use crate::render::SliceRenderer;
+use crate::presentation::PresentationFrame;
 use aequitas::systems::si::quantities::{Mass, Time};
-use egui::Color32;
 use iris::color::{ColorMap, Normalized};
 use ritk_io::{literal_arraystring, DicomReadMetadata, Radioactivity};
 
@@ -59,7 +58,7 @@ fn alpha_zero_equals_primary_render() {
     let p = test_volume([2, 3, 4], 1.0);
     let s = test_volume([2, 3, 4], 2.0);
     let wl = WindowLevel::new(128.0, 256.0);
-    let fused = render_fused_slice(
+    let fused = render_fused_rgba(
         FusedSliceParams {
             volume: &p,
             axis: 0,
@@ -77,9 +76,10 @@ fn alpha_zero_equals_primary_render() {
         0.0,
     )
     .expect("identical grids form a valid fusion");
-    let primary = SliceRenderer::render(&p, 0, 1, wl, NamedColorMap::Grayscale);
-    assert_eq!(fused.size, primary.size);
-    assert_eq!(fused.pixels, primary.pixels);
+    let primary = PresentationFrame::from_slice(&p, 0, 1, wl, NamedColorMap::Grayscale)
+        .expect("primary slice renders into neutral RGBA storage");
+    assert_eq!(fused.0, [4, 3]);
+    assert_eq!(fused.1.as_slice(), primary.rgba());
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn output_size_matches_primary_slice_geometry() {
     let p = test_volume([5, 7, 9], 1.0);
     let s = test_volume([3, 4, 6], 1.0);
     let wl = WindowLevel::new(64.0, 128.0);
-    let fused = render_fused_slice(
+    let fused = render_fused_rgba(
         FusedSliceParams {
             volume: &p,
             axis: 1,
@@ -106,7 +106,7 @@ fn output_size_matches_primary_slice_geometry() {
     )
     .expect("parallel planes form a valid fusion");
     // Axis 1 slice is [depth, cols] => [5, 9] in [rows, cols], egui [width, height].
-    assert_eq!(fused.size, [9, 5]);
+    assert_eq!(fused.0, [9, 5]);
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn pet_secondary_is_windowed_in_suv_units() {
         .push(slice);
     pet.modality = Some(literal_arraystring::<16>("PT"));
 
-    let fused = render_fused_slice(
+    let fused = render_fused_rgba(
         FusedSliceParams {
             volume: &primary,
             axis: 0,
@@ -149,10 +149,10 @@ fn pet_secondary_is_windowed_in_suv_units() {
 
     let expected_wl = WindowLevel::new(3.0, 6.0).apply(1.0);
     let [r, g, b] = rgb8(NamedColorMap::Hot, f32::from(expected_wl) / 255.0);
-    assert_eq!(fused.size, [1, 1]);
+    assert_eq!(fused.0, [1, 1]);
     assert_eq!(
-        fused.pixels[0],
-        Color32::from_rgb(r, g, b),
+        &fused.1[..4],
+        [r, g, b, 255],
         "PET fusion must preserve declared body-weight SUV"
     );
 }
@@ -171,7 +171,7 @@ fn non_pet_secondary_with_pet_fields_uses_raw_window_units() {
     secondary.radionuclide_half_life_s = Some(Time::from_base(6_586.2));
     secondary.decay_correction = Some(literal_arraystring::<16>("START"));
 
-    let fused = render_fused_slice(
+    let fused = render_fused_rgba(
         FusedSliceParams {
             volume: &primary,
             axis: 0,
@@ -193,8 +193,8 @@ fn non_pet_secondary_with_pet_fields_uses_raw_window_units() {
     let expected_wl = WindowLevel::new(3.0, 6.0).apply(f64::from(raw_bqml));
     let [r, g, b] = rgb8(NamedColorMap::Hot, f32::from(expected_wl) / 255.0);
     assert_eq!(
-        fused.pixels[0],
-        Color32::from_rgb(r, g, b),
+        &fused.1[..4],
+        [r, g, b, 255],
         "non-PT fusion inputs must not apply SUV conversion"
     );
 }
@@ -215,7 +215,7 @@ fn rotated_anisotropic_grids_sample_by_patient_landmarks() {
     let primary = with_frame(primary, "1.2.3");
     let secondary = with_frame(secondary, "1.2.3");
     let wl = WindowLevel::new(20.0, 40.0);
-    let image = render_fused_slice(
+    let image = render_fused_rgba(
         FusedSliceParams {
             volume: &primary,
             axis: 0,
@@ -235,9 +235,9 @@ fn rotated_anisotropic_grids_sample_by_patient_landmarks() {
     .expect("parallel grids with one frame should fuse");
 
     let expected_values = [4.0, 24.0, 2.0, 22.0, 0.0, 20.0];
-    for (pixel, value) in image.pixels.iter().zip(expected_values) {
+    for (pixel, value) in image.1.chunks_exact(4).zip(expected_values) {
         let [red, green, blue] = rgb8(NamedColorMap::Grayscale, f32::from(wl.apply(value)) / 255.0);
-        assert_eq!(*pixel, Color32::from_rgb(red, green, blue));
+        assert_eq!(pixel, &[red, green, blue, 255]);
     }
 }
 
@@ -245,7 +245,7 @@ fn rotated_anisotropic_grids_sample_by_patient_landmarks() {
 fn frame_mismatch_is_rejected_before_sampling() {
     let primary = with_frame(test_volume([1, 1, 1], 1.0), "1.2.3");
     let secondary = with_frame(test_volume([1, 1, 1], 2.0), "1.2.4");
-    let result = render_fused_slice(
+    let result = render_fused_rgba(
         FusedSliceParams {
             volume: &primary,
             axis: 0,
@@ -271,7 +271,7 @@ fn rgb_fusion_is_rejected_without_channel_reduction() {
     primary.channels = 3;
     primary.data = std::sync::Arc::new(vec![255.0, 0.0, 0.0]);
     let secondary = test_volume([1, 1, 1], 1.0);
-    let result = render_fused_slice(
+    let result = render_fused_rgba(
         FusedSliceParams {
             volume: &primary,
             axis: 0,
@@ -302,7 +302,7 @@ fn differing_unknown_frames_are_rejected() {
     let primary = test_volume([1, 1, 1], 1.0);
     let mut secondary = test_volume([1, 1, 1], 1.0);
     secondary.origin = [1.0, 0.0, 0.0];
-    let result = render_fused_slice(
+    let result = render_fused_rgba(
         FusedSliceParams {
             volume: &primary,
             axis: 0,
@@ -331,7 +331,7 @@ fn out_of_field_in_plane_pixels_keep_primary_values() {
     let primary = with_frame(primary, "1.2.3");
     let secondary = with_frame(secondary, "1.2.3");
     let wl = WindowLevel::new(0.0, 40.0);
-    let fused = render_fused_slice(
+    let fused = render_fused_rgba(
         FusedSliceParams {
             volume: &primary,
             axis: 0,
@@ -349,15 +349,16 @@ fn out_of_field_in_plane_pixels_keep_primary_values() {
         1.0,
     )
     .expect("in-plane field gaps are a valid partial fusion");
-    let primary_image = SliceRenderer::render(&primary, 0, 0, wl, NamedColorMap::Grayscale);
-    assert_eq!(fused.pixels, primary_image.pixels);
+    let primary_image = PresentationFrame::from_slice(&primary, 0, 0, wl, NamedColorMap::Grayscale)
+        .expect("primary slice renders into neutral RGBA storage");
+    assert_eq!(fused.1.as_slice(), primary_image.rgba());
 }
 
 #[test]
 fn non_parallel_planes_are_rejected() {
     let primary = test_volume([2, 2, 2], 1.0);
     let secondary = test_volume([2, 2, 2], 1.0);
-    let result = render_fused_slice(
+    let result = render_fused_rgba(
         FusedSliceParams {
             volume: &primary,
             axis: 0,

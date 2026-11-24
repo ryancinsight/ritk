@@ -23,7 +23,6 @@ path = "src/main.rs"
 
 [[example]]
 name = "dicom_workflow"
-required-features = ["eframe-shell"]
 
 [dependencies]
 aequitas.workspace = true

@@ -46,7 +46,7 @@ def capture_command(config: Path, source_root: Path) -> list[str]:
     return [
         "cargo", "--config", str(config), "nextest", "run",
         "--manifest-path", str(source_root / "Cargo.toml"), "--locked",
-        "-p", "ritk-snap", "--features", "eframe-shell",
+        "-p", "ritk-snap",
         "-E", "test(native_manual_annotation_frames)", "--profile", "default",
     ]
 

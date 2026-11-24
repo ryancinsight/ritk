@@ -12,6 +12,7 @@
 //! The renderer uses this convex combination after each source has been
 //! windowed and colour-mapped.
 
+#[cfg(feature = "eframe-shell")]
 use egui::ColorImage;
 use iris::color::{ColorMap, Normalized};
 
@@ -57,11 +58,11 @@ pub struct FusedSliceParams<'a> {
 /// # Errors
 /// Returns [`FusionError`] when a volume, slice selection, frame of reference,
 /// or physical plane relationship is invalid.
-pub fn render_fused_slice(
+pub fn render_fused_rgba(
     primary: FusedSliceParams<'_>,
     secondary: FusedSliceParams<'_>,
     secondary_alpha: f32,
-) -> Result<ColorImage, FusionError> {
+) -> Result<([usize; 2], Vec<u8>), FusionError> {
     if !secondary_alpha.is_finite() {
         return Err(FusionError::InvalidBlendWeight);
     }
@@ -113,7 +114,7 @@ pub fn render_fused_slice(
 
     let alpha = secondary_alpha.clamp(0.0, 1.0);
     let inverse_alpha = 1.0 - alpha;
-    let mut rgb = vec![0_u8; width * height * 3];
+    let mut rgba = vec![0_u8; width * height * 4];
 
     let primary_values = DisplayValueTransform::for_volume(primary.volume);
     let secondary_values = DisplayValueTransform::for_volume(secondary.volume);
@@ -156,19 +157,31 @@ pub fn render_fused_slice(
                     ))
                     .to_rgba8()
             });
-            let out_idx = (row * width + col) * 3;
+            let out_idx = (row * width + col) * 4;
             for channel in 0..3 {
-                rgb[out_idx + channel] = if s.is_some() {
+                rgba[out_idx + channel] = if s.is_some() {
                     (inverse_alpha * f32::from(p_rgb[channel]) + alpha * f32::from(s_rgb[channel]))
                         .round() as u8
                 } else {
                     p_rgb[channel]
                 };
             }
+            rgba[out_idx + 3] = 255;
         }
     }
 
-    Ok(ColorImage::from_rgb([width, height], &rgb))
+    Ok(([width, height], rgba))
+}
+
+/// Render a fused slice into the legacy egui image carrier.
+#[cfg(feature = "eframe-shell")]
+pub fn render_fused_slice(
+    primary: FusedSliceParams<'_>,
+    secondary: FusedSliceParams<'_>,
+    secondary_alpha: f32,
+) -> Result<ColorImage, FusionError> {
+    let (size, rgba) = render_fused_rgba(primary, secondary, secondary_alpha)?;
+    Ok(ColorImage::from_rgba_unmultiplied(size, &rgba))
 }
 
 /// Map the centre of a primary slice into the secondary slice index.
