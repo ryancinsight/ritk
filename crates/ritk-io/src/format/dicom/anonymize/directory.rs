@@ -13,11 +13,14 @@ use crate::format::dicom::export_source::{numbered_instance_path, read_source, S
 /// Cumulative statistics for a `anonymize_dicom_directory` run.
 #[derive(Debug, Clone)]
 pub struct AnonymizeStats {
-    /// Number of files recognised as valid DICOM and processed.
+    /// Number of files that opened as DICOM (a DICOMDIR among them), that
+    /// carry the `DICM` prefix and did not open, or that could not be read
+    /// at all.
     pub file_count: usize,
     /// Number of DICOM files successfully anonymized and written.
     pub success_count: usize,
-    /// Number of DICOM files that failed anonymization or writing.
+    /// Number of counted files that could not be read, anonymized or
+    /// written, or are a DICOMDIR.
     pub error_count: usize,
     /// Per-file error messages for failed files.
     pub errors: Vec<(PathBuf, String)>,
@@ -31,7 +34,9 @@ pub struct AnonymizeStats {
 /// the DICOM extension. Each export is encoded before its numbered name is
 /// published, and publishing never replaces an existing destination entry.
 ///
-/// Files that cannot be opened as DICOM are skipped silently and not counted.
+/// Files read and found without the `DICM` prefix (at byte 0 or 128) are
+/// skipped silently and not counted. A file that carries the prefix and does
+/// not open, or that cannot be read at all, is counted as a per-file error.
 /// A DICOMDIR is counted as a per-file error because this API does not export
 /// the media file set. A parsed file that fails anonymization or writing is recorded in
 /// [`AnonymizeStats::errors`] and logged at `WARN` level. Those diagnostics
@@ -75,6 +80,7 @@ pub fn anonymize_dicom_directory(
     for input_path in entries {
         let result = match read_source(&input_path) {
             Source::NotDicom => continue,
+            Source::Unreadable(error) => Err(error.context("DICOM file could not be read")),
             Source::Index => Err(anyhow!(
                 "DICOMDIR is unsupported in flat export; pass the directory containing the image instances"
             )),
