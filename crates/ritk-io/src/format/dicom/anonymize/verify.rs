@@ -37,8 +37,10 @@
 //! 4. **Geometry coherence** — an object holding Float Pixel Data
 //!    (7FE0,0008), Double Float Pixel Data (7FE0,0009) or Pixel Data
 //!    (7FE0,0010) must carry non-zero Rows/Columns/BitsAllocated, and native
-//!    Pixel Data must hold at least one frame of
-//!    `Rows * Columns * SamplesPerPixel * BytesPerSample`, catching
+//!    Pixel Data must hold at least one frame: `Rows * Columns *
+//!    SamplesPerPixel` bits rounded up to a byte when BitsAllocated is 1
+//!    (PS3.5 sections 8.1.1 and 8.2), and otherwise `Rows * Columns *
+//!    SamplesPerPixel * ceil(BitsAllocated / 8)` bytes, catching
 //!    metadata/pixel drift that PACS viewers tolerate silently but that
 //!    corrupts quantitative analysis. The length of float, double float and
 //!    encapsulated pixel data is not checked. An object holding none of the

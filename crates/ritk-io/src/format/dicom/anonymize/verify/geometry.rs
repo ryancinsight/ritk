@@ -55,8 +55,15 @@ pub(super) fn check_geometry(obj: &DicomFile, report: &mut FileVerifyReport) {
         return;
     }
 
-    let expected_bytes_per_frame =
-        rows as usize * cols as usize * samples as usize * (bits as usize).div_ceil(8);
+    // PS3.5 section 8.1.1 allows BitsAllocated 1 beside the multiples of 8,
+    // and section 8.2 concatenates the bits of successive pixel cells, so a
+    // 1-bit frame occupies its sample count in bits, rounded up to a byte.
+    let frame_samples = rows as usize * cols as usize * samples as usize;
+    let expected_bytes_per_frame = if bits == 1 {
+        frame_samples.div_ceil(8)
+    } else {
+        frame_samples * (bits as usize).div_ceil(8)
+    };
     if let Some(len) = pixel_bytes
         && len < expected_bytes_per_frame
     {
