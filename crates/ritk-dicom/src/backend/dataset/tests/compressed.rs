@@ -283,7 +283,7 @@ fn native_backend_round_trips_rle_pixeldata_via_write_bytes() {
         .expect("decode RLE frame after write_bytes")
         .pixels;
 
-    let expected: Vec<f32> = original_u16.iter().map(|&v| v as f32).collect();
+    let expected: Vec<f32> = original_u16.iter().copied().map(f32::from).collect();
     assert_eq!(decoded_before, expected);
     assert_eq!(decoded_after, expected);
 }

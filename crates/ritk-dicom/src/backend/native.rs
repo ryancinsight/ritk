@@ -78,7 +78,7 @@ mod tests {
         let mut fragment = vec![0u8; 64];
         fragment[0..4].copy_from_slice(&1u32.to_le_bytes());
         fragment[4..8].copy_from_slice(&64u32.to_le_bytes());
-        fragment.push((pixels.len() - 1) as u8);
+        fragment.push(u8::try_from(pixels.len() - 1).expect("test RLE length fits in a byte"));
         fragment.extend_from_slice(pixels);
         fragment
     }
@@ -101,7 +101,7 @@ mod tests {
 
         let image = GrayImage::from_raw(width, height, pixels.to_vec())
             .expect("test image dimensions must match pixel count");
-        let mut jpeg = Vec::with_capacity((width as usize * height as usize) / 8);
+        let mut jpeg = Vec::with_capacity(pixels.len() / 8);
         DynamicImage::ImageLuma8(image)
             .write_to(
                 &mut std::io::Cursor::new(&mut jpeg),
@@ -116,7 +116,7 @@ mod tests {
 
         let image = RgbImage::from_raw(width, height, samples.to_vec())
             .expect("test RGB image dimensions must match sample count");
-        let mut jpeg = Vec::with_capacity((width as usize * height as usize * 3) / 8);
+        let mut jpeg = Vec::with_capacity(samples.len() / 8);
         DynamicImage::ImageRgb8(image)
             .write_to(
                 &mut std::io::Cursor::new(&mut jpeg),
