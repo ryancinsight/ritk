@@ -76,7 +76,7 @@ pub enum StudyRepairError {
         /// The failure that ended the run.
         #[source]
         cause: Box<Self>,
-        /// Written files still on disk.
+        /// Written files whose removal failed.
         paths: Vec<PathBuf>,
     },
 }
@@ -133,7 +133,7 @@ fn align_media_storage_class(object: &mut DicomFile) -> bool {
 /// holds no instance, when a source file cannot be read at all or carries the
 /// `DICM` prefix and does not open,
 /// or when an instance cannot be repaired or written. Every
-/// file the run wrote is removed first; files that resist removal are named by
+/// file the run wrote is removed first; files whose removal failed are named by
 /// [`StudyRepairError::Retained`].
 pub fn repair_dicom_study(
     input: impl AsRef<std::path::Path>,
