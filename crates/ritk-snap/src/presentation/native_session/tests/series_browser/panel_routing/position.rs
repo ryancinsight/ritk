@@ -225,8 +225,9 @@ fn native_cross_reference_and_sync_follow_selected_reformats() {
     let image = viewer.viewports[1].image;
     let pixel = |viewer: &NativeViewerSession, column: f64| {
         viewer.framebuffer.get_pixel(
-            screen_coordinate(image.x + image.width * column, "column").unwrap(),
-            screen_coordinate(image.y + image.height * 0.4, "row").unwrap(),
+            screen_coordinate(image.x + image.width * column, "column")
+                .expect("visible image column"),
+            screen_coordinate(image.y + image.height * 0.4, "row").expect("visible image row"),
         )
     };
     let yellow = metis_platform::Color::rgba(255, 255, 0, 255);

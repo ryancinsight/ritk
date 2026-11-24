@@ -98,14 +98,11 @@ fn retained_ct_native_reformatted_positions_and_intersections() {
             assert_eq!(thick[axis].corresponding_slice(i, &thin[axis]), Some(i));
             assert_eq!(thin[axis].corresponding_slice(i, &thick[axis]), Some(i));
         }
-        for z in 0..34 {
+        for z in 0_u16..34 {
             let trace = thick[0]
-                .trace_on(z, &thin[axis], 233)
+                .trace_on(usize::from(z), &thin[axis], 233)
                 .expect("intersect target");
-            assert_eq!(
-                trace.distance([12., f64::from(u32::try_from(2 * z).unwrap()) - 33.]),
-                0.
-            );
+            assert_eq!(trace.distance([12., f64::from(2 * z) - 33.]), 0.);
         }
     }
 }

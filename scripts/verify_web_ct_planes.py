@@ -32,6 +32,60 @@ def center_hash(client, pane):
     """, [pane])
 
 
+def verify_reformatted_positions(client, canvas):
+    def focus(panel):
+        x, y, w, h = state(client)["panes"][panel]
+        click(client, x + w//2, y + h//2)
+
+    down = chr(0xe015)
+    # These reconstructions share their first voxel and in-plane pixel spacing.
+    # Fixed source row i cuts the sagittal target at its column center i + 1/2.
+    index = state(client)["panels"][0][0]
+    verify_reference_pixel(client, 1, [(index + .5) / 512, .4], True)
+    for plane in ("Coronal", "Sagittal"):
+        for panel in (0, 1):
+            focus(panel)
+            select(client, plane, grid=True)
+        for panel in (1, 0):
+            focus(panel)
+            before = state(client)["panels"][panel][0]
+            client.send_keys(canvas, down)
+            assert [p[0] for p in state(client)["panels"]] == [before+1]*2
+    # The active axial reconstruction has double the target's depth pitch.
+    select(client, "Axial", grid=True)
+    for _ in range(2):
+        i = state(client)["panels"][0][0]
+        verify_reference_pixel(client, 1, [.4, (2*i + .5)/67], True)
+        client.send_keys(canvas, down)
+
+    # Reverse source and target, with a clockwise quarter-turn on the primary.
+    select(client, "Coronal", grid=True)
+    client.send_keys(canvas, "r")
+    focus(1)
+    select(client, "Axial", grid=True)
+    for _ in range(2):
+        i = state(client)["panels"][1][0]
+        pixel = [1 - (i/2 + .5)/34, .4]
+        verify_reference_pixel(client, 0, pixel, True)
+        chord(client, chr(0xe009), chr(0xe03c))
+        verify_reference_pixel(client, 0, pixel, False)
+        chord(client, chr(0xe009), chr(0xe03c))
+        client.send_keys(canvas, down)
+
+    # Manually align offset coronal slices, then invalidate the changed pane's anchor.
+    select(client, "Coronal", grid=True)
+    client.send_keys(canvas, chr(0xe035) + down + down)
+    first, second = [p[0] for p in state(client)["panels"]]
+    assert first != second
+    chord(client, chr(0xe008), chr(0xe035))
+    client.send_keys(canvas, down)
+    assert [p[0] for p in state(client)["panels"]] == [first+1, second+1]
+    select(client, "Sagittal", grid=True)
+    select(client, "Coronal", grid=True)
+    client.send_keys(canvas, down)
+    assert [p[0] for p in state(client)["panels"]] == [first+1, second+2]
+
+
 def verify(url, source, driver):
     client = WebDriverClient(driver, 90)
     client.create_session("chrome", 1000, headless=True)
@@ -83,27 +137,7 @@ def verify(url, source, driver):
         assert state(client)["planes"] == ["Coronal","Sagittal"]
         assert center_hash(client, 1) == second and center_hash(client, 0) != untouched
         chord(client, chr(0xe009), chr(0xe03c))
-        # These reconstructions share their first voxel and in-plane pixel spacing.
-        # Fixed source row i cuts the sagittal target at its column center i + 1/2.
-        index = state(client)["panels"][0][0]
-        verify_reference_pixel(client, 1, [(index + .5) / 512, .4], True)
-        for plane in ("Coronal", "Sagittal"):
-            for panel in (0, 1):
-                x,y,w,h = initial["panes"][panel]
-                click(client, x+w//2, y+h//2)
-                select(client, plane, grid=True)
-            for panel in (1, 0):
-                x,y,w,h = initial["panes"][panel]
-                click(client, x+w//2, y+h//2)
-                before = state(client)["panels"][panel][0]
-                client.send_keys(canvas, down)
-                assert [p[0] for p in state(client)["panels"]] == [before+1]*2
-        # The active axial reconstruction has double the target's depth pitch.
-        select(client, "Axial", grid=True)
-        for _ in range(2):
-            i = state(client)["panels"][0][0]
-            verify_reference_pixel(client, 1, [.4, (2*i + .5)/67], True)
-            client.send_keys(canvas, down)
+        verify_reformatted_positions(client, canvas)
         print("Verified linked sagittal and coronal scrolling and moving cross-reference pixels")
         print("Verified three distinct CT planes, reversible MPR assignment and two independent comparison panels", flush=True)
     finally:

@@ -13,7 +13,7 @@
 
 - [x] [minor] Change the anatomical plane through View. Compare distinct CT image pixels in a single pane, reverse an MPR swap and change both populated comparison panes independently. [Browser regression](../../scripts/verify_web_ct_planes.py) · [Windows pane-menu results](https://github.com/ryancinsight/ritk/actions/runs/45285847507/job/138082280584).
 
-- [x] [minor] Follow the displayed sagittal or coronal plane for automatic position sync and intersection lines. The downloaded five-series CT checks bidirectional scrolling in the 34- and 67-image reconstructions and reads yellow pixels on the target image. The native-loader test checks every reformatted index and axial intersection. [Browser test](../../scripts/verify_web_ct_planes.py) · [Native CT test](../../crates/ritk-snap/src/dicom/loader/tests/initial_ct.rs)
+- [x] [minor] Follow the displayed sagittal or coronal plane for automatic position sync and intersection lines. The downloaded five-series CT checks bidirectional scrolling in the 34- and 67-image reconstructions and reads yellow pixels on the target image. The same browser checks passed on fresh Basic and Strict copies (303 instances each). A rotated primary pane also shows the moving line from the second pane. The native-loader test checks every reformatted index and axial intersection. [Browser test](../../scripts/verify_web_ct_planes.py) · [Native CT test](../../crates/ritk-snap/src/dicom/loader/tests/initial_ct.rs)
 - [ ] [minor] Extend the held 3D comparison cursor to reformatted planes and verify the patient point after a plane switch.
 
 ## Verification

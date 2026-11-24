@@ -256,17 +256,28 @@ fn reformat_geometry_rejects_irregular_depth_and_uses_displayed_pixel_order() {
     let [acquisition, row, col] =
         tracing::info_span!("act").in_scope(|| PatientStack::displayed_planes(&regular));
     let _check = tracing::info_span!("assert").entered();
-    let acquired = acquisition.unwrap();
-    let (row, col) = (row.unwrap(), col.unwrap());
+    let acquired = acquisition.expect("acquired planes");
+    let (row, col) = (
+        row.expect("fixed-row planes"),
+        col.expect("fixed-column planes"),
+    );
     assert_eq!(row.centers[1].as_slice(), &[12., 20.75, 31.5]);
     assert_eq!(col.centers[3].as_slice(), &[12., 21.5, 30.75]);
     assert_eq!(row.distances, [0., 1.5]);
     assert_eq!(col.distances, [0., 0.5, 1., 1.5]);
     assert_eq!(
-        acquired.trace_on(2, &row, 1).unwrap().distance([0., 1.]),
+        acquired
+            .trace_on(2, &row, 1)
+            .expect("intersection on fixed row")
+            .distance([0., 1.]),
         0.
     );
-    assert_eq!(row.trace_on(0, &col, 1).unwrap().distance([-0.5, 0.]), 0.);
+    assert_eq!(
+        row.trace_on(0, &col, 1)
+            .expect("intersection on fixed column")
+            .distance([-0.5, 0.]),
+        0.
+    );
     assert_eq!(row.corresponding_slice(1, &col), None);
     assert_eq!(
         PatientStack::displayed_planes(&irregular).map(|s| s.is_some()),
