@@ -276,8 +276,9 @@ metadata from silently shipping to a destination PACS:
   - Study/Series/SOP Instance UID presence, DICOM-conformant format (Frame
     of Reference UID where present), and cross-file Study/Series consistency
     with unique SOPInstanceUIDs,
-  - geometry coherence (`Rows × Columns × Samples × BytesPerPixel` vs.
-    PixelData length),
+  - geometry coherence (native PixelData holds at least one frame: `Rows ×
+    Columns × Samples` bits rounded up to a byte at BitsAllocated 1,
+    otherwise that sample count times `ceil(BitsAllocated / 8)` bytes),
   - the file meta Media Storage SOP Instance UID equal to the data set's
     SOPInstanceUID, when the data set has one,
   - prohibited-value leak scan for the exact identifiers the pipeline scrubbed,

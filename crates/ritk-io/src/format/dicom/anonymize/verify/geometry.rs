@@ -55,10 +55,32 @@ pub(super) fn check_geometry(obj: &DicomFile, report: &mut FileVerifyReport) {
         return;
     }
 
-    let expected_bytes_per_frame =
-        rows as usize * cols as usize * samples as usize * (bits as usize).div_ceil(8);
+    // PS3.5 section 8.1.1 allows BitsAllocated 1 beside the multiples of 8,
+    // and section 8.2 concatenates the bits of successive pixel cells, so
+    // the first 1-bit frame ends within its sample count in bits, rounded up
+    // to a byte.
+    let expected_bytes_per_frame = u64::from(rows)
+        .checked_mul(u64::from(cols))
+        .and_then(|cells| cells.checked_mul(u64::from(samples)))
+        .and_then(|frame_samples| {
+            if bits == 1 {
+                Some(frame_samples.div_ceil(8))
+            } else {
+                frame_samples.checked_mul(u64::from(bits.div_ceil(8)))
+            }
+        });
+    let Some(expected_bytes_per_frame) = expected_bytes_per_frame else {
+        report.issues.push(VerifyIssue::GeometryMismatch {
+            detail: format!(
+                "frame size exceeds 64 bits \
+                 (rows={rows} cols={cols} samples={samples} bits={bits})"
+            ),
+        });
+        return;
+    };
+    // A length beyond 64 bits cannot be short of a 64-bit frame size.
     if let Some(len) = pixel_bytes
-        && len < expected_bytes_per_frame
+        && u64::try_from(len).is_ok_and(|len| len < expected_bytes_per_frame)
     {
         report.issues.push(VerifyIssue::GeometryMismatch {
             detail: format!(
