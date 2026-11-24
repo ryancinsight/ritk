@@ -414,14 +414,17 @@ fn a_truncated_instance_ends_the_study_and_selection_exports_and_is_named() -> T
         let truncated = truncated.canonicalize()?;
         let first = source.path().join("s1/a.dcm");
         let selection = [first.as_path(), truncated.as_path()];
-        let exports: [&dyn Fn(&Path) -> Result<_, StudyAnonymizeError>; 2] = [
-            &|output| anonymize_dicom_study(source.path(), output, &options()),
-            &|output| anonymize_dicom_selection(source.path(), &selection, output, &options()),
-        ];
-        for export in exports {
+        let scopes: [Option<&[&Path]>; 2] = [None, Some(selection.as_slice())];
+        for scope in scopes {
             let output = tempfile::tempdir()?;
 
-            let error = export(output.path()).expect_err("a truncated instance ends the export");
+            let result = match scope {
+                None => anonymize_dicom_study(source.path(), output.path(), &options()),
+                Some(selected) => {
+                    anonymize_dicom_selection(source.path(), selected, output.path(), &options())
+                }
+            };
+            let error = result.expect_err("a truncated instance ends the export");
 
             assert_eq!(
                 error.to_string(),
