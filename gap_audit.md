@@ -267,9 +267,9 @@ and reject an unrepresentable positive spacing before output.
 - reopen: at the next change to `anonymize/verify.rs`, `anonymize/verify/`, `anonymize/directory.rs` or `export_source.rs`.
 
 <a id="RITK-PUSH-GATE-HOST-001"></a>
-## RITK-PUSH-GATE-HOST-001: the pre-push gate does not finish on the Windows host
-- risk: the 600-second pre-push deadline ends the `ritk-snap` and `ritk-python` package gates, and the `ritk-io` gate while other builds hold the shared target; a retired run leaves its per-ref push lock; hosted CI does not compile the Windows-only `ritk-snap` tests.
-- evidence: the heads of ritk#1131 through #1136 and #1138 went up as rescue pushes after the gate was retired at its deadline, as the PR bodies of ritk#1133 through #1138 and the verdict comments on ritk#1131 and #1132 record.
+## RITK-PUSH-GATE-HOST-001: the pre-push gate times out on code pushes from the Windows host
+- risk: the 600-second pre-push deadline ends the `ritk-snap` and `ritk-python` package gates, and the `ritk-io` gate while other builds hold the shared target; a retired run leaves its per-ref push lock; pull-request and push runs of hosted CI use an Ubuntu-only matrix, so the Windows-only `ritk-snap` tests run only on the scheduled and dispatched Windows job.
+- evidence: the heads of ritk#1131 through #1136 and #1138 went up as rescue pushes after the gate was retired at its deadline, as the PR bodies of ritk#1133 through #1136 and #1138 and the verdict comments on ritk#1131 and #1132 record; the Atlas `scripts/git-hooks/pre-push` hook releases its push lock only from its exit trap and does not reclaim a holder on Windows.
 - reopen: at the next change to the stack push gate, or at the next `ritk-snap` push.
 
 ## RITK-DICOM-MIXED-IOP-001
@@ -320,7 +320,7 @@ and reject an unrepresentable positive spacing before output.
 ## RITK-DICOM-REPAIR-STUDY-002: filed judge findings on the repair export and viewer tools are open
 - risk: `repair/study.rs` `failed` duplicates the anonymize helper and its `!=` against the default summary has a surviving `==` mutant; no test reaches `Instance`, `Write` or `Retained`; the viewer ends held gestures before a dialog the reader may cancel, and repeats the left-out sentence in two modules.
 - evidence: filed findings in the judge verdict comments on ritk#926, #927, #928 and #929.
-- reopen: at the next change under `crates/ritk-io/src/format/dicom/repair/`, `anonymize/file_meta.rs` or `crates/ritk-snap/src/presentation/native_session/{repair,deidentify}.rs`, or when the backlog has room (1,000 of 1,000 lines once ritk#928 lands).
+- reopen: at the next change under `crates/ritk-io/src/format/dicom/repair/`, `anonymize/file_meta.rs` or `crates/ritk-snap/src/presentation/native_session/{repair,deidentify}.rs`.
 
 ## DICOM geometry and isotope quantities [major]
 
