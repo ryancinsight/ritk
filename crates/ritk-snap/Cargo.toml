@@ -25,6 +25,10 @@ path = "src/main.rs"
 name = "dicom_workflow"
 required-features = ["eframe-shell"]
 
+[[example]]
+name = "atlas_overlay"
+required-features = ["eframe-shell"]
+
 [dependencies]
 aequitas.workspace = true
 iris = { workspace = true, features = ["serde"] }
@@ -76,6 +80,8 @@ getrandom_02 = { workspace = true, features = ["js"] }
 moirai-pal = { workspace = true }
 
 [dev-dependencies]
+leto = { workspace = true }
+ritk-registration = { workspace = true }
 tempfile = { workspace = true }
 ritk-core = { workspace = true, features = ["test-helpers"] }
 # The DICOMDIR reader validates the full record tree, so tests build indices

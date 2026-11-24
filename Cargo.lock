@@ -7284,6 +7284,7 @@ dependencies = [
  "iris-viz",
 >>>>>>> 12219e83d (chore(ritk): unify base64 0.23, image 0.25 and tiff 0.11)
  "js-sys",
+ "leto",
  "metis-platform",
  "metis-ui-lang",
  "metis-web",
@@ -7297,6 +7298,7 @@ dependencies = [
  "ritk-filter",
  "ritk-image",
  "ritk-io",
+ "ritk-registration",
  "ritk-segmentation",
  "ritk-spatial",
  "ritk-vtk",
