@@ -2,8 +2,8 @@
 //!
 //! These tests exercise `verify::*` against in-memory objects written to
 //! temporary files, covering the standard PACS anonymization export failure
-//! modes: corrupt writes, diverged series UIDs, leaked identifiers, and
-//! geometry/pixel drift.
+//! modes: corrupt writes, diverged series UIDs and leaked identifiers.
+//! Geometry and pixel drift is covered in `tests_verify_geometry.rs`.
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::super::anonymize::verify::{
@@ -181,12 +181,27 @@ fn directory_cross_file_uid_divergence_reported() {
     b.write_to_file(dir.path().join("b.dcm")).expect("write b");
 
     let report = verify_dicom_directory(dir.path(), &VerifyOptions::default()).unwrap();
-    assert_eq!(report.file_count, 2);
-    assert!(
-        report.files.iter().any(|f| f.issues.iter().any(
-            |i| matches!(i, VerifyIssue::UidMismatch { tag, .. } if tag == "SeriesInstanceUID")
-        )),
-        "diverged series UIDs must be reported"
+    assert_eq!(
+        (report.file_count, report.clean_count, report.failing_count),
+        (2, 1, 1)
+    );
+    assert!(!report.is_clean());
+    let failing: Vec<_> = report
+        .files
+        .iter()
+        .map(|file| (file.path.file_name(), file.issues.as_slice()))
+        .collect();
+    assert_eq!(
+        failing,
+        [(
+            Some(std::ffi::OsStr::new("b.dcm")),
+            [VerifyIssue::UidMismatch {
+                tag: "SeriesInstanceUID".to_owned(),
+                expected: "1.2.3.4.5.7".to_owned(),
+                found: "1.2.3.4.5.99".to_owned(),
+            }]
+            .as_slice()
+        )]
     );
 }
 
@@ -199,13 +214,51 @@ fn directory_duplicate_sop_uid_reported() {
     b.write_to_file(dir.path().join("b.dcm")).expect("write b");
 
     let report = verify_dicom_directory(dir.path(), &VerifyOptions::default()).unwrap();
-    assert!(
-        report.files.iter().any(|f| f
-            .issues
-            .iter()
-            .any(|i| matches!(i, VerifyIssue::DuplicateSopInstanceUid { .. }))),
-        "duplicate SOPInstanceUID must be reported"
+    assert_eq!(
+        (report.file_count, report.clean_count, report.failing_count),
+        (2, 1, 1)
     );
+    assert!(!report.is_clean());
+    let failing: Vec<_> = report
+        .files
+        .iter()
+        .map(|file| (file.path.file_name(), file.issues.as_slice()))
+        .collect();
+    assert_eq!(
+        failing,
+        [(
+            Some(std::ffi::OsStr::new("b.dcm")),
+            [VerifyIssue::DuplicateSopInstanceUid {
+                value: "1.2.3.4.5.8".to_owned(),
+            }]
+            .as_slice()
+        )]
+    );
+}
+
+#[test]
+fn a_file_with_its_own_and_a_cross_file_issue_is_reported_once() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let a = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
+    // An invalid StudyInstanceUID, and a SeriesInstanceUID that differs from a's.
+    let b = build_object("1.2.3.4.5.06", "1.2.3.4.5.99", "1.2.3.4.5.9");
+    a.write_to_file(dir.path().join("a.dcm")).expect("write a");
+    b.write_to_file(dir.path().join("b.dcm")).expect("write b");
+
+    let report = verify_dicom_directory(dir.path(), &VerifyOptions::default()).unwrap();
+
+    assert_eq!(
+        (report.file_count, report.clean_count, report.failing_count),
+        (2, 1, 1)
+    );
+    let paths: Vec<_> = report
+        .files
+        .iter()
+        .map(|file| file.path.file_name())
+        .collect();
+    assert_eq!(paths, [Some(std::ffi::OsStr::new("b.dcm"))]);
+    let counts: Vec<_> = report.files.iter().map(|file| file.issues.len()).collect();
+    assert_eq!(counts, [2], "{:#?}", report.files);
 }
 
 #[test]

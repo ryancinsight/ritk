@@ -62,9 +62,6 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 - [ ] [patch] Advance the lock to merged provider revisions and repeat native
   viewer and registry package verification on the integration head.
 
-- [x] [major] Approve [numbered DICOM directory exports](docs/adr/0068-number-dicom-directory-exports.md) for `ritk-io` 0.8.0 and `ritk-python` 0.13.0. See [RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001](gap_audit.md#RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001) for regression evidence.
-- [x] [major] Correct [real-data DICOM export structure](docs/adr/0069-preserve-dicom-export-structure.md). See [RITK-DICOM-ANONYMIZE-REAL-001](gap_audit.md#RITK-DICOM-ANONYMIZE-REAL-001).
-
 <a id="RITK-DICOM-MIXED-IOP-001"></a>- [RITK-DICOM-MIXED-IOP-001](gap_audit.md#ritk-dicom-mixed-iop-001) — Reject mixed orientations at DICOM volume import [patch] — RITK I/O 0.9.1 and RITK Python 0.13.1 candidate verified locally
 
 <a id="RITK-DICOM-LJIF-001"></a>- [RITK-DICOM-LJIF-001](gap_audit.md#ritk-dicom-ljif-001) — Verify skull CT JPEG Lossless import [patch] — release qualification
@@ -152,3 +149,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-SNAP-ROI-NATIVE-001"></a>- [RITK-SNAP-ROI-NATIVE-001](backlog/RITK-SNAP-ROI-NATIVE-001.md) — Test native ROI creation and labels — todo
 <a id="RITK-SNAP-ROI-LABEL-STATISTICS-001"></a>- [RITK-SNAP-ROI-LABEL-STATISTICS-001](backlog/RITK-SNAP-ROI-LABEL-STATISTICS-001.md) — Show complete ROI label statistics — todo
 <a id="RITK-FIXTURE-RETENTION-001"></a>- [RITK-FIXTURE-RETENTION-001](backlog/RITK-FIXTURE-RETENTION-001.md) — Decide imaging fixture retention — blocked
+<a id="RITK-SNAP-NATIVE-FUSION-001"></a>- [RITK-SNAP-NATIVE-FUSION-001](backlog/RITK-SNAP-NATIVE-FUSION-001.md) — Fuse series and read SUV natively — blocked
+<a id="RITK-SNAP-TEXT-COMMAND-ARC-001"></a>- [RITK-SNAP-TEXT-COMMAND-ARC-001](backlog/RITK-SNAP-TEXT-COMMAND-ARC-001.md) — Build display text without a second copy — todo
+<a id="RITK-DICOM-PIXEL-ASPECT-RESOLUTION-001"></a>- [RITK-DICOM-PIXEL-ASPECT-RESOLUTION-001](backlog/RITK-DICOM-PIXEL-ASPECT-RESOLUTION-001.md) — Resolve and retain pixel aspect on DICOM metadata — todo
+<a id="RITK-DICOM-PIXEL-ASPECT-PINS-001"></a>- [RITK-DICOM-PIXEL-ASPECT-PINS-001](backlog/RITK-DICOM-PIXEL-ASPECT-PINS-001.md) — Pin pixel aspect parser edge cases and its zero-spacing error — todo

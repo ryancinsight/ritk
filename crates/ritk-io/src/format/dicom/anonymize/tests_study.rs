@@ -2,8 +2,8 @@
 
 use super::verify::{VerifyIssue, VerifyOptions};
 use super::{
-    anonymize_dicom_directory_verified, anonymize_dicom_selection, anonymize_dicom_study,
-    AnonymizationProfile, AnonymizeOptions, StudyAnonymizeError,
+    anonymize_dicom_directory, anonymize_dicom_directory_verified, anonymize_dicom_selection,
+    anonymize_dicom_study, AnonymizationProfile, AnonymizeOptions, StudyAnonymizeError,
 };
 use crate::format::dicom::export_tree::ExportTreeError;
 use ritk_dicom::dataset::{DataElement, DicomTag, PrimitiveValue, VR};
@@ -388,6 +388,86 @@ fn an_object_without_pixel_data_is_exported_with_the_images() -> TestResult {
         exported_series,
         value(&output.join("000001.dcm"), SERIES_UID)?
     );
+    Ok(())
+}
+
+/// Write a valid instance to `path`, drop its first `leading` bytes (0, or
+/// the 128 of the preamble) and cut what remains in half: the Part 10 prefix
+/// stays and the data set ends early.
+fn truncated_instance(path: &Path, leading: usize) -> TestResult {
+    write(&instance("1.2.3.40", "1.2.3.40.1", CT_IMAGE_STORAGE)?, path)?;
+    let bytes = std::fs::read(path)?;
+    assert_eq!(&bytes[128..132], b"DICM");
+    let kept = &bytes[leading..];
+    std::fs::write(path, &kept[..kept.len() / 2])?;
+    Ok(())
+}
+
+#[test]
+fn a_truncated_instance_ends_the_study_and_selection_exports_and_is_named() -> TestResult {
+    // With the preamble, and as a file written without one.
+    for leading in [0, 128] {
+        let source = tempfile::tempdir()?;
+        study_tree(source.path())?;
+        let truncated = source.path().join("s2/truncated.dcm");
+        truncated_instance(&truncated, leading)?;
+        let truncated = truncated.canonicalize()?;
+        let first = source.path().join("s1/a.dcm");
+        let selection = [first.as_path(), truncated.as_path()];
+        let scopes: [Option<&[&Path]>; 2] = [None, Some(selection.as_slice())];
+        for scope in scopes {
+            let output = tempfile::tempdir()?;
+
+            let result = match scope {
+                None => anonymize_dicom_study(source.path(), output.path(), &options()),
+                Some(selected) => {
+                    anonymize_dicom_selection(source.path(), selected, output.path(), &options())
+                }
+            };
+            let error = result.expect_err("a truncated instance ends the export");
+
+            assert_eq!(
+                error.to_string(),
+                format!("DICOM file {truncated:?} could not be read"),
+                "leading={leading}"
+            );
+            assert!(
+                matches!(error, StudyAnonymizeError::Unreadable { path, .. } if path == truncated)
+            );
+            // s1/a.dcm was written before s2/truncated.dcm was read.
+            assert_eq!(listing(output.path())?, Vec::<String>::new());
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn a_truncated_instance_is_a_per_file_error_of_the_directory_export() -> TestResult {
+    let source = tempfile::tempdir()?;
+    let output = tempfile::tempdir()?;
+    write(
+        &instance("1.2.3.10", "1.2.3.10.1", CT_IMAGE_STORAGE)?,
+        &source.path().join("a.dcm"),
+    )?;
+    let truncated = source.path().join("b.dcm");
+    truncated_instance(&truncated, 0)?;
+    std::fs::write(source.path().join("notes.txt"), "not DICOM")?;
+
+    let stats = anonymize_dicom_directory(source.path(), output.path(), &options())?;
+
+    assert_eq!(
+        (stats.file_count, stats.success_count, stats.error_count),
+        (2, 1, 1)
+    );
+    let [(path, message)] = stats.errors.as_slice() else {
+        panic!("one per-file error expected, got {:?}", stats.errors);
+    };
+    assert_eq!(path, &truncated);
+    assert!(
+        message.starts_with("DICOM file could not be read: "),
+        "{message}"
+    );
+    assert_eq!(listing(output.path())?, ["000001.dcm"]);
     Ok(())
 }
 

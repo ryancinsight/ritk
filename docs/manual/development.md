@@ -1911,13 +1911,12 @@ release-authority decisions.
 
 ## Open dropped DICOM files in the browser host
 
-The browser build uses the same RITK byte loader as the native dropped-input
-path. The complete DICOM consumer page is kept in
-[`crates/ritk-snap/web/gallery`](../../crates/ritk-snap/web/gallery), and the
-workflow passes it explicitly to Metis after building the RITK WebAssembly
-package. This keeps the chooser wording, slice controls and three-canvas
-presentation with the DICOM consumer. The HTML page supplies a Métis mount
-point and a named canvas:
+Use **Open Study…** in the [AsterSlice browser workstation](../../crates/ritk-snap/README.md#browser-host)
+to choose local DICOM files. The [workstation source](../../crates/ritk-snap/web/workstation)
+contains the page and its startup code.
+
+To embed a single named canvas in another page, provide a Métis mount point
+and an image canvas:
 
 ```html
 <main id="metis-app" aria-label="Métis browser host"></main>
@@ -1993,8 +1992,8 @@ listeners and routes target-local events through RITK's shared
 presentation/action reducer; pointer cancel and provider failures clear the
 active gesture. Physical browser-driver input and Safari's file-backed
 WebDriver read remain separate acceptance work. Browser WebGPU is selected
-only through the explicit asynchronous `*_gpu` entrypoints or the gallery's
-`?renderer=webgpu` query; hosted capability evidence is recorded below and
+through the explicit asynchronous `*_gpu` entrypoints or the workstation's
+`?renderer=webgpu` query. The recorded capability evidence
 does not imply a device is present. The native eframe volume
 upload now preflights device limits, reports pending GPU readback, and uses the
 CPU projection path when the GPU path is unsupported or fails.

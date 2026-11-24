@@ -46,7 +46,8 @@ pub(crate) fn decode(data: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
     if usize::try_from(stream.channels())? != layout.samples_per_pixel {
         bail!("DICOM JPEG XL channels disagree with SamplesPerPixel");
     }
-    let scale = ((1u32 << stored) - 1) as f32;
+    let scale =
+        f32::from(u16::try_from((1u32 << stored) - 1).context("JPEG XL scale exceeds 16 bits")?);
     let mut raw = Vec::with_capacity(layout.bytes_per_frame()?);
     let mut batch = [0.0f32; 4096];
     let mut remaining = samples;

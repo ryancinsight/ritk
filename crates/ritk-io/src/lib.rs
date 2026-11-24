@@ -51,6 +51,7 @@ pub use format::dicom::{
 #[cfg(feature = "test-util")]
 pub use format::dicom::{file_set_index_fixture, write_dynamic_gated_pet_concatenation};
 pub use format::dicom::{BodyWeightSuvVolume, Radioactivity};
+pub use format::dicom::{DicomPixelAspect, DicomPixelAspectError, DicomPixelAspectSource};
 #[cfg(not(target_arch = "wasm32"))]
 pub use format::dicomweb::{DicomWebClient, QidoSearchParams, StowFailure, StowResponse};
 pub use format::jpeg::{read_jpeg_color_to_volume, JpegColorReader};

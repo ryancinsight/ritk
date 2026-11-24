@@ -15,8 +15,8 @@
 //!   implementation identifiers; its Media Storage SOP Instance UID is set to
 //!   the data set's SOPInstanceUID when that is a single conformant UID, and
 //!   is otherwise left as it was; its application entity titles and private
-//!   information are removed, as is every top-level group 0002 element of
-//!   the data set.
+//!   information are removed, as is every group 0002 element of the data
+//!   set at every sequence nesting level.
 //! - `clean_pixel_data = CleaningPolicy::Skip` (default) never touches pixel data.
 //! - Same `(original_uid, salt)` always produces the same replacement UID.
 //! - Every count in [`AnonymizeResult`] is taken from the mutation that produced
@@ -42,6 +42,8 @@ mod tests_anonymize_extended;
 #[cfg(test)]
 #[path = "tests_anonymize_stats.rs"]
 mod tests_anonymize_stats;
+#[cfg(test)]
+mod tests_file_meta;
 #[cfg(test)]
 #[path = "tests_recursion.rs"]
 mod tests_recursion;
@@ -240,6 +242,7 @@ fn anonymize_dataset(
     for (tag, action) in tag_actions {
         apply_action(dataset, *tag, *action, options, result, uid_map);
     }
+    file_meta::remove_misplaced(dataset);
 
     // Remove private tags at this level before descending, mirroring the
     // top-level ordering relative to pixel-data handling.
@@ -314,8 +317,8 @@ fn anonymize_dataset(
 /// SOPInstanceUID when that is a single conformant UID; Source, Sending and
 /// Receiving Application Entity Title, Private Information Creator UID and
 /// Private Information are removed; the group length is recomputed; no other
-/// file meta element changes. Top-level data set elements of group 0002 are
-/// removed. Returns
+/// file meta element changes. Data set elements of group 0002 are removed at
+/// every sequence nesting level. Returns
 /// `AnonymizeResult` with per-operation statistics and the UID
 /// cross-reference map.
 ///

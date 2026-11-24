@@ -3,9 +3,10 @@
 //! # Invariants
 //! - The source is never modified: [`ExportTree`] refuses an output folder
 //!   that overlaps the source or holds entries.
-//! - The run is all-or-nothing: an instance that cannot be de-identified, or
-//!   an exported instance that fails verification, removes every file the run
-//!   wrote before the error is returned.
+//! - A run that fails after its first write removes its export targets before
+//!   the error is returned; [`StudyAnonymizeError::Retained`] names those whose
+//!   removal failed, each of which may remain on disk. An output folder the run
+//!   created stays.
 //! - No source folder or file name is copied: exported instances are named
 //!   `000001.dcm`, `000002.dcm`, ... in the order their sources sort by path,
 //!   directly in the output folder.
@@ -13,6 +14,10 @@
 //!   value for the verification of every exported instance.
 //! - A DICOMDIR is not exported: its records name the source files and repeat
 //!   patient attributes, so the copy would describe another file set.
+//! - A source file that cannot be read at all, or that carries the `DICM`
+//!   prefix (at byte 0 or 128) and does not open, ends the run. A file that
+//!   is read and carries no prefix is counted and left out of a study
+//!   export, and ends a selection export that names it.
 //! - Text burned into the pixel data is not detected.
 
 use super::verify::{verify_dicom_instances, VerifyIssue, VerifyOptions};
@@ -34,7 +39,8 @@ const PATIENT_ID: DicomTag = DicomTag::new(0x0010, 0x0020);
 pub struct StudyAnonymizeReport {
     /// Instances de-identified, written and verified.
     pub instances_written: usize,
-    /// Source files that do not parse as DICOM and were not copied.
+    /// Source files read and found without the `DICM` prefix, which were
+    /// not copied.
     pub non_dicom_skipped: usize,
     /// DICOMDIR indexes left out of the export.
     pub indexes_omitted: usize,
@@ -55,9 +61,20 @@ pub enum StudyAnonymizeError {
     /// The output folder cannot receive the export.
     #[error(transparent)]
     Tree(#[from] ExportTreeError),
-    /// A selected file could not be read as a DICOM instance.
+    /// A selected file is a DICOMDIR, or was read and carries no `DICM`
+    /// prefix.
     #[error("selected file {0:?} is not a readable DICOM instance")]
     SelectedInstance(PathBuf),
+    /// A source file cannot be read at all, or carries the `DICM` prefix
+    /// (at byte 0 or 128) and does not open as a DICOM instance.
+    #[error("DICOM file {path:?} could not be read")]
+    Unreadable {
+        /// The source file.
+        path: PathBuf,
+        /// The underlying failure.
+        #[source]
+        source: anyhow::Error,
+    },
     /// The source holds no DICOM instance to export.
     #[error("no DICOM instance found under {0:?}")]
     NoInstances(PathBuf),
@@ -79,7 +96,9 @@ pub enum StudyAnonymizeError {
     Retained {
         /// The failure that ended the run.
         cause: Box<Self>,
-        /// Written files still on disk.
+        /// Export targets whose removal failed; each may remain on disk. A
+        /// target whose write failed before its file was created can be
+        /// among them.
         paths: Vec<PathBuf>,
     },
 }
@@ -160,8 +179,12 @@ fn export_instance(
 /// # Errors
 /// Returns [`StudyAnonymizeError`] when a path cannot be resolved or listed,
 /// when the output folder overlaps the source or is not empty, when the source
-/// holds no instance, when an instance cannot be de-identified or written, or
-/// when verification finds an issue.
+/// holds no instance, when a source file cannot be read at all or carries the
+/// `DICM` prefix and does not open,
+/// when an instance cannot be de-identified or written, or
+/// when verification finds an issue. The run's export targets are removed
+/// first; those whose removal failed, each of which may remain on disk, are
+/// named by [`StudyAnonymizeError::Retained`].
 pub fn anonymize_dicom_study(
     input: impl AsRef<Path>,
     output: impl AsRef<Path>,
@@ -220,6 +243,13 @@ fn export(
         let path = entry.source.as_path();
         let object = match read_source(path) {
             Source::Instance(object) => *object,
+            Source::Unreadable(source) => {
+                let path = path.to_path_buf();
+                return Err(failed(
+                    StudyAnonymizeError::Unreadable { path, source },
+                    &written,
+                ));
+            }
             Source::Index | Source::NotDicom if selected.is_some() => {
                 return Err(failed(
                     StudyAnonymizeError::SelectedInstance(path.to_path_buf()),

@@ -276,8 +276,9 @@ metadata from silently shipping to a destination PACS:
   - Study/Series/SOP Instance UID presence, DICOM-conformant format (Frame
     of Reference UID where present), and cross-file Study/Series consistency
     with unique SOPInstanceUIDs,
-  - geometry coherence (`Rows × Columns × Samples × BytesPerPixel` vs.
-    PixelData length),
+  - geometry coherence (native PixelData holds at least one frame: `Rows ×
+    Columns × Samples` bits rounded up to a byte at BitsAllocated 1,
+    otherwise that sample count times `ceil(BitsAllocated / 8)` bytes),
   - the file meta Media Storage SOP Instance UID equal to the data set's
     SOPInstanceUID, when the data set has one,
   - prohibited-value leak scan for the exact identifiers the pipeline scrubbed,
@@ -292,7 +293,8 @@ metadata from silently shipping to a destination PACS:
   into a separate empty folder as `000001.dcm`, `000002.dcm`, ..., copying
   no source folder or file name, then runs the export
   gate over the whole set with the source patient names and IDs prohibited;
-  any failure removes everything the run wrote.
+  on any failure the run tries to remove the files it wrote and leaves an
+  output folder it created in place; a file it could not remove can remain.
 
 Filename protection and metadata rules address different sources of identifying
 information. Pixel bytes are preserved by default. The optional pixel cleaning

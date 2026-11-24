@@ -13,7 +13,8 @@
 //! This module provides the export gate: after anonymization writes a file (or
 //! a directory tree), run [`verify_dicom_file`] / [`verify_dicom_directory`] to
 //! assert that the exported metadata is present, internally consistent, and
-//! free of de-identification leaks, and that the file re-parses cleanly.
+//! free of the values the caller prohibits, and that the file re-parses
+//! cleanly.
 //!
 //! # Checks performed
 //!
@@ -29,16 +30,20 @@
 //!    frame carries none. When the data set has a non-empty SOPInstanceUID,
 //!    the file meta Media Storage SOP Instance UID must equal it (PS3.10
 //!    Table 7.1-1).
-//! 3. **De-identification completeness** — when a profile is supplied, every
-//!    tag the profile targets must either be absent or carry its replacement
-//!    value; the raw patient-identifying values that were scrubbed must not
-//!    resurface. This is checked against the *expected* post-anonymization
-//!    state, not by scanning for arbitrary strings.
+//! 3. **Prohibited values** — no entry of
+//!    [`VerifyOptions::prohibited_values`] may occur in a data set, nested
+//!    sequence items included. The gate takes no anonymization profile: it
+//!    does not check that the tags a profile targets are absent or replaced,
+//!    and it finds only the values the caller lists.
 //! 4. **Geometry coherence** — an object holding Float Pixel Data
 //!    (7FE0,0008), Double Float Pixel Data (7FE0,0009) or Pixel Data
-//!    (7FE0,0010) must carry non-zero Rows/Columns/BitsAllocated, and native
-//!    Pixel Data must hold at least one frame of
-//!    `Rows * Columns * SamplesPerPixel * BytesPerSample`, catching
+//!    (7FE0,0010) must carry non-zero Rows/Columns/BitsAllocated and, when
+//!    SamplesPerPixel is present, a non-zero number there, and native
+//!    Pixel Data must hold at least one frame: `Rows * Columns *
+//!    SamplesPerPixel` bits rounded up to a byte when BitsAllocated is 1
+//!    (PS3.5 sections 8.1.1 and 8.2), and otherwise `Rows * Columns *
+//!    SamplesPerPixel * ceil(BitsAllocated / 8)` bytes; a frame size that
+//!    does not fit 64 bits is reported as a mismatch. This catches
 //!    metadata/pixel drift that PACS viewers tolerate silently but that
 //!    corrupts quantitative analysis. The length of float, double float and
 //!    encapsulated pixel data is not checked. An object holding none of the
@@ -93,7 +98,9 @@ pub enum VerifyIssue {
     },
     /// SOPInstanceUID is duplicated across the export set.
     DuplicateSopInstanceUid { value: String },
-    /// A tag targeted by the profile is still present with a non-replacement value.
+    /// A tag targeted by a profile still holds a value that is not its
+    /// replacement. No check of this module reports it: the gate takes no
+    /// profile.
     ResidualIdentifier { tag: String, value: String },
     /// A patient-identifying raw value survived anonymization.
     PatientLeak { value: String },
@@ -393,23 +400,17 @@ pub fn verify_dicom_directory(
     let mut sop_seen: HashSet<String> = HashSet::new();
 
     for entry in entries {
-        let file_report = verify_dicom_file(&entry, options)?;
+        let mut file_report = verify_dicom_file(&entry, options)?;
         report.file_count += 1;
 
         // Cross-file UID consistency. A diverged Study/Series UID or a
-        // duplicated SOPInstanceUID is recorded on a per-file report and the
-        // per-file loop stops at the first defect so the directory report does
-        // not duplicate the same mismatch for every UID in one file.
-        for (name, value) in &file_report.uids {
-            let defect =
-                check_cross_file_uid(name, value, &mut series_uid, &mut study_uid, &mut sop_seen);
-            if let Some(issue) = defect {
-                let mut report_for_file = file_report.clone();
-                report_for_file.issues.push(issue);
-                report.files.push(report_for_file);
-                break;
-            }
-        }
+        // duplicated SOPInstanceUID joins the file's own issues, so the file
+        // counts as failing. The search stops at the file's first defect: one
+        // file reports one cross-file issue.
+        let defect = file_report.uids.iter().find_map(|(name, value)| {
+            check_cross_file_uid(name, value, &mut series_uid, &mut study_uid, &mut sop_seen)
+        });
+        file_report.issues.extend(defect);
 
         report.series_uids.extend(
             file_report

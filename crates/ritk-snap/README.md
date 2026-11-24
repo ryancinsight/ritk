@@ -240,9 +240,12 @@ surrounding spaces or leading zeros in a component rewritten, and the file meta
 Media Storage SOP Class UID and SOP Instance UID set to the data set's SOP Class
 UID and SOP Instance UID where those are conformant UIDs. A value with no known
 rewrite is copied as stored. The folder must be empty and outside
-the study, and the displayed study is not modified. Files that do not open as
-DICOM, a data set stored without the Part 10 header among them, and a DICOMDIR
-index are left out. The status line reports how many instances were written and
+the study, and the displayed study is not modified. Files read and found
+without the `DICM` prefix (at byte 0 or 128), a data set stored without the
+Part 10 header among them, and a DICOMDIR index are left out. A file that
+carries the prefix and does not open, such as a truncated instance, or that
+cannot be read at all, stops the copy, and the status line names it. The
+status line reports how many instances were written and
 how many values were rewritten.
 
 ## Browser host

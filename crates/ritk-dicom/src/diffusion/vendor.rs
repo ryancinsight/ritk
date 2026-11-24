@@ -19,7 +19,7 @@
 //! 2. A format-specific decoder in this module.
 //! 3. A new arm in [`try_vendor_pair`].
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use ritk_spatial::Vector;
 
 use crate::attribute::{DicomAttributeRead, DicomTag};
@@ -107,8 +107,10 @@ fn parse_csa_entries(blob: &[u8]) -> Result<Vec<CsaEntry>> {
         bail!("CSA header does not start with SV10 magic");
     }
 
-    let n_tags =
-        u32::from_le_bytes(blob[8..12].try_into().expect("fixed-width byte field")) as usize;
+    let n_tags = usize::try_from(u32::from_le_bytes(
+        blob[8..12].try_into().expect("fixed-width byte field"),
+    ))
+    .context("CSA tag count does not fit in memory")?;
     // Sanity: a DICOM element is ≤ 4 GB, so n_tags must be reasonable.
     if n_tags == 0 {
         bail!("CSA header declares zero tags — malformed");
@@ -145,11 +147,12 @@ fn parse_csa_entries(blob: &[u8]) -> Result<Vec<CsaEntry>> {
                 .try_into()
                 .expect("fixed-width byte field"),
         );
-        let n_items = u32::from_le_bytes(
+        let n_items = usize::try_from(u32::from_le_bytes(
             blob[offset + 76..offset + 80]
                 .try_into()
                 .expect("fixed-width byte field"),
-        ) as usize;
+        ))
+        .context("CSA item count does not fit in memory")?;
 
         // Skip the 4-byte pad after the tag header.
         offset += 84;
@@ -159,14 +162,15 @@ fn parse_csa_entries(blob: &[u8]) -> Result<Vec<CsaEntry>> {
             if offset + 4 > blob.len() {
                 bail!("CSA item header at offset {offset} extends past blob end");
             }
-            let item_len = u32::from_le_bytes(
+            let item_len = usize::try_from(u32::from_le_bytes(
                 blob[offset..offset + 4]
                     .try_into()
                     .expect("fixed-width byte field"),
-            ) as usize;
+            ))
+            .context("CSA item length does not fit in memory")?;
             offset += 4;
 
-            if offset + item_len > blob.len() {
+            if item_len > blob.len() - offset {
                 bail!("CSA item data of {item_len} bytes at offset {offset} extends past blob end");
             }
             // For simple values (no leading array count), just collect.

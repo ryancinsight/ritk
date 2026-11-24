@@ -178,7 +178,7 @@ The [native Safari job](https://github.com/ryancinsight/ritk/actions/runs/451117
 
 The decoder merged in [#1108](https://github.com/ryancinsight/ritk/pull/1108) at `db308af40`. Its packaged workstation passed a local Chromium replay with four consecutive 94-file selections on one page. Loads three and four used 654,639,104 WebAssembly bytes before selection, after decode and after navigation. All three planes matched the independent MRI values on every load. The [native macOS picker test](https://github.com/ryancinsight/ritk/actions/runs/45098982271) read all 94 files and matched each SHA-256. The full eight-scenario run on the integrated branch and the main replay are separate exits. The [integrated seven hosted passes](https://github.com/ryancinsight/ritk/actions/runs/45102420200) include Chromium WebGPU and Firefox. [Native Safari on Intel macOS](https://github.com/ryancinsight/ritk/actions/runs/45103222522/job/137458583614) passed the real MRI and CT comparison, rejected transfers and listener teardown. The ARM macOS 26 Safari runner still returns InvalidStateError when reading the presented raster. Chromium WebGPU stays on ARM macOS 26.
 
-[Run 45079835823](https://github.com/ryancinsight/ritk/actions/runs/45079835823) exercised all eight scenarios on RITK `54140426b` with Metis `94b698dcd`. Seven passed. Hosted Chromium WebGPU read the 94-file study, presented all three anatomical planes, passed the native cine-rate trace validator, removed its observer and closed the session. Both responsive scenarios, Chromium raster, the Chromium window and projection scenarios, and Firefox raster passed.
+[Run 45079835823](https://github.com/ryancinsight/ritk/actions/runs/45079835823) exercised all eight scenarios on RITK `54140426b` with the head of ryancinsight/metis#588. Seven passed. Hosted Chromium WebGPU read the 94-file study, presented all three anatomical planes, passed the native cine-rate trace validator, removed its observer and closed the session. Both responsive scenarios, Chromium raster, the Chromium window and projection scenarios, and Firefox raster passed.
 
 Safari 27.2 recorded a trusted selection of 49,807,236 bytes across all 94 files. macOS denied WebContent access to the first file before decoding. Byte-for-byte verification and filesystem permissions are recorded in the [Safari job](https://github.com/ryancinsight/ritk/actions/runs/45079835823/job/137389340300). The [qualification checklist](backlog/ritk-stable-qualification.md) keeps Safari and the post-merge replay open.
 
@@ -278,32 +278,29 @@ and reject an unrepresentable positive spacing before output.
 - evidence: filed findings of the ritk#876 judge at fa9c3d733, by reading; no near-cap decode was run. The same verdict filed, in the files that PR touched: `decode_jpeg2000_fragment` omits the invalid-layout `Codestream` error under `# Errors`, `mod.rs` keeps an `# Arguments` section, `jpeg_2000/tests.rs` is 1206 lines with a banner comment, the encoder tests call the two-argument decode past the budget, and the regression test is 64-bit only.
 - reopen: at the next change under `crates/ritk-codecs/src/jpeg_2000/`, or when the backlog has room, file the item: measure one admitted frame's peak allocation with dhat, then make the tile buffers reserve with `try_reserve_exact`.
 
-<a id="RITK-DICOM-VERIFY-PACKED-BITS-001"></a>
-## RITK-DICOM-VERIFY-PACKED-BITS-001: the export gate sizes a 1-bit frame at one byte per sample
-- risk: `check_geometry` in `anonymize/verify/geometry.rs` expects `Rows * Columns * SamplesPerPixel * ceil(BitsAllocated / 8)` bytes, so a single-frame object with BitsAllocated 1 and bit-packed PixelData of three or more samples is reported short and removes a whole de-identified export.
-- evidence: filed by the judge of ritk#931 from reading; the packing rule was recalled from PS3.5, not looked up, and no fixture reproduces it.
-- reopen: at the next change to `check_geometry`; read PS3.5 section 8.1.1, then export one 1-bit single-frame object and file the correctness item if it is rejected.
-
 <a id="RITK-DICOM-ANONYMIZE-STUDY-002"></a>
-## RITK-DICOM-ANONYMIZE-STUDY-002: study export failures lose their cause, and filed judge findings are open
-- risk: an unreadable DICOM file counts as non-DICOM without its path; a `create_dir_all` failure returns `Tree`; `exists()` hides metadata errors; `Retained` has no `#[source]`; `Instance` boxes `dyn Error`; emptied folders stay after a failed run; the verifier module doc claims a profile-completeness check no code performs; `examples/anonymize_pacs_export.rs` line 12 says FrameOfReferenceUID must be present and its geometry line omits SamplesPerPixel.
-- evidence: filed findings of the judges of ritk#914, #917, #919, #920 and #921, in each PR's verdict comment.
-- reopen: at the next change under `crates/ritk-io/src/format/dicom/anonymize/` or `export_tree.rs`, or when the backlog has room (998 of 1,000 lines at d247fada9).
+## RITK-DICOM-ANONYMIZE-STUDY-002: filed judge findings on the study export are open
+- risk: a `create_dir_all` failure returns `Tree`; the anonymize `Retained` has no `#[source]`; `Instance` boxes `dyn Error`; emptied folders stay after a failed run; no export test reaches `Retained`; the I/O-error arm of `read_source` and the `source` of `Unreadable` are untested; a text file that begins with `DICM` is reported as unreadable; `reader/detection.rs`, `reader/dicomdir_bytes.rs` and `export_source.rs` each test for the `DICM` prefix.
+- evidence: filed findings of the judges of ritk#914, #917, #919, #920, #921, #1131 and #1132, in each PR's verdict comments.
+- reopen: at the next change under `crates/ritk-io/src/format/dicom/anonymize/`, `export_tree.rs` or `export_source.rs`.
 
-<a id="RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001"></a>
-## RITK-DICOM-ANONYMIZE-DIRECTORY-NAMES-001 — Number directory exports [major]
-- risk: Rust directory export and its Python binding copied patient names and source UIDs embedded in filenames. Concurrent calls could overwrite an earlier export while reporting success.
-- evidence: the installed-wheel fixture reproduces both failures on `762f0e92`. The proposed correction shares the study export's numbering and publishes each encoded copy without replacing an occupied name. The Python fixture checks source bytes, collisions, per-file statistics, and remapped UID relationships after reopening. The Rust directory verification test reopens the numbered export through the existing gate.
-- status: [ADR 0068](docs/adr/0068-number-dicom-directory-exports.md) accepted. The fix is committed on the implementation branch. Hosted integration and release verification are pending.
+<a id="RITK-DICOM-ANONYMIZE-META-004"></a>
+## RITK-DICOM-ANONYMIZE-META-004: filed judge findings on group 0002 removal and frame sizing are open
+- risk: a file with a short file meta group length exports with this library's implementation identifiers while other files keep the source's, and no record states the difference; group 0002 elements inside a defined-length UN value are never visited; the group 0002 tests use only the default profile, and one asserts a value that is `None` before anonymization; the `anonymize_dataset` Rustdoc omits the removal; the bytes-per-sample overflow of the frame-size check is untested; an object holding only Float Pixel Data can receive the frame-size report.
+- evidence: filed findings in the judge verdict comments on ritk#1124 and #1129.
+- reopen: at the next change to `anonymize/mod.rs`, `anonymize/file_meta.rs` or `anonymize/verify/geometry.rs`.
 
-<a id="RITK-DICOM-ANONYMIZE-REAL-001"></a>
-## RITK-DICOM-ANONYMIZE-REAL-001 — Preserve real DICOM export structure [major]
-- risk: the profile added absent attributes to sequence items, retained CT creation and contribution metadata and irradiation-event identifiers, encoded UUIDs outside their 128-bit range, and published a DICOMDIR whose paths did not resolve.
-- evidence: the installed wheel at `84de2d4ae` preserves all 94 MRI and 303 CT images, but exposes these regressions. The real CT file-set index contains 304 references, one of which is already missing in the source fixture.
-- status: [ADR 0069](docs/adr/0069-preserve-dicom-export-structure.md) records the selected contract. The opt-in Python suite covers both fixtures and the file-set root. RITK Python volume reopening of the source compressed CT is a separate gap. The independent decoder verifies all CT slices.
-- verification: the macOS arm64 wheel passes both profiles for the 94-instance MRI and 303-instance CT fixtures and rejects the CT DICOMDIR. All 564 `ritk-io` library tests pass on the integrated source.
-- target: `ritk-io` 0.8.0 and `ritk-python` 0.13.0.
-- integration: PRs #1104 and #1105 merged after their required checks passed. The crates.io release cohort tracks the `ritk-io` 0.8.0 manifest.
+<a id="RITK-DICOM-VERIFY-GATE-005"></a>
+## RITK-DICOM-VERIFY-GATE-005: filed judge findings on the export gate and its reports are open
+- risk: `VerifyIssue::ResidualIdentifier` is public and nothing produces it; the `UidMismatch` doc names a Frame of Reference expectation no code checks; the `verify_dicom_file` `# Errors` section says it fails on a file that does not open, but it records `ParseFailure`; the prohibited-value scan does not read AS or TM elements and the field doc does not say so; an unreadable SamplesPerPixel is reported ahead of a zero Rows, and as "not a number" when it is a number outside `u32`; no test pins that an absent SamplesPerPixel counts as 1; the `files` field doc names a `report_all` option that does not exist; a file with a Study or Series mismatch does not register its SOPInstanceUID, so a later duplicate of it is not reported; the `Retained` messages say "written file(s)" for a target that may never have been written, and std maps two dropped-share errors to `NotFound`; `anonymize_dicom_directory` drops directory entries that fail to read; `_ritk/io.pyi` omits the unreadable-file error; no viewer test checks the status text for an unreadable file.
+- evidence: filed findings in the judge verdict comments on ritk#1133, #1134, #1135, #1136 and #1138.
+- reopen: at the next change to `anonymize/verify.rs`, `anonymize/verify/`, `anonymize/directory.rs` or `export_source.rs`.
+
+<a id="RITK-PUSH-GATE-HOST-001"></a>
+## RITK-PUSH-GATE-HOST-001: the pre-push gate times out on code pushes from the Windows host
+- risk: the 600-second pre-push deadline ends the `ritk-snap` and `ritk-python` package gates, and the `ritk-io` gate while other builds hold the shared target; a retired run leaves its per-ref push lock; pull-request and push runs of hosted CI use an Ubuntu-only matrix, so the Windows-only `ritk-snap` tests run only on the scheduled and dispatched Windows job.
+- evidence: the heads of ritk#1131 through #1136 and #1138 went up as rescue pushes after the gate was retired at its deadline, as the PR bodies of ritk#1133 through #1136 and #1138 and the verdict comments on ritk#1131 and #1132 record; the Atlas `scripts/git-hooks/pre-push` hook releases its push lock only from its exit trap and does not reclaim a holder on Windows.
+- reopen: at the next change to the stack push gate, or at the next `ritk-snap` push.
 
 ## RITK-DICOM-MIXED-IOP-001
 
@@ -331,8 +328,8 @@ and reject an unrepresentable positive spacing before output.
   volume to independently decompressed source instances. The test compares
   every reconstructed voxel plus shape, origin, spacing and direction.
 - The published Raster 0.5.0 dependency rejects the frame's LJIF APP0 marker
-  after series selection. The crates.io 0.5.1 archive matches Consus source
-  `aeea084445b8` and the registry checksum. A fresh registry consumer
+  after series selection. The crates.io 0.5.1 archive matches the Consus branch
+  `fix/consus-raster-ljif` and the registry checksum. A fresh registry consumer
   reconstructs the expected 16-bit sample.
 - The wheel switches the NumPy bridge and matching PyO3 series to crates.io.
   Its build dependencies resolve from the registry or the RITK workspace.
@@ -343,23 +340,17 @@ and reject an unrepresentable positive spacing before output.
 - The regression uses existing RITK reconstruction for its controls.
   Orthogonal orientations in three series remain a separate geometry issue.
 
-<a id="RITK-DICOM-ANONYMIZE-NESTED-META-001"></a>
-## RITK-DICOM-ANONYMIZE-NESTED-META-001: group 0002 elements inside sequence items survive de-identification
-- risk: `file_meta::remove_origin` removes top-level data set elements of group 0002 only; one nested in a sequence item stays. A file whose group length ends before (0002,0012) is read with dicom-rs default implementation identifiers, and the misplaced real ones are then deleted.
-- evidence: filed by the judges of ritk#932 from reading ritk-io and dicom-object 0.10.1; neither input was built.
-- reopen: at the next change to `anonymize/file_meta.rs` or `anonymize_dataset`; build both inputs as byte streams and file the correctness item for each that leaks or loses a value.
-
 <a id="RITK-DICOM-ANONYMIZE-EXPORT-003"></a>
 ## RITK-DICOM-ANONYMIZE-EXPORT-003: filed judge findings on the numbered export and the gate are open
-- risk: `anonymize/study.rs` keeps a `map_or(target, ..)` fallback no input reaches; export names past 999,999 stop sorting numerically; the source-path mapping is tested for `PatientLeak` only; the non-image study test does not assert the report's StudyInstanceUID and SOPInstanceUID were replaced; the root README says a failed run removes everything it wrote, but a created output folder stays; `tests_verify.rs` line 6 still lists geometry drift, moved to `tests_verify_geometry.rs`; the misplaced-element fixture uses Implicit VR and does not assert the stray values.
+- risk: `anonymize/study.rs` keeps a `map_or(target, ..)` fallback no input reaches; export names past 999,999 stop sorting numerically; the source-path mapping is tested for `PatientLeak` only; the non-image study test does not assert the report's StudyInstanceUID and SOPInstanceUID were replaced; the misplaced-element fixture uses Implicit VR and does not assert the stray values.
 - evidence: filed findings in the judge verdict comments on ritk#931, #932, #933 and #934.
 - reopen: at the next change under `crates/ritk-io/src/format/dicom/anonymize/`.
 
 <a id="RITK-DICOM-REPAIR-STUDY-002"></a>
 ## RITK-DICOM-REPAIR-STUDY-002: filed judge findings on the repair export and viewer tools are open
-- risk: `anonymize/file_meta.rs` says the dicom-rs reader refuses a file meta (0002,0003) that is not a UID, but it accepts `1..2` and `01.2`; `repair/study.rs` `failed` duplicates the anonymize helper and its `!=` against the default summary has a surviving `==` mutant; no test reaches `Instance`, `Write` or `Retained`; the viewer ends held gestures before a dialog the reader may cancel, and repeats the left-out sentence in two modules.
+- risk: `repair/study.rs` `failed` duplicates the anonymize helper and its `!=` against the default summary has a surviving `==` mutant; no test reaches `Instance`, `Write` or `Retained`; the viewer ends held gestures before a dialog the reader may cancel, and repeats the left-out sentence in two modules.
 - evidence: filed findings in the judge verdict comments on ritk#926, #927, #928 and #929.
-- reopen: at the next change under `crates/ritk-io/src/format/dicom/repair/`, `anonymize/file_meta.rs` or `crates/ritk-snap/src/presentation/native_session/{repair,deidentify}.rs`, or when the backlog has room (1,000 of 1,000 lines once ritk#928 lands).
+- reopen: at the next change under `crates/ritk-io/src/format/dicom/repair/`, `anonymize/file_meta.rs` or `crates/ritk-snap/src/presentation/native_session/{repair,deidentify}.rs`.
 
 ## DICOM geometry and isotope quantities [major]
 

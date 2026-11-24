@@ -14,7 +14,7 @@ use ritk_spatial::Vector;
 /// truncated / zero-padded to 64 bytes.  Each entry produces one item
 /// whose length is `data_bytes.len()`.
 fn make_sv10_blob(entries: &[(&str, &str, &[u8])]) -> Vec<u8> {
-    let n_tags = entries.len() as u32;
+    let n_tags = u32::try_from(entries.len()).expect("test tag count fits in 32 bits");
     let mut blob: Vec<u8> = Vec::new();
 
     // Magic + padding.
@@ -49,7 +49,7 @@ fn make_sv10_blob(entries: &[(&str, &str, &[u8])]) -> Vec<u8> {
         blob.extend_from_slice(&[0u8; 4]);
 
         // Item.
-        let item_len = data.len() as u32;
+        let item_len = u32::try_from(data.len()).expect("test payload length fits in 32 bits");
         blob.extend_from_slice(&item_len.to_le_bytes());
         blob.extend_from_slice(data);
         // 4-byte alignment padding.
@@ -156,6 +156,23 @@ fn csa_parser_returns_none_for_non_diffusion_blob() {
 fn csa_parser_rejects_non_sv10_magic() {
     let bad_blob = b"NOTSV10\x00\x00\x00\x00\x01\x00\x00\x00M\x00\x00\x00extra data here";
     assert!(parse_csa_blob(bad_blob).is_none());
+}
+
+#[test]
+fn csa_parser_rejects_large_count_and_payload_fields() {
+    let sample = 0.0f64.to_le_bytes();
+    for (field_start, why) in [
+        (8, "tags — unreasonable"),
+        (16 + 76, "item header"),
+        (16 + 84, "extends past blob end"),
+    ] {
+        let mut blob = make_sv10_blob(&[("B_value", "FD", &sample)]);
+        blob[field_start..field_start + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+        let message = parse_csa_entries(&blob)
+            .expect_err("synthetic oversized CSA field must be rejected")
+            .to_string();
+        assert!(message.contains(why), "{message}");
+    }
 }
 
 // ── Vendor fallback integration tests ────────────────────────────────────

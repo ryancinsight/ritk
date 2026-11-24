@@ -24,6 +24,7 @@ pub(super) mod loader;
 mod parse;
 mod pet_calibration;
 pub(super) mod pixel;
+mod pixel_aspect;
 mod preservation;
 mod reconstruction;
 pub(super) mod scan;
@@ -54,6 +55,7 @@ pub use stored::{
 // by sibling modules (color.rs). No re-export needed.
 pub use budget::DicomReadBudget;
 pub use pet_calibration::ClassicPetCalibration;
+pub use pixel_aspect::{DicomPixelAspect, DicomPixelAspectError, DicomPixelAspectSource};
 pub use types::literal_arraystring;
 pub use types::{
     DicomReadMetadata, DicomSeriesInfo as ScannedDicomSeries, DicomSliceMetadata, PatientPosition,
