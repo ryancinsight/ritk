@@ -123,6 +123,27 @@ impl LoadedVolume {
             .then(|| spacing.map(|length| length.in_unit::<Millimeter>()))
     }
 
+    pub(crate) fn has_unspaced_source_pixels(&self) -> bool {
+        // Retained source geometry may be unusable without being absent.
+        let geometry_tags = [
+            ritk_io::DicomTag::new(0x0028, 0x0030),
+            ritk_io::DicomTag::new(0x5200, 0x9229),
+            ritk_io::DicomTag::new(0x5200, 0x9230),
+        ];
+        self.metadata.as_ref().is_some_and(|metadata| {
+            !metadata.slices.is_empty()
+                && metadata.slices.iter().all(|slice| {
+                    let retained = &slice.preservation;
+                    slice.pixel_spacing.is_none()
+                        && geometry_tags.iter().all(|&tag| {
+                            retained.object.get(tag).is_none()
+                                && !retained.preserved.iter().any(|entry| entry.tag == tag)
+                                && !retained.losses.iter().any(|entry| entry.tag == tag)
+                        })
+                })
+        })
+    }
+
     pub(crate) fn measurement_spacing(&self) -> Option<([f64; 2], Option<f64>)> {
         let slice = self
             .metadata

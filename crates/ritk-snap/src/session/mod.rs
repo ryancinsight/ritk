@@ -16,7 +16,7 @@ use crate::tools::kind::ToolKind;
 use crate::ui::sidebar::SidebarTab;
 use crate::ViewerState;
 use anyhow::{Context, Result};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use std::path::Path;
 mod annotation_wire;
 mod representation;
@@ -102,7 +102,7 @@ impl<'de> Deserialize<'de> for ViewerSessionSnapshot {
         representation::ViewerSessionRepresentation::<StudySource, Vec<Annotation>>::deserialize(
             deserializer,
         )
-        .map(Into::into)
+        .and_then(|representation| representation.try_into().map_err(D::Error::custom))
     }
 }
 

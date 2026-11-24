@@ -15,6 +15,7 @@ fn direct_annotations_preserve_wire_identity_order_and_values() {
         r#"{"Arrow":{"location":{"plane":0,"slice":8},"tail":[3.0,4.0],"head":[8.0,12.0]}}"#,
         r#"{"Pencil":{"location":null,"points":[[0.5,1.5],[2.5,3.5],[4.5,5.5]]}}"#,
         r#"{"CobbAngle":{"location":{"plane":1,"slice":10},"points":[[0.0,0.0],[3.0,1.0],[5.0,8.0],[9.0,9.0]],"angle_deg":42.25}}"#,
+        r#"{"PixelLength":{"slice":2,"length":[[0.0,0.0],[3.0,4.0]]}}"#,
     ];
     let annotations = all_annotation_variants();
 
@@ -73,7 +74,7 @@ fn malformed_annotation_wire_values_are_rejected() {
         .expect_err("unknown annotation variant rejects");
     assert_eq!(
         unknown.to_string(),
-        "unknown variant `Unknown`, expected one of `Length`, `PatientLength`, `Angle`, `RoiRect`, `RoiEllipse`, `Deviation`, `HuPoint`, `ClosedPolygon`, `OpenPolygon`, `Arrow`, `Pencil`, `CobbAngle`"
+        "unknown variant `Unknown`, expected one of `Length`, `PatientLength`, `PixelLength`, `Angle`, `RoiRect`, `RoiEllipse`, `Deviation`, `HuPoint`, `ClosedPolygon`, `OpenPolygon`, `Arrow`, `Pencil`, `CobbAngle`"
     );
 
     let invalid_patient = serde_json::from_value::<Annotation>(serde_json::json!({

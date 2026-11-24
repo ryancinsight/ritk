@@ -39,6 +39,9 @@ impl SnapApp {
                 Annotation::Length { length_mm, .. } => {
                     summary(AnnotationKind::Length, image_scale.length(*length_mm))
                 }
+                Annotation::PixelLength { length, .. } => {
+                    summary(AnnotationKind::PixelLength, f64::from(length.pixels()))
+                }
                 Annotation::PatientLength { length, .. } => {
                     summary(AnnotationKind::PatientLength, length.length_mm())
                 }

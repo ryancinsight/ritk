@@ -6,6 +6,33 @@ use crate::tools::interaction::ImagePoint;
 use aequitas::systems::si::{quantities::Length, units::Millimeter};
 
 #[test]
+fn native_pixel_length_label_belongs_to_its_source_slice() {
+    use crate::dicom::loader::tests::fixtures;
+    let source = tempfile::tempdir().expect("DICOM fixture directory");
+    fixtures::write_study_with_geometry(
+        source.path(),
+        "CT",
+        fixtures::SERIES_UID,
+        &fixtures::SAMPLES,
+        (None, true),
+    )
+    .expect("write DICOM without pixel spacing");
+    let volume = crate::dicom::loader::load_volume_from_path(source.path()).expect("open DICOM");
+    let (mut session, _root) = super::support::session_with_volume(volume);
+    let (original, slices) = session.app.axis_slice_info(0);
+    session.app.axis = 0;
+    session.app.set_slice_for_axis(0, original);
+    session.app.active_tool = crate::tools::kind::ToolKind::MeasureLength;
+    session.app.on_click(Some(ImagePoint::new(0.0, 0.0)));
+    session.app.on_click(Some(ImagePoint::new(1.0, 0.0)));
+    session.refresh_frame().expect("compose source slice");
+    assert_eq!(draw_texts(&composed(&session, None)), ["1.0 px"]);
+    session.app.set_slice_for_axis(0, (original + 1) % slices);
+    session.refresh_frame().expect("compose another slice");
+    assert_eq!(draw_texts(&composed(&session, None)), Vec::<String>::new());
+}
+
+#[test]
 fn native_length_calibration_scales_labels_and_resets() {
     use super::super::window_controls::Menu;
     use super::support::control_center;

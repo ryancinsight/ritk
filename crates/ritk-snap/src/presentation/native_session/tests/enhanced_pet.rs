@@ -67,9 +67,9 @@ fn native_enhanced_pet_concatenation_captures_and_selects_another_gate() {
         volume
             .suv_bw
             .as_ref()
-            .unwrap()
+            .expect("the fixture supplies body-weight SUV")
             .at(1)
-            .unwrap()
+            .expect("the fixture supplies a second sample")
             .in_unit::<GramPerCubicCentimeter>(),
         7.0
     );

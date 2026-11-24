@@ -75,11 +75,11 @@ impl SnapApp {
         {
             self.selected_series = super::volume_input::VolumeInput::acquisition(&vol);
         }
-        self.measurement_pixel_spacing = vol
-            .measurement_spacing()
-            .map_or(MeasurementSpacingState::Unavailable, |(in_plane, slice)| {
-                MeasurementSpacingState::Qualified { in_plane, slice }
-            });
+        self.measurement_pixel_spacing = match vol.measurement_spacing() {
+            Some((in_plane, slice)) => MeasurementSpacingState::Qualified { in_plane, slice },
+            None if vol.has_unspaced_source_pixels() => MeasurementSpacingState::PixelOnly,
+            None => MeasurementSpacingState::Unavailable,
+        };
         self.loaded = Some(vol);
         self.viewer_state = state;
         self.axis = protocol.preferred_axis.min(2);

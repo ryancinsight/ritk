@@ -5,7 +5,8 @@ use super::SnapApp;
 #[cfg(any(windows, target_arch = "wasm32"))]
 use crate::tools::interaction::ImageMeasurementScale;
 use crate::tools::interaction::{
-    Annotation, AnnotationLocation, ImagePoint, MeasurementError, PolygonKind, ToolState,
+    Annotation, AnnotationLocation, ImagePoint, MeasurementError, PixelLength, PolygonKind,
+    ToolState,
 };
 use metis_ui_lang::PathCapture;
 
@@ -99,10 +100,27 @@ impl SnapApp {
         }
     }
 
-    /// Record the physical length between two points on the current image.
+    pub(in crate::app) fn pixel_length_available(&self) -> bool {
+        self.axis == 0 && self.measurement_pixel_spacing == MeasurementSpacingState::PixelOnly
+    }
+
+    /// Record a length in the units supported by the current image grid.
     pub(super) fn record_length(&mut self, start: ImagePoint, end: ImagePoint) {
         let p1 = [start.y(), start.x()];
         let p2 = [end.y(), end.x()];
+        if self.pixel_length_available() {
+            match PixelLength::try_from([p1, p2]) {
+                Ok(length) if length.pixels() > 0.0 => {
+                    let slice = self.annotation_location().slice;
+                    self.annotations
+                        .push(Annotation::PixelLength { slice, length });
+                    self.status_message = format!("Length: {:.2} px", length.pixels());
+                }
+                Ok(_) => self.status_message = "Measurement endpoints coincide".into(),
+                Err(error) => self.status_message = format!("Measurement rejected: {error}"),
+            }
+            return;
+        }
         let measured = self
             .slice_plane_spacing()
             .and_then(|spacing| Annotation::compute_length_checked(p1, p2, spacing));
@@ -249,7 +267,9 @@ impl SnapApp {
         };
         let (in_plane_spacing, slice_spacing) = match self.measurement_pixel_spacing {
             MeasurementSpacingState::Qualified { in_plane, slice } => (Some(in_plane), slice),
-            MeasurementSpacingState::Unavailable => (None, None),
+            MeasurementSpacingState::PixelOnly | MeasurementSpacingState::Unavailable => {
+                (None, None)
+            }
             MeasurementSpacingState::Uninitialized => vol
                 .measurement_spacing()
                 .map_or((None, None), |(in_plane, slice)| (Some(in_plane), slice)),

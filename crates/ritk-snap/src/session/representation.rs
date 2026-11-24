@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
     expecting = "struct ViewerSessionSnapshot"
 )]
 pub(super) struct ViewerSessionRepresentation<S, A> {
-    #[serde(default)]
-    format: SessionFormat,
+    #[serde(default = "default_session_format_version")]
+    format: u8,
     source: Option<S>,
     viewer_state: ViewerState,
     colormap: NamedColorMap,
@@ -42,7 +42,7 @@ impl<'a> From<&'a ViewerSessionSnapshot>
 {
     fn from(snapshot: &'a ViewerSessionSnapshot) -> Self {
         let ViewerSessionSnapshot {
-            format,
+            format: _,
             source,
             viewer_state,
             colormap,
@@ -65,7 +65,7 @@ impl<'a> From<&'a ViewerSessionSnapshot>
             annotations,
         } = snapshot;
         Self {
-            format: *format,
+            format: session_format_version(annotations),
             source: source.as_ref(),
             viewer_state: *viewer_state,
             colormap: *colormap,
@@ -90,8 +90,12 @@ impl<'a> From<&'a ViewerSessionSnapshot>
     }
 }
 
-impl From<ViewerSessionRepresentation<StudySource, Vec<Annotation>>> for ViewerSessionSnapshot {
-    fn from(representation: ViewerSessionRepresentation<StudySource, Vec<Annotation>>) -> Self {
+impl TryFrom<ViewerSessionRepresentation<StudySource, Vec<Annotation>>> for ViewerSessionSnapshot {
+    type Error = &'static str;
+
+    fn try_from(
+        representation: ViewerSessionRepresentation<StudySource, Vec<Annotation>>,
+    ) -> Result<Self, Self::Error> {
         let ViewerSessionRepresentation {
             format,
             source,
@@ -115,7 +119,14 @@ impl From<ViewerSessionRepresentation<StudySource, Vec<Annotation>>> for ViewerS
             cine_fps,
             annotations,
         } = representation;
-        Self {
+        if format <= 3 && session_format_version(&annotations) == 4 {
+            return Err("pixel-length annotations require viewer session format 4");
+        }
+        let format = match format {
+            4 => SessionFormat,
+            version => SessionFormat::try_from(version)?,
+        };
+        Ok(Self {
             format,
             source,
             viewer_state,
@@ -137,7 +148,22 @@ impl From<ViewerSessionRepresentation<StudySource, Vec<Annotation>>> for ViewerS
             cine_enabled,
             cine_fps,
             annotations,
-        }
+        })
+    }
+}
+
+fn default_session_format_version() -> u8 {
+    1
+}
+
+fn session_format_version(annotations: &[Annotation]) -> u8 {
+    if annotations
+        .iter()
+        .any(|annotation| matches!(annotation, Annotation::PixelLength { .. }))
+    {
+        4
+    } else {
+        3
     }
 }
 

@@ -1,7 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::geometry::PatientPointMm;
-use crate::tools::interaction::{Annotation, AnnotationLocation, PatientLength};
+use crate::tools::interaction::{Annotation, AnnotationLocation, PatientLength, PixelLength};
 use ritk_core::rejection::assert_rejects;
 use std::path::PathBuf;
 
@@ -125,6 +125,11 @@ pub(super) fn all_annotation_variants() -> Vec<Annotation> {
             points: [[0.0, 0.0], [3.0, 1.0], [5.0, 8.0], [9.0, 9.0]],
             angle_deg: 42.25,
         },
+        Annotation::PixelLength {
+            slice: 2,
+            length: PixelLength::try_from([[0.0, 0.0], [3.0, 4.0]])
+                .expect("3-4-5 pixel segment is representable"),
+        },
     ]
 }
 
@@ -174,13 +179,13 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
     snapshot.annotations = all_annotation_variants();
     assert_eq!(
         snapshot.annotations.len(),
-        12,
+        13,
         "every annotation variant must be represented"
     );
 
     let json = serde_json::to_string_pretty(&snapshot).expect("serialize snapshot");
     let serialized: serde_json::Value = serde_json::from_str(&json).expect("parse session JSON");
-    assert_eq!(serialized["format"], 3);
+    assert_eq!(serialized["format"], 4);
     let recovered: ViewerSessionSnapshot =
         serde_json::from_str(&json).expect("deserialize snapshot");
 
@@ -432,12 +437,35 @@ fn session_formats_preserve_values_and_reject_unknown_versions() {
         3
     );
 
-    version_two["format"] = serde_json::json!(4);
+    version_two["format"] = serde_json::json!(5);
     let error = serde_json::from_value::<ViewerSessionSnapshot>(version_two)
         .expect_err("unknown version rejects");
     assert!(error
         .to_string()
         .contains("unsupported viewer session format version"));
+}
+
+#[test]
+fn legacy_formats_reject_pixel_length_annotations() {
+    let snapshot = canonical_snapshot_no_annotations();
+    for version in 1..=3 {
+        let mut value = serde_json::to_value(&snapshot).expect("serialize snapshot");
+        value["format"] = serde_json::json!(version);
+        value["annotations"] = serde_json::json!([{
+            "PixelLength": { "slice": 2, "length": [[0.0, 0.0], [3.0, 4.0]] }
+        }]);
+        let error = serde_json::from_value::<ViewerSessionSnapshot>(value)
+            .expect_err("legacy session must reject pixel-length annotations");
+        assert!(error
+            .to_string()
+            .contains("pixel-length annotations require viewer session format 4"));
+    }
+    let mut value = serde_json::to_value(snapshot).expect("serialize snapshot");
+    value["format"] = serde_json::json!(4);
+    value["annotations"] = serde_json::json!([{"PixelLength": {"length": [[0, 0], [3, 4]]}}]);
+    let error = serde_json::from_value::<ViewerSessionSnapshot>(value)
+        .expect_err("pixel annotations require a source axial slice");
+    assert!(error.to_string().contains("missing field `slice`"));
 }
 
 #[test]

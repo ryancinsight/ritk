@@ -76,7 +76,7 @@ impl MeasurementLayer {
                 } => {
                     let sp1 = img_to_screen(egui::pos2((*p1)[1], (*p1)[0]));
                     let sp2 = img_to_screen(egui::pos2((*p2)[1], (*p2)[0]));
-                    draw_length_annotation(painter, sp1, sp2, *length_mm);
+                    draw_length_annotation(painter, sp1, sp2, format!("{length_mm:.1} mm"));
                 }
                 Annotation::Arrow { tail, head, .. } => {
                     let tail = img_to_screen(egui::pos2((*tail)[1], (*tail)[0]));
@@ -93,6 +93,16 @@ impl MeasurementLayer {
                 // created them. Orthogonal views must not project them as if
                 // their endpoints were two-dimensional image coordinates.
                 Annotation::PatientLength { .. } => {}
+                Annotation::PixelLength { length, .. } => {
+                    let [start, end] = [length.start_px(), length.end_px()]
+                        .map(|[row, col]| img_to_screen(egui::pos2(col, row)));
+                    draw_length_annotation(
+                        painter,
+                        start,
+                        end,
+                        format!("{:.1} px", length.pixels()),
+                    );
+                }
                 Annotation::Deviation {
                     start,
                     end,
@@ -219,7 +229,7 @@ impl MeasurementLayer {
 /// # Label placement
 /// The label is positioned at the midpoint of the line, offset 8 px
 /// perpendicular to the line direction to avoid overlap.
-fn draw_length_annotation(painter: &Painter, p1: Pos2, p2: Pos2, length_mm: f32) {
+fn draw_length_annotation(painter: &Painter, p1: Pos2, p2: Pos2, label: String) {
     // Line
     painter.line_segment([p1, p2], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
     // Endpoint handles
@@ -227,7 +237,6 @@ fn draw_length_annotation(painter: &Painter, p1: Pos2, p2: Pos2, length_mm: f32)
     painter.circle_filled(p2, HANDLE_RADIUS, COLOR_MEASURE);
     // Label at midpoint, offset perpendicular to the line.
     let mid = Pos2::new((p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5);
-    let label = format!("{:.1} mm", length_mm);
     let offset = perpendicular_offset(p1, p2, 10.0);
     painter.text(
         mid + offset,

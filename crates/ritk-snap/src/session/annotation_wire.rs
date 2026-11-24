@@ -1,6 +1,6 @@
 //! Private wire schema for nested completed annotations.
 
-use crate::tools::interaction::{Annotation, AnnotationLocation, PatientLength};
+use crate::tools::interaction::{Annotation, AnnotationLocation, PatientLength, PixelLength};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 mod numbers;
@@ -32,6 +32,10 @@ enum AnnotationWire {
         #[serde(default)]
         location: Option<AnnotationLocation>,
         length: PatientLength,
+    },
+    PixelLength {
+        slice: usize,
+        length: PixelLength,
     },
     Angle {
         #[serde(default)]

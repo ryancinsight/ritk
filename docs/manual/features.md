@@ -16,8 +16,9 @@ check parsed spacing through metadata extraction and Part-10 scanning. The
 [measurement admission tests](../../crates/ritk-snap/src/app/tests/measurement.rs)
 require complete, consistent `PixelSpacing` and qualified reconstructed geometry;
 affected planes reject missing positions, inconsistent orientation, and lateral
-shear. For images without spacing, pixel-unit measurement and manual calibration
-remain unfinished.
+shear. Original axial stacks without physical spacing support
+persisted pixel lengths and [source-slice labels](../../crates/ritk-snap/src/presentation/native_session/tests/calibration_measurement.rs).
+Editing pixel lengths and [calibration from a pixel reference](../../backlog/RITK-SNAP-MEASUREMENT-UNITS-001.md) remain open.
 These tests do not certify clinical accuracy.
 
 | RadiAnt capability and PDF pages | Current Windows behavior | Test coverage and remaining work |

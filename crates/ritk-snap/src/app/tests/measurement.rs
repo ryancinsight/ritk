@@ -270,15 +270,39 @@ fn measurement_length_completion_records_active_axis_as_plane() {
 }
 
 #[test]
-fn dicom_missing_pixel_spacing_rejects_physical_measurement() {
+fn dicom_missing_pixel_spacing_records_axial_pixels() {
     let mut volume = dicom_volume(&[None]);
     let display_spacing = volume.spacing;
     volume.metadata.as_mut().unwrap().spacing =
         display_spacing.map(Length::from_unit::<Millimeter>);
     assert_eq!(volume.measurement_pixel_spacing(), None);
 
-    let app = complete_length(volume, 0, ImagePoint::new(0.0, 1.0));
-    assert_physical_measurement_rejected(&app);
+    let app = complete_length(volume.clone(), 0, ImagePoint::new(4.0, 3.0));
+    let [Annotation::PixelLength { slice, length }] = app.annotations.as_slice() else {
+        panic!("expected a completed pixel length");
+    };
+    assert_eq!(*slice, app.annotation_location().slice);
+    assert_eq!(length.start_px(), [0.0, 0.0]);
+    assert_eq!(length.end_px(), [3.0, 4.0]);
+    assert_eq!(length.pixels(), 5.0);
+    assert_eq!(app.status_message, "Length: 5.00 px");
+    assert_physical_measurement_rejected(&complete_length(volume, 1, ImagePoint::new(0.0, 1.0)));
+}
+
+#[test]
+fn retained_invalid_pixel_spacing_does_not_qualify_as_absence() {
+    use ritk_io::{DicomObjectNode, DicomTag};
+    let mut volume = dicom_volume(&[None]);
+    let metadata = volume.metadata.as_mut().expect("DICOM metadata");
+    metadata.slices[0]
+        .preservation
+        .object
+        .insert(DicomObjectNode::text(
+            DicomTag::new(0x0028, 0x0030),
+            "DS",
+            "malformed",
+        ));
+    assert_physical_measurement_rejected(&complete_length(volume, 0, ImagePoint::new(0.0, 1.0)));
 }
 
 #[test]
@@ -315,8 +339,16 @@ fn dicom_measurement_admission_requires_consistent_source_slices() {
 
 #[test]
 fn native_dicom_geometry_controls_measurement_admission() {
+    let app = complete_length(
+        native_dicom_volume(NativeGeometry::MissingPixelSpacing),
+        0,
+        ImagePoint::new(1.0, 0.0),
+    );
+    assert!(
+        matches!(app.annotations.as_slice(), [Annotation::PixelLength { length, .. }] if length.pixels() == 1.0)
+    );
     for (geometry, axis, length) in [
-        (NativeGeometry::MissingPixelSpacing, 0, None),
+        (NativeGeometry::MissingPixelSpacing, 1, None),
         (NativeGeometry::Complete, 0, Some(0.5)),
         (NativeGeometry::Complete, 1, Some(2.0)),
         (NativeGeometry::MissingSlicePositions, 1, None),
@@ -411,4 +443,45 @@ fn measurement_img_to_screen_origin_maps_to_rect_min() {
         (50.0, 75.0),
         "image origin must map to screen rect.min"
     );
+}
+
+#[test]
+fn grid_changing_filter_hides_saved_pixel_length_overlay() {
+    use crate::app::eframe::EguiApp;
+    use crate::FilterKind::{Abs, Shrink};
+    let mut viewer = EguiApp::new(complete_length(
+        dicom_volume(&[None]),
+        0,
+        ImagePoint::new(2.0, 0.0),
+    ));
+    let original = viewer.app.annotations.clone();
+    let context = egui::Context::default();
+    for (filter, columns, labels) in [
+        (Abs, 8, 1),
+        (
+            Shrink {
+                factor_z: 1,
+                factor_y: 1,
+                factor_x: 2,
+            },
+            4,
+            0,
+        ),
+    ] {
+        viewer.app.active_filter = filter;
+        viewer.app.apply_filter_to_loaded_volume();
+        assert_eq!(
+            viewer.app.loaded.as_ref().expect("filtered volume").shape[2],
+            columns
+        );
+        viewer.render.invalidate(viewer.app.visual_revision);
+        let output = context.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| viewer.render_axis_viewport(ui, ctx, 0));
+        });
+        let painted = output.shapes.iter().filter(|shape| {
+            matches!(&shape.shape, egui::Shape::Text(text) if text.galley.text() == "2.0 px")
+        }).count();
+        assert_eq!(painted, labels, "{columns} image columns");
+        assert_eq!(viewer.app.annotations, original);
+    }
 }

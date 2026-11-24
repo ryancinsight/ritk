@@ -58,6 +58,7 @@ pub(crate) enum MeasurementSpacingState {
         in_plane: [f64; 2],
         slice: Option<f64>,
     },
+    PixelOnly,
     Unavailable,
 }
 

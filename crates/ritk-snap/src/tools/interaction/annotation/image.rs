@@ -17,6 +17,10 @@ impl Annotation {
             | Self::Arrow { location, .. }
             | Self::CobbAngle { location, .. }
             | Self::Pencil { location, .. } => *location,
+            Self::PixelLength { slice, .. } => Some(AnnotationLocation {
+                plane: 0,
+                slice: *slice,
+            }),
         }
     }
 
@@ -59,6 +63,7 @@ impl Annotation {
             | Self::CobbAngle {
                 location: value, ..
             } => *value = Some(location),
+            Self::PixelLength { slice, .. } => *slice = location.slice,
         }
         self
     }

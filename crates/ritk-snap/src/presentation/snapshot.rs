@@ -24,6 +24,8 @@ pub enum AnnotationKind {
     ClosedPolygon,
     /// An open polygon polyline length measurement.
     OpenPolygon,
+    /// A two-point distance in image pixels.
+    PixelLength,
     /// A three-dimensional length measured in DICOM patient space.
     PatientLength,
 }
@@ -34,6 +36,7 @@ impl AnnotationKind {
     pub const fn label(self) -> &'static str {
         match self {
             Self::Length => "length",
+            Self::PixelLength => "pixel-length",
             Self::PatientLength => "patient-length",
             Self::Angle => "angle",
             Self::Deviation => "deviation",

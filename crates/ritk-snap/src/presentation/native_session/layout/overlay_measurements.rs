@@ -239,6 +239,12 @@ impl Pane<'_> {
                     image_scale.length_label(*length_mm),
                 )?;
             }
+            Annotation::PixelLength { length, .. } => {
+                let start = image_point(length.start_px());
+                let end = image_point(length.end_px());
+                self.line(overlay, start, end, MEASUREMENT_COLOR)?;
+                self.length_label(labels, start, end, format!("{:.1} px", length.pixels()))?;
+            }
             Annotation::PatientLength { plane, length, .. } if *plane == self.view.axis => {
                 let Some(affine) = affine else {
                     return Ok(());

@@ -4,6 +4,7 @@
 - Date: 2026-09-24
 - Item: [RITK-SNAP-OBLIQUE-NATIVE-001](../../backlog.md#RITK-SNAP-OBLIQUE-NATIVE-001)
 - Revision: 2026-09-27 — co-deliver patient-length persistence and presentation: the annotation variant requires exhaustive snapshot and panel updates, and its distance contract remains f64 end to end; see [PR #664](https://github.com/ryancinsight/ritk/pull/664).
+- Revision: 2026-11-23 — [PR #1127](https://github.com/ryancinsight/ritk/pull/1127) adds format 4 for snapshots containing axial pixel lengths. Other snapshots still write format 3. Readers accept legacy formats and require format 4 for pixel lengths.
 
 ## Context
 

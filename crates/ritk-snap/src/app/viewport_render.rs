@@ -7,6 +7,7 @@
 //! The secondary / fused-compare viewport lives in [`super::viewport_compare`].
 use super::eframe::EguiApp;
 use super::image_placement::ImagePlacement;
+use super::state::MeasurementSpacingState;
 use crate::render::WindowLevel;
 use crate::tools::interaction::{Annotation, ToolState};
 use crate::ui::overlay::{OverlayContext, OverlayRenderer};
@@ -316,9 +317,11 @@ impl EguiApp {
                 slice: slice_idx,
             };
             for annotation in self.annotations.iter().filter(|annotation| {
-                annotation
-                    .location()
-                    .is_none_or(|source| source == location)
+                (self.measurement_pixel_spacing == MeasurementSpacingState::PixelOnly
+                    || !matches!(annotation, Annotation::PixelLength { .. }))
+                    && annotation
+                        .location()
+                        .is_none_or(|source| source == location)
             }) {
                 crate::ui::measurements::MeasurementLayer::draw_annotations(
                     &meas_painter,

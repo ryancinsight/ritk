@@ -71,7 +71,8 @@ pub struct AnnotationLocation {
 /// Orthogonal positions are stored as `[row, col]` in image pixel coordinates.
 /// Patient-space lengths retain `[x, y, z]` millimetre endpoints. The wire
 /// contract retains coordinates and stored computed values in physical units
-/// (mm, degrees, HU) verbatim; deserialization does not recompute them.
+/// (mm, degrees, HU) verbatim. Pixel lengths retain validated endpoints from
+/// which their distance is computed.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Annotation {
@@ -88,6 +89,14 @@ pub enum Annotation {
         p2: [f32; 2],
         /// Euclidean distance in millimetres.
         length_mm: f32,
+    },
+
+    /// Straight-line distance recorded in the original image pixel grid.
+    PixelLength {
+        /// Zero-based source axial slice on which the measurement was placed.
+        slice: usize,
+        /// Validated row and column endpoints in pixels.
+        length: PixelLength,
     },
 
     /// Straight-line distance between two points in DICOM patient space.

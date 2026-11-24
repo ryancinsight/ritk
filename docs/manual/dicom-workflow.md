@@ -142,17 +142,20 @@ handles, other labels, and the mark currently following the pointer.
 
 1. Choose **Tools → Length** or press **L**. Hold the left button on a
    landmark, then drag toward another landmark in the same image. The line follows the
-   pointer while the button is down. Release to show the length in millimetres
-   beside the line.
+   pointer while the button is down. Release to show the length beside the line.
+   With qualified physical spacing the label uses millimetres. If spacing is
+   absent throughout an original axial DICOM stack, the label uses pixels.
+   A segment spanning four columns and three rows reads **5.0 px**. Pixel
+   measurements stay with their source slice when saved.
 2. Try the same length as two left clicks. You can make a display adjustment
    with a button assigned to **W/L**, **Zoom**, or **Pan** between the clicks.
    The first endpoint stays in place. You can also drag after placing the
    first endpoint to complete the measurement.
 3. Choose **Tools → Pan** or press **M**. Drag either endpoint of a completed
-   length to change the measurement. Drag the line away from its endpoint
+   millimetre length to change the measurement. Drag the line away from its endpoint
    handles to move the complete mark without changing its measured value or
    image calibration. The preview follows the pointer; release to keep it or
-   press **Esc** to retain the last committed position.
+   press **Esc** to retain the last committed position. Editing pixel lengths remains open.
 4. Choose **Tools → Deviation** or press **D**. Drag a slanted segment
    in the image and release. The overlay shows the segment and its reference along the closer
    image axis. Its label gives the perpendicular offset in millimetres and
@@ -164,7 +167,7 @@ handles, other labels, and the mark currently following the pointer.
 
 ### Calibrate measurements on one image
 
-1. Measure a reference of known length with **Tools → Length**.
+1. Use **Tools → Length** on a reference of known length that yields a millimetre reading.
 2. Choose **Tools → Calibrate last distance…**. Enter the known distance,
    then click **mm**, **inches**, or **French**. **Tab** cycles units;
    **Shift+Tab** cycles backwards. Press **Enter** to apply or **Esc** to cancel.
@@ -189,7 +192,7 @@ Reopen the study or use **Reset length calibration** to restore image-spacing
 readings. Source-specific calibration colors remain
 [calibration work](features.md#reading-and-annotations).
 
-Axial measurements require reliable
+Physical axial measurements require reliable
 [DICOM `(0028,0030) Pixel Spacing`](https://dicom.nema.org/Medical/dicom/current/output/chtml/part03/sect_10.7.html)
 on every retained source slice. Reconstructed planes additionally require
 complete, consistent Image Position and Image Orientation values, adjacent

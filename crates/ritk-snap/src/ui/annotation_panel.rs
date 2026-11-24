@@ -83,6 +83,9 @@ pub fn csv_for(annotations: &[Annotation]) -> String {
             Annotation::Length { length_mm, .. } => {
                 format!("{i},Length,{length_mm:.2},mm,\n")
             }
+            Annotation::PixelLength { length, .. } => {
+                format!("{i},Length,{:.2},px,\n", length.pixels())
+            }
             Annotation::PatientLength { length, .. } => {
                 let length_mm = length.length_mm();
                 format!("{i},Patient Length,{length_mm:.2},mm,\n")
@@ -142,6 +145,9 @@ fn annotation_label(i: usize, ann: &Annotation) -> String {
     match ann {
         Annotation::Length { length_mm, .. } => {
             format!("#{i}  Length: {length_mm:.1} mm")
+        }
+        Annotation::PixelLength { length, .. } => {
+            format!("#{i}  Length: {:.1} px", length.pixels())
         }
         Annotation::PatientLength { length, .. } => {
             let length_mm = length.length_mm();

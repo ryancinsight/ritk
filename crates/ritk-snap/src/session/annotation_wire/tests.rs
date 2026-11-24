@@ -31,6 +31,7 @@ fn image_annotation_numbers_reject_overflow_without_recomputing_finite_values() 
         match annotation {
             Annotation::PatientLength { .. } => continue,
             Annotation::Length { .. }
+            | Annotation::PixelLength { .. }
             | Annotation::Angle { .. }
             | Annotation::RoiRect { .. }
             | Annotation::RoiEllipse { .. }
