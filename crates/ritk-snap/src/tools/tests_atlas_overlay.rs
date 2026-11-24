@@ -73,12 +73,12 @@ fn clone_volume(volume: &LoadedVolume) -> LoadedVolume {
         direction: volume.direction,
         metadata: volume.metadata.clone(),
         source: volume.source.clone(),
-        modality: volume.modality.clone(),
+        modality: volume.modality,
         patient_name: volume.patient_name.clone(),
         patient_id: volume.patient_id.clone(),
-        study_date: volume.study_date.clone(),
+        study_date: volume.study_date,
         series_description: volume.series_description.clone(),
-        series_time: volume.series_time.clone(),
+        series_time: volume.series_time,
         patient_weight_kg: volume.patient_weight_kg,
         injected_dose_bq: volume.injected_dose_bq,
         radionuclide_half_life_s: volume.radionuclide_half_life_s,
@@ -142,16 +142,22 @@ fn multichannel_input_errors() {
     let primary = blob_volume([16, 16, 16], [8.0, 8.0, 8.0], 3.0);
     let mut secondary = clone_volume(&primary);
     secondary.channels = 3;
-    let error = register_secondary_to_primary(&primary, &secondary, 4).unwrap_err();
-    assert!(format!("{error}").contains("single-channel"));
+    let result = register_secondary_to_primary(&primary, &secondary, 4);
+    assert!(result.is_err(), "expected single-channel rejection");
+    if let Err(error) = result {
+        assert!(format!("{error}").contains("single-channel"));
+    }
 }
 
 /// Zero iteration budget is rejected.
 #[test]
 fn zero_iterations_errors() {
     let primary = blob_volume([16, 16, 16], [8.0, 8.0, 8.0], 3.0);
-    let error = register_secondary_to_primary(&primary, &primary, 0).unwrap_err();
-    assert!(format!("{error}").contains("positive"));
+    let result = register_secondary_to_primary(&primary, &primary, 0);
+    assert!(result.is_err(), "expected positive-budget rejection");
+    if let Err(error) = result {
+        assert!(format!("{error}").contains("positive"));
+    }
 }
 
 /// The primary frame-of-reference UID is inherited by the output.

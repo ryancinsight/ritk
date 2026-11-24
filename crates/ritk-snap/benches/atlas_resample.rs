@@ -9,7 +9,6 @@
 //! cargo bench --offline -p ritk-snap --bench atlas_resample
 //! ```
 
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use leto::Array3;
 use ritk_registration::AffineTransform;

@@ -353,7 +353,7 @@ dependencies = [
 [[package]]
 name = "apollo-dctdst-core"
 version = "0.17.2"
-source = "git+https://github.com/ryancinsight/apollo#b5e8b70b583a59ed824c8c4c2ee6af58aa50b8b6"
+source = "git+https://github.com/ryancinsight/apollo#5cc028dd3d27077c09e0efe92dc49f8f6a73a26f"
 dependencies = [
  "eunomia",
 ]
@@ -8152,7 +8152,7 @@ dependencies = [
 [[package]]
 name = "themis-topology"
 version = "0.11.5"
-source = "git+https://github.com/ryancinsight/themis#3399a1893ba00044853697313adefe26af878a4f"
+source = "git+https://github.com/ryancinsight/themis#ec424230050b25ae8150de200c169c28f14363d2"
 dependencies = [
  "libc",
  "melinoe 0.10.0 (git+https://github.com/ryancinsight/melinoe.git)",

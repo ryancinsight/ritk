@@ -145,7 +145,7 @@ pub fn register_secondary_to_primary(
             direction: primary.direction,
             metadata: Some(metadata),
             source: secondary.source.clone(),
-            modality: secondary.modality.clone(),
+            modality: secondary.modality,
             patient_name: secondary.patient_name.clone(),
             patient_id: secondary.patient_id.clone(),
             study_date: secondary.study_date,
