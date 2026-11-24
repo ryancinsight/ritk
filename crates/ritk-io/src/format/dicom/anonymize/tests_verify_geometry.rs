@@ -84,16 +84,19 @@ fn geometry_is_required_of_pixel_data_and_of_nothing_else() {
 
 #[test]
 fn a_frame_is_sized_in_packed_bits_only_when_one_bit_is_allocated() {
-    // 5 x 5 single-sample frame: 25 bits pack into 4 bytes, 25 bytes at 8 bits.
+    // A 5 x 5 single-sample frame is 25 bits, 4 bytes packed and 25 bytes at
+    // 8 bits; a 4 x 4 one is 16 bits, exactly 2 bytes packed.
     let cases = [
-        (1_u16, 4_usize, None),
-        (1, 2, Some(4_usize)),
-        (8, 26, None),
-        (8, 24, Some(25)),
+        (1_u16, 5_u16, 4_usize, None),
+        (1, 5, 2, Some(4_usize)),
+        (1, 4, 2, None),
+        (1, 4, 0, Some(2)),
+        (8, 5, 26, None),
+        (8, 5, 24, Some(25)),
     ];
-    for (bits, length, expected) in cases {
+    for (bits, side, length, expected) in cases {
         let mut object = build_object("1.2.3.4.5.6", "1.2.3.4.5.7", "1.2.3.4.5.8");
-        for (element, value) in [(0x0010, 5_u16), (0x0011, 5), (0x0100, bits)] {
+        for (element, value) in [(0x0010, side), (0x0011, side), (0x0100, bits)] {
             object.put(DataElement::new(
                 DicomTag::new(0x0028, element),
                 VR::US,
@@ -114,11 +117,14 @@ fn a_frame_is_sized_in_packed_bits_only_when_one_bit_is_allocated() {
             .map(|expected| VerifyIssue::GeometryMismatch {
                 detail: format!(
                     "PixelData length {length} < expected single-frame {expected} \
-                     (rows=5 cols=5 samples=1 bits={bits})"
+                     (rows={side} cols={side} samples=1 bits={bits})"
                 ),
             })
             .into_iter()
             .collect();
-        assert_eq!(report.issues, issues, "bits={bits} length={length}");
+        assert_eq!(
+            report.issues, issues,
+            "bits={bits} side={side} length={length}"
+        );
     }
 }
