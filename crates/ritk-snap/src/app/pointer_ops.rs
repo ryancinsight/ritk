@@ -310,13 +310,14 @@ impl SnapApp {
                                 );
                             }
                             Err(error) => {
-                                self.status_message =
-                                    format!("Atlas overlay failed: {error:#}");
+                                self.status_message = format!("Atlas overlay failed: {error:#}");
                             }
                         }
                     }
                     _ => {
-                        self.status_message = "Atlas overlay needs a primary volume and a loaded compare volume.".to_owned();
+                        self.status_message =
+                            "Atlas overlay needs a primary volume and a loaded compare volume."
+                                .to_owned();
                     }
                 }
                 self.tool_state = ToolState::Idle;

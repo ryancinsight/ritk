@@ -41,10 +41,13 @@ fn window_from_percentiles(values: &[f32]) -> WindowLevel {
 }
 
 /// Wrap f32 voxels in `reference` geometry as a snap volume.
-fn to_loaded_volume(data: Vec<f32>, reference: &NativeImage, frame_uid: &'static str) -> Result<LoadedVolume> {
+fn to_loaded_volume(
+    data: Vec<f32>,
+    reference: &NativeImage,
+    frame_uid: &'static str,
+) -> Result<LoadedVolume> {
     ensure!(
-        data.len()
-            == reference.shape()[0] * reference.shape()[1] * reference.shape()[2],
+        data.len() == reference.shape()[0] * reference.shape()[1] * reference.shape()[2],
         "overlay voxel count matches its grid"
     );
     let mut metadata = Box::<DicomReadMetadata>::default();
@@ -73,7 +76,11 @@ fn to_loaded_volume(data: Vec<f32>, reference: &NativeImage, frame_uid: &'static
 }
 
 fn save_rgba(path: &Path, pixels: &egui::ColorImage) -> Result<()> {
-    let rgba: Vec<_> = pixels.pixels.iter().flat_map(|pixel| pixel.to_array()).collect();
+    let rgba: Vec<_> = pixels
+        .pixels
+        .iter()
+        .flat_map(|pixel| pixel.to_array())
+        .collect();
     let width = u32::try_from(pixels.size[0]).context("render width fits u32")?;
     let height = u32::try_from(pixels.size[1]).context("render height fits u32")?;
     image::RgbaImage::from_raw(width, height, rgba)
@@ -93,9 +100,19 @@ fn main() -> Result<()> {
     let fixed_native = read_image_native(data_dir.join("ants_example/mni152.nii.gz"))?;
     let moving_native = read_image_native(data_dir.join("openneuro/sub-01_T1w.nii.gz"))?;
     let fixed_shape = fixed_native.shape();
-    ensure!(fixed_shape.iter().all(|extent| *extent > 0), "fixed shape is non-degenerate");
-    println!("fixed shape {fixed_shape:?} spacing {:?}", fixed_native.spacing().to_array());
-    println!("moving shape {:?} spacing {:?}", moving_native.shape(), moving_native.spacing().to_array());
+    ensure!(
+        fixed_shape.iter().all(|extent| *extent > 0),
+        "fixed shape is non-degenerate"
+    );
+    println!(
+        "fixed shape {fixed_shape:?} spacing {:?}",
+        fixed_native.spacing().to_array()
+    );
+    println!(
+        "moving shape {:?} spacing {:?}",
+        moving_native.shape(),
+        moving_native.spacing().to_array()
+    );
     let fixed_f32: Vec<f32> = fixed_native
         .data_slice()
         .map_err(|error| anyhow::anyhow!("fixed voxel access: {error}"))?
@@ -120,17 +137,39 @@ fn main() -> Result<()> {
     // 3. Fused compare slice through the snap fusion path.
     let axis = 0_usize;
     let slice = fixed_shape[axis] / 2;
-    let fixed_render = SliceRenderer::render(&fixed_volume, axis, slice, wl, NamedColorMap::Grayscale);
-    ensure!(!fixed_render.pixels.is_empty(), "fixed slice renders pixels");
+    let fixed_render =
+        SliceRenderer::render(&fixed_volume, axis, slice, wl, NamedColorMap::Grayscale);
+    ensure!(
+        !fixed_render.pixels.is_empty(),
+        "fixed slice renders pixels"
+    );
     save_rgba(&out_dir.join("fixed.png"), &fixed_render)?;
-    let moving_render = SliceRenderer::render(&outcome.resampled, axis, slice, wl, NamedColorMap::Grayscale);
+    let moving_render = SliceRenderer::render(
+        &outcome.resampled,
+        axis,
+        slice,
+        wl,
+        NamedColorMap::Grayscale,
+    );
     save_rgba(&out_dir.join("moving.png"), &moving_render)?;
     let secondary_slice =
         secondary_slice_for_primary(&fixed_volume, axis, slice, &outcome.resampled, axis)
             .map_err(|error| anyhow::anyhow!("fused slice index: {error}"))?;
     let fused = render_fused_slice(
-        FusedSliceParams { volume: &fixed_volume, axis, slice, wl, colormap: NamedColorMap::Grayscale },
-        FusedSliceParams { volume: &outcome.resampled, axis, slice: secondary_slice, wl, colormap: NamedColorMap::Hot },
+        FusedSliceParams {
+            volume: &fixed_volume,
+            axis,
+            slice,
+            wl,
+            colormap: NamedColorMap::Grayscale,
+        },
+        FusedSliceParams {
+            volume: &outcome.resampled,
+            axis,
+            slice: secondary_slice,
+            wl,
+            colormap: NamedColorMap::Hot,
+        },
         0.5,
     )
     .map_err(|error| anyhow::anyhow!("fused render: {error}"))?;
@@ -146,7 +185,10 @@ fn main() -> Result<()> {
         "slice": {"axis": axis, "index": slice, "secondary_index": secondary_slice},
         "window": {"center": wl.center, "width": wl.width},
     });
-    std::fs::write(out_dir.join("report.json"), serde_json::to_vec_pretty(&report)?)?;
+    std::fs::write(
+        out_dir.join("report.json"),
+        serde_json::to_vec_pretty(&report)?,
+    )?;
     println!("wrote {}", out_dir.display());
     Ok(())
 }

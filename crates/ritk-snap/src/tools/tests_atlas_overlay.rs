@@ -1,6 +1,6 @@
 use super::*;
 use crate::LoadedVolume;
-use ritk_io::{DicomReadMetadata, literal_arraystring};
+use ritk_io::{literal_arraystring, DicomReadMetadata};
 use std::sync::Arc;
 
 fn blob_volume(shape: [usize; 3], center: [f64; 3], radius: f64) -> LoadedVolume {
@@ -57,7 +57,10 @@ fn shift_x(volume: &LoadedVolume, shift: isize) -> LoadedVolume {
             }
         }
     }
-    LoadedVolume { data: Arc::new(data), ..clone_volume(volume) }
+    LoadedVolume {
+        data: Arc::new(data),
+        ..clone_volume(volume)
+    }
 }
 
 fn clone_volume(volume: &LoadedVolume) -> LoadedVolume {

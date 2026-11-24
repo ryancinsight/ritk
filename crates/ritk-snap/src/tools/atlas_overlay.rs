@@ -19,12 +19,12 @@
 //! is left without one so the fusion validator accepts the pair through its
 //! identical-geometry arm.
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{ensure, Context, Result};
 use leto::Array3;
-use ritk_registration::AffineTransform;
+use ritk_registration::classical::engine::config::ClassicalConfig;
 use ritk_registration::classical::ImageRegistration;
 use ritk_registration::classical::MutualInformationMetric;
-use ritk_registration::classical::engine::config::ClassicalConfig;
+use ritk_registration::AffineTransform;
 use std::sync::Arc;
 
 use super::super::LoadedVolume;
@@ -76,8 +76,7 @@ pub fn register_secondary_to_primary(
     ensure!(max_iterations > 0, "iteration budget must be positive");
 
     let fixed_full = to_f64_array(&primary.data, primary.shape).context("primary array")?;
-    let moving_full =
-        to_f64_array(&secondary.data, secondary.shape).context("secondary array")?;
+    let moving_full = to_f64_array(&secondary.data, secondary.shape).context("secondary array")?;
     let moving_on_fixed =
         resample_nearest(&moving_full, primary.shape, &AffineTransform::IDENTITY.0)
             .context("identity resample")?;
@@ -104,9 +103,8 @@ pub fn register_secondary_to_primary(
         .affine_registration_mutual_info(&moving_coarse, &fixed_coarse, &AffineTransform::IDENTITY)
         .map_err(|error| anyhow::anyhow!("affine MI registration: {error}"))?;
     let coarse_t = result.transform.0;
-    let moved_coarse =
-        resample_nearest(&moving_coarse, fixed_coarse.shape(), &coarse_t)
-            .context("registered coarse resample")?;
+    let moved_coarse = resample_nearest(&moving_coarse, fixed_coarse.shape(), &coarse_t)
+        .context("registered coarse resample")?;
     let mi_after = metric
         .compute(&fixed_coarse, &moved_coarse)
         .map_err(|error| anyhow::anyhow!("registered MI: {error}"))?;
@@ -118,7 +116,11 @@ pub fn register_secondary_to_primary(
     let full_t = scale_voxel_transform(&coarse_t, 2.0);
     let moved_full = resample_nearest(&moving_full, primary.shape, &full_t)
         .context("full-resolution resample")?;
-    let moved_f32: Vec<f32> = moved_full.iter().copied().map(|value| value as f32).collect();
+    let moved_f32: Vec<f32> = moved_full
+        .iter()
+        .copied()
+        .map(|value| value as f32)
+        .collect();
 
     // Frame-of-reference rule: inherit the primary UID when present so the
     // fusion validator sees one shared frame; leave it absent otherwise so
@@ -191,8 +193,15 @@ pub fn resample_nearest(
     let moving_shape = moving.shape();
     let n = out_shape[0] * out_shape[1] * out_shape[2];
     let mut out = vec![0.0_f64; n];
-    resample_flat(moving_flat, moving_shape, &mut out, out_shape, fixed_to_moving);
-    Array3::from_shape_vec(out_shape, out).map_err(|error| anyhow::anyhow!("resample output: {error}"))
+    resample_flat(
+        moving_flat,
+        moving_shape,
+        &mut out,
+        out_shape,
+        fixed_to_moving,
+    );
+    Array3::from_shape_vec(out_shape, out)
+        .map_err(|error| anyhow::anyhow!("resample output: {error}"))
 }
 
 /// Flat-slice nearest-neighbour resample; the parallel kernel behind
@@ -265,7 +274,8 @@ pub fn downsample_half(volume: &Array3<f64>) -> Result<Array3<f64>> {
     let n = out_shape[0] * out_shape[1] * out_shape[2];
     let mut out = vec![0.0_f64; n];
     downsample_flat(flat, shape, &mut out, out_shape);
-    Array3::from_shape_vec(out_shape, out).map_err(|error| anyhow::anyhow!("downsample output: {error}"))
+    Array3::from_shape_vec(out_shape, out)
+        .map_err(|error| anyhow::anyhow!("downsample output: {error}"))
 }
 
 /// Flat-slice block-mean downsample; the parallel kernel behind
