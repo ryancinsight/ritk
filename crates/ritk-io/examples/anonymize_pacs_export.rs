@@ -15,7 +15,8 @@
 //! - Study, Series, and SOP Instance UIDs are present and properly formatted,
 //!   and a Frame of Reference UID is checked when present;
 //! - an object holding pixel data carries Rows, Columns, and Bits Allocated,
-//!   and native Pixel Data holds at least one frame of that size;
+//!   and native Pixel Data holds at least one frame of that size, counting
+//!   Samples per Pixel as 1 when it is absent;
 //! - the configured `prohibited_values` are not found in metadata.
 //!
 //! And across the directory:

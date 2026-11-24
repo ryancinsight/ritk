@@ -13,7 +13,8 @@
 //! This module provides the export gate: after anonymization writes a file (or
 //! a directory tree), run [`verify_dicom_file`] / [`verify_dicom_directory`] to
 //! assert that the exported metadata is present, internally consistent, and
-//! free of de-identification leaks, and that the file re-parses cleanly.
+//! free of the values the caller prohibits, and that the file re-parses
+//! cleanly.
 //!
 //! # Checks performed
 //!
@@ -29,11 +30,11 @@
 //!    frame carries none. When the data set has a non-empty SOPInstanceUID,
 //!    the file meta Media Storage SOP Instance UID must equal it (PS3.10
 //!    Table 7.1-1).
-//! 3. **De-identification completeness** — when a profile is supplied, every
-//!    tag the profile targets must either be absent or carry its replacement
-//!    value; the raw patient-identifying values that were scrubbed must not
-//!    resurface. This is checked against the *expected* post-anonymization
-//!    state, not by scanning for arbitrary strings.
+//! 3. **Prohibited values** — no entry of
+//!    [`VerifyOptions::prohibited_values`] may occur in a data set, nested
+//!    sequence items included. The gate takes no anonymization profile: it
+//!    does not check that the tags a profile targets are absent or replaced,
+//!    and it finds only the values the caller lists.
 //! 4. **Geometry coherence** — an object holding Float Pixel Data
 //!    (7FE0,0008), Double Float Pixel Data (7FE0,0009) or Pixel Data
 //!    (7FE0,0010) must carry non-zero Rows/Columns/BitsAllocated, and native
@@ -96,7 +97,9 @@ pub enum VerifyIssue {
     },
     /// SOPInstanceUID is duplicated across the export set.
     DuplicateSopInstanceUid { value: String },
-    /// A tag targeted by the profile is still present with a non-replacement value.
+    /// A tag targeted by a profile still holds a value that is not its
+    /// replacement. No check of this module reports it: the gate takes no
+    /// profile.
     ResidualIdentifier { tag: String, value: String },
     /// A patient-identifying raw value survived anonymization.
     PatientLeak { value: String },
