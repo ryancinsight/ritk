@@ -243,3 +243,33 @@ fn cursor_projects_rounded_directions_and_a_single_plane() {
         }
     }
 }
+
+#[test]
+fn reformat_geometry_rejects_irregular_depth_and_uses_displayed_pixel_order() {
+    let _trace = traced();
+    let (regular, irregular) = tracing::info_span!("arrange").in_scope(|| {
+        (
+            read([10, 12, 14], Some("2.25.259")),
+            read([10, 12, 16], Some("2.25.259")),
+        )
+    });
+    let [acquisition, row, col] =
+        tracing::info_span!("act").in_scope(|| PatientStack::displayed_planes(&regular));
+    let _check = tracing::info_span!("assert").entered();
+    let acquired = acquisition.unwrap();
+    let (row, col) = (row.unwrap(), col.unwrap());
+    assert_eq!(row.centers[1].as_slice(), &[12., 20.75, 31.5]);
+    assert_eq!(col.centers[3].as_slice(), &[12., 21.5, 30.75]);
+    assert_eq!(row.distances, [0., 1.5]);
+    assert_eq!(col.distances, [0., 0.5, 1., 1.5]);
+    assert_eq!(
+        acquired.trace_on(2, &row, 1).unwrap().distance([0., 1.]),
+        0.
+    );
+    assert_eq!(row.trace_on(0, &col, 1).unwrap().distance([-0.5, 0.]), 0.);
+    assert_eq!(row.corresponding_slice(1, &col), None);
+    assert_eq!(
+        PatientStack::displayed_planes(&irregular).map(|s| s.is_some()),
+        [true, false, false]
+    );
+}

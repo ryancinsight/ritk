@@ -49,10 +49,9 @@ impl NativeViewerSession {
             if source.axis != 0 || target.axis != 0 {
                 return;
             }
-            let Some((s, t)) = source
-                .patient_stack
+            let Some((s, t)) = source.patient_stacks[0]
                 .as_ref()
-                .zip(target.patient_stack.as_ref())
+                .zip(target.patient_stacks[0].as_ref())
             else {
                 return;
             };

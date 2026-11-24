@@ -167,3 +167,71 @@ fn native_cross_reference_marks_the_active_plane_in_the_other_image() {
         .expect("hide lines");
     assert_ne!(viewer.framebuffer.get_pixel(at(0.625), y), yellow);
 }
+
+#[test]
+fn native_cross_reference_and_sync_follow_selected_reformats() {
+    use crate::presentation::native_session::{
+        layout::screen_coordinate, NativeViewerSession, WindowAction,
+    };
+    use crate::ui::AnatomicalPlane::{Coronal, Sagittal};
+    let _trace = tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+            .with_test_writer()
+            .finish(),
+    );
+    let (mut viewer, _initial) = tracing::info_span!("arrange").in_scope(session);
+    let root = tempfile::tempdir().expect("paired study");
+    for (uid, x) in [(fixtures::SERIES_UID, 10), (SECOND_SERIES_UID, 9)] {
+        fixtures::write_oriented_study(
+            root.path(),
+            "CT",
+            uid,
+            &fixtures::SAMPLES,
+            (Some([1.5, 1.0]), true),
+            fixtures::PositionedSlices {
+                origins: [[x, 20, 30], [x, 20, 32], [x, 20, 34]],
+                orientation: "1\\0\\0\\0\\1\\0",
+                frame: Some("2.25.259"),
+            },
+        )
+        .expect("write offset CT");
+    }
+    show_two_panels(&mut viewer, root.path());
+    tracing::info_span!("act").in_scope(|| {
+        for panel in [1, 0] {
+            viewer.active_panel = panel;
+            viewer
+                .apply_window_action(WindowAction::SetPlane(Sagittal))
+                .expect("select sagittal");
+        }
+        viewer
+            .apply_window_action(WindowAction::SelectSlice {
+                panel_index: 0,
+                axis: 2,
+                index: Some(1),
+            })
+            .expect("select x=11");
+        viewer.refresh_frame().expect("present linked sections");
+    });
+    let _check = tracing::info_span!("assert").entered();
+    assert_eq!(viewer.compare_panels[0].app.axis_slice_info(2).0, 2);
+    viewer.active_panel = 1;
+    viewer
+        .apply_window_action(WindowAction::SetPlane(Coronal))
+        .expect("intersect sagittal plane");
+    viewer.active_panel = 0;
+    viewer.refresh_frame().expect("present intersection");
+    let image = viewer.viewports[1].image;
+    let pixel = |viewer: &NativeViewerSession, column: f64| {
+        viewer.framebuffer.get_pixel(
+            screen_coordinate(image.x + image.width * column, "column").unwrap(),
+            screen_coordinate(image.y + image.height * 0.4, "row").unwrap(),
+        )
+    };
+    let yellow = metis_platform::Color::rgba(255, 255, 0, 255);
+    assert_eq!(pixel(&viewer, 2.5 / 4.), yellow);
+    viewer.handle_events(&[key(0x28)]).expect("advance to x=12");
+    assert_eq!(pixel(&viewer, 3.5 / 4.), yellow);
+    assert_ne!(pixel(&viewer, 2.5 / 4.), yellow);
+}

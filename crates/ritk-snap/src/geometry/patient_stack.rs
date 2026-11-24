@@ -186,6 +186,7 @@ impl PatientStack {
 
 pub(crate) mod cursor;
 mod reference;
+mod reformat;
 pub(crate) use reference::PlaneTrace;
 
 #[cfg(test)]

@@ -82,7 +82,8 @@ impl SnapApp {
             });
         #[cfg(any(windows, target_arch = "wasm32"))]
         {
-            self.patient_stack = crate::geometry::patient_stack::PatientStack::from_volume(&vol);
+            self.patient_stacks =
+                crate::geometry::patient_stack::PatientStack::displayed_planes(&vol);
         }
         self.loaded = Some(vol);
         self.viewer_state = state;
@@ -268,7 +269,7 @@ impl SnapApp {
         self.loaded = None;
         #[cfg(windows)]
         {
-            self.patient_stack = None;
+            self.patient_stacks = [None, None, None];
         }
         self.loaded_secondary = None;
         self.series_load_target = SeriesLoadTarget::Primary;

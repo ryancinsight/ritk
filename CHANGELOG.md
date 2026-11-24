@@ -12,6 +12,8 @@
 
 ### Added
 
+- [minor] Keep parallel comparison panes synchronized after switching to sagittal or coronal. Intersecting panes show the selected plane’s cross-reference line on web and Windows.
+
 - [minor] Export a Basic or Strict DICOM study or series from the web viewer as a ZIP and reopen the verified copy. Choose the anatomical plane of a populated pane in the shared View menu.
 
 - [minor] Link screen pan and relative zoom across synchronized comparison panes. F6 toggles navigation linking. Shift+F6 independently links subsequent window and level changes.

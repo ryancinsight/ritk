@@ -37,7 +37,14 @@ impl NativeViewerSession {
             self.mpr_axes.swap(from, to);
         }
         self.end_held_gestures();
+        let changed = self.active_app().axis != axis;
         self.active_app_mut().axis = axis;
+        if changed && self.workspace_layout.is_grid() {
+            for stack in self.active_app_mut().patient_stacks.iter_mut().flatten() {
+                stack.anchor = None;
+            }
+            self.synchronize_position(self.active_panel);
+        }
         true
     }
 }

@@ -8,6 +8,8 @@ The next [patch] checkpoint uses [comparison startup](crates/ritk-snap/src/prese
 
 ## 1.0 candidate verification
 
+- [minor] At `7345e34c1` the downloaded CT showed grayscale at the expected coronal intersection on a sagittal pane. The shared viewer now projects the displayed planes. Chromium checks the corrected yellow pixel and moves the axial intersection across the 67-image reconstruction. The native loader verifies all 512 positions on each reformatted axis in both directions, plus 34 intersections on each axis. The held grid cursor still requires acquisition planes. [Comparison checklist](docs/manual/comparison-checklist.md)
+
 - [patch] Firefox used F6 to move keyboard focus while linked navigation was toggled. The workstation now consumes that shortcut. The zoom regression compares the exact doubled image extent inside the browser, preserving binary64 precision across the WebDriver boundary.
 
 - [minor] At baseline `b14e41148`, the web menu produced no DICOM download and selecting Coronal left the axial image displayed. Local Chromium now checks both actual CT downloads, both reopen paths and orientation in single, MPR and two-series layouts. The 303-instance retained CT stays local. [Export regression](scripts/verify_web_ct_export.py) · [Plane regression](scripts/verify_web_ct_planes.py).

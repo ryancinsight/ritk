@@ -1,4 +1,4 @@
-//! The active acquisition supplies the plane for every inactive comparison pane.
+//! The active displayed plane supplies the plane for every inactive comparison pane.
 use super::{layout::reference_segment, NativeViewerSession};
 use anyhow::Result;
 use metis_platform::Color;
@@ -10,31 +10,24 @@ impl NativeViewerSession {
             return Ok(());
         }
         let source = self.active_app();
-        if source.axis != 0 {
-            return Ok(());
-        }
-        let Some(stack) = &source.patient_stack else {
+        let Some(stack) = &source.patient_stacks[source.axis] else {
             return Ok(());
         };
-        let index = source.axis_slice_info(0).0;
+        let index = source.axis_slice_info(source.axis).0;
         let mut overlay = DisplayList::default();
         for (i, viewport) in self.viewports.iter().enumerate() {
             if i == self.active_panel {
                 continue;
             }
             let (app, view) = if i == 0 {
-                (&self.app, &self.views[0])
+                (&self.app, &self.views[self.app.axis])
             } else {
                 let panel = &self.compare_panels[i - 1];
                 (&panel.app, panel.rendered_view())
             };
-            if app.axis != 0 {
-                continue;
-            }
-            let Some(trace) = app
-                .patient_stack
+            let Some(trace) = app.patient_stacks[app.axis]
                 .as_ref()
-                .and_then(|target| stack.trace_on(index, target, app.axis_slice_info(0).0))
+                .and_then(|target| stack.trace_on(index, target, app.axis_slice_info(app.axis).0))
             else {
                 continue;
             };

@@ -3,7 +3,7 @@ use arrayvec::ArrayString;
 use ritk_spatial::Vector;
 
 pub(crate) const READER_ORIENTATION_DIRECTION_TOLERANCE: f64 = 1e-3;
-const READER_NONUNIFORM_SPACING_THRESHOLD: f64 = 0.01;
+pub(crate) const READER_NONUNIFORM_SPACING_THRESHOLD: f64 = 0.01;
 
 /// Type-erased loaded volume for viewer use (avoids propagating `<B: Backend>` through UI).
 ///

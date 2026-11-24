@@ -355,7 +355,7 @@ impl NativeViewerSession {
                 if let Some(viewport) = viewport {
                     app.axis = viewport.axis();
                 }
-                let previous_slice = app.axis_slice_info(0).0;
+                let previous_slice = app.axis_slice_info(app.axis).0;
                 (
                     app.apply_presentation_events(&events[start..end], viewport.as_ref()),
                     previous_axis,
@@ -373,7 +373,8 @@ impl NativeViewerSession {
                     )));
                 }
             };
-            if self.app_for_panel_mut(panel_index)?.axis_slice_info(0).0 != previous_slice {
+            let app = self.app_for_panel_mut(panel_index)?;
+            if app.axis_slice_info(app.axis).0 != previous_slice {
                 self.grid_cursor = Default::default();
                 self.synchronize_position(panel_index);
             }

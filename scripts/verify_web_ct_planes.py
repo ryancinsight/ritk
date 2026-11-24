@@ -1,6 +1,8 @@
 """Verify anatomical plane selection and the actual CT imagery through the workstation menus."""
 import argparse
 from pathlib import Path
+from browser_patient_position import verify_reference_pixel
+from browser_navigation import chord
 from browser_protocol import WebDriverClient
 from verify_anonymized_mri import wait
 from verify_study_folder import choose
@@ -66,6 +68,8 @@ def verify(url, source, driver):
         wait(client, "asterSlice.state().panels.length === 2")
         initial = state(client)
         assert sorted(panel[1] for panel in initial["panels"]) == [34,67]
+        # Hide locator overlays while comparing only the underlying CT pixels.
+        chord(client, chr(0xe009), chr(0xe03c))
         untouched = center_hash(client, 0)
         x,y,w,h = initial["panes"][1]
         click(client, x+w//2, y+h//2)
@@ -78,6 +82,29 @@ def verify(url, source, driver):
         select(client, "Coronal", grid=True)
         assert state(client)["planes"] == ["Coronal","Sagittal"]
         assert center_hash(client, 1) == second and center_hash(client, 0) != untouched
+        chord(client, chr(0xe009), chr(0xe03c))
+        # These reconstructions share their first voxel and in-plane pixel spacing.
+        # Fixed source row i cuts the sagittal target at its column center i + 1/2.
+        index = state(client)["panels"][0][0]
+        verify_reference_pixel(client, 1, [(index + .5) / 512, .4], True)
+        for plane in ("Coronal", "Sagittal"):
+            for panel in (0, 1):
+                x,y,w,h = initial["panes"][panel]
+                click(client, x+w//2, y+h//2)
+                select(client, plane, grid=True)
+            for panel in (1, 0):
+                x,y,w,h = initial["panes"][panel]
+                click(client, x+w//2, y+h//2)
+                before = state(client)["panels"][panel][0]
+                client.send_keys(canvas, down)
+                assert [p[0] for p in state(client)["panels"]] == [before+1]*2
+        # The active axial reconstruction has double the target's depth pitch.
+        select(client, "Axial", grid=True)
+        for _ in range(2):
+            i = state(client)["panels"][0][0]
+            verify_reference_pixel(client, 1, [.4, (2*i + .5)/67], True)
+            client.send_keys(canvas, down)
+        print("Verified linked sagittal and coronal scrolling and moving cross-reference pixels")
         print("Verified three distinct CT planes, reversible MPR assignment and two independent comparison panels", flush=True)
     finally:
         client.close()

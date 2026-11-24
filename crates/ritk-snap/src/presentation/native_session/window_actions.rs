@@ -161,7 +161,7 @@ impl NativeViewerSession {
                 }
                 let slice_changed = previous != app.axis_slice_info(axis).0;
                 self.active_panel = panel_index;
-                if slice_changed && axis == 0 {
+                if slice_changed {
                     self.grid_cursor = Default::default();
                     self.synchronize_position(panel_index);
                 }

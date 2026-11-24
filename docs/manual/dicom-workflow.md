@@ -18,7 +18,9 @@ cargo run --locked -p ritk-snap -- path/to/study
 Without a startup path, the Windows application opens a folder picker.
 In an open viewer, choose **File → Open Study...** or **Ctrl+O** to replace
 the current study. Pick a folder containing the DICOM files. Use the series
-browser to select an acquisition from a study containing several series.
+browser to select an acquisition from a study containing several series. For
+the downloaded five-series CT on Windows, select **2_skull_ct/DICOM**.
+The directory index one level above it has an invalid final root record.
 
 In the web viewer, click **Open Study** and choose the study folder itself.
 For the RITK test data, select **2_skull_ct** or **2_head_mri_t2**. The viewer
@@ -55,9 +57,10 @@ image choose **Split screen → 1 × 1**. In a comparison grid each populated
 pane keeps its own plane. In **Three-plane MPR**, choosing a plane exchanges
 its position with the selected pane so all three views remain visible.
 Plane names follow the volume’s orientation. Oblique acquisitions keep their
-native tilt. Patient-position linking, reference lines and the held 3D cursor
-in a comparison grid use acquired slice geometry and apply to panes displaying
-their acquisition plane.
+native tilt. In a comparison grid, position sync and yellow reference lines
+follow the plane shown in each pane. Reconstructed planes need consistent pixel
+spacing and a regularly positioned DICOM stack. The held 3D cursor uses the
+acquired planes.
 
 Use **W/L**, **Pan**, or **Zoom** on the toolbar to choose the left-button
 gesture. Drag within the image to apply it. On Windows, the active drag stays
@@ -110,6 +113,13 @@ Frame of Reference. Each stack needs consistent geometry and the planes must
 be within 5° of parallel. **View → Toggle position sync** or **F5** turns this
 behavior off and back on. Cine playback remains independent.
 
+To try this with the downloaded five-series CT, press **F4**, mark the 34-
+and 67-image reconstructions with **Space**, and press **Enter**. Click each
+pane in turn and choose **View → Sagittal**. Scroll either pane to follow the
+same patient position in the other. Repeat with **Coronal**. With automatic
+sync enabled, changing a pane to a matching plane also aligns the other pane
+to the one you just changed.
+
 AsterSlice compares the patient coordinates of the source image center with the
 target planes. At equal distances it chooses the lower displayed image index.
 Beyond the outer half-slice interval, the other pane keeps its reading position.
@@ -121,12 +131,15 @@ slices. Scrolling either series transfers the distance travelled in millimetres
 to the other. Each series needs consistent DICOM geometry and identifiers.
 The studies and Frames of Reference can differ, and the planes can be up to
 30° apart. Repeat **Shift+F5** to capture new landmarks after positioning the
-panes independently. Replacing a series clears its anchor. **F5** turns manual
+panes independently. Replacing a series or switching its plane clears that pane’s anchor.
+Select the landmarks again to resume manual linking. **F5** turns manual
 linking off. Pressing **F5** again restores automatic linking.
 
 **Cross-reference lines** are on by default. A yellow line in an inactive pane
 shows where the active image plane intersects its visible image. Select another
-pane to change the source. Scroll or rotate a view to update the line. This
+pane to change the source. For example, leave one CT pane sagittal and switch
+the other to axial. Scroll the axial pane and watch its yellow line move across
+the sagittal image. Perpendicular panes keep their own slice positions. This
 requires a shared, verified Frame of Reference and intersecting planes.
 Manually aligned series in different frames can scroll together but have no
 shared plane intersection. **View → Cross-reference lines** or **Ctrl+F12**

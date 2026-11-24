@@ -523,6 +523,16 @@ python scripts/verify_web_ct_export.py /path/to/2_skull_ct --driver-url http://1
 python scripts/verify_web_ct_planes.py /path/to/2_skull_ct --driver-url http://127.0.0.1:9515
 ```
 
+The plane test opens the five-series folder, checks linked scrolling in both
+directions on the 34- and 67-image reconstructions, and samples the displayed
+yellow intersection pixels. For the native loader, run the following against
+the image directory to verify all 512 positions on each reformatted axis and
+all 34 axial intersections on both receiving planes.
+
+```sh
+RITK_RETAINED_CT=/path/to/2_skull_ct/DICOM cargo test --locked -p ritk-snap --lib retained_ct_native_reformatted_positions -- --ignored
+```
+
 ## Select a saved DICOM series from Python
 
 The Python binding uses the same RITK-owned scanner and native loader. Pass

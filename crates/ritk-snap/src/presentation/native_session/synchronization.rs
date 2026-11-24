@@ -25,17 +25,15 @@ impl NativeViewerSession {
 
     pub(super) fn align_current_slices(&mut self) {
         let count = self.workspace_layout.grid().map_or(0, |g| g.panel_count());
-        let source = self.active_app().patient_stack.as_ref();
+        let source = self.active_app().patient_stacks[self.active_app().axis].as_ref();
         let eligible = std::iter::once(&self.app)
             .chain(self.compare_panels.iter().map(|p| &p.app))
             .take(count)
             .enumerate()
             .any(|(i, app)| {
                 i != self.active_panel
-                    && self.active_app().axis == 0
-                    && app.axis == 0
                     && source
-                        .zip(app.patient_stack.as_ref())
+                        .zip(app.patient_stacks[app.axis].as_ref())
                         .is_some_and(|(s, t)| s.can_anchor(t))
             });
         if !eligible {
@@ -47,9 +45,12 @@ impl NativeViewerSession {
             .chain(self.compare_panels.iter_mut().map(|p| &mut p.app))
             .enumerate()
         {
-            let index = app.axis_slice_info(0).0;
-            if let Some(stack) = &mut app.patient_stack {
-                stack.anchor = (i < count && app.axis == 0).then_some(index);
+            let index = app.axis_slice_info(app.axis).0;
+            for stack in app.patient_stacks.iter_mut().flatten() {
+                stack.anchor = None;
+            }
+            if let Some(stack) = &mut app.patient_stacks[app.axis] {
+                stack.anchor = (i < count).then_some(index);
             }
         }
         self.position_sync = PositionSync::Manual;
@@ -62,21 +63,17 @@ impl NativeViewerSession {
         }
         let mode = self.position_sync;
         self.for_each_comparison(source, |_, source, target| {
-            if source.axis != 0 || target.axis != 0 {
-                return;
-            }
-            let index = source.axis_slice_info(0).0;
-            if let Some(next) = source
-                .patient_stack
+            let index = source.axis_slice_info(source.axis).0;
+            if let Some(next) = source.patient_stacks[source.axis]
                 .as_ref()
-                .zip(target.patient_stack.as_ref())
+                .zip(target.patient_stacks[target.axis].as_ref())
                 .and_then(|(s, t)| match mode {
                     PositionSync::Automatic => s.corresponding_slice(index, t),
                     PositionSync::Manual => s.anchored_slice(index, t),
                     PositionSync::Off => None,
                 })
             {
-                target.set_slice_for_axis(0, next);
+                target.set_slice_for_axis(target.axis, next);
             }
         });
     }

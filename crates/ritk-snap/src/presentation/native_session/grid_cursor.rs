@@ -51,7 +51,7 @@ impl NativeViewerSession {
                 if !(chord || bound) {
                     return Ok(false);
                 }
-                if app.axis != 0 || app.cine.enabled || app.patient_stack.is_none() {
+                if app.axis != 0 || app.cine.enabled || app.patient_stacks[0].is_none() {
                     return Ok(true);
                 }
                 if self.grid_cursor.owner.is_some() {
@@ -87,8 +87,7 @@ impl NativeViewerSession {
         let source = self.app_for_panel_mut(panel)?;
         let index = source.axis_slice_info(0).0;
         let pixel = [f64::from(pixel.x()), f64::from(pixel.y())];
-        let Some(point) = source
-            .patient_stack
+        let Some(point) = source.patient_stacks[0]
             .as_ref()
             .and_then(|s| s.patient_point(index, pixel))
         else {
@@ -107,15 +106,14 @@ impl NativeViewerSession {
         } else {
             &self.compare_panels[panel - 1].app
         };
-        if let Some(stack) = &source.patient_stack {
+        if let Some(stack) = &source.patient_stacks[0] {
             for (i, target) in std::iter::once(&self.app)
                 .chain(self.compare_panels.iter().map(|p| &p.app))
                 .take(count)
                 .enumerate()
             {
                 if i != panel && target.axis == 0 && !target.cine.enabled {
-                    marks[i] = target
-                        .patient_stack
+                    marks[i] = target.patient_stacks[0]
                         .as_ref()
                         .and_then(|t| stack.project_cursor(point, t));
                 }

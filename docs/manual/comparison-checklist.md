@@ -13,6 +13,9 @@
 
 - [x] [minor] Change the anatomical plane through View. Compare distinct CT image pixels in a single pane, reverse an MPR swap and change both populated comparison panes independently. [Browser regression](../../scripts/verify_web_ct_planes.py) · [Windows pane-menu results](https://github.com/ryancinsight/ritk/actions/runs/45285847507/job/138082280584).
 
+- [x] [minor] Follow the displayed sagittal or coronal plane for automatic position sync and intersection lines. The downloaded five-series CT checks bidirectional scrolling in the 34- and 67-image reconstructions and reads yellow pixels on the target image. The native-loader test checks every reformatted index and axial intersection. [Browser test](../../scripts/verify_web_ct_planes.py) · [Native CT test](../../crates/ritk-snap/src/dicom/loader/tests/initial_ct.rs)
+- [ ] [minor] Extend the held 3D comparison cursor to reformatted planes and verify the patient point after a plane switch.
+
 ## Verification
 
 The integrated implementation at `895f48fee` passed both new Windows interaction tests and all nine browser scenarios, including Intel and Apple-silicon Safari. The regression also starts the panes at different magnifications and checks their zoom ratio after relinking. The patient-geometry suite covers singleton images, rounded direction cosines, adjacent representable plane boundaries, out-of-field points and unrelated frames. At `db1880f4e`, switching from orthogonal views clears the persistent voxel crosshair. Resizing an existing comparison grid preserves the assigned patient cursor. [Windows results](https://github.com/ryancinsight/ritk/actions/runs/45214165566/job/137831240444) · [Browser matrix](https://github.com/ryancinsight/ritk/actions/runs/45214173132)
