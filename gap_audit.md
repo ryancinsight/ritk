@@ -269,7 +269,7 @@ and reject an unrepresentable positive spacing before output.
 <a id="RITK-PUSH-GATE-HOST-001"></a>
 ## RITK-PUSH-GATE-HOST-001: the pre-push gate does not finish on the Windows host
 - risk: the 600-second pre-push deadline ends the `ritk-snap` and `ritk-python` package gates, and the `ritk-io` gate while other builds hold the shared target; a retired run leaves its per-ref push lock; hosted CI does not compile the Windows-only `ritk-snap` tests.
-- evidence: the pushes behind ritk#1129, #1131 through #1136 and #1138 went up as rescue pushes, as each PR body records.
+- evidence: the heads of ritk#1131 through #1136 and #1138 went up as rescue pushes after the gate was retired at its deadline, as the PR bodies of ritk#1133 through #1138 and the verdict comments on ritk#1131 and #1132 record.
 - reopen: at the next change to the stack push gate, or at the next `ritk-snap` push.
 
 ## RITK-DICOM-MIXED-IOP-001
