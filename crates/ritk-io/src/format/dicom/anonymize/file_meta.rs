@@ -5,7 +5,9 @@
 //! private information under a creator UID, (0002,0100) and (0002,0102).
 //! These describe the source site, so a de-identified object carries none.
 //! A file whose group length (0002,0000) ends early hands its remaining
-//! group 0002 elements to the data set reader; they are removed there too.
+//! group 0002 elements to the data set reader, and an encoder can write one
+//! inside a sequence item; [`remove_misplaced`] removes them from one data
+//! set, and the profile walk applies it to every nesting level.
 //!
 //! PS3.10 Table 7.1-1 defines Media Storage SOP Instance UID (0002,0003) as
 //! the SOP Instance UID of the data set the file holds. A de-identified data
@@ -14,8 +16,7 @@
 
 use super::verify::VerifyIssue;
 use crate::format::dicom::identity::uid_is_valid;
-use ritk_dicom::dataset::DicomFile;
-use ritk_dicom::dataset::DicomTag;
+use ritk_dicom::dataset::{Dataset, DicomFile, DicomTag};
 
 const SOP_INSTANCE_UID: DicomTag = DicomTag::new(0x0008, 0x0018);
 
@@ -52,17 +53,8 @@ pub(in crate::format::dicom) fn align_media_storage_uid(object: &mut DicomFile) 
 
 /// Remove Source, Sending and Receiving Application Entity Title, Private
 /// Information Creator UID and Private Information from the file meta group
-/// and recompute the group length (0002,0000). Every top-level data set
-/// element of group 0002 is removed as well, whatever its element number.
+/// and recompute the group length (0002,0000). The data set is not read.
 pub(super) fn remove_origin(object: &mut DicomFile) {
-    let misplaced: Vec<DicomTag> = object
-        .iter()
-        .map(|element| element.tag())
-        .filter(|tag| tag.group == 0x0002)
-        .collect();
-    for tag in misplaced {
-        object.remove_element(tag);
-    }
     object.update_meta(|meta| {
         meta.source_application_entity_title = None;
         meta.sending_application_entity_title = None;
@@ -70,6 +62,19 @@ pub(super) fn remove_origin(object: &mut DicomFile) {
         meta.private_information_creator_uid = None;
         meta.private_information = None;
     });
+}
+
+/// Remove every element of group 0002 from `dataset`, whatever its element
+/// number. Data sets nested in its sequences are not visited.
+pub(super) fn remove_misplaced(dataset: &mut Dataset) {
+    let misplaced: Vec<DicomTag> = dataset
+        .iter()
+        .map(|element| element.tag())
+        .filter(|tag| tag.group == 0x0002)
+        .collect();
+    for tag in misplaced {
+        dataset.remove_element(tag);
+    }
 }
 
 /// The issue raised when the file meta group names another instance than the

@@ -313,12 +313,6 @@ and reject an unrepresentable positive spacing before output.
 - The regression uses existing RITK reconstruction for its controls.
   Orthogonal orientations in three series remain a separate geometry issue.
 
-<a id="RITK-DICOM-ANONYMIZE-NESTED-META-001"></a>
-## RITK-DICOM-ANONYMIZE-NESTED-META-001: group 0002 elements inside sequence items survive de-identification
-- risk: `file_meta::remove_origin` removes top-level data set elements of group 0002 only; one nested in a sequence item stays. A file whose group length ends before (0002,0012) is read with dicom-rs default implementation identifiers, and the misplaced real ones are then deleted.
-- evidence: filed by the judges of ritk#932 from reading ritk-io and dicom-object 0.10.1; neither input was built.
-- reopen: at the next change to `anonymize/file_meta.rs` or `anonymize_dataset`; build both inputs as byte streams and file the correctness item for each that leaks or loses a value.
-
 <a id="RITK-DICOM-ANONYMIZE-EXPORT-003"></a>
 ## RITK-DICOM-ANONYMIZE-EXPORT-003: filed judge findings on the numbered export and the gate are open
 - risk: `anonymize/study.rs` keeps a `map_or(target, ..)` fallback no input reaches; export names past 999,999 stop sorting numerically; the source-path mapping is tested for `PatientLeak` only; the non-image study test does not assert the report's StudyInstanceUID and SOPInstanceUID were replaced; the root README says a failed run removes everything it wrote, but a created output folder stays; `tests_verify.rs` line 6 still lists geometry drift, moved to `tests_verify_geometry.rs`; the misplaced-element fixture uses Implicit VR and does not assert the stray values.
