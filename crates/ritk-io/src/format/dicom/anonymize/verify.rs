@@ -37,7 +37,8 @@
 //!    and it finds only the values the caller lists.
 //! 4. **Geometry coherence** — an object holding Float Pixel Data
 //!    (7FE0,0008), Double Float Pixel Data (7FE0,0009) or Pixel Data
-//!    (7FE0,0010) must carry non-zero Rows/Columns/BitsAllocated, and native
+//!    (7FE0,0010) must carry non-zero Rows/Columns/BitsAllocated and, when
+//!    SamplesPerPixel is present, a non-zero number there, and native
 //!    Pixel Data must hold at least one frame: `Rows * Columns *
 //!    SamplesPerPixel` bits rounded up to a byte when BitsAllocated is 1
 //!    (PS3.5 sections 8.1.1 and 8.2), and otherwise `Rows * Columns *
