@@ -188,6 +188,18 @@ fn compute_k_clamped_to_qbpp() {
 }
 
 #[test]
+fn reset_halves_negative_odd_bias_toward_negative_infinity() {
+    let mut ctx = ContextState {
+        a: 128,
+        b: -5,
+        c: 0,
+        n: RESET,
+    };
+    update_context(&mut ctx, 0, 0);
+    assert_eq!((ctx.a, ctx.b, ctx.c, ctx.n), (64, -3, 0, 33));
+}
+
+#[test]
 fn update_context_accumulates_errval() {
     let mut ctx = ContextState::default();
     update_context(&mut ctx, 3, 0); // NEAR=0

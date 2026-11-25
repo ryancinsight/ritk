@@ -10,6 +10,15 @@ def chord(client, modifier, key):
     }])
 
 
+def select_grid_plane(client, plane):
+    # View menu in a populated, non-PET comparison grid.
+    row = 8 + ("Axial", "Coronal", "Sagittal").index(plane)
+    for x, y in [(88, 15), (120, 44 + 28 * row)]:
+        client.perform_actions([{"type": "pointer", "id": "plane-menu", "parameters": {"pointerType": "mouse"},
+            "actions": [{"type": "pointerMove", "origin": "viewport", "x": x, "y": y},
+                        {"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0}]}])
+
+
 def verify_navigation(client, canvas, state, wait):
     client.send_keys(canvas, "m")
     chord(client, chr(0xe008), "o")

@@ -42,18 +42,13 @@ pub(crate) fn displayed_samples(stored: &[u8]) -> Vec<f32> {
 /// Two-frame scalar multiframe fixture geometry in `[frames, rows, cols]`
 /// order. The frame payloads are intentionally distinct so a frame-zero
 /// fallback cannot satisfy the viewer assertions.
-#[cfg(feature = "eframe-shell")]
 pub(crate) const MULTIFRAME_SHAPE: [usize; 3] = [2, 2, 2];
-#[cfg(feature = "eframe-shell")]
 pub(crate) const MULTIFRAME_RAW: [u8; 8] = [1, 2, 3, 4, 11, 12, 13, 14];
-#[cfg(feature = "eframe-shell")]
 pub(crate) const MULTIFRAME_SERIES_UID: &str = "2.25.20260905003";
 
 /// Two-frame RGB multi-frame fixture geometry in `[frames, rows, cols]` order.
-#[cfg(feature = "eframe-shell")]
 pub(crate) const COLOR_MULTIFRAME_SHAPE: [usize; 3] = [2, 2, 2];
 /// Red, green, blue, white followed by cyan, magenta, yellow, and neutral.
-#[cfg(feature = "eframe-shell")]
 pub(crate) const COLOR_MULTIFRAME_RAW: [u8; 24] = [
     255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0, 64, 64,
     64,
@@ -163,7 +158,6 @@ pub(crate) fn write_grayscale_presentation(
 /// counts can exercise the same scanner and reader path as valid input.
 /// `temporal_positions`, when present, emits NumberOfTemporalPositions to
 /// verify that the spatial viewer rejects temporal organizations explicitly.
-#[cfg(feature = "eframe-shell")]
 pub(crate) fn write_multiframe(
     root: &Path,
     declared_frames: usize,
@@ -235,7 +229,6 @@ pub(crate) fn write_multiframe(
 }
 
 /// Write a two-frame, interleaved unsigned RGB Part 10 object.
-#[cfg(feature = "eframe-shell")]
 pub(crate) fn write_color_multiframe(root: &Path) -> Result<(String, Vec<u8>)> {
     std::fs::create_dir_all(root).context("create synthetic RGB multiframe directory")?;
     let mut model = DicomObjectModel::new();

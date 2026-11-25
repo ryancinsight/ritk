@@ -4,6 +4,7 @@
 //! [`super::super::layout::application_overlay`]; these tests pin the
 //! overlay-text contract from RITK-SNAP-NATIVE-OVERLAY-TEXT-001 without a GPU.
 
+use super::super::layout::text::{text_command, text_style, PANEL_DETAIL_SIZE};
 use super::super::layout::{
     application_overlay, clinical_labels_for_view, scale_bar_for_scale, ClinicalOverlay,
 };
@@ -22,6 +23,16 @@ fn overlay_texts(commands: &[DisplayCommand]) -> Vec<&str> {
             _ => None,
         })
         .collect()
+}
+
+#[test]
+fn native_overlay_text_command_shares_arc() {
+    let label: std::sync::Arc<str> = "Sagittal".into();
+    let style = text_style(metis_platform::Color::WHITE, PANEL_DETAIL_SIZE).expect("text style");
+    let command = text_command(std::sync::Arc::clone(&label), 4, 12, style);
+    assert!(
+        matches!(command, DisplayCommand::DrawText { text, .. } if std::sync::Arc::ptr_eq(&label, &text))
+    );
 }
 
 #[test]

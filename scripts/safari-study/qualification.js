@@ -60,7 +60,7 @@ async function workstation() {
         const [r,g,b] = ctx.getImageData(Math.round(x+w*.4),Math.round(y+h*.5),1,1).data;
         if (r===0 && g===229 && b===255) heldCursorSeen = true;
       }
-      marks = state.images.map(([x,y,w,h]) => [[.4,.5],[.4,.625],[.75,.4],[.375,.4]].map(([u,v]) => {
+      marks = state.images.map(([x,y,w,h]) => [[.4,.5],[.4,.375],[.75,.4],[.625,.4]].map(([u,v]) => {
         const [r,g,b,a] = ctx.getImageData(Math.round(x + u*w), Math.round(y + v*h), 1, 1).data;
         return r === 255 && g === 255 && b === 0 && a === 255;
       }));

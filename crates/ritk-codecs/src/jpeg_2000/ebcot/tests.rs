@@ -35,6 +35,28 @@ fn enc_dec_roundtrip(samples: &[i32], w: usize, h: usize, orient: SubbandOrienta
 }
 
 #[test]
+fn stopping_after_propagation_preserves_the_unrefined_magnitude_interval() {
+    use crate::jpeg_2000::quantization::reversible_midpoint;
+
+    let orientation = SubbandOrientation::LlOrLh;
+    let encoded = encode_code_block(&[-7, 3], 2, 1, orientation);
+    // With three bit-planes, pass 2 discovers the smaller coefficient.
+    // Pass 3 refines the larger one, then pass 7 completes the block.
+    for (passes, expected) in [(1, [-6, 0]), (2, [-6, 3]), (3, [-7, 3]), (7, [-7, 3])] {
+        let decoded = decode_code_block(&encoded.bytes, 2, 1, 3, passes, orientation)
+            .expect("decode requested passes");
+        let values: Vec<_> = decoded
+            .samples
+            .iter()
+            .map(|&q| {
+                reversible_midpoint(q, decoded.lowest_decoded_plane(q)).expect("bounded fixture")
+            })
+            .collect();
+        assert_eq!(values, expected, "completed passes: {passes}");
+    }
+}
+
+#[test]
 fn ebcot_rejects_empty_body_with_declared_pass() {
     let err = decode_code_block(&[], 1, 1, 1, 1, SubbandOrientation::LlOrLh)
         .expect_err("a declared coding pass requires entropy bytes");

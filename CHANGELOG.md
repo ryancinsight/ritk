@@ -23,15 +23,27 @@
 
 ### Fixed
 
+- [patch] Keep all four anatomical edge labels on rotated single-row or single-column views.
+
+- [patch] Orient positioned DICOM reading panes consistently and apply manual rotation and flips to that display. The comparison cursor follows the selected patient plane in both panes.
+
 - [patch] Open a whole DICOM folder from the web workstation toolbar, menu or keyboard shortcut. Shift-click opens the individual file picker.
 
 - [patch] Omit the matched identifier and filename from the Windows status message when export verification detects residual identifying metadata.
 - [patch] Keep keyboard focus in the web viewer when F6 toggles linked navigation.
 - [patch] Respect the receiving comparison pane’s 1:1 scale during linked zoom, including rotated images with unequal row and column spacing.
 
+## RITK Codecs (unreleased)
+
+### Fixed
+
+- [patch] Reconstruct signed JPEG-LS context bias at reset and JPEG 2000 coefficients in partially refined code-blocks. Lossless MR fixtures now match every stored reference sample.
+
 ## RITK I/O 0.10.0 (unreleased)
 
 ### Added
+
+- [minor] `DicomPixelAspect` parses retained DICOM spacing and aspect attributes. A zero spacing component yields `ZeroSpacing`, preserving the distinction between an unavailable aspect and malformed input.
 
 - [minor] Verify and anonymize in-memory Part 10 selections with the same metadata and cross-instance checks as directory exports. Fresh per-export UID salts are available on WebAssembly.
 

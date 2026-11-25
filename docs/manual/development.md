@@ -184,6 +184,15 @@ pixels, dimensions and spacing with the existing projection oracles. These
 tests are allocation-lifecycle oracles, not process-memory or framework
 comparison measurements.
 
+### Compare externally encoded lossless MR frames
+
+The pydicom test-data directory includes four independent representations of the same 64×64 MR frame. With pydicom installed, the following test compares all 4,096 source voxels, spatial geometry and the rendered axial RGBA frame after both file and byte loading for RLE, JPEG-LS and JPEG 2000.
+
+```sh
+export RITK_PYDICOM_TEST_FILES="$(python -c 'from pathlib import Path; from pydicom.data import get_testdata_file; print(Path(get_testdata_file("MR_small.dcm", download=False)).parent)')"
+cargo nextest run -p ritk-snap --lib --run-ignored only -E 'test(independent_lossless_mr_encodings)'
+```
+
 ### One state contract for native and browser hosts
 
 RITK projects the host-visible viewer state into one typed

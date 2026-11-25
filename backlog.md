@@ -12,7 +12,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="M-viewer-compare"></a>
 ## M-viewer-compare — 0.4.0 — compare series by patient position
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_linked_display) or test(native_grid_cursor) or test(native_manual_alignment) or test(native_cross_reference) or test(native_scroll_matches_physical) or test(patient_stack) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
-- [minor] Automatic slice linking and cross-reference lines use the displayed patient planes, including qualified sagittal and coronal reformats. Next extend the held grid cursor to those planes. The [comparison checklist](docs/manual/comparison-checklist.md) records manual slice alignment, intersecting-plane overlays and per-pane 1:1 zoom limits. Linked display settings and the patient-space grid cursor share the desktop and browser implementation.
+- [minor] Automatic slice linking and cross-reference lines use the displayed patient planes, including qualified sagittal and coronal reformats. The held comparison cursor uses the displayed plane on both ends. The [comparison checklist](docs/manual/comparison-checklist.md) records manual slice alignment, intersecting-plane overlays and per-pane 1:1 zoom limits. Linked display settings and the patient-space grid cursor share the desktop and browser implementation.
 <a id="RITK-BROWSER-READ-001"></a><a id="RITK-BROWSER-WEBGPU-001"></a>
 - [minor] The scalar reader transfers its pixel allocation to the viewer. All nine [saved-study browser scenarios](gap_audit.md#saved-study-browser-qualification-patch) passed on main, including four consecutive Chromium loads and hosted WebGPU. The [viewer checklist](backlog/ritk-stable-qualification.md) records exact three-plane readback on native Apple-silicon and Intel Safari.
 - needs: M-viewer-reading
@@ -149,7 +149,6 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-SNAP-ROI-NATIVE-001"></a>- [RITK-SNAP-ROI-NATIVE-001](backlog/RITK-SNAP-ROI-NATIVE-001.md) — Test native ROI creation and labels — todo
 <a id="RITK-SNAP-ROI-LABEL-STATISTICS-001"></a>- [RITK-SNAP-ROI-LABEL-STATISTICS-001](backlog/RITK-SNAP-ROI-LABEL-STATISTICS-001.md) — Show complete ROI label statistics — todo
 <a id="RITK-FIXTURE-RETENTION-001"></a>- [RITK-FIXTURE-RETENTION-001](backlog/RITK-FIXTURE-RETENTION-001.md) — Decide imaging fixture retention — blocked
-<a id="RITK-SNAP-NATIVE-FUSION-001"></a>- [RITK-SNAP-NATIVE-FUSION-001](backlog/RITK-SNAP-NATIVE-FUSION-001.md) — Fuse series and read SUV natively — blocked
-<a id="RITK-SNAP-TEXT-COMMAND-ARC-001"></a>- [RITK-SNAP-TEXT-COMMAND-ARC-001](backlog/RITK-SNAP-TEXT-COMMAND-ARC-001.md) — Build display text without a second copy — todo
+<a id="RITK-SNAP-TEXT-COMMAND-ARC-001"></a>- [RITK-SNAP-TEXT-COMMAND-ARC-001](backlog/RITK-SNAP-TEXT-COMMAND-ARC-001.md) — Build display text without a second copy — done [patch]
 <a id="RITK-DICOM-PIXEL-ASPECT-RESOLUTION-001"></a>- [RITK-DICOM-PIXEL-ASPECT-RESOLUTION-001](backlog/RITK-DICOM-PIXEL-ASPECT-RESOLUTION-001.md) — Resolve and retain pixel aspect on DICOM metadata — todo
-<a id="RITK-DICOM-PIXEL-ASPECT-PINS-001"></a>- [RITK-DICOM-PIXEL-ASPECT-PINS-001](backlog/RITK-DICOM-PIXEL-ASPECT-PINS-001.md) — Pin pixel aspect parser edge cases and its zero-spacing error — todo
+<a id="RITK-DICOM-PIXEL-ASPECT-PINS-001"></a>- [RITK-DICOM-PIXEL-ASPECT-PINS-001](backlog/RITK-DICOM-PIXEL-ASPECT-PINS-001.md) — Pin pixel aspect parser edge cases and its zero-spacing error — done [patch]

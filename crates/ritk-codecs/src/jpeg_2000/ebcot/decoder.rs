@@ -15,13 +15,23 @@ use anyhow::{bail, Context, Result};
 pub struct DecodedBlock {
     /// Reconstructed samples (row-major), in the order they appear in the tile.
     pub samples: Vec<i32>,
-    /// Index of the lowest bit-plane reached by any executed coding pass
-    /// (`0` when the block decoded down to the LSB, i.e. fully decoded).
-    /// A truncated block stops at a higher plane, so the magnitudes carry zero
-    /// in bits `0..lowest_bitplane`; the irreversible reconstruction uses this
-    /// to place the dequantized value at the midpoint of the still-undecoded
-    /// interval (ISO 15444-1 §E.1.1.2) rather than a fixed half-step.
-    pub lowest_bitplane: u32,
+    /// Bit-plane of the last pass executed for this code-block.
+    last_plane: u32,
+    ended_after_propagation: bool,
+}
+
+impl DecodedBlock {
+    /// Previously significant coefficients still await refinement when a block
+    /// ends just after significance propagation. A newly significant magnitude
+    /// at that point has exactly one bit set, in the current plane.
+    pub(in crate::jpeg_2000) fn lowest_decoded_plane(&self, coefficient: i32) -> u32 {
+        let awaits_refinement = self.ended_after_propagation
+            && coefficient
+                .unsigned_abs()
+                .checked_shr(self.last_plane)
+                .is_some_and(|prefix| prefix > 1);
+        self.last_plane + u32::from(awaits_refinement)
+    }
 }
 
 /// Maximum number of samples in one code-block.
@@ -70,7 +80,8 @@ pub fn decode_code_block(
     if num_passes == 0 {
         return Ok(DecodedBlock {
             samples: vec![0i32; n],
-            lowest_bitplane: u32::from(num_bit_planes),
+            last_plane: u32::from(num_bit_planes),
+            ended_after_propagation: false,
         });
     }
     if num_bit_planes == 0 {
@@ -324,6 +335,7 @@ pub fn decode_code_block(
 
     Ok(DecodedBlock {
         samples,
-        lowest_bitplane: lowest_bp,
+        last_plane: lowest_bp,
+        ended_after_propagation: num_passes % 3 == 2,
     })
 }

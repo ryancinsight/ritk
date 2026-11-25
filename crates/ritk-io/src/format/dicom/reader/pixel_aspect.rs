@@ -92,7 +92,11 @@ pub enum DicomPixelAspectError {
     /// The element value is not retained as text.
     #[error("{0:?} is not available as readable text")]
     UnreadableValue(DicomPixelAspectSource),
-    /// The element does not encode two valid positive components and ratio.
+    /// A spacing component is zero, so these values cannot define a display aspect.
+    /// PS3.3 §10.7.1.3 permits zero for a corresponding singleton dimension.
+    #[error("{0:?} contains zero spacing and cannot define a pixel aspect")]
+    ZeroSpacing(DicomPixelAspectSource),
+    /// The element does not encode valid components or a representable positive ratio.
     #[error("{0:?} does not encode a valid positive pixel aspect")]
     MalformedValue(DicomPixelAspectSource),
 }
@@ -166,6 +170,9 @@ fn parse_aspect(
 
     let row = parse_component(row, source)?;
     let column = parse_component(column, source)?;
+    if row == 0.0 || column == 0.0 {
+        return Err(DicomPixelAspectError::ZeroSpacing(source));
+    }
     let row_over_column = row / column;
     if !row_over_column.is_finite() || row_over_column <= 0.0 {
         return Err(DicomPixelAspectError::MalformedValue(source));
@@ -200,7 +207,15 @@ fn parse_component(
             .parse::<f64>()
             .map_err(|_| DicomPixelAspectError::MalformedValue(source))?
     };
-    if !value.is_finite() || value <= 0.0 {
+    let zero_is_invalid = value == 0.0
+        && (source == DicomPixelAspectSource::PixelAspectRatio
+            || component
+                .split(['e', 'E'])
+                .next()
+                .unwrap_or_default()
+                .bytes()
+                .any(|c| matches!(c, b'1'..=b'9')));
+    if !value.is_finite() || value < 0.0 || zero_is_invalid {
         return Err(DicomPixelAspectError::MalformedValue(source));
     }
     Ok(value)
@@ -319,6 +334,47 @@ mod tests {
             let aspect = DicomPixelAspect::try_from(&node(source, value))
                 .expect("final wire padding is excluded from the component limit");
             assert_eq!(aspect.row_over_column(), expected);
+        }
+    }
+
+    #[test]
+    fn integer_aspect_accepts_sign_and_space_padding_but_rejects_missing_or_invalid_values() {
+        let source = DicomPixelAspectSource::PixelAspectRatio;
+        for value in ["+6\\5", " 6\\ 5"] {
+            assert_eq!(
+                DicomPixelAspect::try_from(&node(source, value))
+                    .expect("valid integer aspect")
+                    .row_over_column(),
+                6.0 / 5.0
+            );
+        }
+        for value in ["a\\5", "-1\\5", "\\5", "6\\", ""] {
+            assert_eq!(
+                DicomPixelAspect::try_from(&node(source, value)),
+                Err(DicomPixelAspectError::MalformedValue(source))
+            );
+        }
+    }
+
+    #[test]
+    fn zero_spacing_cannot_define_an_aspect_even_when_the_element_is_well_formed() {
+        for source in [
+            DicomPixelAspectSource::PatientPixelSpacing,
+            DicomPixelAspectSource::ImagerPixelSpacing,
+            DicomPixelAspectSource::NominalScannedPixelSpacing,
+        ] {
+            for value in ["0\\1", "1\\0", "0\\0", "-0e2\\1"] {
+                assert_eq!(
+                    DicomPixelAspect::try_from(&node(source, value)),
+                    Err(DicomPixelAspectError::ZeroSpacing(source))
+                );
+            }
+            for value in ["0\\invalid", "1e-999\\1"] {
+                assert_eq!(
+                    DicomPixelAspect::try_from(&node(source, value)),
+                    Err(DicomPixelAspectError::MalformedValue(source))
+                );
+            }
         }
     }
 

@@ -1,4 +1,4 @@
-//! Continuous patient cursor coordinates in the original acquisition planes.
+//! Continuous patient cursor coordinates in qualified acquisition and reformatted planes.
 use super::{PatientStack, Vector3};
 
 #[derive(Clone, Copy, Debug)]

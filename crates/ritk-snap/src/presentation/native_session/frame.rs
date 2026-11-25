@@ -111,7 +111,21 @@ pub(super) fn render_view_into(
             scratch,
         )
         .context("render RITK slice into a bounded presentation frame")?;
-    let transform = app.view_transform;
+    let transform = if volume
+        .metadata
+        .as_ref()
+        .and_then(|m| m.slices.first())
+        .and_then(|slice| slice.image_orientation_patient)
+        .is_some()
+    {
+        crate::ui::coordinate_system::reading_orientation(
+            axis,
+            &volume.direction,
+            app.view_transform,
+        )
+    } else {
+        app.view_transform
+    };
     let display_spacing = transformed_display_spacing(view.frame.display_spacing(), transform);
     let source_size = [
         usize::try_from(view.frame.width())

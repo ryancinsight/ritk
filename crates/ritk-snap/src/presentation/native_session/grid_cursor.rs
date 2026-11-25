@@ -51,7 +51,7 @@ impl NativeViewerSession {
                 if !(chord || bound) {
                     return Ok(false);
                 }
-                if app.axis != 0 || app.cine.enabled || app.patient_stacks[0].is_none() {
+                if app.cine.enabled || app.patient_stacks[app.axis].is_none() {
                     return Ok(true);
                 }
                 if self.grid_cursor.owner.is_some() {
@@ -85,9 +85,9 @@ impl NativeViewerSession {
             return Ok(true);
         };
         let source = self.app_for_panel_mut(panel)?;
-        let index = source.axis_slice_info(0).0;
+        let index = source.axis_slice_info(source.axis).0;
         let pixel = [f64::from(pixel.x()), f64::from(pixel.y())];
-        let Some(point) = source.patient_stacks[0]
+        let Some(point) = source.patient_stacks[source.axis]
             .as_ref()
             .and_then(|s| s.patient_point(index, pixel))
         else {
@@ -99,36 +99,19 @@ impl NativeViewerSession {
             pixel,
             distant: false,
         });
-        let count = self.viewports.len();
-        // Compute projections before changing slices so the source is stable in any pane.
-        let source = if panel == 0 {
-            &self.app
-        } else {
-            &self.compare_panels[panel - 1].app
-        };
-        if let Some(stack) = &source.patient_stacks[0] {
-            for (i, target) in std::iter::once(&self.app)
-                .chain(self.compare_panels.iter().map(|p| &p.app))
-                .take(count)
-                .enumerate()
-            {
-                if i != panel && target.axis == 0 && !target.cine.enabled {
-                    marks[i] = target.patient_stacks[0]
-                        .as_ref()
-                        .and_then(|t| stack.project_cursor(point, t));
-                }
+        self.for_each_comparison(panel, |i, source, target| {
+            if target.cine.enabled {
+                return;
             }
-        }
-        let apps = std::iter::once(&mut self.app)
-            .chain(self.compare_panels.iter_mut().map(|p| &mut p.app))
-            .take(count);
-        for (i, app) in apps.enumerate() {
-            if i != panel
-                && let Some(mark) = marks[i]
+            if let Some(mark) = source.patient_stacks[source.axis]
+                .as_ref()
+                .zip(target.patient_stacks[target.axis].as_ref())
+                .and_then(|(s, t)| s.project_cursor(point, t))
             {
-                app.set_slice_for_axis(0, mark.index);
+                target.set_slice_for_axis(target.axis, mark.index);
+                marks[i] = Some(mark);
             }
-        }
+        });
         self.grid_cursor.marks = marks;
         Ok(true)
     }

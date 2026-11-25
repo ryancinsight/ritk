@@ -164,7 +164,8 @@ pub(crate) fn update_context(ctx: &mut ContextState, errval: i32, near: u32) {
     ctx.b += errval * (2 * near as i32 + 1);
     if ctx.n == RESET {
         ctx.a >>= 1;
-        ctx.b /= 2;
+        // JPEG-LS halves a signed bias toward negative infinity at RESET.
+        ctx.b >>= 1;
         ctx.n >>= 1;
     }
     ctx.n += 1;

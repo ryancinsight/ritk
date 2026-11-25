@@ -2,7 +2,7 @@
 import argparse
 from pathlib import Path
 from browser_patient_position import verify_reference_pixel
-from browser_navigation import chord
+from browser_navigation import chord, select_grid_plane
 from browser_protocol import WebDriverClient
 from verify_anonymized_mri import wait
 from verify_study_folder import choose
@@ -14,9 +14,11 @@ def state(client):
 
 
 def select(client, plane, grid=False):
+    if grid:
+        return select_grid_plane(client, plane)
     click(client, 88, 15)
     index = ("Axial", "Coronal", "Sagittal").index(plane)
-    click(client, 120, 44 + 28 * ((8 if grid else 6) + index))
+    click(client, 120, 44 + 28 * (6 + index))
 
 
 def center_hash(client, pane):
@@ -55,7 +57,7 @@ def verify_reformatted_positions(client, canvas):
     select(client, "Axial", grid=True)
     for _ in range(2):
         i = state(client)["panels"][0][0]
-        verify_reference_pixel(client, 1, [.4, (2*i + .5)/67], True)
+        verify_reference_pixel(client, 1, [.4, 1 - (2*i + .5)/67], True)
         client.send_keys(canvas, down)
 
     # Reverse source and target, with a clockwise quarter-turn on the primary.
@@ -65,7 +67,7 @@ def verify_reformatted_positions(client, canvas):
     select(client, "Axial", grid=True)
     for _ in range(2):
         i = state(client)["panels"][1][0]
-        pixel = [1 - (i/2 + .5)/34, .4]
+        pixel = [(i/2 + .5)/34, .4]
         verify_reference_pixel(client, 0, pixel, True)
         chord(client, chr(0xe009), chr(0xe03c))
         verify_reference_pixel(client, 0, pixel, False)

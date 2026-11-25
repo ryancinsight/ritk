@@ -4,6 +4,35 @@ use super::super::*;
 use tempfile::tempdir;
 
 use super::fixtures;
+use crate::presentation::PresentationFrame;
+use crate::render::{NamedColorMap, WindowLevel};
+
+fn assert_slice_pixels(
+    volume: &crate::LoadedVolume,
+    axis: usize,
+    index: usize,
+    window: WindowLevel,
+    colormap: NamedColorMap,
+    expected: &[[u8; 4]],
+) {
+    let frame = PresentationFrame::from_slice(volume, axis, index, window, colormap)
+        .expect("render DICOM fixture");
+    assert_eq!(
+        frame.rgba(),
+        expected.as_flattened(),
+        "axis {axis}, slice {index}"
+    );
+
+    #[cfg(feature = "eframe-shell")]
+    {
+        let image = crate::render::SliceRenderer::render(volume, axis, index, window, colormap);
+        let pixels: Vec<_> = image.pixels.iter().map(egui::Color32::to_array).collect();
+        assert_eq!(
+            pixels, expected,
+            "compatibility shell axis {axis}, slice {index}"
+        );
+    }
+}
 
 /// A multi-frame object must reach the RITK multi-frame reader as one spatial
 /// volume. The ordinary series path requests frame zero and would therefore
@@ -50,34 +79,32 @@ fn dicom_multiframe_file_and_bytes_preserve_all_frames_and_geometry() {
 /// multiframe reader rather than only a metadata probe.
 #[test]
 fn dicom_multiframe_render_uses_each_frame() {
-    use crate::render::{NamedColorMap, SliceRenderer, WindowLevel};
-
     let dir = tempdir().expect("create multiframe render directory");
     let (filename, bytes) =
         fixtures::write_multiframe(dir.path(), 2, None).expect("write multiframe render fixture");
     let volume = load_volume_from_bytes(&filename, &bytes).expect("load multiframe render input");
     let window = WindowLevel::new(5.0, 26.0);
 
-    let first = SliceRenderer::render(&volume, 0, 0, window, NamedColorMap::Grayscale);
-    let second = SliceRenderer::render(&volume, 0, 1, window, NamedColorMap::Grayscale);
-    let first_values: Vec<[u8; 4]> = first.pixels.iter().map(egui::Color32::to_array).collect();
-    let second_values: Vec<[u8; 4]> = second.pixels.iter().map(egui::Color32::to_array).collect();
-    let expected = |values: &[u8]| {
-        values
-            .iter()
-            .map(|&value| [value, value, value, 255])
-            .collect::<Vec<_>>()
-    };
-    assert_eq!(first_values, expected(&[0, 20, 41, 61]));
-    assert_eq!(second_values, expected(&[204, 224, 245, 255]));
+    for (index, values) in [[0, 20, 41, 61], [204, 224, 245, 255]]
+        .into_iter()
+        .enumerate()
+    {
+        let expected = values.map(|v| [v, v, v, 255]);
+        assert_slice_pixels(
+            &volume,
+            0,
+            index,
+            window,
+            NamedColorMap::Grayscale,
+            &expected,
+        );
+    }
 }
 
 /// The real RITK RGB multi-frame decoder and both viewer-facing ingress paths
 /// preserve every color channel through all three orthogonal slice views.
 #[test]
 fn dicom_color_multiframe_preserves_channels_and_display() {
-    use crate::render::{NamedColorMap, SliceRenderer, WindowLevel};
-
     let dir = tempdir().expect("create RGB multiframe fixture directory");
     let (filename, bytes) =
         fixtures::write_color_multiframe(dir.path()).expect("write RGB multiframe fixture");
@@ -129,15 +156,13 @@ fn dicom_color_multiframe_preserves_channels_and_display() {
             ),
         ];
         for (axis, index, expected_pixels) in expected {
-            let rendered = SliceRenderer::render(volume, axis, index, window, NamedColorMap::Hot);
-            let actual: Vec<[u8; 4]> = rendered
-                .pixels
-                .iter()
-                .map(egui::Color32::to_array)
-                .collect();
-            assert_eq!(
-                actual, expected_pixels,
-                "RGB display channels for axis {axis}"
+            assert_slice_pixels(
+                volume,
+                axis,
+                index,
+                window,
+                NamedColorMap::Hot,
+                &expected_pixels,
             );
         }
     }

@@ -49,6 +49,8 @@ describes startup selection and capture options.
 - [Draw an arrow or a freehand mark](#draw-an-arrow)
 - [Windows tool shortcuts](#windows-tool-shortcuts)
 
+When DICOM orientation is available and the in-plane anatomical directions are unambiguous, axial images open with anterior at the top and patient right on the left. Coronal images show superior at the top and patient right on the left. Sagittal images show superior at the top and anterior on the left. Rotate and flip operate on this reading orientation. In a comparison grid, hold the Crosshair tool and drag in any positioned plane to locate the same patient point in other eligible panes.
+
 ## Adjust the image display
 
 Click an image pane, then open **View** and choose **Axial**, **Coronal** or

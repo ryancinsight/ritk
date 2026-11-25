@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 from browser_comparison_display import verify_display
-from browser_navigation import chord, verify_navigation
+from browser_navigation import chord, select_grid_plane, verify_navigation
 
 
 def write_stack(directory, series, locations, *, mixed_frame=False, study=1, frame_uid=3, sagittal=False,
@@ -95,17 +95,52 @@ def verify_patient_position(client, canvas, state, wait):
         # Source z=4 intersects the target halfway through its 16-mm field of view.
         verify_reference_pixel(client, target, [.4, .5], True)
         client.send_keys(canvas, chr(0xe015))
-        verify_reference_pixel(client, target, [.4, .625], True)
+        verify_reference_pixel(client, target, [.4, .375], True)
         verify_reference_pixel(client, target, [.4, .5], False)
         chord(client, chr(0xe009), chr(0xe03c))  # Ctrl+F12
-        verify_reference_pixel(client, target, [.4, .625], False)
+        verify_reference_pixel(client, target, [.4, .375], False)
         chord(client, chr(0xe009), chr(0xe03c))
         client.send_keys(canvas, chr(0xe004))
         verify_reference_pixel(client, source, [.75, .4], True)
-        verify_reference_pixel(client, target, [.4, .625], False)
+        verify_reference_pixel(client, target, [.4, .375], False)
         client.send_keys(canvas, "r" + chr(0xe004))
-        verify_reference_pixel(client, target, [.375, .4], True)
+        verify_reference_pixel(client, target, [.625, .4], True)
 
+        first = write_stack(directory, 21, [(2*i, i) for i in range(5)], shape=(6, 8))
+        second = write_stack(directory, 22, [(i, i) for i in range(9)], shape=(6, 8))
+        source, target = open_pair(client, canvas, state, wait, first + second)
+        verify_reformatted_cursor(client, canvas, state, wait, source, target)
+
+
+def verify_reformatted_cursor(client, canvas, state, wait, source, target):
+    tab = chr(0xe004)
+    client.send_keys(canvas, tab)
+    select_grid_plane(client, "Sagittal")
+    client.send_keys(canvas, tab)
+    select_grid_plane(client, "Coronal")
+    wait(f"{state}.planes[{source}] === 'Coronal' && {state}.planes[{target}] === 'Sagittal'")
+    fixed_row = client.execute(f"return {state}.panels[{source}][0]")
+    client.send_keys(canvas, "q")
+    x, y, w, h = client.execute(f"return {state}.images[{source}]")
+    cyan = [0, 229, 255, 255]
+
+    def pointer(actions):
+        client.perform_actions([{"type": "pointer", "id": "reformat-cursor",
+            "parameters": {"pointerType": "mouse"}, "actions": actions}])
+
+    for column, depth in [(1, 1), (5, 3)]:
+        # The source has five planes at 2 mm, the target nine at 1 mm.
+        # Both reformats show superior up. Account for integer pointer coordinates.
+        py = round(y + h * (1 - (depth + .5) / 5))
+        pointer([{"type": "pointerMove", "origin": "viewport",
+                  "x": round(x + w * (column + .5) / 8), "y": py}] +
+                ([{"type": "pointerDown", "button": 0}] if column == 1 else []))
+        wait(f"{state}.panels[{target}][0] === {column}")
+        verify_pixel(client, target, [(fixed_row + .5) / 6, .23], cyan, True)
+        source_depth = (1 - (py - y) / h) * 5 - .5
+        verify_pixel(client, target, [.21, 1 - (2 * source_depth + .5) / 9], cyan, True)
+    pointer([{"type": "pointerUp", "button": 0}])
+    verify_pixel(client, target, [(fixed_row + .5) / 6, .23], cyan, False)
 
 
 def verify_cursor(client, canvas, state, wait, source, target):

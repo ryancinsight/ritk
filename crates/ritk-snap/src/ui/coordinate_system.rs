@@ -7,14 +7,18 @@
 // Re-export PatientPosition from ritk-io (SSOT — eliminates duplicate enum).
 pub use ritk_io::PatientPosition;
 
-#[cfg(any(windows, target_arch = "wasm32", feature = "eframe-shell"))]
+#[cfg(any(windows, target_arch = "wasm32", feature = "eframe-shell", test))]
 mod orientation;
+#[cfg(any(windows, target_arch = "wasm32", test))]
+mod reading_orientation;
 #[cfg(all(test, feature = "eframe-shell"))]
 pub(crate) use orientation::lps_label;
 #[cfg(any(windows, target_arch = "wasm32", feature = "eframe-shell"))]
 pub(crate) use orientation::{
     edge_slot, orientation_labels, remap_labels_by_slots, OrientationLabels,
 };
+#[cfg(any(windows, target_arch = "wasm32"))]
+pub(crate) use reading_orientation::reading_orientation;
 
 /// Anatomical coordinate frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
