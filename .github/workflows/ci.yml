@@ -385,7 +385,8 @@ jobs:
 
       - name: Run tests with nextest
         if: matrix.run
-        run: cargo nextest run --workspace --lib --tests
+        # A manually requested platform matrix should report every failing test.
+        run: cargo nextest run --workspace --lib --tests ${{ github.event_name == 'workflow_dispatch' && '--no-fail-fast' || '' }}
 
       - name: Set up Python for viewer captures
         if: matrix.run
