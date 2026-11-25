@@ -39,9 +39,9 @@ fn signed_axis_permutations_have_radiological_edges_before_user_controls() {
                         [(false, false), (false, true), (true, false), (true, true)]
                     {
                         let user = ViewTransform {
-                            rotation,
                             flip_h,
                             flip_v,
+                            rotation,
                         };
                         let transform = reading_orientation(axis, &direction, user);
                         let p = [2.25, 4.5];
