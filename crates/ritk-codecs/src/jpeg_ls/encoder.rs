@@ -168,23 +168,15 @@ fn encode_scan(samples: &[u16], rows: usize, cols: usize, bpp: u32, near: i32) -
                         // Hit: a full 2^J[idx] segment of the run.
                         bw.write_bit(1);
                         acc += seg;
-                        if acc >= remaining {
-                            // Run filled the line exactly; decoder clamps.
-                            if ctx.run_index < 31 {
-                                ctx.run_index += 1;
-                            }
+                        if ctx.run_index < 31 {
+                            ctx.run_index += 1;
+                        }
+                        if acc == remaining {
                             break;
                         }
-                        if ctx.run_index < 31 {
-                            ctx.run_index += 1;
-                        }
                     } else if run_len == remaining {
-                        // Run reaches end-of-line mid-segment: one overshoot
-                        // hit; the decoder clamps `run_len` to `remaining`.
+                        // A short final segment signals EOL without advancing RUNindex.
                         bw.write_bit(1);
-                        if ctx.run_index < 31 {
-                            ctx.run_index += 1;
-                        }
                         break;
                     } else {
                         // Miss: remainder in J[idx] bits, then the interrupt

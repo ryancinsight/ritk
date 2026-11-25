@@ -14,15 +14,15 @@ fn layout_8bit(rows: usize, cols: usize, slope: f32, intercept: f32) -> PixelLay
     }
 }
 
-/// Build a minimal single-component JPEG-LS 8-bit lossless frame.
-fn build_jpeg_ls_frame(height: u16, width: u16, scan_data: &[u8]) -> Vec<u8> {
+/// Build a minimal single-component JPEG-LS 8-bit frame.
+fn build_jpeg_ls_frame(height: u16, width: u16, near: u8, scan_data: &[u8]) -> Vec<u8> {
     let mut frame = Vec::with_capacity(29 + scan_data.len());
     frame.extend_from_slice(&[0xFF, 0xD8]);
     frame.extend_from_slice(&[0xFF, 0xF7, 0x00, 0x0B, 0x08]);
     frame.extend_from_slice(&height.to_be_bytes());
     frame.extend_from_slice(&width.to_be_bytes());
     frame.extend_from_slice(&[0x01, 0x01, 0x11, 0x00]);
-    frame.extend_from_slice(&[0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00]);
+    frame.extend_from_slice(&[0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, near, 0x00, 0x00]);
     frame.extend_from_slice(scan_data);
     frame.extend_from_slice(&[0xFF, 0xD9]);
     frame
@@ -30,7 +30,7 @@ fn build_jpeg_ls_frame(height: u16, width: u16, scan_data: &[u8]) -> Vec<u8> {
 
 #[test]
 fn jpeg_ls_fragment_2x2_all_zero_decodes_correctly() {
-    let frame = build_jpeg_ls_frame(2, 2, &[0xF8]);
+    let frame = build_jpeg_ls_frame(2, 2, 0, &[0xF8]);
     let layout = layout_8bit(2, 2, 1.0, 0.0);
     let result = decode_jpeg_ls_fragment(&frame, layout).unwrap();
     assert_eq!(result, vec![0.0f32, 0.0, 0.0, 0.0]);
@@ -40,7 +40,7 @@ fn jpeg_ls_fragment_2x2_all_zero_decodes_correctly() {
 fn jpeg_ls_fragment_1x3_constant_value10_decodes_correctly() {
     // Derivation: first sample is a run interrupt with mapped error 19 at k=2;
     // subsequent equal samples are regular-mode zero errors at k=2 then k=1.
-    let frame = build_jpeg_ls_frame(1, 3, &[0x07, 0x90]);
+    let frame = build_jpeg_ls_frame(1, 3, 0, &[0x07, 0x90]);
     let layout = layout_8bit(1, 3, 1.0, 0.0);
     let result = decode_jpeg_ls_fragment(&frame, layout).unwrap();
     assert_eq!(result, vec![10.0f32, 10.0, 10.0]);
@@ -49,8 +49,28 @@ fn jpeg_ls_fragment_1x3_constant_value10_decodes_correctly() {
 #[test]
 fn jpeg_ls_fragment_1x1_run_interrupt_with_modality_lut() {
     // Sample 2 with slope 2 and intercept -5 yields -1 after modality LUT.
-    let frame = build_jpeg_ls_frame(1, 1, &[0x70]);
+    let frame = build_jpeg_ls_frame(1, 1, 0, &[0x70]);
     let layout = layout_8bit(1, 1, 2.0, -5.0);
     let result = decode_jpeg_ls_fragment(&frame, layout).unwrap();
     assert_eq!(result, vec![-1.0f32]);
+}
+
+#[test]
+fn partial_run_at_end_of_line_preserves_the_next_rows_run_index() {
+    // Five flat rows end in both full and partial run segments. The first
+    // interruption on row six exposes a wrong RUNindex. libjpeg independently
+    // decoded these fixed scans to exactly the two bands below.
+    let mut pixels = [0_u16; 60];
+    pixels[50..].fill(125);
+    for (near, scan) in [
+        (0, [0xFF, 0x7F, 0xC0, 0x00, 0x00, 0x7E, 0x25, 0x7E]),
+        (2, [0xFF, 0x7F, 0xC0, 0x00, 0x00, 0x1C, 0x2F, 0xF0]),
+    ] {
+        let frame = build_jpeg_ls_frame(6, 10, near, &scan);
+        let decoded = decode_jpeg_ls_fragment(&frame, layout_8bit(6, 10, 1.0, 0.0)).unwrap();
+        assert_eq!(decoded, pixels.map(f32::from));
+        let encoded =
+            encoder::encode_grayscale_jpeg_ls(&pixels, 6, 10, 8, u32::from(near)).unwrap();
+        assert_eq!(encoded, frame);
+    }
 }

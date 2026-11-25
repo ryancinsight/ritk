@@ -79,10 +79,11 @@ fn native_arrow_preserves_direction_location_and_input_ownership() {
     else {
         panic!("released drag stores one arrow");
     };
-    // Rightward motion decreases the source row under this transform.
+    // The fixture's rows point superior. With superior displayed at the top,
+    // the user's clockwise rotation puts increasing source rows to the right.
     assert_eq!(*source, location);
     assert_eq!(tail[1], head[1]);
-    assert!(tail[0] > head[0]);
+    assert!(tail[0] < head[0]);
     assert_eq!(draw_lines(&composed(&session, None)), preview);
     session.app.set_slice_for_axis(0, adjacent);
     session.refresh_frame().expect("compose adjacent image");

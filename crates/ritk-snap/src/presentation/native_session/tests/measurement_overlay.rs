@@ -76,15 +76,23 @@ pub(super) fn axial_panel(session: &NativeViewerSession) -> (usize, f64, f64, f6
         .position(|view| view.axis == 0)
         .expect("session composes an axial pane");
     let viewport = &session.viewports[index];
-    let width = f64::from(session.views[index].frame.width());
-    let height = f64::from(session.views[index].frame.height());
-    (
-        index,
-        viewport.image.x,
-        viewport.image.y,
-        viewport.image.width / width,
-        viewport.image.height / height,
-    )
+    let view = &session.views[index];
+    let width = f64::from(view.frame.width());
+    let height = f64::from(view.frame.height());
+    let image = viewport.image;
+    // Unrotated fixtures can store their first row or column at the far
+    // display edge. Give source-coordinate assertions a signed texel step.
+    let (x, dx) = if view.transform.flip_h {
+        (image.x + image.width, -image.width / width)
+    } else {
+        (image.x, image.width / width)
+    };
+    let (y, dy) = if view.transform.flip_v {
+        (image.y + image.height, -image.height / height)
+    } else {
+        (image.y, image.height / height)
+    };
+    (index, x, y, dx, dy)
 }
 
 pub(super) fn composed(
@@ -232,7 +240,9 @@ fn native_length_preview_draws_only_on_its_owning_slice() {
     let output_size = view.transform.output_size(view.source_size);
     let output_width = f64::from(u32::try_from(output_size[0]).expect("output width fits"));
     let output_height = f64::from(u32::try_from(output_size[1]).expect("output height fits"));
-    let expected = [[1.75, 3.5], [0.5, 0.75]].map(|[x, y]| {
+    // Storage rows increase toward superior. After the reading orientation,
+    // horizontal user flip and clockwise turn, [x, y] maps to [y, width - x].
+    let expected = [[0.25, 3.5], [1.5, 0.75]].map(|[x, y]| {
         (
             super::layout::screen_coordinate(
                 viewport.image.x + x / output_width * viewport.image.width,
