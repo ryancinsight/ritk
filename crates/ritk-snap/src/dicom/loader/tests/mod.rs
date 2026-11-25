@@ -1,8 +1,9 @@
 //! Tests for the loader module.
 
 pub(crate) mod fixtures;
+mod initial_ct;
+mod lossless_transfer;
 
-#[cfg(feature = "eframe-shell")]
 mod multiframe;
 #[cfg(feature = "eframe-shell")]
 mod presentation;

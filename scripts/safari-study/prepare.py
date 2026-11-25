@@ -1,4 +1,4 @@
-"""Stage only the two published test studies and instrument a disposable packaged copy."""
+"""Stage the public studies and synthetic geometry fixtures for the native Safari picker."""
 import json
 from pathlib import Path
 import shutil
@@ -8,6 +8,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 from browser_local_box_provenance import copy_bundle
 from workstation_admission import invalid_studies
+from browser_patient_position import write_stack
 
 root = HERE.parents[1]
 bundle = Path(sys.argv[1]).resolve(strict=True)
@@ -21,6 +22,14 @@ for name, files in (("MRI", mr), ("Comparison", mr + ct[:2])):
     directory.mkdir()
     for index, path in enumerate(files, 1):
         shutil.copyfile(path, directory / f"{name}-{index:08}.dcm")
+for name in ("Anchors", "Intersection"):
+    directory = stage / name
+    directory.mkdir()
+    first = write_stack(directory, 11, [(2*i, 200+i) for i in range(5)])
+    second = (write_stack(directory, 13, [(100+i, i) for i in range(9)], study=5, frame_uid=7)
+              if name == "Anchors" else write_stack(directory, 14, [(i, i) for i in range(3)], sagittal=True))
+    for index, path in enumerate(first + second, 1):
+        path.rename(directory / f"{name}-{index:08}.dcm")
 list(invalid_studies(stage))
 with (bundle / "gallery.css").open("a") as stylesheet:
     stylesheet.write("\n.qualification-link { position: fixed; right: 0; bottom: 0; background: white; }\n")

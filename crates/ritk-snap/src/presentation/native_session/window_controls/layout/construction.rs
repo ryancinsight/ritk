@@ -120,10 +120,13 @@ impl ChromeLayout {
             .saturating_add(geometry.toolbar_height.saturating_sub(button_height) / 2);
         let mut previous_group = None;
         for (label, requested_width, action, group) in TOOLBAR_ITEMS {
-            if workspace_layout.is_grid() && action == WindowAction::SelectTool(ToolKind::Crosshair)
+            let label = if workspace_layout.is_grid()
+                && action == WindowAction::SelectTool(ToolKind::Crosshair)
             {
-                continue;
-            }
+                "3D cursor"
+            } else {
+                label
+            };
             let control_width = requested_width.min(width.saturating_sub(control_x));
             if control_width == 0 || button_height == 0 {
                 break;

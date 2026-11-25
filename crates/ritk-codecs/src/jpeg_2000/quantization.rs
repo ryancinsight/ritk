@@ -156,6 +156,17 @@ pub fn step_size(r_b: u32, exponent: u32, mantissa: u32) -> f32 {
     (1.0 + mantissa as f32 / MANTISSA_SCALE) * 2f32.powi(exp)
 }
 
+/// Reconstruct the integer midpoint of the retained sign-magnitude interval.
+pub(super) fn reversible_midpoint(q: i32, lowest_plane: u32) -> anyhow::Result<i32> {
+    if q == 0 || lowest_plane == 0 {
+        return Ok(q);
+    }
+    // A nonzero decoded magnitude has a set bit at or above this plane.
+    let half_interval = 1_i64 << (lowest_plane - 1);
+    let midpoint = i64::from(q) + i64::from(q.signum()) * half_interval;
+    Ok(i32::try_from(midpoint)?)
+}
+
 /// Pack an (ε_b, μ_b) pair into the 16-bit scalar SPqcd field: ε in bits 15–11,
 /// μ in bits 10–0.
 #[inline]

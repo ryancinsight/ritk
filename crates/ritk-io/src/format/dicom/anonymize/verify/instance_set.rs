@@ -16,20 +16,23 @@ pub fn verify_dicom_instances(
     paths: &[PathBuf],
     options: &VerifyOptions,
 ) -> Vec<(PathBuf, VerifyIssue)> {
+    verify_reports(paths.iter().map(|path| {
+        verify_dicom_file(path, options).unwrap_or_else(|error| super::FileVerifyReport {
+            path: path.clone(),
+            issues: vec![VerifyIssue::ParseFailure(format!("{error:#}"))],
+            ..Default::default()
+        })
+    }))
+}
+
+pub(in crate::format::dicom::anonymize) fn verify_reports(
+    files: impl IntoIterator<Item = super::FileVerifyReport>,
+) -> Vec<(PathBuf, VerifyIssue)> {
     let mut issues = Vec::new();
-    let mut sop_seen: HashSet<String> = HashSet::with_capacity(paths.len());
+    let mut sop_seen = HashSet::new();
     let mut study_of_series: HashMap<String, String> = HashMap::new();
-    for path in paths {
-        let file = match verify_dicom_file(path, options) {
-            Ok(file) => file,
-            Err(error) => {
-                issues.push((
-                    path.clone(),
-                    VerifyIssue::ParseFailure(format!("{error:#}")),
-                ));
-                continue;
-            }
-        };
+    for file in files {
+        let path = &file.path;
         let uid = |name: &str| {
             file.uids
                 .iter()

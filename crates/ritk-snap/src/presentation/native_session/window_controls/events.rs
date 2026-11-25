@@ -8,12 +8,24 @@ use super::super::series_browser::SeriesBrowser;
 use super::layout::ChromeLayout;
 use super::multi_series::DialogAction;
 use super::slice_drag::SliceDrag;
-use super::{PanelCloseKind, PointerOwner, WindowAction, WindowChrome, WindowChromeEvent};
+use super::{Menu, PanelCloseKind, PointerOwner, WindowAction, WindowChrome, WindowChromeEvent};
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
 use anyhow::{anyhow, Result};
 
 impl WindowChrome {
+    fn toggle_menu(&mut self, menu: Menu) -> WindowChromeEvent {
+        self.open_menu = (self.open_menu != Some(menu)).then_some(menu);
+        WindowChromeEvent {
+            consumed: true,
+            repaint: true,
+            action: self
+                .open_menu
+                .filter(|m| matches!(m, Menu::View | Menu::Anonymize))
+                .map(WindowAction::OpenMenu),
+        }
+    }
+
     pub(in crate::presentation::native_session) fn handle_event(
         &mut self,
         event: &PresentationEvent,
@@ -104,44 +116,28 @@ impl WindowChrome {
         if self.open_menu.is_none()
             && let PresentationEvent::KeyDown {
                 virtual_key,
-                repeated: false,
+                repeated,
                 modifiers,
             } = event
             && *modifiers == PresentationModifiers::NONE
+            && let Some(index) = browser.as_ref().and_then(|catalog| {
+                catalog.keyboard_target(
+                    *virtual_key,
+                    displayed_series.get(active_panel).copied().flatten(),
+                )
+            })
         {
-            let current_series = displayed_series
-                .get(active_panel)
-                .copied()
-                .flatten()
-                .or_else(|| browser.as_ref().map(SeriesBrowser::active_index));
-            let index = match *virtual_key {
-                0x24 => browser
-                    .as_ref()
-                    .filter(|_| current_series.is_some_and(|current| current != 0))
-                    .map(|_| 0),
-                0x23 => browser.as_ref().and_then(|browser| {
-                    current_series
-                        .is_some_and(|current| current.saturating_add(1) < browser.len())
-                        .then_some(browser.len().saturating_sub(1))
-                }),
-                0x25 => browser
-                    .as_ref()
-                    .and_then(|browser| adjacent_series(browser, current_series?, -1)),
-                0x27 => browser
-                    .as_ref()
-                    .and_then(|browser| adjacent_series(browser, current_series?, 1)),
-                _ => None,
-            };
-            if let Some(index) = index {
-                return Ok(WindowChromeEvent {
-                    consumed: true,
-                    repaint: true,
-                    action: Some(WindowAction::BrowseSeries {
-                        series_index: index,
-                        panel_index: active_panel,
-                    }),
-                });
+            if *repeated {
+                return Ok(WindowChromeEvent::consumed(false));
             }
+            return Ok(WindowChromeEvent {
+                consumed: true,
+                repaint: false,
+                action: Some(WindowAction::BrowseSeries {
+                    series_index: index,
+                    panel_index: active_panel,
+                }),
+            });
         }
         if matches!(
             event,
@@ -186,8 +182,14 @@ impl WindowChrome {
                 x,
                 y,
                 button,
-                modifiers: PresentationModifiers::NONE,
-            } => {
+                modifiers,
+            } if *modifiers == PresentationModifiers::NONE
+                || (cfg!(target_arch = "wasm32")
+                    && *button == PointerButton::Left
+                    && *modifiers == PresentationModifiers::new(false, true, false, false)
+                    && layout.action_at(*x, *y, browser.as_ref())
+                        == Some(WindowAction::OpenStudy)) =>
+            {
                 self.forget_lost_release(*button);
                 if self.pointer_owner == PointerOwner::None && *button == PointerButton::Left {
                     let panel_action = (self.open_menu.is_none()
@@ -224,8 +226,7 @@ impl WindowChrome {
                             return Ok(self.open_calibration(app, active_panel));
                         }
                         if let Some(WindowAction::OpenMenu(menu)) = action {
-                            self.open_menu = (self.open_menu != Some(menu)).then_some(menu);
-                            return Ok(WindowChromeEvent::consumed(true));
+                            return Ok(self.toggle_menu(menu));
                         }
                         if let Some(action) = action {
                             self.open_menu = None;
@@ -294,8 +295,7 @@ impl WindowChrome {
                     }
                     let action = layout.action_at(*x, *y, browser.as_ref());
                     if let Some(WindowAction::OpenMenu(menu)) = action {
-                        self.open_menu = (self.open_menu != Some(menu)).then_some(menu);
-                        return Ok(WindowChromeEvent::consumed(true));
+                        return Ok(self.toggle_menu(menu));
                     }
                     if let Some(action) = action {
                         self.open_menu = None;

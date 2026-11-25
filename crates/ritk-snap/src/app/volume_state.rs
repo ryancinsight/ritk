@@ -80,6 +80,11 @@ impl SnapApp {
             .map_or(MeasurementSpacingState::Unavailable, |(in_plane, slice)| {
                 MeasurementSpacingState::Qualified { in_plane, slice }
             });
+        #[cfg(any(windows, target_arch = "wasm32"))]
+        {
+            self.patient_stacks =
+                crate::geometry::patient_stack::PatientStack::displayed_planes(&vol);
+        }
         self.loaded = Some(vol);
         self.viewer_state = state;
         self.axis = protocol.preferred_axis.min(2);
@@ -262,6 +267,10 @@ impl SnapApp {
     pub(crate) fn close_study(&mut self) {
         self.cancel_load_tasks();
         self.loaded = None;
+        #[cfg(windows)]
+        {
+            self.patient_stacks = [None, None, None];
+        }
         self.loaded_secondary = None;
         self.series_load_target = SeriesLoadTarget::Primary;
         self.secondary_window_center = None;

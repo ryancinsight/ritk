@@ -334,6 +334,16 @@ jobs:
           raise SystemExit(f"WebDriver did not become ready within 20 seconds: {last_error}")
           PY
 
+      - name: Open the downloaded MRI by folder through the toolbar
+        if: matrix.result == 'chromium'
+        working-directory: ritk
+        env:
+          PYTHONPATH: ${{ github.workspace }}/metis/scripts
+        run: >-
+          python scripts/verify_study_folder.py test_data/2_head_mri_t2
+          --series 1 --slices 94 --individual-file test_data/2_head_mri_t2/DICOM/00000001.dcm --bundle ../metis/output/browser
+          --driver-url "${{ matrix.driver_url }}"
+
       - name: Read and compare saved studies in the workstation
         if: matrix.engine != 'webkit'
         working-directory: ritk

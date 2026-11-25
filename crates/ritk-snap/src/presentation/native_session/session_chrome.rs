@@ -45,11 +45,15 @@ impl NativeViewerSession {
                     .compare_panels
                     .get(index - 1)
                     .ok_or_else(|| anyhow!("series panel state is missing"))?;
-                (&panel.app, panel.axial_view())
+                (&panel.app, panel.rendered_view())
             } else {
                 let view = self
                     .views
-                    .get(index)
+                    .get(if self.workspace_layout.is_grid() {
+                        self.app.axis
+                    } else {
+                        index
+                    })
                     .ok_or_else(|| anyhow!("native viewport has no slice frame"))?;
                 (&self.app, view)
             };
@@ -114,7 +118,11 @@ impl NativeViewerSession {
 
     pub(super) fn render_crosshair_overlay(&mut self) -> Result<()> {
         if self.workspace_layout.is_grid() {
-            return Ok(());
+            return if self.grid_cursor.visible() {
+                self.render_grid_cursor()
+            } else {
+                self.render_reference_lines()
+            };
         }
         let shape = self.app.loaded.as_ref().map(|volume| volume.shape);
         let cursor = self.app.linked_cursor.map(|cursor| cursor.voxel());
@@ -165,14 +173,21 @@ impl NativeViewerSession {
         > = ArrayVec::new();
         let mut displayed_series: ArrayVec<Option<usize>, MAX_GRID_PANELS> = ArrayVec::new();
         series_previews
-            .try_push(Some(views[0].frame()))
+            .try_push(Some(
+                views[if workspace_layout.is_grid() {
+                    primary_app.axis
+                } else {
+                    0
+                }]
+                .frame(),
+            ))
             .map_err(|_| anyhow::anyhow!("native series preview capacity exceeded"))?;
         displayed_series
             .try_push(primary_series_index)
             .map_err(|_| anyhow::anyhow!("native displayed-series capacity exceeded"))?;
         for panel in compare_panels.iter().take(visible_panels.saturating_sub(1)) {
             series_previews
-                .try_push(panel.series_index.map(|_| panel.axial_view().frame()))
+                .try_push(panel.series_index.map(|_| panel.rendered_view().frame()))
                 .map_err(|_| anyhow::anyhow!("native series preview capacity exceeded"))?;
             displayed_series
                 .try_push(panel.series_index)

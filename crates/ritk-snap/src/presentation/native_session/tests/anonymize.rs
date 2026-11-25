@@ -1,9 +1,8 @@
 //! De-identified export of the open study from the native shell.
 
 use super::*;
-use crate::presentation::native_session::deidentify::{
-    failure_status, AnonymizationScope, Deidentification,
-};
+use crate::presentation::native_session::deidentify::failure_status;
+use crate::presentation::native_session::export_profile::{AnonymizationScope, Deidentification};
 use ritk_io::format::dicom::anonymize::verify::{
     verify_dicom_instances, VerifyIssue, VerifyOptions,
 };
@@ -296,3 +295,49 @@ fn native_anonymize_failure_names_the_first_issue_and_its_file() {
         "De-identified export failed: no DICOM instance found under \"study\""
     );
 }
+
+#[test]
+fn native_anonymize_status_omits_the_identifying_value_and_its_source_filename() {
+    for issue in [
+        VerifyIssue::PatientLeak {
+            value: "fixture-identity".into(),
+        },
+        VerifyIssue::ResidualIdentifier {
+            tag: "PatientID".into(),
+            value: "fixture-identity".into(),
+        },
+    ] {
+        let error = anyhow::Error::from(StudyAnonymizeError::Verification(vec![(
+            PathBuf::from("fixture-identity.dcm"),
+            issue,
+        )]));
+        assert_eq!(failure_status(&error), "De-identified export failed: 1 verification issue(s) in the export; identifying metadata remains in the copy.");
+    }
+}
+
+#[test]
+fn native_anonymize_hides_identity_when_an_earlier_issue_is_structural() {
+    let path = PathBuf::from("fixture-identity.dcm");
+    let issues = vec![
+        (
+            path.clone(),
+            VerifyIssue::MissingUid {
+                tag: "SeriesInstanceUID".into(),
+            },
+        ),
+        (
+            path.clone(),
+            VerifyIssue::PatientLeak {
+                value: "fixture-identity".into(),
+            },
+        ),
+    ];
+    let error = anyhow::Error::from(StudyAnonymizeError::Retained {
+        cause: Box::new(StudyAnonymizeError::Verification(issues)),
+        paths: vec![path],
+    });
+    assert_eq!(failure_status(&error),
+        "De-identified export failed: 2 verification issue(s) in the export; 1 written file(s) could not be removed; identifying metadata remains in the copy.");
+}
+
+mod exported_copy;

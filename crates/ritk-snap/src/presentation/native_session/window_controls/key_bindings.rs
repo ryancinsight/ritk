@@ -49,6 +49,7 @@ pub(super) fn global_key_action(
         return Some(WindowAction::SaveCustomPreset { index: Some(index) });
     }
     match (virtual_key, ctrl, shift) {
+        (0x51, false, false) if !alt => Some(WindowAction::SelectTool(ToolKind::Crosshair)),
         (0x4d, false, false) => Some(WindowAction::SelectTool(ToolKind::Pan)),
         (key, false, false) if key == crate::ui::tool_shortcuts::VIRTUAL_KEY_MEASURE_COBB => {
             Some(WindowAction::SelectTool(ToolKind::MeasureCobb))
@@ -72,6 +73,11 @@ pub(super) fn global_key_action(
             Some(WindowAction::SelectTool(ToolKind::Pencil))
         }
         (0x47, false, false) => Some(WindowAction::SelectTool(ToolKind::RoiClosedPolygon)),
+        (0x7b, true, false) if !alt => Some(WindowAction::ToggleReferenceLines),
+        (0x75, false, false) if !alt => Some(WindowAction::ToggleNavigationLink),
+        (0x75, false, true) if !alt => Some(WindowAction::ToggleWindowLink),
+        (0x74, false, true) if !alt => Some(WindowAction::AlignCurrentSlices),
+        (0x74, false, false) if !alt => Some(WindowAction::TogglePositionSync),
         (0x73, false, false) => Some(WindowAction::OpenSeriesPicker),
         (0x73, true, false) => Some(WindowAction::CloseActivePanel),
         (0x73, false, true) => Some(WindowAction::CloseAllPanels),

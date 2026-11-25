@@ -223,26 +223,30 @@ fn tools_menu_hit_tests_pointer_button_assignment_rows() {
 }
 
 #[test]
-fn panel_layout_hides_crosshair_controls_that_are_not_rendered() {
+fn comparison_layout_exposes_the_cursor_and_orthogonal_layout_keeps_its_overlays() {
     let app = SnapApp::default();
     let workspace = WorkspaceLayout::Panels(PanelGrid::new(2, 1).expect("two-panel layout"));
     let toolbar = ChromeLayout::new(1_280, 800, None, &app, true, workspace)
         .expect("comparison toolbar layout");
-    assert_eq!(
-        toolbar.action_center(WindowAction::SelectTool(ToolKind::Crosshair)),
-        None
-    );
+    assert!(toolbar
+        .action_center(WindowAction::SelectTool(ToolKind::Crosshair))
+        .is_some());
 
     for (menu, action) in [
         (Menu::View, WindowAction::ToggleCrosshair),
         (Menu::View, WindowAction::ToggleOverlay),
         (Menu::View, WindowAction::ToggleAnonymizedOverlay),
-        (Menu::Tools, WindowAction::SelectTool(ToolKind::Crosshair)),
     ] {
         let layout = ChromeLayout::new(1_280, 800, Some(menu), &app, true, workspace)
             .expect("comparison menu layout");
         assert_eq!(layout.action_center(action), None);
     }
+
+    let tools = ChromeLayout::new(1280, 800, Some(Menu::Tools), &app, true, workspace)
+        .expect("comparison tools");
+    assert!(tools
+        .action_center(WindowAction::SelectTool(ToolKind::Crosshair))
+        .is_some());
 
     let view_menu = ChromeLayout::new(
         1_280,

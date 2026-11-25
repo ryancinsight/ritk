@@ -44,6 +44,7 @@ impl NativeViewerSession {
     /// End every held pane gesture because what its pane shows, or where
     /// pointer input goes, has changed.
     pub(super) fn end_held_gestures(&mut self) {
+        self.grid_cursor = Default::default();
         self.window_chrome.cancel_pointer_capture();
         if self.captured_buttons.is_empty() {
             return;
@@ -88,9 +89,12 @@ impl NativeApplication for NativeViewerSession {
         &mut self,
         events: &[WindowEvent],
     ) -> std::result::Result<NativeFlow, NativeViewerError> {
-        let translated = translate_native_events(events).map_err(|error| {
+        let mut translated = translate_native_events(events).map_err(|error| {
             NativeViewerError::new(format!("translate Métis native events: {error}"))
         })?;
+        if self.workspace_layout.is_grid() {
+            self.window_chrome.attach_cursor_chord(&mut translated);
+        }
         let now = self.elapsed_seconds();
         Ok(match self.reduce_events(translated, now)? {
             Some(repaint) => NativeFlow::Continue { repaint },
@@ -173,7 +177,6 @@ impl NativeViewerSession {
         } else {
             false
         };
-        let mut study_reopened = false;
         let mut chrome_repaint = false;
         let mut chrome_actions = Vec::new();
         chrome_actions
@@ -321,7 +324,7 @@ impl NativeViewerSession {
         // reduced, so translate those original panel slots through this map.
         let mut panel_routes = PanelRouteMap::new(routed.layout);
 
-        let mut open_study_requested = !terminal
+        let mut open_study_requested = (!terminal
             && viewer_events.iter().any(|event| {
                 matches!(
                     event,
@@ -331,7 +334,8 @@ impl NativeViewerSession {
                         modifiers,
                     } if modifiers.ctrl()
                 )
-            });
+            }))
+        .then_some(WindowAction::OpenStudy);
         let mut chrome_exit = false;
         let mut viewer_exit = false;
         let mut viewer_repaint = false;
@@ -359,25 +363,22 @@ impl NativeViewerSession {
                 break;
             }
             let action = match (is_keyboard, action) {
-                (true, WindowAction::BrowseSeries { series_index, .. }) => {
-                    let panel_index = self.active_panel;
-                    Some(WindowAction::BrowseSeries {
-                        series_index: keyboard_key
-                            .and_then(|(virtual_key, modifiers)| {
-                                self.resolve_keyboard_series(virtual_key, modifiers, panel_index)
-                            })
-                            .unwrap_or(series_index),
-                        panel_index,
+                (true, WindowAction::BrowseSeries { .. }) => keyboard_key
+                    .and_then(|(key, modifiers)| {
+                        self.resolve_keyboard_series(key, modifiers, self.active_panel)
                     })
-                }
+                    .map(|series_index| WindowAction::BrowseSeries {
+                        series_index,
+                        panel_index: self.active_panel,
+                    }),
                 (false, action) => panel_routes.route_action(action),
                 (true, action) => Some(action),
             };
             let Some(action) = action else {
                 continue;
             };
-            if action == WindowAction::OpenStudy {
-                open_study_requested = true;
+            if action.opens_study() {
+                open_study_requested = Some(action);
             } else {
                 let maximized_before = self.maximized_panel.map(|panel| panel.panel_index);
                 let active_before = self.active_panel;
@@ -416,16 +417,10 @@ impl NativeViewerSession {
                 ViewerActionDisposition::Exit => viewer_exit = true,
             }
         }
-        if !chrome_exit && !viewer_exit && open_study_requested {
-            match self.open_study_from_dialog() {
-                Ok(reopened) => study_reopened |= reopened,
-                Err(error) => {
-                    self.active_app_mut().status_message =
-                        format!("DICOM reopen failed; current study remains displayed: {error:#}");
-                    study_reopened = true;
-                }
-            }
-        }
+        let study_reopened = match open_study_requested {
+            Some(action) if !chrome_exit && !viewer_exit => self.apply_window_action(action)?,
+            _ => false,
+        };
         if self.workspace_layout != routed.layout {
             self.end_held_gestures();
         }

@@ -1,4 +1,8 @@
-import init, { AsterSliceWorkspace } from "./consumer/ritk_snap.js";
+function assetUrl(path) {
+  const url = new URL(path, import.meta.url);
+  url.search = new URL(import.meta.url).search;
+  return url;
+}
 
 const canvas = document.querySelector("#workstation");
 const notice = document.querySelector("#notice");
@@ -9,6 +13,22 @@ const modifiers = e => Number(e.ctrlKey || e.metaKey) | Number(e.shiftKey) << 1 
 function report(error) {
   notice.textContent = String(error);
   notice.hidden = false;
+}
+
+// Preserve the relative path for equal filenames in different series folders.
+// Hand the original Blob bytes to the same bounded reader as an explicit file selection.
+async function dicomFolderFiles(files, current) {
+  const selection = new DataTransfer();
+  for (const file of files) {
+    if (!current()) return null;
+    if (file.name.toUpperCase() === "DICOMDIR") continue;
+    // Match the native discovery rule, including Part 10 files with arbitrary extensions.
+    if (!/\.(dcm|dicom|ima)$/i.test(file.name) &&
+        await file.slice(128, 132).text() !== "DICM") continue;
+    selection.items.add(new File([file], file.webkitRelativePath || file.name, {type: file.type}));
+  }
+  if (!selection.files.length) throw new Error("No DICOM images found in this folder.");
+  return selection.files;
 }
 
 async function presenter(renderer) {
@@ -30,17 +50,37 @@ async function presenter(renderer) {
 }
 
 async function start() {
-  await init();
+  const {default: init, AsterSliceWorkspace} = await import(assetUrl("./consumer/ritk_snap.js"));
+  await init({module_or_path: assetUrl("./consumer/ritk_snap_bg.wasm")});
   const query = new URLSearchParams(location.search);
   const draw = await presenter(query.get("renderer"));
   const viewer = new AsterSliceWorkspace(query.get("layout") === "responsive" ? "responsive" : query.get("projection") ?? "");
   const input = document.querySelector("#file-input");
+  const folder = document.querySelector("#study-folder");
   const zone = document.querySelector("#drop-zone");
-  if (!input || !zone) throw new Error("The study picker could not start.");
+  if (!input || !folder || !zone) throw new Error("The study picker could not start.");
   const listeners = new AbortController();
   const listen = (el, name, handler, options = {}) => el.addEventListener(name, handler,
     {...options, signal: listeners.signal});
-  listen(input, "change", () => { input.value = ""; });
+  let selectionId = 0;
+  const supersedeSelection = () => { selectionId++; };
+  listen(zone, "drop", supersedeSelection, {capture: true});
+  listen(input, "change", () => { supersedeSelection(); input.value = ""; });
+  listen(folder, "change", async () => {
+    const files = Array.from(folder.files);
+    folder.value = "";
+    if (!files.length) return;
+    const id = ++selectionId;
+    const current = () => id === selectionId && !listeners.signal.aborted;
+    try {
+      const selected = await dicomFolderFiles(files, current);
+      if (!current()) return;
+      input.files = selected;
+      input.dispatchEvent(new Event("change", {bubbles: true}));
+    } catch (error) {
+      if (current()) report(error);
+    }
+  });
   let frame;
   let sized = false;
   const resize = () => {
@@ -62,7 +102,23 @@ async function start() {
     if (!e.isTrusted) return;
     try {
       callback(e);
-      if (viewer.take_open_request()) { input.value = ""; input.click(); }
+      const download = viewer.take_export_download();
+      if (download) {
+        const [filename, bytes] = download;
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(new Blob([bytes], {type: "application/zip"}));
+        link.download = filename;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
+      }
+      if (viewer.take_open_request()) {
+        // Shift-click retains the explicit multi-file picker, including single NIfTI volumes.
+        const picker = !e.shiftKey && "webkitdirectory" in folder ? folder : input;
+        picker.value = "";
+        picker.click();
+      }
     } catch (error) { report(error); }
   };
   for (const phase of ["pointerdown", "pointerup", "pointermove", "pointercancel"]) {
@@ -90,8 +146,8 @@ async function start() {
       // Reserve navigation keys that have a competing browser default. Forward
       // every key to the workstation so F4, Tab and their modifiers stay native.
       if (["Tab", " ", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown",
-           "ArrowRight", "ArrowLeft", "Backspace", "F4"].includes(e.key) ||
-          ((e.ctrlKey || e.metaKey) && ["KeyO", "KeyM", "Digit0"].includes(e.code))) {
+           "ArrowRight", "ArrowLeft", "Backspace", "F4", "F5", "F6"].includes(e.key) ||
+          ((e.ctrlKey || e.metaKey) && ["KeyO", "KeyM", "Digit0", "F12"].includes(e.code))) {
         e.preventDefault();
       }
       viewer.key(phase === "keydown", e.keyCode, e.repeat, modifiers(e), now());

@@ -1,7 +1,7 @@
 //! Browser series retain their selected Part 10 payloads for later panel assignments.
 use super::*;
 use crate::dicom::loader::{load_volume_from_preview_bytes, load_volume_from_scanned_series};
-use crate::dicom::series_tree::SeriesEntry;
+use crate::dicom::series_tree::DiscoveredSeries;
 use std::collections::BTreeMap;
 
 impl SeriesBrowser {
@@ -23,10 +23,10 @@ impl SeriesBrowser {
                 meta.patient_id.clone().unwrap_or_default(),
                 meta.slices.iter().map(|slice| slice.path.clone()).collect(),
             );
-            entries.push(SeriesEntry::with_metadata(info, meta));
+            entries.push(DiscoveredSeries::new(info, meta));
             sources.insert(uid.to_owned(), scan);
         }
-        let mut browser = Self::from_tree(&SeriesTree::from_entries(entries), None)?;
+        let mut browser = Self::from_tree(&SeriesTree::from_discovery(entries), None)?;
         browser.sources = sources;
         Ok(browser)
     }
@@ -43,6 +43,23 @@ impl SeriesBrowser {
             .get(choice.acquisition.series_instance_uid())
             .ok_or_else(|| anyhow!("missing selected series bytes"))?;
         load_volume_from_scanned_series(scan.clone())
+    }
+
+    pub(in crate::presentation::native_session) fn export_files(
+        &self,
+        choice: &SeriesChoice,
+    ) -> Result<impl Iterator<Item = Result<(&std::path::Path, &[u8])>>> {
+        let scan = self
+            .sources
+            .get(choice.acquisition.series_instance_uid())
+            .ok_or_else(|| anyhow!("missing selected series"))?;
+        Ok(scan.metadata.slices.iter().map(|slice| {
+            let bytes = slice
+                .part10_bytes
+                .as_deref()
+                .ok_or_else(|| anyhow!("missing DICOM instance"))?;
+            Ok((slice.path.as_path(), bytes))
+        }))
     }
 
     pub(super) fn preview_volume(&self, choice: &SeriesChoice) -> Result<crate::LoadedVolume> {

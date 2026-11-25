@@ -91,8 +91,13 @@ fn native_manual_annotation_frames() {
         .set_workspace_layout(WorkspaceLayout::Panels(grid))
         .expect("show a single annotation pane");
     viewer.refresh_frame().expect("display the annotation pane");
-    let (pane, origin_x, origin_y, sx, sy) = axial_panel(&viewer);
+    let (pane, ..) = axial_panel(&viewer);
     let image = viewer.viewports[pane].image;
+    let view = &viewer.views[pane];
+    let transform = view.transform;
+    let source_size = view.source_size;
+    let width = f64::from(view.frame.width());
+    let height = f64::from(view.frame.height());
     let point = |x: f64, y: f64| {
         (
             screen_coordinate(x.mul_add(image.width, image.x), "manual x").expect("screen x"),
@@ -159,11 +164,12 @@ fn native_manual_annotation_frames() {
         panic!("the edited length is recorded");
     };
     let stored = |(x, y): (i32, i32)| {
-        [
-            (f64::from(y) - origin_y) / sy,
-            (f64::from(x) - origin_x) / sx,
-        ]
-        .map(<f32 as FloatElement>::from_f64)
+        let displayed = [
+            (f64::from(x) - image.x) / image.width * width,
+            (f64::from(y) - image.y) / image.height * height,
+        ];
+        let [column, row] = transform.output_to_source_coordinates(displayed, source_size);
+        [row, column].map(<f32 as FloatElement>::from_f64)
     };
     let start = stored(point(0.32, 0.23));
     let end = stored(point(0.32, 0.29));

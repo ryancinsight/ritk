@@ -9,8 +9,8 @@ mod series;
 mod slice_drag;
 use self::layout::{ChromeGeometry, ChromeLayout};
 use self::multi_series::MultiSeriesDialog;
-#[cfg(windows)]
-use super::deidentify::{AnonymizationScope, Deidentification};
+
+use super::export_profile::{AnonymizationScope, Deidentification};
 use super::layout::{ViewportArea, WorkspaceLayout};
 use super::pressed_buttons::PressedButtons;
 use super::series_browser::SeriesBrowser;
@@ -29,7 +29,7 @@ pub(super) enum Menu {
     Tools,
     Window,
     Display,
-    #[cfg(windows)]
+
     Anonymize,
     GridPicker,
 }
@@ -38,8 +38,10 @@ pub(super) enum Menu {
 pub(super) enum WindowAction {
     OpenMenu(Menu),
     OpenStudy,
-    #[cfg(windows)]
+
     Anonymize(AnonymizationScope, Deidentification),
+
+    OpenExportedCopy,
     #[cfg(windows)]
     RepairStudy,
     OpenSeriesPicker,
@@ -84,7 +86,13 @@ pub(super) enum WindowAction {
     },
     ToggleSeriesPreview,
     SetLayout(WorkspaceLayout),
+    SetPlane(crate::ui::AnatomicalPlane),
     ToggleCrosshair,
+    TogglePositionSync,
+    ToggleNavigationLink,
+    ToggleWindowLink,
+    AlignCurrentSlices,
+    ToggleReferenceLines,
     ToggleOverlay,
     ToggleAnonymizedOverlay,
     ToggleCine,
@@ -133,6 +141,16 @@ pub(super) struct WindowChromeEvent {
     pub(super) action: Option<WindowAction>,
 }
 
+impl WindowAction {
+    /// Defer catalog replacement until all input routed against the old frame has run.
+    pub(super) fn opens_study(self) -> bool {
+        if self == Self::OpenExportedCopy {
+            return true;
+        }
+        self == Self::OpenStudy
+    }
+}
+
 impl WindowChromeEvent {
     const fn consumed(repaint: bool) -> Self {
         Self {
@@ -157,6 +175,8 @@ pub(super) struct WindowChrome {
     open_menu: Option<Menu>,
     multi_series_dialog: Option<MultiSeriesDialog>,
     calibration: Option<calibration::CalibrationDialog>,
+    pub(super) link_navigation: bool,
+    pub(super) link_window: bool,
     show_series_preview: bool,
     modifiers: PresentationModifiers,
     pointer_owner: PointerOwner,
@@ -165,7 +185,28 @@ pub(super) struct WindowChrome {
 
 impl WindowChrome {
     fn observe_modifiers(&mut self, event: &PresentationEvent) {
-        self.modifiers = match event {
+        self.modifiers = Self::updated_modifiers(self.modifiers, event);
+    }
+
+    #[cfg(windows)]
+    pub(super) fn attach_cursor_chord(&self, events: &mut [PresentationEvent]) {
+        let mut keys = self.modifiers;
+        for event in events {
+            keys = Self::updated_modifiers(keys, event);
+            if keys.ctrl()
+                && keys.shift()
+                && let PresentationEvent::PointerDown { modifiers, .. } = event
+            {
+                *modifiers = keys;
+            }
+        }
+    }
+
+    fn updated_modifiers(
+        previous: PresentationModifiers,
+        event: &PresentationEvent,
+    ) -> PresentationModifiers {
+        match event {
             PresentationEvent::KeyDown {
                 virtual_key,
                 modifiers,
@@ -188,8 +229,8 @@ impl WindowChrome {
             PresentationEvent::KeyDown { modifiers, .. }
             | PresentationEvent::KeyUp { modifiers, .. } => *modifiers,
             PresentationEvent::FocusLost => PresentationModifiers::NONE,
-            _ => return,
-        };
+            _ => previous,
+        }
     }
 
     pub(super) const fn new(visible: bool) -> Self {
@@ -198,6 +239,8 @@ impl WindowChrome {
             open_menu: None,
             multi_series_dialog: None,
             calibration: None,
+            link_navigation: true,
+            link_window: false,
             show_series_preview: true,
             modifiers: PresentationModifiers::NONE,
             pointer_owner: PointerOwner::None,
@@ -283,7 +326,7 @@ impl WindowChrome {
         if !self.visible {
             return Ok(());
         }
-        let layout = ChromeLayout::new(
+        let mut layout = ChromeLayout::new(
             framebuffer.width(),
             framebuffer.height(),
             self.open_menu,
@@ -291,6 +334,7 @@ impl WindowChrome {
             self.show_series_preview,
             workspace_layout,
         )?;
+        layout.mark_display_links(self.link_navigation, self.link_window);
         if let Some(series_browser) = browser.as_deref_mut() {
             series::prepare_thumbnails(
                 series_browser,

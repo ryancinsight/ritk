@@ -1,7 +1,6 @@
 //! Shared native session fixtures for the sibling test modules.
 
 use super::*;
-#[cfg(feature = "eframe-shell")]
 use crate::presentation::PresentationFrame;
 use crate::LoadedVolume;
 
@@ -100,19 +99,37 @@ pub(super) fn session_with_volume(
     )
 }
 
-#[cfg(feature = "eframe-shell")]
-pub(super) fn expected_native_frame(
+/// Compare the displayed rows to the fixture's declared storage order.
+pub(super) fn assert_multiframe_rows(
     session: &NativeViewerSession,
     axis: usize,
-) -> PresentationFrame {
+    reverse_rows: bool,
+) {
     let volume = session.app.loaded.as_ref().expect("loaded volume");
     let (index, _) = session.app.axis_slice_info(axis);
-    PresentationFrame::from_slice(
+    let raw = PresentationFrame::from_slice(
         volume,
         axis,
         index,
         super::super::frame::window_level_for_app(&session.app),
         session.app.colormap,
     )
-    .expect("expected native frame")
+    .expect("independent stored slice");
+    let displayed = session.views[axis].frame();
+    assert_eq!(
+        (displayed.width(), displayed.height()),
+        (raw.width(), raw.height())
+    );
+    assert_eq!(displayed.display_spacing(), raw.display_spacing());
+    let stride = usize::try_from(raw.width()).expect("small fixture width") * 4;
+    let rows = raw.rgba().chunks_exact(stride);
+    for (y, displayed_row) in displayed.rgba().chunks_exact(stride).enumerate() {
+        let source_y = if reverse_rows { rows.len() - 1 - y } else { y };
+        let start = source_y * stride;
+        assert_eq!(
+            displayed_row,
+            &raw.rgba()[start..start + stride],
+            "axis {axis}, row {y}"
+        );
+    }
 }

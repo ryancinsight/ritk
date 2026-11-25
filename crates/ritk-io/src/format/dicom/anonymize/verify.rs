@@ -72,7 +72,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 mod geometry;
-mod instance_set;
+pub(super) mod instance_set;
 mod leak_scan;
 
 use geometry::check_geometry;
@@ -241,26 +241,37 @@ pub fn verify_dicom_file(
     options: &VerifyOptions,
 ) -> Result<FileVerifyReport> {
     let path = path.as_ref();
-    let mut report = FileVerifyReport {
-        path: path.to_path_buf(),
-        ..Default::default()
-    };
 
     let obj: DicomFile = match ritk_dicom::dataset::DicomFile::open(path) {
         Ok(o) => o,
         Err(e) => {
-            report.issues.push(VerifyIssue::ParseFailure(e.to_string()));
-            return Ok(report);
+            return Ok(FileVerifyReport {
+                path: path.to_owned(),
+                issues: vec![VerifyIssue::ParseFailure(e.to_string())],
+                ..Default::default()
+            });
         }
     };
 
+    Ok(verify_object(&obj, path, options))
+}
+
+pub(super) fn verify_object(
+    obj: &DicomFile,
+    path: &Path,
+    options: &VerifyOptions,
+) -> FileVerifyReport {
+    let mut report = FileVerifyReport {
+        path: path.to_owned(),
+        ..Default::default()
+    };
     // ── 1. UID presence + format ──────────────────────────────────────────
     for (name, tag) in [
         ("StudyInstanceUID", DicomTag::new(0x0020, 0x000D)),
         ("SeriesInstanceUID", DicomTag::new(0x0020, 0x000E)),
         ("SOPInstanceUID", DicomTag::new(0x0008, 0x0018)),
     ] {
-        let value = tag_uid(&obj, tag);
+        let value = tag_uid(obj, tag);
         if options.require_uids {
             match &value {
                 Some(v) => {
@@ -282,7 +293,7 @@ pub fn verify_dicom_file(
     }
     // Never required: the verifier does not resolve the IOD, and an object
     // without a spatial frame carries no Frame of Reference UID.
-    if let Some(v) = tag_uid(&obj, DicomTag::new(0x0020, 0x0052)) {
+    if let Some(v) = tag_uid(obj, DicomTag::new(0x0020, 0x0052)) {
         if options.validate_uid_format && !uid_is_valid(&v) {
             report.issues.push(VerifyIssue::InvalidUid {
                 tag: "FrameOfReferenceUID".to_owned(),
@@ -293,19 +304,19 @@ pub fn verify_dicom_file(
     }
     report
         .issues
-        .extend(super::file_meta::media_storage_uid_issue(&obj));
+        .extend(super::file_meta::media_storage_uid_issue(obj));
 
     // ── 2. Geometry coherence ─────────────────────────────────────────────
     if options.validate_pixel_geometry {
-        check_geometry(&obj, &mut report);
+        check_geometry(obj, &mut report);
     }
 
     // ── 3. Prohibited-value leak scan ─────────────────────────────────────
     if !options.prohibited_values.is_empty() {
-        scan_prohibited_values(&obj, &options.prohibited_values, &mut report);
+        scan_prohibited_values(obj, &options.prohibited_values, &mut report);
     }
 
-    Ok(report)
+    report
 }
 
 // ─── Cross-file verification (directory) ──────────────────────────────────────

@@ -7,6 +7,8 @@ import shutil
 import tempfile
 from urllib.parse import parse_qs, urlencode, urljoin
 from browser_local_box_provenance import copy_bundle
+from browser_navigation import verify_navigation
+from browser_patient_position import verify_patient_position
 from pathlib import Path
 from workstation_admission import invalid_studies
 
@@ -87,6 +89,7 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
     cw, ch = client.execute("return [innerWidth,innerHeight]")
     center = (x + w // 2 - cw // 2, y + h // 2 - ch // 2)
     canvas = client.find("#workstation")
+    home, end = chr(0xe011), chr(0xe010)
     history, observations = [], []
     for cycle in range(1, cycles + 1):
         initial_bytes = capacity()
@@ -126,6 +129,7 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
                  "!!document.querySelector('#drop-zone[data-drop-state=rejected][data-byte-state=failed]')")
             if probe("screenSamples") != before_rejection:
                 raise BrowserRuntimeError(f"{name} rejection changed a displayed plane")
+    verify_navigation(client, canvas, state, wait)
     click_at(555, 53)
     wait(state + ".tool === 'Length'")
     client.pointer_drag(canvas, (center[0]-20, center[1]), (center[0]+20, center[1]))
@@ -146,6 +150,10 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
     wait(state + ".indices[0] !== window.cineSlice")
     client.send_keys(canvas, " ")
     wait("!" + state + ".cine")
+    client.send_keys(canvas, home)
+    wait(state + ".indices[0] === 0")
+    client.send_keys(canvas, end)
+    wait(state + f".indices[0] === {len(files) - 1}")
     if options.get("layout") == ["responsive"]:
         # The responsive compositor exposes the three orthogonal viewports at desktop
         # width and a single axial viewport below the 640-pixel dual-pane threshold.
@@ -168,6 +176,24 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
                 "independent CT and MR volumes")
         client.send_keys(canvas, chr(0xe004))  # Tab advances the active comparison panel.
         wait(state + ".panel === 1")
+        # The picker assigns both catalog entries in order. At the matching
+        # endpoint the series and its current image must both stay selected.
+        for panel, endpoint in [(1, end), (0, home)]:
+            baseline = client.execute("return " + state + ".panels")
+            client.send_keys(canvas, endpoint)
+            observed = client.execute("return " + state + ".panels")
+            if observed != baseline:
+                raise BrowserRuntimeError(f"series endpoint moved an image in panel {panel}: {baseline} -> {observed}")
+            client.send_keys(canvas, chr(0xe004))
+            wait(state + f".panel === {1-panel}")
+        # Switch the second panel to the first series, then restore the last.
+        first, last = client.execute("return " + state + ".panels")
+        client.send_keys(canvas, home)
+        wait(f"{state}.panels[1][1] === {first[1]}")
+        client.send_keys(canvas, end)
+        wait(f"{state}.panels[1][1] === {last[1]}")
+        if client.execute("return " + state + ".panels[0]") != first:
+            raise BrowserRuntimeError("changing series in panel two moved the first panel")
         initial = client.execute("return " + state + ".panels")
         index = next(i for i, (_, count) in enumerate(initial) if count == len(files))
         px, py, pw, ph = client.execute("return " + state + f".panes[{index}]")
@@ -176,6 +202,7 @@ def verify(client: WebDriverClient, origin: str, study: Path, *, comparison: Pat
         require(f"{state}.panels[{1-index}][0] === {initial[1-index][0]}", "wheel changed the other series")
         if output:
             (output / "comparison.png").write_bytes(client.screenshot())
+    verify_patient_position(client, canvas, state, wait)
     client.set_window_rect(500, 820)
     wait(state + ".width === innerWidth && " + state + ".panes[0][0] === 0")
     require("document.documentElement.scrollWidth === innerWidth", "narrow page overflows")

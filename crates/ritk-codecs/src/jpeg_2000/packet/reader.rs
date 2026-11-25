@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 
 use crate::jpeg_2000::ebcot::decode_code_block;
-use crate::jpeg_2000::quantization::{dequantize, step_size};
+use crate::jpeg_2000::quantization::{dequantize, reversible_midpoint, step_size};
 use crate::jpeg_2000::subband::{resolution_band_range, subband_layout, Subband};
 use crate::jpeg_2000::tag_tree::TagTree;
 use crate::jpeg_2000::wavelet::inverse_dwt_5_3;
@@ -297,12 +297,12 @@ pub fn decode_tile_part(
         }
     }
 
-    // EBCOT-decode each code-block into the Mallat coefficient plane. `bp_plane`
-    // records, per coefficient, the lowest bit-plane its code-block decoded so
-    // the irreversible reconstruction can place the dequantized value at the
-    // midpoint of the still-undecoded interval (ISO 15444-1 §E.1.1.2).
+    // Only the irreversible transform needs a per-coefficient plane for dequantization.
     let mut mallat = vec![0i32; sample_count];
-    let mut bp_plane = vec![0u32; sample_count];
+    let mut bp_plane = match coding.transform {
+        WaveletTransform::Reversible => Vec::new(),
+        WaveletTransform::Irreversible => vec![0u32; sample_count],
+    };
     for (ci, c) in cblks.iter().enumerate() {
         let b = &bands[c.band];
         let st = &states[ci];
@@ -329,9 +329,17 @@ pub fn decode_tile_part(
         .with_context(|| format!("J2K: decode code-block {ci}"))?;
         for y in 0..c.h {
             let off = (b.y0 + c.y0 + y) * width + b.x0 + c.x0;
-            mallat[off..off + c.w].copy_from_slice(&block.samples[y * c.w..(y + 1) * c.w]);
-            for x in 0..c.w {
-                bp_plane[off + x] = block.lowest_bitplane;
+            for (x, &q) in block.samples[y * c.w..(y + 1) * c.w].iter().enumerate() {
+                let plane = block.lowest_decoded_plane(q);
+                match coding.transform {
+                    WaveletTransform::Reversible => {
+                        mallat[off + x] = reversible_midpoint(q, plane)?
+                    }
+                    WaveletTransform::Irreversible => {
+                        mallat[off + x] = q;
+                        bp_plane[off + x] = plane;
+                    }
+                }
             }
         }
     }

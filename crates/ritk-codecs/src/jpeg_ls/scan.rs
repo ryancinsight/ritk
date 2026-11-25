@@ -179,16 +179,16 @@ pub(super) fn decode_scan(
                     if reader.read_bit() == 1 {
                         // Run hit: extend by 2^J[idx]
                         run_len += 1usize << J[idx];
-                        if run_len >= remaining {
+                        if run_len > remaining {
+                            // A short final segment ends the row without advancing RUNindex.
                             run_len = remaining;
-                            // Increment run index (capped at 31)
-                            if ctx.run_index < 31 {
-                                ctx.run_index += 1;
-                            }
                             break;
                         }
                         if ctx.run_index < 31 {
                             ctx.run_index += 1;
+                        }
+                        if run_len == remaining {
+                            break;
                         }
                     } else {
                         // Run miss: read J[idx] remainder bits

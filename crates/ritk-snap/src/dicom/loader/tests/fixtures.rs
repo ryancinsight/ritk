@@ -42,18 +42,13 @@ pub(crate) fn displayed_samples(stored: &[u8]) -> Vec<f32> {
 /// Two-frame scalar multiframe fixture geometry in `[frames, rows, cols]`
 /// order. The frame payloads are intentionally distinct so a frame-zero
 /// fallback cannot satisfy the viewer assertions.
-#[cfg(feature = "eframe-shell")]
 pub(crate) const MULTIFRAME_SHAPE: [usize; 3] = [2, 2, 2];
-#[cfg(feature = "eframe-shell")]
 pub(crate) const MULTIFRAME_RAW: [u8; 8] = [1, 2, 3, 4, 11, 12, 13, 14];
-#[cfg(feature = "eframe-shell")]
 pub(crate) const MULTIFRAME_SERIES_UID: &str = "2.25.20260905003";
 
 /// Two-frame RGB multi-frame fixture geometry in `[frames, rows, cols]` order.
-#[cfg(feature = "eframe-shell")]
 pub(crate) const COLOR_MULTIFRAME_SHAPE: [usize; 3] = [2, 2, 2];
 /// Red, green, blue, white followed by cyan, magenta, yellow, and neutral.
-#[cfg(feature = "eframe-shell")]
 pub(crate) const COLOR_MULTIFRAME_RAW: [u8; 24] = [
     255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0, 64, 64,
     64,
@@ -163,7 +158,6 @@ pub(crate) fn write_grayscale_presentation(
 /// counts can exercise the same scanner and reader path as valid input.
 /// `temporal_positions`, when present, emits NumberOfTemporalPositions to
 /// verify that the spatial viewer rejects temporal organizations explicitly.
-#[cfg(feature = "eframe-shell")]
 pub(crate) fn write_multiframe(
     root: &Path,
     declared_frames: usize,
@@ -235,7 +229,6 @@ pub(crate) fn write_multiframe(
 }
 
 /// Write a two-frame, interleaved unsigned RGB Part 10 object.
-#[cfg(feature = "eframe-shell")]
 pub(crate) fn write_color_multiframe(root: &Path) -> Result<(String, Vec<u8>)> {
     std::fs::create_dir_all(root).context("create synthetic RGB multiframe directory")?;
     let mut model = DicomObjectModel::new();
@@ -322,6 +315,56 @@ pub(crate) fn write_study_with_geometry(
     samples: &[u8],
     geometry: (Option<[f64; 2]>, bool),
 ) -> Result<Vec<(String, Vec<u8>)>> {
+    write_positioned_study(
+        root,
+        modality,
+        series_uid,
+        samples,
+        geometry,
+        [10, 12, 14],
+        None,
+    )
+}
+
+/// Provide independently known patient coordinates and optional Frame of Reference for each instance.
+pub(crate) fn write_positioned_study(
+    root: &Path,
+    modality: &str,
+    series_uid: &str,
+    samples: &[u8],
+    geometry: (Option<[f64; 2]>, bool),
+    positions: [i32; 3],
+    frame: Option<&str>,
+) -> Result<Vec<(String, Vec<u8>)>> {
+    write_oriented_study(
+        root,
+        modality,
+        series_uid,
+        samples,
+        geometry,
+        PositionedSlices {
+            origins: positions.map(|x| [x, 20, 30]),
+            orientation: "0\\1\\0\\0\\0\\1",
+            frame,
+        },
+    )
+}
+
+/// Patient-space geometry for three independently encoded single-frame objects.
+pub(crate) struct PositionedSlices<'a> {
+    pub origins: [[i32; 3]; 3],
+    pub orientation: &'a str,
+    pub frame: Option<&'a str>,
+}
+
+pub(crate) fn write_oriented_study(
+    root: &Path,
+    modality: &str,
+    series_uid: &str,
+    samples: &[u8],
+    geometry: (Option<[f64; 2]>, bool),
+    planes: PositionedSlices<'_>,
+) -> Result<Vec<(String, Vec<u8>)>> {
     let (pixel_spacing, include_positions) = geometry;
     std::fs::create_dir_all(root).context("create synthetic study directory")?;
     assert!(
@@ -334,7 +377,8 @@ pub(crate) fn write_study_with_geometry(
     for (depth, filename, instance) in [(2_u16, "a.dcm", 1), (1, "b.dcm", 2), (0, "c.dcm", 3)] {
         let mut model = DicomObjectModel::new();
         let sop_uid = format!("{series_uid}.{instance}");
-        let position = format!("{}\\20\\30", 10 + 2 * depth);
+        let [x, y, z] = planes.origins[usize::from(depth)];
+        let position = format!("{x}\\{y}\\{z}");
         for (group, element, vr, value) in [
             (0x0008, 0x0016, "UI", "1.2.840.10008.5.1.4.1.1.7"),
             (0x0008, 0x0018, "UI", sop_uid.as_str()),
@@ -345,7 +389,7 @@ pub(crate) fn write_study_with_geometry(
             (0x0020, 0x000E, "UI", series_uid),
             (0x0010, 0x0020, "LO", "RITK-TEST-001"),
             (0x0010, 0x0010, "PN", "FIXTURE^PATIENT"),
-            (0x0020, 0x0037, "DS", "0\\1\\0\\0\\0\\1"),
+            (0x0020, 0x0037, "DS", planes.orientation),
             (0x0028, 0x0004, "CS", "MONOCHROME2"),
             (0x0018, 0x0050, "DS", "2"),
             (0x0028, 0x1052, "DS", intercept.as_str()),
@@ -355,6 +399,13 @@ pub(crate) fn write_study_with_geometry(
                 DicomTag::new(group, element),
                 vr,
                 value,
+            ));
+        }
+        if let Some(frame) = planes.frame {
+            model.insert(DicomObjectNode::text(
+                DicomTag::new(0x0020, 0x0052),
+                "UI",
+                frame,
             ));
         }
         if include_positions {

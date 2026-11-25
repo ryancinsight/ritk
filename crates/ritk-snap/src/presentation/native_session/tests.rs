@@ -43,8 +43,7 @@ mod series_loads;
 mod slice_scrollbar;
 mod support;
 mod window_controls;
-#[cfg(feature = "eframe-shell")]
-use support::expected_native_frame;
+use support::assert_multiframe_rows;
 use support::{session, session_with_mode, session_with_responsive_mode, session_with_volume};
 
 #[test]
@@ -86,7 +85,6 @@ fn native_session_renders_and_steps_the_loaded_slice() {
 }
 
 #[test]
-#[cfg(feature = "eframe-shell")]
 fn native_session_multiframe_navigation_preserves_frame_values() {
     let root = tempfile::tempdir().expect("multiframe study root");
     fixtures::write_multiframe(root.path(), fixtures::MULTIFRAME_SHAPE[0], None)
@@ -102,10 +100,8 @@ fn native_session_multiframe_navigation_preserves_frame_values() {
         session.app.loaded.as_ref().expect("loaded volume").channels,
         1
     );
-    assert_eq!(
-        session.views[0].frame(),
-        &expected_native_frame(&session, 0)
-    );
+    // The encoded sagittal frame has superior in its last row.
+    assert_multiframe_rows(&session, 0, true);
     let second_frame = session.views[0].frame().rgba().to_vec();
 
     let (x, y) = session.viewports[0].center();
@@ -119,10 +115,7 @@ fn native_session_multiframe_navigation_preserves_frame_values() {
         }])
         .expect("previous multiframe slice");
     assert_eq!(session.app.viewer_state.slice_index, 0);
-    assert_eq!(
-        session.views[0].frame(),
-        &expected_native_frame(&session, 0)
-    );
+    assert_multiframe_rows(&session, 0, true);
     assert_ne!(session.views[0].frame().rgba(), second_frame.as_slice());
     assert_ne!(
         session.framebuffer.get_pixel(100, 100),
@@ -131,7 +124,6 @@ fn native_session_multiframe_navigation_preserves_frame_values() {
 }
 
 #[test]
-#[cfg(feature = "eframe-shell")]
 fn native_session_preserves_rgb_multiframe_channels() {
     let root = tempfile::tempdir().expect("RGB multiframe study root");
     fixtures::write_color_multiframe(root.path()).expect("write RGB multiframe fixture");
@@ -142,11 +134,8 @@ fn native_session_preserves_rgb_multiframe_channels() {
     assert_eq!(loaded.shape, fixtures::COLOR_MULTIFRAME_SHAPE);
     assert_eq!(loaded.channels, 3);
     for axis in 0..3 {
-        assert_eq!(
-            session.views[axis].frame(),
-            &expected_native_frame(&session, axis),
-            "native RGB frame changed on axis {axis}"
-        );
+        // This axial RGB stack runs from inferior to superior.
+        assert_multiframe_rows(&session, axis, axis != 0);
     }
     assert!(
         session

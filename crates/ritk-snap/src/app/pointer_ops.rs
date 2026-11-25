@@ -7,7 +7,7 @@ use super::state::SnapApp;
 use crate::render::NamedColorMap;
 use crate::tools::interaction::{Annotation, ImagePoint, PolygonKind, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
-#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+#[cfg(any(windows, target_arch = "wasm32", feature = "eframe-shell"))]
 use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
 use crate::ui::{image_point_to_voxel, intensity_at_voxel};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
@@ -16,6 +16,20 @@ use metis_ui_lang::{PathCapture, PathPush};
 // ── Pointer / interaction event handlers ───────────────────────────────────
 
 impl SnapApp {
+    pub(crate) fn begin_display_drag(&mut self, tool: ToolKind, point: [f64; 2], units: [f64; 2]) {
+        use eunomia::FloatElement;
+        let Ok(capture) = metis_core::input::PointerDrag::try_new(point, units) else {
+            return;
+        };
+        let origin = [point[0] * units[0], point[1] * units[1]];
+        if origin.iter().any(|value| value.abs() > f64::from(f32::MAX)) {
+            return;
+        }
+        let [x, y] = origin.map(f32::from_f64);
+        self.on_drag_start(tool, Some(ImagePoint::new(x, y)));
+        self.pointer.display_drag = Some(capture);
+    }
+
     /// Begin the gesture `tool` performs from `pos`.
     ///
     /// A gesture started while a multi-click measurement is pending suspends
@@ -108,9 +122,8 @@ impl SnapApp {
         }
         let recorded = self.pointer.drag_measurement_location.take();
         if pos.is_some() && recorded.is_none_or(|location| location == self.annotation_location()) {
-            // Only a measurement takes its release as a final point. The
-            // viewport mapping a display gesture's release already includes
-            // that gesture's own zoom and pan, so reapplying it would move it.
+            // Only a measurement consumes a mapped image point on release.
+            // Display gestures have already consumed the host coordinates.
             if matches!(
                 self.tool_state,
                 ToolState::RoiDrag { .. }
@@ -167,7 +180,7 @@ impl SnapApp {
     /// State that no drag owns, such as a waiting measurement anchor, stays.
     fn finish_gesture(&mut self) {
         self.pointer.owner = None;
-        self.pointer.navigation_drag_viewport = None;
+        self.pointer.display_drag = None;
         if self.tool_state.is_drag_gesture() {
             self.tool_state = self
                 .pointer
@@ -188,7 +201,7 @@ impl SnapApp {
             self.finish_gesture();
         } else {
             self.pointer.owner = None;
-            self.pointer.navigation_drag_viewport = None;
+            self.pointer.display_drag = None;
             self.pointer.suspended_measurement = None;
         }
     }
@@ -423,14 +436,12 @@ impl SnapApp {
         Some(volume.pixel_at(z, y, x))
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    #[cfg(feature = "eframe-shell")]
+    #[cfg(any(windows, target_arch = "wasm32", feature = "eframe-shell"))]
     pub(crate) fn axis_for_plane(&self, plane: AnatomicalPlane) -> usize {
         axis_for_plane_in_volume(self.loaded.as_ref(), plane)
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    #[cfg(feature = "eframe-shell")]
+    #[cfg(any(windows, target_arch = "wasm32", feature = "eframe-shell"))]
     pub(crate) fn axis_label(&self, axis: usize) -> &'static str {
         anatomical_label_for_axis(self.loaded.as_ref(), axis)
     }

@@ -6,12 +6,13 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="M-viewer-reading"></a>
 ## M-viewer-reading — 0.2.0 — read a single study on the native shell
 - exit: `cargo nextest run -p ritk-snap -E 'test(pointer_bindings) or test(modifier_gesture) or test(native_annotation) or test(native_display) or test(native_view_transform) or test(native_overlay_text) or test(measure_set)'`
-- [patch] One workstation serves Windows and the web. Chromium verifies real MR and CT comparison, measurements and the three MRI planes. See [the reading workspace checklist](backlog/RITK-SNAP-RADIANT-UI-001.md).
+- [patch] One workstation serves Windows and the web. Chromium verifies real MR and CT comparison, measurements and the three MRI planes. The [reading checklist](backlog/RITK-SNAP-RADIANT-UI-001.md) records host verification and display-coordinate navigation against the [manual comparison](docs/manual/features.md#reading-workstation-parity).
 - needs: none
 - non-goals: PACS, archive, 3D rendering
 <a id="M-viewer-compare"></a>
-## M-viewer-compare — 0.3.0 — compare series by patient position
-- exit: `cargo nextest run -p ritk-snap -E 'test(native_link) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
+## M-viewer-compare — 0.4.0 — compare series by patient position
+- exit: `cargo nextest run -p ritk-snap -E 'test(native_linked_display) or test(native_grid_cursor) or test(native_manual_alignment) or test(native_cross_reference) or test(native_scroll_matches_physical) or test(patient_stack) or test(native_load) or test(native_projection) or test(oblique)'`; `metis-browser-dicom.yml` green on chromium jobs
+- [minor] Automatic slice linking and cross-reference lines use the displayed patient planes, including qualified sagittal and coronal reformats. The held comparison cursor uses the displayed plane on both ends. The [comparison checklist](docs/manual/comparison-checklist.md) records manual slice alignment, intersecting-plane overlays and per-pane 1:1 zoom limits. Linked display settings and the patient-space grid cursor share the desktop and browser implementation.
 <a id="RITK-BROWSER-READ-001"></a><a id="RITK-BROWSER-WEBGPU-001"></a>
 - [minor] The scalar reader transfers its pixel allocation to the viewer. All nine [saved-study browser scenarios](gap_audit.md#saved-study-browser-qualification-patch) passed on main, including four consecutive Chromium loads and hosted WebGPU. The [viewer checklist](backlog/ritk-stable-qualification.md) records exact three-plane readback on native Apple-silicon and Intel Safari.
 - needs: M-viewer-reading
@@ -21,6 +22,8 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 - exit: `cargo nextest run -p ritk-snap -E 'test(native_open) or test(native_tags) or test(native_export) or test(native_session_round_trip) or test(native_pacs) or test(native_archive)'`
 - exit: `cargo nextest run -p ritk-snap -E 'test(=presentation::native_session::tests::anonymize::native_anonymize_basic_replaces_identifiers_and_instance_uids)'` (export a de-identified study copy)
 - exit: `cargo nextest run -p ritk-snap -E 'test(=presentation::native_session::tests::repair::native_repair_writes_a_corrected_copy_and_leaves_the_source)'` (write a repaired study copy)
+- [minor] Open a verified export from the Anonymize menu. The [qualification checklist](backlog/ritk-stable-qualification.md) covers folder opening in the browser, the downloaded MRI and stable initial selection on the five-series CT for both export profiles.
+- [minor] Web Basic and Strict ZIP export and immediate reopen pass the retained five-series CT check. Repeat download delivery on Safari with the shared phantom.
 - needs: M-viewer-compare
 - non-goals: cloud storage
 <a id="M-viewer-advanced"></a>
@@ -99,7 +102,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-GAP-2026-08-20-05"></a>- [RITK-GAP-2026-08-20-05](backlog/RITK-GAP-2026-08-20-05.md) — Derive test budgets and remove dead filters — todo
 <a id="RITK-GAP-2026-08-20-07"></a>- [RITK-GAP-2026-08-20-07](backlog/RITK-GAP-2026-08-20-07.md) — Restore the changelog version axis — todo
 <a id="RITK-SNAP-OBLIQUE-APP-ADAPTER-001"></a>- [RITK-SNAP-OBLIQUE-APP-ADAPTER-001](backlog/RITK-SNAP-OBLIQUE-APP-ADAPTER-001.md) — Route oblique viewer actions — todo
-<a id="RITK-SNAP-RADIANT-UI-001"></a>- [RITK-SNAP-RADIANT-UI-001](backlog/RITK-SNAP-RADIANT-UI-001.md) — Organize a multi-series DICOM viewer workspace — todo
+<a id="RITK-SNAP-RADIANT-UI-001"></a>- [RITK-SNAP-RADIANT-UI-001](backlog/RITK-SNAP-RADIANT-UI-001.md) — Organize a multi-series DICOM viewer workspace — done [minor]
 <a id="RITK-SNAP-OBLIQUE-ROUTING-001"></a>- [RITK-SNAP-OBLIQUE-ROUTING-001](backlog/RITK-SNAP-OBLIQUE-ROUTING-001.md) — Route native oblique input — blocked
 <a id="RITK-BROWSER-TOOL-TRACE-001"></a>- [RITK-BROWSER-TOOL-TRACE-001](backlog/RITK-BROWSER-TOOL-TRACE-001.md) — Publish ROI results in the browser journey — todo
 <a id="RITK-SNAP-EFRAME-REMOVAL-001"></a>- [RITK-SNAP-EFRAME-REMOVAL-001](backlog/RITK-SNAP-EFRAME-REMOVAL-001.md) — Remove the eframe shell — blocked
@@ -108,7 +111,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-SNAP-NATIVE-DYNAMIC-001"></a>- [RITK-SNAP-NATIVE-DYNAMIC-001](backlog/RITK-SNAP-NATIVE-DYNAMIC-001.md) — Add time-intensity curves and DSA — todo
 <a id="RITK-SNAP-NATIVE-EXPORT-001"></a>- [RITK-SNAP-NATIVE-EXPORT-001](backlog/RITK-SNAP-NATIVE-EXPORT-001.md) — Export and copy displayed images — todo
 <a id="RITK-SNAP-NATIVE-FILTERS-001"></a>- [RITK-SNAP-NATIVE-FILTERS-001](backlog/RITK-SNAP-NATIVE-FILTERS-001.md) — Apply image filters natively — todo
-<a id="RITK-SNAP-NATIVE-LINK-001"></a>- [RITK-SNAP-NATIVE-LINK-001](backlog/RITK-SNAP-NATIVE-LINK-001.md) — Link panes by patient position — todo
+<a id="RITK-SNAP-NATIVE-FUSION-001"></a>- [RITK-SNAP-NATIVE-FUSION-001](backlog/RITK-SNAP-NATIVE-FUSION-001.md) — Fuse series and read SUV natively — todo [minor]
 <a id="RITK-SNAP-NATIVE-LOAD-001"></a>- [RITK-SNAP-NATIVE-LOAD-001](backlog/RITK-SNAP-NATIVE-LOAD-001.md) — Browse a study while it loads — todo
 <a id="RITK-SNAP-NATIVE-INPUT-PARITY-001"></a>- [RITK-SNAP-NATIVE-INPUT-PARITY-001](backlog/RITK-SNAP-NATIVE-INPUT-PARITY-001.md) — Finish native input parity — todo
 <a id="RITK-SNAP-NATIVE-OPEN-001"></a>- [RITK-SNAP-NATIVE-OPEN-001](backlog/RITK-SNAP-NATIVE-OPEN-001.md) — Open files, archives and drops natively — todo
@@ -135,8 +138,7 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-SNAP-FORMAT-VIEWER-001"></a>- [RITK-SNAP-FORMAT-VIEWER-001](backlog/RITK-SNAP-FORMAT-VIEWER-001.md) — Exercise encoded studies in the viewer — todo
 <a id="RITK-SNAP-CUSTOM-WINDOW-001"></a>- [RITK-SNAP-CUSTOM-WINDOW-001](backlog/RITK-SNAP-CUSTOM-WINDOW-001.md) — Retain precise custom window settings — todo
 <a id="RITK-SNAP-LARGE-STUDY-001"></a>- [RITK-SNAP-LARGE-STUDY-001](backlog/RITK-SNAP-LARGE-STUDY-001.md) — Measure native study resource bounds — todo
-<a id="RITK-SNAP-NATIVE-DISPLAY-001"></a>- [RITK-SNAP-NATIVE-DISPLAY-001](backlog/RITK-SNAP-NATIVE-DISPLAY-001.md) — Route display controls in the native shell — todo
-<a id="RITK-SNAP-NAVIGATION-UNITS-001"></a>- [RITK-SNAP-NAVIGATION-UNITS-001](backlog/RITK-SNAP-NAVIGATION-UNITS-001.md) — Keep navigation in display coordinates — todo
+<a id="RITK-SNAP-NAVIGATION-UNITS-001"></a>- [RITK-SNAP-NAVIGATION-UNITS-001](backlog/RITK-SNAP-NAVIGATION-UNITS-001.md) — Keep navigation in display coordinates — done [patch]
 <a id="RITK-SNAP-IMAGE-FIT-001"></a>- [RITK-SNAP-IMAGE-FIT-001](backlog/RITK-SNAP-IMAGE-FIT-001.md) — Share continuous sample-aspect fitting — todo
 <a id="RITK-SNAP-EFRAME-NAVIGATION-001"></a>- [RITK-SNAP-EFRAME-NAVIGATION-001](backlog/RITK-SNAP-EFRAME-NAVIGATION-001.md) — Paint pan and retain the press origin — todo
 <a id="RITK-SNAP-ARROW-PROPERTIES-001"></a>- [RITK-SNAP-ARROW-PROPERTIES-001](backlog/RITK-SNAP-ARROW-PROPERTIES-001.md) — Edit arrow text and appearance — todo
@@ -147,7 +149,6 @@ Target: AsterSlice and RITK 1.0.0. The milestone and item blocks below carry the
 <a id="RITK-SNAP-ROI-NATIVE-001"></a>- [RITK-SNAP-ROI-NATIVE-001](backlog/RITK-SNAP-ROI-NATIVE-001.md) — Test native ROI creation and labels — todo
 <a id="RITK-SNAP-ROI-LABEL-STATISTICS-001"></a>- [RITK-SNAP-ROI-LABEL-STATISTICS-001](backlog/RITK-SNAP-ROI-LABEL-STATISTICS-001.md) — Show complete ROI label statistics — todo
 <a id="RITK-FIXTURE-RETENTION-001"></a>- [RITK-FIXTURE-RETENTION-001](backlog/RITK-FIXTURE-RETENTION-001.md) — Decide imaging fixture retention — blocked
-<a id="RITK-SNAP-NATIVE-FUSION-001"></a>- [RITK-SNAP-NATIVE-FUSION-001](backlog/RITK-SNAP-NATIVE-FUSION-001.md) — Fuse series and read SUV natively — blocked
-<a id="RITK-SNAP-TEXT-COMMAND-ARC-001"></a>- [RITK-SNAP-TEXT-COMMAND-ARC-001](backlog/RITK-SNAP-TEXT-COMMAND-ARC-001.md) — Build display text without a second copy — todo
+<a id="RITK-SNAP-TEXT-COMMAND-ARC-001"></a>- [RITK-SNAP-TEXT-COMMAND-ARC-001](backlog/RITK-SNAP-TEXT-COMMAND-ARC-001.md) — Build display text without a second copy — done [patch]
 <a id="RITK-DICOM-PIXEL-ASPECT-RESOLUTION-001"></a>- [RITK-DICOM-PIXEL-ASPECT-RESOLUTION-001](backlog/RITK-DICOM-PIXEL-ASPECT-RESOLUTION-001.md) — Resolve and retain pixel aspect on DICOM metadata — todo
-<a id="RITK-DICOM-PIXEL-ASPECT-PINS-001"></a>- [RITK-DICOM-PIXEL-ASPECT-PINS-001](backlog/RITK-DICOM-PIXEL-ASPECT-PINS-001.md) — Pin pixel aspect parser edge cases and its zero-spacing error — todo
+<a id="RITK-DICOM-PIXEL-ASPECT-PINS-001"></a>- [RITK-DICOM-PIXEL-ASPECT-PINS-001](backlog/RITK-DICOM-PIXEL-ASPECT-PINS-001.md) — Pin pixel aspect parser edge cases and its zero-spacing error — done [patch]

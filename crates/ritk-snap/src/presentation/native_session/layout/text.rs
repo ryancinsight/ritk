@@ -5,6 +5,7 @@ use metis_platform::typeface::TextSize;
 use metis_platform::{Color, Framebuffer};
 use metis_ui_lang::DisplayCommand;
 use std::borrow::Cow;
+use std::sync::Arc;
 
 pub(in crate::presentation::native_session) use metis_platform::typeface::TextStyle;
 
@@ -31,13 +32,13 @@ pub(in crate::presentation::native_session) fn draw_text(
 }
 
 pub(in crate::presentation::native_session) fn text_command(
-    text: impl Into<String>,
+    text: impl Into<Arc<str>>,
     x: i32,
     y: i32,
     style: TextStyle,
 ) -> DisplayCommand {
     DisplayCommand::DrawText {
-        text: std::sync::Arc::from(text.into().as_str()),
+        text: text.into(),
         x,
         y,
         style,

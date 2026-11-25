@@ -22,7 +22,10 @@ export async function screenSamples() {
     for (const fx of [.32,.38,.62,.69]) for (const fy of [.31,.36,.61,.68]) {
       const px = Math.floor(left + width * fx), py = Math.floor(top + height * fy);
       if (px < x || px >= x+w || py < y || py >= y+h) continue;
-      pixels.push([Math.floor((px+.5-left)/(width/sw)), Math.floor((py+.5-top)/(height/sh)),
+      // This MRI was acquired inferior-to-superior. The independent embedded
+      // reference is in storage order; the workstation presents superior up.
+      const row = Math.floor((py+.5-top)/(height/sh));
+      pixels.push([Math.floor((px+.5-left)/(width/sw)), axis === 0 ? row : sh-1-row,
                    Array.from(context.getImageData(px,py,1,1).data)]);
     }
     return pixels;

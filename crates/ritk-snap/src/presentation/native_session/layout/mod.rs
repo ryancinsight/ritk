@@ -8,7 +8,9 @@ mod overlay;
 mod overlay_clinical;
 pub(crate) mod overlay_display;
 mod overlay_measurements;
+mod reference;
 mod responsive;
+pub(super) use reference::reference_segment;
 pub(super) mod text;
 
 pub(super) use compare::{
@@ -16,7 +18,6 @@ pub(super) use compare::{
     WorkspaceLayout, MAX_COMPARISON_PANELS, MAX_GRID_COLUMNS, MAX_GRID_PANELS, MAX_GRID_ROWS,
 };
 pub(super) use composition::{surface_frames, surface_frames_with_projection};
-#[cfg(test)]
 pub(super) use crosshair::CROSSHAIR_COLOR;
 pub(super) use crosshair::{crosshair_overlay, screen_coordinate};
 #[cfg(test)]

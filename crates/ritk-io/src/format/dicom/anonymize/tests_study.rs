@@ -470,3 +470,50 @@ fn a_truncated_instance_is_a_per_file_error_of_the_directory_export() -> TestRes
     assert_eq!(listing(output.path())?, ["000001.dcm"]);
     Ok(())
 }
+
+#[test]
+fn buffer_export_matches_disk_bytes_and_rejects_duplicate_or_unreadable_instances() -> TestResult {
+    let tmp = tempfile::tempdir()?;
+    let source = tmp.path().join("source");
+    study_tree(&source)?;
+    let paths = ["s1/a.dcm", "s1/b.dcm", "s2/deep/c.dcm"].map(|p| source.join(p));
+    let mut inputs = Vec::new();
+    for path in &paths {
+        let mut bytes = std::fs::read(path)?;
+        bytes[..6].copy_from_slice(b"PAT001");
+        std::fs::write(path, &bytes)?;
+        inputs.push((path.as_path(), bytes));
+    }
+    let selected: Vec<_> = inputs
+        .iter()
+        .rev()
+        .map(|(p, b)| (*p, b.as_slice()))
+        .collect();
+    for profile in [
+        AnonymizationProfile::BasicReplaceUids,
+        AnonymizationProfile::Enhanced,
+    ] {
+        let options = AnonymizeOptions {
+            profile,
+            ..options()
+        };
+        let disk = tempfile::tempdir()?;
+        let paths: Vec<_> = selected.iter().map(|(p, _)| *p).collect();
+        anonymize_dicom_selection(&source, &paths, disk.path(), &options)?;
+        let copies = super::anonymize_dicom_buffers(selected.clone(), &options)?;
+        assert_eq!(copies.len(), 3);
+        for (index, (name, bytes)) in copies.iter().enumerate() {
+            assert_eq!(*name, format!("{:06}.dcm", index + 1));
+            assert_eq!(bytes[..128], [0; 128]);
+            assert_eq!(*bytes, std::fs::read(disk.path().join(name))?);
+        }
+        for invalid in [
+            vec![],
+            vec![selected[0], selected[0]],
+            vec![selected[0], (Path::new("broken"), b"invalid".as_slice())],
+        ] {
+            assert!(super::anonymize_dicom_buffers(invalid, &options).is_err());
+        }
+    }
+    Ok(())
+}

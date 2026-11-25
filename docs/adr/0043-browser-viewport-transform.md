@@ -37,6 +37,15 @@ frame and continues to own canvas, event and host lifecycle concerns. CSS or
 JavaScript canvas transforms are not used because they would separate the
 displayed pixels from the RITK pointer coordinate contract.
 
+### Workstation navigation
+
+Windows client and web workstation coordinates already use framebuffer pixels.
+The embedding API scales normalized content coordinates by the backing extent
+captured on press. Métis computes the displacement before narrowing to the
+viewer's stored precision. Pan adds that vector to its initial offset. Zoom
+and window/level use the same axes. Picking and measurements use the inverse
+image transform. The public tool-state fields retain their existing types.
+
 ## Alternatives
 
 1. Keep the transform in a browser CSS transform. Rejected because RITK's

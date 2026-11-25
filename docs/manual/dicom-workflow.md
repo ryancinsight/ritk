@@ -1,6 +1,6 @@
 # AsterSlice user manual
 
-Use AsterSlice to browse a study and measure or mark an image on Windows.
+Use AsterSlice to browse a study and measure or mark an image on Windows or in your browser.
 The executable is `asterslice`; its Cargo package is `ritk-snap`. The
 [feature comparison](features.md) covers the supplied RadiAnt 2021.2 manual,
 the current Windows controls, the tests, and the work needed for parity.
@@ -18,7 +18,16 @@ cargo run --locked -p ritk-snap -- path/to/study
 Without a startup path, the Windows application opens a folder picker.
 In an open viewer, choose **File → Open Study...** or **Ctrl+O** to replace
 the current study. Pick a folder containing the DICOM files. Use the series
-browser to select an acquisition from a study containing several series.
+browser to select an acquisition from a study containing several series. For
+the downloaded five-series CT on Windows, select **2_skull_ct/DICOM**.
+The directory index one level above it has an invalid final root record.
+
+In the web viewer, click **Open Study** and choose the study folder itself.
+For the RITK test data, select **2_skull_ct** or **2_head_mri_t2**. The viewer
+reads DICOM images from its subfolders, including files without an extension.
+If the browser asks to upload the folder, confirm the selection. AsterSlice
+reads the files locally in the browser. To choose individual files instead,
+hold **Shift** while clicking **Open Study**.
 
 For a known example, use the public MRI phantom included in the repository.
 
@@ -40,7 +49,20 @@ describes startup selection and capture options.
 - [Draw an arrow or a freehand mark](#draw-an-arrow)
 - [Windows tool shortcuts](#windows-tool-shortcuts)
 
+When DICOM orientation is available and the in-plane anatomical directions are unambiguous, axial images open with anterior at the top and patient right on the left. Coronal images show superior at the top and patient right on the left. Sagittal images show superior at the top and anterior on the left. Rotate and flip operate on this reading orientation. In a comparison grid, hold the Crosshair tool and drag in any positioned plane to locate the same patient point in other eligible panes.
+
 ## Adjust the image display
+
+Click an image pane, then open **View** and choose **Axial**, **Coronal** or
+**Sagittal**. Scroll to move through slices in that plane. For a single large
+image choose **Split screen → 1 × 1**. In a comparison grid each populated
+pane keeps its own plane. In **Three-plane MPR**, choosing a plane exchanges
+its position with the selected pane so all three views remain visible.
+Plane names follow the volume’s orientation. Oblique acquisitions keep their
+native tilt. In a comparison grid, position sync and yellow reference lines
+follow the plane shown in each pane. Reconstructed planes need consistent pixel
+spacing and a regularly positioned DICOM stack. The held 3D cursor uses the
+acquired planes.
 
 Use **W/L**, **Pan**, or **Zoom** on the toolbar to choose the left-button
 gesture. Drag within the image to apply it. On Windows, the active drag stays
@@ -50,9 +72,9 @@ color maps. Number keys apply available presets; **I** inverts and **Shift+C**
 cycles the color map. Custom presets currently last for the running
 application.
 
-Pan distance and zoom/window drag sensitivity currently depend on image fit
-and orientation. The [navigation correction](../../backlog/RITK-SNAP-NAVIGATION-UNITS-001.md)
-tracks this known limitation; menu presets and slice rails remain available.
+Pan follows the pointer in display pixels at any fit or rotation. Dragging zoom
+down by 24 pixels multiplies the initial zoom by 0.76 within the zoom limits.
+Window/level uses the same display axes. Measurements stay anchored to the image.
 
 Press **H** or **V** to flip the image horizontally or vertically.
 **R** rotates clockwise by 90 degrees and **Shift+R** rotates the other way.
@@ -75,6 +97,11 @@ Choose **Window → Panel layout...** to arrange the panes. Click a pane to
 make it active. **Tab** and **Shift+Tab** move between panes; each pane's
 slice rail acts on that pane's series.
 
+With multiple series available, **Left/Right** select the previous or next
+series in the active pane. **Home/End** select the first or last series.
+If that series is already displayed, its current image stays in place.
+With just one series, **Home/End** take you to its first or last image.
+
 Use **Ctrl+M** to maximize or restore the active pane, **Ctrl+F4** to close
 it, or **Shift+F4** to close all panes. Choose **Window → Three-plane MPR**
 to return to the axial, coronal, and sagittal views.
@@ -82,34 +109,94 @@ to return to the axial, coronal, and sagittal views.
 Choose **Tools → Crosshair**, then click an image to place a visible linked
 cursor in all three MPR panes. Choose **Pan** to move without hiding the cursor.
 
-Patient-position synchronization and cross-reference lines between different
-series remain [linking work](features.md#reading-and-annotations).
+When you scroll a comparison pane or move its slice rail, AsterSlice shows the
+nearest slice in other visible classic DICOM stacks from the same study and
+Frame of Reference. Each stack needs consistent geometry and the planes must
+be within 5° of parallel. **View → Toggle position sync** or **F5** turns this
+behavior off and back on. Cine playback remains independent.
+
+To try this with the downloaded five-series CT, press **F4**, mark the 34-
+and 67-image reconstructions with **Space**, and press **Enter**. Click each
+pane in turn and choose **View → Sagittal**. Scroll either pane to follow the
+same patient position in the other. Repeat with **Coronal**. With automatic
+sync enabled, changing a pane to a matching plane also aligns the other pane
+to the one you just changed.
+
+AsterSlice compares the patient coordinates of the source image center with the
+target planes. At equal distances it chooses the lower displayed image index.
+Beyond the outer half-slice interval, the other pane keeps its reading position.
+
+**To align two series manually**, turn off automatic synchronization with **F5**
+if needed. Scroll each pane to the same anatomical landmark. Choose **View →
+Align current slices** or press **Shift+F5**. Both images stay at their chosen
+slices. Scrolling either series transfers the distance travelled in millimetres
+to the other. Each series needs consistent DICOM geometry and identifiers.
+The studies and Frames of Reference can differ, and the planes can be up to
+30° apart. Repeat **Shift+F5** to capture new landmarks after positioning the
+panes independently. Replacing a series or switching its plane clears that pane’s anchor.
+Select the landmarks again to resume manual linking. **F5** turns manual
+linking off. Pressing **F5** again restores automatic linking.
+
+**Cross-reference lines** are on by default. A yellow line in an inactive pane
+shows where the active image plane intersects its visible image. Select another
+pane to change the source. For example, leave one CT pane sagittal and switch
+the other to axial. Scroll the axial pane and watch its yellow line move across
+the sagittal image. Perpendicular panes keep their own slice positions. This
+requires a shared, verified Frame of Reference and intersecting planes.
+Manually aligned series in different frames can scroll together but have no
+shared plane intersection. **View → Cross-reference lines** or **Ctrl+F12**
+toggles the overlay independently of slice synchronization.
 
 ## Export and verify a Strict DICOM copy
 
-1. In the Windows viewer, open the [public MRI phantom](../../test_data/README.md)
-   above for practice. Click the image panel or series card you want to export.
-2. Choose **Anonymize → Active series (Strict)...** for that series, or
-   **Active study (Strict)...** for all listed series in the same study. Pick
-   an empty destination folder outside the source folder. The original files
-   stay in place.
-3. Check the destination and exported instance count in the status bar. The
-   complete phantom series has 94 DICOM instances. If export reports an error,
-   do not treat the destination as a verified copy.
-4. Choose **File → Open Study...** (**Ctrl+O**) and open the destination.
-   Select the exported series, compare its slice count with the original,
-   and scroll through it to check that the images still display.
-5. To check the files, compare input and output metadata in a local DICOM
-   header inspector. The patient name and ID should be replaced, study,
-   series and instance UIDs should be remapped, and the study, series,
-   acquisition and content dates and times and the study and series
-   descriptions should be cleared or absent in the Strict copy.
+1. Click **Open Study** and choose **2_skull_ct**. The series list should
+   contain five acquisitions, with the 34-slice CT open. Click its image pane.
+2. Choose **Anonymize → Active study (Basic)...** or **Active study (Strict)...**.
+   Both include all five series. Choose **Active series** to export only the
+   acquisition in the selected pane. The table below lists what each profile keeps.
+3. In the browser, save **AsterSlice-Basic.zip** or **AsterSlice-Strict.zip**.
+   The ZIP contains 303 numbered DICOM files for the complete CT. In Windows,
+   choose an empty destination folder outside the source. Both viewers keep
+   the source files in place.
+4. Choose **Anonymize → Open exported copy** to inspect the copy immediately.
+   The browser opens the verified DICOM bytes from the download. Windows
+   reads the destination folder. The series list should show **ANONYMOUS** and
+   **ANON001**. A Strict export also clears the study date.
+5. To return to the saved browser copy later, extract the ZIP and choose its
+   folder with **Open Study**. To compare profiles, reopen the original
+   **2_skull_ct** folder before exporting the other profile.
 
-**Strict changes DICOM metadata, not pixels.** Burned-in text and identifying
-anatomy remain. Reopening checks readability; it does not verify every
-header field or prove pixel equality. The profile and the checks above do not
-establish that a study is safe to share. See the [developer reference](development.md#export-a-de-identified-study-or-series)
-and [DICOM's Attribute Confidentiality Profiles](https://dicom.nema.org/medical/dicom/current/output/chtml/part15/chapter_E.html).
+When you open a whole study, AsterSlice tries acquisitions in **DICOM Series
+Number** order, lowest first. A series with an empty or invalid number follows
+the numbered series. Ties use modality, then the larger number of instances,
+then the first filename in source path order. Both viewers number the exported
+files in that same path order. Both viewers skip acquisitions they cannot
+display as a volume. On Windows, opening a specific instance or requesting a
+Series Instance UID at startup selects that acquisition explicitly.
+
+For example, the five-series CT opens on **series 2, with 34 images**, in the
+source, Basic and Strict copies. Series 1 contains two differently oriented
+images. They cannot form one volume. You can still use the series list to
+choose another acquisition.
+
+![Strict MRI export reopened in the web viewer. The series list shows ANONYMOUS and 94 images alongside the three anatomical planes.](images/dicom-strict-mri-reopened.webp)
+
+AsterSlice rendering of the downloaded MRI-DIR T2 porcine phantom after Strict
+export. [MRI-DIR, The Cancer Imaging Archive](https://doi.org/10.7937/K9/TCIA.2018.3f08iejt) · [Ger et al., Medical Physics (2018)](https://doi.org/10.1002/mp.13090) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+| What to check | Basic copy | Strict copy |
+| --- | --- | --- |
+| Patient name and ID | Replaced | Replaced |
+| Study, series and instance UIDs | Remapped for this export | Remapped for this export |
+| Study, series, acquisition and content dates and times | Retained | Cleared |
+| Study and series descriptions | Retained | Removed |
+| Stored pixels | Preserved | Preserved |
+
+**Review the pixels before sharing.** Both profiles retain burned-in text and
+recognizable anatomy. Hiding viewer overlays only changes what appears on screen.
+Use a local DICOM header inspector to check which fields a copy contains.
+The developer reference explains how to repeat the pixel and metadata comparison
+for this phantom. [Export verification](development.md#export-a-de-identified-study-or-series) · [DICOM Clean Pixel Data Option](https://dicom.nema.org/medical/dicom/current/output/chtml/part15/sect_E.3.html).
 
 ## Try the Windows slice and annotation tools
 
@@ -285,3 +372,11 @@ processing-only capabilities, missing controls, and required tests against
 RadiAnt 2021.2. Use it when checking a capability before relying on the
 viewer for a particular workflow. Capture and test commands are in the
 [developer reference](development.md#run-the-reference-checks).
+
+### Compare a patient location across series
+
+In a comparison grid, pan and zoom follow the active pane when automatic or manual synchronization links the series. Pan moves by the same screen displacement. Zoom applies the same magnification ratio, preserving each pane’s starting fit. Use **View → Link pan and zoom** (F6) to adjust the panes independently. **View → Link window settings** (Shift+F6) copies the next window center and width adjustment or preset. Window linking starts off. Changing either option preserves the current displays.
+
+Each pane fits its oriented image into its own viewport using the DICOM row and column spacing. Each receiving pane applies the source zoom ratio up to its own limits. The receiving range includes its own **Zoom 1:1** scale, even when that scale falls outside the usual drag range. At the limit, further motion in that direction holds the scale. Reversing direction moves away from the limit.
+
+Select **Tools → 3D cursor** (Q), then press and drag in the image. Holding Ctrl+Shift while pressing the left button also works with another tool selected. Panes with the same DICOM Frame of Reference show the nearest slice and mark the projected point in cyan. Red indicates that the nearest plane is beyond its recorded half-thickness, or beyond the sampled stack when thickness is unavailable. Points outside a target image leave that pane alone. The cursor is unavailable during cine in the source pane. Releasing restores the previous cross-reference line setting. [RadiAnt 3D Cursor](https://www.radiantviewer.com/dicom-viewer-manual/3d-cursor.html)

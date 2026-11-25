@@ -28,6 +28,7 @@ mod pixel_aspect;
 mod preservation;
 mod reconstruction;
 pub(super) mod scan;
+mod spatial_reference;
 pub(super) mod stored;
 pub(crate) mod types;
 

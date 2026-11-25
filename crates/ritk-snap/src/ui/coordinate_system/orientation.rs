@@ -70,16 +70,16 @@ pub(crate) fn lps_label(v: [f64; 3], positive: bool) -> &'static str {
 /// Edge slot for a mapped source-edge point: 0 left, 1 right, 2 top, 3 bottom.
 ///
 /// Shared by the eframe and native shells so a transformed orientation label
-/// lands on the same edge in both. The comparison runs in `f64`, which
-/// represents every panel size below 2^53 pixels exactly; larger sizes
-/// saturate, which real panels never reach.
+/// lands on the same edge in both. Callers transform exact edge midpoints
+/// using quarter turns and reflections. A half-pixel coordinate is interior
+/// even when the image has only one pixel along that dimension.
 pub(crate) fn edge_slot(output: [f64; 2], output_size: [usize; 2]) -> usize {
     let width = f64::from(u32::try_from(output_size[0]).unwrap_or(u32::MAX));
-    if output[0] <= 0.5 {
+    if output[0] <= 0.0 {
         0
-    } else if output[0] >= width - 0.5 {
+    } else if output[0] >= width {
         1
-    } else if output[1] <= 0.5 {
+    } else if output[1] <= 0.0 {
         2
     } else {
         3

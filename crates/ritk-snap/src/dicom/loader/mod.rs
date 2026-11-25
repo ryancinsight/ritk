@@ -30,6 +30,8 @@ use anyhow::{Context, Result};
 mod bytes;
 mod convert;
 mod dicom_load;
+#[cfg(any(windows, target_arch = "wasm32", test))]
+pub(crate) mod initial;
 mod nifti_load;
 mod scan;
 #[cfg(test)]

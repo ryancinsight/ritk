@@ -22,6 +22,7 @@ pub(crate) struct ViewerViewport {
     zoom: f64,
     pan: [f64; 2],
     polygon_handles: bool,
+    pub(crate) display_units: [f64; 2],
 }
 
 impl ViewerViewport {
@@ -100,6 +101,7 @@ impl ViewerViewport {
             zoom: f64::from(zoom),
             pan: [f64::from(pan.x()), f64::from(pan.y())],
             polygon_handles: false,
+            display_units: [1.0; 2],
         })
     }
 
@@ -116,9 +118,13 @@ impl ViewerViewport {
 
     /// Project a stored [row, column] vertex into host pixels.
     pub(crate) fn project(self, [row, column]: [f32; 2]) -> [f64; 2] {
+        self.project_coordinates([f64::from(column), f64::from(row)])
+    }
+
+    pub(crate) fn project_coordinates(self, pixel: [f64; 2]) -> [f64; 2] {
         let output = self
             .transform
-            .source_to_output_coordinates([f64::from(column), f64::from(row)], self.source_size);
+            .source_to_output_coordinates(pixel, self.source_size);
         let center = self
             .geometry
             .dimensions()
@@ -145,12 +151,6 @@ impl ViewerViewport {
             return None;
         }
         Some(image)
-    }
-
-    /// Map a display gesture beyond the image bounds in its captured basis.
-    pub(crate) fn map_unbounded(self, point: ViewportPoint) -> Option<ImagePoint> {
-        let output = self.output_coordinates(self.geometry.map_edge_unbounded(point)?);
-        self.image_point(output)
     }
 
     fn output_coordinates(self, output: [f64; 2]) -> [f64; 2] {

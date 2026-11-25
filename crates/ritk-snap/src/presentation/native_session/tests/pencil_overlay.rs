@@ -64,7 +64,8 @@ fn native_pencil_records_bounded_mark_and_respects_source_slice() {
     assert_eq!(points[0][0], points[1][0]);
     assert!(points[0][1] < points[1][1]);
     assert_eq!(points[1][1], points[2][1]);
-    assert!(points[1][0] < points[2][0]);
+    // Downward motion in this superior-at-top sagittal image decreases the stored row.
+    assert!(points[1][0] > points[2][0]);
     assert_eq!(
         draw_lines(&composed(&session, None)),
         [((x, y), (x + 8, y)), ((x + 8, y), (x + 8, y + 2))]

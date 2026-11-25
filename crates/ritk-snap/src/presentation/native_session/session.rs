@@ -24,8 +24,7 @@ use crate::app::SnapApp;
 use crate::geometry::affine::AffineTransform;
 use crate::launch::NativePresentationSelection;
 use crate::render::FrameRenderScratch;
-use crate::tools::interaction::{ToolState, ViewportOffset};
-use crate::tools::kind::ToolKind;
+use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, Result};
 use arrayvec::{ArrayString, ArrayVec};
 use frame::{render_orthogonal_views, render_orthogonal_views_into, RenderedView};
@@ -75,6 +74,9 @@ pub(super) fn clinical_overlay(app: &SnapApp, anonymize: bool) -> Option<Clinica
 
 pub(super) struct NativeViewerSession {
     pub(super) app: SnapApp,
+    /// Last pane chosen deliberately, before the pointer crosses other panes on its way to a menu.
+    pub(super) menu_pane: Option<usize>,
+    pub(super) mpr_axes: [usize; 3],
     pub(super) views: [RenderedView; 3],
     pub(super) render_scratch: [FrameRenderScratch; 3],
     pub(super) projection: Option<RenderedProjection>,
@@ -91,6 +93,9 @@ pub(super) struct NativeViewerSession {
     pub(super) capture_after_idle: bool,
     pub(super) capture_application: bool,
     pub(super) anonymize_overlay: bool,
+    pub(super) grid_cursor: super::grid_cursor::GridCursor,
+    pub(super) reference_lines: bool,
+    pub(super) position_sync: super::synchronization::PositionSync,
     pub(super) observation: Arc<NativeViewerObservation>,
     #[cfg(windows)]
     pub(super) clock_start: Instant,
@@ -98,9 +103,14 @@ pub(super) struct NativeViewerSession {
     /// Open the chooser before the current trusted input event returns.
     #[cfg(target_arch = "wasm32")]
     pub(super) open_requested: bool,
+    #[cfg(target_arch = "wasm32")]
+    pub(super) web_export: Option<super::web_export::WebExport>,
     /// Source of filesystem study exports.
     #[cfg(windows)]
     pub(super) study_root: Option<PathBuf>,
+    /// Latest completed de-identified export from the open catalog.
+    #[cfg(windows)]
+    pub(super) exported_copy: Option<PathBuf>,
     pub(super) primary_series_index: Option<usize>,
     /// Expected panel count for an in-flight multi-series load; zero idle.
     #[cfg(windows)]
@@ -181,6 +191,8 @@ impl NativeViewerSession {
         let primary_series_index = series_browser.as_ref().map(SeriesBrowser::active_index);
         let mut session = Self {
             app,
+            menu_pane: None,
+            mpr_axes: [0, 1, 2],
             views,
             render_scratch,
             projection,
@@ -197,14 +209,21 @@ impl NativeViewerSession {
             capture_after_idle,
             capture_application,
             anonymize_overlay: false,
+            position_sync: super::synchronization::PositionSync::Automatic,
+            grid_cursor: Default::default(),
+            reference_lines: true,
             observation,
             #[cfg(windows)]
             clock_start: Instant::now(),
             series_browser,
             #[cfg(target_arch = "wasm32")]
             open_requested: false,
+            #[cfg(target_arch = "wasm32")]
+            web_export: None,
             #[cfg(windows)]
             study_root: None,
+            #[cfg(windows)]
+            exported_copy: None,
             primary_series_index,
             #[cfg(windows)]
             series_load_total: 0,
@@ -261,13 +280,12 @@ impl NativeViewerSession {
         }
         let was_grid = self.workspace_layout.is_grid();
         if let Some(grid) = layout.grid() {
-            for app in std::iter::once(&mut self.app)
-                .chain(self.compare_panels.iter_mut().map(|panel| &mut panel.app))
-            {
-                app.show_crosshair = false;
-                if app.active_tool == ToolKind::Crosshair {
-                    app.active_tool = ToolKind::Pan;
-                    app.tool_state = ToolState::Idle;
+            if !was_grid {
+                // The persistent MPR voxel crosshair ends when leaving its
+                // layout. A cursor explicitly selected in a grid survives resizing.
+                self.app.show_crosshair = false;
+                if self.app.active_tool == crate::tools::kind::ToolKind::Crosshair {
+                    self.app.select_tool(crate::tools::kind::ToolKind::Pan);
                 }
             }
             let needed = grid.panel_count().saturating_sub(1);
@@ -284,6 +302,7 @@ impl NativeViewerSession {
         } else {
             self.active_panel = 0;
         }
+        self.grid_cursor = Default::default();
         self.workspace_layout = layout;
         self.active_view = None;
         Ok(true)
@@ -293,7 +312,17 @@ impl NativeViewerSession {
         #[cfg(windows)]
         self.pump_series_loads();
         if self.app.loaded.is_some() {
-            render_orthogonal_views_into(&self.app, &mut self.views, &mut self.render_scratch)?;
+            let axes = if self.workspace_layout.is_grid() {
+                [0, 1, 2]
+            } else {
+                self.mpr_axes
+            };
+            render_orthogonal_views_into(
+                &self.app,
+                axes,
+                &mut self.views,
+                &mut self.render_scratch,
+            )?;
             match self.presentation_mode.projection_kind() {
                 None => self.projection = None,
                 Some(kind) => {
@@ -342,7 +371,7 @@ impl NativeViewerSession {
             for index in 0..grid.panel_count() {
                 let (view, navigation) = if index == 0 {
                     (
-                        self.app.loaded.as_ref().map(|_| &self.views[0]),
+                        self.app.loaded.as_ref().map(|_| &self.views[self.app.axis]),
                         (self.app.zoom, viewport_offset(&self.app)),
                     )
                 } else {
@@ -351,7 +380,7 @@ impl NativeViewerSession {
                         .get(index - 1)
                         .ok_or_else(|| anyhow!("native series-grid panel state is missing"))?;
                     (
-                        panel.app.loaded.as_ref().map(|_| panel.axial_view()),
+                        panel.app.loaded.as_ref().map(|_| panel.rendered_view()),
                         (panel.app.zoom, viewport_offset(&panel.app)),
                     )
                 };

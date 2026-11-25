@@ -184,6 +184,15 @@ pixels, dimensions and spacing with the existing projection oracles. These
 tests are allocation-lifecycle oracles, not process-memory or framework
 comparison measurements.
 
+### Compare externally encoded lossless MR frames
+
+The pydicom test-data directory includes four independent representations of the same 64×64 MR frame. With pydicom installed, the following test compares all 4,096 source voxels, spatial geometry and the rendered axial RGBA frame after both file and byte loading for RLE, JPEG-LS and JPEG 2000.
+
+```sh
+export RITK_PYDICOM_TEST_FILES="$(python -c 'from pathlib import Path; from pydicom.data import get_testdata_file; print(Path(get_testdata_file("MR_small.dcm", download=False)).parent)')"
+cargo nextest run -p ritk-snap --lib --run-ignored only -E 'test(independent_lossless_mr_encodings)'
+```
+
 ### One state contract for native and browser hosts
 
 RITK projects the host-visible viewer state into one typed
@@ -466,7 +475,72 @@ the DOM provider because the native path contract is unsupported on WebAssembly.
 4. Pick an empty destination folder outside the source folder. The status bar
    reports how many DICOM instances the viewer wrote to the copy.
 
+5. Choose **Anonymize → Open exported copy** to inspect the verified result.
+
+To repeat the MRI-DIR comparison, export the full T2 series once with each
+profile into separate empty folders. From the repository root, run the following
+with pydicom and NumPy installed:
+
+```sh
+python scripts/verify_anonymized_mri.py /path/to/basic /path/to/strict
+```
+
+This checks all 94 numbered files against the downloaded series, including
+nested SOP references, geometry, file metadata, stored pixel bytes and every
+decoded sample. To also compare the three visible image regions in Chromium,
+supply `--bundle` pointing to the packaged raster workstation under the Métis
+browser output directory and `--driver-url` pointing to a local ChromeDriver.
+Set `PYTHONPATH` to the Métis scripts directory for its browser driver helper.
 Both profiles retain the original pixel data, including burned-in text.
+
+### Five-series CT initial selection
+
+Use the locally retained 303-instance CT. Export the **active study** once
+under each profile to sibling folders named `Basic` and `Strict`.
+Set `RITK_RETAINED_CT` to the source directory of image instances and
+`RITK_CT_EXPORTS` to the parent of the copies. Keep all three directories local.
+
+```sh
+cargo test --locked -p ritk-snap --lib retained_ct_native_initial -- --ignored
+python scripts/verify_ct_series_selection.py "$RITK_RETAINED_CT" \
+  "$RITK_CT_EXPORTS/Basic" "$RITK_CT_EXPORTS/Strict" \
+  --bundle /path/to/packaged/workstation --driver-url http://127.0.0.1:9515
+```
+
+Use the Chromium driver and Métis Python path described above. The checks open
+the complete study before comparing the middle axial, coronal and sagittal
+planes. The native reader verifies that the five acquisitions contain 2, 34,
+67, 111 and 89 instances in that order. It compares every voxel of the
+34-image acquisition. Chromium compares the on-screen image regions.
+
+On a Windows machine that holds the CT, the following test also exports both
+copies from the native session, opens them through **Anonymize → Open exported
+copy**, and checks the selected acquisition and its voxels.
+
+```powershell
+cargo test --locked -p ritk-snap --lib retained_ct_windows_reopens -- --ignored
+```
+
+To test the web export itself, serve the packaged workstation and start a
+loopback ChromeDriver. With the Métis `scripts` directory on `PYTHONPATH`
+and pydicom, NumPy and pylibjpeg-libjpeg installed, run these against the
+retained folder. The test inspects downloads in a temporary directory and
+removes them when it finishes.
+
+```sh
+python scripts/verify_web_ct_export.py /path/to/2_skull_ct --driver-url http://127.0.0.1:9515
+python scripts/verify_web_ct_planes.py /path/to/2_skull_ct --driver-url http://127.0.0.1:9515
+```
+
+The plane test opens the five-series folder, checks linked scrolling in both
+directions on the 34- and 67-image reconstructions, and samples the displayed
+yellow intersection pixels. For the native loader, run the following against
+the image directory to verify all 512 positions on each reformatted axis and
+all 34 axial intersections on both receiving planes.
+
+```sh
+RITK_RETAINED_CT=/path/to/2_skull_ct/DICOM cargo test --locked -p ritk-snap --lib retained_ct_native_reformatted_positions -- --ignored
+```
 
 ## Select a saved DICOM series from Python
 

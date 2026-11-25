@@ -6,8 +6,8 @@
 use super::super::super::layout::WorkspaceLayout;
 use super::super::{Menu, WindowAction};
 use crate::app::SnapApp;
-#[cfg(windows)]
-use crate::presentation::native_session::deidentify::{AnonymizationScope, Deidentification};
+
+use crate::presentation::native_session::export_profile::{AnonymizationScope, Deidentification};
 use crate::presentation::PointerButton;
 use crate::tools::kind::ToolKind;
 use anyhow::{anyhow, Result};
@@ -50,20 +50,31 @@ pub(super) const MENU_TABS: &[(Menu, &str, u32)] = &[
     (Menu::View, "View", 58),
     (Menu::Tools, "Tools", 66),
     (Menu::Window, "Window", 78),
-    #[cfg(windows)]
     (Menu::Anonymize, "Anonymize", 102),
     (Menu::Display, "Display", 76),
 ];
 
-#[cfg(windows)]
-pub(super) const ANONYMIZE_ITEMS: [(&str, AnonymizationScope, Deidentification); 4] = {
+pub(super) const ANONYMIZE_ITEMS: [(&str, WindowAction); 5] = {
     use AnonymizationScope::{Series, Study};
     use Deidentification::{Basic, Strict};
     [
-        ("Active study (Basic)...", Study, Basic),
-        ("Active study (Strict)...", Study, Strict),
-        ("Active series (Basic)...", Series, Basic),
-        ("Active series (Strict)...", Series, Strict),
+        (
+            "Active study (Basic)...",
+            WindowAction::Anonymize(Study, Basic),
+        ),
+        (
+            "Active study (Strict)...",
+            WindowAction::Anonymize(Study, Strict),
+        ),
+        (
+            "Active series (Basic)...",
+            WindowAction::Anonymize(Series, Basic),
+        ),
+        (
+            "Active series (Strict)...",
+            WindowAction::Anonymize(Series, Strict),
+        ),
+        ("Open exported copy", WindowAction::OpenExportedCopy),
     ]
 };
 
@@ -85,17 +96,14 @@ pub(super) fn menu_item_count(
 ) -> usize {
     match menu {
         Menu::File => FILE_ITEMS.len(),
-        #[cfg(windows)]
+
         Menu::Anonymize => ANONYMIZE_ITEMS.len(),
         Menu::View => {
-            let base = if workspace_layout.is_grid() { 3 } else { 6 };
-            base + 2 * usize::from(has_enhanced_pet_volumes(app))
+            let base = if workspace_layout.is_grid() { 8 } else { 6 };
+            base + 2 * usize::from(has_enhanced_pet_volumes(app)) + 3
         }
         Menu::Tools => {
-            ToolKind::all()
-                .iter()
-                .filter(|tool| !(workspace_layout.is_grid() && **tool == ToolKind::Crosshair))
-                .count()
+            ToolKind::all().len()
                 + POINTER_BUTTON_ROWS.len()
                 + usize::from(app.has_length_calibration() || app.can_calibrate_length())
         }
@@ -138,17 +146,31 @@ pub(super) fn menu_item(
     app: &SnapApp,
     workspace_layout: WorkspaceLayout,
 ) -> Result<(&'static str, WindowAction, bool)> {
+    if menu == Menu::View {
+        use crate::ui::AnatomicalPlane::{Axial, Coronal, Sagittal};
+        let first = menu_item_count(menu, app, workspace_layout) - 3;
+        if let Some(plane) = index
+            .checked_sub(first)
+            .and_then(|i| [Axial, Coronal, Sagittal].get(i).copied())
+        {
+            return Ok((
+                plane.label(),
+                WindowAction::SetPlane(plane),
+                app.axis_for_plane(plane) == app.axis,
+            ));
+        }
+    }
     match menu {
         Menu::File => FILE_ITEMS
             .get(index)
             .map(|&(label, action)| (label, action, false))
             .ok_or_else(|| anyhow!("native File menu row is outside its items")),
-        #[cfg(windows)]
+
         Menu::Anonymize => {
-            let &(label, scope, level) = ANONYMIZE_ITEMS
+            let &(label, action) = ANONYMIZE_ITEMS
                 .get(index)
                 .ok_or_else(|| anyhow!("native Anonymize menu row is outside its items"))?;
-            Ok((label, WindowAction::Anonymize(scope, level), false))
+            Ok((label, action, false))
         }
         Menu::View if workspace_layout.is_grid() => match index {
             0 => Ok((
@@ -162,7 +184,32 @@ pub(super) fn menu_item(
                 app.cine.enabled,
             )),
             2 => Ok(("Reset view", WindowAction::ResetView, false)),
-            _ => pet_view_item(index - 3, app),
+            3 => Ok((
+                "Toggle position sync  F5",
+                WindowAction::TogglePositionSync,
+                false,
+            )),
+            4 => Ok((
+                "Align current slices  Shift+F5",
+                WindowAction::AlignCurrentSlices,
+                false,
+            )),
+            5 => Ok((
+                "Cross-reference lines  Ctrl+F12",
+                WindowAction::ToggleReferenceLines,
+                false,
+            )),
+            6 => Ok((
+                "Link pan and zoom  F6",
+                WindowAction::ToggleNavigationLink,
+                false,
+            )),
+            7 => Ok((
+                "Link window settings  Shift+F6",
+                WindowAction::ToggleWindowLink,
+                false,
+            )),
+            _ => pet_view_item(index - 8, app),
         },
         Menu::View => match index {
             0 => Ok((
@@ -196,20 +243,19 @@ pub(super) fn menu_item(
             _ => pet_view_item(index - 6, app),
         },
         Menu::Tools => {
-            let tool_rows = ToolKind::all()
-                .iter()
-                .copied()
-                .filter(|tool| !(workspace_layout.is_grid() && *tool == ToolKind::Crosshair))
-                .count();
+            let tool_rows = ToolKind::all().len();
             if index < tool_rows {
                 let tool = ToolKind::all()
                     .iter()
                     .copied()
-                    .filter(|tool| !(workspace_layout.is_grid() && *tool == ToolKind::Crosshair))
                     .nth(index)
                     .ok_or_else(|| anyhow!("native Tools menu row is outside its items"))?;
                 return Ok((
-                    tool.label(),
+                    if workspace_layout.is_grid() && tool == ToolKind::Crosshair {
+                        "3D cursor  Q"
+                    } else {
+                        tool.label()
+                    },
                     WindowAction::SelectTool(tool),
                     app.active_tool == tool,
                 ));

@@ -8,6 +8,49 @@
 
 # CHANGELOG
 
+## AsterSlice 0.4.0 (private viewer, unreleased)
+
+### Added
+
+- [minor] Keep parallel comparison panes synchronized after switching to sagittal or coronal. Intersecting panes show the selected plane’s cross-reference line on web and Windows.
+
+- [minor] Export a Basic or Strict DICOM study or series from the web viewer as a ZIP and reopen the verified copy. Choose the anatomical plane of a populated pane in the shared View menu.
+
+- [minor] Link screen pan and relative zoom across synchronized comparison panes. F6 toggles navigation linking. Shift+F6 independently links subsequent window and level changes.
+- [minor] Locate a patient point across comparison planes using Q or Ctrl+Shift with a held left press. Releasing the pointer restores cross-reference lines.
+- [minor] Open the most recent verified DICOM export directly from the Windows Anonymize menu.
+- [minor] Use the same Series Number ordering and first readable acquisition for study opening on Windows and the web, including Basic and Strict exports.
+
+### Fixed
+
+- [patch] Keep all four anatomical edge labels on rotated single-row or single-column views.
+
+- [patch] Orient positioned DICOM reading panes consistently and apply manual rotation and flips to that display. The comparison cursor follows the selected patient plane in both panes.
+
+- [patch] Open a whole DICOM folder from the web workstation toolbar, menu or keyboard shortcut. Shift-click opens the individual file picker.
+
+- [patch] Omit the matched identifier and filename from the Windows status message when export verification detects residual identifying metadata.
+- [patch] Keep keyboard focus in the web viewer when F6 toggles linked navigation.
+- [patch] Respect the receiving comparison pane’s 1:1 scale during linked zoom, including rotated images with unequal row and column spacing.
+
+## RITK Codecs (unreleased)
+
+### Fixed
+
+- [patch] Reconstruct signed JPEG-LS context bias at reset and JPEG 2000 coefficients in partially refined code-blocks. Lossless MR fixtures now match every stored reference sample.
+
+## RITK I/O 0.10.0 (unreleased)
+
+### Added
+
+- [minor] `DicomPixelAspect` parses retained DICOM spacing and aspect attributes. A zero spacing component yields `ZeroSpacing`, preserving the distinction between an unavailable aspect and malformed input.
+
+- [minor] Verify and anonymize in-memory Part 10 selections with the same metadata and cross-instance checks as directory exports. Fresh per-export UID salts are available on WebAssembly.
+
+### Fixed
+
+- [patch] Clear application-specific Part 10 preambles during anonymization on both hosts.
+
 ## RITK I/O 0.9.1 and RITK Python 0.13.1
 
 ### Fixed
@@ -68,6 +111,8 @@
 
 ### Added
 
+- [minor] DICOM reader metadata exposes the common Study and Frame of Reference UIDs after verifying every instance.
+
 - [minor] Discover multiple DICOM series from named in-memory Part 10 instances.
 
 - [minor] `decode_dicom_series` reconstructs owned calibrated pixels and the resolved patient grid independently of backend image loading. AsterSlice now transfers the pixel allocation directly into its scalar viewer.
@@ -108,9 +153,17 @@
 
 ### Fixed
 
+- [patch] Pan, zoom and window/level follow the press-relative display displacement at every image fit and rotation on the web and native workstations.
+
+- [patch] In a multi-series workstation, Home and End preserve the current slice when the active panel already shows the requested series.
+
 - [patch] The web app and existing gallery links open the same AsterSlice reading workspace.
 
 ### Added
+
+- [minor] AsterSlice supports reader-selected anatomical slice anchors across studies with Shift+F5. Inactive comparison panes show the intersecting active plane in yellow when both images share a Frame of Reference. Ctrl+F12 toggles these lines.
+
+- [minor] Scrolling comparison panels follows the nearest patient plane in eligible classic DICOM stacks. F5 toggles automatic position matching on Windows and the web.
 
 - [minor] The web app runs the Windows workstation renderer, menus, diagnostic tools and multi-series comparison in WebAssembly. The separate gallery interface has been removed.
 

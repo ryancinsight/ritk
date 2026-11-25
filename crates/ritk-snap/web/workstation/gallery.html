@@ -9,6 +9,7 @@
 </head>
 <body>
   <canvas id="workstation" tabindex="0" aria-label="AsterSlice DICOM reading workstation. Control O opens a study."></canvas>
+  <input id="study-folder" type="file" webkitdirectory multiple hidden aria-label="Choose study folder">
   <main id="metis-app" aria-label="Study file selection"></main>
   <output id="notice" role="status" hidden></output>
   <script type="module" src="./gallery.js"></script>

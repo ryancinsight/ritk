@@ -3,13 +3,23 @@
 use super::window_controls::{PanelCloseKind, WindowAction};
 use super::{NativeViewerError, NativeViewerSession};
 use crate::tools::interaction::{ToolState, ViewportOffset};
-use crate::tools::kind::ToolKind;
 
 impl NativeViewerSession {
-    /// Zoom multiplier that undoes the active panel's fit scale (1:1 pixels).
-    fn one_to_one_zoom(&self) -> Option<f32> {
-        let view = self.views.get(self.active_panel)?;
-        let viewport = self.viewports.get(self.active_panel)?;
+    /// Zoom multiplier that undoes the panel's fit scale (1:1 pixels).
+    pub(super) fn one_to_one_zoom(&self, panel: usize) -> Option<f32> {
+        let index = if self.workspace_layout.is_grid() {
+            panel
+        } else {
+            self.viewports
+                .iter()
+                .position(|v| v.axis() == self.app.axis)?
+        };
+        let viewport = self.viewports.get(index)?;
+        let view = if self.workspace_layout.is_grid() && index > 0 {
+            self.compare_panels.get(index - 1)?.rendered_view()
+        } else {
+            self.views.iter().find(|v| v.axis == viewport.axis())?
+        };
         crate::ui::zoom::one_to_one_zoom(
             [viewport.panel_width, viewport.panel_height],
             [view.frame.width(), view.frame.height()],
@@ -18,6 +28,32 @@ impl NativeViewerSession {
     }
 
     pub(super) fn apply_window_action(
+        &mut self,
+        action: WindowAction,
+    ) -> std::result::Result<bool, NativeViewerError> {
+        self.focus_menu_pane(action);
+        let display_action = matches!(
+            action,
+            WindowAction::ZoomFit
+                | WindowAction::ZoomOneToOne
+                | WindowAction::ResetView
+                | WindowAction::ApplyCustomPreset { .. }
+                | WindowAction::ApplyWindowPreset { .. }
+        );
+        let before =
+            display_action.then(|| super::display_link::DisplayState::read(self.active_app()));
+        let result = self.execute_window_action(action)?;
+        if let Some(before) = before {
+            self.link_display(
+                self.active_panel,
+                before,
+                super::display_link::DisplayState::read(self.active_app()),
+            );
+        }
+        Ok(result)
+    }
+
+    fn execute_window_action(
         &mut self,
         action: WindowAction,
     ) -> std::result::Result<bool, NativeViewerError> {
@@ -41,6 +77,36 @@ impl NativeViewerSession {
                     Ok(true)
                 }
             },
+            #[cfg(windows)]
+            WindowAction::OpenExportedCopy => {
+                let Some(path) = self.exported_copy.clone() else {
+                    self.active_app_mut().status_message =
+                        "Export a DICOM copy from this study first.".into();
+                    return Ok(true);
+                };
+                if let Err(error) = self.open_study_path(&path) {
+                    self.active_app_mut().status_message =
+                        format!("Could not open the exported copy: {error:#}");
+                }
+                Ok(true)
+            }
+            #[cfg(target_arch = "wasm32")]
+            WindowAction::Anonymize(scope, level) => {
+                self.end_held_gestures();
+                if self.prepare_web_export(scope, level).is_err() {
+                    self.active_app_mut().status_message =
+                        "Could not export the selected DICOM data. No copy was prepared.".into();
+                }
+                Ok(true)
+            }
+            #[cfg(target_arch = "wasm32")]
+            WindowAction::OpenExportedCopy => {
+                if self.reopen_web_export().is_err() {
+                    self.active_app_mut().status_message =
+                        "Open a study and export a DICOM copy first.".into();
+                }
+                Ok(true)
+            }
             #[cfg(windows)]
             WindowAction::RepairStudy => match self.repair_study_from_dialog() {
                 Ok(changed) => Ok(changed),
@@ -95,6 +161,10 @@ impl NativeViewerSession {
                 }
                 let slice_changed = previous != app.axis_slice_info(axis).0;
                 self.active_panel = panel_index;
+                if slice_changed {
+                    self.grid_cursor = Default::default();
+                    self.synchronize_position(panel_index);
+                }
                 Ok(active_changed || axis_changed || slice_changed)
             }
             WindowAction::BrowseSeries {
@@ -177,14 +247,12 @@ impl NativeViewerSession {
                 self.window_chrome.toggle_series_preview();
                 Ok(true)
             }
+            WindowAction::SetPlane(plane) => Ok(self.set_anatomical_plane(plane)),
             WindowAction::SetLayout(layout) => self
                 .set_workspace_layout(layout)
                 .map_err(NativeViewerError::from),
             WindowAction::Exit => Ok(true),
             WindowAction::SelectTool(tool) => {
-                if self.workspace_layout.is_grid() && tool == ToolKind::Crosshair {
-                    return Ok(false);
-                }
                 self.active_app_mut().select_tool(tool);
                 Ok(true)
             }
@@ -215,6 +283,41 @@ impl NativeViewerSession {
                     }
                     (true, None) => "Length calibration reset to image spacing".to_owned(),
                 };
+                Ok(true)
+            }
+            WindowAction::ToggleNavigationLink | WindowAction::ToggleWindowLink => {
+                let (flag, name) = if action == WindowAction::ToggleNavigationLink {
+                    (
+                        &mut self.window_chrome.link_navigation,
+                        "Linked pan and zoom",
+                    )
+                } else {
+                    (
+                        &mut self.window_chrome.link_window,
+                        "Linked window settings",
+                    )
+                };
+                *flag = !*flag;
+                let status = if *flag { "enabled" } else { "disabled" };
+                self.active_app_mut().status_message = format!("{name} {status}");
+                Ok(true)
+            }
+            WindowAction::TogglePositionSync => {
+                self.toggle_position_sync();
+                Ok(true)
+            }
+            WindowAction::ToggleReferenceLines => {
+                self.reference_lines = !self.reference_lines;
+                self.active_app_mut().status_message = if self.reference_lines {
+                    "Cross-reference lines enabled"
+                } else {
+                    "Cross-reference lines disabled"
+                }
+                .into();
+                Ok(true)
+            }
+            WindowAction::AlignCurrentSlices => {
+                self.align_current_slices();
                 Ok(true)
             }
             WindowAction::ToggleCrosshair => {
@@ -321,7 +424,7 @@ impl NativeViewerSession {
                     }
                 }
             }
-            WindowAction::ZoomOneToOne => match self.one_to_one_zoom() {
+            WindowAction::ZoomOneToOne => match self.one_to_one_zoom(self.active_panel) {
                 Some(zoom) => {
                     let app = self.active_app_mut();
                     app.zoom = zoom;
