@@ -86,7 +86,8 @@ pub(crate) fn extract_spatial_transform(
 }
 
 /// Transform a single point using a 4×4 homogeneous matrix.
-pub(crate) fn transform_point(point: &[f64; 3], transform: &AffineTransform) -> [f64; 3] {
+#[must_use]
+pub fn transform_point(point: &[f64; 3], transform: &AffineTransform) -> [f64; 3] {
     let t = &transform.0;
     let x = t[0] * point[0] + t[1] * point[1] + t[2] * point[2] + t[3];
     let y = t[4] * point[0] + t[5] * point[1] + t[6] * point[2] + t[7];

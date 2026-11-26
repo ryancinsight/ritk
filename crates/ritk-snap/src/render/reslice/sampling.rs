@@ -9,7 +9,7 @@ const MAX_OUTPUT_SAMPLES: usize = MAX_OUTPUT_BYTES / std::mem::size_of::<f32>();
 const MAX_SOURCE_SAMPLES: usize = 256 * 1024 * 1024;
 const COORDINATE_TOLERANCE_FACTOR: f64 = 128.0;
 
-pub(super) fn validate_volume(volume: &LoadedVolume) -> Result<AffineTransform, ResliceError> {
+pub(crate) fn validate_volume(volume: &LoadedVolume) -> Result<AffineTransform, ResliceError> {
     if volume.channels == 0 || volume.shape.contains(&0) {
         return Err(ResliceError::EmptyVolume);
     }
@@ -124,7 +124,7 @@ fn validate_coordinate(coordinate: [f64; 3], shape: [usize; 3]) -> Result<(), Re
     Ok(())
 }
 
-pub(super) fn sample_volume(
+pub(crate) fn sample_volume(
     volume: &LoadedVolume,
     coordinate: [f64; 3],
     interpolation: ResliceInterpolation,

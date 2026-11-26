@@ -116,6 +116,13 @@ impl NativeViewerSession {
                     Ok(true)
                 }
             },
+            #[cfg(windows)]
+            WindowAction::RigidRegistration => {
+                if let Err(error) = self.start_registration() {
+                    self.active_app_mut().status_message = format!("Registration: {error:#}");
+                }
+                Ok(true)
+            }
             WindowAction::OpenSeriesPicker => {
                 self.restore_maximized_panel()
                     .map_err(NativeViewerError::from)?;
@@ -220,7 +227,13 @@ impl NativeViewerSession {
                     Ok(true)
                 } else {
                     #[cfg(windows)]
-                    return Ok(self.cancel_series_loads());
+                    {
+                        if self.registration.take().is_some() {
+                            self.active_app_mut().status_message = "Registration cancelled.".into();
+                            return Ok(true);
+                        }
+                        return Ok(self.cancel_series_loads());
+                    }
                     #[cfg(target_arch = "wasm32")]
                     return Ok(false); // Browser series decode completes in the input turn.
                 }

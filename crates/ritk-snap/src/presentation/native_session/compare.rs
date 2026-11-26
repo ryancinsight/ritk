@@ -33,6 +33,15 @@ impl ComparePanel {
         series_index: usize,
         status: String,
     ) -> Result<()> {
+        self.replace_volume(volume, Some(series_index), status)
+    }
+
+    pub(super) fn replace_volume(
+        &mut self,
+        volume: LoadedVolume,
+        series_index: Option<usize>,
+        status: String,
+    ) -> Result<()> {
         let mut app = SnapApp::default();
         app.load_volume(volume, status);
         let mut view = empty_axial_view()?;
@@ -41,7 +50,7 @@ impl ComparePanel {
         self.app = app;
         self.view = view;
         self.scratch = scratch;
-        self.series_index = Some(series_index);
+        self.series_index = series_index;
         Ok(())
     }
 
@@ -137,6 +146,21 @@ impl NativeViewerSession {
                 panel + 1,
                 &choice.modality,
                 &choice.description,
+            )?;
+        } else if let Some(volume) = (if panel == 0 {
+            self.app.loaded.as_ref()
+        } else {
+            self.compare_panels
+                .get(panel - 1)
+                .and_then(|p| p.app.loaded.as_ref())
+        })
+        .filter(|v| v.is_registration_preview())
+        {
+            append_series_panel_label(
+                &mut label,
+                panel + 1,
+                volume.modality.as_deref().unwrap_or("Volume"),
+                LoadedVolume::REGISTRATION_PREVIEW,
             )?;
         } else if panel == 0 && self.app.loaded.is_some() {
             write!(&mut label, "P1  |  RITK volume")

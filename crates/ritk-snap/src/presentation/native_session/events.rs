@@ -447,6 +447,8 @@ impl NativeViewerSession {
             false
         };
         let frame_changed = repaint || cine_repaint || chrome_repaint || study_reopened;
+        #[cfg(windows)]
+        let frame_changed = self.poll_registration() || frame_changed;
         if terminal
             || matches!(
                 disposition,

@@ -25,7 +25,7 @@ pub(super) const TRANSLATION_STEP: f64 = 1.0;
 pub(super) const SCALE_STEP: f64 = 0.02;
 
 pub use error::SpatialError;
-pub use transform::SpatialTransform;
+pub use transform::{transform_point, SpatialTransform};
 
 pub(crate) use affine::{apply_affine_perturbation, generate_affine_perturbations};
 pub(crate) use centroid::{center_points, compute_centroid};
