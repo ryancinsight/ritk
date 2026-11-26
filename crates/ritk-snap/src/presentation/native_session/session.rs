@@ -36,6 +36,10 @@ use std::sync::Arc;
 #[cfg(windows)]
 use std::time::Instant;
 
+pub(super) fn show_image_overlay(app: &SnapApp, capture_application: bool) -> bool {
+    app.loaded.is_some() && (app.show_overlay || capture_application)
+}
+
 fn viewport_offset(app: &SnapApp) -> ViewportOffset {
     app.pan_offset
 }
@@ -166,7 +170,7 @@ impl NativeViewerSession {
             viewport_offset(&app),
             app.cine.enabled,
             app.cine.fps,
-            app.show_overlay || capture_application,
+            show_image_overlay(&app, capture_application),
             clinical.as_ref(),
         )?;
         let mut viewports = ArrayVec::new();
@@ -415,7 +419,7 @@ impl NativeViewerSession {
                 viewport_offset(&self.app),
                 self.app.cine.enabled,
                 self.app.cine.fps,
-                self.app.show_overlay || self.capture_application,
+                show_image_overlay(&self.app, self.capture_application),
                 clinical.as_ref(),
             )?;
             let mut viewports = ArrayVec::new();

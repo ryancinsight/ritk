@@ -33,6 +33,10 @@ impl NativeViewerSession {
             } else {
                 &self.app
             };
+            if app.loaded.is_none() {
+                viewport.scrollbar = None;
+                continue;
+            }
             let (slice, total) = app.axis_slice_info(viewport.axis());
             viewport.scrollbar = geometry(*viewport, slice, total)?;
             if let Some(scrollbar) = viewport.scrollbar {

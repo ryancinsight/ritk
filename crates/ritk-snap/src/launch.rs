@@ -12,8 +12,6 @@ pub use series_comparison::run_app_with_series_comparison;
 mod responsive;
 #[cfg(not(target_arch = "wasm32"))]
 pub use responsive::run_responsive_native_app_with_options;
-#[cfg(windows)]
-use std::path::Path;
 pub use viewport::{EframeViewport, EframeViewportError};
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
@@ -111,8 +109,7 @@ pub struct AppLaunchOptions {
     pub capture_application: bool,
     /// Use the Métis native host instead of the eframe shell. On Windows this
     /// defaults to `true`; callers can select the eframe compatibility shell
-    /// explicitly. A missing startup path opens the bounded native folder
-    /// picker.
+    /// explicitly. An omitted path opens an empty workspace.
     #[serde(default)]
     pub metis_native: bool,
     /// Native Métis layout. Non-default values require `metis_native`.
@@ -210,27 +207,11 @@ pub fn run_eframe_app() -> anyhow::Result<()> {
     run_eframe_app_with_options(AppLaunchOptions::default())
 }
 
-#[cfg(windows)]
-fn select_native_initial_path<F>(
-    initial_path: Option<&Path>,
-    pick_folder: F,
-) -> anyhow::Result<PathBuf>
-where
-    F: FnOnce() -> anyhow::Result<Option<PathBuf>>,
-{
-    match initial_path {
-        Some(path) => Ok(path.to_path_buf()),
-        None => pick_folder()?
-            .ok_or_else(|| anyhow::anyhow!("native Métis file selection was cancelled")),
-    }
-}
-
 /// Launch the `ritk-snap` native GUI application with startup options.
 ///
 /// With `metis_native`, `initial_path` is opened by RITK before the interactive
-/// Métis host starts. When it is absent on Windows, the host opens a bounded
-/// native folder picker and passes the selected path to RITK. A cancelled
-/// picker returns an error without starting a window. `initial_series_uid`
+/// Métis host starts. Without a path the viewer starts empty. The user can
+/// open a study from the File menu or with Ctrl+O. `initial_series_uid`
 /// selects one acquisition after RITK discovery when the path contains several
 /// series. With the eframe compatibility shell, `initial_path` is queued for loading
 /// on the first UI update. On Windows, the default launch uses the Métis host;
@@ -292,51 +273,14 @@ fn run_app_with_compatibility_selection(
         );
         #[cfg(windows)]
         {
-            use metis_platform::native::{pick, DialogSelection};
-
-            let path = select_native_initial_path(options.initial_path.as_deref(), || {
-                pick(DialogSelection::Folder).map_err(Into::into)
-            })?;
-            match presentation_selection {
-                NativePresentationSelection::Fixed(mode) => {
-                    if let Some(comparison_uid) = comparison_series_uid.as_deref() {
-                        let primary_uid =
-                            options.initial_series_uid.as_deref().ok_or_else(|| {
-                                anyhow::anyhow!(
-                                    "series comparison requires --series-instance-uid for panel 1"
-                                )
-                            })?;
-                        crate::presentation::run_native_comparison_viewer(
-                            &path,
-                            primary_uid,
-                            comparison_uid,
-                            options.capture.as_deref(),
-                            mode,
-                            options.capture_application,
-                        )?;
-                    } else {
-                        crate::presentation::run_native_viewer(
-                            &path,
-                            options.initial_series_uid.as_deref(),
-                            options.capture.as_deref(),
-                            mode,
-                            options.capture_application,
-                        )?;
-                    }
-                }
-                NativePresentationSelection::Responsive => {
-                    anyhow::ensure!(
-                        comparison_series_uid.is_none(),
-                        "series comparison currently requires a fixed native layout"
-                    );
-                    crate::presentation::run_native_responsive_viewer(
-                        &path,
-                        options.initial_series_uid.as_deref(),
-                        options.capture.as_deref(),
-                        options.capture_application,
-                    )?;
-                }
-            }
+            crate::presentation::run_native_session(
+                options.initial_path.as_deref(),
+                options.initial_series_uid.as_deref(),
+                options.capture.as_deref(),
+                presentation_selection,
+                options.capture_application,
+                comparison_series_uid.as_deref(),
+            )?;
             return Ok(());
         }
         #[cfg(not(windows))]
@@ -438,55 +382,3 @@ pub use web::{
     toggle_web_cine, toggle_web_crosshair, web_canvas_listener_count, web_tool_count,
     web_tool_name, web_window_preset_count, web_window_preset_name,
 };
-
-#[cfg(all(test, windows))]
-mod tests {
-    use super::select_native_initial_path;
-    use std::path::Path;
-
-    #[test]
-    fn preserves_explicit_path_without_opening_picker() {
-        let path = select_native_initial_path(Some(Path::new("study")), || {
-            Err(anyhow::anyhow!("picker must not run"))
-        })
-        .expect("explicit startup paths do not require the picker");
-
-        assert_eq!(path, Path::new("study"));
-    }
-
-    #[test]
-    fn forwards_selected_folder() {
-        let path = select_native_initial_path(None, || Ok(Some("selected-study".into())))
-            .expect("selected folder is returned");
-
-        assert_eq!(path, Path::new("selected-study"));
-    }
-
-    #[test]
-    fn reports_picker_cancellation() {
-        let error = select_native_initial_path(None, || Ok(None)).expect_err("cancel is an error");
-
-        assert_eq!(
-            error.to_string(),
-            "native Métis file selection was cancelled"
-        );
-    }
-
-    #[test]
-    fn preserves_picker_failure_cause() {
-        let error = select_native_initial_path(None, || {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::PermissionDenied,
-                "folder selection denied",
-            )
-            .into())
-        })
-        .expect_err("provider failure must prevent startup");
-
-        let source = error
-            .downcast_ref::<std::io::Error>()
-            .expect("provider error type must survive the selection boundary");
-        assert_eq!(source.kind(), std::io::ErrorKind::PermissionDenied);
-        assert_eq!(source.to_string(), "folder selection denied");
-    }
-}

@@ -9,16 +9,12 @@ and historical captures.
 
 ## Launch and open a study
 
-From a RITK source checkout, build and start AsterSlice with a DICOM folder.
+Launch AsterSlice from its Windows shortcut or double-click `asterslice.exe`.
+The viewer opens with empty image panes. When you are ready to add images,
+choose **File → Open Study...** or press **Ctrl+O** and select a DICOM folder.
+Cancel returns to the viewer. Use the same command to open another study.
 
-```powershell
-cargo run --locked -p ritk-snap -- path/to/study
-```
-
-Without a startup path, the Windows application opens a folder picker.
-In an open viewer, choose **File → Open Study...** or **Ctrl+O** to replace
-the current study. Pick a folder containing the DICOM files. Use the series
-browser to select an acquisition from a study containing several series. For
+Use the series browser to select an acquisition from a study containing several series. For
 the downloaded five-series CT on Windows, select **2_skull_ct/DICOM**.
 The directory index one level above it has an invalid final root record.
 

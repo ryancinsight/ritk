@@ -1,11 +1,44 @@
 //! RITK startup discovery for the native Métis session.
 
-use super::SeriesBrowser;
+use super::{NativeViewerObservation, NativeViewerSession, SeriesBrowser};
 use crate::app::SnapApp;
 use crate::dicom::input_path::{classify_dicom_input_path, DicomInputPath};
 use crate::dicom::loader::{load_volume_from_path, scan_folder_for_series};
-use anyhow::{anyhow, Context, Result};
+use crate::launch::NativePresentationSelection;
+use anyhow::{anyhow, ensure, Context, Result};
 use std::path::Path;
+use std::sync::Arc;
+
+pub(super) fn create_session(
+    path: Option<&Path>,
+    selected_uid: Option<&str>,
+    capture_requested: bool,
+    presentation_mode: NativePresentationSelection,
+    capture_application: bool,
+    comparison_uid: Option<&str>,
+    observation: Arc<NativeViewerObservation>,
+) -> Result<NativeViewerSession> {
+    ensure!(
+        selected_uid.is_none() || path.is_some(),
+        "--series-instance-uid requires a startup study folder"
+    );
+    let mut app = SnapApp::default();
+    let browser = match path {
+        Some(path) => prepare_initial_study(&mut app, path, selected_uid, capture_requested)?,
+        None => None,
+    };
+    let mut session = NativeViewerSession::new_with_browser(
+        app,
+        observation,
+        capture_requested,
+        presentation_mode,
+        capture_application,
+        browser,
+        comparison_uid,
+    )?;
+    session.study_root = path.map(Path::to_path_buf);
+    Ok(session)
+}
 
 pub(super) fn prepare_initial_study(
     app: &mut SnapApp,

@@ -89,9 +89,9 @@ cargo run --locked -p ritk-snap --features eframe-shell -- \
   path/to/study --eframe --capture window.png
 ```
 
-`asterslice --metis-native` may omit `PATH` on Windows. The Métis host then
-opens Moirai's bounded native folder picker; RITK scans, decodes, and renders
-the selected saved study. Use the series browser to choose another acquisition
+Launching AsterSlice from its Windows shortcut or running `asterslice` with no
+arguments opens an empty viewer. Choose **File → Open Study...** or press
+**Ctrl+O** when you are ready to select a study folder. Use the series browser to choose another acquisition
 interactively. An unattended `--capture` of a multi-series folder requires
 `PATH` and `--series-instance-uid` to select its acquisition explicitly.
 

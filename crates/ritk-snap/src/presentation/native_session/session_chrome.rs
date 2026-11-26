@@ -7,7 +7,7 @@ use super::layout::{
     append_measurement_overlay, application_overlay, crosshair_overlay, OverlayCommands,
     MAX_GRID_PANELS,
 };
-use super::session::{clinical_overlay, volume_affine, NativeViewerSession};
+use super::session::{clinical_overlay, show_image_overlay, volume_affine, NativeViewerSession};
 use anyhow::{anyhow, Result};
 use arrayvec::ArrayVec;
 use metis_platform::Rect;
@@ -22,7 +22,7 @@ impl NativeViewerSession {
             i32::try_from(self.framebuffer.height())?,
         );
         let mut reserved = if !self.workspace_layout.is_grid()
-            && (self.app.show_overlay || self.capture_application)
+            && show_image_overlay(&self.app, self.capture_application)
         {
             let clinical = clinical_overlay(&self.app, self.anonymize_overlay);
             application_overlay(
