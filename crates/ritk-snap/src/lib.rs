@@ -26,6 +26,8 @@ pub mod launch;
 pub mod loaded_volume;
 pub mod pacs;
 pub mod presentation;
+#[cfg(any(windows, all(test, not(target_arch = "wasm32"))))]
+mod registration;
 pub mod render;
 pub mod session;
 pub mod tools;

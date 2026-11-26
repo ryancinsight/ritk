@@ -37,6 +37,7 @@ mod polygon_double_click;
 mod polygon_edge_insert;
 #[cfg(feature = "eframe-shell")]
 mod polygon_edit_session;
+mod registration;
 mod repair;
 mod series_browser;
 mod series_loads;

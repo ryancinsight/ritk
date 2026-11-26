@@ -104,6 +104,7 @@ pub(super) fn menu_item_count(
         }
         Menu::Tools => {
             ToolKind::all().len()
+                + usize::from(cfg!(windows))
                 + POINTER_BUTTON_ROWS.len()
                 + usize::from(app.has_length_calibration() || app.can_calibrate_length())
         }
@@ -269,6 +270,14 @@ pub(super) fn menu_item(
                     "Calibrate last distance..."
                 };
                 return Ok((label, WindowAction::LengthCalibration, false));
+            }
+            #[cfg(windows)]
+            if index == tool_rows + usize::from(calibration_row) + POINTER_BUTTON_ROWS.len() {
+                return Ok((
+                    "Rigid registration (P2 to P1)",
+                    WindowAction::RigidRegistration,
+                    false,
+                ));
             }
             let (label, button) = POINTER_BUTTON_ROWS
                 .get(index - tool_rows - usize::from(calibration_row))

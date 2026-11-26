@@ -6880,6 +6880,7 @@ dependencies = [
  "ritk-filter",
  "ritk-image",
  "ritk-io",
+ "ritk-registration",
  "ritk-segmentation",
  "ritk-spatial",
  "ritk-vtk",

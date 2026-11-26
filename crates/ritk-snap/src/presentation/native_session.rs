@@ -35,6 +35,8 @@ mod pressed_buttons;
 mod projection;
 mod reference_lines;
 #[cfg(windows)]
+mod registration;
+#[cfg(windows)]
 mod repair;
 mod routing;
 mod series;

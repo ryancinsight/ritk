@@ -143,6 +143,21 @@ Manually aligned series in different frames can scroll together but have no
 shared plane intersection. **View → Cross-reference lines** or **Ctrl+F12**
 toggles the overlay independently of slice synchronization.
 
+### Register two series on Windows
+
+Open the fixed reference in **P1** and the moving series in **P2** using **F4**.
+For CT–MR comparison, put the CT in P1 and the MR in P2. Choose **Tools →
+Rigid registration (P2 to P1)**. Both inputs must be scalar 3D volumes with
+usable geometry. You can continue viewing or press **Esc** to cancel the fit.
+
+AsterSlice estimates rotation and translation with normalized mutual information
+in physical coordinates, then resamples the moving image on the reference grid.
+A separate pane labeled **Rigid registration preview** opens when the fit
+finishes. Inspect corresponding landmarks throughout the overlap in the axial,
+coronal and sagittal planes. The preview exists in this session. For
+de-identified DICOM files, use **Anonymize** on the original series or study.
+To review de-identified scans, reopen the Strict copies before registration.
+
 ## Export and verify a Strict DICOM copy
 
 1. Click **Open Study** and choose **2_skull_ct**. The series list should

@@ -115,6 +115,8 @@ pub(super) struct NativeViewerSession {
     /// Latest completed de-identified export from the open catalog.
     #[cfg(windows)]
     pub(super) exported_copy: Option<PathBuf>,
+    #[cfg(windows)]
+    pub(super) registration: Option<super::registration::RegistrationJob>,
     pub(super) primary_series_index: Option<usize>,
     /// Expected panel count for an in-flight multi-series load; zero idle.
     #[cfg(windows)]
@@ -228,6 +230,8 @@ impl NativeViewerSession {
             study_root: None,
             #[cfg(windows)]
             exported_copy: None,
+            #[cfg(windows)]
+            registration: None,
             primary_series_index,
             #[cfg(windows)]
             series_load_total: 0,

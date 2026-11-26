@@ -44,6 +44,8 @@ pub(super) enum WindowAction {
     OpenExportedCopy,
     #[cfg(windows)]
     RepairStudy,
+    #[cfg(windows)]
+    RigidRegistration,
     OpenSeriesPicker,
     LoadSelectedSeries,
     Exit,

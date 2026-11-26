@@ -53,6 +53,16 @@ pub struct LoadedVolume {
 }
 
 impl LoadedVolume {
+    #[cfg(any(windows, target_arch = "wasm32", test))]
+    pub(crate) const REGISTRATION_PREVIEW: &'static str = "Rigid registration preview";
+
+    #[cfg(any(windows, target_arch = "wasm32"))]
+    pub(crate) fn is_registration_preview(&self) -> bool {
+        self.source.is_none()
+            && self.metadata.is_none()
+            && self.series_description.as_deref() == Some(Self::REGISTRATION_PREVIEW)
+    }
+
     /// Replace the active PET reconstruction and its SUV and geometry together.
     pub fn select_enhanced_pet_volume(&mut self, index: usize) -> Option<()> {
         let metadata = self.metadata.as_deref_mut()?;

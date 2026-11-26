@@ -264,7 +264,7 @@ pub enum ResliceError {
 
 mod orientation;
 mod pixel;
-mod sampling;
+pub(crate) mod sampling;
 
 pub use orientation::{ResliceOrientation, ResliceOrientationError};
 pub use pixel::{PatientPlaneProjection, PixelMappingError, ResliceOutput};
