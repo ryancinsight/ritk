@@ -11,6 +11,8 @@ use coeus_tensor::Tensor;
 
 use ritk_spatial::{Direction, Point, Spacing};
 
+use crate::components::ComponentBuffers;
+
 /// 3-D multi-component image volume.
 ///
 /// `C` is the compile-time channel count. The tensor axis order is
@@ -203,28 +205,29 @@ where
     ///
     /// # Errors
     /// Returns `Err` when the backend cannot materialize host memory.
-    pub fn into_component_buffers(&self) -> Result<Vec<Vec<T>>>
+    pub fn into_component_buffers(&self) -> Result<ComponentBuffers<T, C>>
     where
         T: Clone + Default,
     {
         let [d, r, c, _ch] = self.shape();
-        let n = d * r * c;
-        let interleaved = self.data.to_vec()?;
-        let mut comps: Vec<Vec<T>> = (0..C).map(|_| Vec::with_capacity(n)).collect();
-        for (i, v) in interleaved.into_iter().enumerate() {
-            comps[i % C].push(v);
-        }
-        Ok(comps)
+        let n = d
+            .checked_mul(r)
+            .and_then(|v| v.checked_mul(c))
+            .context("color volume spatial shape overflows usize")?;
+        // A contiguous tensor is borrowed, not copied, by `host_cow`.
+        let interleaved = self.data.host_cow()?;
+        ComponentBuffers::<T, C>::from_interleaved(&interleaved, n)
     }
 
     /// Rebuild a color volume from `C` scalar component buffers (each in
     /// `[depth, rows, cols]` row-major order) and the spatial shape + metadata.
     ///
     /// # Errors
-    /// Returns `Err` if the number of buffers is not `C`, any buffer length is
-    /// not `depth·rows·cols`, or `C == 0`.
+    /// Returns `Err` if a component length is not `depth·rows·cols` or the
+    /// shape product overflows `usize`. The channel count is checked at compile
+    /// time by the `[Vec<T>; C]` constructor of [`ComponentBuffers`].
     pub fn from_component_buffers(
-        channels: &[Vec<T>],
+        channels: &ComponentBuffers<T, C>,
         spatial: [usize; 3],
         origin: Point<3>,
         spacing: Spacing<3>,
@@ -234,26 +237,27 @@ where
     where
         T: Clone + Default,
     {
-        if channels.len() != C {
+        let [d, r, c] = spatial;
+        let n = d
+            .checked_mul(r)
+            .and_then(|v| v.checked_mul(c))
+            .context("color volume spatial shape overflows usize")?;
+        if channels.voxels() != n {
             bail!(
-                "from_component_buffers: expected {C} channels, got {}",
-                channels.len()
+                "from_component_buffers: component length {}, expected {n}",
+                channels.voxels()
             );
         }
-        let [d, r, c] = spatial;
-        let n = d * r * c;
-        for (k, buf) in channels.iter().enumerate() {
-            if buf.len() != n {
-                bail!(
-                    "from_component_buffers: channel {k} has length {}, expected {n}",
-                    buf.len()
-                );
-            }
-        }
-        let mut interleaved = vec![T::default(); n * C];
-        for (comp, buf) in channels.iter().enumerate() {
-            for (i, v) in buf.iter().enumerate() {
-                interleaved[i * C + comp] = *v;
+        let mut interleaved = vec![
+            T::default();
+            n.checked_mul(C)
+                .context("color volume shape product overflows usize")?
+        ];
+        if n > 0 {
+            for (k, buf) in channels.as_slice().chunks_exact(n).enumerate() {
+                for (i, &v) in buf.iter().enumerate() {
+                    interleaved[i * C + k] = v;
+                }
             }
         }
         let tensor = Tensor::<T, B>::from_slice_on([d, r, c, C], &interleaved, backend)?;
@@ -323,10 +327,15 @@ mod tests {
         .unwrap();
 
         let comps = vol.into_component_buffers().unwrap();
-        assert_eq!(comps.len(), 3);
-        assert_eq!(comps[0], vec![10.0, 11.0, 12.0, 13.0]);
-        assert_eq!(comps[1], vec![100.0, 101.0, 102.0, 103.0]);
-        assert_eq!(comps[2], vec![200.0, 201.0, 202.0, 203.0]);
+        assert_eq!(comps.channels(), 3);
+        assert_eq!(comps.voxels(), 4);
+        assert_eq!(comps.component(0), &[10.0, 11.0, 12.0, 13.0]);
+        assert_eq!(comps.component(1), &[100.0, 101.0, 102.0, 103.0]);
+        assert_eq!(comps.component(2), &[200.0, 201.0, 202.0, 203.0]);
+        assert_eq!(
+            comps.as_slice(),
+            &[10.0, 11.0, 12.0, 13.0, 100.0, 101.0, 102.0, 103.0, 200.0, 201.0, 202.0, 203.0,]
+        );
 
         let rebuilt = RgbVolume::<f32, B>::from_component_buffers(
             &comps,
@@ -346,27 +355,33 @@ mod tests {
     }
 
     #[test]
-    fn from_component_buffers_rejects_wrong_count_and_length() {
-        let backend = B::default();
-        let two = vec![vec![0.0_f32; 4], vec![0.0; 4]];
+    fn component_buffers_reject_ragged_channels() {
+        assert!(
+            ComponentBuffers::from_channels([vec![0.0_f32; 3], vec![0.0; 4], vec![0.0; 4]])
+                .is_err()
+        );
+        let buffers =
+            ComponentBuffers::from_channels([vec![0.0_f32; 4], vec![0.0; 4], vec![0.0; 4]])
+                .expect("equal-length channels");
         assert!(RgbVolume::<f32, B>::from_component_buffers(
-            &two,
-            [1, 2, 2],
+            &buffers,
+            [1, 2, 3],
             Point::origin(),
             Spacing::uniform(1.0),
             Direction::identity(),
-            &backend,
+            &B::default(),
         )
         .is_err());
-        let bad_len = vec![vec![0.0_f32; 3], vec![0.0; 4], vec![0.0; 4]];
-        assert!(RgbVolume::<f32, B>::from_component_buffers(
-            &bad_len,
-            [1, 2, 2],
-            Point::origin(),
-            Spacing::uniform(1.0),
-            Direction::identity(),
-            &backend,
-        )
-        .is_err());
+    }
+
+    #[test]
+    fn into_channel_returns_the_requested_component() {
+        let buffers = ComponentBuffers::from_channels([
+            vec![1.0_f32, 2.0],
+            vec![10.0_f32, 20.0],
+            vec![100.0_f32, 200.0],
+        ])
+        .expect("equal-length channels");
+        assert_eq!(buffers.into_channel(2), vec![100.0, 200.0]);
     }
 }

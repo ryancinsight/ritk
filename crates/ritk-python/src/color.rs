@@ -19,7 +19,7 @@ use ritk_filter::{
     LabelMapContourOverlayFilter, LabelOverlayFilter, LabelToRGBFilter, MeanImageFilter,
     MedianFilter, RecursiveGaussianFilter, ScalarToRGBColormapFilter,
 };
-use ritk_image::{file_axes_direction, ColorVolume};
+use ritk_image::{file_axes_direction, ColorVolume, ComponentBuffers};
 use std::sync::Arc;
 
 type Rgb = ColorVolume<f32, MoiraiBackend, 3>;
@@ -159,8 +159,10 @@ pub fn physical_point_image_source(
         )
     });
     let (origin, spacing, direction) = source_geometry(origin, spacing);
+    let buffers = ComponentBuffers::from_channels([cx, cy, cz])
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     let vol = ColorVolume::<f32, MoiraiBackend, 3>::from_component_buffers(
-        &[cx, cy, cz],
+        &buffers,
         dims,
         origin,
         spacing,
@@ -188,8 +190,10 @@ pub fn compose(c0: &PyImage, c1: &PyImage, c2: &PyImage) -> RitkResult<PyColorIm
     let b0 = image_to_vec(c0.inner.as_ref()).0;
     let b1 = image_to_vec(c1.inner.as_ref()).0;
     let b2 = image_to_vec(c2.inner.as_ref()).0;
+    let buffers = ComponentBuffers::from_channels([b0, b1, b2])
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     let vol = ColorVolume::<f32, MoiraiBackend, 3>::from_component_buffers(
-        &[b0, b1, b2],
+        &buffers,
         dims,
         *c0.inner.origin(),
         *c0.inner.spacing(),
@@ -338,11 +342,11 @@ pub fn vector_index_selection_cast(image: &PyColorImage, index: usize) -> RitkRe
             "vector_index_selection_cast: index {index} out of range for {ch} components"
         )));
     }
-    let mut comps = image
+    let comps = image
         .inner
         .into_component_buffers()
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
-    let comp = comps.swap_remove(index);
+    let comp = comps.into_channel(index);
     Ok(into_py_image(vec_to_image(
         comp,
         [d, r, c],
@@ -373,10 +377,10 @@ pub fn vector_magnitude(image: &PyColorImage) -> PyImage {
 }
 
 /// Per-voxel Euclidean magnitude `sqrt(Σ_k c_k²)` of the channel buffers.
-fn vector_magnitude_buffer(comps: &[Vec<f32>], n: usize) -> Vec<f32> {
+fn vector_magnitude_buffer<const C: usize>(comps: &ComponentBuffers<f32, C>, n: usize) -> Vec<f32> {
     let mut mag = vec![0.0_f32; n];
-    for buf in comps {
-        for (i, &v) in buf.iter().enumerate() {
+    for k in 0..C {
+        for (i, &v) in comps.component(k).iter().enumerate() {
             mag[i] += v * v;
         }
     }

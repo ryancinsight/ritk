@@ -6,6 +6,7 @@
 pub mod access;
 pub mod axis_permutation;
 pub mod color;
+pub mod components;
 pub mod grid;
 pub mod metadata;
 pub mod region;
@@ -16,6 +17,7 @@ pub mod types;
 
 pub use axis_permutation::{PermutedGrid, SignedAxisPermutation};
 pub use color::{ColorVolume, RgbVolume};
+pub use components::ComponentBuffers;
 // The coordinate map is pure geometry and lives with the rest of the spatial
 // vocabulary in `ritk-spatial`; it is re-exported here because it appears in
 // this crate's own public signatures (`Image::coordinate_map`).

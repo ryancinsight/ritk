@@ -60,14 +60,11 @@ fn per_component_median_matches_independent_channel_median() {
     let out_comps = out.into_component_buffers().expect("test tensor is valid");
 
     // Reference: apply the scalar median to each channel independently.
-    for (k, ch) in vol
-        .into_component_buffers()
-        .expect("test tensor is valid")
-        .into_iter()
-        .enumerate()
-    {
+    let in_comps = vol.into_component_buffers().expect("test tensor is valid");
+    for k in 0..3 {
+        let ch = in_comps.component(k);
         let backend = B::default();
-        let t = coeus_tensor::Tensor::<f32, B>::from_slice_on(spatial, &ch, &backend)
+        let t = coeus_tensor::Tensor::<f32, B>::from_slice_on(spatial, ch, &backend)
             .expect("test tensor is valid");
         let img = Image::<f32, B, 3>::new(
             t,
@@ -82,6 +79,10 @@ fn per_component_median_matches_independent_channel_median() {
             .data()
             .as_slice()
             .to_vec();
-        assert_eq!(out_comps[k], ref_buf, "channel {k} median mismatch");
+        assert_eq!(
+            out_comps.component(k),
+            ref_buf.as_slice(),
+            "channel {k} median mismatch"
+        );
     }
 }

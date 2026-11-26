@@ -9,7 +9,7 @@
 //! results — so the entire scalar filter library is reusable on color images
 //! with no per-filter reimplementation.
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use coeus_core::ComputeBackend;
 use ritk_image::{ColorVolume, Image};
 use ritk_tensor_ops::native::extract_image_vec;
@@ -39,14 +39,21 @@ where
     let spatial = vol.spatial_shape();
     let (origin, spacing, direction) = (*vol.origin(), *vol.spacing(), *vol.direction());
 
-    let bufs = vol.into_component_buffers()?;
-    let mut out_bufs: Vec<Vec<f32>> = Vec::with_capacity(C);
-    for buf in bufs {
-        let tensor = coeus_tensor::Tensor::<f32, B>::from_slice_on(spatial, &buf, backend)?;
+    let mut bufs = vol.into_component_buffers()?;
+    let voxels = bufs.voxels();
+    for k in 0..C {
+        let tensor =
+            coeus_tensor::Tensor::<f32, B>::from_slice_on(spatial, bufs.component(k), backend)?;
         let img = Image::<f32, B, 3>::new(tensor, origin, spacing, direction)?;
         let result = f(&img);
         let (rvals, _) = extract_image_vec(&result)?;
-        out_bufs.push(rvals);
+        if rvals.len() != voxels {
+            bail!(
+                "map_color_components: component {k} changed length from {voxels} to {}",
+                rvals.len()
+            );
+        }
+        bufs.component_mut(k).copy_from_slice(&rvals);
     }
-    ColorVolume::from_component_buffers(&out_bufs, spatial, origin, spacing, direction, backend)
+    ColorVolume::from_component_buffers(&bufs, spatial, origin, spacing, direction, backend)
 }
