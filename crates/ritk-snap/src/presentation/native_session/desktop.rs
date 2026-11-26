@@ -24,8 +24,8 @@ pub fn run_native_viewer(
     presentation_mode: NativePresentationMode,
     capture_application: bool,
 ) -> Result<NativeViewerOutcome> {
-    run_native_viewer_with_browser(
-        initial_path,
+    run_native_session(
+        Some(initial_path.as_ref()),
         initial_series_uid,
         capture,
         NativePresentationSelection::Fixed(presentation_mode),
@@ -53,8 +53,8 @@ pub fn run_native_comparison_viewer(
     presentation_mode: NativePresentationMode,
     capture_application: bool,
 ) -> Result<NativeViewerOutcome> {
-    run_native_viewer_with_browser(
-        initial_path,
+    run_native_session(
+        Some(initial_path.as_ref()),
         Some(initial_series_uid),
         capture,
         NativePresentationSelection::Fixed(presentation_mode),
@@ -79,8 +79,8 @@ pub fn run_native_responsive_viewer(
     capture: Option<&Path>,
     capture_application: bool,
 ) -> Result<NativeViewerOutcome> {
-    run_native_viewer_with_browser(
-        initial_path,
+    run_native_session(
+        Some(initial_path.as_ref()),
         initial_series_uid,
         capture,
         NativePresentationSelection::Responsive,
@@ -89,34 +89,24 @@ pub fn run_native_responsive_viewer(
     )
 }
 
-fn run_native_viewer_with_browser(
-    initial_path: impl AsRef<Path>,
+pub(crate) fn run_native_session(
+    initial_path: Option<&Path>,
     initial_series_uid: Option<&str>,
     capture: Option<&Path>,
     presentation_mode: NativePresentationSelection,
     capture_application: bool,
     comparison_series_uid: Option<&str>,
 ) -> Result<NativeViewerOutcome> {
-    let initial_path = initial_path.as_ref();
-    let mut app = SnapApp::default();
-    let series_browser = prepare_initial_study(
-        &mut app,
+    let observation = Arc::new(NativeViewerObservation::default());
+    let session = startup::create_session(
         initial_path,
         initial_series_uid,
         capture.is_some(),
-    )?;
-
-    let observation = Arc::new(NativeViewerObservation::default());
-    let mut session = NativeViewerSession::new_with_browser(
-        app,
-        Arc::clone(&observation),
-        capture.is_some(),
         presentation_mode,
         capture_application,
-        series_browser,
         comparison_series_uid,
+        Arc::clone(&observation),
     )?;
-    session.study_root = Some(initial_path.to_path_buf());
     let config = WindowConfig::with_visibility(
         PRODUCT_NAME,
         INITIAL_WIDTH,

@@ -80,9 +80,8 @@ struct Args {
     /// Include the bounded RITK application overlay in a Métis capture.
     #[arg(long, requires = "capture")]
     capture_application: bool,
-    /// Run a study through the Métis native host. Without PATH, open the
-    /// Windows native folder picker before loading the selected study. This is
-    /// the default Windows shell; use `--eframe` for the compatibility shell.
+    /// Use the Métis native host (default on Windows). Without PATH, open an
+    /// empty viewer. Choose File > Open Study or press Ctrl+O to add images.
     #[arg(long)]
     metis_native: bool,
     /// Use the legacy eframe compatibility shell instead of the default Métis

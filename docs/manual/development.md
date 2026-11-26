@@ -724,7 +724,8 @@ decorations remain outside that contract. The original
 [provenance](images/dicom-metis-real-ct-application.json), are historical
 records rather than outputs of the current command.
 
-To use the Windows folder picker, run the same viewer without a path:
+To start with an empty workspace, run the viewer without a path. Press Ctrl+O
+in the window when you are ready to select a study folder.
 
 ~~~powershell
 & $viewer --metis-native

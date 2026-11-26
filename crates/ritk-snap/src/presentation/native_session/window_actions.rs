@@ -63,7 +63,7 @@ impl NativeViewerSession {
                 Ok(reopened) => Ok(reopened),
                 Err(error) => {
                     self.active_app_mut().status_message =
-                        format!("DICOM reopen failed; current study remains displayed: {error:#}");
+                        format!("Could not open study: {error:#}");
                     Ok(true)
                 }
             },

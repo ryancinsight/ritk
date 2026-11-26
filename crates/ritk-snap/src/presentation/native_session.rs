@@ -2,8 +2,10 @@
 //! Both hosts submit the same client-coordinate events and present the same
 //! composed framebuffer. File access and window lifecycle belong to the host.
 
+#[cfg(all(windows, test))]
+use crate::app::SnapApp;
 #[cfg(windows)]
-use crate::app::{SnapApp, PRODUCT_NAME};
+use crate::app::PRODUCT_NAME;
 #[cfg(windows)]
 use crate::launch::{NativePresentationMode, NativePresentationSelection};
 #[cfg(windows)]
@@ -49,7 +51,7 @@ mod window_controls;
 #[cfg(windows)]
 use composition::save_capture;
 use series_browser::SeriesBrowser;
-#[cfg(windows)]
+#[cfg(all(windows, test))]
 use startup::prepare_initial_study;
 use window_controls::{WindowAction, WindowChrome};
 
@@ -75,6 +77,8 @@ pub use outcome::NativeViewerOutcome;
 
 #[cfg(windows)]
 mod desktop;
+#[cfg(windows)]
+pub(crate) use desktop::run_native_session;
 #[cfg(windows)]
 pub use desktop::{run_native_comparison_viewer, run_native_responsive_viewer, run_native_viewer};
 

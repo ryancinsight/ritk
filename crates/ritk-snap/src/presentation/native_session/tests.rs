@@ -41,6 +41,7 @@ mod repair;
 mod series_browser;
 mod series_loads;
 mod slice_scrollbar;
+mod startup;
 mod support;
 mod window_controls;
 use support::assert_multiframe_rows;
