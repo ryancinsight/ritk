@@ -1,9 +1,17 @@
 //! Estimate physical sampling domains and score them with normalized mutual information.
-use super::*;
+use super::volume::center;
+use crate::geometry::affine::AffineTransform as Grid;
+use crate::render::reslice::sampling::sample_volume;
+use crate::render::ResliceInterpolation;
+use crate::LoadedVolume;
+use anyhow::{ensure, Context, Result};
 use ritk_registration::classical::error::{RegistrationError, Result as MetricResult};
+use ritk_registration::classical::spatial::transform_point;
+use ritk_registration::AffineTransform;
 use ritk_registration::{
     HistogramEstimator, IntensityRange, MutualInformationMetric, NmiNormalization,
 };
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Stage {
@@ -89,7 +97,7 @@ impl<'a> Input<'a> {
         let center = if count > 0 {
             grid.voxel_to_patient(sum.map(|v| v / f64::from(count)))
         } else {
-            super::center(volume, grid)
+            center(volume, grid)
         };
         Ok(Self {
             volume,

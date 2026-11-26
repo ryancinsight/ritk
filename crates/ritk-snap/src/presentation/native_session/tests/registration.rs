@@ -44,8 +44,8 @@ fn rigid_registration_from_tools_opens_a_separate_preview() {
     let until = Instant::now() + Duration::from_secs(30);
     while session.registration.is_some() {
         assert!(Instant::now() < until, "worker did not finish");
-        std::thread::sleep(Duration::from_millis(10));
         session.handle_events(&[]).expect("idle update");
+        std::thread::yield_now();
     }
     assert_eq!(
         session.active_panel,
