@@ -1,4 +1,5 @@
 //! Native scalar samples from the three mutually exclusive PS3.5 §8.2 pixel elements.
+mod affine;
 mod fragment;
 mod sample;
 pub use sample::StoredScalar;

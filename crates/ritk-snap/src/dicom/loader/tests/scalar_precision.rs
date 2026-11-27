@@ -252,7 +252,19 @@ fn verified_header_anonymization_reopens_precise_pixels_and_rejects_short_final_
         file.write_all(&mut bytes)?;
         let export = anonymize_dicom_buffers(vec![(name, &bytes)], &AnonymizeOptions::default());
         if length < data.len() {
-            assert!(export.is_err(), "verification must check the final frame");
+            let error = export.expect_err("verification must check the final frame");
+            assert_eq!(
+                error.to_string(),
+                "exported DICOM instances failed verification"
+            );
+            let dir = tempfile::tempdir()?;
+            let path = dir.path().join(name);
+            file.write_to_file(&path)?;
+            use ritk_io::format::dicom::anonymize::verify::{
+                verify_dicom_file, VerifyIssue, VerifyOptions,
+            };
+            let report = verify_dicom_file(&path, &VerifyOptions::default())?;
+            assert!(report.issues.iter().any(|issue| matches!(issue, VerifyIssue::GeometryMismatch { detail } if detail.contains("PixelData length 40 < expected 2-frame 48"))));
         } else {
             let files = export?;
             let volume = load_volume_from_bytes(&files[0].0, &files[0].1)?;

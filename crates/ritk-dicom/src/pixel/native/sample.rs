@@ -1,6 +1,6 @@
 //! Stored integer and IEEE floating-point values at their encoded precision.
 use crate::PixelLayout;
-use num_bigint::{BigInt, Sign, ToBigInt};
+use num_bigint::{BigInt, Sign};
 use std::fmt::{self, Display};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -39,32 +39,7 @@ impl StoredScalar {
         match self {
             Self::Unsigned(n) => *n as f64,
             Self::Signed(n) => *n as f64,
-            Self::Wide(n) => {
-                let magnitude = n.magnitude();
-                let value = if let Ok(word) = u128::try_from(magnitude) {
-                    word as f64
-                } else if magnitude.bits() > 1024 {
-                    f64::INFINITY
-                } else {
-                    // Keep the leading 53 bits and round ties to an even significand.
-                    let shift = magnitude.bits() - 53;
-                    let mut high = u64::try_from(magnitude >> shift).expect("53-bit significand");
-                    if magnitude.bit(shift - 1)
-                        && (high % 2 == 1
-                            || magnitude
-                                .trailing_zeros()
-                                .is_some_and(|zeros| zeros < shift - 1))
-                    {
-                        high += 1;
-                    }
-                    high as f64 * 2f64.powi(i32::try_from(shift).expect("finite exponent"))
-                };
-                if n.sign() == Sign::Minus {
-                    -value
-                } else {
-                    value
-                }
-            }
+            Self::Wide(n) => super::affine::scaled(n, 0),
             Self::Float(n) => f64::from(*n),
             Self::Double(n) => *n,
         }
@@ -72,25 +47,25 @@ impl StoredScalar {
 
     /// Difference from a modality window centre before conversion to display precision.
     pub fn window_offset(&self, slope: f64, intercept: f64, center: f64) -> f64 {
-        // Where f64 can no longer distinguish adjacent integers, subtract the
-        // integral window origin in the stored domain before narrowing.
-        if slope.fract() == 0.0
-            && matches!(self, Self::Unsigned(_) | Self::Signed(_) | Self::Wide(_))
-            && center.abs().max(intercept.abs()) >= (1u64 << 52) as f64
-            && let (Some(origin), Some(offset), Some(scale)) =
-                (center.to_bigint(), intercept.to_bigint(), slope.to_bigint())
+        let approximate = self.to_f64();
+        if slope.is_finite()
+            && intercept.is_finite()
+            && center.is_finite()
+            && approximate.abs().max(center.abs()).max(intercept.abs()) >= (1u64 << 52) as f64
         {
-            let delta = match self {
-                Self::Unsigned(n) => BigInt::from(*n),
-                Self::Signed(n) => BigInt::from(*n),
-                Self::Wide(n) => n.clone(),
-                _ => unreachable!(),
-            } * scale
-                + offset
-                - origin;
-            return Self::Wide(delta).to_f64() + (intercept.fract() - center.fract());
+            let (n, exponent) = match self {
+                Self::Unsigned(n) => (BigInt::from(*n), 0),
+                Self::Signed(n) => (BigInt::from(*n), 0),
+                Self::Wide(n) => (n.clone(), 0),
+                _ if approximate.is_finite() => {
+                    let (mantissa, exponent) = super::affine::parts(approximate);
+                    (BigInt::from(mantissa), exponent)
+                }
+                _ => return approximate.mul_add(slope, intercept - center),
+            };
+            return super::affine::centered(n, exponent, slope, intercept, center);
         }
-        self.to_f64().mul_add(slope, intercept - center)
+        approximate.mul_add(slope, intercept - center)
     }
 
     pub(super) fn display_value(&self, layout: PixelLayout) -> f32 {
@@ -111,8 +86,11 @@ impl StoredScalar {
                 Self::Double(n) => *n as f32,
             };
         }
-        let value = self.to_f64();
-        (value * f64::from(layout.rescale_slope) + f64::from(layout.rescale_intercept)) as f32
+        self.window_offset(
+            f64::from(layout.rescale_slope),
+            f64::from(layout.rescale_intercept),
+            0.,
+        ) as f32
     }
 }
 
