@@ -4823,7 +4823,7 @@ dependencies = [
  "moirai-async 0.12.0 (git+https://github.com/ryancinsight/Moirai.git)",
  "moirai-crypto",
  "rustls-pki-types",
- "webpki-roots 1.0.11",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -9753,4 +9753,3 @@ dependencies = [
  "quote",
  "syn 1.0.109",
 ]
-
