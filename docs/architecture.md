@@ -128,7 +128,8 @@ For any supported grayscale DICOM JPEG 2000 frame `C` and layout `L`, if native 
 - `consus-raster` owns bounded JPEG parsing and returns encoded-grid dimensions, a pixel format, and packed sample bytes without applying EXIF presentation orientation.
 - `PixelFormat::GrayWide` samples use the provider's native-endian byte contract; conversion to signed or unsigned DICOM stored integers happens only after `PixelLayout` validation.
 - `PixelFormat::Rgb` maps to interleaved RGB samples with `samples_per_pixel=3`, `BitsAllocated=8`, and unsigned sample interpretation.
-- A single zero byte used to make an odd-length DICOM item value even is removed only when it follows terminal JPEG EOI; other trailing data is rejected by the provider.
+- An odd-length JPEG codestream can carry one padding byte after its end-of-image marker. The DICOM reader accepts a zero byte or a repeated final marker byte (`0xd9`).
+- An unsigned grayscale lossless JPEG may encode the full allocated word. When its precision exceeds `BitsStored`, every reconstructed sample must fit the declared stored range before modality rescaling.
 - `PixelLayout` owns integer sample interpretation for all native codecs; `BitsAllocated=8` with `PixelRepresentation=1` maps each byte through `i8`, not `u8`.
 
 **Proof obligation**:

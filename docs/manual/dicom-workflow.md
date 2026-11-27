@@ -12,7 +12,9 @@ and historical captures.
 Launch AsterSlice from its Windows shortcut or double-click `asterslice.exe`.
 The viewer opens with empty image panes. When you are ready to add images,
 choose **File → Open Study...** or press **Ctrl+O** and select a DICOM folder.
-Cancel returns to the viewer. Use the same command to open another study.
+Select the folder containing the slices even when their names have no extension
+(for example, `IM000001`). AsterSlice recognizes DICOM Part 10 files from their
+headers. Cancel returns to the viewer. Use the same command to open another study.
 
 Use the series browser to select an acquisition from a study containing several series. For
 the downloaded five-series CT on Windows, select **2_skull_ct/DICOM**.

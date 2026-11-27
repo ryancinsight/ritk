@@ -9,7 +9,7 @@
 //! is preserved as interleaved full-precision samples in raster order.
 //!
 use anyhow::{bail, Context, Result};
-use consus_raster::{jpeg, Compression, DecodeLimits, PixelFormat};
+use consus_raster::{jpeg, Compression, DecodeLimits, DecodedImage, PixelFormat};
 
 use crate::pixel_layout::{
     decode_compressed_samples, encode_grayscale_stored_bytes, PixelSignedness,
@@ -25,8 +25,10 @@ pub use lossless::{encode_grayscale_jpeg_lossless, JpegLosslessPrediction};
 /// metadata. Its dimensions, component count, and sample width must match the
 /// DICOM layout. Signed interpretation uses the JPEG frame precision rather
 /// than the storage container width, and the modality rescale is then applied
-/// from `layout`. A single DICOM even-length zero pad after the terminal JPEG
-/// EOI marker is accepted; other trailing data is rejected.
+/// from `layout`. Unsigned grayscale lossless JPEG may use all allocated bits
+/// for coding when every decoded value fits the declared stored precision.
+/// An odd-length JPEG may have one padding byte after EOI, either zero or a
+/// repeated final marker byte found in some DICOM exports.
 ///
 /// # Errors
 ///
@@ -42,24 +44,9 @@ pub fn decode_jpeg_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<
     {
         bail!("lossy JPEG DCT does not support signed DICOM pixel representation");
     }
-    validate_jpeg_layout(
-        decoded.width(),
-        decoded.height(),
-        decoded.format(),
-        decoded.sample_precision(),
-        decoded.pixels().len(),
-        layout,
-    )?;
-
-    match decoded.format() {
-        PixelFormat::Gray | PixelFormat::Rgb => {
-            decode_jpeg_samples(decoded.pixels(), decoded.sample_precision(), 1, layout)
-        }
-        PixelFormat::GrayWide | PixelFormat::RgbWide => {
-            decode_jpeg_samples(decoded.pixels(), decoded.sample_precision(), 2, layout)
-        }
-        _ => bail!("JPEG decoder returned an unsupported pixel format"),
-    }
+    let bytes_per_sample = validate_jpeg_layout(&decoded, layout)?;
+    let stored_precision = u8::try_from(layout.bits_stored).context("invalid JPEG BitsStored")?;
+    decode_jpeg_samples(decoded.pixels(), stored_precision, bytes_per_sample, layout)
 }
 
 /// Encode one frame as a DICOM encapsulated baseline JPEG fragment.
@@ -125,7 +112,7 @@ fn validate_encodable_layout(layout: PixelLayout) -> Result<()> {
 }
 
 fn strip_dicom_padding(fragment: &[u8]) -> &[u8] {
-    if fragment.len().is_multiple_of(2) && fragment.ends_with(&[0xFF, 0xD9, 0x00]) {
+    if fragment.len().is_multiple_of(2) && matches!(fragment, [.., 0xff, 0xd9, 0x00 | 0xd9]) {
         &fragment[..fragment.len() - 1]
     } else {
         fragment
@@ -148,16 +135,14 @@ fn decode_limits(fragment: &[u8], layout: PixelLayout) -> Result<DecodeLimits> {
     })
 }
 
-fn validate_jpeg_layout(
-    width: u32,
-    height: u32,
-    pixel_format: PixelFormat,
-    sample_precision: u8,
-    decoded_len: usize,
-    layout: PixelLayout,
-) -> Result<()> {
-    let width = usize::try_from(width).context("JPEG width exceeds the host address space")?;
-    let height = usize::try_from(height).context("JPEG height exceeds the host address space")?;
+fn validate_jpeg_layout(decoded: &DecodedImage, layout: PixelLayout) -> Result<usize> {
+    let width =
+        usize::try_from(decoded.width()).context("JPEG width exceeds the host address space")?;
+    let height =
+        usize::try_from(decoded.height()).context("JPEG height exceeds the host address space")?;
+    let pixel_format = decoded.format();
+    let sample_precision = decoded.sample_precision();
+    let decoded_len = decoded.pixels().len();
     if width != layout.cols || height != layout.rows {
         bail!(
             "JPEG dimensions {}x{} do not match DICOM layout {}x{}",
@@ -181,7 +166,14 @@ fn validate_jpeg_layout(
             sample_precision
         );
     }
-    if layout.bits_stored != u16::from(sample_precision) {
+    // Some unsigned lossless CT exports code the allocated word. The shared
+    // sample converter checks every word against BitsStored before rescaling.
+    let uses_allocated_word = decoded.compression() == Compression::Lossless
+        && pixel_format == PixelFormat::GrayWide
+        && layout.pixel_representation == PixelSignedness::Unsigned
+        && u16::from(sample_precision) == layout.bits_allocated
+        && layout.bits_stored < layout.bits_allocated;
+    if layout.bits_stored != u16::from(sample_precision) && !uses_allocated_word {
         bail!(
             "JPEG sample precision {} does not match DICOM BitsStored={}",
             sample_precision,
@@ -209,7 +201,7 @@ fn validate_jpeg_layout(
             pixel_format
         );
     }
-    Ok(())
+    Ok(bytes_per_sample)
 }
 
 fn decode_jpeg_samples(
