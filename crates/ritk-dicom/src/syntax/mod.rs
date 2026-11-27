@@ -149,6 +149,7 @@ impl TransferSyntaxKind {
             self,
             Self::ImplicitVrLittleEndian
                 | Self::ExplicitVrLittleEndian
+                | Self::ExplicitVrBigEndian
                 | Self::DeflatedExplicitVrLittleEndian
         )
     }
@@ -230,7 +231,10 @@ mod tests {
                 assert!(!syntax.is_backend_codec_candidate());
                 assert!(!syntax.is_codec_supported());
                 assert!(syntax.is_natively_supported());
-                assert!(!syntax.is_big_endian());
+                assert_eq!(
+                    syntax.is_big_endian(),
+                    syntax == TransferSyntaxKind::ExplicitVrBigEndian
+                );
             }
             if syntax.is_backend_codec_candidate() {
                 assert!(syntax.is_encapsulated());

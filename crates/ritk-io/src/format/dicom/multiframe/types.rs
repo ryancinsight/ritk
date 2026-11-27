@@ -58,7 +58,7 @@ pub struct MultiFrameInfo {
     pub cols: usize,
     /// SamplesPerPixel (0028,0002). Scalar volume loading supports only 1.
     pub samples_per_pixel: usize,
-    /// Bits allocated per sample (8 or 16).
+    /// Bits allocated per sample cell. Binary images use one bit. Byte-aligned integer cells and 32/64-bit IEEE floating-point cells are supported.
     pub bits_allocated: u16,
     /// Meaningful bits per sample from BitsStored (0028,0101).
     pub bits_stored: u16,

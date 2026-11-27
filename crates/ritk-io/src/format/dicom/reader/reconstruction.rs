@@ -64,7 +64,7 @@ pub fn decode_dicom_series(
         );
     }
 
-    // Guard: reject unsupported / big-endian transfer syntaxes before pixel decode.
+    // Guard against unsupported compressed transfer syntaxes before pixel decode.
     for slice in slices.iter() {
         if let Some(ref ts_uid) = slice.transfer_syntax_uid {
             let ts = TransferSyntaxKind::from_uid(ts_uid);
@@ -73,14 +73,6 @@ pub fn decode_dicom_series(
                     "DICOM series: compressed transfer syntax '{}' in slice {:?} is not \
                      supported (not natively decoded and no codec registered); \
                      decompress the series or use a supported transfer syntax",
-                    ts_uid,
-                    slice.path
-                );
-            }
-            if ts.is_big_endian() {
-                bail!(
-                    "DICOM series: big-endian transfer syntax '{}' in slice {:?} is not \
-                     supported; pixel decode requires little-endian byte order",
                     ts_uid,
                     slice.path
                 );

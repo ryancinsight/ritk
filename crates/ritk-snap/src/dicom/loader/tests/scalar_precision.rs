@@ -229,3 +229,85 @@ fn encapsulated_frames_restart_at_bit_zero_and_ignore_fragment_padding() -> Resu
     }
     Ok(())
 }
+
+#[test]
+fn verified_header_anonymization_reopens_precise_pixels_and_rejects_short_final_frame() -> Result<()>
+{
+    use ritk_io::format::dicom::anonymize::{anonymize_dicom_buffers, AnonymizeOptions};
+    use std::path::Path;
+    let name = Path::new("IM000001");
+    let values = [16_777_217.125_f64, -0., 15., 100., 200., 3.25];
+    let data = values
+        .iter()
+        .flat_map(|v| v.to_le_bytes())
+        .collect::<Vec<_>>();
+    for length in [data.len(), data.len() - 8] {
+        let mut file = object(64, None, 9, VR::OD, data[..length].to_owned())?;
+        file.put(DataElement::new(
+            DicomTag::new(0x0010, 0x0010),
+            VR::PN,
+            PrimitiveValue::from("Fictional^Fixture"),
+        ));
+        let mut bytes = Vec::new();
+        file.write_all(&mut bytes)?;
+        let export = anonymize_dicom_buffers(vec![(name, &bytes)], &AnonymizeOptions::default());
+        if length < data.len() {
+            assert!(export.is_err(), "verification must check the final frame");
+        } else {
+            let files = export?;
+            let volume = load_volume_from_bytes(&files[0].0, &files[0].1)?;
+            assert_ne!(volume.patient_name.as_deref(), Some("Fictional^Fixture"));
+            for (i, value) in values.iter().enumerate() {
+                assert_eq!(
+                    volume
+                        .exact_stored_value([i / 3, 0, i % 3])
+                        .expect("anonymized source sample")
+                        .to_string(),
+                    value.to_string()
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn retired_big_endian_normalizes_by_vr_before_unpacking_samples() -> Result<()> {
+    // OW reverses bytes within a word even when 24-bit samples cross words.
+    let raw = [
+        0x801234u32,
+        0x1280ef,
+        0xab1200,
+        0xffee01,
+        0x0102ab,
+        0x007755,
+    ];
+    let pixels = raw
+        .iter()
+        .flat_map(|v| v.to_le_bytes()[..3].to_owned())
+        .collect();
+    let mut file = object(24, Some((24, 0)), 0x0010, VR::OW, pixels)?;
+    file.update_meta(|m| m.transfer_syntax = "1.2.840.10008.1.2.2".into());
+    check_both(&file, |v| {
+        assert_eq!(v.data.as_slice(), raw.map(|n| n as f32))
+    })?;
+    let values = [1e-240, 2., 3.5, 16_777_217.125, -2., f64::MAX];
+    let mut double = object(
+        64,
+        None,
+        9,
+        VR::OD,
+        values.into_iter().flat_map(f64::to_le_bytes).collect(),
+    )?;
+    double.update_meta(|m| m.transfer_syntax = "1.2.840.10008.1.2.2".into());
+    check_both(&double, |v| {
+        for (i, n) in values.iter().enumerate() {
+            assert_eq!(
+                v.exact_stored_value([i / 3, 0, i % 3])
+                    .expect("big-endian double")
+                    .to_string(),
+                n.to_string()
+            );
+        }
+    })
+}

@@ -50,14 +50,6 @@ impl<'a> FrameSource<'a> {
                 path
             );
         }
-        if ts.is_big_endian() {
-            bail!(
-                "DICOM multiframe: big-endian transfer syntax '{}' in {:?} is not supported; \
-             pixel decode requires little-endian byte order",
-                ts_uid,
-                path
-            );
-        }
 
         let info = extract_multiframe_header(path, obj)?;
         if info.rows == 0 || info.cols == 0 {

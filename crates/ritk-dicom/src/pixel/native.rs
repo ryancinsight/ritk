@@ -113,7 +113,6 @@ impl NativeScalarPixels {
         ensure!(
             (!ts.is_encapsulated()
                 || (ts.has_native_frame_layout() && encoding == ScalarEncoding::Integer))
-                && !ts.is_big_endian()
                 && !matches!(ts, TransferSyntaxKind::Unknown(_)),
             "unsupported native scalar transfer syntax"
         );

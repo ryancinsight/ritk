@@ -23,9 +23,9 @@ mod tests {
     }
 
     #[test]
-    fn compatibility_reexport_preserves_big_endian_rejection_predicate() {
+    fn big_endian_is_native_and_uses_big_endian_wire_words() {
         let syntax = TransferSyntaxKind::from_uid("1.2.840.10008.1.2.2");
         assert!(syntax.is_big_endian());
-        assert!(!syntax.is_natively_supported());
+        assert!(syntax.is_natively_supported());
     }
 }

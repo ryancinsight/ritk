@@ -35,12 +35,6 @@ pub(super) fn check_geometry(obj: &DicomFile, report: &mut FileVerifyReport) {
     let samples = obj
         .element(DicomTag::new(0x0028, 0x0002))
         .map_or(Some(1), |e| e.to_num::<u32>().ok());
-    let pixel_bytes = obj
-        .element(DicomTag::new(0x7FE0, 0x0010))
-        .ok()
-        .and_then(|e| e.to_bytes().ok())
-        .map(|b| b.len());
-
     let (Some(rows), Some(cols), Some(bits)) = (rows, cols, bits) else {
         report.issues.push(VerifyIssue::GeometryMismatch {
             detail: "Rows/Columns/BitsAllocated must all be present".to_owned(),
@@ -64,21 +58,49 @@ pub(super) fn check_geometry(obj: &DicomFile, report: &mut FileVerifyReport) {
         return;
     }
 
-    // PS3.5 section 8.1.1 allows BitsAllocated 1 beside the multiples of 8,
-    // and section 8.2 concatenates the bits of successive pixel cells, so
-    // the first 1-bit frame ends within its sample count in bits, rounded up
-    // to a byte.
-    let expected_bytes_per_frame = u64::from(rows)
+    if let Err(error) = ritk_dicom::ScalarEncoding::from_dataset(obj) {
+        report.issues.push(VerifyIssue::GeometryMismatch {
+            detail: error.to_string(),
+        });
+        return;
+    }
+    if bits != 1 && !bits.is_multiple_of(8) {
+        report.issues.push(VerifyIssue::GeometryMismatch {
+            detail: format!("invalid DICOM BitsAllocated={bits}"),
+        });
+        return;
+    }
+    let frames = obj
+        .get(DicomTag::new(0x0028, 0x0008))
+        .map_or(Ok(1), |e| e.to_num::<u64>());
+    let Ok(frames @ 1..) = frames else {
+        report.issues.push(VerifyIssue::GeometryMismatch {
+            detail: "NumberOfFrames must be a positive integer".into(),
+        });
+        return;
+    };
+    // Native YBR 4:2:2 stores two luma and two chroma components per pair.
+    let subsampled = obj
+        .get(DicomTag::new(0x0028, 0x0004))
+        .and_then(|e| e.to_str().ok())
+        .is_some_and(|p| matches!(p.trim(), "YBR_FULL_422" | "YBR_PARTIAL_422"));
+    let stored_components = if subsampled && samples == 3 {
+        2
+    } else {
+        samples
+    };
+    let expected = u64::from(rows)
         .checked_mul(u64::from(cols))
-        .and_then(|cells| cells.checked_mul(u64::from(samples)))
-        .and_then(|frame_samples| {
+        .and_then(|n| n.checked_mul(u64::from(stored_components)))
+        .and_then(|n| n.checked_mul(frames))
+        .and_then(|n| {
             if bits == 1 {
-                Some(frame_samples.div_ceil(8))
+                Some(n.div_ceil(8))
             } else {
-                frame_samples.checked_mul(u64::from(bits.div_ceil(8)))
+                n.checked_mul(u64::from(bits / 8))
             }
         });
-    let Some(expected_bytes_per_frame) = expected_bytes_per_frame else {
+    let Some(expected) = expected else {
         report.issues.push(VerifyIssue::GeometryMismatch {
             detail: format!(
                 "frame size exceeds 64 bits \
@@ -87,15 +109,21 @@ pub(super) fn check_geometry(obj: &DicomFile, report: &mut FileVerifyReport) {
         });
         return;
     };
-    // A length beyond 64 bits cannot be short of a 64-bit frame size.
+    let pixel_bytes = PIXEL_DATA_ELEMENTS
+        .iter()
+        .find_map(|tag| obj.get(*tag))
+        .and_then(|e| e.to_bytes().ok())
+        .map(|bytes| bytes.len());
     if let Some(len) = pixel_bytes
-        && u64::try_from(len).is_ok_and(|len| len < expected_bytes_per_frame)
+        && u64::try_from(len).is_ok_and(|len| len < expected)
     {
+        let extent = if frames == 1 {
+            "single-frame".to_owned()
+        } else {
+            format!("{frames}-frame")
+        };
         report.issues.push(VerifyIssue::GeometryMismatch {
-            detail: format!(
-                "PixelData length {len} < expected single-frame {expected_bytes_per_frame} \
-                     (rows={rows} cols={cols} samples={samples} bits={bits})"
-            ),
+            detail: format!("PixelData length {len} < expected {extent} {expected} (rows={rows} cols={cols} samples={samples} bits={bits})")
         });
     }
 }

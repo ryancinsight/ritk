@@ -210,7 +210,6 @@ pub(super) fn extract_dicom_metadata(
     let scalar_encoding = ritk_dicom::ScalarEncoding::from_dataset(obj)?;
     let syntax = ritk_dicom::TransferSyntaxKind::from_uid(obj.meta().transfer_syntax());
     if (!syntax.is_encapsulated() || syntax.has_native_frame_layout())
-        && !syntax.is_big_endian()
         && (slice_meta.bits_stored > 24 || scalar_encoding != ritk_dicom::ScalarEncoding::Integer)
         && obj
             .get(ritk_dicom::tags::SAMPLES_PER_PIXEL)
