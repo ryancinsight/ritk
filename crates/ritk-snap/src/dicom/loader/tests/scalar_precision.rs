@@ -242,6 +242,72 @@ fn encapsulated_frames_restart_at_bit_zero_and_ignore_fragment_padding() -> Resu
 }
 
 #[test]
+fn jpeg2000_viewer_uses_exact_unsigned_38_bit_codestream_samples() -> Result<()> {
+    use ritk_dicom::dataset::PixelFragments;
+    // OpenJPEG 2.5.3 reversible, zero-level encoding of [127,128,129].
+    // Raising Ssiz to 38 adds 2^37 to [-1,0,1] during unsigned DC restoration.
+    let mut stream = vec![
+        0xff, 0x4f, 0xff, 0x51, 0x00, 0x29, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
+        0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
+        0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x01,
+        0xff, 0x52, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x04, 0x04, 0x00, 0x01, 0xff,
+        0x5c, 0x00, 0x04, 0x40, 0x40, 0xff, 0x90, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12,
+        0x00, 0x01, 0xff, 0x93, 0xc0, 0x22, 0x05, 0x6f, 0xff, 0xd9,
+    ];
+    stream[42] = 37;
+    let center = 1i64 << 37;
+    // The second frame also verifies precedence over a conflicting 16-bit header.
+    for declared in [16, 38] {
+        let mut src = object(
+            if declared == 16 { 16 } else { 40 },
+            Some((declared, 0)),
+            0x10,
+            VR::OB,
+            Vec::new(),
+        )?;
+        src.update_meta(|meta| {
+            meta.transfer_syntax = ritk_dicom::TransferSyntaxKind::Jpeg2000Lossless
+                .uid()
+                .into()
+        });
+        src.put(DataElement::new(
+            DicomTag::new(0x7fe0, 0x0010),
+            VR::OB,
+            PixelFragments::from_fragments(vec![stream.clone(), stream.clone()]),
+        ));
+        check_both(&src, |v| {
+            assert!(v.data.windows(2).all(|w| w[0] == w[1]));
+            for frame in 0..2 {
+                for (x, expected) in [center - 1, center, center + 1].into_iter().enumerate() {
+                    assert_eq!(
+                        v.exact_stored_value([frame, 0, x])
+                            .expect("source pixel")
+                            .to_string(),
+                        expected.to_string()
+                    );
+                }
+                let view = PresentationFrame::from_slice(
+                    v,
+                    0,
+                    frame,
+                    WindowLevel::new(center as f64, 1.),
+                    NamedColorMap::Grayscale,
+                )
+                .expect("render wide J2K");
+                assert_eq!(
+                    view.rgba()
+                        .chunks_exact(4)
+                        .map(|p| p[0])
+                        .collect::<Vec<_>>(),
+                    [0, 255, 255]
+                );
+            }
+        })?;
+    }
+    Ok(())
+}
+
+#[test]
 fn verified_header_anonymization_reopens_precise_pixels_and_rejects_short_final_frame() -> Result<()>
 {
     use ritk_io::format::dicom::anonymize::{anonymize_dicom_buffers, AnonymizeOptions};

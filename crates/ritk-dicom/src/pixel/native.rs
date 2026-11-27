@@ -1,6 +1,7 @@
 //! Native scalar samples from the three mutually exclusive PS3.5 §8.2 pixel elements.
 mod affine;
 mod fragment;
+mod jpeg2000;
 mod sample;
 pub use sample::StoredScalar;
 
@@ -136,16 +137,20 @@ impl NativeScalarPixels {
             allocated,
             stored,
             signed: representation.is_signed(),
-            rescale: [
-                obj.get(DicomTag::new(0x0028, 0x1053))
-                    .and_then(|e| e.to_num::<f64>().ok())
-                    .unwrap_or(1.0),
-                obj.get(DicomTag::new(0x0028, 0x1052))
-                    .and_then(|e| e.to_num::<f64>().ok())
-                    .unwrap_or(0.0),
-            ],
+            rescale: Self::modality_rescale(obj),
             frame_rescale: Vec::new(),
         })
+    }
+
+    fn modality_rescale(obj: &DicomFile) -> [f64; 2] {
+        [
+            obj.get(DicomTag::new(0x0028, 0x1053))
+                .and_then(|e| e.to_num::<f64>().ok())
+                .unwrap_or(1.0),
+            obj.get(DicomTag::new(0x0028, 0x1052))
+                .and_then(|e| e.to_num::<f64>().ok())
+                .unwrap_or(0.0),
+        ]
     }
 
     /// Retain enhanced per-frame modality transforms in encoded frame order.

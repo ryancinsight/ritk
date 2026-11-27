@@ -209,11 +209,32 @@ pub(super) fn extract_dicom_metadata(
     slice_meta.bits_stored = crate::format::dicom::color_common::sample_precision(obj)?;
     let scalar_encoding = ritk_dicom::ScalarEncoding::from_dataset(obj)?;
     let syntax = ritk_dicom::TransferSyntaxKind::from_uid(obj.meta().transfer_syntax());
-    if (!syntax.is_encapsulated() || syntax.has_native_frame_layout())
+    let grayscale = obj
+        .get(ritk_dicom::tags::SAMPLES_PER_PIXEL)
+        .is_some_and(|e| e.to_num::<u16>().ok() == Some(1));
+    if grayscale
+        && matches!(
+            syntax,
+            ritk_dicom::TransferSyntaxKind::Jpeg2000Lossless
+                | ritk_dicom::TransferSyntaxKind::Jpeg2000Lossy
+        )
+    {
+        slice_meta.exact_pixels = ritk_dicom::NativeScalarPixels::from_wide_jpeg2000(
+            obj,
+            ritk_dicom::PixelLayout {
+                rows: obj.element(ritk_dicom::tags::ROWS)?.to_num::<usize>()?,
+                cols: obj.element(ritk_dicom::tags::COLUMNS)?.to_num::<usize>()?,
+                samples_per_pixel: 1,
+                bits_allocated: slice_meta.bits_allocated,
+                bits_stored: slice_meta.bits_stored,
+                pixel_representation: slice_meta.pixel_representation,
+                rescale_slope: 1.0,
+                rescale_intercept: 0.0,
+            },
+        )?;
+    } else if grayscale
+        && (!syntax.is_encapsulated() || syntax.has_native_frame_layout())
         && (slice_meta.bits_stored > 24 || scalar_encoding != ritk_dicom::ScalarEncoding::Integer)
-        && obj
-            .get(ritk_dicom::tags::SAMPLES_PER_PIXEL)
-            .is_some_and(|e| e.to_num::<u16>().ok() == Some(1))
     {
         slice_meta.exact_pixels = Some(ritk_dicom::NativeScalarPixels::from_object(
             obj,

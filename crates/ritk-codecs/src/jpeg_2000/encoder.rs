@@ -277,7 +277,17 @@ pub fn encode_grayscale_j2k(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jpeg_2000::image::{decode_j2k_fragment, is_soc};
+    use crate::jpeg_2000::image::is_soc;
+    fn decode_j2k_fragment(
+        fragment: &[u8],
+        layout: crate::PixelLayout,
+    ) -> std::result::Result<Vec<f32>, crate::jpeg_2000::Jpeg2000DecodeError> {
+        crate::jpeg_2000::decode_jpeg2000_fragment(
+            fragment,
+            layout,
+            crate::ImageReadBudget::DEFAULT,
+        )
+    }
     use crate::PixelLayout;
     use crate::PixelSignedness;
 

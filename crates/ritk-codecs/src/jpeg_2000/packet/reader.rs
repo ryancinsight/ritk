@@ -4,8 +4,8 @@ use crate::jpeg_2000::ebcot::decode_code_block;
 use crate::jpeg_2000::quantization::{dequantize, reversible_midpoint, step_size};
 use crate::jpeg_2000::subband::{resolution_band_range, subband_layout, Subband};
 use crate::jpeg_2000::tag_tree::TagTree;
-use crate::jpeg_2000::wavelet::inverse_dwt_5_3;
-use crate::jpeg_2000::wavelet_9_7::inverse_dwt_9_7;
+use crate::jpeg_2000::wavelet::{inverse_dwt_5_3, LiftingInteger};
+use crate::jpeg_2000::wavelet_9_7::{inverse_dwt_9_7, LiftingFloat};
 
 use super::{
     band_cblks, cblk_grid, lblock_extra_bits, total_bit_planes, CblkRef, WaveletTransform,
@@ -140,9 +140,37 @@ fn band_trees(bands: &[Subband]) -> Vec<Option<BandTrees>> {
         .collect()
 }
 
+/// Keep ordinary CT/MR tiles at their original working precision. Wide components
+/// use the same packet traversal and inverse transforms with wider coefficients.
+pub(in crate::jpeg_2000) trait TileCoefficient:
+    LiftingInteger + Into<i64> + TryFrom<i64>
+{
+    type Float: LiftingFloat;
+    fn floating(value: f64) -> Self::Float;
+    fn rounded(value: Self::Float) -> Self;
+}
+impl TileCoefficient for i32 {
+    type Float = f32;
+    fn floating(value: f64) -> f32 {
+        value as f32
+    }
+    fn rounded(value: f32) -> Self {
+        value.round() as i32
+    }
+}
+impl TileCoefficient for i64 {
+    type Float = f64;
+    fn floating(value: f64) -> f64 {
+        value
+    }
+    fn rounded(value: f64) -> Self {
+        value.round() as i64
+    }
+}
+
 /// Decoded samples for one complete component of one tile.
-pub struct TileComponentSamples {
-    pub samples: Vec<i32>,
+pub struct TileComponentSamples<C> {
+    pub samples: Vec<C>,
     #[cfg(test)]
     pub width: usize,
     #[cfg(test)]
@@ -183,12 +211,12 @@ pub struct TileCodingParams<'a> {
 /// a packet header is truncated or carries an unsupported length width, a
 /// signalled packet-body length exceeds the available tile data, or the
 /// inverse DWT geometry is inconsistent.
-pub fn decode_tile_part(
+pub(in crate::jpeg_2000) fn decode_tile_part<C: TileCoefficient>(
     tile_data: &[u8],
     width: usize,
     height: usize,
     coding: TileCodingParams<'_>,
-) -> Result<TileComponentSamples> {
+) -> Result<TileComponentSamples<C>> {
     let sample_count = width
         .checked_mul(height)
         .context("J2K tile-component dimensions overflow usize")?;
@@ -298,7 +326,7 @@ pub fn decode_tile_part(
     }
 
     // Only the irreversible transform needs a per-coefficient plane for dequantization.
-    let mut mallat = vec![0i32; sample_count];
+    let mut mallat = vec![C::default(); sample_count];
     let mut bp_plane = match coding.transform {
         WaveletTransform::Reversible => Vec::new(),
         WaveletTransform::Irreversible => vec![0u32; sample_count],
@@ -333,10 +361,14 @@ pub fn decode_tile_part(
                 let plane = block.lowest_decoded_plane(q);
                 match coding.transform {
                     WaveletTransform::Reversible => {
-                        mallat[off + x] = reversible_midpoint(q, plane)?
+                        mallat[off + x] = C::try_from(reversible_midpoint(q, plane))
+                            .ok()
+                            .context("J2K coefficient exceeds tile precision")?
                     }
                     WaveletTransform::Irreversible => {
-                        mallat[off + x] = q;
+                        mallat[off + x] = C::try_from(q)
+                            .ok()
+                            .context("J2K coefficient exceeds tile precision")?;
                         bp_plane[off + x] = plane;
                     }
                 }
@@ -355,7 +387,7 @@ pub fn decode_tile_part(
             // outputs (sub-step uncertainty → midpoint reconstruction). With
             // zero levels the single LL band is exact only when Δ = 1; any
             // coarser quantizer still carries interval uncertainty.
-            let mut coeffs = vec![0f32; sample_count];
+            let mut coeffs = vec![C::Float::default(); sample_count];
             for (bi, b) in bands.iter().enumerate() {
                 let r_b = coding.precision + b.gain;
                 let exponent = coding.exponents.get(bi).copied().unwrap_or(r_b);
@@ -367,13 +399,18 @@ pub fn decode_tile_part(
                 for y in 0..b.h {
                     for x in 0..b.w {
                         let idx = (b.y0 + y) * width + b.x0 + x;
-                        coeffs[idx] = dequantize(mallat[idx], delta, bp_plane[idx], continuous);
+                        coeffs[idx] = C::floating(dequantize(
+                            mallat[idx].into(),
+                            delta,
+                            bp_plane[idx],
+                            continuous,
+                        ));
                     }
                 }
             }
             inverse_dwt_9_7(&mut coeffs, width, height, coding.num_decomp_levels)?;
             for (m, &c) in mallat.iter_mut().zip(coeffs.iter()) {
-                *m = c.round() as i32;
+                *m = C::rounded(c);
             }
         }
     }

@@ -32,6 +32,20 @@ pub(crate) fn ceil_div_pow2(n: usize, k: u32) -> usize {
     (n + (1usize << k) - 1) >> k
 }
 
+/// Integer lifting operations shared by encoder round-trip checks and the wide decoder.
+pub(super) trait LiftingInteger:
+    Copy
+    + Default
+    + From<i16>
+    + std::ops::Add<Output = Self>
+    + std::ops::SubAssign
+    + std::ops::AddAssign
+    + std::ops::Shr<u32, Output = Self>
+{
+}
+impl LiftingInteger for i32 {}
+impl LiftingInteger for i64 {}
+
 /// Apply N levels of the inverse 5/3 DWT to a row-major Mallat-layout buffer
 /// in-place. After the call, `samples[y * width + x]` holds the reconstructed
 /// DC-shifted integer sample for pixel `(x, y)`.
@@ -41,8 +55,8 @@ pub(crate) fn ceil_div_pow2(n: usize, k: u32) -> usize {
 /// `samples.len()`, nonzero levels accompany a zero dimension, the
 /// decomposition depth exceeds the platform geometry width, or the reusable
 /// transform workspace length overflows.
-pub fn inverse_dwt_5_3(
-    samples: &mut [i32],
+pub(super) fn inverse_dwt_5_3<I: LiftingInteger>(
+    samples: &mut [I],
     width: usize,
     height: usize,
     num_levels: u8,
@@ -123,11 +137,11 @@ fn validate_transform_geometry(
     Ok(())
 }
 
-fn transform_workspace(max_dimension: usize, operation: &str) -> Result<Vec<i32>> {
+fn transform_workspace<I: LiftingInteger>(max_dimension: usize, operation: &str) -> Result<Vec<I>> {
     let workspace_len = max_dimension
         .checked_mul(2)
         .with_context(|| format!("{operation}: workspace length overflow"))?;
-    Ok(vec![0i32; workspace_len])
+    Ok(vec![I::default(); workspace_len])
 }
 
 // ── 2-D per-level passes ─────────────────────────────────────────────────────
@@ -135,13 +149,13 @@ fn transform_workspace(max_dimension: usize, operation: &str) -> Result<Vec<i32>
 /// One synthesis level on the `[0..cur_h, 0..cur_w]` rectangle (stride
 /// `stride`): rows first (interleave [low|high] halves → inverse 1-D), then
 /// columns.
-fn synth_2d_5_3(
-    samples: &mut [i32],
+fn synth_2d_5_3<I: LiftingInteger>(
+    samples: &mut [I],
     stride: usize,
     cur_w: usize,
     cur_h: usize,
-    buf: &mut [i32],
-    line: &mut [i32],
+    buf: &mut [I],
+    line: &mut [I],
 ) {
     let sn_x = cur_w.div_ceil(2);
     let sn_y = cur_h.div_ceil(2);
@@ -204,7 +218,7 @@ fn analyse_2d_5_3(
 
 /// `[low half | high half] → interleaved (even = low, odd = high)`.
 #[inline]
-fn interleave(halves: &[i32], sn: usize, out: &mut [i32]) {
+fn interleave<I: LiftingInteger>(halves: &[I], sn: usize, out: &mut [I]) {
     for (i, &v) in halves[..sn].iter().enumerate() {
         out[2 * i] = v;
     }
@@ -229,7 +243,7 @@ fn deinterleave(inter: &[i32], sn: usize, out: &mut [i32]) {
 /// 1-D inverse 5/3 integer lifting (ISO 15444-1 §F.3.8.2) on an interleaved
 /// buffer (even indices = `s[i]` lows, odd = `d[i]` highs). Whole-sample-symmetric
 /// boundary extension.
-fn idwt_1d_5_3(buf: &mut [i32]) {
+fn idwt_1d_5_3<I: LiftingInteger>(buf: &mut [I]) {
     let n = buf.len();
     if n <= 1 {
         return;
@@ -249,7 +263,7 @@ fn idwt_1d_5_3(buf: &mut [i32]) {
         } else {
             buf[2 * i + 1]
         };
-        buf[2 * i] -= (dl + dr + 2) >> 2;
+        buf[2 * i] -= (dl + dr + I::from(2)) >> 2;
     }
 
     // Step 2: undo predict — restore odd (high) samples from restored lows.

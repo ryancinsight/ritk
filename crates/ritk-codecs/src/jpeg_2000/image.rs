@@ -14,7 +14,7 @@ use std::ops::Range;
 use super::codestream::{parse_main_header, parse_sot};
 use super::marker;
 use super::packet::{
-    reader::{decode_tile_part, TileCodingParams},
+    reader::{decode_tile_part, TileCodingParams, TileCoefficient},
     WaveletTransform,
 };
 use super::Jpeg2000DecodeError;
@@ -33,7 +33,11 @@ struct TilePartRange {
 /// - The fragment must start with the SOC marker (0xFF 0x4F).
 /// - DC level shift reversed for unsigned components per ISO 15444-1 §G.1.2.
 /// - Modality LUT applied: `output = stored_integer × slope + intercept`.
-pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
+pub fn decode_j2k_fragment<T: Copy + Default>(
+    fragment: &[u8],
+    layout: PixelLayout,
+    convert: impl Fn(i64) -> T,
+) -> Result<Vec<T>> {
     if !is_soc(fragment) {
         bail!(
             "J2K: fragment does not begin with SOC 0xFF4F \
@@ -67,12 +71,6 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
         .context("J2K: SIZ declared one component without component parameters")?;
     let c_prec = component.precision();
     let c_signed = component.is_signed();
-    if c_prec > i32::BITS {
-        bail!(
-            "J2K: component 0 precision {c_prec} exceeds the native decoder's {}-bit coefficient capacity",
-            i32::BITS
-        );
-    }
     // PS3.5 §8.2.4 gives SIZ component precision and signedness precedence
     // while decoding. The enclosing DICOM layout still bounds the output grid.
     if cod.progression_order != 0 {
@@ -172,58 +170,65 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
     out.try_reserve_exact(samples).map_err(|source| {
         anyhow::Error::new(Jpeg2000DecodeError::OutputAllocation { samples, source })
     })?;
-    out.resize(samples, 0f32);
+    out.resize(samples, T::default());
 
     for tile_part in tile_parts {
         let isot = tile_part.isot;
         let bounds = siz
             .tile_bounds(isot)
             .context("J2K: validate SOT tile index")?;
-        let tw = bounds.width;
-        let th = bounds.height;
-        let tile_comp = decode_tile_part(
-            &fragment[tile_part.data],
-            tw,
-            th,
-            TileCodingParams {
-                num_guard_bits,
-                precision: c_prec,
-                num_decomp_levels: cod.num_decomp_levels,
-                num_layers: cod.num_layers,
-                exponents: &qcd_exponents,
-                mantissas: &qcd_mantissas,
-                transform,
-            },
-        )
-        .with_context(|| format!("J2K: decode tile {isot} component 0"))?;
-
-        for py in 0..th {
-            for px in 0..tw {
-                let img_x = bounds.x0 + px;
-                let img_y = bounds.y0 + py;
-                if img_x >= img_w || img_y >= img_h {
-                    continue;
-                }
-                let dc_shifted = tile_comp.samples[py * tw + px];
-                let raw = restore_component_sample(dc_shifted, c_prec, c_signed);
-                let rescaled = raw as f64 * f64::from(layout.rescale_slope)
-                    + f64::from(layout.rescale_intercept);
-                let out_idx = (img_y * img_w + img_x) * layout.samples_per_pixel;
-                if out_idx < out.len() {
-                    out[out_idx] = rescaled as f32;
-                }
-            }
+        let coding = TileCodingParams {
+            num_guard_bits,
+            precision: c_prec,
+            num_decomp_levels: cod.num_decomp_levels,
+            num_layers: cod.num_layers,
+            exponents: &qcd_exponents,
+            mantissas: &qcd_mantissas,
+            transform,
+        };
+        let data = &fragment[tile_part.data];
+        let mut put = |index, centered| {
+            out[index] = convert(restore_component_sample(centered, c_prec, c_signed));
+        };
+        // Bound the narrow wavelet sums, including quantizer guard bits. A
+        // more conservative precision is inexpensive for rare wide images.
+        if c_prec > 24
+            || qcd_exponents.iter().copied().max().unwrap_or(0) + u32::from(num_guard_bits) > 28
+        {
+            copy_tile::<i64>(data, coding, bounds, img_w, &mut put)
+        } else {
+            copy_tile::<i32>(data, coding, bounds, img_w, &mut put)
         }
+        .with_context(|| format!("J2K: decode tile {isot} component 0"))?;
     }
     Ok(out)
 }
 
-fn restore_component_sample(dc_shifted: i32, precision: u32, signed: bool) -> i64 {
-    debug_assert!((1..=i32::BITS).contains(&precision));
+fn copy_tile<C: TileCoefficient>(
+    data: &[u8],
+    coding: TileCodingParams<'_>,
+    bounds: super::codestream::TileBounds,
+    stride: usize,
+    mut put: impl FnMut(usize, i64),
+) -> Result<()> {
+    let tile = decode_tile_part::<C>(data, bounds.width, bounds.height, coding)?;
+    for (y, row) in tile.samples.chunks_exact(bounds.width).enumerate() {
+        let start = (bounds.y0 + y) * stride + bounds.x0;
+        for (x, &value) in row.iter().enumerate() {
+            put(start + x, value.into());
+        }
+    }
+    Ok(())
+}
+
+fn restore_component_sample(dc_shifted: i64, precision: u32, signed: bool) -> i64 {
+    debug_assert!((1..=38).contains(&precision));
+    let half = 1i64 << (precision - 1);
+    let centered = dc_shifted.clamp(-half, half - 1);
     if signed {
-        i64::from(dc_shifted)
+        centered
     } else {
-        i64::from(dc_shifted) + (1i64 << (precision - 1))
+        centered + half
     }
 }
 
@@ -441,8 +446,12 @@ mod tests {
     #[test]
     fn decode_j2k_fragment_rejects_non_soc() {
         let data = [0xFF_u8, 0xD8, 0x00];
-        let err = decode_j2k_fragment(&data, make_layout(1, 1, 8, PixelSignedness::Unsigned))
-            .unwrap_err();
+        let err = decode_j2k_fragment(
+            &data,
+            make_layout(1, 1, 8, PixelSignedness::Unsigned),
+            |raw| raw,
+        )
+        .unwrap_err();
         assert!(
             format!("{err:#}").contains("SOC") || format!("{err:#}").contains("0xFF4F"),
             "error must mention SOC; got: {err:#}"
@@ -451,13 +460,13 @@ mod tests {
 
     #[test]
     fn unsigned_dc_restoration_covers_complete_32_bit_range() {
-        assert_eq!(restore_component_sample(i32::MIN, 32, false), 0);
+        assert_eq!(restore_component_sample(i64::from(i32::MIN), 32, false), 0);
         assert_eq!(
-            restore_component_sample(i32::MAX, 32, false),
+            restore_component_sample(i64::from(i32::MAX), 32, false),
             i64::from(u32::MAX)
         );
         assert_eq!(
-            restore_component_sample(i32::MIN, 32, true),
+            restore_component_sample(i64::from(i32::MIN), 32, true),
             i64::from(i32::MIN)
         );
     }
