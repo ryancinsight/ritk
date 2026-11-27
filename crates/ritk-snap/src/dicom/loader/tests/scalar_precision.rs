@@ -400,3 +400,5 @@ fn retired_big_endian_normalizes_by_vr_before_unpacking_samples() -> Result<()> 
         }
     })
 }
+
+mod jpeg2000;

@@ -194,6 +194,9 @@ fn write_multiframe_flat(
         | TransferSyntaxKind::JpegLosslessNonHierarchical
         | TransferSyntaxKind::Jpeg2000Lossless
         | TransferSyntaxKind::Jpeg2000Lossy
+        | TransferSyntaxKind::HtJ2kLossless
+        | TransferSyntaxKind::HtJ2kLosslessRpcl
+        | TransferSyntaxKind::HtJ2k
         | TransferSyntaxKind::RleLossless => {
             let plan = PixelEncodingPlan::<u16>::prepare(all_data, 0)?;
             EncodedPixelSamples::EncapsulatedWord(plan.encode(all_data, 0)?, plan)
@@ -203,7 +206,7 @@ fn write_multiframe_flat(
             EncodedPixelSamples::BaselineByte(plan.encode(all_data, 0)?, plan)
         }
         syntax => bail!(
-            "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG Baseline, JPEG-LS Lossless, JPEG-LS Lossy (near-lossless), JPEG 2000 Lossless, JPEG 2000 Lossy, JPEG Lossless (first-order prediction), and RLE Lossless",
+            "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG Baseline, JPEG-LS Lossless, JPEG-LS Lossy (near-lossless), JPEG 2000 Lossless, JPEG 2000 Lossy, HTJ2K (lossless, lossless RPCL and unrestricted), JPEG Lossless (first-order prediction), and RLE Lossless",
             syntax.uid()
         ),
     };
@@ -332,11 +335,25 @@ fn write_multiframe_flat(
             | TransferSyntaxKind::JpegLosslessNonHierarchical
             | TransferSyntaxKind::Jpeg2000Lossless
             | TransferSyntaxKind::Jpeg2000Lossy
+            | TransferSyntaxKind::HtJ2kLossless
+            | TransferSyntaxKind::HtJ2kLosslessRpcl
+            | TransferSyntaxKind::HtJ2k
             | TransferSyntaxKind::RleLossless,
             EncodedPixelSamples::EncapsulatedWord(pixel_u16, _),
         ) => {
             let encoded_fragments =
                 encode_compressed_frames(&pixel_u16, dimensions, &config.transfer_syntax)?;
+            if config.transfer_syntax == TransferSyntaxKind::HtJ2k {
+                let payload: usize = encoded_fragments.fragments().iter().map(|f| f.len()).sum();
+                let ratio = (pixel_u16.len() as f64 * 2.0) / payload as f64;
+                obj.put_value(DicomTag::new(0x0028, 0x2110), VR::CS, "01");
+                obj.put_value(
+                    DicomTag::new(0x0028, 0x2112),
+                    VR::DS,
+                    format_dicom_decimal(ratio)?,
+                );
+                obj.put_value(DicomTag::new(0x0028, 0x2114), VR::CS, "ISO_15444_15");
+            }
             obj.put(DataElement::new(
                 DicomTag::new(0x7FE0, 0x0010),
                 VR::OB,

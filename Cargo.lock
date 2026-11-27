@@ -3218,6 +3218,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4860e0274b39fce9896476b79101da6bb29619052d7902b2a0671864a1b987de"
 
 [[package]]
+name = "htj2k"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90f489a08d3160db943edeb708361c001ce4ee73d31a29d3508768127bddeb96"
+
+[[package]]
 name = "http"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3616,6 +3622,39 @@ name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
+
+[[package]]
+name = "j2k-codec-math"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a38b1ddbaa04c07213dba6180ed1168f0e96bfa35890542c414d872cea0c7d58"
+dependencies = [
+ "j2k-types",
+]
+
+[[package]]
+name = "j2k-native"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "971da314ca1501363f686b6796d309ebbda7d2f88d34671c38d79132f7cb59ff"
+dependencies = [
+ "j2k-codec-math",
+ "j2k-profile",
+ "j2k-types",
+ "libm",
+]
+
+[[package]]
+name = "j2k-profile"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c1c0cc7e85f2ab1cc85c9a6d2bad3680319c0cdf558f3be14b4ccdbd6917fca"
+
+[[package]]
+name = "j2k-types"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "716edd556741a415294d955121f76d41b7d8d650554fb09f30d0654b15127ac9"
 
 [[package]]
 name = "jni"
@@ -6351,7 +6390,9 @@ dependencies = [
  "consus-raster 0.5.1",
  "criterion",
  "eunomia",
+ "htj2k",
  "image 0.24.9",
+ "j2k-native",
  "proptest",
  "tempfile",
  "thiserror 2.0.21",

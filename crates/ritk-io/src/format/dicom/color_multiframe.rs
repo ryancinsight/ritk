@@ -237,7 +237,7 @@ fn validate_rgb_multiframe(
         DicomTag::new(0x0028, 0x0004),
         "PhotometricInterpretation",
     )?;
-    if !photometric.trim().eq_ignore_ascii_case("RGB") {
+    if !transfer_syntax.decodes_to_rgb(&photometric) {
         bail!(
             "DICOM color multiframe loader supports only PhotometricInterpretation=RGB; {:?} declares {}",
             path,

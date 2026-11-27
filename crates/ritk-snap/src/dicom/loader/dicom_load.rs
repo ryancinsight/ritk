@@ -43,7 +43,17 @@ pub fn load_volume_from_scanned_series(
         .metadata
         .photometric_interpretation
         .as_deref()
-        .is_some_and(|pi| pi.trim().eq_ignore_ascii_case("RGB"));
+        .is_some_and(|pi| {
+            ritk_io::format::dicom::TransferSyntaxKind::from_uid(
+                series
+                    .metadata
+                    .slices
+                    .first()
+                    .and_then(|s| s.transfer_syntax_uid.as_deref())
+                    .unwrap_or(""),
+            )
+            .decodes_to_rgb(pi)
+        });
     if is_rgb {
         load_dicom_color_volume_from_scanned_series(series)
     } else {

@@ -1,5 +1,6 @@
 //! JPEG 2000 tier-2 packet encoder and decoder (ISO 15444-1 Annex B).
 
+mod ht_block;
 pub mod reader;
 pub mod writer;
 

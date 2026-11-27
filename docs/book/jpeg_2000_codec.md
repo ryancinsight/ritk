@@ -7,19 +7,11 @@ errors instead of crossing an unsafe foreign interface.
 
 ## Decoder contract
 
-The native decoder currently accepts a complete grayscale codestream with one
-component, LRCP progression, no progression changes, no multiple-component
-transform, inline packet headers, one tile-part per tile, and unit component
-sampling. Packet coding uses default precincts, 64 × 64 nominal code-blocks,
-default code-block style, no SOP/EPH markers, and at most 32-bit component
-precision, matching the decoder's signed coefficient representation. These
-constraints match the encoder and the grayscale DICOM workflow
-shown in this chapter. The decoder preflights main and tile headers plus complete
-tile coverage before allocating output. Color or other multi-component streams,
-chroma subsampling, progression overrides, packed packet headers, multi-part
-tiles, non-default packet coding, and MCT are typed errors. Returning an error is necessary here: replaying
-the same packet cursor independently for each component can produce
-plausible-looking but duplicated channels.
+RITK reads DICOM Part 1 (.90 and .91) and High-Throughput JPEG 2000 (.201, .202 and .203). The monochrome decoder reads signed or unsigned component precision from SIZ and retains up to 38 stored bits before modality rescale. It also decodes three full-resolution components with an optional reversible or irreversible color transform.
+
+Supported packet organizations include LRCP, RLCP, RPCL, PCRL and CPRL, progression changes, multiple layers, precinct partitioning, multiple tiles and tile-parts, packed PPM/PPT headers and component or tile coding overrides. The scalar reader handles single-precinct packets directly. General packet organizations use the native-component interface of `j2k-native`; the `htj2k` entropy decoder supplies the 64-bit reversible HT block path.
+
+Lossless-only transfer syntaxes require reversible coding. Under .202 the decoder also checks RPCL progression, the base resolution and the TLM index against the encoded tile-parts. The multi-frame writer emits one unsigned 16-bit monochrome HT codestream per frame. Choose `HtJ2kLossless` or `HtJ2kLosslessRpcl` for lossless output. `HtJ2k` writes an irreversible stream and records lossy compression in the dataset. [DICOM PS3.5 §8.2.14](https://dicom.nema.org/medical/dicom/current/output/chtml/part05/sect_8.2.14.html) and [§10.18](https://dicom.nema.org/medical/dicom/current/output/chtml/part05/sect_10.18.html).
 
 The codestream boundary is exact. Every marker segment must include a valid
 length and remain inside its tile-part or codestream boundary, SOD is found by
@@ -169,24 +161,24 @@ vectors remain bounded by the 64 × 64 code-block geometry. Irreversible encode
 similarly retains one `f32` Mallat volume and quantizes one code block at a
 time; it no longer materializes a second complete `i32` coefficient volume.
 
-The encoder emits one image-wide tile, one quality layer, LRCP progression,
+The Part 1 encoder emits one image-wide tile, one quality layer, LRCP progression,
 one precinct per resolution, and 64 × 64 nominal code-blocks. Before output
 allocation, the decoder validates SIZ/SOT geometry, tile-header marker extents,
-single-part tile coverage, and EOC. Packet decode then requires each LRCP packet
+declared tile-part coverage, and EOC. Packet decode then requires each LRCP packet
 header and bounds its declared body length before consuming packet data.
 
 ## Interoperability evidence
 
-RITK tests the native paths at three levels:
+RITK compares the Part 1 and HT paths with independent reference decoders. The [packet-profile corpus](../../crates/ritk-codecs/tests/fixtures/jpeg2000/profiles/README.md) records the input and reference values.
 
 1. analytical round trips require zero error for reversible 5/3;
 2. quantization tests require each requested step to round to one QCD pair and
    require packet coefficients to use the reconstructed QCD value;
 3. captured OpenJPEG 2.5.4 codestreams exercise independent producer/consumer
    interoperability without loading OpenJPEG at test time; and
-4. malformed geometry, unsupported component/progression overrides, truncated
+4. malformed geometry, invalid component/progression overrides, truncated
    markers, zero-length or exhausted entropy bodies, incomplete packets,
-   multi-part declarations, missing tiles, invalid `Psot = 0` boundaries,
+   inconsistent multi-part declarations, missing tiles, invalid `Psot = 0` boundaries,
    trailing payload, and missing EOC require typed rejection instead of a panic
    or partial image.
 

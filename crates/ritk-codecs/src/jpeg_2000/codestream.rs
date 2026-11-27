@@ -340,6 +340,7 @@ impl<'a> Cursor<'a> {
 
 /// Parse the main codestream header, returning the header and the byte offset
 /// at which the first SOT marker starts.
+#[cfg(test)]
 pub fn parse_main_header(data: &[u8]) -> Result<(MainHeader, usize)> {
     let mut cur = Cursor::new(data);
 
@@ -442,7 +443,7 @@ pub fn parse_sot(data: &[u8], offset: usize) -> Result<(SotMarker, usize)> {
 // ── Private segment parsers ───────────────────────────────────────────────────
 
 /// Parse SIZ segment body (everything after the 2-byte length field).
-fn parse_siz(body: &[u8]) -> Result<SizMarker> {
+pub(super) fn parse_siz(body: &[u8]) -> Result<SizMarker> {
     // body must be at least 36 bytes: Rsiz(2)+Xsiz(4)*4+Ysiz(4)+...*4 + XOsiz+YOsiz+XTsiz+YTsiz+XTOsiz+YTOsiz+Csiz = 36 + 3*Csiz
     if body.len() < 36 {
         bail!("J2K: SIZ body too short ({})", body.len());
@@ -533,7 +534,7 @@ fn parse_siz(body: &[u8]) -> Result<SizMarker> {
 }
 
 /// Parse COD segment body.
-fn parse_cod(body: &[u8]) -> Result<CodMarker> {
+pub(super) fn parse_cod(body: &[u8]) -> Result<CodMarker> {
     // Minimum body: Scod(1)+SGcod(4)+SPcod(9) = 14 – but we already stripped the 2-byte length.
     // Body starts at: Scod, progression_order, num_layers(2), MCT, num_decomp, xcb_o, ycb_o, cb_style, wavelet
     if body.len() < 10 {
@@ -583,7 +584,7 @@ fn parse_cod(body: &[u8]) -> Result<CodMarker> {
 }
 
 /// Parse QCD segment body.
-fn parse_qcd(body: &[u8]) -> Result<QcdMarker> {
+pub(super) fn parse_qcd(body: &[u8]) -> Result<QcdMarker> {
     if body.is_empty() {
         bail!("J2K: QCD body empty");
     }

@@ -8,10 +8,7 @@ use ritk_codecs::ImageReadBudget;
 use crate::backend::{
     DecodeFrameRequest, DecodedFrame, EncapsulatedFrameSource, PixelDecodeBackend,
 };
-use crate::codec::{
-    decode_jpeg2000_fragment, decode_jpeg_fragment, decode_jpeg_ls_fragment,
-    decode_rle_lossless_fragment,
-};
+use crate::codec::{decode_jpeg_fragment, decode_jpeg_ls_fragment, decode_rle_lossless_fragment};
 use crate::syntax::Codec;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -33,9 +30,12 @@ where
         let pixels = match codec {
             Codec::Jpeg => decode_jpeg_fragment(&fragment, request.layout)?,
             Codec::JpegLs => decode_jpeg_ls_fragment(&fragment, request.layout)?,
-            Codec::Jpeg2000 => {
-                decode_jpeg2000_fragment(&fragment, request.layout, ImageReadBudget::DEFAULT)?
-            }
+            Codec::Jpeg2000(profile) => ritk_codecs::jpeg_2000::decode_jpeg2000_with_profile(
+                &fragment,
+                request.layout,
+                ImageReadBudget::DEFAULT,
+                profile,
+            )?,
             Codec::NativeFrame => {
                 crate::NativeScalarPixels::decode_encapsulated(&fragment, syntax, request.layout)?
             }

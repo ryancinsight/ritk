@@ -121,6 +121,10 @@ pub(super) fn encode_compressed_frames(
                 format!("JPEG lossless (non-hierarchical) encode failed for frame {frame_index}")
             })?,
             TransferSyntaxKind::RleLossless => encode_rle_lossless_fragment_u16_grayscale(frame),
+            syntax if let Some(profile) = syntax.htj2k_profile() => {
+                ritk_codecs::jpeg_2000::encode_grayscale_htj2k(frame, rows, columns, profile)
+                    .with_context(|| format!("HTJ2K encode failed for frame {frame_index}"))?
+            }
             _ => bail!(
                 "compressed frame encoder received unsupported transfer syntax '{}'",
                 syntax.uid()

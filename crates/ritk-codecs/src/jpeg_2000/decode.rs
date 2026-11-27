@@ -1,7 +1,7 @@
 //! Checked DICOM frame decoding and exact integer output for JPEG 2000 Part 1.
 use super::{
-    codestream,
     image::{decode_j2k_fragment, is_soc},
+    organization::{self, Jpeg2000Profile},
     read_limits::check_read_budget,
     Jpeg2000DecodeError,
 };
@@ -26,8 +26,7 @@ use anyhow::anyhow;
 /// Returns [`Jpeg2000DecodeError::Codestream`] if:
 /// - `fragment` does not begin with the SOC marker (0xFF4F).
 /// - SIZ or SOT geometry is invalid, or identifies a tile outside the image's tile grid.
-/// - the stream is not single-component grayscale LRCP without coding
-///   overrides, packed packet headers, multi-part tiles, or MCT.
+/// - the codestream declares an incompatible DICOM profile or component geometry.
 /// - packet or coefficient decoding fails.
 /// - a marker segment or packet is truncated, EOC or a declared tile is
 ///   missing, or decoded component metadata does not match `layout`.
@@ -37,9 +36,14 @@ pub fn decode_jpeg2000_fragment(
     layout: PixelLayout,
     budget: ImageReadBudget,
 ) -> Result<Vec<f32>, Jpeg2000DecodeError> {
-    decode_samples(fragment, layout, budget, |raw| {
-        (raw as f64 * f64::from(layout.rescale_slope) + f64::from(layout.rescale_intercept)) as f32
-    })
+    decode_jpeg2000_with_profile(
+        fragment,
+        layout,
+        budget,
+        Jpeg2000Profile::Part1 {
+            lossless_only: false,
+        },
+    )
 }
 
 /// Read the component precision from the JPEG 2000 main header.
@@ -47,8 +51,8 @@ pub fn decode_jpeg2000_fragment(
 /// # Errors
 /// Returns an error on a malformed header or a non-monochrome component layout.
 pub fn grayscale_component_precision(fragment: &[u8]) -> anyhow::Result<u32> {
-    let (header, _) = codestream::parse_main_header(fragment)?;
-    let [component] = header.siz.components.as_slice() else {
+    let siz = super::organization::size_marker(fragment)?;
+    let [component] = siz.components.as_slice() else {
         anyhow::bail!("expected one grayscale JPEG 2000 component")
     };
     Ok(component.precision())
@@ -64,13 +68,49 @@ pub fn decode_jpeg2000_stored_fragment(
     layout: PixelLayout,
     budget: ImageReadBudget,
 ) -> Result<Vec<i64>, Jpeg2000DecodeError> {
-    decode_samples(fragment, layout, budget, |raw| raw)
+    decode_jpeg2000_stored_with_profile(
+        fragment,
+        layout,
+        budget,
+        Jpeg2000Profile::Part1 {
+            lossless_only: false,
+        },
+    )
+}
+
+/// Decode a DICOM Part 1 or HTJ2K frame with the specified profile and modality rescaling.
+///
+/// # Errors
+/// Returns an error for an invalid codestream, incompatible DICOM profile or exceeded read budget.
+pub fn decode_jpeg2000_with_profile(
+    fragment: &[u8],
+    layout: PixelLayout,
+    budget: ImageReadBudget,
+    profile: Jpeg2000Profile,
+) -> Result<Vec<f32>, Jpeg2000DecodeError> {
+    decode_samples(fragment, layout, budget, profile, |raw| {
+        (raw as f64 * f64::from(layout.rescale_slope) + f64::from(layout.rescale_intercept)) as f32
+    })
+}
+
+/// Decode Part 1 or HTJ2K into exact stored integers before modality rescale.
+///
+/// # Errors
+/// Returns the same structural and profile errors as [`decode_jpeg2000_with_profile`].
+pub fn decode_jpeg2000_stored_with_profile(
+    fragment: &[u8],
+    layout: PixelLayout,
+    budget: ImageReadBudget,
+    profile: Jpeg2000Profile,
+) -> Result<Vec<i64>, Jpeg2000DecodeError> {
+    decode_samples(fragment, layout, budget, profile, |raw| raw)
 }
 
 fn decode_samples<T: Copy + Default>(
     fragment: &[u8],
     layout: PixelLayout,
     budget: ImageReadBudget,
+    profile: Jpeg2000Profile,
     convert: impl Fn(i64) -> T,
 ) -> Result<Vec<T>, Jpeg2000DecodeError> {
     if !is_jpeg2000_codestream(fragment) {
@@ -81,7 +121,27 @@ fn decode_samples<T: Copy + Default>(
         )));
     }
     check_read_budget(fragment.len(), layout, budget, size_of::<T>())?;
-    decode_j2k_fragment(fragment, layout, convert).map_err(|error| {
+    let count = layout
+        .samples_per_frame()
+        .map_err(Jpeg2000DecodeError::Codestream)?;
+    if count > isize::MAX as usize / size_of::<T>() {
+        // try_reserve_exact returns CapacityOverflow without contacting the allocator.
+        if let Err(source) = Vec::<T>::new().try_reserve_exact(count) {
+            return Err(Jpeg2000DecodeError::OutputAllocation {
+                samples: count,
+                source,
+            });
+        }
+    }
+    let decoded = (|| {
+        let plan = organization::inspect(fragment, layout, profile)?;
+        if plan.scalar_packets {
+            decode_j2k_fragment(fragment, layout, &plan, convert)
+        } else {
+            super::extended::decode(fragment, layout, &plan.header.siz, convert)
+        }
+    })();
+    decoded.map_err(|error: anyhow::Error| {
         error
             .downcast()
             .unwrap_or_else(Jpeg2000DecodeError::Codestream)

@@ -212,13 +212,7 @@ pub(super) fn extract_dicom_metadata(
     let grayscale = obj
         .get(ritk_dicom::tags::SAMPLES_PER_PIXEL)
         .is_some_and(|e| e.to_num::<u16>().ok() == Some(1));
-    if grayscale
-        && matches!(
-            syntax,
-            ritk_dicom::TransferSyntaxKind::Jpeg2000Lossless
-                | ritk_dicom::TransferSyntaxKind::Jpeg2000Lossy
-        )
-    {
+    if grayscale && syntax.is_jpeg2000_family() {
         slice_meta.exact_pixels = ritk_dicom::NativeScalarPixels::from_wide_jpeg2000(
             obj,
             ritk_dicom::PixelLayout {
