@@ -52,7 +52,7 @@ fn compose(
     .expect("valid four-panel composition")
 }
 
-fn panel_bounds(viewport: NativeViewport) -> PanelBounds {
+fn panel_bounds(viewport: &NativeViewport) -> PanelBounds {
     PanelBounds {
         x: viewport.panel_x,
         y: viewport.panel_y,
@@ -63,9 +63,9 @@ fn panel_bounds(viewport: NativeViewport) -> PanelBounds {
 
 fn panels(composition: &FourPanelComposition) -> [PanelBounds; 4] {
     [
-        panel_bounds(composition.viewports[0]),
-        panel_bounds(composition.viewports[1]),
-        panel_bounds(composition.viewports[2]),
+        panel_bounds(&composition.viewports[0]),
+        panel_bounds(&composition.viewports[1]),
+        panel_bounds(&composition.viewports[2]),
         composition.fourth_panel,
     ]
 }

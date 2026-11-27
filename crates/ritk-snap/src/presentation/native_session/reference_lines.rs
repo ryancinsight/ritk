@@ -31,7 +31,7 @@ impl NativeViewerSession {
             else {
                 continue;
             };
-            if let Some([start, end]) = reference_segment(&trace, view, *viewport)? {
+            if let Some([start, end]) = reference_segment(&trace, view, viewport)? {
                 overlay.append_line(start, end, Color::rgba(255, 255, 0, 255))?;
             }
         }

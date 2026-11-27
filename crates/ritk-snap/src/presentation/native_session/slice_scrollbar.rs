@@ -38,7 +38,7 @@ impl NativeViewerSession {
                 continue;
             }
             let (slice, total) = app.axis_slice_info(viewport.axis());
-            viewport.scrollbar = geometry(*viewport, slice, total)?;
+            viewport.scrollbar = geometry(viewport, slice, total)?;
             if let Some(scrollbar) = viewport.scrollbar {
                 for (rect, color) in [
                     (scrollbar.geometry.track(), TRACK_COLOR),
@@ -53,7 +53,7 @@ impl NativeViewerSession {
 }
 
 fn geometry(
-    viewport: NativeViewport,
+    viewport: &NativeViewport,
     slice: usize,
     total: usize,
 ) -> Result<Option<SliceScrollbar>> {

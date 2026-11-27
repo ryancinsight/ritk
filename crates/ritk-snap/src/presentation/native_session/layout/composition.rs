@@ -95,7 +95,7 @@ pub(crate) fn surface_frames(
             pan_offset,
         )?,
     ];
-    for (view, viewport) in views.iter().zip(viewports) {
+    for (view, viewport) in views.iter().zip(&viewports) {
         blit_frame(
             &mut framebuffer,
             view,
@@ -282,7 +282,7 @@ fn compose_four_panel(
     let mut framebuffer = Framebuffer::new(surface_width, surface_height)
         .map_err(|error| anyhow!("allocate native viewer framebuffer: {error}"))?;
     framebuffer.clear(Color::BLACK);
-    for (view, viewport) in views.iter().zip(viewports) {
+    for (view, viewport) in views.iter().zip(&viewports) {
         blit_frame(
             &mut framebuffer,
             view,
@@ -309,7 +309,7 @@ fn compose_four_panel(
 pub(super) fn blit_frame(
     framebuffer: &mut Framebuffer,
     view: &RenderedView,
-    viewport: NativeViewport,
+    viewport: &NativeViewport,
     surface_width: u32,
     surface_height: u32,
 ) -> Result<()> {
