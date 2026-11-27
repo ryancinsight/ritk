@@ -14,6 +14,21 @@ use crate::{decode_native_pixel_bytes_checked, PixelLayout};
 pub fn decode_rle_lossless_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
     const HEADER_BYTES: usize = 64;
     let pixels_per_frame = layout.pixels_per_frame()?;
+    // Annex G.2 expands each binary composite pixel to a full byte before
+    // forming the RLE byte plane. Native RLE output is therefore unpacked.
+    let binary = layout.bits_allocated == 1;
+    let layout = if binary {
+        anyhow::ensure!(
+            layout.samples_per_pixel == 1 && layout.bits_stored == 1,
+            "invalid binary RLE layout"
+        );
+        PixelLayout {
+            bits_allocated: 8,
+            ..layout
+        }
+    } else {
+        layout
+    };
     let bytes_per_sample = layout.bytes_per_sample()?;
     let expected_segments = layout.samples_per_pixel * bytes_per_sample;
     if expected_segments == 0 || expected_segments > 15 {
@@ -69,6 +84,15 @@ pub fn decode_rle_lossless_fragment(fragment: &[u8], layout: PixelLayout) -> Res
         let segment = packbits_decode(&fragment[offset..end], pixels_per_frame)
             .with_context(|| format!("RLE PackBits segment {idx} decode failed"))?;
         segments.push(segment);
+    }
+
+    if binary {
+        let plane = &segments[0];
+        anyhow::ensure!(
+            plane.iter().all(|&v| v <= 1),
+            "nonzero padding bits in binary RLE sample"
+        );
+        return decode_native_pixel_bytes_checked(plane, layout);
     }
 
     // Precompute the segment access order: for each output byte position (sample, le_byte),

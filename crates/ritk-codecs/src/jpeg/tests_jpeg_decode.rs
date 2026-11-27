@@ -447,6 +447,12 @@ fn odd_jpeg_accepts_one_repeated_eoi_byte_as_fragment_padding() {
     jpeg.push(0xd9);
     assert!(decode_jpeg_fragment(&jpeg, layout).is_err());
     jpeg.truncate(jpeg.len() - 2);
+    jpeg.push(0xff);
+    assert_eq!(
+        decode_jpeg_fragment(&jpeg, layout).expect("FF fragment pad"),
+        [4660.]
+    );
+    jpeg.pop();
     jpeg.push(0x42);
     assert!(decode_jpeg_fragment(&jpeg, layout).is_err());
 }

@@ -28,7 +28,7 @@ pub use lossless::{encode_grayscale_jpeg_lossless, JpegLosslessPrediction};
 /// from `layout`. Grayscale lossless JPEG may use all allocated bits
 /// for coding when every decoded value fits the declared stored precision.
 /// An odd-length JPEG may have one padding byte after EOI, either zero or a
-/// repeated final marker byte found in some DICOM exports.
+/// repeated marker byte found in some DICOM exports.
 ///
 /// # Errors
 ///
@@ -112,7 +112,8 @@ fn validate_encodable_layout(layout: PixelLayout) -> Result<()> {
 }
 
 fn strip_dicom_padding(fragment: &[u8]) -> &[u8] {
-    if fragment.len().is_multiple_of(2) && matches!(fragment, [.., 0xff, 0xd9, 0x00 | 0xd9]) {
+    if fragment.len().is_multiple_of(2) && matches!(fragment, [.., 0xff, 0xd9, 0x00 | 0xd9 | 0xff])
+    {
         &fragment[..fragment.len() - 1]
     } else {
         fragment

@@ -744,20 +744,15 @@ fn decode_jpeg2000_rejects_precision_larger_than_dicom_container() {
 }
 
 #[test]
-fn decode_jpeg2000_rejects_codestream_signedness_mismatch() {
+fn decode_jpeg2000_uses_codestream_precision_and_sign() {
     let j2k = encode_grayscale_j2k(&[-1], 1, 1, 8, PixelSignedness::Signed, lossless(0))
         .expect("valid signed image must encode");
-
-    let error = decode_jpeg2000_fragment(
-        &j2k,
-        layout(1, 1, 8, PixelSignedness::Unsigned),
-        ImageReadBudget::DEFAULT,
-    )
-    .expect_err("codestream and DICOM signedness must agree");
-
-    assert!(
-        error.to_string().contains("component signedness signed"),
-        "expected signedness mismatch error, got {error:#}"
+    let mut declared = layout(1, 1, 8, PixelSignedness::Unsigned);
+    declared.bits_stored = 7;
+    assert_eq!(
+        decode_jpeg2000_fragment(&j2k, declared, ImageReadBudget::DEFAULT)
+            .expect("decode SIZ component"),
+        [-1.]
     );
 }
 

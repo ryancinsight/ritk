@@ -207,9 +207,20 @@ fn conflicting_float_metadata_and_truncated_pixels_fail_import() -> Result<()> {
 #[test]
 fn encapsulated_frames_restart_at_bit_zero_and_ignore_fragment_padding() -> Result<()> {
     use ritk_dicom::dataset::PixelFragments;
-    use ritk_dicom::TransferSyntaxKind::{DeflatedImageFrame, EncapsulatedUncompressed};
+    use ritk_dicom::TransferSyntaxKind::{
+        DeflatedImageFrame, EncapsulatedUncompressed, RleLossless,
+    };
+    let rle = |pixels: [u8; 3]| {
+        let mut fragment = vec![0u8; 64];
+        fragment[..4].copy_from_slice(&1u32.to_le_bytes());
+        fragment[4..8].copy_from_slice(&64u32.to_le_bytes());
+        fragment.push(2); // PackBits literal run of three byte-padded binary samples
+        fragment.extend(pixels);
+        fragment
+    };
     // Independent raw RFC1951 streams made by zlib for 0x05 and 0x06.
     for (syntax, fragments) in [
+        (RleLossless, vec![rle([1, 0, 1]), rle([0, 1, 1])]),
         (EncapsulatedUncompressed, vec![vec![5, 0], vec![6, 0]]),
         (
             DeflatedImageFrame,
