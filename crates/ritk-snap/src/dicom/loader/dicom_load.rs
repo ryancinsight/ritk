@@ -283,6 +283,30 @@ fn load_dicom_multiframe_volume_from_scanned_series(
     .with_context(|| format!("failed to load DICOM multi-frame object {:?}", slice.path))?;
 
     let mut metadata = series.metadata;
+    if flat.slice_provenance.is_some() {
+        for slice in &mut metadata.slices {
+            slice.exact_pixels = None;
+        }
+    } else if let Some(raw) = metadata
+        .slices
+        .first_mut()
+        .and_then(|s| s.exact_pixels.as_mut())
+    {
+        raw.set_frame_rescale(
+            info_samples
+                .per_frame
+                .iter()
+                .map(|frame| {
+                    [
+                        frame.rescale_slope.unwrap_or(info_samples.rescale_slope),
+                        frame
+                            .rescale_intercept
+                            .unwrap_or(info_samples.rescale_intercept),
+                    ]
+                })
+                .collect(),
+        );
+    }
     metadata.enhanced_pet_suv = flat.suv_bw;
     metadata.dimensions = [flat.shape[1], flat.shape[2], flat.shape[0]];
     metadata.spacing = flat.spacing.to_array().map(

@@ -3,6 +3,15 @@ use anyhow::{Context, Result};
 use ritk_dicom::dataset::Dataset;
 use ritk_dicom::dataset::DicomTag;
 
+/// Integer objects declare the stored bits; OF/OD objects encode precision in the VR.
+pub(super) fn sample_precision(obj: &Dataset) -> Result<u16> {
+    let encoding = ritk_dicom::ScalarEncoding::from_dataset(obj)?;
+    if encoding == ritk_dicom::ScalarEncoding::Integer {
+        return read_required_unsigned(obj, DicomTag::new(0x0028, 0x0101), "BitsStored");
+    }
+    encoding.precision(obj)
+}
+
 pub(super) const RGB_CHANNELS: usize = 3;
 
 pub(super) fn read_required_unsigned(obj: &Dataset, tag: DicomTag, name: &str) -> Result<u16> {

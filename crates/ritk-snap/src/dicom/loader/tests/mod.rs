@@ -7,6 +7,7 @@ mod lossless_transfer;
 mod multiframe;
 #[cfg(feature = "eframe-shell")]
 mod presentation;
+mod scalar_precision;
 mod selection;
 mod volumes;
 

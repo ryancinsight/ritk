@@ -72,6 +72,10 @@ pub(super) fn clinical_overlay(app: &SnapApp, anonymize: bool) -> Option<Clinica
         spacing: volume.spacing,
         zoom: app.zoom,
         cursor_value,
+        stored_value: app
+            .linked_cursor
+            .and_then(|cursor| volume.exact_stored_value(cursor.voxel()))
+            .map(|v| v.to_string()),
         anonymize,
     })
 }

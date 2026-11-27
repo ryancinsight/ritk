@@ -59,6 +59,8 @@ pub struct DicomSliceMetadata {
     /// never substitutes a file changed after metadata validation. Manually
     /// constructed descriptors may omit it to request path-based decoding.
     pub part10_bytes: Option<Vec<u8>>,
+    /// Exact native values for direct probing of wide integer and IEEE image data.
+    pub exact_pixels: Option<ritk_dicom::NativeScalarPixels>,
 }
 
 impl DicomSliceMetadata {
@@ -115,6 +117,7 @@ impl Default for DicomSliceMetadata {
             gantry_tilt: None,
             patient_position: None,
             part10_bytes: None,
+            exact_pixels: None,
         }
     }
 }

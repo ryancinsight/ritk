@@ -66,6 +66,12 @@ impl EncapsulatedFrameSource for DicomFile {
         let frames = self
             .get(FRAMES)
             .map_or(Ok(1), |field| field.to_num::<usize>())?;
+        if TransferSyntaxKind::from_uid(self.meta().transfer_syntax()).has_native_frame_layout() {
+            anyhow::ensure!(
+                frames == pixel.fragments().len(),
+                "encapsulated native layout requires one fragment per frame"
+            );
+        }
         let extended = |tag| -> Result<Option<Vec<u64>>> {
             let Some(element) = self.get(tag) else {
                 return Ok(None);
@@ -105,21 +111,44 @@ impl PixelDecodeBackend<DicomFile> for NativeBackend {
                 found.uid()
             );
         }
-        validate_pixel_description(object, request.layout)?;
+        let layout = request.layout;
+        let encoding = crate::ScalarEncoding::from_dataset(object)?;
+        validate_pixel_description(object, layout)?;
+        let frame_count = object
+            .get(FRAMES)
+            .map_or(Ok(1), |field| field.to_num::<usize>())?;
+        let index = usize::try_from(request.frame_index)?;
+        anyhow::ensure!(
+            index < frame_count,
+            "DICOM frame {index} exceeds NumberOfFrames"
+        );
         if found.is_encapsulated() {
+            anyhow::ensure!(
+                encoding == crate::ScalarEncoding::Integer,
+                "encapsulated floating Pixel Data is invalid in a standard transfer syntax"
+            );
             return NativeCodecBackend::decode_frame(object, request);
+        }
+        if encoding != crate::ScalarEncoding::Integer
+            || layout.bits_allocated == 1
+            || layout.bits_allocated > 32
+        {
+            let values = crate::NativeScalarPixels::from_object(
+                object,
+                encoding,
+                layout.bits_allocated,
+                layout.bits_stored,
+                layout.pixel_representation,
+            )?;
+            return Ok(DecodedFrame {
+                pixels: values.decode(index, frame_count, layout)?,
+            });
         }
         if matches!(found, TransferSyntaxKind::Unknown(_)) {
             bail!("unsupported DICOM pixel transfer syntax {}", found.uid());
         }
         let bytes = object.element(PIXELS)?.value().to_bytes()?;
         let frame_bytes = request.layout.bytes_per_frame()?;
-        let index = usize::try_from(request.frame_index)?;
-        if let Some(frames) = object.get(FRAMES)
-            && index >= frames.to_num::<usize>()?
-        {
-            bail!("DICOM frame {index} exceeds NumberOfFrames");
-        }
         let start = index
             .checked_mul(frame_bytes)
             .context("native DICOM frame offset overflow")?;
@@ -136,7 +165,12 @@ impl PixelDecodeBackend<DicomFile> for NativeBackend {
 }
 
 fn validate_pixel_description(object: &DicomFile, layout: PixelLayout) -> Result<()> {
-    layout.bytes_per_sample()?;
+    anyhow::ensure!(
+        layout.bits_stored > 0
+            && layout.bits_stored <= layout.bits_allocated
+            && (layout.bits_allocated == 1 || layout.bits_allocated.is_multiple_of(8)),
+        "invalid native DICOM bit allocation"
+    );
     for (tag, name, declared) in [
         (tags::BITS_ALLOCATED, "BitsAllocated", layout.bits_allocated),
         (tags::BITS_STORED, "BitsStored", layout.bits_stored),
@@ -147,6 +181,13 @@ fn validate_pixel_description(object: &DicomFile, layout: PixelLayout) -> Result
                 bail!("DICOM {name}={stored} does not match frame layout {name}={declared}");
             }
         }
+    }
+    if let Some(element) = object.get(tags::PIXEL_REPRESENTATION) {
+        let declared = crate::PixelSignedness::try_from(element.to_num::<u16>()?)?;
+        anyhow::ensure!(
+            declared == layout.pixel_representation,
+            "DICOM PixelRepresentation disagrees with frame layout"
+        );
     }
     if let Some(element) = object.get(DicomTag::new(0x0028, 0x0102)) {
         let high_bit = element.to_num::<u16>()?;

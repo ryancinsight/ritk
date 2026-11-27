@@ -15,7 +15,6 @@ use super::super::geometry::{length_from_mm, parse_lengths_mm};
 use super::super::per_frame::extract_functional_groups;
 use super::super::temporal::reject_temporal_organization;
 use super::super::types::MultiFrameInfo;
-use crate::format::dicom::color_common::read_required_unsigned;
 use crate::format::dicom::reader::types::{cs_to_arraystring, uid_to_arraystring};
 use crate::format::dicom::reader::DicomReadBudget;
 use crate::format::dicom::value_units::resolve_value_unit;
@@ -80,7 +79,7 @@ pub(crate) fn extract_multiframe_header(path: &Path, obj: &Dataset) -> Result<Mu
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(16);
 
-    let bits_stored = read_required_unsigned(obj, DicomTag::new(0x0028, 0x0101), "BitsStored")?;
+    let bits_stored = crate::format::dicom::color_common::sample_precision(obj)?;
 
     let samples_per_pixel: usize = obj
         .element(DicomTag::new(0x0028, 0x0002))

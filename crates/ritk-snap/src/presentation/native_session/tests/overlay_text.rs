@@ -78,6 +78,7 @@ fn clinical() -> ClinicalOverlay<'static> {
         spacing: [0.5, 0.5, 1.0],
         zoom: 1.0,
         cursor_value: Some(142.0),
+        stored_value: None,
         anonymize: false,
     }
 }

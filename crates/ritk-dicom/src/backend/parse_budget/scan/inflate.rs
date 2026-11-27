@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use bytes::Bytes;
 use flate2::{Decompress, FlushDecompress, Status};
 
-pub(super) fn dataset(input: &[u8], allowance: usize) -> Result<Bytes> {
+pub(crate) fn dataset(input: &[u8], allowance: usize) -> Result<Bytes> {
     let mut decoder = Decompress::new(false);
     let mut output = Vec::new();
     let mut block = [0u8; 16 * 1024];

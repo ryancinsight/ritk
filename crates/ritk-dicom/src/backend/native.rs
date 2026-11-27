@@ -36,6 +36,9 @@ where
             Codec::Jpeg2000 => {
                 decode_jpeg2000_fragment(&fragment, request.layout, ImageReadBudget::DEFAULT)?
             }
+            Codec::NativeFrame => {
+                crate::NativeScalarPixels::decode_encapsulated(&fragment, syntax, request.layout)?
+            }
             Codec::Rle => decode_rle_lossless_fragment(&fragment, request.layout)?,
             Codec::JpegXl => crate::codec::jpeg_xl::decode(&fragment, request.layout)?,
         };

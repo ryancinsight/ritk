@@ -67,6 +67,8 @@ pub(super) fn known_handled_tags() -> &'static HashSet<u32> {
         s.insert(tag_key(0x0028, 0x1050)); // WindowCenter
         s.insert(tag_key(0x0028, 0x1051)); // WindowWidth
                                            // Always skip pixel data
+        s.insert(tag_key(0x7FE0, 0x0008)); // Float Pixel Data
+        s.insert(tag_key(0x7FE0, 0x0009)); // Double Float Pixel Data
         s.insert(tag_key(0x7FE0, 0x0010));
         // PET radiopharmaceutical tags
         s.insert(tag_key(0x0010, 0x1030)); // PatientWeight

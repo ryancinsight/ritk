@@ -3,6 +3,11 @@ on:
   pull_request:
     paths:
       - 'crates/ritk-codecs/src/jpeg/**'
+      - 'crates/ritk-dicom/src/**'
+      - 'crates/ritk-io/src/format/dicom/**'
+      - 'crates/ritk-snap/src/dicom/**'
+      - 'crates/ritk-snap/src/render/slice_render.rs'
+      - 'crates/ritk-snap/src/loaded_volume.rs'
       - 'crates/ritk-snap/src/registration/**'
       - 'crates/ritk-snap/src/presentation/native_session/registration.rs'
       - 'crates/ritk-snap/src/presentation/native_session/tests/registration.rs'
@@ -28,6 +33,8 @@ jobs:
           shared-key: asterslice-windows-registration
       - name: Test DICOM JPEG import
         run: cargo test --locked --release -p ritk-codecs --lib jpeg::tests_decode
+      - name: Test scalar pixel import and windowing
+        run: cargo test --locked --release -p ritk-snap --lib scalar_precision
       - name: Test the Tools menu and CT/MR registration
         run: cargo test --locked --release -p ritk-snap --lib registration
       - name: Build AsterSlice

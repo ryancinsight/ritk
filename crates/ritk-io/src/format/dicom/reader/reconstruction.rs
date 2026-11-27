@@ -231,6 +231,9 @@ pub fn decode_dicom_series(
     // Retained Part-10 bytes are needed only until all slices have decoded.
     for slice in &mut slices {
         slice.part10_bytes = None;
+        if needs_resample {
+            slice.exact_pixels = None;
+        }
     }
     metadata.slices = slices;
     Ok(DecodedDicomSeries {

@@ -93,3 +93,6 @@ pub use format::dicom::{
     load_enhanced_pet_volumes_from_instances, EnhancedPetCoordinate, EnhancedPetDimension,
     EnhancedPetSelection, EnhancedPetVolume, SliceProvenance,
 };
+
+/// Exact source value for a native DICOM scalar pixel.
+pub use ritk_dicom::StoredScalar;

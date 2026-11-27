@@ -4,7 +4,7 @@
 //! - `from_uid(x.uid()) == x` for every non-unknown variant.
 //! - `is_native_uncompressed() -> !is_encapsulated()`.
 //! - `is_backend_codec_candidate() -> is_encapsulated()`.
-//! - `is_codec_supported() -> is_compressed()`.
+//! - `is_codec_supported() -> is_encapsulated()`.
 
 use arrayvec::ArrayString;
 
@@ -15,6 +15,8 @@ pub enum TransferSyntaxKind {
     ExplicitVrLittleEndian,
     ExplicitVrBigEndian,
     DeflatedExplicitVrLittleEndian,
+    EncapsulatedUncompressed,
+    DeflatedImageFrame,
     JpegBaseline,
     JpegExtended,
     JpegLosslessNonHierarchical,
@@ -36,6 +38,7 @@ pub(crate) enum Codec {
     JpegLs,
     Jpeg2000,
     Rle,
+    NativeFrame,
     JpegXl,
 }
 
@@ -45,6 +48,8 @@ impl TransferSyntaxKind {
             "1.2.840.10008.1.2" => Self::ImplicitVrLittleEndian,
             "1.2.840.10008.1.2.1" => Self::ExplicitVrLittleEndian,
             "1.2.840.10008.1.2.2" => Self::ExplicitVrBigEndian,
+            "1.2.840.10008.1.2.1.98" => Self::EncapsulatedUncompressed,
+            "1.2.840.10008.1.2.8.1" => Self::DeflatedImageFrame,
             "1.2.840.10008.1.2.1.99" => Self::DeflatedExplicitVrLittleEndian,
             "1.2.840.10008.1.2.4.50" => Self::JpegBaseline,
             "1.2.840.10008.1.2.4.51" => Self::JpegExtended,
@@ -68,6 +73,8 @@ impl TransferSyntaxKind {
             Self::ExplicitVrLittleEndian => "1.2.840.10008.1.2.1",
             Self::ExplicitVrBigEndian => "1.2.840.10008.1.2.2",
             Self::DeflatedExplicitVrLittleEndian => "1.2.840.10008.1.2.1.99",
+            Self::EncapsulatedUncompressed => "1.2.840.10008.1.2.1.98",
+            Self::DeflatedImageFrame => "1.2.840.10008.1.2.8.1",
             Self::JpegBaseline => "1.2.840.10008.1.2.4.50",
             Self::JpegExtended => "1.2.840.10008.1.2.4.51",
             Self::JpegLosslessNonHierarchical => "1.2.840.10008.1.2.4.57",
@@ -97,6 +104,7 @@ impl TransferSyntaxKind {
             Self::JpegLsLossless | Self::JpegLsLossy => Codec::JpegLs,
             Self::Jpeg2000Lossless | Self::Jpeg2000Lossy => Codec::Jpeg2000,
             Self::RleLossless => Codec::Rle,
+            Self::EncapsulatedUncompressed | Self::DeflatedImageFrame => Codec::NativeFrame,
             Self::JpegXlLossless | Self::JpegXlJpegRecompression | Self::JpegXl => Codec::JpegXl,
             Self::ImplicitVrLittleEndian
             | Self::ExplicitVrLittleEndian
@@ -106,8 +114,16 @@ impl TransferSyntaxKind {
         })
     }
 
+    /// Each encapsulated fragment contains a byte-aligned native frame, optionally deflated.
+    pub fn has_native_frame_layout(&self) -> bool {
+        matches!(
+            self,
+            Self::EncapsulatedUncompressed | Self::DeflatedImageFrame
+        )
+    }
+
     pub fn is_compressed(&self) -> bool {
-        self.is_encapsulated()
+        self.is_encapsulated() && !matches!(self, Self::EncapsulatedUncompressed)
     }
 
     pub fn is_lossless(&self) -> bool {
@@ -117,6 +133,8 @@ impl TransferSyntaxKind {
                 | Self::ExplicitVrLittleEndian
                 | Self::ExplicitVrBigEndian
                 | Self::DeflatedExplicitVrLittleEndian
+                | Self::EncapsulatedUncompressed
+                | Self::DeflatedImageFrame
                 | Self::JpegLosslessNonHierarchical
                 | Self::JpegLosslessFirstOrderPrediction
                 | Self::JpegLsLossless
@@ -165,12 +183,14 @@ impl TransferSyntaxKind {
 mod tests {
     use super::*;
 
-    fn variants() -> [TransferSyntaxKind; 16] {
+    fn variants() -> [TransferSyntaxKind; 18] {
         [
             TransferSyntaxKind::ImplicitVrLittleEndian,
             TransferSyntaxKind::ExplicitVrLittleEndian,
             TransferSyntaxKind::ExplicitVrBigEndian,
             TransferSyntaxKind::DeflatedExplicitVrLittleEndian,
+            TransferSyntaxKind::EncapsulatedUncompressed,
+            TransferSyntaxKind::DeflatedImageFrame,
             TransferSyntaxKind::JpegBaseline,
             TransferSyntaxKind::JpegExtended,
             TransferSyntaxKind::JpegLosslessNonHierarchical,
@@ -214,7 +234,10 @@ mod tests {
             }
             if syntax.is_backend_codec_candidate() {
                 assert!(syntax.is_encapsulated());
-                assert!(syntax.is_compressed());
+                assert_eq!(
+                    syntax.is_compressed(),
+                    syntax != TransferSyntaxKind::EncapsulatedUncompressed
+                );
                 assert!(syntax.is_codec_supported());
             }
         }
@@ -223,7 +246,10 @@ mod tests {
     #[test]
     fn compatibility_predicates_match_canonical_predicates() {
         for syntax in variants() {
-            assert_eq!(syntax.is_compressed(), syntax.is_encapsulated());
+            assert_eq!(
+                syntax.is_compressed(),
+                syntax.is_encapsulated() && syntax != TransferSyntaxKind::EncapsulatedUncompressed
+            );
             assert_eq!(
                 syntax.is_codec_supported(),
                 syntax.is_backend_codec_candidate()

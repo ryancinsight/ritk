@@ -21,7 +21,6 @@ use super::types::{
     cs_to_arraystring, da_to_arraystring, parse_patient_position, tm_to_arraystring,
     uid_to_arraystring, DicomSliceMetadata, SeriesFirstSeen,
 };
-use crate::format::dicom::color_common::read_required_unsigned;
 use crate::format::dicom::object_model::DicomPreservationSet;
 
 /// Reject a PixelSpacing pair that cannot describe a physical grid.
@@ -131,6 +130,7 @@ pub(super) fn extract_dicom_metadata(
         gantry_tilt: None,
         patient_position: None,
         part10_bytes: None,
+        exact_pixels: None,
     };
 
     // --- Per-slice fields ---
@@ -206,8 +206,24 @@ pub(super) fn extract_dicom_metadata(
             .and_then(|s| s.trim().parse().ok())
             .unwrap_or(slice_meta.bits_allocated);
     }
-    slice_meta.bits_stored =
-        read_required_unsigned(obj, DicomTag::new(0x0028, 0x0101), "BitsStored")?;
+    slice_meta.bits_stored = crate::format::dicom::color_common::sample_precision(obj)?;
+    let scalar_encoding = ritk_dicom::ScalarEncoding::from_dataset(obj)?;
+    let syntax = ritk_dicom::TransferSyntaxKind::from_uid(obj.meta().transfer_syntax());
+    if (!syntax.is_encapsulated() || syntax.has_native_frame_layout())
+        && !syntax.is_big_endian()
+        && (slice_meta.bits_stored > 24 || scalar_encoding != ritk_dicom::ScalarEncoding::Integer)
+        && obj
+            .get(ritk_dicom::tags::SAMPLES_PER_PIXEL)
+            .is_some_and(|e| e.to_num::<u16>().ok() == Some(1))
+    {
+        slice_meta.exact_pixels = Some(ritk_dicom::NativeScalarPixels::from_object(
+            obj,
+            scalar_encoding,
+            slice_meta.bits_allocated,
+            slice_meta.bits_stored,
+            slice_meta.pixel_representation,
+        )?);
+    }
     slice_meta.value_unit = resolve_value_unit(obj, slice_meta.sop_class_uid.as_deref());
     let first_voi_value = |tag| {
         obj.element(tag)

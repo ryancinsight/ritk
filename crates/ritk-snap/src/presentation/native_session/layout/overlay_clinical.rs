@@ -204,6 +204,12 @@ pub(crate) fn append_clinical_corners(
         .cursor_value
         .map(|value| format!("Cursor value: {value:.0}"))
         .into_iter()
+        .chain(
+            clinical
+                .stored_value
+                .as_ref()
+                .map(|v| format!("Stored value: {v}")),
+        )
         .collect();
 
     let side_width = (right_edge - left_edge - CORNER_GAP) / 2;

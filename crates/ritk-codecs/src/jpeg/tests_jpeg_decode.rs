@@ -423,14 +423,18 @@ fn lossless_unsigned_word_accepts_only_samples_within_declared_precision() {
         [-1024.0, 1024.0, 3071.0]
     );
     assert!(decode_jpeg_fragment(&frame(&[0, 4096, 1]), layout).is_err());
-    assert!(decode_jpeg_fragment(
-        &frame(&[0, 2048, 4095]),
-        PixelLayout {
-            pixel_representation: PixelSignedness::Signed,
-            ..layout
-        }
-    )
-    .is_err());
+    let signed = PixelLayout {
+        pixel_representation: PixelSignedness::Signed,
+        rescale_intercept: 0.,
+        ..layout
+    };
+    for words in [[0, 2048, 4095], [0, 0xf800, 0xffff]] {
+        assert_eq!(
+            decode_jpeg_fragment(&frame(&words), signed).expect("signed 12-bit values"),
+            [0., -2048., -1.]
+        );
+    }
+    assert!(decode_jpeg_fragment(&frame(&[0, 0xf001, 1]), signed).is_err());
 }
 
 #[test]

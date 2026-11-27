@@ -293,13 +293,19 @@ impl SnapApp {
                         return;
                     };
                     let value = intensity_at_voxel(vol, voxel);
+                    let stored = vol.exact_stored_value(voxel);
                     self.push_annotation(Annotation::HuPoint {
                         location: None,
                         pos: [pos.y(), pos.x()],
                         value,
                     });
                     let [depth, row, col] = voxel;
-                    self.status_message = format!("Value at [{depth},{row},{col}]: {value:.0}");
+                    self.status_message = match stored {
+                        Some(raw) => {
+                            format!("Value at [{depth},{row},{col}]: {value}; stored: {raw}")
+                        }
+                        None => format!("Value at [{depth},{row},{col}]: {value:.0}"),
+                    };
                 }
             }
             ToolKind::LabelPaint | ToolKind::LabelErase => {}
