@@ -412,7 +412,7 @@ fn jpeg_lossless_l16_accepts_dicom_even_length_padding() {
 }
 
 #[test]
-fn lossless_unsigned_word_accepts_only_samples_within_declared_precision() {
+fn lossless_words_accept_only_unsigned_or_signed_values_of_declared_precision() {
     let layout = layout_with_precision(1, 3, 16, 12, PixelSignedness::Unsigned, 1.0, -1024.0);
     let frame = |samples: &[u16]| {
         encode_grayscale_jpeg_lossless(samples, 1, 3, 16, JpegLosslessPrediction::Left)
