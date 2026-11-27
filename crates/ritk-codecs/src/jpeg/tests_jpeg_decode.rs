@@ -412,7 +412,7 @@ fn jpeg_lossless_l16_accepts_dicom_even_length_padding() {
 }
 
 #[test]
-fn lossless_unsigned_word_accepts_only_samples_within_declared_precision() {
+fn lossless_words_accept_only_unsigned_or_signed_values_of_declared_precision() {
     let layout = layout_with_precision(1, 3, 16, 12, PixelSignedness::Unsigned, 1.0, -1024.0);
     let frame = |samples: &[u16]| {
         encode_grayscale_jpeg_lossless(samples, 1, 3, 16, JpegLosslessPrediction::Left)
@@ -423,14 +423,18 @@ fn lossless_unsigned_word_accepts_only_samples_within_declared_precision() {
         [-1024.0, 1024.0, 3071.0]
     );
     assert!(decode_jpeg_fragment(&frame(&[0, 4096, 1]), layout).is_err());
-    assert!(decode_jpeg_fragment(
-        &frame(&[0, 2048, 4095]),
-        PixelLayout {
-            pixel_representation: PixelSignedness::Signed,
-            ..layout
-        }
-    )
-    .is_err());
+    let signed = PixelLayout {
+        pixel_representation: PixelSignedness::Signed,
+        rescale_intercept: 0.,
+        ..layout
+    };
+    for words in [[0, 2048, 4095], [0, 0xf800, 0xffff]] {
+        assert_eq!(
+            decode_jpeg_fragment(&frame(&words), signed).expect("signed 12-bit values"),
+            [0., -2048., -1.]
+        );
+    }
+    assert!(decode_jpeg_fragment(&frame(&[0, 0xf001, 1]), signed).is_err());
 }
 
 #[test]
@@ -443,6 +447,12 @@ fn odd_jpeg_accepts_one_repeated_eoi_byte_as_fragment_padding() {
     jpeg.push(0xd9);
     assert!(decode_jpeg_fragment(&jpeg, layout).is_err());
     jpeg.truncate(jpeg.len() - 2);
+    jpeg.push(0xff);
+    assert_eq!(
+        decode_jpeg_fragment(&jpeg, layout).expect("FF fragment pad"),
+        [4660.]
+    );
+    jpeg.pop();
     jpeg.push(0x42);
     assert!(decode_jpeg_fragment(&jpeg, layout).is_err());
 }

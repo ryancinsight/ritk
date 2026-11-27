@@ -45,6 +45,7 @@ pub(crate) struct ClinicalOverlay<'a> {
     pub(crate) zoom: f32,
     /// Cursor voxel intensity for the bottom-right readout.
     pub(crate) cursor_value: Option<f32>,
+    pub(crate) stored_value: Option<String>,
     /// Blank patient corners while keeping modality and measurements.
     pub(crate) anonymize: bool,
 }

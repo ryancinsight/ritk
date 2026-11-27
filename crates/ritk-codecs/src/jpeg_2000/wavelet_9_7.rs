@@ -23,19 +23,36 @@ use anyhow::{bail, Result};
 
 use super::wavelet::ceil_div_pow2;
 
-// The lifting coefficients below are the exact ISO 15444-1 Table F.4 reference
-// values; they carry more digits than f32 can represent, but the compiler rounds
-// each to the same deterministic f32 constant used by every conformant codec, so
-// the documented precision is intentional.
-#[expect(clippy::excessive_precision, reason = "ratchet RITK-LINT-1")]
-mod coeffs {
-    pub const ALPHA: f32 = -1.586_134_342_059_924;
-    pub const BETA: f32 = -0.052_980_118_572_961;
-    pub const GAMMA: f32 = 0.882_911_075_530_934;
-    pub const DELTA: f32 = 0.443_506_852_043_971;
-    pub const K: f32 = 1.230_174_104_914_001;
+/// Numeric operations for the ISO 15444-1 Table F.4 inverse lifting steps.
+pub(super) trait LiftingFloat:
+    Copy
+    + Default
+    + std::ops::Add<Output = Self>
+    + std::ops::Mul<Output = Self>
+    + std::ops::DivAssign
+    + std::ops::MulAssign
+    + std::ops::SubAssign
+{
+    const ALPHA: Self;
+    const BETA: Self;
+    const GAMMA: Self;
+    const DELTA: Self;
+    const K: Self;
 }
-use coeffs::{ALPHA, BETA, DELTA, GAMMA, K};
+impl LiftingFloat for f64 {
+    const ALPHA: Self = -1.586_134_342_059_924;
+    const BETA: Self = -0.052_980_118_572_961;
+    const GAMMA: Self = 0.882_911_075_530_934;
+    const DELTA: Self = 0.443_506_852_043_971;
+    const K: Self = 1.230_174_104_914_001;
+}
+impl LiftingFloat for f32 {
+    const ALPHA: Self = f64::ALPHA as f32;
+    const BETA: Self = f64::BETA as f32;
+    const GAMMA: Self = f64::GAMMA as f32;
+    const DELTA: Self = f64::DELTA as f32;
+    const K: Self = f64::K as f32;
+}
 
 /// Whole-sample-symmetric mirror of a (possibly out-of-range) index into
 /// `[0, n-1]`.  `f[-1] = f[1]`, `f[n] = f[n-2]`, extended periodically.
@@ -60,8 +77,8 @@ fn reflect(i: isize, n: usize) -> usize {
 ///
 /// # Errors
 /// Returns an error when `samples.len() != width × height`.
-pub fn inverse_dwt_9_7(
-    samples: &mut [f32],
+pub(super) fn inverse_dwt_9_7<F: LiftingFloat>(
+    samples: &mut [F],
     width: usize,
     height: usize,
     num_levels: u8,
@@ -114,10 +131,10 @@ pub fn forward_dwt_9_7(
 /// One synthesis level on the `[0..cur_h, 0..cur_w]` rectangle: rows first
 /// (interleave [low|high] halves → inverse 1-D), then columns — the exact
 /// inverse of [`analyse_2d_9_7`].
-fn synth_2d_9_7(samples: &mut [f32], stride: usize, cur_w: usize, cur_h: usize) {
+fn synth_2d_9_7<F: LiftingFloat>(samples: &mut [F], stride: usize, cur_w: usize, cur_h: usize) {
     let sn_x = cur_w.div_ceil(2);
     let sn_y = cur_h.div_ceil(2);
-    let mut buf = vec![0f32; cur_w.max(cur_h)];
+    let mut buf = vec![F::default(); cur_w.max(cur_h)];
 
     // Horizontal pass.
     for y in 0..cur_h {
@@ -128,7 +145,7 @@ fn synth_2d_9_7(samples: &mut [f32], stride: usize, cur_w: usize, cur_h: usize) 
     }
 
     // Vertical pass.
-    let mut col = vec![0f32; cur_h];
+    let mut col = vec![F::default(); cur_h];
     for x in 0..cur_w {
         for y in 0..cur_h {
             col[y] = samples[y * stride + x];
@@ -173,7 +190,7 @@ fn analyse_2d_9_7(samples: &mut [f32], stride: usize, cur_w: usize, cur_h: usize
 
 /// `[low half | high half] → interleaved (even = low, odd = high)`.
 #[inline]
-fn interleave(halves: &[f32], sn: usize, out: &mut [f32]) {
+fn interleave<F: LiftingFloat>(halves: &[F], sn: usize, out: &mut [F]) {
     for (i, &v) in halves[..sn].iter().enumerate() {
         out[2 * i] = v;
     }
@@ -206,53 +223,53 @@ fn fdwt_1d_9_7(buf: &mut [f32]) {
     };
     // 1. predict α (odd), 2. update β (even), 3. predict γ (odd), 4. update δ (even).
     for k in (1..n).step_by(2) {
-        buf[k] += ALPHA * nb(buf, k);
+        buf[k] += f32::ALPHA * nb(buf, k);
     }
     for k in (0..n).step_by(2) {
-        buf[k] += BETA * nb(buf, k);
+        buf[k] += f32::BETA * nb(buf, k);
     }
     for k in (1..n).step_by(2) {
-        buf[k] += GAMMA * nb(buf, k);
+        buf[k] += f32::GAMMA * nb(buf, k);
     }
     for k in (0..n).step_by(2) {
-        buf[k] += DELTA * nb(buf, k);
+        buf[k] += f32::DELTA * nb(buf, k);
     }
-    // 5. scale: low ← s/K, high ← d·K.
+    // 5. scale: low ← s/f32::K, high ← d·f32::K.
     for k in (0..n).step_by(2) {
-        buf[k] /= K;
+        buf[k] /= f32::K;
     }
     for k in (1..n).step_by(2) {
-        buf[k] *= K;
+        buf[k] *= f32::K;
     }
 }
 
 /// 1-D inverse 9/7 lifting — exact algebraic inverse of [`fdwt_1d_9_7`].
-fn idwt_1d_9_7(buf: &mut [f32]) {
+fn idwt_1d_9_7<F: LiftingFloat>(buf: &mut [F]) {
     let n = buf.len();
     if n <= 1 {
         return;
     }
-    let nb = |buf: &[f32], k: usize| -> f32 {
+    let nb = |buf: &[F], k: usize| -> F {
         buf[reflect(k as isize - 1, n)] + buf[reflect(k as isize + 1, n)]
     };
     // Undo scale, then undo δ, γ, β, α in reverse order.
     for k in (0..n).step_by(2) {
-        buf[k] *= K;
+        buf[k] *= F::K;
     }
     for k in (1..n).step_by(2) {
-        buf[k] /= K;
+        buf[k] /= F::K;
     }
     for k in (0..n).step_by(2) {
-        buf[k] -= DELTA * nb(buf, k);
+        buf[k] -= F::DELTA * nb(buf, k);
     }
     for k in (1..n).step_by(2) {
-        buf[k] -= GAMMA * nb(buf, k);
+        buf[k] -= F::GAMMA * nb(buf, k);
     }
     for k in (0..n).step_by(2) {
-        buf[k] -= BETA * nb(buf, k);
+        buf[k] -= F::BETA * nb(buf, k);
     }
     for k in (1..n).step_by(2) {
-        buf[k] -= ALPHA * nb(buf, k);
+        buf[k] -= F::ALPHA * nb(buf, k);
     }
 }
 

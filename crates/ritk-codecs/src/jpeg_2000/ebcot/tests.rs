@@ -28,7 +28,8 @@ fn enc_dec_roundtrip(samples: &[i32], w: usize, h: usize, orient: SubbandOrienta
     assert_eq!(dec.samples.len(), samples.len());
     for (i, (&orig, &decoded)) in samples.iter().zip(dec.samples.iter()).enumerate() {
         assert_eq!(
-            decoded, orig,
+            decoded,
+            i64::from(orig),
             "sample[{i}] round-trip: expected {orig}, got {decoded}"
         );
     }
@@ -48,9 +49,7 @@ fn stopping_after_propagation_preserves_the_unrefined_magnitude_interval() {
         let values: Vec<_> = decoded
             .samples
             .iter()
-            .map(|&q| {
-                reversible_midpoint(q, decoded.lowest_decoded_plane(q)).expect("bounded fixture")
-            })
+            .map(|&q| reversible_midpoint(q, decoded.lowest_decoded_plane(q)))
             .collect();
         assert_eq!(values, expected, "completed passes: {passes}");
     }

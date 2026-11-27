@@ -30,7 +30,7 @@ pub use diffusion::{
     read_dicom_gradient_scheme_from_files,
 };
 pub use pixel::{
-    decode_native_pixel_bytes_checked, decode_stored_pixel_frame, PixelLayout, PixelSignedness,
-    StoredPixelError,
+    decode_native_pixel_bytes_checked, decode_stored_pixel_frame, NativeScalarPixels, PixelLayout,
+    PixelSignedness, ScalarEncoding, StoredPixelError, StoredScalar,
 };
 pub use syntax::TransferSyntaxKind;

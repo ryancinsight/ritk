@@ -53,6 +53,48 @@ pub struct LoadedVolume {
 }
 
 impl LoadedVolume {
+    /// Exact native stored sample at an acquired voxel, before modality calibration.
+    /// Reconstructed images without a one-to-one source mapping have no stored sample.
+    pub fn exact_stored_value(&self, [z, y, x]: [usize; 3]) -> Option<ritk_io::StoredScalar> {
+        let (slice, _, index) = self.acquired_sample([z, y, x])?;
+        slice.exact_pixels.as_ref()?.get(index)
+    }
+
+    pub(crate) fn window_offset(&self, voxel: [usize; 3], center: f64) -> Option<f64> {
+        let (slice, frame, index) = self.acquired_sample(voxel)?;
+        slice
+            .exact_pixels
+            .as_ref()?
+            .window_offset(index, frame, center)
+    }
+
+    fn acquired_sample(
+        &self,
+        [z, y, x]: [usize; 3],
+    ) -> Option<(&ritk_io::DicomSliceMetadata, usize, usize)> {
+        let [depth, rows, cols] = self.shape;
+        if self.channels != 1 || z >= depth || y >= rows || x >= cols {
+            return None;
+        }
+        let metadata = self.metadata.as_deref()?;
+        if metadata.enhanced_pet_selection.is_some() {
+            return None;
+        }
+        let (slice, frame) = if metadata.slices.len() == 1 {
+            (metadata.slices.first()?, z)
+        } else if metadata.slices.len() == depth {
+            (metadata.slices.get(z)?, 0)
+        } else {
+            return None;
+        };
+        let index = frame
+            .checked_mul(rows)?
+            .checked_add(y)?
+            .checked_mul(cols)?
+            .checked_add(x)?;
+        Some((slice, frame, index))
+    }
+
     #[cfg(any(windows, target_arch = "wasm32", test))]
     pub(crate) const REGISTRATION_PREVIEW: &'static str = "Rigid registration preview";
 

@@ -60,6 +60,7 @@ pub struct OverlayContext {
     pub wl: WindowLevel,
     pub zoom: f32,
     pub cursor_value: Option<f32>,
+    pub stored_value: Option<String>,
     pub pointer_intensity: f32,
     pub pointer_suv: Option<f32>,
     pub cursor_suv: Option<f32>,
@@ -110,6 +111,7 @@ impl OverlayRenderer {
             wl,
             zoom,
             cursor_value,
+            stored_value,
             pointer_intensity,
             pointer_suv,
             cursor_suv,
@@ -179,7 +181,10 @@ impl OverlayRenderer {
         // ── Bottom-right: W/L, zoom, cursor, pointer ──────────────────────
         let wl_str = format!("W:{:.0} C:{:.0}", wl.width, wl.center);
         let zoom_str = format!("Zoom: {:.0}%", zoom * 100.0);
-        let cursor_val_str = format_cursor_str(cursor_value, cursor_suv);
+        let mut cursor_val_str = format_cursor_str(cursor_value, cursor_suv);
+        if let Some(value) = stored_value {
+            cursor_val_str.push_str(&format!("  Stored value: {value}"));
+        }
         let pointer_val_str = format_pointer_str(pointer_intensity, pointer_suv);
         let br_lines: Vec<&str> = [
             &wl_str as &str,

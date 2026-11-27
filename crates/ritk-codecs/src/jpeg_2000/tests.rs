@@ -1,6 +1,9 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
+use super::decode::is_jpeg2000_codestream;
 use super::*;
-use crate::{ImageReadBudget, ImageReadBudgetError, ImageReadResource, PixelSignedness};
+use crate::{
+    ImageReadBudget, ImageReadBudgetError, ImageReadResource, PixelLayout, PixelSignedness,
+};
 use encoder::{encode_grayscale_j2k, Jpeg2000Encoding, QuantizationStep};
 
 const fn lossless(decomposition_levels: u8) -> Jpeg2000Encoding {
@@ -287,26 +290,46 @@ fn decode_rejects_multicomponent_stream_before_packet_decode() {
 }
 
 #[test]
-fn decode_rejects_component_precision_beyond_coefficient_capacity() {
-    let mut j2k = single_pixel_codestream();
-    let siz = j2k
+fn decode_all_part_one_precisions_from_independent_dc_level_shift() {
+    let mut stream = encode_grayscale_j2k(&[127], 1, 1, 8, PixelSignedness::Unsigned, lossless(0))
+        .expect("centered coefficient -1");
+    let siz = stream
         .windows(2)
-        .position(|window| window == [0xFF, 0x51])
-        .expect("encoder output must contain SIZ");
-    j2k[siz + 40] = 32;
+        .position(|w| w == [0xff, 0x51])
+        .expect("SIZ");
+    for precision in 1u8..=38 {
+        let mut geometry = layout(1, 1, u16::from(precision), PixelSignedness::Unsigned);
+        geometry.bits_allocated = u16::from(precision).div_ceil(8) * 8;
+        for signed in [false, true] {
+            stream[siz + 40] = (precision - 1) | if signed { 0x80 } else { 0 };
+            let expected = -1 + if signed { 0 } else { 1i64 << (precision - 1) };
+            assert_eq!(
+                super::decode_jpeg2000_stored_fragment(&stream, geometry, ImageReadBudget::DEFAULT)
+                    .expect("decode exact stored pixels"),
+                [expected]
+            );
+        }
+    }
+}
 
-    let err = decode_jpeg2000_fragment(
-        &j2k,
-        layout(1, 1, 8, PixelSignedness::Unsigned),
-        ImageReadBudget::DEFAULT,
-    )
-    .expect_err("33-bit component coefficients must be rejected before entropy decode");
-    let message = format!("{err:#}");
-    assert!(message.contains("precision 33"), "got: {message}");
-    assert!(
-        message.contains("32-bit coefficient capacity"),
-        "got: {message}"
-    );
+#[test]
+fn wide_irreversible_quantization_keeps_high_order_coefficients() {
+    // The same QCD exponent in a 38-bit component has a step 2^30
+    // times the 8-bit step. Each nonzero coefficient gets a half-bin bias.
+    let mut stream =
+        encode_grayscale_j2k(&[-3, 0, 7], 3, 1, 8, PixelSignedness::Signed, lossy(0, 1.))
+            .expect("encode known coefficients");
+    let siz = stream
+        .windows(2)
+        .position(|w| w == [0xff, 0x51])
+        .expect("SIZ");
+    stream[siz + 40] = 0x80 | 37;
+    let mut geometry = layout(3, 1, 38, PixelSignedness::Signed);
+    geometry.bits_allocated = 40;
+    let stored =
+        super::decode_jpeg2000_stored_fragment(&stream, geometry, ImageReadBudget::DEFAULT)
+            .expect("wide inverse quantization");
+    assert_eq!(stored, [-(7i64 << 29), 0, 15i64 << 29]);
 }
 
 #[test]
@@ -744,20 +767,15 @@ fn decode_jpeg2000_rejects_precision_larger_than_dicom_container() {
 }
 
 #[test]
-fn decode_jpeg2000_rejects_codestream_signedness_mismatch() {
+fn decode_jpeg2000_uses_codestream_precision_and_sign() {
     let j2k = encode_grayscale_j2k(&[-1], 1, 1, 8, PixelSignedness::Signed, lossless(0))
         .expect("valid signed image must encode");
-
-    let error = decode_jpeg2000_fragment(
-        &j2k,
-        layout(1, 1, 8, PixelSignedness::Unsigned),
-        ImageReadBudget::DEFAULT,
-    )
-    .expect_err("codestream and DICOM signedness must agree");
-
-    assert!(
-        error.to_string().contains("component signedness signed"),
-        "expected signedness mismatch error, got {error:#}"
+    let mut declared = layout(1, 1, 8, PixelSignedness::Unsigned);
+    declared.bits_stored = 7;
+    assert_eq!(
+        decode_jpeg2000_fragment(&j2k, declared, ImageReadBudget::DEFAULT)
+            .expect("decode SIZ component"),
+        [-1.]
     );
 }
 

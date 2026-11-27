@@ -306,7 +306,7 @@ fn decode_slice_stored(
             uid: transfer_syntax.uid().to_owned(),
         });
     }
-    if transfer_syntax.is_compressed() {
+    if transfer_syntax.is_encapsulated() {
         return Err(DicomStoredImportError::CompressedSyntax {
             uid: transfer_syntax.uid().to_owned(),
         });

@@ -157,14 +157,13 @@ pub fn step_size(r_b: u32, exponent: u32, mantissa: u32) -> f32 {
 }
 
 /// Reconstruct the integer midpoint of the retained sign-magnitude interval.
-pub(super) fn reversible_midpoint(q: i32, lowest_plane: u32) -> anyhow::Result<i32> {
+pub(super) fn reversible_midpoint(q: i64, lowest_plane: u32) -> i64 {
     if q == 0 || lowest_plane == 0 {
-        return Ok(q);
+        return q;
     }
     // A nonzero decoded magnitude has a set bit at or above this plane.
     let half_interval = 1_i64 << (lowest_plane - 1);
-    let midpoint = i64::from(q) + i64::from(q.signum()) * half_interval;
-    Ok(i32::try_from(midpoint)?)
+    q + q.signum() * half_interval
 }
 
 /// Pack an (ε_b, μ_b) pair into the 16-bit scalar SPqcd field: ε in bits 15–11,
@@ -206,7 +205,7 @@ pub fn quantize(coeff: f32, delta: f32) -> i32 {
 ///   sample is recovered exactly — matching the OpenJPEG reference. A truncated
 ///   exact block (`p ≥ 1`) still reconstructs at the undecoded-interval centre.
 #[inline]
-pub fn dequantize(q: i32, delta: f32, lowest_bitplane: u32, continuous: bool) -> f32 {
+pub fn dequantize(q: i64, delta: f32, lowest_bitplane: u32, continuous: bool) -> f64 {
     if q == 0 {
         return 0.0;
     }
@@ -215,9 +214,9 @@ pub fn dequantize(q: i32, delta: f32, lowest_bitplane: u32, continuous: bool) ->
     let bias = if !continuous && lowest_bitplane == 0 {
         0.0
     } else {
-        0.5 * (1u64 << lowest_bitplane) as f32
+        0.5 * (1u64 << lowest_bitplane) as f64
     };
-    let mag = (q.unsigned_abs() as f32 + bias) * delta;
+    let mag = (q.unsigned_abs() as f64 + bias) * f64::from(delta);
     if q < 0 {
         -mag
     } else {
@@ -256,7 +255,10 @@ mod tests {
         // that recovers losslessly captured integer coefficients exactly.
         let delta = 2.5f32;
         for q in [-7i32, -1, 1, 3, 42] {
-            assert_eq!(dequantize(q, delta, 0, false), q as f32 * delta);
+            assert_eq!(
+                dequantize(i64::from(q), delta, 0, false),
+                f64::from(q) * f64::from(delta)
+            );
         }
         assert_eq!(dequantize(0, delta, 0, false), 0.0);
     }
@@ -267,8 +269,8 @@ mod tests {
         // sub-step uncertainty, so the optimal reconstruction is the half-step
         // midpoint (q + 0.5)·Δ.
         let delta = 2.0f32;
-        assert_eq!(dequantize(3, delta, 0, true), 3.5 * delta);
-        assert_eq!(dequantize(-3, delta, 0, true), -3.5 * delta);
+        assert_eq!(dequantize(3, delta, 0, true), 3.5 * f64::from(delta));
+        assert_eq!(dequantize(-3, delta, 0, true), -3.5 * f64::from(delta));
     }
 
     #[test]
@@ -295,7 +297,7 @@ mod tests {
         for i in -100..=100 {
             let coeff = i as f32 * 0.37;
             let q = quantize(coeff, delta);
-            let r = dequantize(q, delta, 0, true);
+            let r = dequantize(i64::from(q), delta, 0, true) as f32;
             let error = (r - coeff).abs();
             if q == 0 {
                 assert!(error < delta, "coeff={coeff} q={q} r={r} Δ={delta}");

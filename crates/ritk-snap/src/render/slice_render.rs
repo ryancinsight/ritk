@@ -222,12 +222,15 @@ impl SliceRenderer {
             return [1, 1];
         };
         scratch.rgba.resize(byte_count, 0);
-        for (index, &p) in scratch.pixel_f32.iter().enumerate() {
-            let byte = presentation.apply(wl, f64::from(p));
-            let value = Normalized::from_u8(byte);
-            let base = index * 4;
-            scratch.rgba[base..base + 4].copy_from_slice(&colormap.sample(value).to_rgba8());
-        }
+        write_scalar_rgba(
+            volume,
+            (axis, index, width),
+            presentation,
+            wl,
+            colormap,
+            &scratch.pixel_f32,
+            &mut scratch.rgba,
+        );
         if invert {
             apply_display_invert(&mut scratch.rgba);
         }
@@ -288,21 +291,53 @@ impl SliceRenderer {
             return egui::ColorImage::from_rgb([1, 1], &[0u8, 0, 0]);
         }
         pool.resize_pixel_bytes(width * height * 4);
-        // Split-borrow: pool.pixel_f32 (read) and pool.rgba_u8 (write) are
-        // distinct fields; Rust NLL permits simultaneous borrows.
-        let pixels = pool.pixel_f32.as_slice();
-        let rgba = pool.rgba_u8.as_mut_slice();
-        for (i, &p) in pixels.iter().enumerate() {
-            let byte = presentation.apply(wl, f64::from(p));
-            let value = Normalized::from_u8(byte);
-            let [r, g, b, alpha] = colormap.sample(value).to_rgba8();
-            let base = i * 4;
-            rgba[base] = r;
-            rgba[base + 1] = g;
-            rgba[base + 2] = b;
-            rgba[base + 3] = alpha;
-        }
+        write_scalar_rgba(
+            volume,
+            (axis, index, width),
+            presentation,
+            wl,
+            colormap,
+            &pool.pixel_f32,
+            &mut pool.rgba_u8,
+        );
         egui::ColorImage::from_rgba_unmultiplied([width, height], &pool.rgba_u8)
+    }
+}
+
+/// Apply windowing to acquired samples before reducing precision for the display.
+fn write_scalar_rgba(
+    volume: &LoadedVolume,
+    plane: (usize, usize, usize),
+    presentation: GrayscalePresentation,
+    wl: WindowLevel,
+    colormap: NamedColorMap,
+    pixels: &[f32],
+    rgba: &mut [u8],
+) {
+    let (axis, slice, width) = plane;
+    let precise = volume
+        .metadata
+        .as_deref()
+        .is_some_and(|m| m.slices.iter().any(|s| s.exact_pixels.is_some()));
+    let fixed = slice.min(volume.shape[axis].saturating_sub(1));
+    for (index, (&value, output)) in pixels.iter().zip(rgba.chunks_exact_mut(4)).enumerate() {
+        let offset = if precise {
+            let row = index / width;
+            let col = index % width;
+            let voxel = match axis {
+                0 => [fixed, row, col],
+                1 => [row, fixed, col],
+                _ => [row, col, fixed],
+            };
+            volume.window_offset(voxel, wl.center)
+        } else {
+            None
+        };
+        let byte = match offset {
+            Some(delta) => presentation.apply(WindowLevel::new(0., wl.width), delta),
+            None => presentation.apply(wl, f64::from(value)),
+        };
+        output.copy_from_slice(&colormap.sample(Normalized::from_u8(byte)).to_rgba8());
     }
 }
 

@@ -1,4 +1,4 @@
-//! Cross-encoder comparison using the four MR_small Part 10 files bundled by pydicom.
+//! Cross-encoder comparison using MR_small Part 10 files bundled by pydicom.
 
 use super::super::{load_volume_from_bytes, load_volume_from_path};
 use crate::presentation::PresentationFrame;
@@ -36,6 +36,9 @@ fn independent_lossless_mr_encodings_preserve_every_voxel_and_displayed_sample()
     };
     let reference = render(&raw);
     for filename in [
+        "MR_small_implicit.dcm",
+        "MR_small_bigendian.dcm",
+        "MR_small_expb.dcm",
         "MR_small_RLE.dcm",
         "MR_small_jpeg_ls_lossless.dcm",
         "MR_small_jp2klossless.dcm",

@@ -27,7 +27,7 @@ fn bit_plane_budget_saturates_at_zero() {
 
 #[test]
 fn tile_decode_rejects_overflowing_dimensions_before_allocation() {
-    let result = decode_tile_part(&[], usize::MAX, 2, reversible_coding());
+    let result = decode_tile_part::<i32>(&[], usize::MAX, 2, reversible_coding());
     let Err(err) = result else {
         panic!("overflowing tile dimensions must fail");
     };
@@ -42,7 +42,7 @@ fn tile_decode_rejects_overflowing_dimensions_before_allocation() {
 fn tile_decode_rejects_truncated_packet_length_field() {
     // Packet present, first inclusion, zero missing MSBs, one coding pass,
     // one Lblock increment, terminator, then only two of four length bits.
-    let result = decode_tile_part(&[0b1110_1000], 1, 1, reversible_coding());
+    let result = decode_tile_part::<i32>(&[0b1110_1000], 1, 1, reversible_coding());
     let Err(err) = result else {
         panic!("truncated packet length field must fail");
     };
@@ -64,7 +64,7 @@ fn tile_decode_rejects_included_code_block_with_zero_body_length() {
     writer.write_bits(0, 3); // declared body length
     let packet = writer.flush();
 
-    let Err(err) = decode_tile_part(&packet, 1, 1, reversible_coding()) else {
+    let Err(err) = decode_tile_part::<i32>(&packet, 1, 1, reversible_coding()) else {
         panic!("an included code-block cannot have an empty entropy body");
     };
     let message = format!("{err:#}");
@@ -87,7 +87,7 @@ fn tile_decode_rejects_excessive_lblock_growth() {
     writer.write_bit(0);
     let packet = writer.flush();
 
-    let result = decode_tile_part(&packet, 1, 1, reversible_coding());
+    let result = decode_tile_part::<i32>(&packet, 1, 1, reversible_coding());
     let Err(err) = result else {
         panic!("excessive Lblock growth must fail");
     };
@@ -103,7 +103,7 @@ proptest! {
     fn arbitrary_packet_headers_are_panic_free(
         packet in proptest::collection::vec(any::<u8>(), 0..128),
     ) {
-        if let Ok(decoded) = decode_tile_part(&packet, 1, 1, reversible_coding()) {
+        if let Ok(decoded) = decode_tile_part::<i32>(&packet, 1, 1, reversible_coding()) {
             prop_assert_eq!(decoded.width, 1);
             prop_assert_eq!(decoded.height, 1);
             prop_assert_eq!(decoded.samples.len(), 1);
@@ -408,7 +408,33 @@ fn openjp2_captured_packet_conformance() {
         crate::jpeg_2000::ebcot::SubbandOrientation::LlOrLh,
     )
     .expect("captured OpenJPEG code-block must decode");
-    assert_eq!(block.samples, expected, "EBCOT tier-1 must match OpenJPEG");
+    assert_eq!(
+        block.samples,
+        expected.iter().copied().map(i64::from).collect::<Vec<_>>(),
+        "EBCOT tier-1 must match OpenJPEG"
+    );
+    // Increasing Mb by 28 shifts the same OpenJPEG coding passes into
+    // bit-planes above 31; the undecoded low interval uses its midpoint.
+    let wide = decode_code_block(
+        reference,
+        8,
+        8,
+        (37 - msbs) as u8,
+        ncp,
+        crate::jpeg_2000::ebcot::SubbandOrientation::LlOrLh,
+    )
+    .expect("decode high bit-planes");
+    for (&value, &original) in wide.samples.iter().zip(&expected) {
+        let q = i64::from(original);
+        assert_eq!(value, q << 28);
+        assert_eq!(
+            crate::jpeg_2000::quantization::reversible_midpoint(
+                value,
+                wide.lowest_decoded_plane(value)
+            ),
+            (q << 28) + q.signum() * (1 << 27)
+        );
+    }
 }
 
 #[test]
@@ -432,7 +458,7 @@ fn tile_part_round_trip_2x2_one_dwt_level() {
         .windows(2)
         .position(|w| w == [0xFF, 0x93])
         .expect("SOD present");
-    let result = decode_tile_part(
+    let result = decode_tile_part::<i32>(
         &tp[sod + 2..],
         2,
         2,
@@ -492,7 +518,7 @@ fn tile_part_encode_decode_round_trip_gradient() {
         .position(|w| w == [0xFF, 0x93])
         .expect("SOD marker must be present");
     let tile_data = &tp[sod_pos + 2..];
-    let result = decode_tile_part(
+    let result = decode_tile_part::<i32>(
         tile_data,
         4,
         2,

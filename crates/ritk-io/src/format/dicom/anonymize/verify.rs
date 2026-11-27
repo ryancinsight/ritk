@@ -39,14 +39,10 @@
 //!    (7FE0,0008), Double Float Pixel Data (7FE0,0009) or Pixel Data
 //!    (7FE0,0010) must carry non-zero Rows/Columns/BitsAllocated and, when
 //!    SamplesPerPixel is present, a non-zero number there, and native
-//!    Pixel Data must hold at least one frame: `Rows * Columns *
-//!    SamplesPerPixel` bits rounded up to a byte when BitsAllocated is 1
-//!    (PS3.5 sections 8.1.1 and 8.2), and otherwise `Rows * Columns *
-//!    SamplesPerPixel * ceil(BitsAllocated / 8)` bytes; a frame size that
-//!    does not fit 64 bits is reported as a mismatch. This catches
-//!    metadata/pixel drift that PACS viewers tolerate silently but that
-//!    corrupts quantitative analysis. The length of float, double float and
-//!    encapsulated pixel data is not checked. An object holding none of the
+//!    payloads must contain all declared frames. Packed binary samples share
+//!    bytes across frame boundaries. Length checks include OF and OD payloads
+//!    and account for native YBR 4:2:2 subsampling. Compressed fragment lengths
+//!    do not describe the decoded raster. An object holding none of the
 //!    three elements (a structured report, a key object selection, a
 //!    presentation state) is not checked.
 //! 5. **Cross-file consistency** — in directory mode, all files must share one

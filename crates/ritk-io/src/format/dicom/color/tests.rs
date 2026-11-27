@@ -368,6 +368,7 @@ fn native_color_from_series_preserves_values_and_metadata() {
         gantry_tilt: None,
         patient_position: None,
         part10_bytes: Some(bytes),
+        exact_pixels: None,
     };
 
     let metadata = DicomReadMetadata {

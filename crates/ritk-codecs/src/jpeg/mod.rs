@@ -25,10 +25,10 @@ pub use lossless::{encode_grayscale_jpeg_lossless, JpegLosslessPrediction};
 /// metadata. Its dimensions, component count, and sample width must match the
 /// DICOM layout. Signed interpretation uses the JPEG frame precision rather
 /// than the storage container width, and the modality rescale is then applied
-/// from `layout`. Unsigned grayscale lossless JPEG may use all allocated bits
+/// from `layout`. Grayscale lossless JPEG may use all allocated bits
 /// for coding when every decoded value fits the declared stored precision.
 /// An odd-length JPEG may have one padding byte after EOI, either zero or a
-/// repeated final marker byte found in some DICOM exports.
+/// repeated marker byte found in some DICOM exports.
 ///
 /// # Errors
 ///
@@ -46,7 +46,7 @@ pub fn decode_jpeg_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<
     }
     let bytes_per_sample = validate_jpeg_layout(&decoded, layout)?;
     let stored_precision = u8::try_from(layout.bits_stored).context("invalid JPEG BitsStored")?;
-    decode_jpeg_samples(decoded.pixels(), stored_precision, bytes_per_sample, layout)
+    decode_jpeg_samples(&decoded, stored_precision, bytes_per_sample, layout)
 }
 
 /// Encode one frame as a DICOM encapsulated baseline JPEG fragment.
@@ -112,7 +112,8 @@ fn validate_encodable_layout(layout: PixelLayout) -> Result<()> {
 }
 
 fn strip_dicom_padding(fragment: &[u8]) -> &[u8] {
-    if fragment.len().is_multiple_of(2) && matches!(fragment, [.., 0xff, 0xd9, 0x00 | 0xd9]) {
+    if fragment.len().is_multiple_of(2) && matches!(fragment, [.., 0xff, 0xd9, 0x00 | 0xd9 | 0xff])
+    {
         &fragment[..fragment.len() - 1]
     } else {
         fragment
@@ -166,11 +167,10 @@ fn validate_jpeg_layout(decoded: &DecodedImage, layout: PixelLayout) -> Result<u
             sample_precision
         );
     }
-    // Some unsigned lossless CT exports code the allocated word. The shared
+    // Some lossless CT exports code the allocated word. The shared
     // sample converter checks every word against BitsStored before rescaling.
     let uses_allocated_word = decoded.compression() == Compression::Lossless
         && pixel_format == PixelFormat::GrayWide
-        && layout.pixel_representation == PixelSignedness::Unsigned
         && u16::from(sample_precision) == layout.bits_allocated
         && layout.bits_stored < layout.bits_allocated;
     if layout.bits_stored != u16::from(sample_precision) && !uses_allocated_word {
@@ -205,11 +205,12 @@ fn validate_jpeg_layout(decoded: &DecodedImage, layout: PixelLayout) -> Result<u
 }
 
 fn decode_jpeg_samples(
-    bytes: &[u8],
+    decoded: &DecodedImage,
     sample_precision: u8,
     bytes_per_sample: usize,
     layout: PixelLayout,
 ) -> Result<Vec<f32>> {
+    let bytes = decoded.pixels();
     if !matches!(bytes_per_sample, 1 | 2) {
         bail!(
             "JPEG sample representation precision={} bytes_per_sample={} is unsupported",
@@ -231,6 +232,21 @@ fn decode_jpeg_samples(
             u16::from_ne_bytes([sample[0], sample[1]])
         }
     });
+    if layout.pixel_representation.is_signed() && sample_precision < decoded.sample_precision() {
+        // A wider lossless carrier may hold either the low-order representation
+        // or its signed extension. The sign belongs to BitsStored.
+        let mask = u16::MAX >> (16 - sample_precision);
+        let sign = 1 << (sample_precision - 1);
+        let normalized = samples.map(|raw| {
+            let low = raw & mask;
+            if raw == low || (low & sign != 0 && raw == (low | !mask)) {
+                low
+            } else {
+                raw
+            }
+        });
+        return decode_compressed_samples(normalized, sample_precision, layout);
+    }
     decode_compressed_samples(samples, sample_precision, layout)
 }
 

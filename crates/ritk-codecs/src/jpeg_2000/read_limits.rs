@@ -13,14 +13,27 @@ pub(super) fn check_read_budget(
     fragment_len: usize,
     layout: PixelLayout,
     budget: ImageReadBudget,
+    bytes_per_sample: usize,
 ) -> Result<(), Jpeg2000DecodeError> {
+    if !matches!(layout.bits_allocated, 1 | 8 | 16 | 24 | 32 | 40)
+        || layout.bits_stored == 0
+        || layout.bits_stored > layout.bits_allocated
+        || layout.bits_stored > 38
+    {
+        return Err(anyhow::anyhow!(
+            "J2K: invalid DICOM pixel layout: bits_stored={} bits_allocated={}",
+            layout.bits_stored,
+            layout.bits_allocated
+        )
+        .into());
+    }
     layout
-        .bytes_per_frame()
-        .context("J2K: invalid DICOM pixel layout")?;
+        .validate_rescale_parameters()
+        .context("J2K: invalid modality rescale")?;
     let samples = layout
         .samples_per_frame()
         .context("J2K: invalid DICOM pixel layout")?;
     budget.check_len(ImageReadResource::EncodedBytes, fragment_len)?;
-    budget.check_scaled(ImageReadResource::DecodedBytes, samples, size_of::<f32>())?;
+    budget.check_scaled(ImageReadResource::DecodedBytes, samples, bytes_per_sample)?;
     Ok(())
 }

@@ -23,7 +23,7 @@ const FILE_META_GROUP_LENGTH: DicomTag = DicomTag::new(FILE_META_GROUP, 0x0000);
 const TRANSFER_SYNTAX_UID: DicomTag = DicomTag::new(FILE_META_GROUP, 0x0010);
 
 pub(super) mod attributes;
-mod inflate;
+pub(super) mod inflate;
 pub(super) mod object;
 mod sequence;
 

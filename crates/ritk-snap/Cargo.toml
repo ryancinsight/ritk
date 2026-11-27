@@ -81,6 +81,7 @@ moirai-pal = { workspace = true }
 ritk-registration.workspace = true
 
 [dev-dependencies]
+ritk-dicom.workspace = true
 ritk-registration.workspace = true
 tempfile = { workspace = true }
 ritk-core = { workspace = true, features = ["test-helpers"] }

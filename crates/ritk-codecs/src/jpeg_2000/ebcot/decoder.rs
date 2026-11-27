@@ -9,12 +9,12 @@ use anyhow::{bail, Context, Result};
 // ── Decoded code-block result ─────────────────────────────────────────────────
 
 /// Output of `decode_code_block`: reconstructed sign-magnitude samples in
-/// row-major order.  Values are the DC-shifted integer sample values (i32).
+/// row-major order.  Values are the DC-shifted integer sample values.
 /// The caller applies DC un-shift and DICOM rescale.
 #[derive(Debug)]
 pub struct DecodedBlock {
     /// Reconstructed samples (row-major), in the order they appear in the tile.
-    pub samples: Vec<i32>,
+    pub samples: Vec<i64>,
     /// Bit-plane of the last pass executed for this code-block.
     last_plane: u32,
     ended_after_propagation: bool,
@@ -24,7 +24,7 @@ impl DecodedBlock {
     /// Previously significant coefficients still await refinement when a block
     /// ends just after significance propagation. A newly significant magnitude
     /// at that point has exactly one bit set, in the current plane.
-    pub(in crate::jpeg_2000) fn lowest_decoded_plane(&self, coefficient: i32) -> u32 {
+    pub(in crate::jpeg_2000) fn lowest_decoded_plane(&self, coefficient: i64) -> u32 {
         let awaits_refinement = self.ended_after_propagation
             && coefficient
                 .unsigned_abs()
@@ -74,12 +74,15 @@ pub fn decode_code_block(
             "J2K EBCOT code-block {width}×{height} declares {n} samples; the format's maximum area is {MAX_CODE_BLOCK_AREA}"
         );
     }
+    if num_bit_planes > 46 {
+        bail!("J2K EBCOT bit-plane count {num_bit_planes} exceeds Part 1 coefficient range");
+    }
     let mut state = vec![SampleState::default(); n];
-    let mut mag = vec![0u32; n]; // accumulated magnitude
+    let mut mag = vec![0i64; n]; // accumulated magnitude
 
     if num_passes == 0 {
         return Ok(DecodedBlock {
-            samples: vec![0i32; n],
+            samples: vec![0i64; n],
             last_plane: u32::from(num_bit_planes),
             ended_after_propagation: false,
         });
@@ -180,7 +183,7 @@ pub fn decode_code_block(
                         let ctx = mr_context(has_sig_other, state[idx].was_refined());
                         let bit = mq.decode(&mut ctxs[ctx]);
                         trace(ctx, bit);
-                        mag[idx] |= bit << bp;
+                        mag[idx] |= i64::from(bit) << bp;
                         state[idx].set_refined();
                     }
                 }
@@ -321,9 +324,9 @@ pub fn decode_code_block(
         .zip(mag.iter())
         .map(|(s, &m)| {
             if !s.is_significant() {
-                0i32
+                0i64
             } else {
-                let v = m as i32;
+                let v = m;
                 if s.is_negative() {
                     -v
                 } else {

@@ -291,7 +291,10 @@ fn scan_differences(
                     }
                 }
             };
-            differences.push(sample - predicted);
+            // T.81 Annex H encodes a signed difference modulo 2^16. Category
+            // 16 represents only -32768. Larger absolute jumps wrap into
+            // categories 0 through 15 and therefore need their magnitude bits.
+            differences.push((sample - predicted + 32_768).rem_euclid(65_536) - 32_768);
             previous[column] = sample;
         }
     }
@@ -396,8 +399,7 @@ pub fn encode_grayscale_jpeg_lossless(
 /// Writes the `category` low bits of `difference`.
 ///
 /// A negative difference is stored one's-complement style as `diff - 1`, except
-/// for the one value where that would not fit: `-32768` is written as all ones
-/// for its width, which the standard special-cases explicitly.
+/// for category 16, whose magnitude is implicit.
 fn write_magnitude(writer: &mut EntropyWriter, difference: i32, category: u8) {
     if category == 16 {
         // T.81 Table H.2 gives category 16 the single value -32768 and codes it

@@ -216,6 +216,7 @@ fn overlay_fits_or_discloses_complete_metadata_at_small_sizes() {
                         wl: WindowLevel::new(60.0, 400.0),
                         zoom: 1.0,
                         cursor_value: Some(260.0),
+                        stored_value: None,
                         pointer_intensity: 40.0,
                         pointer_suv: None,
                         cursor_suv: None,

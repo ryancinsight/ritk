@@ -240,6 +240,10 @@ impl EguiApp {
                     wl,
                     zoom: self.zoom,
                     cursor_value,
+                    stored_value: self
+                        .linked_cursor
+                        .and_then(|cursor| vol.exact_stored_value(cursor.voxel()))
+                        .map(|v| v.to_string()),
                     pointer_intensity: self.pointer_intensity,
                     cursor_suv: self.current_cursor_suv(),
                     pointer_suv: self.pointer_suv,

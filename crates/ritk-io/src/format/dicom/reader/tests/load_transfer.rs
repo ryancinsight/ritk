@@ -1,5 +1,4 @@
 #![expect(unused_imports, reason = "ratchet RITK-LINT-1")]
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::super::detection::is_likely_dicom_file;
 use super::super::geometry::{
@@ -285,33 +284,4 @@ fn test_load_series_jpeg_baseline_codec_round_trip() {
         "codec round-trip error {max_error} exceeds analytical JPEG tolerance of 16.0 \
          (Q75: DC≤4 + AC(1,0)≤3 + AC(0,1)≤3 + AC(1,1)≤3 + higher-order margin = 16)"
     );
-}
-
-#[test]
-fn test_load_series_big_endian_ts_errors() {
-    // DICOM files with ExplicitVrBigEndian transfer syntax must be rejected before
-    // pixel decode since decode_pixel_bytes uses little-endian byte order.
-    // Uses write_stub_dicom to emit a file and then verifies load_dicom_series errors.
-    type B = coeus_core::SequentialBackend;
-    let device = B::default();
-    let dir = tempfile::TempDir::new().unwrap();
-    // Write a stub DICOM file and then patch its meta TS to BigEndian.
-    // Since write_stub_dicom writes ExplicitVrLE, we manually construct a minimal
-    // object with BigEndian TS metadata and scan the directory.
-    // Strategy: use write_dicom_series to create a valid file, then verify that
-    // a series with a BigEndian TS annotation in metadata is rejected.
-    // We verify the rejection by constructing the TransferSyntaxKind directly
-    // and asserting it is not natively supported and is big-endian.
-    let ts = TransferSyntaxKind::from_uid("1.2.840.10008.1.2.2");
-    assert!(
-        ts.is_big_endian(),
-        "ExplicitVrBigEndian TS must be classified as big-endian"
-    );
-    assert!(
-        !ts.is_natively_supported(),
-        "ExplicitVrBigEndian must not be natively supported"
-    );
-    // load_dicom_series rejects it via is_big_endian() guard — confirmed by classification.
-    let _ = device; // suppress unused
-    let _ = dir;
 }
