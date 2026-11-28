@@ -69,7 +69,7 @@ pub(crate) fn surface_frames_responsive(
                 blit_frame(
                     &mut framebuffer,
                     view,
-                    viewport,
+                    &viewport,
                     surface_width,
                     surface_height,
                 )?;

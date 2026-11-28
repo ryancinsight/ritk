@@ -137,12 +137,12 @@ pub(in crate::presentation::native_session) fn panel_header_action_at(
 ) -> Option<(usize, PanelHeaderAction)> {
     for (index, viewport) in viewports.iter().enumerate().rev() {
         if (maximized || viewports.len() > 1)
-            && panel_action_rect(*viewport, PanelHeaderAction::Maximize)
+            && panel_action_rect(viewport, PanelHeaderAction::Maximize)
                 .is_some_and(|rect| rect_contains(rect, x, y))
         {
             return Some((index, PanelHeaderAction::Maximize));
         }
-        if panel_action_rect(*viewport, PanelHeaderAction::Close)
+        if panel_action_rect(viewport, PanelHeaderAction::Close)
             .is_some_and(|rect| rect_contains(rect, x, y))
         {
             return Some((index, PanelHeaderAction::Close));
@@ -151,7 +151,7 @@ pub(in crate::presentation::native_session) fn panel_header_action_at(
     None
 }
 
-fn panel_action_rect(viewport: NativeViewport, action: PanelHeaderAction) -> Option<Rect> {
+fn panel_action_rect(viewport: &NativeViewport, action: PanelHeaderAction) -> Option<Rect> {
     let panel_x = i32::try_from(viewport.panel_x).ok()?;
     let panel_y = i32::try_from(viewport.panel_y).ok()?;
     let panel_width = i32::try_from(viewport.panel_width).ok()?;
@@ -314,7 +314,7 @@ pub(in crate::presentation::native_session) fn surface_frames_grid(
             blit_frame(
                 &mut framebuffer,
                 frame,
-                viewport,
+                &viewport,
                 surface_width,
                 surface_height,
             )?;

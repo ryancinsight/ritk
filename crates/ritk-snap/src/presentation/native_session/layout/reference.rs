@@ -7,7 +7,7 @@ use anyhow::Result;
 pub(in crate::presentation::native_session) fn reference_segment(
     trace: &PlaneTrace,
     view: &RenderedView,
-    viewport: NativeViewport,
+    viewport: &NativeViewport,
 ) -> Result<Option<[(i32, i32); 2]>> {
     let im = viewport.image;
     let pane = viewport.panel;
