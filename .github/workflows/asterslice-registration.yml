@@ -46,6 +46,9 @@ jobs:
         run: cargo test --locked --release -p ritk-snap --lib registration
       - name: Build AsterSlice
         run: cargo build --locked --release -p ritk-snap --bin asterslice
+      - name: Identify the executable used for release signing
+        shell: pwsh
+        run: ./scripts/windows/cargo_signing_input.ps1 -Executable target/release/asterslice.exe
       - name: Test desktop launch and opt-in console
         run: python scripts/windows/check_aster_launch.py target/release/asterslice.exe
       - name: Check that the release verifier rejects an unsigned preview

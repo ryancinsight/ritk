@@ -87,6 +87,13 @@ jobs:
         working-directory: ritk
         run: cargo build --release --locked --target x86_64-pc-windows-msvc --package ritk-snap --bin asterslice
 
+      - name: Identify the linker output used by the packager
+        id: payload
+        shell: pwsh
+        run: |
+          $exe = ./ritk/scripts/windows/cargo_signing_input.ps1 -Executable "$env:CARGO_TARGET_DIR/x86_64-pc-windows-msvc/release/asterslice.exe"
+          "path=$exe" >> $env:GITHUB_OUTPUT
+
       - name: Authenticate the release job
         uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:
@@ -97,12 +104,14 @@ jobs:
       - name: Sign the portable and installed executable
         uses: ./ritk/.github/actions/sign-windows
         with:
-          path: ${{ github.workspace }}\target\x86_64-pc-windows-msvc\release\asterslice.exe
+          path: ${{ steps.payload.outputs.path }}
 
       - name: Package the signed executable
         shell: pwsh
+        env:
+          SIGNED_PAYLOAD: ${{ steps.payload.outputs.path }}
         run: |
-          $exe = "$env:CARGO_TARGET_DIR/x86_64-pc-windows-msvc/release/asterslice.exe"
+          $exe = $env:SIGNED_PAYLOAD
           $expectedHash = (Get-FileHash $exe).Hash
           $signer = (Get-AuthenticodeSignature -LiteralPath $exe).SignerCertificate
           $manifest = Get-Content ritk/metis.json -Raw | ConvertFrom-Json
