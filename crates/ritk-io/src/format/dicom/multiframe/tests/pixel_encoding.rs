@@ -41,6 +41,9 @@ fn multiframe_pixel_tags_match_each_payload_representation() {
         TransferSyntaxKind::JpegLsLossy,
         TransferSyntaxKind::Jpeg2000Lossless,
         TransferSyntaxKind::Jpeg2000Lossy,
+        TransferSyntaxKind::HtJ2kLossless,
+        TransferSyntaxKind::HtJ2kLosslessRpcl,
+        TransferSyntaxKind::HtJ2k,
         TransferSyntaxKind::JpegLosslessFirstOrderPrediction,
         TransferSyntaxKind::JpegLosslessNonHierarchical,
         TransferSyntaxKind::RleLossless,
@@ -99,7 +102,7 @@ fn multiframe_pixel_tags_match_each_payload_representation() {
                     | TransferSyntaxKind::JpegLosslessNonHierarchical => {
                         codestream_precision(&fragment, [0xff, 0xc3])
                     }
-                    TransferSyntaxKind::Jpeg2000Lossless | TransferSyntaxKind::Jpeg2000Lossy => {
+                    ref syntax if syntax.is_jpeg2000_family() => {
                         assert_eq!(&fragment[..4], &[0xff, 0x4f, 0xff, 0x51]);
                         // SIZ: first component's Ssiz follows Rsiz, geometry, and Csiz.
                         u16::from(fragment[42] & 0x7f) + 1

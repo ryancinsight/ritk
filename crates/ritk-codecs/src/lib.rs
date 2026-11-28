@@ -7,7 +7,7 @@
 //! # C/C++ dependency migration status
 //! | Codec       | C/C++ dep         | Pure Rust implementation             | Status |
 //! |-------------|-------------------|--------------------------------------|--------|
-//! | JPEG 2000   | (none)            | ISO 15444-1 codec in [`jpeg_2000`]   | done (multi-level reversible 5/3 and irreversible 9/7) |
+//! | JPEG 2000   | (none)            | ISO 15444-1/15 codecs in [`jpeg_2000`]   | done (multi-level reversible 5/3 and irreversible 9/7) |
 //! | JPEG        | (none)            | Shared `consus-raster` provider      | done   |
 //! | JPEG-LS     | (none — RITK-native since Sprint 127) |                  | done   |
 //! | PackBits    | (none — pure Rust) |                                     | done   |

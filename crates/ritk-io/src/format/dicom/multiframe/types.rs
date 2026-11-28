@@ -131,6 +131,7 @@ pub struct MultiFrameWriterConfig {
     /// Supported values:
     /// - `ExplicitVrLittleEndian` (uncompressed native OW payload)
     /// - `JpegLsLossless` (encapsulated JPEG-LS fragments)
+    /// - `HtJ2kLossless`, `HtJ2kLosslessRpcl` and `HtJ2k` (irreversible)
     /// - `Jpeg2000Lossless` (encapsulated JPEG 2000 fragments)
     /// - `RleLossless` (encapsulated DICOM RLE Lossless fragments)
     pub transfer_syntax: TransferSyntaxKind,

@@ -171,7 +171,7 @@ fn decode_rejects_out_of_range_sot_before_packet_decode() {
     .expect_err("single-tile image must reject Isot=1");
     let msg = format!("{err:#}");
     assert!(msg.contains("Isot=1"), "got: {msg}");
-    assert!(msg.contains("outside 0..0"), "got: {msg}");
+    assert!(msg.contains("outside tile grid"), "got: {msg}");
 }
 
 #[test]
@@ -281,12 +281,10 @@ fn decode_rejects_multicomponent_stream_before_packet_decode() {
     rgb_layout.samples_per_pixel = 3;
     let err = decode_jpeg2000_fragment(&j2k, rgb_layout, ImageReadBudget::DEFAULT)
         .expect_err("unsupported component packet traversal must not duplicate channel zero");
-    let message = format!("{err:#}");
     assert!(
-        message.contains("one grayscale component"),
-        "got: {message}"
+        format!("{err:#}").contains("before packet header"),
+        "got {err:#}"
     );
-    assert!(message.contains("Csiz=3"), "got: {message}");
 }
 
 #[test]
@@ -333,80 +331,37 @@ fn wide_irreversible_quantization_keeps_high_order_coefficients() {
 }
 
 #[test]
-fn decode_rejects_unsupported_progression_and_component_transform() {
-    let j2k = single_pixel_codestream();
-    let cod = j2k
-        .windows(2)
-        .position(|window| window == [0xFF, 0x52])
-        .expect("encoder output must contain COD");
-
-    let mut progression = j2k.clone();
-    progression[cod + 5] = 1;
-    let err = decode_jpeg2000_fragment(
-        &progression,
-        layout(1, 1, 8, PixelSignedness::Unsigned),
-        ImageReadBudget::DEFAULT,
-    )
-    .expect_err("non-LRCP progression must not be decoded as LRCP");
-    assert!(
-        format!("{err:#}").contains("progression order 0"),
-        "got: {err:#}"
-    );
-
-    let mut mct = j2k;
-    mct[cod + 8] = 1;
-    let err = decode_jpeg2000_fragment(
-        &mct,
-        layout(1, 1, 8, PixelSignedness::Unsigned),
-        ImageReadBudget::DEFAULT,
-    )
-    .expect_err("MCT codestream must not bypass inverse component transformation");
-    assert!(format!("{err:#}").contains("MCT=1"), "got: {err:#}");
-}
-
-#[test]
-fn decode_rejects_unsupported_cod_packet_profiles() {
+fn decodes_legal_packet_orders_and_rejects_invalid_coding_fields() {
     let source = single_pixel_codestream();
     let cod = source
         .windows(2)
-        .position(|window| window == [0xFF, 0x52])
-        .expect("encoder output must contain COD");
-    let old_length = u16::from_be_bytes([source[cod + 2], source[cod + 3]]);
-    let mut custom_precincts = source.clone();
-    custom_precincts.insert(cod + 2 + usize::from(old_length), 0xFF);
-    custom_precincts[cod + 2..cod + 4].copy_from_slice(&(old_length + 1).to_be_bytes());
-    custom_precincts[cod + 4] = 0x01;
-    let err = decode_jpeg2000_fragment(
-        &custom_precincts,
-        layout(1, 1, 8, PixelSignedness::Unsigned),
-        ImageReadBudget::DEFAULT,
-    )
-    .expect_err("custom precincts must not enter the one-precinct packet reader");
-    assert!(format!("{err:#}").contains("Scod=0x01"), "got: {err:#}");
-
-    let cases: &[(usize, &[u8], &str)] = &[
-        (4, &[0x02], "Scod=0x02"),
-        (6, &[0x00, 0x00], "zero quality layers"),
-        (10, &[0x03], "32x64"),
-        (12, &[0x01], "code-block style"),
-        (13, &[0x02], "wavelet transform 2"),
-    ];
-
-    for &(offset, replacement, expected) in cases {
-        let mut j2k = source.clone();
-        j2k[cod + offset..cod + offset + replacement.len()].copy_from_slice(replacement);
-        let err = decode_jpeg2000_fragment(
-            &j2k,
-            layout(1, 1, 8, PixelSignedness::Unsigned),
-            ImageReadBudget::DEFAULT,
-        )
-        .expect_err("unsupported COD profile must not enter packet decode");
-        let message = format!("{err:#}");
-        assert!(
-            message.contains(expected),
-            "expected {expected:?}; got: {message}"
+        .position(|w| w == [0xff, 0x52])
+        .expect("COD");
+    let l = layout(1, 1, 8, PixelSignedness::Unsigned);
+    for order in 0..5 {
+        let mut stream = source.clone();
+        stream[cod + 5] = order;
+        assert_eq!(
+            decode_jpeg2000_fragment(&stream, l, ImageReadBudget::DEFAULT).expect("legal order"),
+            [17.]
         );
     }
+    for (offset, value) in [(5, 5), (7, 0), (8, 1), (13, 2)] {
+        let mut stream = source.clone();
+        stream[cod + offset] = value;
+        let e = decode_jpeg2000_fragment(&stream, l, ImageReadBudget::DEFAULT)
+            .expect_err("invalid COD");
+        assert!(format!("{e:#}").contains("COD"), "got {e:#}");
+    }
+    let mut custom = source.clone();
+    let end = cod + 2 + usize::from(u16::from_be_bytes([custom[cod + 2], custom[cod + 3]]));
+    custom[cod + 3] += 1;
+    custom[cod + 4] = 1;
+    custom.insert(end, 0xff);
+    assert_eq!(
+        decode_jpeg2000_fragment(&custom, l, ImageReadBudget::DEFAULT).expect("explicit precinct"),
+        [17.]
+    );
 }
 
 #[test]
@@ -421,8 +376,7 @@ fn decode_rejects_main_header_progression_change() {
     )
     .expect_err("POC must not override the validated LRCP order");
     let message = format!("{err:#}");
-    assert!(message.contains("0xFF5F"), "got: {message}");
-    assert!(message.contains("unsupported"), "got: {message}");
+    assert!(message.contains("POC entries"), "got: {message}");
 }
 
 #[test]
@@ -439,7 +393,7 @@ fn decode_rejects_tile_header_coding_and_progression_overrides() {
         .expect_err("tile-header coding overrides must not reach LRCP packet decode");
         let message = format!("{err:#}");
         assert!(
-            message.contains("tile-header coding override"),
+            message.contains("invalid COD") || message.contains("POC entries"),
             "got: {message}"
         );
     }
@@ -623,11 +577,11 @@ fn decode_rejects_empty_packet_data_even_with_eoc() {
     )
     .expect_err("EOC cannot make an absent LRCP packet complete");
     let message = format!("{err:#}");
-    assert!(message.contains("LRCP packet header"), "got: {message}");
+    assert!(message.contains("packet header"), "got: {message}");
 }
 
 #[test]
-fn decode_rejects_declared_multiple_tile_parts() {
+fn decode_rejects_missing_declared_tile_part() {
     let mut j2k = single_pixel_codestream();
     let sot = j2k
         .windows(2)
@@ -640,9 +594,12 @@ fn decode_rejects_declared_multiple_tile_parts() {
         layout(1, 1, 8, PixelSignedness::Unsigned),
         ImageReadBudget::DEFAULT,
     )
-    .expect_err("multi-part tiles must be rejected until accumulation is implemented");
+    .expect_err("all declared tile-parts must be supplied");
     let message = format!("{err:#}");
-    assert!(message.contains("one tile-part per tile"), "got: {message}");
+    assert!(
+        message.contains("EOC reached before tile"),
+        "got: {message}"
+    );
     assert!(message.contains("TNsot=2"), "got: {message}");
 }
 

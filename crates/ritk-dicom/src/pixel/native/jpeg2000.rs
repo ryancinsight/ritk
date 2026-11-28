@@ -4,7 +4,7 @@ use crate::backend::EncapsulatedFrameSource;
 use crate::dataset::DicomFile;
 use crate::{DicomTag, PixelLayout};
 use anyhow::{ensure, Context, Result};
-use ritk_codecs::jpeg_2000::{decode_jpeg2000_stored_fragment, grayscale_component_precision};
+use ritk_codecs::jpeg_2000::{decode_jpeg2000_stored_with_profile, grayscale_component_precision};
 use ritk_codecs::{ImageReadBudget, ImageReadResource};
 
 impl NativeScalarPixels {
@@ -36,9 +36,14 @@ impl NativeScalarPixels {
         budget.check_len(ImageReadResource::DecodedBytes, bytes)?;
         let mut data = Vec::new();
         data.try_reserve_exact(bytes)?;
+        let syntax = crate::TransferSyntaxKind::from_uid(obj.meta().transfer_syntax());
+        let Some(crate::syntax::Codec::Jpeg2000(profile)) = syntax.codec() else {
+            anyhow::bail!("expected a JPEG 2000 transfer syntax");
+        };
         for index in 0..frames {
             let frame = obj.encapsulated_frame(index)?;
-            for value in decode_jpeg2000_stored_fragment(&frame, layout, budget)? {
+            let values = decode_jpeg2000_stored_with_profile(&frame, layout, budget, profile)?;
+            for value in values {
                 data.extend_from_slice(&value.to_le_bytes());
             }
         }

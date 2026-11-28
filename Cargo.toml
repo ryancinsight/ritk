@@ -141,6 +141,8 @@ libc = "0.2"
 bytes = "1"
 num-bigint = "0.5"
 encoding_rs = "0.8"
+htj2k = { version = "0.1.1", default-features = false }
+j2k-native = { version = "0.11.3", default-features = false, features = ["std"] }
 jxl-oxide = { version = "0.12", default-features = false }
 smallvec = "1"
 thiserror = "2.0"

@@ -24,8 +24,8 @@ use super::reader::{self, DicomReadMetadata, DicomSliceMetadata};
 /// or hidden files). Inspects `PhotometricInterpretation` (0028,0004) and
 /// `SamplesPerPixel` (0028,0002) on the first successfully parsed file.
 ///
-/// Returns `true` when both `PhotometricInterpretation` is `"RGB"` (case-
-/// insensitive) and `SamplesPerPixel` equals 3.
+/// Returns `true` for three RGB components, including JPEG 2000 YBR_RCT or
+/// YBR_ICT frames decoded through the inverse component transform.
 ///
 /// Returns `false` when the first parseable file is not RGB, or `Err` when
 /// no DICOM file could be found or parsed.
@@ -58,7 +58,9 @@ pub fn is_rgb_dicom_series<P: AsRef<Path>>(path: P) -> Result<bool> {
             DicomTag::new(0x0028, 0x0004),
             "PhotometricInterpretation",
         )?;
-        return Ok(photometric.trim().eq_ignore_ascii_case("RGB"));
+        return Ok(
+            TransferSyntaxKind::from_uid(obj.meta().transfer_syntax()).decodes_to_rgb(&photometric)
+        );
     }
 
     bail!("no parseable DICOM files found in '{}'", dir.display())
@@ -254,7 +256,7 @@ fn validate_and_decode_rgb_slice(
         DicomTag::new(0x0028, 0x0004),
         "PhotometricInterpretation",
     )?;
-    if !photometric.trim().eq_ignore_ascii_case("RGB") {
+    if !ts.decodes_to_rgb(&photometric) {
         bail!(
             "DICOM color volume loader supports only PhotometricInterpretation=RGB; {:?} declares {}",
             slice.path,
