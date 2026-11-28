@@ -1,0 +1,23 @@
+name: Sign and verify one Windows artifact
+description: Apply a timestamped Authenticode signature and check the configured publisher.
+inputs:
+  path:
+    description: Absolute path of the EXE or MSI
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: azure/artifact-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
+      with:
+        endpoint: ${{ env.WINDOWS_SIGNING_ENDPOINT }}
+        signing-account-name: ${{ env.WINDOWS_SIGNING_ACCOUNT }}
+        certificate-profile-name: ${{ env.WINDOWS_SIGNING_PROFILE }}
+        files: ${{ inputs.path }}
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
+    - shell: pwsh
+      env:
+        SIGNED_FILE: ${{ inputs.path }}
+      run: |
+        & "$env:GITHUB_ACTION_PATH/../../../scripts/windows/verify_signature.ps1" -Path $env:SIGNED_FILE -ExpectedSubject $env:WINDOWS_SIGNING_PUBLISHER

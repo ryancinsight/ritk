@@ -2,6 +2,11 @@
 //!
 //! Launches AsterSlice with the selected desktop host.
 
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
+#[cfg(windows)]
+mod windows_console;
+
 // Mnemosyne as the process-wide allocator. Not applicable on WASM where
 // the runtime provides its own allocator.
 #[cfg(not(target_arch = "wasm32"))]
@@ -57,6 +62,10 @@ impl CliNativeLayout {
 #[derive(Debug, Parser)]
 #[command(name = "asterslice", bin_name = "asterslice", author, version, about)]
 struct Args {
+    /// Open a diagnostic console, or reuse the terminal that launched AsterSlice.
+    #[cfg(windows)]
+    #[arg(long)]
+    console: bool,
     /// Optional DICOM folder or medical image file loaded at startup.
     #[arg(value_name = "PATH")]
     initial_path: Option<PathBuf>,
@@ -131,7 +140,27 @@ struct Args {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
+    #[cfg(windows)]
+    windows_console::attach_parent();
+    let args = Args::try_parse().unwrap_or_else(|error| {
+        #[cfg(windows)]
+        windows_console::show_if_detached(&error.to_string(), error.use_stderr());
+        error.exit()
+    });
+    let result = run(args);
+    #[cfg(windows)]
+    if let Err(error) = &result {
+        windows_console::show_if_detached(&format!("{error:#}"), true);
+    }
+    result
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn run(args: Args) -> anyhow::Result<()> {
+    #[cfg(windows)]
+    if args.console {
+        windows_console::enable_diagnostics()?;
+    }
     if let Some(path) = args.validate_browser_trace {
         let input_mode = if args.require_keyboard {
             browser_trace::TraceInputMode::PointerWheelKeyboard(

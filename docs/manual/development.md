@@ -1914,10 +1914,9 @@ All package and inventory checks passed. Its reviewable artifact is
 with a 24,657,920-byte executable and 9,416,704-byte MSI; the exact hashes
 are in [`dicom-metis-installer.json`](images/dicom-metis-installer.json). A
 local replay of that hosted executable opened the same saved study and
-produced the byte-identical three-plane capture. The hosted workflow itself
-checks packaging and `--help`; it does not execute DICOM or install the MSI.
-Registry publication, signing, and release promotion remain separate
-release-authority decisions.
+produced the byte-identical three-plane capture. That run checked packaging and `--help`. Current Windows release builds sign
+the EXE and MSI, exercise desktop launch and compare the installed executable
+with the signed portable copy. [Windows release signing](windows-signing.md)
 
 ## Open dropped DICOM files in the browser host
 
