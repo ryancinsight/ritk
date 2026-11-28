@@ -23,35 +23,24 @@
 //! - Transfer Syntax 1.2.840.10008.1.2.4.90: JPEG 2000 Lossless Only.
 //! - Transfer Syntax 1.2.840.10008.1.2.4.91: JPEG 2000 lossy or lossless.
 //!
-//! # Current limitations
-//! - One precinct per resolution/band (no precinct partitioning; code-blocks
-//!   are 64×64 within each subband).
-//! - Native pixel extraction currently accepts one grayscale component, LRCP
-//!   progression without POC or tile coding overrides, inline packet headers,
-//!   default precinct and code-block styles, 64×64 nominal code-blocks, one
-//!   tile-part per tile, and no multiple-component transform. Unsupported
-//!   profiles are rejected before output allocation rather than decoded with
-//!   incorrect packet traversal.
-//! - Lossy 9/7 irreversible encode and decode support validated scalar
-//!   quantization steps. The encoder does not claim target-byte rate control or
-//!   multiple quality layers.
+//! # High-throughput JPEG 2000 and packet organization
+//! DICOM PS3.5 §10.18 specifies the Part 15 lossless (.201), lossless RPCL
+//! (.202) and unrestricted (.203) syntaxes. The decoder supports 1–38 stored
+//! bits, all five packet progressions, tiled and multi-part images, packed
+//! packet headers, progression changes and component/tile coding overrides.
+//! RITK reconstructs ordinary scalar tiles directly, including reversible
+//! HT code-blocks. General packet organizations and component transforms use
+//! `j2k-native` with native-width output. The HT entropy kernel and the
+//! unsigned 16-bit grayscale HT writer use `htj2k`.
 //!
-//! # Untrusted-input bounds
-//! SIZ image/tile geometry and SOT tile-part fields are validated before packet
-//! decode. Tile buffers use the image-domain intersection defined by T.800
-//! Annex B.3 rather than the full reference tile, and both pixel and
-//! sample counts are bounded by the caller's [`crate::ImageReadBudget`], which limits
-//! the fragment length and the `f32` output before the codestream is parsed
-//! and replaces the fixed allocation cap of the other codecs. Tile headers are
-//! parsed by marker boundaries before output allocation; every segment must
-//! fit its byte extent,
-//! EOC is mandatory, every declared tile must be present, and every expected
-//! LRCP packet header must be consumed. Component precision is bounded by the
-//! Part 1 component limit of 38 bits. `Psot = 0` extends to terminal
-//! EOC, post-EOC bytes are limited to one zero pad when an odd-length DICOM
-//! fragment requires even length, and every
-//! included code-block must provide enough entropy data for its announced pass
-//! count.
+//! # Frame boundaries
+//! The caller's read budget bounds the encoded fragment and decoded output.
+//! A structural pass validates SIZ, header marker lengths, tile-part indices
+//! and lengths, complete tile coverage, and EOC before reconstruction.
+//! A final zero-length Psot extends to EOC. DICOM may pad an odd-length
+//! fragment with a single zero byte. The progressive lossless profile
+//! requires RPCL order, a thumbnail axis of at most 64 samples and a TLM
+//! index consistent with the actual tile-parts.
 //!
 //! # Interop validation
 //! The reversible (5/3 lossless) path is validated against a captured OpenJPEG
@@ -76,21 +65,28 @@ mod decode;
 mod decode_error;
 pub(crate) mod ebcot;
 pub mod encoder;
+mod extended;
+mod ht_encoder;
+pub use ht_encoder::encode_grayscale_htj2k;
 pub(crate) mod image;
 pub(crate) mod marker;
 pub(crate) mod mq_coder;
+mod organization;
 pub(crate) mod packet;
 pub(crate) mod quantization;
 mod read_limits;
 pub(crate) mod subband;
 pub(crate) mod tag_tree;
+mod tile_lengths;
 pub(crate) mod wavelet;
 pub(crate) mod wavelet_9_7;
 
 pub use decode::{
-    decode_jpeg2000_fragment, decode_jpeg2000_stored_fragment, grayscale_component_precision,
+    decode_jpeg2000_fragment, decode_jpeg2000_stored_fragment, decode_jpeg2000_stored_with_profile,
+    decode_jpeg2000_with_profile, grayscale_component_precision,
 };
 pub use decode_error::Jpeg2000DecodeError;
+pub use organization::{HtJ2kProfile, Jpeg2000Profile};
 
 /// J2K Start of Codestream marker (ISO 15444-1 §A.3): bytes `0xFF 0x4F`.
 #[cfg(test)]
@@ -102,5 +98,7 @@ pub(crate) const SOI: u16 = 0xFFD8;
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+#[cfg(test)]
+mod profile_tests;
 #[cfg(test)]
 mod tests;

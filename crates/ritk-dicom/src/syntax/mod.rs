@@ -7,6 +7,7 @@
 //! - `is_codec_supported() -> is_encapsulated()`.
 
 use arrayvec::ArrayString;
+use ritk_codecs::jpeg_2000::{HtJ2kProfile, Jpeg2000Profile};
 
 /// DICOM Transfer Syntax classification used by RITK decode dispatch.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,6 +26,9 @@ pub enum TransferSyntaxKind {
     JpegLsLossy,
     Jpeg2000Lossless,
     Jpeg2000Lossy,
+    HtJ2kLossless,
+    HtJ2kLosslessRpcl,
+    HtJ2k,
     RleLossless,
     JpegXlLossless,
     JpegXlJpegRecompression,
@@ -36,7 +40,7 @@ pub enum TransferSyntaxKind {
 pub(crate) enum Codec {
     Jpeg,
     JpegLs,
-    Jpeg2000,
+    Jpeg2000(Jpeg2000Profile),
     Rle,
     NativeFrame,
     JpegXl,
@@ -59,6 +63,9 @@ impl TransferSyntaxKind {
             "1.2.840.10008.1.2.4.81" => Self::JpegLsLossy,
             "1.2.840.10008.1.2.4.90" => Self::Jpeg2000Lossless,
             "1.2.840.10008.1.2.4.91" => Self::Jpeg2000Lossy,
+            "1.2.840.10008.1.2.4.201" => Self::HtJ2kLossless,
+            "1.2.840.10008.1.2.4.202" => Self::HtJ2kLosslessRpcl,
+            "1.2.840.10008.1.2.4.203" => Self::HtJ2k,
             "1.2.840.10008.1.2.5" => Self::RleLossless,
             "1.2.840.10008.1.2.4.110" => Self::JpegXlLossless,
             "1.2.840.10008.1.2.4.111" => Self::JpegXlJpegRecompression,
@@ -83,12 +90,36 @@ impl TransferSyntaxKind {
             Self::JpegLsLossy => "1.2.840.10008.1.2.4.81",
             Self::Jpeg2000Lossless => "1.2.840.10008.1.2.4.90",
             Self::Jpeg2000Lossy => "1.2.840.10008.1.2.4.91",
+            Self::HtJ2kLossless => "1.2.840.10008.1.2.4.201",
+            Self::HtJ2kLosslessRpcl => "1.2.840.10008.1.2.4.202",
+            Self::HtJ2k => "1.2.840.10008.1.2.4.203",
             Self::RleLossless => "1.2.840.10008.1.2.5",
             Self::JpegXlLossless => "1.2.840.10008.1.2.4.110",
             Self::JpegXlJpegRecompression => "1.2.840.10008.1.2.4.111",
             Self::JpegXl => "1.2.840.10008.1.2.4.112",
             Self::Unknown(uid) => uid.as_str(),
         }
+    }
+
+    /// Part 1 and Part 15 share DICOM frame encapsulation and exact integer readout.
+    pub fn is_jpeg2000_family(&self) -> bool {
+        matches!(self.codec(), Some(Codec::Jpeg2000(_)))
+    }
+
+    /// DICOM PS3.5 §10.18 profile signaled by this transfer syntax.
+    pub fn htj2k_profile(&self) -> Option<HtJ2kProfile> {
+        match self.codec() {
+            Some(Codec::Jpeg2000(Jpeg2000Profile::HighThroughput(profile))) => Some(profile),
+            _ => None,
+        }
+    }
+
+    /// Photometric interpretations delivered as interleaved RGB by the decoder.
+    pub fn decodes_to_rgb(&self, photometric: &str) -> bool {
+        let pi = photometric.trim();
+        pi.eq_ignore_ascii_case("RGB")
+            || self.is_jpeg2000_family()
+                && (pi.eq_ignore_ascii_case("YBR_RCT") || pi.eq_ignore_ascii_case("YBR_ICT"))
     }
 
     pub fn is_encapsulated(&self) -> bool {
@@ -102,7 +133,20 @@ impl TransferSyntaxKind {
             | Self::JpegLosslessNonHierarchical
             | Self::JpegLosslessFirstOrderPrediction => Codec::Jpeg,
             Self::JpegLsLossless | Self::JpegLsLossy => Codec::JpegLs,
-            Self::Jpeg2000Lossless | Self::Jpeg2000Lossy => Codec::Jpeg2000,
+            Self::Jpeg2000Lossless | Self::Jpeg2000Lossy => {
+                Codec::Jpeg2000(Jpeg2000Profile::Part1 {
+                    lossless_only: self == &Self::Jpeg2000Lossless,
+                })
+            }
+            Self::HtJ2kLossless => {
+                Codec::Jpeg2000(Jpeg2000Profile::HighThroughput(HtJ2kProfile::Lossless))
+            }
+            Self::HtJ2kLosslessRpcl => {
+                Codec::Jpeg2000(Jpeg2000Profile::HighThroughput(HtJ2kProfile::LosslessRpcl))
+            }
+            Self::HtJ2k => {
+                Codec::Jpeg2000(Jpeg2000Profile::HighThroughput(HtJ2kProfile::Unrestricted))
+            }
             Self::RleLossless => Codec::Rle,
             Self::EncapsulatedUncompressed | Self::DeflatedImageFrame => Codec::NativeFrame,
             Self::JpegXlLossless | Self::JpegXlJpegRecompression | Self::JpegXl => Codec::JpegXl,
@@ -138,6 +182,8 @@ impl TransferSyntaxKind {
                 | Self::JpegLosslessNonHierarchical
                 | Self::JpegLosslessFirstOrderPrediction
                 | Self::JpegLsLossless
+                | Self::HtJ2kLossless
+                | Self::HtJ2kLosslessRpcl
                 | Self::Jpeg2000Lossless
                 | Self::RleLossless
                 | Self::JpegXlLossless
@@ -184,7 +230,7 @@ impl TransferSyntaxKind {
 mod tests {
     use super::*;
 
-    fn variants() -> [TransferSyntaxKind; 18] {
+    fn variants() -> [TransferSyntaxKind; 21] {
         [
             TransferSyntaxKind::ImplicitVrLittleEndian,
             TransferSyntaxKind::ExplicitVrLittleEndian,
@@ -200,6 +246,9 @@ mod tests {
             TransferSyntaxKind::JpegLsLossy,
             TransferSyntaxKind::Jpeg2000Lossless,
             TransferSyntaxKind::Jpeg2000Lossy,
+            TransferSyntaxKind::HtJ2kLossless,
+            TransferSyntaxKind::HtJ2kLosslessRpcl,
+            TransferSyntaxKind::HtJ2k,
             TransferSyntaxKind::RleLossless,
             TransferSyntaxKind::JpegXlLossless,
             TransferSyntaxKind::JpegXlJpegRecompression,

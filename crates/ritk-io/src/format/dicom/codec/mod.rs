@@ -20,8 +20,9 @@
 //! | JPEG Lossless First-Order Prediction   | 1.2.840.10008.1.2.4.70   | consus-raster  |
 //! | JPEG-LS Lossless                       | 1.2.840.10008.1.2.4.80   | RITK-native    |
 //! | JPEG-LS Near-Lossless                  | 1.2.840.10008.1.2.4.81   | RITK-native    |
+//! | HTJ2K lossless, lossless RPCL, unrestricted | 1.2.840.10008.1.2.4.201 / .202 / .203 | RITK-native |
 //! | JPEG 2000 Lossless                     | 1.2.840.10008.1.2.4.90   | RITK-native    |
-//! | JPEG 2000 Lossy (lossless-coded)       | 1.2.840.10008.1.2.4.91   | RITK-native    |
+//! | JPEG 2000 reversible or irreversible       | 1.2.840.10008.1.2.4.91   | RITK-native    |
 //! | RLE Lossless                           | 1.2.840.10008.1.2.5      | RITK-native    |
 //! | JPEG XL Lossless                       | 1.2.840.10008.1.2.4.110  | jxl-oxide      |
 //! | JPEG XL JPEG Recompression             | 1.2.840.10008.1.2.4.111  | jxl-oxide      |

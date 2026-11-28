@@ -66,10 +66,12 @@ impl EncapsulatedFrameSource for DicomFile {
         let frames = self
             .get(FRAMES)
             .map_or(Ok(1), |field| field.to_num::<usize>())?;
-        if TransferSyntaxKind::from_uid(self.meta().transfer_syntax()).has_native_frame_layout() {
+        let syntax = TransferSyntaxKind::from_uid(self.meta().transfer_syntax());
+        if syntax.has_native_frame_layout() || syntax.htj2k_profile().is_some() {
             anyhow::ensure!(
                 frames == pixel.fragments().len(),
-                "encapsulated native layout requires one fragment per frame"
+                "transfer syntax {} requires one fragment per frame",
+                syntax.uid()
             );
         }
         let extended = |tag| -> Result<Option<Vec<u64>>> {
