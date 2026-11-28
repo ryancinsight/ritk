@@ -78,6 +78,7 @@ getrandom_02 = { workspace = true, features = ["js"] }
 moirai-pal = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = ["Win32_System_Console"] }
 ritk-registration.workspace = true
 
 [dev-dependencies]
@@ -88,9 +89,6 @@ ritk-core = { workspace = true, features = ["test-helpers"] }
 # The DICOMDIR reader validates the full record tree, so tests build indices
 # through the format crate rather than hand-rolling one.
 ritk-io = { workspace = true, features = ["test-util"] }
-
-[target.'cfg(windows)'.dev-dependencies]
-windows = { workspace = true }
 
 [lints]
 workspace = true

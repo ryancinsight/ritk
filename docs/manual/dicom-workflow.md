@@ -10,11 +10,18 @@ and historical captures.
 ## Launch and open a study
 
 Launch AsterSlice from its Windows shortcut or double-click `asterslice.exe`.
-The viewer opens with empty image panes. When you are ready to add images,
+The viewer opens with empty image panes and no command window. To open a diagnostic
+console, add `--console` to a separate shortcut or run `./asterslice.exe --console`
+from PowerShell. When you are ready to add images,
 choose **File → Open Study...** or press **Ctrl+O** and select a DICOM folder.
 Select the folder containing the slices even when their names have no extension
 (for example, `IM000001`). AsterSlice recognizes DICOM Part 10 files from their
 headers. Cancel returns to the viewer. Use the same command to open another study.
+
+The **AsterSlice-Windows-x64-signed** release package contains the portable EXE
+and the per-user MSI. On either file, open **Properties → Digital Signatures**
+to inspect the publisher. Windows registration test builds are labeled
+**unsigned-preview**. [Windows release signing](windows-signing.md)
 
 Use the series browser to select an acquisition from a study containing several series. For
 the downloaded five-series CT on Windows, select **2_skull_ct/DICOM**.

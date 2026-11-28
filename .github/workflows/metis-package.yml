@@ -4,16 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       metis_revision:
-        description: Exact Métis commit resolved by Cargo.lock
-        required: true
+        description: Optional assertion of the Métis commit in Cargo.lock
+        required: false
         type: string
 
 permissions:
   contents: read
-
-env:
-  CARGO_INCREMENTAL: 0
-  RUST_BACKTRACE: 1
 
 concurrency:
   group: ritk-snap-package-${{ github.ref }}
@@ -21,21 +17,60 @@ concurrency:
 
 jobs:
   package:
-    name: Package AsterSlice
+    name: Sign and package AsterSlice
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    environment: windows-signing
+    permissions:
+      contents: read
+      id-token: write
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: 0
+      RUST_BACKTRACE: 1
+      CARGO_TARGET_DIR: ${{ github.workspace }}\target
+      WINDOWS_SIGNING_ENDPOINT: ${{ vars.WINDOWS_SIGNING_ENDPOINT }}
+      WINDOWS_SIGNING_ACCOUNT: ${{ vars.WINDOWS_SIGNING_ACCOUNT }}
+      WINDOWS_SIGNING_PROFILE: ${{ vars.WINDOWS_SIGNING_PROFILE }}
+      WINDOWS_SIGNING_PUBLISHER: ${{ vars.WINDOWS_SIGNING_PUBLISHER }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
     steps:
+      - name: Require a configured signing identity
+        shell: pwsh
+        run: |
+          $names = 'WINDOWS_SIGNING_ENDPOINT','WINDOWS_SIGNING_ACCOUNT','WINDOWS_SIGNING_PROFILE','WINDOWS_SIGNING_PUBLISHER','AZURE_CLIENT_ID','AZURE_TENANT_ID','AZURE_SUBSCRIPTION_ID'
+          $missing = @($names | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) })
+          if ($missing) { throw "Configure the windows-signing environment. Missing: $($missing -join ', ')." }
+
       - name: Check out RITK
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           path: ritk
           persist-credentials: false
 
+      - name: Resolve the Métis packager from the application lockfile
+        id: framework
+        shell: python
+        env:
+          REQUESTED_REVISION: ${{ inputs.metis_revision }}
+        run: |
+          import os, re, tomllib
+          from pathlib import Path
+          packages = tomllib.loads(Path("ritk/Cargo.lock").read_text("utf-8"))["package"]
+          (source,) = (p["source"] for p in packages if p["name"] == "metis-core")
+          match = re.fullmatch(r"git\+https://github\.com/ryancinsight/metis\.git#([a-f0-9]{40})", source)
+          if not match or os.getenv("REQUESTED_REVISION") not in (None, "", match[1]):
+              raise SystemExit("Expected the Métis revision pinned by ritk/Cargo.lock")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              print(f"revision={match[1]}", file=output)
+
       - name: Check out the pinned Métis revision
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           repository: ryancinsight/metis
-          ref: ${{ inputs.metis_revision }}
+          ref: ${{ steps.framework.outputs.revision }}
           path: metis
           persist-credentials: false
 
@@ -44,73 +79,96 @@ jobs:
         with:
           toolchain: 1.97.0
 
-      - name: Confirm the framework revision is locked
-        shell: pwsh
-        run: |
-          $revision = "${{ inputs.metis_revision }}"
-          if ($revision -notmatch '^[0-9a-f]{40}$') {
-            throw "metis_revision must be a 40-character commit SHA"
-          }
-          $lock = Get-Content ritk/Cargo.lock -Raw
-          if (-not $lock.Contains("#$revision")) {
-            throw "RITK Cargo.lock does not resolve Métis at $revision"
-          }
-
       - name: Build the Métis packager
         working-directory: metis
         run: cargo build --release --locked --package metis-cli
 
-      - name: Create the AsterSlice package
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path "$PWD/output" -Force | Out-Null
-          & "$PWD/metis/target/release/metis.exe" package `
-            "$PWD/ritk/metis.json" "$PWD/output/ritk-snap"
-          if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-          }
+      - name: Build the Windows executable
+        working-directory: ritk
+        run: cargo build --release --locked --target x86_64-pc-windows-msvc --package ritk-snap --bin asterslice
 
-      - name: Verify the executable and installer inventory
+      - name: Identify the linker output used by the packager
+        id: payload
         shell: pwsh
         run: |
-          $root = Join-Path $PWD "output/ritk-snap"
-          $inventory = Get-Content (Join-Path $root "inventory.json") -Raw | ConvertFrom-Json
+          $exe = ./ritk/scripts/windows/cargo_signing_input.ps1 -Executable "$env:CARGO_TARGET_DIR/x86_64-pc-windows-msvc/release/asterslice.exe"
+          "path=$exe" >> $env:GITHUB_OUTPUT
+
+      - name: Authenticate the release job
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign the portable and installed executable
+        uses: ./ritk/.github/actions/sign-windows
+        with:
+          path: ${{ steps.payload.outputs.path }}
+
+      - name: Package the signed executable
+        shell: pwsh
+        env:
+          SIGNED_PAYLOAD: ${{ steps.payload.outputs.path }}
+        run: |
+          $exe = $env:SIGNED_PAYLOAD
+          $expectedHash = (Get-FileHash $exe).Hash
+          $signer = (Get-AuthenticodeSignature -LiteralPath $exe).SignerCertificate
+          $manifest = Get-Content ritk/metis.json -Raw | ConvertFrom-Json
+          $manifest.manufacturer = $signer.GetNameInfo('SimpleName', $false)
+          $manifest | ConvertTo-Json -Depth 30 | Set-Content ritk/metis.windows-release.json -Encoding utf8NoBOM
+          New-Item -ItemType Directory output | Out-Null
+          & "$env:CARGO_TARGET_DIR/release/metis.exe" package ritk/metis.windows-release.json output/ritk-snap
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $root = 'output/ritk-snap'
+          $inventory = Get-Content "$root/inventory.json" -Raw | ConvertFrom-Json
           $files = @($inventory.files)
-          if ($files.Count -ne 1 -or $files[0].destination -ne "asterslice.exe") {
-            throw "package inventory must contain exactly the AsterSlice executable"
+          if ($files.Count -ne 1 -or $files[0].destination -ne 'asterslice.exe' -or @($inventory.application.resources).Count -ne 0) {
+              throw 'Expected one executable and no bundled data.'
           }
-          if (@($inventory.application.resources).Count -ne 0) {
-            throw "AsterSlice package must not carry DICOM or patient-data resources"
+          $staged = "$root/app/asterslice.exe"
+          if ($expectedHash -ne (Get-FileHash $staged).Hash -or $expectedHash -ne $files[0].sha256 -or (Get-Item $staged).Length -ne $files[0].bytes) {
+              throw 'Packaged executable differs from the signed build or its inventory.'
           }
-          if ($inventory.installer.file -ne "org.ritk.snap.msi") {
-            throw "unexpected installer name"
+          if ($inventory.installer.file -ne 'org.ritk.snap.msi' -or $inventory.installer.sha256 -ne (Get-FileHash "$root/org.ritk.snap.msi").Hash) {
+              throw 'Unexpected installer or digest in package inventory.'
           }
-          $exe = Join-Path $root "app/asterslice.exe"
-          $msi = Join-Path $root "org.ritk.snap.msi"
-          $exeHash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant()
-          $msiHash = (Get-FileHash $msi -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($exeHash -ne $files[0].sha256) {
-            throw "executable hash differs from inventory"
+          $version = (& $staged --version | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $version -ne "asterslice $($inventory.application.version)") {
+              throw 'Packaged executable version differs from the manifest.'
           }
-          if ($msiHash -ne $inventory.installer.sha256) {
-            throw "installer hash differs from inventory"
-          }
-          & $exe --help
-          if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-          }
-          $version = & $exe --version
-          if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-          }
-          if ($version -ne "asterslice $($inventory.application.version)") {
-            throw "packaged executable version differs from application metadata"
-          }
+          python ritk/scripts/windows/check_aster_launch.py $staged
 
-      - name: Upload the package artifact
+      - name: Sign the completed installer
+        uses: ./ritk/.github/actions/sign-windows
+        with:
+          path: ${{ github.workspace }}\output\ritk-snap\org.ritk.snap.msi
+
+      - name: Verify installed payload and record the signed MSI digest
+        shell: pwsh
+        run: |
+          $root = Resolve-Path output/ritk-snap
+          $msi = (Resolve-Path "$root/org.ritk.snap.msi").Path
+          $argsMsi = @('/i', "`"$msi`"", '/qn', '/norestart')
+          $install = Start-Process msiexec.exe -ArgumentList $argsMsi -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer exited $($install.ExitCode)" }
+          try {
+              $installed = Join-Path $env:LOCALAPPDATA 'org.ritk.snap/asterslice.exe'
+              if ((Get-FileHash $installed).Hash -ne (Get-FileHash "$root/app/asterslice.exe").Hash) {
+                  throw 'Installed executable differs from the signed portable executable.'
+              }
+          } finally {
+              $remove = Start-Process msiexec.exe -ArgumentList @('/x', "`"$msi`"", '/qn', '/norestart') -Wait -PassThru
+              if ($remove.ExitCode -ne 0) { throw "Uninstall exited $($remove.ExitCode)" }
+          }
+          $inventory = Get-Content "$root/inventory.json" -Raw | ConvertFrom-Json
+          $inventory.installer.sha256 = (Get-FileHash $msi).Hash.ToLowerInvariant()
+          $inventory | ConvertTo-Json -Depth 30 | Set-Content "$root/inventory.json" -Encoding utf8NoBOM
+
+      - name: Upload the verified package
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ritk-snap-package
+          name: AsterSlice-Windows-x64-signed
           path: output/ritk-snap
           if-no-files-found: error
           retention-days: 14

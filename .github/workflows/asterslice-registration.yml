@@ -6,6 +6,13 @@ on:
       - 'crates/ritk-dicom/src/**'
       - 'crates/ritk-io/src/format/dicom/**'
       - 'crates/ritk-snap/src/dicom/**'
+      - 'crates/ritk-snap/src/main.rs'
+      - 'crates/ritk-snap/src/windows_console.rs'
+      - 'crates/ritk-snap/Cargo.toml'
+      - 'scripts/windows/**'
+      - '.github/actions/sign-windows/**'
+      - 'metis.json'
+      - '.github/workflows/metis-package.yml'
       - 'crates/ritk-snap/src/render/slice_render.rs'
       - 'crates/ritk-snap/src/loaded_volume.rs'
       - 'crates/ritk-snap/src/registration/**'
@@ -20,7 +27,7 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -39,9 +46,24 @@ jobs:
         run: cargo test --locked --release -p ritk-snap --lib registration
       - name: Build AsterSlice
         run: cargo build --locked --release -p ritk-snap --bin asterslice
+      - name: Identify the executable used for release signing
+        shell: pwsh
+        run: ./scripts/windows/cargo_signing_input.ps1 -Executable target/release/asterslice.exe
+      - name: Test desktop launch and opt-in console
+        run: python scripts/windows/check_aster_launch.py target/release/asterslice.exe
+      - name: Check that the release verifier rejects an unsigned preview
+        shell: pwsh
+        run: |
+          try {
+              ./scripts/windows/verify_signature.ps1 -Path target/release/asterslice.exe -ExpectedSubject 'unsigned preview'
+          } catch {
+              if ($_.Exception.Message -like 'Invalid embedded Authenticode signature*') { exit 0 }
+              throw
+          }
+          throw 'Unsigned preview was accepted by the release verifier.'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: AsterSlice-Windows-x64
+          name: AsterSlice-Windows-x64-unsigned-preview
           path: target/release/asterslice.exe
           if-no-files-found: error
           retention-days: 14
